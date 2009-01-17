@@ -1,0 +1,77 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 10-build.dpatch by  <fourmond@debian.org>
+##
+## DP: Mutilate build.xml to disable features that are not necessary
+## DP: for debian package building and that cause FTBS because the
+## DP: files for them are not in the .dfsg tarball.
+
+@DPATCH@
+diff -urNad jalview-2.4.dfsg~/build.xml jalview-2.4.dfsg/build.xml
+--- jalview-2.4.dfsg~/build.xml	2008-08-27 14:40:34.000000000 +0200
++++ jalview-2.4.dfsg/build.xml	2009-01-17 15:30:47.000000000 +0100
+@@ -1,14 +1,14 @@
+ <?xml version="1.0"?>
+ <project name="jalviewX" default="usage" basedir=".">
+ 	<!-- we use jalopy to format our sources -->
+-	<taskdef name="jalopy"
+-         classname="de.hunsicker.jalopy.plugin.ant.AntPlugin">
+-		<classpath>
+-			<fileset dir="utils/jalopy/lib">
+-				<include name="*.jar" />
+-			</fileset>
+-		</classpath>
+-	</taskdef>
++<!-- 	<taskdef name="jalopy" -->
++<!--          classname="de.hunsicker.jalopy.plugin.ant.AntPlugin"> -->
++<!-- 		<classpath> -->
++<!-- 			<fileset dir="utils/jalopy/lib"> -->
++<!-- 				<include name="*.jar" /> -->
++<!-- 			</fileset> -->
++<!-- 		</classpath> -->
++<!-- 	</taskdef> -->
+ 
+ 	<target name="help" depends="usage"/>
+ 	<target name="usage">
+@@ -96,10 +96,10 @@
+ 		<property name="wsdl.ClientNS" value="ext.vamsas" />
+ 		<!-- the class path for building the application -->
+ 		<path id="build.classpath">
+-			<fileset dir="utils">
+-				<include name="*.jar"/>
+-				<include name="**/*.jar"/>
+-			</fileset>
++<!-- 			<fileset dir="utils"> -->
++<!-- 				<include name="*.jar"/> -->
++<!-- 				<include name="**/*.jar"/> -->
++<!-- 			</fileset> -->
+ 			<fileset dir="${libDir}">
+ 				<include name="*.jar"/>
+ 				<include name="**/*.jar"/>
+@@ -123,18 +123,15 @@
+ 	</target>
+ 
+ 
+-	<taskdef classpath="utils/roxes-ant-tasks-1.2-2004-01-30.jar" resource="com/roxes/tools/ant/taskdefs.properties"/>
+-	<target name="buildPropertiesFile" depends="init">
+-		<tstamp prefix="build">
+-			<format property="date" pattern="dd MMMM yyyy"/>
+-		</tstamp>
+-		<properties file="${outputDir}/.build_properties">
+-			<header>
+-          ---Jalview Build Details---
+-        </header>
+-			<property name="VERSION" value="${JALVIEW_VERSION}"/>
+-			<property name="BUILD_DATE" value="${build.date}"/>
+-		</properties>
++	<!-- Manual replacement of the property ant task -->
++	<target name="buildPropertiesFile" depends="init, build">
++	  <tstamp prefix="build">
++	    <format property="date" pattern="dd MMMM yyyy"/>
++	  </tstamp>
++	  <propertyfile file="${outputDir}/.build_properties">
++	    <entry key="VERSION" value="${JALVIEW_VERSION}"/>
++	    <entry key="BUILD_DATE" value="${build.date}"/>
++	  </propertyfile>
+ 	</target>
+ 
+ 

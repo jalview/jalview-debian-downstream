@@ -4,5 +4,7 @@ jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
   * Initial release (Closes: #507436)
   * Adding a debian/new-upstream script to repackage the original
     tarball, getting rid of the non-free bits.
+  * debian/patches/10-build.dpatch: disable features that depends
+    on things removed from the .dfsg tarball
 
- -- Vincent Fourmond <fourmond@debian.org>  Sat, 17 Jan 2009 14:18:11 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Sat, 17 Jan 2009 15:24:21 +0100

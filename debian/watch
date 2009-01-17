@@ -7,4 +7,4 @@
 version=3
 
 opts="dversionmangle=s/\.dfsg//,uversionmangle=s/_/./"	\
-http://www.jalview.org/source/source.html jalview_(.*)\.tar\.gz debian/new-upstream
+http://www.jalview.org/source/source.html jalview_(.*)\.tar\.gz debian debian/new-upstream

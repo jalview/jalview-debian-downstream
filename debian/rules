@@ -22,6 +22,11 @@ DEB_BUILDDIR         := .
 DEB_ANT_BUILDFILE    := build.xml
 DEB_ANT_CLEAN_TARGET := clean
 
+DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl
+
+# Additional arguments for ant, such as properties.
+ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
+
 # Some comments here:
 # libaxis-java
 #  -> saaj.jar
@@ -36,12 +41,12 @@ DEB_ANT_CLEAN_TARGET := clean
 # These are jar provided by the source tarball that should be installed
 # along with the program to make it work.
 #
-# AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE
+# AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE,
 # IS IMPOSSIBLE !
 BINARY_JARS = activation.jar axis.jar castor-1.1-cycle-xml.jar \
 	commons-discovery.jar commons-logging.jar jaxrpc.jar \
 	jhall.jar Jmol-11.0.2.jar log4j-1.2.8.jar mail.jar regex.jar \
-	saaj.jar vamsas-client.jar wsdl4j.jar xml-apis.jar
+	saaj.jar vamsas-client.jar wsdl4j.jar
 
 
 print-version:
