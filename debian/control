@@ -1,0 +1,21 @@
+Source: jalview
+Section: science
+Priority: optional
+Maintainer: Vincent Fourmond <fourmond@debian.org>
+Build-Depends: cdbs, debhelper (>= 7), default-jdk-builddep,
+	       ant
+Standards-Version: 3.8.0
+Homepage: http://www.jalview.org/
+
+Package: jalview
+Architecture: any
+Depends: ${misc:Depends}, openjdk-6-jre | cacao-oj6-jre | java6-runtime,
+	 java-wrappers (>= 0.1.11), libxerces2-java, libxalan2-java, 
+Suggests: clustalw, kalign, t-coffee
+Description: multiple alignment editor
+ JalView is a Java alignement editor that can work with sequence
+ alignement produced by programs implementing alignment algorithms
+ such as clustalw, kalign and t-coffee.
+ .
+ It has lots of features, and can be considered a decent BioEdit
+ replacement for Debian systems.

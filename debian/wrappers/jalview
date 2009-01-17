@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Include the wrappers utility script
+. /usr/lib/java-wrappers/java-wrappers.sh
+
+# We need openjdk or sun6
+find_java_runtime openjdk sun6
+
+find_jars jalview-activation jalview-axis jalview-castor-1.1-cycle-xml \
+    jalview-commons-discovery jalview-commons-logging jalview-jaxrpc \
+    jalview-jhall jalview-Jmol-11.0.2 jalview-log4j-1.2.8 \
+    jalview-mail jalview-regex jalview-saaj jalview-vamsas-client \
+    jalview-wsdl4j xercesImpl xml-apis \
+    jalview
+
+run_java jalview.bin.Jalview "$@"

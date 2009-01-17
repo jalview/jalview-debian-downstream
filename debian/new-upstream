@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# new-upstream: copyright 2007 by Vincent Fourmond.
+# See debian/copyright file for details.
+#
+# Called by uscan; from uscan(1):
+#
+# Finally,  if a third parameter (an action) is given in the watchfile
+# line, this is taken as the name of a command, and the command
+#  command --upstream-version version filename
+# 
+# is executed, using either the original file or the symlink name.
+#
+# Thanks to Sam Morris <sam@robots.org.uk> for giving me the idea
+#
+
+version=$2
+filename=$3
+
+dir=`mktemp -d`
+
+# We repackage the upstream source zip file:
+tar cvz -C $dir -f "$filename"
+origname=jalview_$version.dfsg.orig.tar.gz
+
+# We repackage excluding the lib/ subdir
+cd $dir
+# Removing the utils/ directory, not needed for build ?
+rm -rf jalview*/utils
+# Remove unneeded jar files.
+for jar in xercesImpl.jar ; do
+    rm -f jalview*/lib/$f
+done
+tar cvz -f $origname jalv*
+cd -
+mv $dir/$origname ..
+rm -rf $dir
