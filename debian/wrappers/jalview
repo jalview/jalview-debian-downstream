@@ -6,11 +6,11 @@
 # We need openjdk or sun6
 find_java_runtime openjdk sun6
 
-find_jars jalview-activation axis jalview-castor-1.1-cycle-xml \
+find_jars activation axis jalview-castor-1.1-cycle-xml \
     jalview-commons-discovery jalview-commons-logging jalview-jaxrpc \
     jalview-jhall jalview-Jmol-11.0.2 jalview-log4j-1.2.8 \
-    jalview-mail jalview-regex saaj jalview-vamsas-client \
-    jalview-wsdl4j xercesImpl xml-apis \
+    gnumail jalview-regex saaj jalview-vamsas-client \
+    wsdl4j xercesImpl xml-apis \
     jalview
 
 run_java jalview.bin.Jalview "$@"
