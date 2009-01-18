@@ -28,9 +28,13 @@ cd $dir
 # Removing the utils/ directory, not needed for build ?
 rm -rf jalview*/utils
 # Remove unneeded jar files.
-for jar in xercesImpl.jar ; do
+for jar in xercesImpl.jar xml-apis.jar saaj.jar axis.jar ; do
     rm -f jalview*/lib/$jar
 done
+echo "Now listing binary jar files still present in the dfsg tarball"
+ls -l jalview*/lib/
+
+echo "Creating archive"
 tar cvz -f $origname jalv*
 cd -
 # We remove any file already existing there: it might be a symlink.

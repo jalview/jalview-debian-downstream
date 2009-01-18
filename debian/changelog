@@ -6,5 +6,8 @@ jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
     tarball, getting rid of the non-free bits.
   * debian/patches/10-build.dpatch: disable features that depends
     on things removed from the .dfsg tarball
+  * Dropping provided xercesImpl.jar, (build)?-dep on libxerces2-java
+  * Dropping provided xml-apis.jar, (build)?-dep on libxalan2-java
+  * Dropping provided axis.jar and saaj.jar, (build)?-dep on libaxis-java
 
- -- Vincent Fourmond <fourmond@debian.org>  Sat, 17 Jan 2009 15:24:21 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Sun, 18 Jan 2009 20:11:23 +0100
