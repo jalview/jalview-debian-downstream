@@ -23,7 +23,7 @@ DEB_ANT_BUILDFILE    := build.xml
 DEB_ANT_CLEAN_TARGET := clean
 
 DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl \
-	axis saaj gnumail wsdl4j activation
+	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2
 
 # Additional arguments for ant, such as properties.
 ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
@@ -45,8 +45,8 @@ ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
 # AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE,
 # IS IMPOSSIBLE !
 BINARY_JARS = castor-1.1-cycle-xml.jar \
-	commons-discovery.jar commons-logging.jar jaxrpc.jar \
-	jhall.jar Jmol-11.0.2.jar log4j-1.2.8.jar regex.jar \
+	commons-discovery.jar commons-logging.jar \
+	jhall.jar Jmol-11.0.2.jar regex.jar \
 	vamsas-client.jar
 
 

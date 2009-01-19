@@ -9,5 +9,7 @@ jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
   * Dropping provided xercesImpl.jar, (build)?-dep on libxerces2-java
   * Dropping provided xml-apis.jar, (build)?-dep on libxalan2-java
   * Dropping provided axis.jar and saaj.jar, (build)?-dep on libaxis-java
+  * Also dropping jaxrpc.jar, also in libaxis-java
+  * Dropping provided log4j-1.2.8.jar, (build)?-dep on liblog4j1.2-java
 
- -- Vincent Fourmond <fourmond@debian.org>  Sun, 18 Jan 2009 20:11:23 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Mon, 19 Jan 2009 20:54:28 +0100
