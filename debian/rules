@@ -23,7 +23,9 @@ DEB_ANT_BUILDFILE    := build.xml
 DEB_ANT_CLEAN_TARGET := clean
 
 DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl \
-	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2
+	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2 \
+	jhall
+
 
 # Additional arguments for ant, such as properties.
 ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
@@ -46,7 +48,7 @@ ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
 # IS IMPOSSIBLE !
 BINARY_JARS = castor-1.1-cycle-xml.jar \
 	commons-discovery.jar commons-logging.jar \
-	jhall.jar Jmol-11.0.2.jar regex.jar \
+	Jmol-11.0.2.jar regex.jar \
 	vamsas-client.jar
 
 

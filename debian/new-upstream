@@ -29,7 +29,7 @@ cd $dir
 rm -rf jalview*/utils
 # Remove unneeded jar files.
 for jar in xercesImpl.jar xml-apis.jar saaj.jar axis.jar mail.jar \
-    activation.jar  wsdl4j.jar jaxrpc.jar  log4j-1.2.8.jar ; do
+    activation.jar  wsdl4j.jar jaxrpc.jar log4j-1.2.8.jar jhall.jar ; do
     rm jalview*/lib/$jar
 done
 echo "Now listing binary jar files still present in the dfsg tarball"
