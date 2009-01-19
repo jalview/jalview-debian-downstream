@@ -5,7 +5,8 @@ Maintainer: Vincent Fourmond <fourmond@debian.org>
 Build-Depends: cdbs, debhelper (>= 7), default-jdk-builddep,
 	       ant, dpatch, libxerces2-java, libxalan2-java,
 	       libaxis-java, libwsdl4j-java, libgnujaf-java,
-	       libgnumail-java, liblog4j1.2-java, javahelp2
+	       libgnumail-java, liblog4j1.2-java, javahelp2,
+	       libcommons-discovery-java, libcommons-logging-java
 Standards-Version: 3.8.0
 Homepage: http://www.jalview.org/
 Vcs-Svn: svn://svn.debian.org/svn/pkg-java/trunk/jalview
@@ -13,11 +14,12 @@ Vcs-Browser: http://svn.debian.org/viewsvn/pkg-java/trunk/jalview
 
 
 Package: jalview
-Architecture: any
+Architecture: all
 Depends: ${misc:Depends}, openjdk-6-jre | cacao-oj6-jre | java6-runtime,
 	 java-wrappers (>= 0.1.11), libxerces2-java, libxalan2-java, 
 	 libaxis-java, libwsdl4j-java, libgnujaf-java, libgnumail-java,
-	 liblog4j1.2-java, javahelp2
+	 liblog4j1.2-java, javahelp2, libcommons-discovery-java,
+	 libcommons-logging-java
 Suggests: clustalw, kalign, t-coffee
 Description: multiple alignment editor
  JalView is a Java alignement editor that can work with sequence

@@ -14,5 +14,9 @@ jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
   * Dropping provided jhall.jar, (build)?-dep on javahelp2
   * debian/patches/10-build.dpatch: tweaked the classpath of the
     buildindices task for it to find the class.
+  * Dropping provided commons-discovery.jar, (build)?-dep on 
+    libcommons-discovery-java
+  * Dropping provided commons-logging.jar, (build)?-dep on 
+    libcommons-logging-java
 
- -- Vincent Fourmond <fourmond@debian.org>  Mon, 19 Jan 2009 21:16:19 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Mon, 19 Jan 2009 22:27:21 +0100
