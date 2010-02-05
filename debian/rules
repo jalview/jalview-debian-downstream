@@ -14,7 +14,7 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/ant.mk
 include /usr/share/cdbs/1/rules/dpatch.mk
 
-JAVA_HOME_DIRS       := /usr/lib/jvm/java-gcj
+JAVA_HOME_DIRS       := /usr/lib/jvm/default-java
 ANT_HOME             := /usr/share/ant
 DEB_ANT_COMPILER     := modern
 DEB_ANT_BUILD_TARGET := build makedist
@@ -24,7 +24,7 @@ DEB_ANT_CLEAN_TARGET := clean
 
 DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl \
 	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2 \
-	jhall commons-discovery commons-logging
+	jhall commons-discovery commons-logging regex
 
 
 # Additional arguments for ant, such as properties.
@@ -47,9 +47,15 @@ ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
 # AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE,
 # IS IMPOSSIBLE !
 BINARY_JARS = castor-1.1-cycle-xml.jar \
-	Jmol-11.0.2.jar regex.jar \
+	Jmol-11.0.2.jar \
 	vamsas-client.jar
 
+# The source for castor-1.1-cycle-xml.jar can be found at
+# http://dist.codehaus.org/castor/1.1
+#
+# By looking quickly at the src/build.xml file, it sounds as if it is
+# possible to only compile the xml part. Not sure if that makes sense,
+# or even if it would work, though...
 
 print-version:
 	echo $(VERSION)
