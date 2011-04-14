@@ -6,5 +6,5 @@
 # Compulsory line, this is a version 3 file
 version=3
 
-opts="dversionmangle=s/\.dfsg//,uversionmangle=s/_/./"	\
+opts="dversionmangle=s/\.dfsg//,uversionmangle=s/_/./g"	\
 http://www.jalview.org/source/source.html jalview_(.*)\.tar\.gz debian debian/new-upstream

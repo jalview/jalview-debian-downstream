@@ -19,5 +19,6 @@ jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
   * Dropping provided commons-logging.jar, (build)?-dep on 
     libcommons-logging-java
   * Dropping provided regex.jar, (build)?-dep on libstevesoft-regex-java
+  * Dropping provided JMol.jar, now that jmol has been packaged for Debian !
 
- -- Vincent Fourmond <fourmond@debian.org>  Sat, 28 Mar 2009 09:48:46 +0100
+ -- Vincent Fourmond <fourmond@debian.org>  Thu, 14 Apr 2011 16:52:07 +0200

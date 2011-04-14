@@ -24,22 +24,11 @@ DEB_ANT_CLEAN_TARGET := clean
 
 DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl \
 	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2 \
-	jhall commons-discovery commons-logging regex
+	jhall Jmol commons-discovery commons-logging regex
 
 
 # Additional arguments for ant, such as properties.
 ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
-
-# Some comments here:
-# libaxis-java
-#  -> saaj.jar
-#  -> jaxrpc.jar
-# libwsdl4j-java
-#  -> wsdl4j.jar
-# libgnujaf-java
-#  -> activation.jar
-# javahelp2:
-#  -> jhall.jar
 
 # These are jar provided by the source tarball that should be installed
 # along with the program to make it work.
@@ -47,11 +36,14 @@ ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
 # AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE,
 # IS IMPOSSIBLE !
 BINARY_JARS = castor-1.1-cycle-xml.jar \
-	Jmol-11.0.2.jar \
 	vamsas-client.jar
 
 # The source for castor-1.1-cycle-xml.jar can be found at
 # http://dist.codehaus.org/castor/1.1
+#
+# Apparently, jalview works with only the following (newer) files:
+#   -> ./castor-1.3.1-xml
+#   -> ./castor-1.3.1-core
 #
 # By looking quickly at the src/build.xml file, it sounds as if it is
 # possible to only compile the xml part. Not sure if that makes sense,
