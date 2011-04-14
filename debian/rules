@@ -1,67 +1,11 @@
 #!/usr/bin/make -f
-# debian/rules for statsvn, based on the one from Batik (uses CDBS)
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export JAVA_HOME=/usr/lib/jvm/default-java
+export CLASSPATH=/usr/share/java/castor-xml.jar:/usr/share/java/commons-logging.jar:/usr/share/java/log4j-1.2.jar:/usr/share/java/castor-core.jar:/usr/share/java/Jmol.jar:/usr/share/java/vamsas-client.jar
 
-VERSION = $(shell dpkg-parsechangelog | egrep '^Version' | \
-	sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
-	sed -r 's/(\.dfsg)?-[0-9.]+//')
+%:
+	dh $@ --with javahelper
 
-# export JITC_PROCESSOR_TYPE=6
+override_dh_auto_build:
 
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/class/ant.mk
-include /usr/share/cdbs/1/rules/dpatch.mk
-
-JAVA_HOME_DIRS       := /usr/lib/jvm/default-java
-ANT_HOME             := /usr/share/ant
-DEB_ANT_COMPILER     := modern
-DEB_ANT_BUILD_TARGET := build makedist
-DEB_BUILDDIR         := .
-DEB_ANT_BUILDFILE    := build.xml
-DEB_ANT_CLEAN_TARGET := clean
-
-DEB_JARS             := $(ANT_HOME)/lib/ant-nodeps.jar xml-api xercesImpl \
-	axis saaj gnumail wsdl4j activation jaxrpc log4j-1.2 \
-	jhall Jmol commons-discovery commons-logging regex
-
-
-# Additional arguments for ant, such as properties.
-ANT_ARGS := -DJALVIEW_VERSION=$(VERSION)
-
-# These are jar provided by the source tarball that should be installed
-# along with the program to make it work.
-#
-# AS LONG AS THIS VARIABLE EXISTS, UPLOAD TO MAIN, AND POSSIBLY TO NON-FREE,
-# IS IMPOSSIBLE !
-BINARY_JARS = castor-1.1-cycle-xml.jar \
-	vamsas-client.jar
-
-# The source for castor-1.1-cycle-xml.jar can be found at
-# http://dist.codehaus.org/castor/1.1
-#
-# Apparently, jalview works with only the following (newer) files:
-#   -> ./castor-1.3.1-xml
-#   -> ./castor-1.3.1-core
-#
-# By looking quickly at the src/build.xml file, it sounds as if it is
-# possible to only compile the xml part. Not sure if that makes sense,
-# or even if it would work, though...
-
-print-version:
-	echo $(VERSION)
-
-install-binary-jars:
-	for jar in $(BINARY_JARS); do \
-	install -m 644 lib/$$jar debian/jalview/usr/share/java/jalview-$$jar; \
-	done
-
-install/jalview:: install-binary-jars
-	install -m 644 dist/jalview.jar debian/jalview/usr/share/java/jalview-$(VERSION).jar
-	ln -s jalview-$(VERSION).jar debian/jalview/usr/share/java/jalview.jar
-	install -m 755 -t debian/jalview/usr/bin debian/wrappers/jalview
-
-clean::
-	rm -rf dist
-
+override_dh_auto_clean:

@@ -21,23 +21,18 @@ dir=`mktemp -d`
 
 # We repackage the upstream source zip file:
 tar xvz -C $dir -f "$filename"
-origname=jalview_$version.dfsg.orig.tar.gz
+origname=jalview_$version.dfsg.orig.tar.bz2
 
 # We repackage excluding the lib/ subdir
 cd $dir
 # Removing the utils/ directory, not needed for build ?
 rm -rf jalview*/utils
-# Remove unneeded jar files.
-for jar in xercesImpl.jar xml-apis.jar saaj.jar axis.jar mail.jar \
-    activation.jar  wsdl4j.jar jaxrpc.jar log4j-1.2.8.jar jhall.jar \
-    commons-discovery.jar commons-logging.jar regex.jar ; do
-    rm jalview*/lib/$jar
-done
-echo "Now listing binary jar files still present in the dfsg tarball"
-ls -l jalview*/lib/
+
+# Removing all binary jars...
+find -name '*.jar' | xargs rm 
 
 echo "Creating archive"
-tar cvz -f $origname jalview*
+tar cvj -f $origname jalview*
 cd -
 # We remove any file already existing there: it might be a symlink.
 rm -f $orginame 

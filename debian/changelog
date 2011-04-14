@@ -1,24 +1,9 @@
-jalview (2.4.dfsg-1) UNRELEASED unstable; urgency=low
+jalview (2.6.1.dfsg-1) unstable; urgency=low
 
-  * DO NOT UPLOAD THIS PACKAGE: WORK IN PROGRESS !
   * Initial release (Closes: #507436)
   * Adding a debian/new-upstream script to repackage the original
-    tarball, getting rid of the non-free bits.
-  * debian/patches/10-build.dpatch: disable features that depends
-    on things removed from the .dfsg tarball
-  * Dropping provided xercesImpl.jar, (build)?-dep on libxerces2-java
-  * Dropping provided xml-apis.jar, (build)?-dep on libxalan2-java
-  * Dropping provided axis.jar and saaj.jar, (build)?-dep on libaxis-java
-  * Also dropping jaxrpc.jar, also in libaxis-java
-  * Dropping provided log4j-1.2.8.jar, (build)?-dep on liblog4j1.2-java
-  * Dropping provided jhall.jar, (build)?-dep on javahelp2
-  * debian/patches/10-build.dpatch: tweaked the classpath of the
-    buildindices task for it to find the class.
-  * Dropping provided commons-discovery.jar, (build)?-dep on 
-    libcommons-discovery-java
-  * Dropping provided commons-logging.jar, (build)?-dep on 
-    libcommons-logging-java
-  * Dropping provided regex.jar, (build)?-dep on libstevesoft-regex-java
-  * Dropping provided JMol.jar, now that jmol has been packaged for Debian !
+    tarball, getting rid of the bundled JAR file (I love JAR files)
+  * Using dh 7 and javahelper
+  * Using jh_build for building
 
- -- Vincent Fourmond <fourmond@debian.org>  Thu, 14 Apr 2011 16:52:07 +0200
+ -- Vincent Fourmond <fourmond@debian.org>  Fri, 15 Apr 2011 00:28:48 +0200
