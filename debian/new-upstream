@@ -29,7 +29,7 @@ cd $dir
 rm -rf jalview*/utils
 
 # Removing all binary jars...
-find -name '*.jar' | xargs rm 
+find -name '*.jar' | grep -vi vamsas | xargs rm 
 
 echo "Creating archive"
 tar cvj -f $origname jalview*
