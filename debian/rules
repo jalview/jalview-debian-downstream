@@ -1,11 +1,26 @@
 #!/usr/bin/make -f
 
-export JAVA_HOME=/usr/lib/jvm/default-java
-export CLASSPATH=/usr/share/java/castor-xml.jar:/usr/share/java/commons-logging.jar:/usr/share/java/log4j-1.2.jar:/usr/share/java/castor-core.jar:/usr/share/java/Jmol.jar:/usr/share/java/vamsas-client.jar:/usr/share/java/min-jaba-client.jar:/usr/share/java/axis-jaxrpc.jar:/usr/share/java/axis.jar:/usr/share/jmol-applet/JmolApplet.jar:/usr/share/java/jh.jar:lib/vamsas-client.jar
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
 
-%:
-	dh $@ --with javahelper
+VERSION = $(shell dpkg-parsechangelog | egrep '^Version' | \
+	sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
+	sed -r 's/(\.dfsg)?-[0-9.]+//')
 
-override_dh_auto_build:
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/javahelper.mk
+include /usr/share/cdbs/1/class/ant.mk
 
-override_dh_auto_clean:
+JAVA_HOME_DIRS       := /usr/lib/jvm/default-java
+ANT_HOME             := /usr/share/ant
+DEB_ANT_COMPILER     := modern
+DEB_BUILDDIR         := .
+DEB_ANT_CLEAN_TARGET := clean
+DEB_ANT_BUILD_TARGET := makedist
+DEB_JARS             := castor-xml commons-logging log4j-1.2 \
+	castor-core Jmol min-jaba-client axis-jaxrpc \
+	axis jh lib/vamsas-client.jar /usr/share/jmol-applet/JmolApplet.jar
+
+
+ANT_OPTS             := -Dbuild.sysclasspath=last -DPACKAGE_VERSION=$(VERSION)
+
