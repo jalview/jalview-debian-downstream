@@ -1,8 +1,9 @@
-jalview (2.6.1.dfsg-1) unstable; urgency=low
+jalview (2.6.1.dfsg~almost-1) unstable; urgency=low
 
   * Initial release (Closes: #507436)
   * Adding a debian/new-upstream script to repackage the original
     tarball, getting rid of the bundled JAR file (I love JAR files)
+    (well, almost, which is why this goes in non-free for now)
   * Using dh 7 and javahelper
   * Using jh_build for building
 

@@ -6,10 +6,6 @@
 # We need openjdk or sun6
 find_java_runtime openjdk sun6
 
-find_jars castor-xml commons-logging log4j-1.2 \
-    castor-core Jmol min-jaba-client axis-jaxrpc \
-    axis jh /usr/share/jalview/vamsas-client.jar \
-    /usr/share/jmol-applet/JmolApplet.jar \
-    jalview
+find_jar_classpath jalview
 
 run_java jalview.bin.Jalview "$@"

@@ -22,5 +22,9 @@ DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 	axis jh lib/vamsas-client.jar /usr/share/jmol-applet/JmolApplet.jar
 
 
-ANT_OPTS             := -Dbuild.sysclasspath=last -DPACKAGE_VERSION=$(VERSION)
+ANT_OPTS             := -Dbuild.sysclasspath=last \
+	-DJALVIW_VERSION=$(VERSION)
 
+FINAL_CLASSPATH = $(subst lib/vamsas-client.jar, /usr/share/jalview/vamsas-client.jar, $(DEB_CLASSPATH))
+
+JH_CLASSPATH_ARGS := -c"$(shell echo $(FINAL_CLASSPATH) | sed 's/:/ /g')" debian/jalview/usr/share/java/jalview.jar 
