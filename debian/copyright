@@ -1,5 +1,5 @@
 Format: http://anonscm.debian.org/viewvc/dep/web/deps/dep5.mdwn?revision=174
-Upstream-Name: freecol
+Upstream-Name: jalview
 Upstream-Contact: jalview-discuss@jalview.org
 Source:
   The original tarball was made downloading the jalview-*.tar.gz

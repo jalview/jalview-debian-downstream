@@ -18,12 +18,12 @@ DEB_BUILDDIR         := .
 DEB_ANT_CLEAN_TARGET := clean
 DEB_ANT_BUILD_TARGET := makedist
 DEB_JARS             := castor-xml commons-logging log4j-1.2 \
-	castor-core Jmol min-jaba-client axis-jaxrpc \
+	castor-core Jmol min-jaba-client axis-jaxrpc commons-discovery \
 	axis jh lib/vamsas-client.jar /usr/share/jmol-applet/JmolApplet.jar
 
 
 ANT_OPTS             := -Dbuild.sysclasspath=last \
-	-DJALVIW_VERSION=$(VERSION)
+	-DJALVIEW_VERSION=$(VERSION)
 
 FINAL_CLASSPATH = $(subst lib/vamsas-client.jar, /usr/share/jalview/vamsas-client.jar, $(DEB_CLASSPATH))
 
