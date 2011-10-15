@@ -10,7 +10,10 @@ Build-Depends: cdbs, debhelper (>= 7), default-jdk,
 	       libjmol-java (>= 12.1.42),
 	       jmol-applet (>= 12.1.42),
 	       libcastor-xml-java, libjaba-client-java, libaxis-java, 
-	       javahelper, javahelp2
+	       javahelper, javahelp2, libjswingreader-java,
+               libmiglayout-java, icedtea-netx-common,
+               libhttpmime-java, libhttpcore-java,
+               libapache-mime4j-java, libhttpclient-java
 Standards-Version: 3.9.2
 Homepage: http://www.jalview.org/
 Vcs-Svn: svn://svn.debian.org/svn/pkg-java/trunk/jalview

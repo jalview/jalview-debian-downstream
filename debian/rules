@@ -19,7 +19,9 @@ DEB_ANT_CLEAN_TARGET := clean
 DEB_ANT_BUILD_TARGET := makedist
 DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 	castor-core Jmol min-jaba-client axis-jaxrpc commons-discovery \
-	axis jh lib/vamsas-client.jar /usr/share/jmol-applet/JmolApplet.jar
+	axis jh lib/vamsas-client.jar /usr/share/jmol-applet/JmolApplet.jar \
+	jswingreader miglayout /usr/share/icedtea-web/plugin.jar \
+	httpmime httpcore apache-mime4j httpclient
 
 
 ANT_OPTS             := -Dbuild.sysclasspath=last \
@@ -28,3 +30,6 @@ ANT_OPTS             := -Dbuild.sysclasspath=last \
 FINAL_CLASSPATH = $(subst lib/vamsas-client.jar, /usr/share/jalview/vamsas-client.jar, $(DEB_CLASSPATH))
 
 JH_CLASSPATH_ARGS := -c"$(shell echo $(FINAL_CLASSPATH) | sed 's/:/ /g')" debian/jalview/usr/share/java/jalview.jar 
+
+cp:
+	@echo $(DEB_CLASSPATH)

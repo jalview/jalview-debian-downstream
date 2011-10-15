@@ -1,7 +1,7 @@
-Index: jalview-2.6.1.dfsg/build.xml
+Index: jalview-2.7.dfsg~almost/build.xml
 ===================================================================
---- jalview-2.6.1.dfsg.orig/build.xml	2010-11-12 17:33:17.000000000 +0100
-+++ jalview-2.6.1.dfsg/build.xml	2011-09-29 22:47:54.117759830 +0200
+--- jalview-2.7.dfsg~almost.orig/build.xml	2011-09-27 16:50:20.000000000 +0200
++++ jalview-2.7.dfsg~almost/build.xml	2011-10-16 00:25:56.823058139 +0200
 @@ -18,13 +18,6 @@
  -->
  <project name="jalviewX" default="usage" basedir=".">
@@ -27,7 +27,7 @@ Index: jalview-2.6.1.dfsg/build.xml
  			<fileset dir="${libDir}">
  				<include name="*.jar" />
  				<include name="**/*.jar" />
-@@ -397,7 +386,7 @@
+@@ -407,7 +396,7 @@
  		</axis-wsdl2java>
  	</target>
  
