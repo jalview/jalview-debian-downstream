@@ -1,2 +1,1 @@
-lib/vamsas-client.jar usr/share/jalview
 debian/wrappers/jalview usr/bin

@@ -3,16 +3,11 @@ Upstream-Name: jalview
 Upstream-Contact: jalview-discuss@jalview.org
 Source:
   The original tarball was made downloading the jalview-*.tar.gz
-  tarball on http://www.jalview.org/versions.html, and stripping most
-  of the binary-only jars excepted lib/vamsas-client.jar.
+  tarball on http://www.jalview.org/versions.html, and stripping all
+  binary jars.
   . 
-  For more details, see the debian/new-upstream script that does precisely
-  this.
-Disclaimer:
-  The tarball contains a sourceless binary jar, 
-  lib/vamsas-client.jar. Though the distribution and use of this file
-  is allowed by its copyright holders, the absence of source prevents
-  it from being integrated into Debian main.
+  For more details, see the debian/new-upstream script that takes care of 
+  the repackaging.
 
 Files: *
 Copyright: Copyright 2007-2010 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
@@ -39,10 +34,6 @@ Files: debian/*
 Copyright: Copyright (C) 2009-2011 Vincent Fourmond <fourmond@debian.org>
 License: GPL-3+
   (see above)
-
-Files: lib/vamsas-client.jar
-Copyright: 
-License: ...
 
 Files: src/com/stevesoft/pat/*
 Copyright: Copyright 2001, Steven R. Brandt
