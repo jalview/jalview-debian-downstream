@@ -14,7 +14,7 @@ Copyright: Copyright 2007-2010 J Procter, AM Waterhouse, G Barton, M Clamp, S Se
 License: GPL-3+
   This package is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
+  the Free Software Foundation; either version 3 of the License, or
   (at your option) any later version.
   .
   This package is distributed in the hope that it will be useful,
@@ -29,6 +29,27 @@ License: GPL-3+
   On Debian systems, the complete text of the GNU General Public
   License version 3 can be found in  `/usr/share/common-licenses/GPL-3'.
 
+Files: src/org/biojava/dasobert/*
+Copyright: 2004-2007 Andreas Prlic
+License: LGPL-2.1
+  This code may be freely distributed and modified under the
+  terms of the GNU Lesser General Public Licence.  This should
+  be distributed with the code.
+  .
+  On Debian systems, the complete text of the GNU Lesser Public
+  License can be found in  `/usr/share/common-licenses/LGPL-2.1'.
+
+Files: src/org/jibble/*
+Copyright: 2001-2004 Paul James Mutton
+License: GPL-2
+  This software is dual-licensed, allowing you to choose between the
+  GNU General Public License (GPL) and the www.jibble.org Commercial
+  License.  Since the GPL may be too restrictive for use in a
+  proprietary application, a commercial license is also provided. Full
+  license information can be found at http://www.jibble.org/licenses/.
+  .
+  On Debian systems, the complete text of the GNU General Public
+  License (version 2) can be found in  `/usr/share/common-licenses/GPL-2'.
 
 Files: debian/*
 Copyright: Copyright (C) 2009-2011 Vincent Fourmond <fourmond@debian.org>

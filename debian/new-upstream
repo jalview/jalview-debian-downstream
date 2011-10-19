@@ -31,6 +31,11 @@ rm -rf jalview*/utils
 # Removing all binary jars...
 find -name '*.jar' | xargs rm 
 
+# Removing examples/ subdirectory, whose copyright status is unclear
+# to me for the time being
+rm -rf jalview*/examples
+
+
 echo "Creating archive"
 tar cvj -f $origname jalview*
 cd -

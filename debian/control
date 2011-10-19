@@ -23,7 +23,7 @@ Vcs-Browser: http://svn.debian.org/viewsvn/pkg-java/trunk/jalview
 Package: jalview
 Architecture: all
 Depends: ${misc:Depends}, openjdk-6-jre | cacao-oj6-jre | java6-runtime,
-	 java-wrappers (>= 0.1.22), ${java:Depends}
+	 java-wrappers (>= 0.1.22), libjmol-java (>= 12.1.42), ${java:Depends}
 Suggests: kalign, t-coffee, clustalw
 Description: multiple alignment editor
  JalView is a Java alignement editor that can work with sequence

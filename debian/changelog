@@ -5,5 +5,7 @@ jalview (2.7.dfsg-1) experimental; urgency=low
     getting rid of the bundled precompiled JAR files (I love JAR files)
   * Using dh 7 and javahelper
   * Using jh_build for building
+  * Uploading to experimental as it works only with the version of jmol in
+    experimental
 
- -- Vincent Fourmond <fourmond@debian.org>  Mon, 17 Oct 2011 23:53:38 +0200
+ -- Vincent Fourmond <fourmond@debian.org>  Wed, 19 Oct 2011 20:19:46 +0200
