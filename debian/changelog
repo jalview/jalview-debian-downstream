@@ -1,3 +1,11 @@
+jalview (2.7.dfsg-2) unstable; urgency=low
+
+  * Upload to unstable now that jmol is there too
+  * Pull patches/newer-jmol-api.diff from upstream's git repository to
+    make jalview work with jmol currently in unstable.
+
+ -- Vincent Fourmond <fourmond@debian.org>  Mon, 07 Nov 2011 20:47:14 +0100
+
 jalview (2.7.dfsg-1) experimental; urgency=low
 
   * Initial release (Closes: #507436)
