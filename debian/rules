@@ -21,7 +21,7 @@ DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 	castor-core Jmol min-jaba-client axis-jaxrpc commons-discovery \
 	axis jh vamsas-client /usr/share/jmol-applet/JmolApplet.jar \
 	jswingreader miglayout /usr/share/icedtea-web/plugin.jar \
-	httpmime httpcore apache-mime4j httpclient
+	httpmime httpcore apache-mime4j-core httpclient jsearch-indexer
 
 
 ANT_OPTS             := -Dbuild.sysclasspath=last \
@@ -29,3 +29,6 @@ ANT_OPTS             := -Dbuild.sysclasspath=last \
 
 
 JH_CLASSPATH_ARGS := -c"$(shell echo $(DEB_CLASSPATH) | sed 's/:/ /g')" debian/jalview/usr/share/java/jalview.jar 
+
+clean::
+	rm -Rf dist

@@ -9,25 +9,25 @@ Build-Depends: cdbs, debhelper (>= 7), default-jdk,
 	       libcommons-discovery-java, libcommons-logging-java,
 	       libjmol-java (>= 12.1.42),
 	       jmol-applet (>= 12.1.42),
-	       libcastor-xml-java, libjaba-client-java, libaxis-java, 
-	       javahelper, javahelp2, libjswingreader-java,
+	       libcastor-xml-java, libjaba-client-java,
+	       javahelper, libjswingreader-java,
                libmiglayout-java, icedtea-netx-common,
                libhttpmime-java, libhttpcore-java,
-               libapache-mime4j-java, libhttpclient-java,
+               libapache-mime4j-java (>= 0.7.2), libhttpclient-java,
                libvamsas-client-java
-Standards-Version: 3.9.2
-Homepage: http://www.jalview.org/
-Vcs-Svn: svn://svn.debian.org/svn/pkg-java/trunk/jalview
+Standards-Version: 3.9.4
+Homepage: http://www.jalview.org
+Vcs-Svn: svn://anonscm.debian.org/pkg-java/trunk/jalview
 Vcs-Browser: http://svn.debian.org/viewsvn/pkg-java/trunk/jalview
 
 Package: jalview
 Architecture: all
-Depends: ${misc:Depends}, openjdk-6-jre | cacao-oj6-jre | java6-runtime,
+Depends: ${misc:Depends}, default-jre | java6-runtime,
 	 java-wrappers (>= 0.1.22), libjmol-java (>= 12.1.42), ${java:Depends}
 Suggests: kalign, t-coffee, clustalw
 Description: multiple alignment editor
- JalView is a Java alignement editor that can work with sequence
- alignement produced by programs implementing alignment algorithms
+ JalView is a Java alignment editor that can work with sequence
+ alignment produced by programs implementing alignment algorithms
  such as clustalw, kalign and t-coffee.
  .
  It has lots of features, is actively developed, and will compare

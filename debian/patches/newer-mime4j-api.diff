@@ -1,0 +1,17 @@
+Description: Patch to use the latest version of Apache Mime4J
+Author: Emmanuel Bourg <ebourg@apache.org>
+Forwarded: no
+--- a/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
++++ b/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
+@@ -26,9 +26,9 @@
+ import java.util.List;
+ 
+ import org.apache.james.mime4j.MimeException;
+-import org.apache.james.mime4j.descriptor.BodyDescriptor;
++import org.apache.james.mime4j.stream.BodyDescriptor;
+ import org.apache.james.mime4j.parser.ContentHandler;
+-import org.apache.james.mime4j.parser.Field;
++import org.apache.james.mime4j.stream.Field;
+ 
+ /**
+  * ContentHandler for parsing mime encoded messages into Jalview objects.

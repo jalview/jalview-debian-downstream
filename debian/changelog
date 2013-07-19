@@ -1,3 +1,20 @@
+jalview (2.7.dfsg-3) UNRELEASED; urgency=low
+
+  * Team upload.
+  * Added a patch to compile with Apache Mime4J 0.7.2
+  * debian/control:
+    - Updated Standards-Version to 3.9.4 (no changes)
+    - Runtime dependency on default-jre | java6-runtime
+    - Removed the duplicate build dependencies on javahelp2 and libaxis-java
+    - Fixed a typo in the package description (Closes: #676623)
+  * debian/copyright: Updated the Format URI
+  * Updated debian/watch to catch the new releases
+  * debian/rules:
+    - Added a clean target to allow rebuilds
+    - Added jsearch-indexer.jar to the classpath to fix the buildindices target
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Fri, 19 Jul 2013 13:08:43 +0200
+
 jalview (2.7.dfsg-2) unstable; urgency=low
 
   * Upload to unstable now that jmol is there too
