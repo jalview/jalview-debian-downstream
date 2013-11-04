@@ -1,6 +1,8 @@
 jalview (2.7.dfsg-3) UNRELEASED; urgency=low
 
   * Team upload.
+
+  [Emmanuel Bourg]
   * Added a patch to compile with Apache Mime4J 0.7.2
   * debian/control:
     - Updated Standards-Version to 3.9.4 (no changes)
@@ -12,6 +14,10 @@ jalview (2.7.dfsg-3) UNRELEASED; urgency=low
   * debian/rules:
     - Added a clean target to allow rebuilds
     - Added jsearch-indexer.jar to the classpath to fix the buildindices target
+
+  [Niels Thykier]
+  * Move package under under the Debian Java team with permission from
+    Vincent.
 
  -- Emmanuel Bourg <ebourg@apache.org>  Fri, 19 Jul 2013 13:08:43 +0200
 
