@@ -1,4 +1,4 @@
-jalview (2.7.dfsg-3) UNRELEASED; urgency=low
+jalview (2.7.dfsg-3) unstable; urgency=low
 
   * Team upload.
 
@@ -19,7 +19,7 @@ jalview (2.7.dfsg-3) UNRELEASED; urgency=low
   * Move package under under the Debian Java team with permission from
     Vincent.
 
- -- Emmanuel Bourg <ebourg@apache.org>  Fri, 19 Jul 2013 13:08:43 +0200
+ -- Emmanuel Bourg <ebourg@apache.org>  Mon, 04 Nov 2013 14:37:52 +0100
 
 jalview (2.7.dfsg-2) unstable; urgency=low
 
