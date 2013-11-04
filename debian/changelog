@@ -6,7 +6,7 @@ jalview (2.7.dfsg-3) UNRELEASED; urgency=low
   * Added a patch to compile with Apache Mime4J 0.7.2
   * debian/control:
     - Updated Standards-Version to 3.9.4 (no changes)
-    - Runtime dependency on default-jre | java6-runtime
+    - Runtime dependency on default-jre | java6-runtime (Closes: #727791)
     - Removed the duplicate build dependencies on javahelp2 and libaxis-java
     - Fixed a typo in the package description (Closes: #676623)
   * debian/copyright: Updated the Format URI
