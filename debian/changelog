@@ -1,3 +1,10 @@
+jalview (2.7.dfsg-4) UNRELEASED; urgency=low
+
+  * Removed the unused build dependency on libgnujaf-java
+  * Updated Standards-Version to 3.9.5 (no changes)
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Wed, 20 Nov 2013 01:16:04 +0100
+
 jalview (2.7.dfsg-3) unstable; urgency=low
 
   * Team upload.
