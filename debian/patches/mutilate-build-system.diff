@@ -1,38 +1,52 @@
-Index: jalview-2.7.dfsg~almost/build.xml
-===================================================================
---- jalview-2.7.dfsg~almost.orig/build.xml	2011-09-27 16:50:20.000000000 +0200
-+++ jalview-2.7.dfsg~almost/build.xml	2011-10-16 00:25:56.823058139 +0200
-@@ -18,13 +18,6 @@
+--- a/build.xml
++++ b/build.xml
+@@ -18,14 +18,6 @@
+  * The Jalview Authors are detailed in the 'AUTHORS' file.
  -->
  <project name="jalviewX" default="usage" basedir=".">
- 	<!-- we use jalopy to format our sources -->
--	<taskdef name="jalopy" classname="de.hunsicker.jalopy.plugin.ant.AntPlugin">
--		<classpath>
--			<fileset dir="utils/jalopy/lib">
--				<include name="*.jar" />
--			</fileset>
--		</classpath>
--	</taskdef>
+-  <!-- we use jalopy to format our sources -->
+-  <taskdef name="jalopy" classname="de.hunsicker.jalopy.plugin.ant.AntPlugin">
+-    <classpath>
+-      <fileset dir="utils/jalopy/lib">
+-        <include name="*.jar" />
+-      </fileset>
+-    </classpath>
+-  </taskdef>
  
- 	<target name="help" depends="usage" />
- 	<target name="usage">
-@@ -114,10 +107,6 @@
- 		<property name="wsdl.ClientNS" value="ext.vamsas" />
- 		<!-- the class path for building the application -->
- 		<path id="build.classpath">
--			<fileset dir="utils">
--				<include name="*.jar" />
--				<include name="**/*.jar" />
--			</fileset>
- 			<fileset dir="${libDir}">
- 				<include name="*.jar" />
- 				<include name="**/*.jar" />
-@@ -407,7 +396,7 @@
- 		</axis-wsdl2java>
- 	</target>
+   <target name="help" depends="usage" />
+   <target name="usage">
+@@ -129,10 +121,6 @@
+     <property name="wsdl.ClientNS" value="ext.vamsas" />
+     <!-- the class path for building the application -->
+     <path id="build.classpath">
+-      <fileset dir="utils">
+-        <include name="*.jar" />
+-        <include name="**/*.jar" />
+-      </fileset>
+       <fileset dir="${libDir}">
+         <include name="*.jar" />
+         <include name="**/*.jar" />
+@@ -172,18 +160,15 @@
+   </target>
  
--	<target name="makedist" depends="build, buildPropertiesFile, buildindices">
-+	<target name="makedist" depends="build, buildindices">
- 		<!-- make the package jar if not already existing -->
- 		<mkdir dir="${packageDir}" />
- 		<!-- clean dir if it already existed -->
+ 
+-  <taskdef classpath="utils/roxes-ant-tasks-1.2-2004-01-30.jar" resource="com/roxes/tools/ant/taskdefs.properties" />
+   <target name="buildPropertiesFile" depends="init">
+     <tstamp prefix="build">
+       <format property="date" pattern="dd MMMM yyyy" />
+     </tstamp>
+-    <properties file="${outputDir}/.build_properties">
+-      <header>
+-          ---Jalview Build Details---
+-        </header>
+-      <property name="VERSION" value="${JALVIEW_VERSION}" />
+-      <property name="BUILD_DATE" value="${build.date}" />
+-    </properties>
++	<propertyfile file="${outputDir}/.build_properties"
++		   comment="---Jalview Build Details---">
++	    <entry key="VERSION" value="${JALVIEW_VERSION}" />
++	    <entry key="BUILD_DATE" value="${build.date}" />
++	</propertyfile>
+   </target>
+ 
+ 

@@ -28,6 +28,9 @@ cd $dir
 # Removing the utils/ directory, not needed for build ?
 rm -rf jalview*/utils
 
+#Save the examples jar from deletions
+( cd  jalview*/examples && mv exampleFile_2_7.jar ../exampleFile_2_7.jvp )
+
 # Removing all binary jars...
 find -name '*.jar' | xargs rm 
 

@@ -8,14 +8,15 @@ Build-Depends: cdbs, debhelper (>= 7), default-jdk,
 	       libaxis-java, libwsdl4j-java,
 	       libgnumail-java, liblog4j1.2-java, javahelp2,
 	       libcommons-discovery-java, libcommons-logging-java,
-	       libjmol-java (>= 12.1.42),
-	       jmol-applet (>= 12.1.42),
-	       libcastor-xml-java, libjaba-client-java,
+	       libjmol-java (>= 12.2.2), libjmol-java (<= 13.0),
+	       jmol-applet (>= 12.2.2),
+	       libcastor-xml-java, libjaba-client-java (>=2.0.1),
 	       javahelper, libjswingreader-java,
                libmiglayout-java, icedtea-netx-common,
                libhttpmime-java, libhttpcore-java,
                libapache-mime4j-java (>= 0.7.2), libhttpclient-java,
-               libvamsas-client-java
+               libvamsas-client-java, libjdas-java (>=1.0.2), libvarna-java,
+               libspring-core-java
 Standards-Version: 3.9.5
 Vcs-Svn: svn://anonscm.debian.org/pkg-java/trunk/jalview
 Vcs-Browser: http://svn.debian.org/viewsvn/pkg-java/trunk/jalview
@@ -24,7 +25,7 @@ Homepage: http://www.jalview.org
 Package: jalview
 Architecture: all
 Depends: ${misc:Depends}, default-jre | java6-runtime,
-	 java-wrappers (>= 0.1.22), libjmol-java (>= 12.1.42), ${java:Depends}
+	 java-wrappers (>= 0.1.22), libjmol-java (>= 12.2.1), ${java:Depends}
 Suggests: kalign, t-coffee, clustalw
 Description: multiple alignment editor
  JalView is a Java alignment editor that can work with sequence

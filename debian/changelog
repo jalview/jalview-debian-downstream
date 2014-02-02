@@ -1,3 +1,36 @@
+jalview (2.8.0b1.dfsg-0biolinux1) precise; urgency=low
+
+  * New minor release from upstream
+  * Re-jig patches but they are mostly the same
+
+ -- Tim Booth <tbooth@ceh.ac.uk>  Sat, 01 Feb 2014 19:07:23 +0000
+
+jalview (2.8.dfsg-0biolinux4) precise; urgency=low
+
+  * Deb-Med sprint release
+  * Explicit JMOL version dependency
+  * Add default prefs file and link to local example rather than one
+    on the web
+  * Change new-upsream to preserve one demo file.  All data in the file
+    public and factual (ie. not copyrightable)
+  * Modify watch file to see b releases (b=bugfix, not beta!)
+
+ -- Tim Booth <tbooth@ceh.ac.uk>  Sat, 01 Feb 2014 16:45:55 +0000
+
+jalview (2.8.dfsg-0biolinux3) precise; urgency=low
+
+  * New upstream and backport for Ubuntu LTS/BL7
+    == 2.8.dfsg-0biolinux1
+      * Now needs JDAS, so I packaged that
+      * Also needs Varna, so I packaged that
+      * Generate properties file on build
+      * Depend on Spring-core
+      * Prefer JRE7 if available
+  * Fix link to JDAS library 1.x not 1.0.4
+  * Really use Java 7 if it is there.
+
+ -- Tim Booth <tbooth@ceh.ac.uk>  Sat, 01 Feb 2014 14:44:31 +0000
+
 jalview (2.7.dfsg-4) UNRELEASED; urgency=low
 
   * Removed the unused build dependency on libgnujaf-java

@@ -21,8 +21,11 @@ DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 	castor-core Jmol min-jaba-client axis-jaxrpc commons-discovery \
 	axis jh vamsas-client /usr/share/jmol-applet/JmolApplet.jar \
 	jswingreader miglayout /usr/share/icedtea-web/plugin.jar \
-	httpmime httpcore apache-mime4j-core httpclient jsearch-indexer
+	httpmime httpcore apache-mime4j-core httpclient jsearch-indexer \
+	/usr/share/maven-repo/uk/ac/ebi/das/jdas/1.x/jdas-1.x.jar \
+	varna jackson-core-lgpl spring3-core-3.x
 
+DEB_COMPRESS_EXCLUDE_ALL=.jvp
 
 ANT_OPTS             := -Dbuild.sysclasspath=last \
 	-DJALVIEW_VERSION=$(VERSION)

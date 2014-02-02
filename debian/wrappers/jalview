@@ -3,9 +3,16 @@
 # Include the wrappers utility script
 . /usr/lib/java-wrappers/java-wrappers.sh
 
-# We need openjdk or sun6
+# We need openjdk, preferably 7, or else sun6
+find_java_runtime openjdk7 >/dev/null 2>&1
 find_java_runtime openjdk sun6
 
 find_jar_classpath jalview
+
+# Now if the user has no .jalview_properties, copy
+# the default
+if ! [ -e ~/.jalview_properties ] ; then
+    cp /etc/jalview_properties_default ~/.jalview_properties
+fi
 
 run_java jalview.bin.Jalview "$@"

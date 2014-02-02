@@ -1,1 +1,2 @@
 debian/wrappers/jalview usr/bin
+debian/jalview_properties_default etc

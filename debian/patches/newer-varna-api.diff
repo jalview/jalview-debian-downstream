@@ -1,0 +1,31 @@
+--- a/src/jalview/gui/AppVarna.java
++++ b/src/jalview/gui/AppVarna.java
+@@ -255,6 +255,12 @@
+   }
+ 
+   @Override
++  public void onTranslationChanged() {}
++
++  @Override
++  public void onZoomLevelChanged() {}
++
++  @Override
+   public void onWarningEmitted(String s)
+   {
+     // TODO Auto-generated method stub
+--- a/src/jalview/gui/AppVarnaBinding.java
++++ b/src/jalview/gui/AppVarnaBinding.java
+@@ -932,6 +932,13 @@
+     // TODO Auto-generated method stub
+ 
+   }
++
++  @Override
++  public void onTranslationChanged() {}
++
++  @Override
++  public void onZoomLevelChanged() {}
++
+ }
+ 
+ /*

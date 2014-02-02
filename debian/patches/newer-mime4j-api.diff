@@ -3,7 +3,7 @@ Author: Emmanuel Bourg <ebourg@apache.org>
 Forwarded: no
 --- a/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
 +++ b/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
-@@ -26,9 +26,9 @@
+@@ -27,9 +27,9 @@
  import java.util.List;
  
  import org.apache.james.mime4j.MimeException;
@@ -14,4 +14,4 @@ Forwarded: no
 +import org.apache.james.mime4j.stream.Field;
  
  /**
-  * ContentHandler for parsing mime encoded messages into Jalview objects.
+  * ContentHandler for parsing mime encoded messages into Jalview objects. TODO:
