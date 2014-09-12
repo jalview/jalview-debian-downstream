@@ -17,8 +17,8 @@ Build-Depends: cdbs, debhelper (>= 7), default-jdk,
                libapache-mime4j-java (>= 0.7.2), libhttpclient-java,
                libvamsas-client-java
 Standards-Version: 3.9.5
-Vcs-Svn: svn://anonscm.debian.org/pkg-java/trunk/jalview
-Vcs-Browser: http://svn.debian.org/viewsvn/pkg-java/trunk/jalview
+Vcs-Git: git://anonscm.debian.org/pkg-java/jalview.git
+Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-java/jalview.git
 Homepage: http://www.jalview.org
 
 Package: jalview
