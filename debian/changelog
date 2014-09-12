@@ -6,6 +6,7 @@ jalview (2.7.dfsg-4) UNRELEASED; urgency=low
   * Updated Standards-Version to 3.9.5 (no changes)
   * Moved the package to Git
   * Switch to debhelper level 9
+  * debian/copyright: Fixed a license short name
 
  -- Emmanuel Bourg <ebourg@apache.org>  Wed, 20 Nov 2013 01:16:04 +0100
 
