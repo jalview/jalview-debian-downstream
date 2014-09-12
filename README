@@ -1,0 +1,39 @@
+Jalview Readme
+--------------
+
+
+The source is available as a tar file and comes complete with the GNU General Public License. 
+
+To build the application you will need a J2SDK 1.6+. 
+
+An Ant build file (build.xml) is provided, you will need to install Apache Ant first. 
+Run ant to view usage which will display a list of useful build targets.
+
+Jalview is primarily developed with eclipse, and a .project file is provided to simplify importing the source into your own eclipse workspace. A NetBeans nbbuild.xml file is also provided for developing Jalview with NetBeans - but this is not officially supported.
+
+You may also be able to use Borland JBuilder to build Jalview. A JBuilder project file 
+(JalviewX.jpx, JalviewApplet.jpx) for both application and applet is provided, 
+but the library dependencies are almost certainly out of date. See the build.xml 
+for current dependencies.
+
+For more help, read the file doc/building.html
+
+
+##################
+
+To run application:
+
+java -Djava.ext.dirs=JALVIEW_HOME/lib -cp JALVIEW_HOME/jalview.jar jalview.bin.Jalview
+
+Replace JALVIEW_HOME with the full path to Jalview Installation Directory.
+
+##################
+
+
+If you use a proxy server add 
+
+-Dhttp.proxyServer=YOUR.SERVER -Dhttp.proxyPort=YOURPORT
+
+If the proxy server requires authentication, add
+
+-Dhttp.proxyUser=USERNAME -Dhttp.proxyPassword=PASSWORD

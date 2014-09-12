@@ -1,0 +1,108 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<head><title>Alignment Annotation</title></head>
+<body>
+<p><strong>Alignment Annotation</strong></p>
+
+<p>In addition to the definition of groups and sequence features,
+  Jalview can display symbols and graphs under the columns of an
+  alignment, and allow you to mark particular columns of an alignment and add symbols and text 
+  in the annotation area shown below the alignment (which may be hidden if <strong>View&#8594;Show 
+  Annotation</strong> is not ticked). Any displayed annotation row can be hidden (using the pop-up 
+  menu obtained by right-clicking the label), or re-ordered by dragging the label to a new 
+  position with the left mouse button.</p>
+<p>Web services can also add annotation to an alignment (see the
+  <a href="../webServices/jnet.html">JNet web service</a>), and as of Jalview 2.08 quantitative and symbolic
+  annotations can be added to an alignment via an <a href="annotationsFormat.html">Annotations 
+  File</a> dragged into the alignment window or loaded from the
+  alignment's file menu.</p>
+<p><strong>Interactive Alignment Annotation</strong></p>
+<p>
+Annotation rows are added using the <strong>Annotation Label</strong>
+menu, which is obtained by clicking anywhere on the annotation row labels
+area (below the sequence ID area).
+</p>
+<ul>
+  <li>Add New Row<br>
+    <em>Adds a new, named annotation row (a dialog box will pop up for you to 
+    enter the label for the new row). </em> </li>
+  <li>Hide Row<br>
+    <em>Hides the annotation row whose label was clicked in order to bring up 
+    the menu.</em> </li>
+  <li>Delete Row<br>
+    <em>Deletes the annotation row whose label was clicked in order to bring up 
+    the menu.</em> </li>
+  <li>Show All Hidden Rows<br>
+    <em>Shows all hidden annotation rows.</em> </li>
+          <li><strong>Export Annotation</strong> <em>(Application only)</em><br>
+       <em>Annotations can be saved to file or output to a text window in either the 
+        Jalview annotations format or as a spreadsheet style set of comma separated values (CSV). </em> </li>
+      <li><strong>Show Values in Text Box</strong> <em>(applet only)</em><br>
+        <em>Opens a text box with a list of comma-separated values corresponding 
+        to the annotation (numerical or otherwise) at each position in the row. 
+        This is useful to export alignment quality measurements for further analysis.</em> 
+      </li>
+      <li><strong>Scale Label To Column</strong><em>(introduced in 2.5)</em><br>
+      <em>Selecting this toggles whether column labels will be shrunk to fit within each column, or displayed using the view's standard font size.</em></li>
+</ul>
+<p>
+<strong>Editing Label and secondary structure Annotation</strong></p>
+<p>
+Use the <strong>left mouse button</strong> to select a position along the row that are to
+be annotated - these regions will be coloured red. <strong>Control</strong> and <strong>shift</strong> in combination
+with the left-click will select more than one position, or a range of
+positions on the alignment.
+</p>
+<p>Once the desired position has been selected, use the <strong>right mouse
+button</strong> to open the <strong>annotation menu</strong>:</p>
+<ul>
+<li>Helix<br><em>Mark selected positions with a helix glyph (a red
+oval), and optional text label (see below). A
+dialog box will open for you to enter the text. Consecutive ovals
+will be rendered as an unbroken red line.</em>
+</li>
+<li>Sheet<br><em>Mark selected positions with a sheet glyph (a green
+arrow oriented from left to right), and optional text label (see
+below). A dialog box will open for you to enter the text. Consecutive
+arrows will be joined together to form a single green arrow.</em>
+</li>
+<li>Label<br><em>Set the text label at the selected positions. A
+dialog box will open for you to enter the text.  If
+more that one consecutive position is marked with the same label, only
+the first position's label will be rendered.</em>
+</li>
+<li>Colour<br><em>Changes the colour of the annotation text label.</em>
+</li>
+<li>Remove Annotation<br><em>Blanks any annotation at the selected positions on
+the row. Note: <strong>This cannot be undone</strong></em>
+</li>
+</ul>
+<p>
+User defined annotation is stored and retrieved using <a
+href="../features/jalarchive.html">Jalview Archives</a>.
+</p>
+<p><em>Current Limitations</em></p>
+<p>As of version 2.5, the Jalview user interface does not support the 
+creation and editing quantitative annotation (histograms and line graphs), or 
+to create annotation associated with a specific sequence. It is also incapable of
+annotation grouping or changing the style of existing annotation (to change between line or bar charts, or to make multiple line graphs). These annotation capabilities are only possible by the import of an 
+<a href="annotationsFormat.html">Annotation file</a>.<br>
+</p>
+</body>
+</html>

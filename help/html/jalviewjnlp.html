@@ -1,0 +1,78 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<head>
+<title>Jalview local Jnlp File</title>
+</head>
+<body>
+<h1>Jalview local Jnlp File</h1>
+<pre>
+&lt;jnlp spec="1.0+" codebase="http://www.jalview.org/webstart/"&gt;
+  &lt;information&gt;
+    &lt;title&gt;Jalview&lt;/title&gt;
+    &lt;vendor&gt;The Barton Group&lt;/vendor&gt;
+    &lt;homepage href="http://www.jalview.org"/&gt;
+    &lt;description&gt;Jalview Multiple Alignment Editor&lt;/description&gt;
+    &lt;description kind="short"&gt;Jalview&lt;/description&gt;
+    &lt;icon href="http://www.jalview.org/webstart/logo_big.gif" kind="default"/&gt;
+    &lt;association extensions="fa" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="fasta" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="fastq" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="blc" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="msf" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="pfam" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="aln" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="pir" mime-type="application-x/ext-file"/&gt;
+    &lt;association extensions="stk" mime-type="application-x/ext-file"/&gt;
+    &lt;offline-allowed/&gt;
+  &lt;/information&gt;
+  &lt;security&gt;
+    &lt;all-permissions/&gt;
+  &lt;/security&gt;
+  &lt;resources&gt;
+  &lt;!-- <em>the additional memory parameters are here</em> --&gt;
+  &lt;j2se version="1.5+" initial-heap-size="500M" max-heap-size="1000M"/&gt;
+		&lt;jar href="jalview.jar"/&gt;
+		&lt;jar href="JGoogleAnalytics-0.2.1-SNAPSHOT.jar"/&gt;
+		&lt;jar href="Jmol-12.1.13.jar"/&gt;
+		&lt;jar href="activation.jar"/&gt;
+		&lt;jar href="axis.jar"/&gt;
+		&lt;jar href="castor-1.1-cycle-xml.jar"/&gt;
+		&lt;jar href="commons-discovery.jar"/&gt;
+		&lt;jar href="commons-logging.jar"/&gt;
+		&lt;jar href="jaxrpc.jar"/&gt;
+		&lt;jar href="jhall.jar"/&gt;
+		&lt;jar href="log4j-1.2.8.jar"/&gt;
+		&lt;jar href="mail.jar"/&gt;
+		&lt;jar href="min-jaba-client.jar"/&gt;
+		&lt;jar href="regex.jar"/&gt;
+		&lt;jar href="saaj.jar"/&gt;
+		&lt;jar href="vamsas-client.jar"/&gt;
+		&lt;jar href="wsdl4j.jar"/&gt;
+		&lt;jar href="xercesImpl.jar"/&gt;
+		&lt;jar href="xml-apis.jar"/&gt;
+		&lt;property name="jalview.version" value="2.6.1"/&gt;
+  &lt;/resources&gt;
+  &lt;application-desc main-class="jalview.bin.Jalview"/&gt;
+&lt;/jnlp&gt;
+</pre>
+<address><a
+	href="http://www.jalview.org/mailman/listinfo/jalview-discuss">If
+you have problems, send an email to jalview-discuss</a></address>
+</body>
+</html>

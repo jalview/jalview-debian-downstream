@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+   <!DOCTYPE map PUBLIC "-//Sun Microsystems Inc.//DTD JavaHelp Map Version 1.0//EN" "http://java.sun.com/products/javahelp/map_1_0.dtd">
+<map version="1.0">
+   <mapID target="home" url="html/index.html" />
+   
+   <mapID target="new" url="html/whatsNew.html"/>
+   <mapID target="release" url="html/releases.html"/>
+   <mapID target="alannotation" url="html/features/annotation.html"/>
+   <mapID target="keys" url="html/keys.html"/>
+   <mapID target="newkeys" url="html/features/newkeystrokes.html"/>
+   <mapID target="cursor" url="html/features/cursorMode.html"/>
+   <mapID target="search" url="html/features/search.html"/>   
+   <mapID target="webservice" url="html/webServices/index.html"/>
+   <mapID target="jabaws" url="html/webServices/JABAWS.html"/>
+   <mapID target="wsparams" url="html/webServices/webServicesParams.html"/>
+   <mapID target="wsprefs" url="html/webServices/webServicesPrefs.html"/>
+   <mapID target="msaservice" url="html/webServices/msaclient.html"/>
+   <mapID target="jnet" url="html/webServices/jnet.html"/>
+   <mapID target="shmrws" url="html/webServices/shmr.html"/>
+   <mapID target="newsreader" url="html/webServices/newsreader.html"/>
+   <mapID target="seqfetch" url="html/features/seqfetch.html"/>
+   <mapID target="dbreffetcher" url="html/webservices/dbreffetcher.html"/>
+   <mapID target="seqmappings" url="html/features/seqmappings.html"/>
+   <mapID target="cdnafeatures" url="html/features/codingfeatures.html"/>
+   <mapID target="seqfeatures" url="html/features/seqfeatures.html"/>
+   <mapID target="seqfeatedit" url="html/features/editingFeatures.html"/>
+   <mapID target="seqfeatcreat" url="html/features/creatinFeatures.html"/>
+   <mapID target="seqfeatures.settings" url="html/features/featuresettings.html"/>
+   <mapID target="viewingpdbs" url="html/features/viewingpdbs.html"/>
+   <mapID target="pdbmcviewer" url="html/features/pdbviewer.html"/>
+   <mapID target="pdbjmol" url="html/features/jmol.html"/>
+   <mapID target="preferences" url="html/features/preferences.html"/>     
+   <mapID target="commandline" url="html/features/commandline.html"/>
+   <mapID target="clarguments" url="html/features/clarguments.html"/>
+   <mapID target="io" url="html/io/index.html"/>
+   <mapID target="io.modellerpir" url="html/io/modellerpir.html"/>
+   <mapID target="export" url="html/io/export.html"/>
+   <mapID target="alformats" url="html/io/fileformats.html"/>
+   <mapID target="annotations.fileformat" url="html/features/annotationsFormat.html"/>
+   <mapID target="features.fileformat" url="html/features/featuresFormat.html"/>
+   <mapID target="features.featureschemes" url="html/features/featureschemes.html"/>
+   <mapID target="das.settings" url="html/features/dassettings.html"/>
+   <mapID target="das.viewing" url="html/features/dasfeatures.html"/>
+   <mapID target="edit" url="html/editing/index.html"/>
+   <mapID target="jalarchive" url="html/features/jalarchive.html"/>
+   <mapID target="multipleviews" url="html/features/multipleViews.html"/>
+   <mapID target="trees" url="html/calculations/tree.html"/>
+   <mapID target="treeviewer" url="html/calculations/treeviewer.html"/>
+   <mapID target="sorting" url="html/calculations/sorting.html"/>
+   <mapID target="pca" url="html/calculations/pca.html"/>
+   <mapID target="pairwise" url="html/calculations/pairwise.html"/>
+   <mapID target="redundancy" url="html/calculations/redundancy.html"/>
+   <mapID target="hiddenRegions" url="html/features/hiddenRegions.html"/>
+   <mapID target="recoverInputdata" url="html/calculations/recoverInputdata.html"/>
+   <mapID target="colours" url="html/colourSchemes/index.html"/>
+   <mapID target="backdeptextcol" url="html/colourSchemes/textcolour.html"/>
+   <mapID target="colours.clustal" url="html/colourSchemes/clustal.html"/>
+   <mapID target="colours.zappo" url="html/colourSchemes/zappo.html" />
+   <mapID target="colours.taylor" url="html/colourSchemes/taylor.html" />
+   <mapID target="colours.hydro" url="html/colourSchemes/hydrophobic.html" />
+   <mapID target="colours.helix" url="html/colourSchemes/helix.html" />
+   <mapID target="colours.strand" url="html/colourSchemes/strand.html" />
+   <mapID target="colours.turn" url="html/colourSchemes/turn.html" />
+   <mapID target="colours.buried" url="html/colourSchemes/buried.html" />
+   <mapID target="colours.nucleotide" url="html/colourSchemes/nucleotide.html" />
+   <mapID target="colours.blosum" url="html/colourSchemes/blosum.html" />
+   <mapID target="colours.pid" url="html/colourSchemes/pid.html" />
+   <mapID target="colours.user" url="html/colourSchemes/user.html"/>
+   <mapID target="colours.abovepid" url="html/colourSchemes/abovePID.html"/>
+   <mapID target="colours.conservation" url="html/colourSchemes/conservation.html"/>
+   <mapID target="colours.annotation" url="html/colourSchemes/annotationColouring.html"/>
+   
+   <mapID target="calcs.alquality" url="html/calculations/quality.html"/>   
+   <mapID target="calcs.alconserv" url="html/calculations/conservation.html"/>
+   <mapID target="calcs.consensus" url="html/calculations/consensus.html"/>
+   
+   <mapID target="menus" url="html/menus/index.html"/>
+   <mapID target="desktopMenu" url="html/menus/desktopMenu.html"/>
+   <mapID target="alMenu" url="html/menus/alignmentMenu.html"/>
+   <mapID target="alwFile" url="html/menus/alwfile.html"/>
+   <mapID target="alwEdit" url="html/menus/alwedit.html"/>
+   <mapID target="alwSelect" url="html/menus/alwselect.html"/>
+   <mapID target="alwView" url="html/menus/alwview.html"/>
+   <mapID target="alwFormat" url="html/menus/alwformat.html"/>
+   <mapID target="alwColour" url="html/menus/alwcolour.html"/>
+   <mapID target="alwCalc" url="html/menus/alwcalculate.html"/>
+   
+   <mapID target="wsMenu" url="html/menus/wsmenu.html"/>
+   <mapID target="popMenu" url="html/menus/popupMenu.html"/>
+   <mapID target="annotMenus" url="html/menus/alwannotations.html"/>
+   
+   <mapID target="memory" url="html/memory.html" />
+   <mapID target="jalviewjnlp" url="html/jalviewjnlp.html" />
+   <mapID target="groovy" url="html/features/groovy.html" />
+   <mapID target="privacy" url="html/privacy.html" />
+   <mapID target="vamsas" url="html/vamsas/index.html"/>
+   <mapID target="aminoAcids" url="html/misc/aminoAcids.html" />
+   <mapID target="aaProperties" url="html/misc/aaproperties.html" />
+   <mapID target="geneticCode" url="html/misc/geneticCode.html" />
+   
+   <mapID target="backIcon" url="icons/back.png" />
+   <mapID target="forwardIcon" url="icons/forward.png" />
+   <mapID target="homeIcon" url="icons/Home.png" />
+   <mapID target="printIcon" url="icons/print.png" />
+   <mapID target="printSetupIcon" url="icons/setup.png" />
+</map>
