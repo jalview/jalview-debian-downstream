@@ -17,7 +17,6 @@ Build-Depends: ant,
                libcastor-xml-java,
                libcommons-discovery-java,
                libcommons-logging-java,
-               libgnumail-java,
                libhttpclient-java,
                libhttpcore-java,
                libhttpmime-java,
@@ -27,9 +26,7 @@ Build-Depends: ant,
                liblog4j1.2-java,
                libmiglayout-java,
                libvamsas-client-java,
-               libwsdl4j-java,
-               libxalan2-java,
-               libxerces2-java
+               libwsdl4j-java
 Standards-Version: 3.9.5
 Vcs-Git: git://anonscm.debian.org/pkg-java/jalview.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-java/jalview.git

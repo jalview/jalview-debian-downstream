@@ -2,7 +2,8 @@ jalview (2.7.dfsg-4) UNRELEASED; urgency=low
 
   * Team upload
   * Fixed a compilation error with Java 8 (Closes: #750746)
-  * Removed the unused build dependency on libgnujaf-java
+  * Removed the unused build dependencies on libgnujaf-java, libgnumail-java,
+    libxalan2-java and libxerces2-java
   * Updated Standards-Version to 3.9.5 (no changes)
   * Moved the package to Git
   * Switch to debhelper level 9
