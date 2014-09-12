@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="www.jalview.org/xml/wsparamset">
+	<xs:complexType name="WebServiceParameterSet">
+		<xs:sequence>
+			<xs:element name="Version" maxOccurs="1" minOccurs="0"
+				type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						A Jalview Web Service Parameter Set container
+						version number.
+						Version 1 created for storing Jaba user presets.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="description" minOccurs="0" maxOccurs="1"
+				type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Short description - as utf8 encoded text. This is
+						usually displayed
+						in the body of an HTML capable tooltip, so HTML tags may be embedded
+						using standard UTF8 encoding.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="serviceURL" minOccurs="1" maxOccurs="unbounded"
+				type="xs:anyURI">
+				<xs:annotation>
+					<xs:documentation>
+						URL for which the parameter set is valid. Jalview will use it to
+						match up parameter sets to service instances that can parse the
+						parameter set payload.
+				</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+
+			<xs:element name="parameters" maxOccurs="1" minOccurs="1"
+				type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						UTF8 encoded string to be processed into a specific web services'
+						parameter set. Note - newlines may be important to the structure
+						of this file.
+				</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string" use="required">
+			<xs:annotation>
+				<xs:documentation>
+					The short name for the parameter set. This will be shown amongst the
+					other presets for the web service.
+		</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+</xs:schema>

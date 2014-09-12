@@ -1,0 +1,73 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<head>
+<title>Sequence feature colour schemes</title>
+</head>
+
+<body>
+<p><strong>Sequence feature colour schemes</strong></p>
+<p>Jalview can visualize annotation present on parts of a sequence by
+overlaying colours according to the annotation present at each position.
+It allows features to be colored either according to type, or for a
+particular type, according to an individual feature's associated label
+or score. The <a href="featuresettings.html">Feature Settings dialog
+box</a> controls the order and display of each sequence annotation type, and
+also allows the colour scheme used for the the feature to be changed <em>via</em>
+the 'Graduated Colour' option in the sequence feature pop-up menu
+(obtained by right-clicking on a sequence feature).</p>
+
+<center><img src="featurecoloursettings.gif"><br/>Graduated
+feature colour scheme settings dialog box</img></center>
+<p>The Graduated Feature Colour dialog box has the following
+controls:
+<ul>
+	<li><em>Colour by Label</em> - when checked this derives a colour
+	for each feature based on the label text.</li>
+	<li><em>Min and Max Color boxes</em> - Click on these boxes to set
+	the minimum and maximum colours used to shade features by their
+	associated score.</li>
+	<li><em>Threshold type combo box</em> - Allows features to be
+	hidden features if their score is below or above a given threshold.<br />
+	<em>Set the threshold using the slider or type it in to the text
+	box. The threshold cannot be set outside the available range of feature
+	scores.</em>
+	</li>
+	<li><em>Threshold is Min/Max</em> - When checked, the threshold
+	will be used as the upper or lower limit when shading the features
+	according to their score using the Min and Max colour.</li>
+</ul>
+</p>
+<p><strong>Icon styles for graduated feature styles</strong><br/>
+<p>When a graduated colourscheme is applied to a feature, it is indicated in the feature settings or amend feature dialog box by the following types of icon:<br/>
+<center><table width="50%" border="1">
+<tr><td><strong>Type of Colouring</strong></td><td><strong>Icon</strong></td></tr>
+<tr><td><em>Graduated colour by Feature Score</em></td><td><img src="fcsminmax.gif"/></td></tr>
+<tr><td><em>Graduated colour thresholded (less than) by feature Score</em></td><td><img src="fcsltthan.gif"/></td></tr>
+<tr><td><em>Graduated colour thresholded (greater than) by feature Score</em></td><td><img src="fcsgtthan.gif"/></td></tr>
+<tr><td><em>Colour by Feature Label (may also be thresholded)</em></td><td><img src="fcsntlabel.gif"/></td></tr>
+<tr>
+	<td align="center" colspan="2">
+		<em>
+			<strong>The current threshold is given in the
+	icon's tooltip.</strong>
+		</em>
+	</td></tr></table></center></p>
+<em>Graduated feature colours were introduced in Jalview 2.5</em>
+</body>
+</html>

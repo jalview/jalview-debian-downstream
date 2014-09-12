@@ -1,0 +1,89 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<head>
+Opening URLs from Jalview
+</head>
+<body>
+<p>
+<p><strong>Opening URLs from Jalview</strong><br>
+Both the applet and the desktop application are able to open URLs as
+'popups' in your web browser. <br>
+Double-clicking on the ID of a sequence will open the first URL that can
+be generated from its sequence ID. This is often the SRS site, but you
+can easily configure your own <a href="#urllinks">sequence URL links</a>.</p>
+<p>Other links for a sequence either derived from any other
+configured URL links, or imported from the sequence's annotation, are
+accessed by right clicking to open the sequence pop-up menu, and
+selecting from the <em>Links</em> submenu.</p>
+<p><strong><a name="urllinks">Configuring URL Links</a></strong>
+<br>URL links are defined in the &quot;Connections&quot; tab of the <a
+	href="../features/preferences.html">Jalview desktop preferences</a>, or
+specified as <a
+	href="http://www.jalview.org/examples/appletParameters.html#parameters">applet
+parameters</a>. <br>
+By default the item &quot;SRS&quot; is added to this link menu. This
+link will show a web page in your default browser with the selected
+sequence id as part of the URL.<br>
+In the preferences dialog box, click <strong>new</strong> to add a new
+link, and <strong>edit</strong> to modify an existing link, or <strong>delete</strong>
+to remove it.<br>
+You can name the link, this will be displayed on a new menu item under
+the &quot;Link&quot; menu when you right click on a sequence id. <br>
+The URL string must contain a token that can be replaced with a sequence
+ID. The simplest token is &quot;$SEQUENCE_ID$&quot;, which will be
+replaced by the chosen sequence id when you click on it.</p>
+<p>eg.<br>
+UniRef100 =
+http://www.ebi.uniprot.org/uniprot-srv/uniRefView.do?proteinAc=$SEQUENCE_ID$&amp;library=uniref100<br>
+Swissprot = http://www.expasy.org/uniprot/$SEQUENCE_ID$ <br>
+<br>
+Links will also be made for any database cross references associated
+with the sequence where the database name exactly matches a URL link
+name. In this case, the $SEQUENCE_ID$ string will be replaced with the
+accession string for the database cross-reference, rather than the
+sequence ID for the sequence (<em>since Jalview 2.4</em>).</p>
+<p><strong>Regular Expression Substitution</strong><br>
+A url may contain a string of the form $SEQUENCE_ID=/<em>regular
+expression</em>/=$. In this case, the regular expression will be applied to
+the full sequence ID string and the resulting match will be inserted
+into the URL. Groups of parentheses can be used to specify which regions
+of the regular expression will be used to generate the URL:
+<ul>
+	<li>Each top level parenthesis will yield a URL containing the
+	text matched within that parenthesis.</li>
+	<li>Regions matching sub-parentheses within a top-level
+	parenthesis will be concatenated to form the text inserted into the URL
+	for the top-level parenthesis.</li>
+	<em>Please Note:
+	<ul>
+		<li>The regular expressions supported by Jalview are those
+		provided by the <a href="www.javaregex.com">Stevesoft javaregex
+		package</a>.</li>
+		<li>Some characters must be escaped when specifying them as a
+		match within a regular expression.</li>
+	</ul>
+	<br>
+	Many Thanks to Bernd Brandt of the Free University of Amsterdam for
+	testing this new regular-expression expansion feature! </em>
+	<em>
+</ul>
+</p>
+</p>
+</body>
+</html>

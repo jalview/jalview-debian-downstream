@@ -1,0 +1,54 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<head>
+<title>DAS Settings</title>
+</head>
+
+<body>
+<p><strong>DAS Settings</strong></p>
+<p>Jalview can retrieve sequences and features from many <a
+	href="http://biodas.org/">DAS</a> sources. The DAS sources that
+it uses are discovered and selected <em>via</em> the DAS settings panel,
+opened either from the <a href="featuresettings.html">View&#8594;Feature
+Settings</a> dialog box from the alignment window's menu bar, or the <a
+	href="featuresettings.html">Tools&#8594;Preferences</a> dialog box
+opened from the Desktop menu bar.</p>
+<p><img src="das.gif">
+<p>The available sources are listed in the table using each source's
+Nickname as its identifier. Clicking on a source's entry in the table
+reveals more information about that service in the panel to the right.
+Select the tickbox in the &quot;Use Source&quot; column for a source to
+add it to the set Jalview queries for alignment and sequence features.</p>
+<p>You can filter the visible DAS sources by authority, type and
+&quot;label&quot;. You should read the DAS documentation to understand
+more about these values.
+<p><strong>Updating the list of sources</strong></p>
+<p>When the DAS Settings panel is first opened, and when the <strong>'Refresh
+source'</strong> buton is pressed, a list of DAS sources is retrieved from the
+DAS registry URL (set by default to the DAS registration server at
+http://das.sanger.ac.uk/registry/das1/sources/).</p>
+<p><strong>Adding your own DAS Sources</strong></p>
+<p>You can add your own DAS source to the list by clicking the
+&quot;Add Local Source&quot; button. Enter the URL and nickname of your
+additional service. It should be noted that Jalview 2.1 will not query
+additional sources for more information, but this will be implemented in
+future editions.
+<p>&nbsp;
+</body>
+</html>
