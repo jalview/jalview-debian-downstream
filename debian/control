@@ -3,19 +3,33 @@ Section: science
 Priority: optional
 Maintainer: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Vincent Fourmond <fourmond@debian.org>
-Build-Depends: cdbs, debhelper (>= 9), default-jdk,
-	       ant, ant-optional, libxerces2-java, libxalan2-java,
-	       libaxis-java, libwsdl4j-java,
-	       libgnumail-java, liblog4j1.2-java, javahelp2,
-	       libcommons-discovery-java, libcommons-logging-java,
-	       libjmol-java (>= 12.1.42),
-	       jmol-applet (>= 12.1.42),
-	       libcastor-xml-java, libjaba-client-java,
-	       javahelper, libjswingreader-java,
-               libmiglayout-java, icedtea-netx-common,
-               libhttpmime-java, libhttpcore-java,
-               libapache-mime4j-java (>= 0.7.2), libhttpclient-java,
-               libvamsas-client-java
+Build-Depends: ant,
+               ant-optional,
+               cdbs,
+               debhelper (>= 9),
+               default-jdk,
+               icedtea-netx-common,
+               javahelp2,
+               javahelper,
+               jmol-applet (>= 12.1.42),
+               libapache-mime4j-java (>= 0.7.2),
+               libaxis-java,
+               libcastor-xml-java,
+               libcommons-discovery-java,
+               libcommons-logging-java,
+               libgnumail-java,
+               libhttpclient-java,
+               libhttpcore-java,
+               libhttpmime-java,
+               libjaba-client-java,
+               libjmol-java (>= 12.1.42),
+               libjswingreader-java,
+               liblog4j1.2-java,
+               libmiglayout-java,
+               libvamsas-client-java,
+               libwsdl4j-java,
+               libxalan2-java,
+               libxerces2-java
 Standards-Version: 3.9.5
 Vcs-Git: git://anonscm.debian.org/pkg-java/jalview.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-java/jalview.git
@@ -23,9 +37,12 @@ Homepage: http://www.jalview.org
 
 Package: jalview
 Architecture: all
-Depends: ${misc:Depends}, default-jre | java6-runtime,
-	 java-wrappers (>= 0.1.22), libjmol-java (>= 12.1.42), ${java:Depends}
-Suggests: kalign, t-coffee, clustalw
+Depends: default-jre | java6-runtime,
+         java-wrappers (>= 0.1.22),
+         libjmol-java (>= 12.1.42),
+         ${java:Depends},
+         ${misc:Depends}
+Suggests: clustalw, kalign, t-coffee
 Description: multiple alignment editor
  JalView is a Java alignment editor that can work with sequence
  alignment produced by programs implementing alignment algorithms
