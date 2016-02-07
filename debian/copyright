@@ -1,13 +1,9 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: jalview
 Upstream-Contact: jalview-discuss@jalview.org
-Source:
-  The original tarball was made downloading the jalview-*.tar.gz
-  tarball on http://www.jalview.org/versions.html, and stripping all
-  binary jars.
-  . 
-  For more details, see the debian/new-upstream script that takes care of 
-  the repackaging.
+Files-Excluded: */*.jar
+                utils
+                examples
 
 Files: *
 Copyright: Copyright 2007-2010 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
