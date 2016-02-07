@@ -1,30 +1,42 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.datamodel.SequenceGroup;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
-import jalview.datamodel.*;
+import javax.swing.BorderFactory;
+import javax.swing.JColorChooser;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 public class TextColourChooser
 {
@@ -40,9 +52,9 @@ public class TextColourChooser
     int original1, original2, originalThreshold;
     if (sg == null)
     {
-      original1 = ap.av.textColour.getRGB();
-      original2 = ap.av.textColour2.getRGB();
-      originalThreshold = ap.av.thresholdTextColour;
+      original1 = ap.av.getTextColour().getRGB();
+      original2 = ap.av.getTextColour2().getRGB();
+      originalThreshold = ap.av.getThresholdTextColour();
     }
     else
     {
@@ -55,21 +67,22 @@ public class TextColourChooser
     final JPanel col1 = new JPanel();
     col1.setPreferredSize(new Dimension(40, 20));
     col1.setBorder(BorderFactory.createEtchedBorder());
-    col1.setToolTipText("Dark Colour");
+    col1.setToolTipText(MessageManager.getString("label.dark_colour"));
     col1.setBackground(new Color(original1));
     final JPanel col2 = new JPanel();
     col2.setPreferredSize(new Dimension(40, 20));
     col2.setBorder(BorderFactory.createEtchedBorder());
-    col2.setToolTipText("Light Colour");
+    col2.setToolTipText(MessageManager.getString("label.ligth_colour"));
     col2.setBackground(new Color(original2));
     final JPanel bigpanel = new JPanel(new BorderLayout());
     JPanel panel = new JPanel();
     bigpanel.add(panel, BorderLayout.CENTER);
     bigpanel.add(
             new JLabel(
-                    "<html><i>Select a dark and light text colour, then set the threshold to"
-                            + "<br>switch between colours, based on background colour</i></html>"),
-            BorderLayout.NORTH);
+                    "<html>"
+                            + MessageManager
+                                    .getString("label.select_dark_light_set_thereshold")
+                            + "</html>"), BorderLayout.NORTH);
     panel.add(col1);
     panel.add(slider);
     panel.add(col2);
@@ -79,7 +92,8 @@ public class TextColourChooser
       public void mousePressed(MouseEvent e)
       {
         Color col = JColorChooser.showDialog(bigpanel,
-                "Select Colour for Text", col1.getBackground());
+                MessageManager.getString("label.select_colour_for_text"),
+                col1.getBackground());
         if (col != null)
         {
           colour1Changed(col);
@@ -93,7 +107,8 @@ public class TextColourChooser
       public void mousePressed(MouseEvent e)
       {
         Color col = JColorChooser.showDialog(bigpanel,
-                "Select Colour for Text", col2.getBackground());
+                MessageManager.getString("label.select_colour_for_text"),
+                col2.getBackground());
         if (col != null)
         {
           colour2Changed(col);
@@ -110,18 +125,22 @@ public class TextColourChooser
       }
     });
 
-    int reply = JOptionPane.showInternalOptionDialog(ap, bigpanel,
-            "Adjust Foreground Text Colour Threshold",
-            JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,
-            null, null, null);
+    int reply = JOptionPane
+            .showInternalOptionDialog(
+                    ap,
+                    bigpanel,
+                    MessageManager
+                            .getString("label.adjunst_foreground_text_colour_thereshold"),
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.QUESTION_MESSAGE, null, null, null);
 
     if (reply == JOptionPane.CANCEL_OPTION)
     {
       if (sg == null)
       {
-        ap.av.textColour = new Color(original1);
-        ap.av.textColour2 = new Color(original2);
-        ap.av.thresholdTextColour = originalThreshold;
+        ap.av.setTextColour(new Color(original1));
+        ap.av.setTextColour2(new Color(original2));
+        ap.av.setThresholdTextColour(originalThreshold);
       }
       else
       {
@@ -136,8 +155,8 @@ public class TextColourChooser
   {
     if (sg == null)
     {
-      ap.av.textColour = col;
-      if (ap.av.colourAppliesToAllGroups)
+      ap.av.setTextColour(col);
+      if (ap.av.getColourAppliesToAllGroups())
       {
         setGroupTextColour();
       }
@@ -154,8 +173,8 @@ public class TextColourChooser
   {
     if (sg == null)
     {
-      ap.av.textColour2 = col;
-      if (ap.av.colourAppliesToAllGroups)
+      ap.av.setTextColour2(col);
+      if (ap.av.getColourAppliesToAllGroups())
       {
         setGroupTextColour();
       }
@@ -172,8 +191,8 @@ public class TextColourChooser
   {
     if (sg == null)
     {
-      ap.av.thresholdTextColour = value;
-      if (ap.av.colourAppliesToAllGroups)
+      ap.av.setThresholdTextColour(value);
+      if (ap.av.getColourAppliesToAllGroups())
       {
         setGroupTextColour();
       }
@@ -188,19 +207,16 @@ public class TextColourChooser
 
   void setGroupTextColour()
   {
-    if (ap.av.alignment.getGroups() == null)
+    if (ap.av.getAlignment().getGroups() == null)
     {
       return;
     }
 
-    Vector groups = ap.av.alignment.getGroups();
-
-    for (int i = 0; i < groups.size(); i++)
+    for (SequenceGroup sg : ap.av.getAlignment().getGroups())
     {
-      SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
-      sg.textColour = ap.av.textColour;
-      sg.textColour2 = ap.av.textColour2;
-      sg.thresholdTextColour = ap.av.thresholdTextColour;
+      sg.textColour = ap.av.getTextColour();
+      sg.textColour2 = ap.av.getTextColour2();
+      sg.thresholdTextColour = ap.av.getThresholdTextColour();
     }
   }
 

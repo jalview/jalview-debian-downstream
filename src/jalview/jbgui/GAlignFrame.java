@@ -1,93 +1,84 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.jbgui;
 
-import java.awt.*;
-import java.awt.event.*;
+import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
+import jalview.api.SplitContainerI;
+import jalview.bin.Cache;
+import jalview.gui.JvSwingUtils;
+import jalview.gui.Preferences;
+import jalview.schemes.ColourSchemeProperty;
+import jalview.util.MessageManager;
 
-import javax.swing.*;
-import javax.swing.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.GridLayout;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.HashMap;
+import java.util.Map;
 
-import jalview.schemes.*;
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 
 public class GAlignFrame extends JInternalFrame
 {
   protected JMenuBar alignFrameMenuBar = new JMenuBar();
 
-  protected JMenu fileMenu = new JMenu();
-
   protected JMenuItem closeMenuItem = new JMenuItem();
 
-  protected JMenu editMenu = new JMenu();
-
-  protected JMenu viewMenu = new JMenu();
-
   protected JMenu colourMenu = new JMenu();
-
-  protected JMenu calculateMenu = new JMenu();
 
   protected JMenu webService = new JMenu();
 
   protected JMenuItem webServiceNoServices;
 
-  protected JMenuItem selectAllSequenceMenuItem = new JMenuItem();
-
-  protected JMenuItem deselectAllSequenceMenuItem = new JMenuItem();
-
-  protected JMenuItem invertSequenceMenuItem = new JMenuItem();
-
-  protected JMenuItem remove2LeftMenuItem = new JMenuItem();
-
-  protected JMenuItem remove2RightMenuItem = new JMenuItem();
-
-  protected JMenuItem removeGappedColumnMenuItem = new JMenuItem();
-
-  protected JMenuItem removeAllGapsMenuItem = new JMenuItem();
-
   public JCheckBoxMenuItem viewBoxesMenuItem = new JCheckBoxMenuItem();
 
   public JCheckBoxMenuItem viewTextMenuItem = new JCheckBoxMenuItem();
 
-  protected JMenuItem sortPairwiseMenuItem = new JMenuItem();
-
-  protected JMenuItem sortIDMenuItem = new JMenuItem();
-
-  protected JMenuItem sortLengthMenuItem = new JMenuItem();
-
-  protected JMenuItem sortGroupMenuItem = new JMenuItem();
-
   protected JMenu sortByAnnotScore = new JMenu();
 
-  protected JMenuItem removeRedundancyMenuItem = new JMenuItem();
-
-  protected JMenuItem pairwiseAlignmentMenuItem = new JMenuItem();
-
-  protected JMenuItem PCAMenuItem = new JMenuItem();
-
-  protected JMenuItem averageDistanceTreeMenuItem = new JMenuItem();
-
-  protected JMenuItem neighbourTreeMenuItem = new JMenuItem();
-
-  BorderLayout borderLayout1 = new BorderLayout();
-
   public JLabel statusBar = new JLabel();
-
-  protected JMenuItem saveAs = new JMenuItem();
 
   protected JMenu outputTextboxMenu = new JMenu();
 
@@ -113,19 +104,22 @@ public class GAlignFrame extends JInternalFrame
 
   protected JRadioButtonMenuItem BLOSUM62Colour = new JRadioButtonMenuItem();
 
-  JMenuItem njTreeBlosumMenuItem = new JMenuItem();
+  protected JRadioButtonMenuItem nucleotideColour = new JRadioButtonMenuItem();
 
-  JMenuItem avDistanceTreeBlosumMenuItem = new JMenuItem();
+  protected JRadioButtonMenuItem purinePyrimidineColour = new JRadioButtonMenuItem();
+
+  protected JRadioButtonMenuItem RNAInteractionColour = new JRadioButtonMenuItem();
+
+  // protected JRadioButtonMenuItem covariationColour = new
+  // JRadioButtonMenuItem();
+
+  protected JRadioButtonMenuItem tcoffeeColour = new JRadioButtonMenuItem();
 
   public JCheckBoxMenuItem annotationPanelMenuItem = new JCheckBoxMenuItem();
 
   public JCheckBoxMenuItem colourTextMenuItem = new JCheckBoxMenuItem();
 
   public JCheckBoxMenuItem showNonconservedMenuItem = new JCheckBoxMenuItem();
-
-  JMenuItem htmlMenuItem = new JMenuItem();
-
-  JMenuItem overviewMenuItem = new JMenuItem();
 
   protected JMenuItem undoMenuItem = new JMenuItem();
 
@@ -137,11 +131,7 @@ public class GAlignFrame extends JInternalFrame
 
   public JCheckBoxMenuItem wrapMenuItem = new JCheckBoxMenuItem();
 
-  JMenuItem printMenuItem = new JMenuItem();
-
   public JCheckBoxMenuItem renderGapsMenuItem = new JCheckBoxMenuItem();
-
-  JMenuItem findMenuItem = new JMenuItem();
 
   public JCheckBoxMenuItem abovePIDThreshold = new JCheckBoxMenuItem();
 
@@ -149,41 +139,21 @@ public class GAlignFrame extends JInternalFrame
 
   public JCheckBoxMenuItem showSeqFeaturesHeight = new JCheckBoxMenuItem();
 
-  protected JRadioButtonMenuItem nucleotideColour = new JRadioButtonMenuItem();
-
-  JMenuItem deleteGroups = new JMenuItem();
-
-  JMenuItem delete = new JMenuItem();
-
   JMenuItem copy = new JMenuItem();
 
   JMenuItem cut = new JMenuItem();
 
   JMenu pasteMenu = new JMenu();
 
-  JMenuItem pasteNew = new JMenuItem();
-
-  JMenuItem pasteThis = new JMenuItem();
-
   public JCheckBoxMenuItem applyToAllGroups = new JCheckBoxMenuItem();
 
-  JMenuItem createPNG = new JMenuItem();
-
-  protected JMenuItem font = new JMenuItem();
-
   public JCheckBoxMenuItem seqLimits = new JCheckBoxMenuItem();
-
-  JMenuItem epsFile = new JMenuItem();
-
-  JMenuItem LoadtreeMenuItem = new JMenuItem();
 
   public JCheckBoxMenuItem scaleAbove = new JCheckBoxMenuItem();
 
   public JCheckBoxMenuItem scaleLeft = new JCheckBoxMenuItem();
 
   public JCheckBoxMenuItem scaleRight = new JCheckBoxMenuItem();
-
-  protected JMenuItem modifyPID = new JMenuItem();
 
   protected JMenuItem modifyConservation = new JMenuItem();
 
@@ -193,8 +163,6 @@ public class GAlignFrame extends JInternalFrame
 
   protected JMenu calculateTree = new JMenu();
 
-  JMenu jMenu2 = new JMenu();
-
   protected JCheckBoxMenuItem padGapsMenuitem = new JCheckBoxMenuItem();
 
   protected JCheckBoxMenuItem showNpFeatsMenuitem = new JCheckBoxMenuItem();
@@ -203,21 +171,11 @@ public class GAlignFrame extends JInternalFrame
 
   protected ButtonGroup colours = new ButtonGroup();
 
-  JMenuItem vamsasStore = new JMenuItem();
-
   protected JMenuItem showTranslation = new JMenuItem();
-
-  protected JMenuItem extractScores = new JMenuItem();
 
   protected JMenu showProducts = new JMenu();
 
-  public JMenuItem featureSettings = new JMenuItem();
-
-  JMenuItem fetchSequence = new JMenuItem();
-
-  JMenuItem annotationColour = new JMenuItem();
-
-  JMenuItem associatedData = new JMenuItem();
+  protected JMenuItem rnahelicesColour = new JMenuItem();
 
   protected JCheckBoxMenuItem autoCalculate = new JCheckBoxMenuItem();
 
@@ -225,57 +183,25 @@ public class GAlignFrame extends JInternalFrame
 
   protected JCheckBoxMenuItem listenToViewSelections = new JCheckBoxMenuItem();
 
-  JMenu addSequenceMenu = new JMenu();
-
-  JMenuItem addFromFile = new JMenuItem();
-
-  JMenuItem addFromText = new JMenuItem();
-
-  JMenuItem addFromURL = new JMenuItem();
-
-  JMenuItem exportAnnotations = new JMenuItem();
-
-  JMenuItem exportFeatures = new JMenuItem();
-
   protected JPanel statusPanel = new JPanel();
 
-  GridLayout gridLayout1 = new GridLayout();
+  protected JMenuItem showAllSeqAnnotations = new JMenuItem();
 
-  JMenu jMenu3 = new JMenu();
+  protected JMenuItem hideAllSeqAnnotations = new JMenuItem();
 
-  JMenuItem showAllSeqs = new JMenuItem();
+  protected JMenuItem showAllAlAnnotations = new JMenuItem();
 
-  JMenuItem showAllColumns = new JMenuItem();
+  protected JMenuItem hideAllAlAnnotations = new JMenuItem();
 
-  JMenu hideMenu = new JMenu();
-
-  JMenuItem hideSelSequences = new JMenuItem();
-
-  JMenuItem hideSelColumns = new JMenuItem();
-
-  JMenuItem hideAllButSelection = new JMenuItem();
-
-  JMenuItem hideAllSelection = new JMenuItem();
-
-  JMenuItem showAllhidden = new JMenuItem();
+  protected JCheckBoxMenuItem showComplementMenuItem = new JCheckBoxMenuItem();
 
   protected JCheckBoxMenuItem hiddenMarkers = new JCheckBoxMenuItem();
 
-  JMenuItem invertColSel = new JMenuItem();
-
   protected JTabbedPane tabbedPane = new JTabbedPane();
-
-  JMenuItem save = new JMenuItem();
 
   protected JMenuItem reload = new JMenuItem();
 
-  JMenuItem newView = new JMenuItem();
-
-  JMenuItem textColour = new JMenuItem();
-
-  JMenu formatMenu = new JMenu();
-
-  JMenu selectMenu = new JMenu();
+  protected JMenu formatMenu = new JMenu();
 
   protected JCheckBoxMenuItem idRightAlign = new JCheckBoxMenuItem();
 
@@ -287,18 +213,6 @@ public class GAlignFrame extends JInternalFrame
 
   protected JMenuItem expandViews = new JMenuItem();
 
-  JMenuItem pageSetup = new JMenuItem();
-
-  JMenuItem alignmentProperties = new JMenuItem();
-
-  JMenu tooltipSettingsMenu = new JMenu();
-
-  private JMenuItem justifyLeftMenuItem = new JMenuItem();
-
-  private JMenuItem justifyRightMenuItem = new JMenuItem();
-
-  JMenu autoAnnMenu = new JMenu();
-
   protected JCheckBoxMenuItem showGroupConsensus = new JCheckBoxMenuItem();
 
   protected JCheckBoxMenuItem showGroupConservation = new JCheckBoxMenuItem();
@@ -307,9 +221,17 @@ public class GAlignFrame extends JInternalFrame
 
   protected JCheckBoxMenuItem showSequenceLogo = new JCheckBoxMenuItem();
 
+  protected JCheckBoxMenuItem normaliseSequenceLogo = new JCheckBoxMenuItem();
+
   protected JCheckBoxMenuItem applyAutoAnnotationSettings = new JCheckBoxMenuItem();
 
-  private JMenuItem grpsFromSelection = new JMenuItem();
+  private SequenceAnnotationOrder annotationSortOrder;
+
+  private boolean showAutoCalculatedAbove = false;
+
+  private Map<KeyStroke, JMenuItem> accelerators = new HashMap<KeyStroke, JMenuItem>();
+
+  private SplitContainerI splitFrame;
 
   public GAlignFrame()
   {
@@ -324,8 +246,9 @@ public class GAlignFrame extends JInternalFrame
         JMenuItem item = new JMenuItem(
                 jalview.io.FormatAdapter.WRITEABLE_FORMATS[i]);
 
-        item.addActionListener(new java.awt.event.ActionListener()
+        item.addActionListener(new ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent e)
           {
             outputText_actionPerformed(e);
@@ -336,9 +259,10 @@ public class GAlignFrame extends JInternalFrame
       }
     } catch (Exception e)
     {
+      System.err.println(e.toString());
     }
 
-    if (!new jalview.util.Platform().isAMac())
+    if (!jalview.util.Platform.isAMac())
     {
       closeMenuItem.setMnemonic('C');
       outputTextboxMenu.setMnemonic('T');
@@ -362,6 +286,7 @@ public class GAlignFrame extends JInternalFrame
         radioItem.setName("USER_DEFINED");
         radioItem.addMouseListener(new MouseAdapter()
         {
+          @Override
           public void mousePressed(MouseEvent evt)
           {
             if (evt.isControlDown()
@@ -371,8 +296,10 @@ public class GAlignFrame extends JInternalFrame
 
               int option = JOptionPane.showInternalConfirmDialog(
                       jalview.gui.Desktop.desktop,
-                      "Remove from default list?",
-                      "Remove user defined colour",
+                      MessageManager
+                              .getString("label.remove_from_default_list"),
+                      MessageManager
+                              .getString("label.remove_user_defined_colour"),
                       JOptionPane.YES_NO_OPTION);
               if (option == JOptionPane.YES_OPTION)
               {
@@ -384,6 +311,7 @@ public class GAlignFrame extends JInternalFrame
               {
                 radioItem.addActionListener(new ActionListener()
                 {
+                  @Override
                   public void actionPerformed(ActionEvent evt)
                   {
                     userDefinedColour_actionPerformed(evt);
@@ -395,6 +323,7 @@ public class GAlignFrame extends JInternalFrame
         });
         radioItem.addActionListener(new ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent evt)
           {
             userDefinedColour_actionPerformed(evt);
@@ -417,10 +346,12 @@ public class GAlignFrame extends JInternalFrame
     colours.add(PIDColour);
     colours.add(BLOSUM62Colour);
     colours.add(nucleotideColour);
-
-    setColourSelected(jalview.bin.Cache
-            .getDefault("DEFAULT_COLOUR", "None"));
-
+    colours.add(purinePyrimidineColour);
+    // colours.add(covariationColour);
+    colours.add(tcoffeeColour);
+    colours.add(RNAInteractionColour);
+    setColourSelected(jalview.bin.Cache.getDefault(
+            Preferences.DEFAULT_COLOUR, "None"));
   }
 
   public void setColourSelected(String defaultColour)
@@ -487,6 +418,25 @@ public class GAlignFrame extends JInternalFrame
 
         break;
 
+      case ColourSchemeProperty.TCOFFEE:
+        tcoffeeColour.setSelected(true);
+        break;
+
+      case ColourSchemeProperty.PURINEPYRIMIDINE:
+        purinePyrimidineColour.setSelected(true);
+
+        break;
+
+      case ColourSchemeProperty.RNAINTERACTION:
+        RNAInteractionColour.setSelected(true);
+
+        break;
+      /*
+       * case ColourSchemeProperty.COVARIATION:
+       * covariationColour.setSelected(true);
+       * 
+       * break;
+       */
       case ColourSchemeProperty.USER_DEFINED:
         userDefinedColour.setSelected(true);
 
@@ -503,500 +453,732 @@ public class GAlignFrame extends JInternalFrame
 
   private void jbInit() throws Exception
   {
-    fileMenu.setText("File");
-    saveAs.setText("Save As...");
-    saveAs.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_S, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask()
-                    | java.awt.event.KeyEvent.SHIFT_MASK, false));
-    saveAs.addActionListener(new ActionListener()
+    JMenuItem saveAs = new JMenuItem(
+            MessageManager.getString("action.save_as"));
+    ActionListener al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         saveAs_actionPerformed(e);
       }
-    });
-    closeMenuItem.setText("Close");
-    closeMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_W, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    closeMenuItem.addActionListener(new java.awt.event.ActionListener()
+    };
+    KeyStroke keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_S, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask()
+            | KeyEvent.SHIFT_MASK, false);
+    addMenuActionAndAccelerator(keyStroke, saveAs, al);
+
+    closeMenuItem.setText(MessageManager.getString("action.close"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_W, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         closeMenuItem_actionPerformed(false);
       }
-    });
-    editMenu.setText("Edit");
-    viewMenu.setText("View");
-    colourMenu.setText("Colour");
-    calculateMenu.setText("Calculate");
-    webService.setText("Web Service");
-    selectAllSequenceMenuItem.setText("Select All");
-    selectAllSequenceMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_A, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask(), false));
-    selectAllSequenceMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                selectAllSequenceMenuItem_actionPerformed(e);
-              }
-            });
-    deselectAllSequenceMenuItem.setText("Deselect All");
-    deselectAllSequenceMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0, false));
-    deselectAllSequenceMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                deselectAllSequenceMenuItem_actionPerformed(e);
-              }
-            });
-    invertSequenceMenuItem.setText("Invert Sequence Selection");
-    invertSequenceMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_I, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask(), false));
-    invertSequenceMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                invertSequenceMenuItem_actionPerformed(e);
-              }
-            });
-    grpsFromSelection.setText("Make Groups for selection");
-    grpsFromSelection.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, closeMenuItem, al);
+
+    JMenu editMenu = new JMenu(MessageManager.getString("action.edit"));
+    JMenu viewMenu = new JMenu(MessageManager.getString("action.view"));
+    JMenu annotationsMenu = new JMenu(
+            MessageManager.getString("action.annotations"));
+    JMenu showMenu = new JMenu(MessageManager.getString("action.show"));
+    colourMenu.setText(MessageManager.getString("action.colour"));
+    JMenu calculateMenu = new JMenu(
+            MessageManager.getString("action.calculate"));
+    webService.setText(MessageManager.getString("action.web_service"));
+    JMenuItem selectAllSequenceMenuItem = new JMenuItem(
+            MessageManager.getString("action.select_all"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_A, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        selectAllSequenceMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, selectAllSequenceMenuItem, al);
+
+    JMenuItem deselectAllSequenceMenuItem = new JMenuItem(
+            MessageManager.getString("action.deselect_all"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0, false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        deselectAllSequenceMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, deselectAllSequenceMenuItem, al);
+
+    JMenuItem invertSequenceMenuItem = new JMenuItem(
+            MessageManager.getString("action.invert_sequence_selection"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_I, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        invertSequenceMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, invertSequenceMenuItem, al);
+
+    JMenuItem grpsFromSelection = new JMenuItem(
+            MessageManager.getString("action.make_groups_selection"));
+    grpsFromSelection.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         makeGrpsFromSelection_actionPerformed(e);
       }
     });
-
-    remove2LeftMenuItem.setText("Remove Left");
-    remove2LeftMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_L, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    remove2LeftMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                remove2LeftMenuItem_actionPerformed(e);
-              }
-            });
-    remove2RightMenuItem.setText("Remove Right");
-    remove2RightMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_R, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    remove2RightMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                remove2RightMenuItem_actionPerformed(e);
-              }
-            });
-    removeGappedColumnMenuItem.setText("Remove Empty Columns");
-    removeGappedColumnMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_E, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask(), false));
-    removeGappedColumnMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                removeGappedColumnMenuItem_actionPerformed(e);
-              }
-            });
-    removeAllGapsMenuItem.setText("Remove All Gaps");
-    removeAllGapsMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_E, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask()
-                    | java.awt.event.KeyEvent.SHIFT_MASK, false));
-    removeAllGapsMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                removeAllGapsMenuItem_actionPerformed(e);
-              }
-            });
-    justifyLeftMenuItem.setText("Left Justify Alignment");
-    justifyLeftMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                justifyLeftMenuItem_actionPerformed(e);
-              }
-            });
-    justifyRightMenuItem.setText("Right Justify Alignment");
-    justifyRightMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                justifyRightMenuItem_actionPerformed(e);
-              }
-            });
-    viewBoxesMenuItem.setText("Boxes");
-    viewBoxesMenuItem.setState(true);
-    viewBoxesMenuItem.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem expandAlignment = new JMenuItem(
+            MessageManager.getString("action.view_flanking_regions"));
+    expandAlignment.setToolTipText(MessageManager
+            .getString("label.view_flanking_regions"));
+    expandAlignment.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        expand_newalign(e);
+      }
+    });
+    JMenuItem remove2LeftMenuItem = new JMenuItem(
+            MessageManager.getString("action.remove_left"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_L, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        remove2LeftMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, remove2LeftMenuItem, al);
+
+    JMenuItem remove2RightMenuItem = new JMenuItem(
+            MessageManager.getString("action.remove_right"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_R, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        remove2RightMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, remove2RightMenuItem, al);
+
+    JMenuItem removeGappedColumnMenuItem = new JMenuItem(
+            MessageManager.getString("action.remove_empty_columns"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_E, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        removeGappedColumnMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, removeGappedColumnMenuItem, al);
+
+    JMenuItem removeAllGapsMenuItem = new JMenuItem(
+            MessageManager.getString("action.remove_all_gaps"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_E, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask()
+            | KeyEvent.SHIFT_MASK, false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        removeAllGapsMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, removeAllGapsMenuItem, al);
+
+    JMenuItem justifyLeftMenuItem = new JMenuItem(
+            MessageManager.getString("action.left_justify_alignment"));
+    justifyLeftMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        justifyLeftMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem justifyRightMenuItem = new JMenuItem(
+            MessageManager.getString("action.right_justify_alignment"));
+    justifyRightMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        justifyRightMenuItem_actionPerformed(e);
+      }
+    });
+    viewBoxesMenuItem.setText(MessageManager.getString("action.boxes"));
+    viewBoxesMenuItem.setState(true);
+    viewBoxesMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         viewBoxesMenuItem_actionPerformed(e);
       }
     });
-    viewTextMenuItem.setText("Text");
+    viewTextMenuItem.setText(MessageManager.getString("action.text"));
     viewTextMenuItem.setState(true);
-    viewTextMenuItem.addActionListener(new java.awt.event.ActionListener()
+    viewTextMenuItem.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         viewTextMenuItem_actionPerformed(e);
       }
     });
-    showNonconservedMenuItem.setText("Show nonconserved");
+    showNonconservedMenuItem.setText(MessageManager
+            .getString("label.show_non_conversed"));
     showNonconservedMenuItem.setState(false);
-    showNonconservedMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                showUnconservedMenuItem_actionPerformed(e);
-              }
-            });
-    sortPairwiseMenuItem.setText("by Pairwise Identity");
-    sortPairwiseMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                sortPairwiseMenuItem_actionPerformed(e);
-              }
-            });
-    sortIDMenuItem.setText("by ID");
-    sortIDMenuItem.addActionListener(new java.awt.event.ActionListener()
+    showNonconservedMenuItem.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showUnconservedMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem sortPairwiseMenuItem = new JMenuItem(
+            MessageManager.getString("action.by_pairwise_id"));
+    sortPairwiseMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        sortPairwiseMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem sortIDMenuItem = new JMenuItem(
+            MessageManager.getString("action.by_id"));
+    sortIDMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         sortIDMenuItem_actionPerformed(e);
       }
     });
-    sortLengthMenuItem.setText("By Length");
-    sortLengthMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                sortLengthMenuItem_actionPerformed(e);
-              }
-            });
-    sortGroupMenuItem.setText("by Group");
-    sortGroupMenuItem.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem sortLengthMenuItem = new JMenuItem(
+            MessageManager.getString("action.by_length"));
+    sortLengthMenuItem.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        sortLengthMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem sortGroupMenuItem = new JMenuItem(
+            MessageManager.getString("action.by_group"));
+    sortGroupMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         sortGroupMenuItem_actionPerformed(e);
       }
     });
-    removeRedundancyMenuItem.setText("Remove Redundancy...");
-    removeRedundancyMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_D, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask(), false));
-    removeRedundancyMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                removeRedundancyMenuItem_actionPerformed(e);
-              }
-            });
-    pairwiseAlignmentMenuItem.setText("Pairwise Alignments...");
-    pairwiseAlignmentMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                pairwiseAlignmentMenuItem_actionPerformed(e);
-              }
-            });
-    PCAMenuItem.setText("Principal Component Analysis");
-    PCAMenuItem.addActionListener(new java.awt.event.ActionListener()
+
+    JMenuItem removeRedundancyMenuItem = new JMenuItem(
+            MessageManager.getString("action.remove_redundancy"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_D, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        removeRedundancyMenuItem_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, removeRedundancyMenuItem, al);
+
+    JMenuItem pairwiseAlignmentMenuItem = new JMenuItem(
+            MessageManager.getString("action.pairwise_alignment"));
+    pairwiseAlignmentMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        pairwiseAlignmentMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem PCAMenuItem = new JMenuItem(
+            MessageManager.getString("label.principal_component_analysis"));
+    PCAMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         PCAMenuItem_actionPerformed(e);
       }
     });
-    averageDistanceTreeMenuItem
-            .setText("Average Distance Using % Identity");
-    averageDistanceTreeMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                averageDistanceTreeMenuItem_actionPerformed(e);
-              }
-            });
-    neighbourTreeMenuItem.setText("Neighbour Joining Using % Identity");
-    neighbourTreeMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                neighbourTreeMenuItem_actionPerformed(e);
-              }
-            });
-    this.getContentPane().setLayout(borderLayout1);
+    JMenuItem averageDistanceTreeMenuItem = new JMenuItem(
+            MessageManager.getString("label.average_distance_identity"));
+    averageDistanceTreeMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        averageDistanceTreeMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem neighbourTreeMenuItem = new JMenuItem(
+            MessageManager.getString("label.neighbour_joining_identity"));
+    neighbourTreeMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        neighbourTreeMenuItem_actionPerformed(e);
+      }
+    });
+
+    this.getContentPane().setLayout(new BorderLayout());
     alignFrameMenuBar.setFont(new java.awt.Font("Verdana", 0, 11));
     statusBar.setBackground(Color.white);
     statusBar.setFont(new java.awt.Font("Verdana", 0, 11));
     statusBar.setBorder(BorderFactory.createLineBorder(Color.black));
-    statusBar.setText("Status bar");
-    outputTextboxMenu.setText("Output to Textbox");
-    clustalColour.setText("Clustalx");
-
-    clustalColour.addActionListener(new java.awt.event.ActionListener()
+    statusBar.setText(MessageManager.getString("label.status_bar"));
+    outputTextboxMenu.setText(MessageManager
+            .getString("label.out_to_textbox"));
+    clustalColour.setText(MessageManager.getString("label.clustalx"));
+    clustalColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         clustalColour_actionPerformed(e);
       }
     });
-    zappoColour.setText("Zappo");
-    zappoColour.addActionListener(new java.awt.event.ActionListener()
+    zappoColour.setText(MessageManager.getString("label.zappo"));
+    zappoColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         zappoColour_actionPerformed(e);
       }
     });
-    taylorColour.setText("Taylor");
-    taylorColour.addActionListener(new java.awt.event.ActionListener()
+    taylorColour.setText(MessageManager.getString("label.taylor"));
+    taylorColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         taylorColour_actionPerformed(e);
       }
     });
-    hydrophobicityColour.setText("Hydrophobicity");
-    hydrophobicityColour
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                hydrophobicityColour_actionPerformed(e);
-              }
-            });
-    helixColour.setText("Helix Propensity");
-    helixColour.addActionListener(new java.awt.event.ActionListener()
+    hydrophobicityColour.setText(MessageManager
+            .getString("label.hydrophobicity"));
+    hydrophobicityColour.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        hydrophobicityColour_actionPerformed(e);
+      }
+    });
+    helixColour.setText(MessageManager.getString("label.helix_propensity"));
+    helixColour.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         helixColour_actionPerformed(e);
       }
     });
-    strandColour.setText("Strand Propensity");
-    strandColour.addActionListener(new java.awt.event.ActionListener()
+    strandColour.setText(MessageManager
+            .getString("label.strand_propensity"));
+    strandColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         strandColour_actionPerformed(e);
       }
     });
-    turnColour.setText("Turn Propensity");
-    turnColour.addActionListener(new java.awt.event.ActionListener()
+    turnColour.setText(MessageManager.getString("label.turn_propensity"));
+    turnColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         turnColour_actionPerformed(e);
       }
     });
-    buriedColour.setText("Buried Index");
-    buriedColour.addActionListener(new java.awt.event.ActionListener()
+    buriedColour.setText(MessageManager.getString("label.buried_index"));
+    buriedColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         buriedColour_actionPerformed(e);
       }
     });
-    userDefinedColour.setText("User Defined...");
-    userDefinedColour.addActionListener(new java.awt.event.ActionListener()
+    userDefinedColour.setText(MessageManager
+            .getString("action.user_defined"));
+    userDefinedColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         userDefinedColour_actionPerformed(e);
       }
     });
-    PIDColour.setText("Percentage Identity");
-    PIDColour.addActionListener(new java.awt.event.ActionListener()
+    PIDColour
+            .setText(MessageManager.getString("label.percentage_identity"));
+    PIDColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         PIDColour_actionPerformed(e);
       }
     });
-    BLOSUM62Colour.setText("BLOSUM62 Score");
-    BLOSUM62Colour.addActionListener(new java.awt.event.ActionListener()
+    BLOSUM62Colour
+            .setText(MessageManager.getString("label.blosum62_score"));
+    BLOSUM62Colour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         BLOSUM62Colour_actionPerformed(e);
       }
     });
-    avDistanceTreeBlosumMenuItem.setText("Average Distance Using BLOSUM62");
-    avDistanceTreeBlosumMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                avTreeBlosumMenuItem_actionPerformed(e);
-              }
-            });
-    njTreeBlosumMenuItem.setText("Neighbour Joining using BLOSUM62");
-    njTreeBlosumMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                njTreeBlosumMenuItem_actionPerformed(e);
-              }
-            });
-    annotationPanelMenuItem.setActionCommand("");
-    annotationPanelMenuItem.setText("Show Annotations");
-    annotationPanelMenuItem.setState(jalview.bin.Cache.getDefault(
-            "SHOW_ANNOTATIONS", true));
-    annotationPanelMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                annotationPanelMenuItem_actionPerformed(e);
-              }
-            });
-    colourTextMenuItem.setText("Colour Text");
-    colourTextMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                colourTextMenuItem_actionPerformed(e);
-              }
-            });
-    htmlMenuItem.setText("HTML");
-    htmlMenuItem.addActionListener(new java.awt.event.ActionListener()
+    nucleotideColour.setText(MessageManager.getString("label.nucleotide"));
+    nucleotideColour.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        nucleotideColour_actionPerformed(e);
+      }
+    });
+
+    purinePyrimidineColour.setText(MessageManager
+            .getString("label.purine_pyrimidine"));
+    purinePyrimidineColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        purinePyrimidineColour_actionPerformed(e);
+      }
+    });
+
+    RNAInteractionColour.setText("RNA Interaction type");
+    RNAInteractionColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        RNAInteractionColour_actionPerformed(e);
+      }
+    });
+    /*
+     * covariationColour.setText("Covariation");
+     * covariationColour.addActionListener(new ActionListener() { public void
+     * actionPerformed(ActionEvent e) { covariationColour_actionPerformed(e); }
+     * });
+     */
+
+    JMenuItem avDistanceTreeBlosumMenuItem = new JMenuItem(
+            MessageManager.getString("label.average_distance_bloslum62"));
+    avDistanceTreeBlosumMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        avTreeBlosumMenuItem_actionPerformed(e);
+      }
+    });
+    JMenuItem njTreeBlosumMenuItem = new JMenuItem(
+            MessageManager.getString("label.neighbour_blosum62"));
+    njTreeBlosumMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        njTreeBlosumMenuItem_actionPerformed(e);
+      }
+    });
+    annotationPanelMenuItem.setActionCommand("");
+    annotationPanelMenuItem.setText(MessageManager
+            .getString("label.show_annotations"));
+    annotationPanelMenuItem.setState(Cache.getDefault("SHOW_ANNOTATIONS",
+            true));
+    annotationPanelMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        annotationPanelMenuItem_actionPerformed(e);
+      }
+    });
+    showAllAlAnnotations.setText(MessageManager
+            .getString("label.show_all_al_annotations"));
+    final boolean isAnnotationPanelShown = annotationPanelMenuItem
+            .getState();
+    showAllAlAnnotations.setEnabled(isAnnotationPanelShown);
+    showAllAlAnnotations.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showAllAnnotations_actionPerformed(false, true);
+      }
+    });
+    hideAllAlAnnotations.setText(MessageManager
+            .getString("label.hide_all_al_annotations"));
+    hideAllAlAnnotations.setEnabled(isAnnotationPanelShown);
+    hideAllAlAnnotations.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        hideAllAnnotations_actionPerformed(false, true);
+      }
+    });
+    showAllSeqAnnotations.setText(MessageManager
+            .getString("label.show_all_seq_annotations"));
+    showAllSeqAnnotations.setEnabled(isAnnotationPanelShown);
+    showAllSeqAnnotations.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showAllAnnotations_actionPerformed(true, false);
+      }
+    });
+    hideAllSeqAnnotations.setText(MessageManager
+            .getString("label.hide_all_seq_annotations"));
+    hideAllSeqAnnotations.setEnabled(isAnnotationPanelShown);
+    hideAllSeqAnnotations.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        hideAllAnnotations_actionPerformed(true, false);
+      }
+    });
+    SequenceAnnotationOrder sortAnnotationsBy = SequenceAnnotationOrder
+            .valueOf(Cache.getDefault(Preferences.SORT_ANNOTATIONS,
+                    SequenceAnnotationOrder.NONE.name()));
+    final JCheckBoxMenuItem sortAnnBySequence = new JCheckBoxMenuItem(
+            MessageManager.getString("label.sort_annotations_by_sequence"));
+    final JCheckBoxMenuItem sortAnnByLabel = new JCheckBoxMenuItem(
+            MessageManager.getString("label.sort_annotations_by_label"));
+
+    sortAnnBySequence
+            .setSelected(sortAnnotationsBy == SequenceAnnotationOrder.SEQUENCE_AND_LABEL);
+    sortAnnBySequence.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        boolean newState = sortAnnBySequence.getState();
+        sortAnnByLabel.setSelected(false);
+        setAnnotationSortOrder(newState ? SequenceAnnotationOrder.SEQUENCE_AND_LABEL
+                : SequenceAnnotationOrder.NONE);
+        sortAnnotations_actionPerformed();
+      }
+    });
+    sortAnnByLabel
+            .setSelected(sortAnnotationsBy == SequenceAnnotationOrder.LABEL_AND_SEQUENCE);
+    sortAnnByLabel.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        boolean newState = sortAnnByLabel.getState();
+        sortAnnBySequence.setSelected(false);
+        setAnnotationSortOrder(newState ? SequenceAnnotationOrder.LABEL_AND_SEQUENCE
+                : SequenceAnnotationOrder.NONE);
+        sortAnnotations_actionPerformed();
+      }
+    });
+    colourTextMenuItem.setText(MessageManager
+            .getString("label.colour_text"));
+    colourTextMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        colourTextMenuItem_actionPerformed(e);
+      }
+    });
+
+    JMenuItem htmlMenuItem = new JMenuItem(
+            MessageManager.getString("label.html"));
+    htmlMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         htmlMenuItem_actionPerformed(e);
       }
     });
-    overviewMenuItem.setText("Overview Window");
-    overviewMenuItem.addActionListener(new java.awt.event.ActionListener()
+
+    JMenuItem createBioJS = new JMenuItem(
+            MessageManager.getString("label.biojs_html_export"));
+    createBioJS.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        bioJSMenuItem_actionPerformed(e);
+      }
+    });
+
+    JMenuItem overviewMenuItem = new JMenuItem(
+            MessageManager.getString("label.overview_window"));
+    overviewMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         overviewMenuItem_actionPerformed(e);
       }
     });
+
     undoMenuItem.setEnabled(false);
-    undoMenuItem.setText("Undo");
-    undoMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_Z, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    undoMenuItem.addActionListener(new java.awt.event.ActionListener()
+    undoMenuItem.setText(MessageManager.getString("action.undo"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_Z, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         undoMenuItem_actionPerformed(e);
       }
-    });
+    };
+    addMenuActionAndAccelerator(keyStroke, undoMenuItem, al);
+
     redoMenuItem.setEnabled(false);
-    redoMenuItem.setText("Redo");
-    redoMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_Y, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    redoMenuItem.addActionListener(new java.awt.event.ActionListener()
+    redoMenuItem.setText(MessageManager.getString("action.redo"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_Y, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         redoMenuItem_actionPerformed(e);
       }
-    });
-    conservationMenuItem.setText("By Conservation");
-    conservationMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                conservationMenuItem_actionPerformed(e);
-              }
-            });
-    noColourmenuItem.setText("None");
-    noColourmenuItem.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, redoMenuItem, al);
+
+    conservationMenuItem.setText(MessageManager
+            .getString("action.by_conservation"));
+    conservationMenuItem.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        conservationMenuItem_actionPerformed(e);
+      }
+    });
+    noColourmenuItem.setText(MessageManager.getString("label.none"));
+    noColourmenuItem.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         noColourmenuItem_actionPerformed(e);
       }
     });
-    wrapMenuItem.setText("Wrap");
-    wrapMenuItem.addActionListener(new java.awt.event.ActionListener()
+    wrapMenuItem.setText(MessageManager.getString("label.wrap"));
+    wrapMenuItem.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         wrapMenuItem_actionPerformed(e);
       }
     });
-    printMenuItem.setText("Print ...");
-    printMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_P, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    printMenuItem.addActionListener(new java.awt.event.ActionListener()
+
+    JMenuItem printMenuItem = new JMenuItem(
+            MessageManager.getString("action.print"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_P, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         printMenuItem_actionPerformed(e);
       }
-    });
-    renderGapsMenuItem.setText("Show Gaps");
-    renderGapsMenuItem.setState(true);
+    };
+    addMenuActionAndAccelerator(keyStroke, printMenuItem, al);
+
     renderGapsMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                renderGapsMenuItem_actionPerformed(e);
-              }
-            });
-    findMenuItem.setText("Find...");
-    findMenuItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_F, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    findMenuItem.addActionListener(new java.awt.event.ActionListener()
+            .setText(MessageManager.getString("action.show_gaps"));
+    renderGapsMenuItem.setState(true);
+    renderGapsMenuItem.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        renderGapsMenuItem_actionPerformed(e);
+      }
+    });
+
+    JMenuItem findMenuItem = new JMenuItem(
+            MessageManager.getString("action.find"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_F, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    findMenuItem.setToolTipText(JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.find_tip")));
+    al = new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         findMenuItem_actionPerformed(e);
       }
-    });
-    abovePIDThreshold.setText("Above Identity Threshold");
-    abovePIDThreshold.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, findMenuItem, al);
+
+    abovePIDThreshold.setText(MessageManager
+            .getString("label.above_identity_threshold"));
+    abovePIDThreshold.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         abovePIDThreshold_actionPerformed(e);
       }
     });
-    showSeqFeatures.setText("Show Sequence Features");
+    showSeqFeatures.setText(MessageManager
+            .getString("label.show_sequence_features"));
     showSeqFeatures.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         showSeqFeatures_actionPerformed(actionEvent);
@@ -1008,30 +1190,36 @@ public class GAlignFrame extends JInternalFrame
      * void actionPerformed(ActionEvent actionEvent) {
      * showSeqFeaturesHeight_actionPerformed(actionEvent); } });
      */
-    showDbRefsMenuitem.setText("Show Database Refs");
+    showDbRefsMenuitem.setText(MessageManager
+            .getString("label.show_database_refs"));
     showDbRefsMenuitem.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showDbRefs_actionPerformed(e);
       }
 
     });
-    showNpFeatsMenuitem.setText("Show Non-Positional Features");
+    showNpFeatsMenuitem.setText(MessageManager
+            .getString("label.show_non_positional_features"));
     showNpFeatsMenuitem.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showNpFeats_actionPerformed(e);
       }
 
     });
-    showGroupConservation.setText("Group Conservation");
+    showGroupConservation.setText(MessageManager
+            .getString("label.group_conservation"));
     showGroupConservation.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showGroupConservation_actionPerformed(e);
@@ -1039,181 +1227,309 @@ public class GAlignFrame extends JInternalFrame
 
     });
 
-    showGroupConsensus.setText("Group Consensus");
+    showGroupConsensus.setText(MessageManager
+            .getString("label.group_consensus"));
     showGroupConsensus.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showGroupConsensus_actionPerformed(e);
       }
 
     });
-    showConsensusHistogram.setText("Show Consensus Histogram");
+    showConsensusHistogram.setText(MessageManager
+            .getString("label.show_consensus_histogram"));
     showConsensusHistogram.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showConsensusHistogram_actionPerformed(e);
       }
 
     });
-    showSequenceLogo.setText("Show Consensus Logo");
+    showSequenceLogo.setText(MessageManager
+            .getString("label.show_consensus_logo"));
     showSequenceLogo.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showSequenceLogo_actionPerformed(e);
       }
 
     });
-    applyAutoAnnotationSettings.setText("Apply to all groups");
+    normaliseSequenceLogo.setText(MessageManager
+            .getString("label.norm_consensus_logo"));
+    normaliseSequenceLogo.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        normaliseSequenceLogo_actionPerformed(e);
+      }
+
+    });
+    applyAutoAnnotationSettings.setText(MessageManager
+            .getString("label.apply_all_groups"));
     applyAutoAnnotationSettings.setState(false);
     applyAutoAnnotationSettings.setVisible(true);
     applyAutoAnnotationSettings.addActionListener(new ActionListener()
     {
-
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         applyAutoAnnotationSettings_actionPerformed(e);
       }
-
     });
 
-    nucleotideColour.setText("Nucleotide");
-    nucleotideColour.addActionListener(new java.awt.event.ActionListener()
+    ButtonGroup buttonGroup = new ButtonGroup();
+    final JRadioButtonMenuItem showAutoFirst = new JRadioButtonMenuItem(
+            MessageManager.getString("label.show_first"));
+    final JRadioButtonMenuItem showAutoLast = new JRadioButtonMenuItem(
+            MessageManager.getString("label.show_last"));
+    buttonGroup.add(showAutoFirst);
+    buttonGroup.add(showAutoLast);
+    showAutoFirst.setSelected(Cache.getDefault(
+            Preferences.SHOW_AUTOCALC_ABOVE, false));
+    showAutoFirst.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        setShowAutoCalculatedAbove(showAutoFirst.isSelected());
+        sortAnnotations_actionPerformed();
+      }
+    });
+    showAutoLast.setSelected(!showAutoFirst.isSelected());
+    showAutoLast.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        setShowAutoCalculatedAbove(!showAutoLast.isSelected());
+        sortAnnotations_actionPerformed();
+      }
+    });
+
+    nucleotideColour.setText(MessageManager.getString("label.nucleotide"));
+    nucleotideColour.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         nucleotideColour_actionPerformed(e);
       }
     });
-    deleteGroups.setText("Undefine groups");
-    deleteGroups.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_U, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    deleteGroups.addActionListener(new java.awt.event.ActionListener()
+
+    tcoffeeColour.setText(MessageManager.getString("label.tcoffee_scores"));
+    tcoffeeColour.setEnabled(false);
+    tcoffeeColour.addActionListener(new ActionListener()
     {
+
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        tcoffeeColorScheme_actionPerformed(e);
+      }
+    });
+
+    JMenuItem deleteGroups = new JMenuItem(
+            MessageManager.getString("action.undefine_groups"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_U, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         deleteGroups_actionPerformed(e);
       }
-    });
-    copy.setText("Copy");
-    copy.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_C, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+    };
+    addMenuActionAndAccelerator(keyStroke, deleteGroups, al);
 
-    copy.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem createGroup = new JMenuItem(
+            MessageManager.getString("action.create_groups"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_G, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        createGroup_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, createGroup, al);
+
+    JMenuItem unGroup = new JMenuItem(
+            MessageManager.getString("action.remove_group"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_G, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask()
+            | KeyEvent.SHIFT_MASK, false);
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        unGroup_actionPerformed(e);
+      }
+    };
+    addMenuActionAndAccelerator(keyStroke, unGroup, al);
+
+    copy.setText(MessageManager.getString("action.copy"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+
+    al = new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         copy_actionPerformed(e);
       }
-    });
-    cut.setText("Cut");
-    cut.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_X, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    cut.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, copy, al);
+
+    cut.setText(MessageManager.getString("action.cut"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cut_actionPerformed(e);
       }
-    });
-    delete.setText("Delete");
-    delete.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_BACK_SPACE, 0, false));
-    delete.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, cut, al);
+
+    JMenuItem delete = new JMenuItem(
+            MessageManager.getString("action.delete"));
+    delete.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         delete_actionPerformed(e);
       }
     });
-    pasteMenu.setText("Paste");
-    pasteNew.setText("To New Alignment");
-    pasteNew.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_V, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask()
-                    | java.awt.event.KeyEvent.SHIFT_MASK, false));
-    pasteNew.addActionListener(new java.awt.event.ActionListener()
+
+    pasteMenu.setText(MessageManager.getString("action.paste"));
+    JMenuItem pasteNew = new JMenuItem(
+            MessageManager.getString("label.to_new_alignment"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask()
+            | KeyEvent.SHIFT_MASK, false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         pasteNew_actionPerformed(e);
       }
-    });
-    pasteThis.setText("Add To This Alignment");
-    pasteThis.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_V, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    pasteThis.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, pasteNew, al);
+
+    JMenuItem pasteThis = new JMenuItem(
+            MessageManager.getString("label.to_this_alignment"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         pasteThis_actionPerformed(e);
       }
-    });
-    applyToAllGroups.setText("Apply Colour To All Groups");
-    applyToAllGroups.addActionListener(new java.awt.event.ActionListener()
+    };
+    addMenuActionAndAccelerator(keyStroke, pasteThis, al);
+
+    applyToAllGroups.setText(MessageManager
+            .getString("label.apply_colour_to_all_groups"));
+    applyToAllGroups.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         applyToAllGroups_actionPerformed(e);
       }
     });
-    createPNG.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem createPNG = new JMenuItem("PNG");
+    createPNG.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         createPNG(null);
       }
     });
-    createPNG.setActionCommand("Save As PNG Image");
-    createPNG.setText("PNG");
-    font.setText("Font...");
-    font.addActionListener(new java.awt.event.ActionListener()
+    createPNG.setActionCommand(MessageManager
+            .getString("label.save_png_image"));
+
+    JMenuItem font = new JMenuItem(MessageManager.getString("action.font"));
+    font.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         font_actionPerformed(e);
       }
     });
-
-    seqLimits.setText("Show Sequence Limits");
+    seqLimits.setText(MessageManager
+            .getString("label.show_sequence_limits"));
     seqLimits.setState(jalview.bin.Cache.getDefault("SHOW_JVSUFFIX", true));
-    seqLimits.addActionListener(new java.awt.event.ActionListener()
+    seqLimits.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         seqLimit_actionPerformed(e);
       }
     });
-    epsFile.setText("EPS");
-    epsFile.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem epsFile = new JMenuItem("EPS");
+    epsFile.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         createEPS(null);
       }
     });
-    LoadtreeMenuItem.setActionCommand("Load a tree for this sequence set");
-    LoadtreeMenuItem.setText("Load Associated Tree");
-    LoadtreeMenuItem.addActionListener(new java.awt.event.ActionListener()
+
+    JMenuItem createSVG = new JMenuItem("SVG");
+    createSVG.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        LoadtreeMenuItem_actionPerformed(e);
+        createSVG(null);
       }
     });
-    scaleAbove.setVisible(false);
-    scaleAbove.setText("Scale Above");
-    scaleAbove.addActionListener(new java.awt.event.ActionListener()
+
+    JMenuItem loadTreeMenuItem = new JMenuItem(
+            MessageManager.getString("label.load_associated_tree"));
+    loadTreeMenuItem.setActionCommand(MessageManager
+            .getString("label.load_tree_for_sequence_set"));
+    loadTreeMenuItem.addActionListener(new ActionListener()
     {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        loadTreeMenuItem_actionPerformed(e);
+      }
+    });
+
+    scaleAbove.setVisible(false);
+    scaleAbove.setText(MessageManager.getString("action.scale_above"));
+    scaleAbove.addActionListener(new ActionListener()
+    {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         scaleAbove_actionPerformed(e);
@@ -1221,9 +1537,10 @@ public class GAlignFrame extends JInternalFrame
     });
     scaleLeft.setVisible(false);
     scaleLeft.setSelected(true);
-    scaleLeft.setText("Scale Left");
-    scaleLeft.addActionListener(new java.awt.event.ActionListener()
+    scaleLeft.setText(MessageManager.getString("action.scale_left"));
+    scaleLeft.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         scaleLeft_actionPerformed(e);
@@ -1231,9 +1548,10 @@ public class GAlignFrame extends JInternalFrame
     });
     scaleRight.setVisible(false);
     scaleRight.setSelected(true);
-    scaleRight.setText("Scale Right");
-    scaleRight.addActionListener(new java.awt.event.ActionListener()
+    scaleRight.setText(MessageManager.getString("action.scale_right"));
+    scaleRight.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         scaleRight_actionPerformed(e);
@@ -1241,21 +1559,24 @@ public class GAlignFrame extends JInternalFrame
     });
     centreColumnLabelsMenuItem.setVisible(true);
     centreColumnLabelsMenuItem.setState(false);
-    centreColumnLabelsMenuItem.setText("Centre Column Labels");
-    centreColumnLabelsMenuItem
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                centreColumnLabels_actionPerformed(e);
-              }
-            });
+    centreColumnLabelsMenuItem.setText(MessageManager
+            .getString("label.centre_column_labels"));
+    centreColumnLabelsMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        centreColumnLabels_actionPerformed(e);
+      }
+    });
     followHighlightMenuItem.setVisible(true);
     followHighlightMenuItem.setState(true);
-    followHighlightMenuItem.setText("Automatic Scrolling");
+    followHighlightMenuItem.setText(MessageManager
+            .getString("label.automatic_scrolling"));
     followHighlightMenuItem.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         followHighlight_actionPerformed();
@@ -1263,53 +1584,64 @@ public class GAlignFrame extends JInternalFrame
 
     });
 
-    modifyPID.setText("Modify Identity Threshold...");
-    modifyPID.addActionListener(new java.awt.event.ActionListener()
+    JMenuItem modifyPID = new JMenuItem(
+            MessageManager.getString("label.modify_identity_thereshold"));
+    modifyPID.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         modifyPID_actionPerformed(e);
       }
     });
-    modifyConservation.setText("Modify Conservation Threshold...");
-    modifyConservation
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                modifyConservation_actionPerformed(e);
-              }
-            });
-    sortByTreeMenu.setText("By Tree Order");
-    sort.setText("Sort");
+    modifyConservation.setText(MessageManager
+            .getString("label.modify_conservation_thereshold"));
+    modifyConservation.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        modifyConservation_actionPerformed(e);
+      }
+    });
+    sortByTreeMenu
+            .setText(MessageManager.getString("action.by_tree_order"));
+    sort.setText(MessageManager.getString("action.sort"));
     sort.addMenuListener(new MenuListener()
     {
+      @Override
       public void menuSelected(MenuEvent e)
       {
         buildTreeMenu();
       }
 
+      @Override
       public void menuDeselected(MenuEvent e)
       {
       }
 
+      @Override
       public void menuCanceled(MenuEvent e)
       {
       }
     });
-    sortByAnnotScore.setText("by Score");
+    sortByAnnotScore.setText(MessageManager
+            .getString("label.sort_by_score"));
     sort.add(sortByAnnotScore);
-    sortByAnnotScore.addMenuListener(new javax.swing.event.MenuListener()
+    sort.addMenuListener(new javax.swing.event.MenuListener()
     {
 
+      @Override
       public void menuCanceled(MenuEvent e)
       {
       }
 
+      @Override
       public void menuDeselected(MenuEvent e)
       {
       }
 
+      @Override
       public void menuSelected(MenuEvent e)
       {
         buildSortByAnnotationScoresMenu();
@@ -1317,249 +1649,341 @@ public class GAlignFrame extends JInternalFrame
     });
     sortByAnnotScore.setVisible(false);
 
-    calculateTree.setText("Calculate Tree");
+    calculateTree
+            .setText(MessageManager.getString("action.calculate_tree"));
 
-    jMenu2.setText("Export Image");
-    padGapsMenuitem.setText("Pad Gaps");
+    padGapsMenuitem.setText(MessageManager.getString("label.pad_gaps"));
     padGapsMenuitem.setState(jalview.bin.Cache
             .getDefault("PAD_GAPS", false));
     padGapsMenuitem.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         padGapsMenuitem_actionPerformed(e);
       }
     });
+    JMenuItem vamsasStore = new JMenuItem(
+            MessageManager.getString("label.vamsas_store"));
     vamsasStore.setVisible(false);
-    vamsasStore.setText("VAMSAS store");
     vamsasStore.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         vamsasStore_actionPerformed(e);
       }
     });
-    showTranslation.setText("Translate cDNA");
+    showTranslation.setText(MessageManager
+            .getString("label.translate_cDNA"));
     showTranslation.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showTranslation_actionPerformed(e);
       }
     });
-    extractScores.setText("Extract Scores...");
+
+    JMenuItem extractScores = new JMenuItem(
+            MessageManager.getString("label.extract_scores"));
     extractScores.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         extractScores_actionPerformed(e);
       }
     });
-    extractScores.setVisible(true); // JBPNote: TODO: make gui for regex based
-    // score extraction
-    showProducts.setText("Get Cross References");
-    /*
-     * showProducts.addActionListener(new ActionListener() {
-     * 
-     * public void actionPerformed(ActionEvent e) {
-     * showProducts_actionPerformed(e); } });
-     */
-    featureSettings.setText("Feature Settings...");
-    featureSettings.addActionListener(new ActionListener()
+    extractScores.setVisible(true);
+    // JBPNote: TODO: make gui for regex based score extraction
+
+    // for show products actions see AlignFrame.canShowProducts
+    showProducts.setText(MessageManager.getString("label.get_cross_refs"));
+
+    JMenuItem openFeatureSettings = new JMenuItem(
+            MessageManager.getString("action.feature_settings"));
+    openFeatureSettings.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         featureSettings_actionPerformed(e);
       }
     });
-    fetchSequence.setText("Fetch Sequence(s)...");
+    JMenuItem fetchSequence = new JMenuItem(
+            MessageManager.getString("label.fetch_sequences"));
     fetchSequence.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         fetchSequence_actionPerformed(e);
       }
     });
 
-    annotationColour.setText("By Annotation...");
+    JMenuItem annotationColour = new JMenuItem(
+            MessageManager.getString("action.by_annotation"));
     annotationColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         annotationColour_actionPerformed(e);
       }
     });
-    associatedData.setText("Load Features / Annotations");
+
+    JMenuItem annotationColumn = new JMenuItem(
+            MessageManager.getString("action.select_by_annotation"));
+    annotationColumn.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        annotationColumn_actionPerformed(e);
+      }
+    });
+
+    rnahelicesColour.setText(MessageManager
+            .getString("action.by_rna_helixes"));
+    rnahelicesColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        rnahelicesColour_actionPerformed(e);
+      }
+    });
+
+    JMenuItem associatedData = new JMenuItem(
+            MessageManager.getString("label.load_features_annotations"));
     associatedData.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         associatedData_actionPerformed(e);
       }
     });
-    autoCalculate.setText("Autocalculate Consensus");
+    autoCalculate.setText(MessageManager
+            .getString("label.autocalculate_consensus"));
     autoCalculate.setState(jalview.bin.Cache.getDefault(
             "AUTO_CALC_CONSENSUS", true));
     autoCalculate.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         autoCalculate_actionPerformed(e);
       }
     });
-    sortByTree.setText("Sort Alignment With New Tree");
-    sortByTree.setToolTipText("<html>Enable this to automatically sort<br>the alignment when you open<br> a new tree.");
-    sortByTree.setState(jalview.bin.Cache.getDefault(
-            "SORT_BY_TREE", false));
+    sortByTree.setText(MessageManager
+            .getString("label.sort_alignment_new_tree"));
+    sortByTree
+            .setToolTipText("<html>"
+                    + MessageManager
+                            .getString("label.enable_automatically_sort_alignment_when_open_new_tree"));
+    sortByTree
+            .setState(jalview.bin.Cache.getDefault("SORT_BY_TREE", false));
     sortByTree.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         sortByTreeOption_actionPerformed(e);
       }
     });
 
-    listenToViewSelections.setText("Listen for selections");
-    listenToViewSelections.setToolTipText("<html>When selected, selections in this view will mirror<br>selections made on the same sequences in other views.");
-    listenToViewSelections.setState(false); 
+    listenToViewSelections.setText(MessageManager
+            .getString("label.listen_for_selections"));
+    listenToViewSelections
+            .setToolTipText("<html>"
+                    + MessageManager
+                            .getString("label.selections_mirror_selections_made_same_sequences_other_views"));
+    listenToViewSelections.setState(false);
     listenToViewSelections.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         listenToViewSelections_actionPerformed(e);
       }
     });
 
-    addSequenceMenu.setText("Add Sequences");
-    addFromFile.setText("From File");
+    JMenu addSequenceMenu = new JMenu(
+            MessageManager.getString("label.add_sequences"));
+    JMenuItem addFromFile = new JMenuItem(
+            MessageManager.getString("label.from_file"));
     addFromFile.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         addFromFile_actionPerformed(e);
       }
     });
-    addFromText.setText("From Textbox");
+    JMenuItem addFromText = new JMenuItem(
+            MessageManager.getString("label.from_textbox"));
     addFromText.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         addFromText_actionPerformed(e);
       }
     });
-    addFromURL.setText("From URL");
+    JMenuItem addFromURL = new JMenuItem(
+            MessageManager.getString("label.from_url"));
     addFromURL.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         addFromURL_actionPerformed(e);
       }
     });
-    exportFeatures.setText("Export Features...");
+    JMenuItem exportFeatures = new JMenuItem(
+            MessageManager.getString("label.export_features"));
     exportFeatures.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         exportFeatures_actionPerformed(e);
       }
     });
-    exportAnnotations.setText("Export Annotations...");
+    JMenuItem exportAnnotations = new JMenuItem(
+            MessageManager.getString("label.export_annotations"));
     exportAnnotations.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         exportAnnotations_actionPerformed(e);
       }
     });
-    statusPanel.setLayout(gridLayout1);
-    jMenu3.setText("Show");
-    showAllSeqs.setText("All Sequences");
-    showAllSeqs.setToolTipText("Shift+H toggles sequence visiblity.");
+    statusPanel.setLayout(new GridLayout());
+    JMenuItem showAllSeqs = new JMenuItem(
+            MessageManager.getString("label.all_sequences"));
+    showAllSeqs.setToolTipText(MessageManager
+            .getString("label.toggle_sequence_visibility"));
     showAllSeqs.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showAllSeqs_actionPerformed(e);
       }
     });
-    showAllColumns.setText("All Columns");
-    showAllColumns.setToolTipText("Ctrl+H toggles column visiblity.");
+    JMenuItem showAllColumns = new JMenuItem(
+            MessageManager.getString("label.all_columns"));
+    showAllColumns.setToolTipText(MessageManager
+            .getString("label.toggle_columns_visibility"));
     showAllColumns.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showAllColumns_actionPerformed(e);
       }
     });
-    hideMenu.setText("Hide");
-    hideSelSequences.setText("Selected Sequences");
-    hideSelSequences.setToolTipText("Shift+H toggles sequence visiblity.");
+    JMenu hideMenu = new JMenu(MessageManager.getString("action.hide"));
+    JMenuItem hideSelSequences = new JMenuItem(
+            MessageManager.getString("label.selected_sequences"));
+    hideSelSequences.setToolTipText(MessageManager
+            .getString("label.toggle_sequence_visibility"));
     hideSelSequences.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hideSelSequences_actionPerformed(e);
       }
     });
-    hideSelColumns.setText("Selected Columns");
-    hideSelColumns.setToolTipText("Ctrl+H toggles column visiblity.");
+    JMenuItem hideSelColumns = new JMenuItem(
+            MessageManager.getString("label.selected_columns"));
+    hideSelColumns.setToolTipText(MessageManager
+            .getString("label.toggle_columns_visibility"));
     hideSelColumns.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hideSelColumns_actionPerformed(e);
       }
     });
-    hideAllSelection.setText("Selected Region");
+    JMenuItem hideAllSelection = new JMenuItem(
+            MessageManager.getString("label.selected_region"));
     hideAllSelection.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hideAllSelection_actionPerformed(e);
       }
     });
     // TODO: should be hidden if no selection exists.
-    hideAllButSelection.setText("All but Selected Region (Shift+Ctrl+H)");
+    JMenuItem hideAllButSelection = new JMenuItem(
+            MessageManager.getString("label.all_but_selected_region"));
     hideAllButSelection.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hideAllButSelection_actionPerformed(e);
       }
     });
-    showAllhidden.setText("All Sequences and Columns");
-    showAllhidden
-            .setToolTipText("H toggles visibility of hidden or selected regions.");
+    JMenuItem showAllhidden = new JMenuItem(
+            MessageManager.getString("label.all_sequences_columns"));
+    showAllhidden.setToolTipText(MessageManager
+            .getString("label.toggles_visibility_hidden_selected_regions"));
     showAllhidden.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showAllhidden_actionPerformed(e);
       }
     });
-
-    hiddenMarkers.setText("Show Hidden Markers");
+    hiddenMarkers.setText(MessageManager
+            .getString("action.show_hidden_markers"));
     hiddenMarkers.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hiddenMarkers_actionPerformed(e);
       }
     });
-    invertColSel.setText("Invert Column Selection");
-    invertColSel.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_I, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask()
-                    | java.awt.event.KeyEvent.ALT_MASK, false));
-    invertColSel.addActionListener(new ActionListener()
+
+    JMenuItem invertColSel = new JMenuItem(
+            MessageManager.getString("action.invert_column_selection"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_I, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask()
+            | KeyEvent.ALT_MASK, false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         invertColSel_actionPerformed(e);
       }
+    };
+    addMenuActionAndAccelerator(keyStroke, invertColSel, al);
+
+    showComplementMenuItem.setVisible(false);
+    showComplementMenuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showComplement_actionPerformed(showComplementMenuItem.getState());
+      }
     });
+
     tabbedPane.addChangeListener(new javax.swing.event.ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
         JTabbedPane pane = (JTabbedPane) evt.getSource();
@@ -1569,6 +1993,7 @@ public class GAlignFrame extends JInternalFrame
     });
     tabbedPane.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         tabbedPane_mousePressed(e);
@@ -1576,106 +2001,136 @@ public class GAlignFrame extends JInternalFrame
     });
     tabbedPane.addFocusListener(new FocusAdapter()
     {
+      @Override
       public void focusGained(FocusEvent e)
       {
         tabbedPane_focusGained(e);
       }
     });
-    save.setText("Save");
-    save.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_S, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    save.addActionListener(new ActionListener()
+
+    JMenuItem save = new JMenuItem(MessageManager.getString("action.save"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_S, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         save_actionPerformed(e);
       }
-    });
+    };
+    addMenuActionAndAccelerator(keyStroke, save, al);
+
     reload.setEnabled(false);
-    reload.setText("Reload");
+    reload.setText(MessageManager.getString("action.reload"));
     reload.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         reload_actionPerformed(e);
       }
     });
-    newView.setText("New View");
-    newView.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_T, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
-    newView.addActionListener(new ActionListener()
+
+    JMenuItem newView = new JMenuItem(
+            MessageManager.getString("action.new_view"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_T, Toolkit
+            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         newView_actionPerformed(e);
       }
-    });
-    tabbedPane.setToolTipText("<html><i> Right-click to rename tab"
-            + "<br> Press X to eXpand tabs, G to reGroup.</i></html>");
-    textColour.setText("Colour Text ...");
+    };
+    addMenuActionAndAccelerator(keyStroke, newView, al);
+
+    tabbedPane.setToolTipText("<html><i>"
+            + MessageManager.getString("label.rename_tab_eXpand_reGroup")
+            + "</i></html>");
+    JMenuItem textColour = new JMenuItem(
+            MessageManager.getString("action.set_text_colour"));
     textColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         textColour_actionPerformed(e);
       }
     });
-    formatMenu.setText("Format");
-    selectMenu.setText("Select");
-    idRightAlign.setText("Right Align Sequence Id");
+    formatMenu.setText(MessageManager.getString("action.format"));
+    JMenu selectMenu = new JMenu(MessageManager.getString("action.select"));
+    idRightAlign.setText(MessageManager
+            .getString("label.right_align_sequence_id"));
     idRightAlign.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         idRightAlign_actionPerformed(e);
       }
     });
+
     gatherViews.setEnabled(false);
-    gatherViews.setText("Gather Views");
-    gatherViews.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_G, 0, false));
-    gatherViews.addActionListener(new ActionListener()
+    gatherViews.setText(MessageManager.getString("action.gather_views"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_G, 0, false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         gatherViews_actionPerformed(e);
       }
-    });
+    };
+    addMenuActionAndAccelerator(keyStroke, gatherViews, al);
+
     expandViews.setEnabled(false);
-    expandViews.setText("Expand Views");
-    expandViews.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_X, 0, false));
-    expandViews.addActionListener(new ActionListener()
+    expandViews.setText(MessageManager.getString("action.expand_views"));
+    keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_X, 0, false);
+    al = new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         expandViews_actionPerformed(e);
       }
-    });
-    pageSetup.setText("Page Setup ...");
+    };
+    addMenuActionAndAccelerator(keyStroke, expandViews, al);
+
+    JMenuItem pageSetup = new JMenuItem(
+            MessageManager.getString("action.page_setup"));
     pageSetup.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         pageSetup_actionPerformed(e);
       }
     });
-    alignmentProperties.setText("Alignment Properties...");
+    JMenuItem alignmentProperties = new JMenuItem(
+            MessageManager.getString("label.alignment_props"));
     alignmentProperties.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         alignmentProperties();
       }
     });
-    tooltipSettingsMenu.setText("Sequence ID Tooltip");
-    autoAnnMenu.setText("Autocalculated Annotation");
+    JMenu tooltipSettingsMenu = new JMenu(
+            MessageManager.getString("label.sequence_id_tooltip"));
+    JMenu autoAnnMenu = new JMenu(
+            MessageManager.getString("label.autocalculated_annotation"));
+
+    JMenu exportImageMenu = new JMenu(
+            MessageManager.getString("label.export_image"));
+    JMenu fileMenu = new JMenu(MessageManager.getString("action.file"));
     alignFrameMenuBar.add(fileMenu);
     alignFrameMenuBar.add(editMenu);
     alignFrameMenuBar.add(selectMenu);
     alignFrameMenuBar.add(viewMenu);
+    alignFrameMenuBar.add(annotationsMenu);
     alignFrameMenuBar.add(formatMenu);
     alignFrameMenuBar.add(colourMenu);
     alignFrameMenuBar.add(calculateMenu);
@@ -1691,10 +2146,10 @@ public class GAlignFrame extends JInternalFrame
     fileMenu.add(pageSetup);
     fileMenu.add(printMenuItem);
     fileMenu.addSeparator();
-    fileMenu.add(jMenu2);
+    fileMenu.add(exportImageMenu);
     fileMenu.add(exportFeatures);
     fileMenu.add(exportAnnotations);
-    fileMenu.add(LoadtreeMenuItem);
+    fileMenu.add(loadTreeMenuItem);
     fileMenu.add(associatedData);
     fileMenu.addSeparator();
     fileMenu.add(closeMenuItem);
@@ -1717,27 +2172,20 @@ public class GAlignFrame extends JInternalFrame
     // editMenu.add(justifyRightMenuItem);
     // editMenu.addSeparator();
     editMenu.add(padGapsMenuitem);
+
     viewMenu.add(newView);
     viewMenu.add(expandViews);
     viewMenu.add(gatherViews);
     viewMenu.addSeparator();
-    viewMenu.add(jMenu3);
+    viewMenu.add(showMenu);
     viewMenu.add(hideMenu);
+    viewMenu.add(showComplementMenuItem);
     viewMenu.addSeparator();
     viewMenu.add(followHighlightMenuItem);
-    viewMenu.add(annotationPanelMenuItem);
-    autoAnnMenu.add(applyAutoAnnotationSettings);
-    autoAnnMenu.add(showConsensusHistogram);
-    autoAnnMenu.add(showSequenceLogo);
-    autoAnnMenu.addSeparator();
-    autoAnnMenu.add(showGroupConservation);
-    autoAnnMenu.add(showGroupConsensus);
-    viewMenu.add(autoAnnMenu);
     viewMenu.addSeparator();
     viewMenu.add(showSeqFeatures);
     // viewMenu.add(showSeqFeaturesHeight);
-
-    viewMenu.add(featureSettings);
+    viewMenu.add(openFeatureSettings);
     tooltipSettingsMenu.add(showDbRefsMenuitem);
     tooltipSettingsMenu.add(showNpFeatsMenuitem);
     viewMenu.add(tooltipSettingsMenu);
@@ -1745,6 +2193,29 @@ public class GAlignFrame extends JInternalFrame
     viewMenu.add(alignmentProperties);
     viewMenu.addSeparator();
     viewMenu.add(overviewMenuItem);
+
+    annotationsMenu.add(annotationPanelMenuItem);
+    annotationsMenu.addSeparator();
+    annotationsMenu.add(showAllAlAnnotations);
+    annotationsMenu.add(hideAllAlAnnotations);
+    annotationsMenu.addSeparator();
+    annotationsMenu.add(showAllSeqAnnotations);
+    annotationsMenu.add(hideAllSeqAnnotations);
+    annotationsMenu.add(sortAnnBySequence);
+    annotationsMenu.add(sortAnnByLabel);
+    annotationsMenu.addSeparator();
+    autoAnnMenu.add(showAutoFirst);
+    autoAnnMenu.add(showAutoLast);
+    autoAnnMenu.addSeparator();
+    autoAnnMenu.add(applyAutoAnnotationSettings);
+    autoAnnMenu.add(showConsensusHistogram);
+    autoAnnMenu.add(showSequenceLogo);
+    autoAnnMenu.add(normaliseSequenceLogo);
+    autoAnnMenu.addSeparator();
+    autoAnnMenu.add(showGroupConservation);
+    autoAnnMenu.add(showGroupConsensus);
+    annotationsMenu.add(autoAnnMenu);
+
     colourMenu.add(applyToAllGroups);
     colourMenu.add(textColour);
     colourMenu.addSeparator();
@@ -1760,6 +2231,10 @@ public class GAlignFrame extends JInternalFrame
     colourMenu.add(turnColour);
     colourMenu.add(buriedColour);
     colourMenu.add(nucleotideColour);
+    colourMenu.add(purinePyrimidineColour);
+    colourMenu.add(RNAInteractionColour);
+    // colourMenu.add(covariationColour);
+    colourMenu.add(tcoffeeColour);
     colourMenu.add(userDefinedColour);
     colourMenu.addSeparator();
     colourMenu.add(conservationMenuItem);
@@ -1767,6 +2242,7 @@ public class GAlignFrame extends JInternalFrame
     colourMenu.add(abovePIDThreshold);
     colourMenu.add(modifyPID);
     colourMenu.add(annotationColour);
+    colourMenu.add(rnahelicesColour);
     calculateMenu.add(sort);
     calculateMenu.add(calculateTree);
     calculateMenu.addSeparator();
@@ -1779,7 +2255,8 @@ public class GAlignFrame extends JInternalFrame
     calculateMenu.add(sortByTree);
     calculateMenu.addSeparator();
     calculateMenu.add(extractScores);
-    webServiceNoServices = new JMenuItem("<No Services>");
+    webServiceNoServices = new JMenuItem(
+            MessageManager.getString("label.no_services"));
     webService.add(webServiceNoServices);
     pasteMenu.add(pasteNew);
     pasteMenu.add(pasteThis);
@@ -1788,22 +2265,20 @@ public class GAlignFrame extends JInternalFrame
     sort.add(sortGroupMenuItem);
     sort.add(sortPairwiseMenuItem);
     sort.add(sortByTreeMenu);
-    calculateTree.add(averageDistanceTreeMenuItem);
-    calculateTree.add(neighbourTreeMenuItem);
-    calculateTree.add(avDistanceTreeBlosumMenuItem);
-    calculateTree.add(njTreeBlosumMenuItem);
-    jMenu2.add(htmlMenuItem);
-    jMenu2.add(epsFile);
-    jMenu2.add(createPNG);
+    exportImageMenu.add(htmlMenuItem);
+    exportImageMenu.add(epsFile);
+    exportImageMenu.add(createPNG);
+    exportImageMenu.add(createBioJS);
+    exportImageMenu.add(createSVG);
     addSequenceMenu.add(addFromFile);
     addSequenceMenu.add(addFromText);
     addSequenceMenu.add(addFromURL);
     this.getContentPane().add(statusPanel, java.awt.BorderLayout.SOUTH);
     statusPanel.add(statusBar, null);
     this.getContentPane().add(tabbedPane, java.awt.BorderLayout.CENTER);
-    jMenu3.add(showAllColumns);
-    jMenu3.add(showAllSeqs);
-    jMenu3.add(showAllhidden);
+    showMenu.add(showAllColumns);
+    showMenu.add(showAllSeqs);
+    showMenu.add(showAllhidden);
     hideMenu.add(hideSelColumns);
     hideMenu.add(hideSelSequences);
     hideMenu.add(hideAllSelection);
@@ -1830,17 +2305,97 @@ public class GAlignFrame extends JInternalFrame
     selectMenu.add(deselectAllSequenceMenuItem);
     selectMenu.add(invertSequenceMenuItem);
     selectMenu.add(invertColSel);
-    selectMenu.add(deleteGroups);
+    selectMenu.add(createGroup);
+    selectMenu.add(unGroup);
     selectMenu.add(grpsFromSelection);
-    // TODO - determine if the listenToViewSelections button is needed : see bug JAL-574
-    //selectMenu.addSeparator();
-    //selectMenu.add(listenToViewSelections);
+    selectMenu.add(deleteGroups);
+    selectMenu.add(annotationColumn);
+    calculateMenu.add(expandAlignment);
+    // TODO - determine if the listenToViewSelections button is needed : see bug
+    // JAL-574
+    // selectMenu.addSeparator();
+    // selectMenu.add(listenToViewSelections);
+  }
+
+  /**
+   * Adds the given action listener and key accelerator to the given menu item.
+   * Also saves in a lookup table to support lookup of action by key stroke.
+   * 
+   * @param keyStroke
+   * @param menuItem
+   * @param actionListener
+   */
+  protected void addMenuActionAndAccelerator(KeyStroke keyStroke,
+          JMenuItem menuItem, ActionListener actionListener)
+  {
+    menuItem.setAccelerator(keyStroke);
+    accelerators.put(keyStroke, menuItem);
+    menuItem.addActionListener(actionListener);
+  }
+
+  /**
+   * Action on clicking sort annotations by type.
+   * 
+   * @param sortOrder
+   */
+  protected void sortAnnotations_actionPerformed()
+  {
+  }
+
+  /**
+   * Action on clicking Show all annotations.
+   * 
+   * @param forSequences
+   *          update sequence-related annotations
+   * @param forAlignment
+   *          update non-sequence-related annotations
+   */
+  protected void showAllAnnotations_actionPerformed(boolean forSequences,
+          boolean forAlignment)
+  {
+    setAnnotationsVisibility(true, forSequences, forAlignment);
+  }
+
+  /**
+   * Action on clicking Hide all annotations.
+   * 
+   * @param forSequences
+   *          update sequence-related annotations
+   * @param forAlignment
+   *          update non-sequence-related annotations
+   */
+  protected void hideAllAnnotations_actionPerformed(boolean forSequences,
+          boolean forAlignment)
+  {
+    setAnnotationsVisibility(false, forSequences, forAlignment);
+  }
+
+  /**
+   * Set the visibility of annotations to true or false. Can act on
+   * sequence-related annotations, or alignment-related, or both.
+   * 
+   * @param visible
+   * @param forSequences
+   *          update sequence-related annotations
+   * @param forAlignment
+   *          update non-sequence-related annotations
+   */
+  protected void setAnnotationsVisibility(boolean visible,
+          boolean forSequences, boolean forAlignment)
+  {
+
+  }
+
+  protected void normaliseSequenceLogo_actionPerformed(ActionEvent e)
+  {
+    // TODO Auto-generated method stub
+
   }
 
   protected void listenToViewSelections_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
-    
+
   }
 
   protected void showAllhidden_actionPerformed(ActionEvent e)
@@ -1944,10 +2499,6 @@ public class GAlignFrame extends JInternalFrame
   {
   }
 
-  protected void showProducts_actionPerformed(ActionEvent e)
-  {
-  }
-
   protected void buildSortByAnnotationScoresMenu()
   {
   }
@@ -1987,6 +2538,11 @@ public class GAlignFrame extends JInternalFrame
 
   protected void htmlMenuItem_actionPerformed(ActionEvent e)
   {
+  }
+
+  protected void bioJSMenuItem_actionPerformed(ActionEvent e)
+  {
+
   }
 
   protected void closeMenuItem_actionPerformed(boolean b)
@@ -2141,6 +2697,18 @@ public class GAlignFrame extends JInternalFrame
   {
   }
 
+  protected void purinePyrimidineColour_actionPerformed(ActionEvent e)
+  {
+  }
+
+  protected void RNAInteractionColour_actionPerformed(ActionEvent e)
+  {
+  }
+
+  /*
+   * protected void covariationColour_actionPerformed(ActionEvent e) { }
+   */
+
   protected void noColourmenuItem_actionPerformed(ActionEvent e)
   {
   }
@@ -2174,6 +2742,14 @@ public class GAlignFrame extends JInternalFrame
   }
 
   protected void deleteGroups_actionPerformed(ActionEvent e)
+  {
+  }
+
+  protected void createGroup_actionPerformed(ActionEvent e)
+  {
+  }
+
+  protected void unGroup_actionPerformed(ActionEvent e)
   {
   }
 
@@ -2222,8 +2798,40 @@ public class GAlignFrame extends JInternalFrame
   {
   }
 
-  protected void LoadtreeMenuItem_actionPerformed(ActionEvent e)
+  public void createSVG(java.io.File f)
   {
+
+  }
+
+  protected void loadTreeMenuItem_actionPerformed(ActionEvent e)
+  {
+
+  }
+
+  /**
+   * Template method to handle the 'load T-Coffee scores' menu event.
+   * <p>
+   * Subclasses override this method to provide a custom action.
+   * 
+   * @param event
+   *          The raised event
+   */
+  protected void loadScores_actionPerformed(ActionEvent event)
+  {
+
+  }
+
+  /**
+   * Template method to handle the 'Color T-Coffee scores' menu event.
+   * <p>
+   * Subclasses override this method to provide a custom action.
+   * 
+   * @param event
+   *          The raised event
+   */
+  protected void tcoffeeColorScheme_actionPerformed(ActionEvent event)
+  {
+
   }
 
   protected void jpred_actionPerformed(ActionEvent e)
@@ -2289,6 +2897,16 @@ public class GAlignFrame extends JInternalFrame
   }
 
   public void annotationColour_actionPerformed(ActionEvent e)
+  {
+
+  }
+
+  public void annotationColumn_actionPerformed(ActionEvent e)
+  {
+
+  }
+
+  public void rnahelicesColour_actionPerformed(ActionEvent e)
   {
 
   }
@@ -2416,5 +3034,78 @@ public class GAlignFrame extends JInternalFrame
   public void alignmentProperties()
   {
 
+  }
+
+  protected void expand_newalign(ActionEvent e)
+  {
+    // TODO Auto-generated method stub
+
+  }
+
+  protected boolean isShowAutoCalculatedAbove()
+  {
+    return showAutoCalculatedAbove;
+  }
+
+  protected void setShowAutoCalculatedAbove(boolean showAutoCalculatedAbove)
+  {
+    this.showAutoCalculatedAbove = showAutoCalculatedAbove;
+  }
+
+  protected SequenceAnnotationOrder getAnnotationSortOrder()
+  {
+    return annotationSortOrder;
+  }
+
+  protected void setAnnotationSortOrder(
+          SequenceAnnotationOrder annotationSortOrder)
+  {
+    this.annotationSortOrder = annotationSortOrder;
+  }
+
+  public Map<KeyStroke, JMenuItem> getAccelerators()
+  {
+    return this.accelerators;
+  }
+
+  /**
+   * Returns the selected index of the tabbed pane, or -1 if none selected
+   * (including the case where the tabbed pane has not been made visible).
+   * 
+   * @return
+   */
+  public int getTabIndex()
+  {
+    return tabbedPane.getSelectedIndex();
+  }
+
+  public JPanel getStatusPanel()
+  {
+    return statusPanel;
+  }
+
+  /**
+   * Sets a reference to the containing split frame. Also makes the 'toggle
+   * split view' menu item visible and checked.
+   * 
+   * @param sf
+   */
+  public void setSplitFrame(SplitContainerI sf)
+  {
+    this.splitFrame = sf;
+    if (sf != null)
+    {
+      this.showComplementMenuItem.setVisible(true);
+      this.showComplementMenuItem.setState(true);
+    }
+  }
+
+  public SplitContainerI getSplitViewContainer()
+  {
+    return this.splitFrame;
+  }
+
+  protected void showComplement_actionPerformed(boolean state)
+  {
   }
 }

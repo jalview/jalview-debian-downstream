@@ -1,22 +1,35 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.bin;
 
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.io.BioJsHTMLOutput;
+import jalview.io.HtmlSvgOutput;
+import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.ws.jws2.Jws2Discoverer;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,12 +46,12 @@ import java.security.CodeSource;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.Policy;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
 
-import javax.swing.*;
-
-import jalview.gui.*;
-import jalview.util.Platform;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
 /**
  * Main class for Jalview Application <br>
@@ -81,56 +94,46 @@ public class Jalview
     System.out.println(System.getProperty("os.arch") + " "
             + System.getProperty("os.name") + " "
             + System.getProperty("os.version"));
-    if (new Platform().isAMac())
-    {
-      System.setProperty("com.apple.mrj.application.apple.menu.about.name",
-              "Jalview");
-      System.setProperty("apple.laf.useScreenMenuBar", "true");
-    }
 
     ArgsParser aparser = new ArgsParser(args);
     boolean headless = false;
 
     if (aparser.contains("help") || aparser.contains("h"))
     {
-      System.out
-              .println("Usage: jalview -open [FILE] [OUTPUT_FORMAT] [OUTPUT_FILE]\n\n"
-                      + "-nodisplay\tRun Jalview without User Interface.\n"
-                      + "-props FILE\tUse the given Jalview properties file instead of users default.\n"
-                      + "-colour COLOURSCHEME\tThe colourscheme to be applied to the alignment\n"
-                      + "-annotations FILE\tAdd precalculated annotations to the alignment.\n"
-                      + "-tree FILE\tLoad the given newick format tree file onto the alignment\n"
-                      + "-features FILE\tUse the given file to mark features on the alignment.\n"
-                      + "-fasta FILE\tCreate alignment file FILE in Fasta format.\n"
-                      + "-clustal FILE\tCreate alignment file FILE in Clustal format.\n"
-                      + "-pfam FILE\tCreate alignment file FILE in PFAM format.\n"
-                      + "-msf FILE\tCreate alignment file FILE in MSF format.\n"
-                      + "-pileup FILE\tCreate alignment file FILE in Pileup format\n"
-                      + "-pir FILE\tCreate alignment file FILE in PIR format.\n"
-                      + "-blc FILE\tCreate alignment file FILE in BLC format.\n"
-                      + "-jalview FILE\tCreate alignment file FILE in Jalview format.\n"
-                      + "-png FILE\tCreate PNG image FILE from alignment.\n"
-                      + "-imgMap FILE\tCreate HTML file FILE with image map of PNG image.\n"
-                      + "-eps FILE\tCreate EPS file FILE from alignment.\n"
-                      + "-questionnaire URL\tQueries the given URL for information about any Jalview user questionnaires.\n"
-                      + "-noquestionnaire\tTurn off questionnaire check.\n"
-                      + "-nousagestats\tTurn off google analytics tracking for this session.\n"
-                      + "-sortbytree OR -nosortbytree\tEnable or disable sorting of the given alignment by the given tree\n"
-                      // +
-                      // "-setprop PROPERTY=VALUE\tSet the given Jalview property, after all other properties files have been read\n\t (quote the 'PROPERTY=VALUE' pair to ensure spaces are passed in correctly)"
-                      + "-dasserver nickname=URL\tAdd and enable a das server with given nickname\n\t\t\t(alphanumeric or underscores only) for retrieval of features for all alignments.\n"
-                      + "\t\t\tSources that also support the sequence command may be specified by prepending the URL with sequence:\n"
-                      + "\t\t\t e.g. sequence:http://localdas.somewhere.org/das/source)\n"
-                      + "-fetchfrom nickname\tQuery nickname for features for the alignments and display them.\n"
-                      // +
-                      // "-vdoc vamsas-document\tImport vamsas document into new session or join existing session with same URN\n"
-                      // + "-vses vamsas-session\tJoin session with given URN\n"
-                      + "-groovy FILE\tExecute groovy script in FILE, after all other arguments have been processed (if FILE is the text 'STDIN' then the file will be read from STDIN)\n"
-                      + "\n~Read documentation in Application or visit http://www.jalview.org for description of Features and Annotations file~\n\n");
+      showUsage();
       System.exit(0);
     }
-    Cache.loadProperties(aparser.getValue("props")); // must do this before
+    if (aparser.contains("nodisplay") || aparser.contains("nogui")
+            || aparser.contains("headless"))
+    {
+      System.setProperty("java.awt.headless", "true");
+      headless = true;
+    }
+    String usrPropsFile = aparser.getValue("props");
+    Cache.loadProperties(usrPropsFile); // must do this before
+    if (usrPropsFile != null)
+    {
+      System.out.println("CMD [-props " + usrPropsFile
+              + "] executed successfully!");
+    }
+
     // anything else!
+
+    final String jabawsUrl = aparser.getValue("jabaws");
+    if (jabawsUrl != null)
+    {
+      try
+      {
+        Jws2Discoverer.getDiscoverer().setPreferredUrl(jabawsUrl);
+        System.out.println("CMD [-jabaws " + jabawsUrl
+                + "] executed successfully!");
+      } catch (MalformedURLException e)
+      {
+        System.err.println("Invalid jabaws parameter: " + jabawsUrl
+                + " ignored");
+      }
+    }
+
     String defs = aparser.getValue("setprop");
     while (defs != null)
     {
@@ -148,16 +151,13 @@ public class Jalview
       }
       defs = aparser.getValue("setprop");
     }
-    if (aparser.contains("nodisplay"))
-    {
-      System.setProperty("java.awt.headless", "true");
-    }
     if (System.getProperty("java.awt.headless") != null
             && System.getProperty("java.awt.headless").equals("true"))
     {
       headless = true;
     }
-
+    System.setProperty("http.agent",
+            "Jalview Desktop/" + Cache.getDefault("VERSION", "Unknown"));
     try
     {
       Cache.initLogger();
@@ -178,6 +178,21 @@ public class Jalview
     } catch (Exception ex)
     {
     }
+    if (new Platform().isAMac())
+    {
+      System.setProperty("com.apple.mrj.application.apple.menu.about.name",
+              "Jalview");
+      System.setProperty("apple.laf.useScreenMenuBar", "true");
+      try
+      {
+        UIManager.setLookAndFeel(ch.randelshofer.quaqua.QuaquaManager
+                .getLookAndFeel());
+      } catch (UnsupportedLookAndFeelException e)
+      {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
+    }
 
     if (!headless)
     {
@@ -189,6 +204,11 @@ public class Jalview
       {
         startUsageStats(desktop);
       }
+      else
+      {
+        System.err.println("CMD [-nousagestats] executed successfully!");
+      }
+
       if (!aparser.contains("noquestionnaire"))
       {
         String url = aparser.getValue("questionnaire");
@@ -198,6 +218,8 @@ public class Jalview
           // questionnaire
           Cache.log.debug("Starting questionnaire url at " + url);
           desktop.checkForQuestionnaire(url);
+          System.out.println("CMD questionnaire[-" + url
+                  + "] executed successfully!");
         }
         else
         {
@@ -216,10 +238,20 @@ public class Jalview
           }
         }
       }
+      else
+      {
+        System.err.println("CMD [-noquestionnaire] executed successfully!");
+      }
+      desktop.checkForNews();
+    }
+
+    if (!isHeadlessMode())
+    {
+      BioJsHTMLOutput.updateBioJS();
     }
 
     String file = null, protocol = null, format = null, data = null;
-    jalview.io.FileLoader fileLoader = new jalview.io.FileLoader();
+    jalview.io.FileLoader fileLoader = new jalview.io.FileLoader(!headless);
     Vector getFeatures = null; // vector of das source nicknames to fetch
     // features from
     // loading is done.
@@ -250,7 +282,8 @@ public class Jalview
       {
         try
         {
-          String viprotocol = jalview.io.AppletFormatAdapter.checkProtocol(vamsasImport);
+          String viprotocol = jalview.io.AppletFormatAdapter
+                  .checkProtocol(vamsasImport);
           if (viprotocol == jalview.io.FormatAdapter.FILE)
           {
             inSession = desktop.vamsasImport(new File(vamsasImport));
@@ -318,15 +351,17 @@ public class Jalview
         }
       }
     }
-    long progress=-1;
+    long progress = -1;
     // Finally, deal with the remaining input data.
     if (file != null)
     {
       if (!headless)
       {
-        desktop.setProgressBar("Processing commandline arguments...", progress=System.currentTimeMillis());
+        desktop.setProgressBar(MessageManager
+                .getString("status.processing_commandline_args"),
+                progress = System.currentTimeMillis());
       }
-      System.out.println("Opening file: " + file);
+      System.out.println("CMD [-open " + file + "] executed successfully!");
 
       if (!file.startsWith("http://"))
       {
@@ -349,177 +384,236 @@ public class Jalview
       if (af == null)
       {
         System.out.println("error");
-        return;
       }
-
-      data = aparser.getValue("colour", true);
-      if (data != null)
+      else
       {
-        data.replaceAll("%20", " ");
 
-        jalview.schemes.ColourSchemeI cs = jalview.schemes.ColourSchemeProperty
-                .getColour(af.getViewport().getAlignment(), data);
-
-        if (cs == null)
+        data = aparser.getValue("colour", true);
+        if (data != null)
         {
-          jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme(
-                  "white");
-          ucs.parseAppletParameter(data);
-          cs = ucs;
-        }
+          data.replaceAll("%20", " ");
 
-        System.out.println("colour is " + data);
-        af.changeColour(cs);
-      }
+          jalview.schemes.ColourSchemeI cs = jalview.schemes.ColourSchemeProperty
+                  .getColour(af.getViewport().getAlignment(), data);
 
-      // Must maintain ability to use the groups flag
-      data = aparser.getValue("groups", true);
-      if (data != null)
-      {
-        af.parseFeaturesFile(data, jalview.io.AppletFormatAdapter.checkProtocol(data));
-        System.out.println("Added " + data);
-      }
-      data = aparser.getValue("features", true);
-      if (data != null)
-      {
-        af.parseFeaturesFile(data, jalview.io.AppletFormatAdapter.checkProtocol(data));
-        System.out.println("Added " + data);
-      }
-
-      data = aparser.getValue("annotations", true);
-      if (data != null)
-      {
-        af.loadJalviewDataFile(data, null, null, null);
-        System.out.println("Added " + data);
-      }
-      // set or clear the sortbytree flag.
-      if (aparser.contains("sortbytree"))
-      {
-        af.getViewport().setSortByTree(true);
-      }
-      if (aparser.contains("nosortbytree"))
-      {
-        af.getViewport().setSortByTree(false);
-      }
-      data = aparser.getValue("tree", true);
-      if (data != null)
-      {
-        jalview.io.NewickFile fin = null;
-        try
-        {
-          fin = new jalview.io.NewickFile(data, jalview.io.AppletFormatAdapter.checkProtocol(data));
-          if (fin != null)
+          if (cs == null)
           {
-            af.getViewport().setCurrentTree(
-                    af.ShowNewickTree(fin, data).getTree());
-            System.out.println("Added tree " + data);
+            jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme(
+                    "white");
+            ucs.parseAppletParameter(data);
+            cs = ucs;
           }
-        } catch (IOException ex)
-        {
-          System.err.println("Couldn't add tree " + data);
-          ex.printStackTrace(System.err);
-        }
-      }
-      // TODO - load PDB structure(s) to alignment JAL-629
-      // (associate with identical sequence in alignment, or a specified
-      // sequence)
-
-      getFeatures = checkDasArguments(aparser);
-      if (af != null && getFeatures != null)
-      {
-        FeatureFetcher ff = startFeatureFetching(getFeatures);
-        if (ff != null)
-          while (!ff.allFinished() || af.operationInProgress())
+          else
           {
-            // wait around until fetching is finished.
-            try
-            {
-              Thread.sleep(100);
-            } catch (Exception e)
-            {
+            System.out.println("CMD [-color " + data
+                    + "] executed successfully!");
+          }
+          af.changeColour(cs);
+        }
 
+        // Must maintain ability to use the groups flag
+        data = aparser.getValue("groups", true);
+        if (data != null)
+        {
+          af.parseFeaturesFile(data,
+                  jalview.io.AppletFormatAdapter.checkProtocol(data));
+          // System.out.println("Added " + data);
+          System.out.println("CMD groups[-" + data
+                  + "]  executed successfully!");
+        }
+        data = aparser.getValue("features", true);
+        if (data != null)
+        {
+          af.parseFeaturesFile(data,
+                  jalview.io.AppletFormatAdapter.checkProtocol(data));
+          // System.out.println("Added " + data);
+          System.out.println("CMD [-features " + data
+                  + "]  executed successfully!");
+        }
+
+        data = aparser.getValue("annotations", true);
+        if (data != null)
+        {
+          af.loadJalviewDataFile(data, null, null, null);
+          // System.out.println("Added " + data);
+          System.out.println("CMD [-annotations " + data
+                  + "] executed successfully!");
+        }
+        // set or clear the sortbytree flag.
+        if (aparser.contains("sortbytree"))
+        {
+          af.getViewport().setSortByTree(true);
+          if (af.getViewport().getSortByTree())
+          {
+            System.out.println("CMD [-sortbytree] executed successfully!");
+          }
+        }
+        if (aparser.contains("no-annotation"))
+        {
+          af.getViewport().setShowAnnotation(false);
+          if (!af.getViewport().isShowAnnotation())
+          {
+            System.out.println("CMD no-annotation executed successfully!");
+          }
+        }
+        if (aparser.contains("nosortbytree"))
+        {
+          af.getViewport().setSortByTree(false);
+          if (!af.getViewport().getSortByTree())
+          {
+            System.out
+                    .println("CMD [-nosortbytree] executed successfully!");
+          }
+        }
+        data = aparser.getValue("tree", true);
+        if (data != null)
+        {
+          jalview.io.NewickFile fin = null;
+          try
+          {
+            System.out.println("CMD [-tree " + data
+                    + "] executed successfully!");
+            fin = new jalview.io.NewickFile(data,
+                    jalview.io.AppletFormatAdapter.checkProtocol(data));
+            if (fin != null)
+            {
+              af.getViewport().setCurrentTree(
+                      af.ShowNewickTree(fin, data).getTree());
+            }
+          } catch (IOException ex)
+          {
+            System.err.println("Couldn't add tree " + data);
+            ex.printStackTrace(System.err);
+          }
+        }
+        // TODO - load PDB structure(s) to alignment JAL-629
+        // (associate with identical sequence in alignment, or a specified
+        // sequence)
+
+        getFeatures = checkDasArguments(aparser);
+        if (af != null && getFeatures != null)
+        {
+          FeatureFetcher ff = startFeatureFetching(getFeatures);
+          if (ff != null)
+          {
+            while (!ff.allFinished() || af.operationInProgress())
+            {
+              // wait around until fetching is finished.
+              try
+              {
+                Thread.sleep(100);
+              } catch (Exception e)
+              {
+
+              }
             }
           }
-        getFeatures = null; // have retrieved features - forget them now.
-      }
-      if (groovyscript != null)
-      {
-        // Execute the groovy script after we've done all the rendering stuff
-        // and before any images or figures are generated.
-        if (jalview.bin.Cache.groovyJarsPresent())
-        {
-          System.out.println("Executing script " + groovyscript);
-          executeGroovyScript(groovyscript, new Object[] {desktop,af});
+          getFeatures = null; // have retrieved features - forget them now.
         }
-        else
+        if (groovyscript != null)
         {
-          System.err
-                  .println("Sorry. Groovy Support is not available, so ignoring the provided groovy script "
-                          + groovyscript);
-        }
-        groovyscript = null;
-      }
-      String imageName = "unnamed.png";
-      while (aparser.getSize() > 1)
-      {
-        format = aparser.nextValue();
-        file = aparser.nextValue();
+          // Execute the groovy script after we've done all the rendering stuff
+          // and before any images or figures are generated.
+          if (jalview.bin.Cache.groovyJarsPresent())
+          {
+            System.out.println("Executing script " + groovyscript);
+            executeGroovyScript(groovyscript, new Object[] { desktop, af });
 
-        if (format.equalsIgnoreCase("png"))
-        {
-          af.createPNG(new java.io.File(file));
-          imageName = (new java.io.File(file)).getName();
-          System.out.println("Creating PNG image: " + file);
-          continue;
+            System.out.println("CMD groovy[" + groovyscript
+                    + "] executed successfully!");
+          }
+          else
+          {
+            System.err
+                    .println("Sorry. Groovy Support is not available, so ignoring the provided groovy script "
+                            + groovyscript);
+          }
+          groovyscript = null;
         }
-        else if (format.equalsIgnoreCase("imgMap"))
+        String imageName = "unnamed.png";
+        while (aparser.getSize() > 1)
         {
-          af.createImageMap(new java.io.File(file), imageName);
-          System.out.println("Creating image map: " + file);
-          continue;
-        }
-        else if (format.equalsIgnoreCase("eps"))
-        {
-          System.out.println("Creating EPS file: " + file);
-          af.createEPS(new java.io.File(file));
-          continue;
+          format = aparser.nextValue();
+          file = aparser.nextValue();
+
+          if (format.equalsIgnoreCase("png"))
+          {
+            af.createPNG(new java.io.File(file));
+            imageName = (new java.io.File(file)).getName();
+            System.out.println("Creating PNG image: " + file);
+            continue;
+          }
+          else if (format.equalsIgnoreCase("svg"))
+          {
+            File imageFile = new java.io.File(file);
+            imageName = imageFile.getName();
+            af.createSVG(imageFile);
+            System.out.println("Creating SVG image: " + file);
+            continue;
+          }
+          else if (format.equalsIgnoreCase("html"))
+          {
+            File imageFile = new java.io.File(file);
+            imageName = imageFile.getName();
+            new HtmlSvgOutput(new java.io.File(file), af.alignPanel);
+            System.out.println("Creating HTML image: " + file);
+            continue;
+          }
+          else if (format.equalsIgnoreCase("imgMap"))
+          {
+            af.createImageMap(new java.io.File(file), imageName);
+            System.out.println("Creating image map: " + file);
+            continue;
+          }
+          else if (format.equalsIgnoreCase("eps"))
+          {
+            File outputFile = new java.io.File(file);
+            System.out.println("Creating EPS file: "
+                    + outputFile.getAbsolutePath());
+            af.createEPS(outputFile);
+            continue;
+          }
+
+          if (af.saveAlignment(file, format))
+          {
+            System.out.println("Written alignment in " + format
+                    + " format to " + file);
+          }
+          else
+          {
+            System.out.println("Error writing file " + file + " in "
+                    + format + " format!!");
+          }
+
         }
 
-        if (af.saveAlignment(file, format))
+        while (aparser.getSize() > 0)
         {
-          System.out.println("Written alignment in " + format
-                  + " format to " + file);
+          System.out.println("Unknown arg: " + aparser.nextValue());
         }
-        else
-        {
-          System.out.println("Error writing file " + file + " in " + format
-                  + " format!!");
-        }
-
-      }
-
-      while (aparser.getSize() > 0)
-      {
-        System.out.println("Unknown arg: " + aparser.nextValue());
       }
     }
     AlignFrame startUpAlframe = null;
     // We'll only open the default file if the desktop is visible.
     // And the user
     // ////////////////////
+
     if (!headless && file == null && vamsasImport == null
             && jalview.bin.Cache.getDefault("SHOW_STARTUP_FILE", true))
     {
-      file = jalview.bin.Cache.getDefault("STARTUP_FILE",
-              jalview.bin.Cache.getDefault("www.jalview.org", "http://www.jalview.org")+"/examples/exampleFile_2_7.jar");
+      file = jalview.bin.Cache.getDefault(
+              "STARTUP_FILE",
+              jalview.bin.Cache.getDefault("www.jalview.org",
+                      "http://www.jalview.org")
+                      + "/examples/exampleFile_2_7.jar");
       if (file.equals("http://www.jalview.org/examples/exampleFile_2_3.jar"))
       {
         // hardwire upgrade of the startup file
-        file.replace("_2_3.jar","_2_7.jar");
-        // and remove the stale setting 
+        file.replace("_2_3.jar", "_2_7.jar");
+        // and remove the stale setting
         jalview.bin.Cache.removeProperty("STARTUP_FILE");
       }
-      
+
       protocol = "File";
 
       if (file.indexOf("http:") > -1)
@@ -558,7 +652,8 @@ public class Jalview
       if (jalview.bin.Cache.groovyJarsPresent())
       {
         System.out.println("Executing script " + groovyscript);
-        executeGroovyScript(groovyscript, new Object[] { desktop, startUpAlframe});
+        executeGroovyScript(groovyscript, new Object[] { desktop,
+            startUpAlframe });
       }
       else
       {
@@ -570,11 +665,54 @@ public class Jalview
     // and finally, turn off batch mode indicator - if the desktop still exists
     if (desktop != null)
     {
-      if (progress!=-1) {
+      if (progress != -1)
+      {
         desktop.setProgressBar(null, progress);
       }
       desktop.setInBatchMode(false);
     }
+  }
+
+  private static void showUsage()
+  {
+    System.out
+            .println("Usage: jalview -open [FILE] [OUTPUT_FORMAT] [OUTPUT_FILE]\n\n"
+                    + "-nodisplay\tRun Jalview without User Interface.\n"
+                    + "-props FILE\tUse the given Jalview properties file instead of users default.\n"
+                    + "-colour COLOURSCHEME\tThe colourscheme to be applied to the alignment\n"
+                    + "-annotations FILE\tAdd precalculated annotations to the alignment.\n"
+                    + "-tree FILE\tLoad the given newick format tree file onto the alignment\n"
+                    + "-features FILE\tUse the given file to mark features on the alignment.\n"
+                    + "-fasta FILE\tCreate alignment file FILE in Fasta format.\n"
+                    + "-clustal FILE\tCreate alignment file FILE in Clustal format.\n"
+                    + "-pfam FILE\tCreate alignment file FILE in PFAM format.\n"
+                    + "-msf FILE\tCreate alignment file FILE in MSF format.\n"
+                    + "-pileup FILE\tCreate alignment file FILE in Pileup format\n"
+                    + "-pir FILE\tCreate alignment file FILE in PIR format.\n"
+                    + "-blc FILE\tCreate alignment file FILE in BLC format.\n"
+                    + "-json FILE\tCreate alignment file FILE in JSON format.\n"
+                    + "-jalview FILE\tCreate alignment file FILE in Jalview format.\n"
+                    + "-png FILE\tCreate PNG image FILE from alignment.\n"
+                    + "-svg FILE\tCreate SVG image FILE from alignment.\n"
+                    + "-html FILE\tCreate HTML file from alignment.\n"
+                    + "-imgMap FILE\tCreate HTML file FILE with image map of PNG image.\n"
+                    + "-eps FILE\tCreate EPS file FILE from alignment.\n"
+                    + "-questionnaire URL\tQueries the given URL for information about any Jalview user questionnaires.\n"
+                    + "-noquestionnaire\tTurn off questionnaire check.\n"
+                    + "-nousagestats\tTurn off google analytics tracking for this session.\n"
+                    + "-sortbytree OR -nosortbytree\tEnable or disable sorting of the given alignment by the given tree\n"
+                    // +
+                    // "-setprop PROPERTY=VALUE\tSet the given Jalview property, after all other properties files have been read\n\t (quote the 'PROPERTY=VALUE' pair to ensure spaces are passed in correctly)"
+                    + "-jabaws URL\tSpecify URL for Jabaws services (e.g. for a local installation).\n"
+                    + "-dasserver nickname=URL\tAdd and enable a das server with given nickname\n\t\t\t(alphanumeric or underscores only) for retrieval of features for all alignments.\n"
+                    + "\t\t\tSources that also support the sequence command may be specified by prepending the URL with sequence:\n"
+                    + "\t\t\t e.g. sequence:http://localdas.somewhere.org/das/source)\n"
+                    + "-fetchfrom nickname\tQuery nickname for features for the alignments and display them.\n"
+                    // +
+                    // "-vdoc vamsas-document\tImport vamsas document into new session or join existing session with same URN\n"
+                    // + "-vses vamsas-session\tJoin session with given URN\n"
+                    + "-groovy FILE\tExecute groovy script in FILE, after all other arguments have been processed (if FILE is the text 'STDIN' then the file will be read from STDIN)\n"
+                    + "\n~Read documentation in Application or visit http://www.jalview.org for description of Features and Annotations file~\n\n");
   }
 
   private static void startUsageStats(final Desktop desktop)
@@ -594,7 +732,7 @@ public class Jalview
               public void run()
               {
                 Cache.log
-                        .info("Initialising googletracker for usage stats.");
+                        .debug("Initialising googletracker for usage stats.");
                 Cache.initGoogleTracker();
                 Cache.log.debug("Tracking enabled.");
               }
@@ -602,10 +740,10 @@ public class Jalview
             {
               public void run()
               {
-                Cache.log.info("Not enabling Google Tracking.");
+                Cache.log.debug("Not enabling Google Tracking.");
               }
             }, null, true);
-    SwingUtilities.invokeLater(prompter);
+    desktop.addDialogThread(prompter);
   }
 
   /**
@@ -660,11 +798,14 @@ public class Jalview
         ex.printStackTrace();
         return;
       }
-      try {
+      try
+      {
         sfile = tfile.toURI().toURL();
       } catch (Exception x)
       {
-        System.err.println("Unexpected Malformed URL Exception for temporary file created from STDIN: "+tfile.toURI());
+        System.err
+                .println("Unexpected Malformed URL Exception for temporary file created from STDIN: "
+                        + tfile.toURI());
         x.printStackTrace();
         return;
       }
@@ -692,11 +833,13 @@ public class Jalview
           System.err.println("File '" + groovyscript + "' is empty.");
           return;
         }
-        try {
-        sfile = tfile.getAbsoluteFile().toURI().toURL();
+        try
+        {
+          sfile = tfile.getAbsoluteFile().toURI().toURL();
         } catch (Exception ex)
         {
-          System.err.println("Failed to create a file URL for "+tfile.getAbsoluteFile());
+          System.err.println("Failed to create a file URL for "
+                  + tfile.getAbsoluteFile());
           return;
         }
       }
@@ -715,17 +858,16 @@ public class Jalview
        * = new Binding(); binding.setVariable("input", "world");
        * gse.run("hello.groovy", binding); </code>
        */
-      Class[] bspec;
+      Class<?>[] bspec;
       Object[] binding;
       int blen = ((jalviewContext[0] == null) ? 0 : 1)
               + ((jalviewContext[1] == null) ? 0 : 1);
-      String cnames[] = new String[]
-      { "Jalview", "currentAlFrame" };
+      String cnames[] = new String[] { "Jalview", "currentAlFrame" };
       bspec = new Class[blen * 2];
       binding = new Object[blen * 2];
       blen = 0;
       ClassLoader cl = null;
-      Map vbinding = new Hashtable();
+      Map<String, Object> vbinding = new HashMap<String, Object>();
       for (int jc = 0; jc < jalviewContext.length; jc++)
       {
         if (jalviewContext[jc] != null)
@@ -742,8 +884,8 @@ public class Jalview
           blen++;
         }
       }
-      Class gbindingc = cl.loadClass("groovy.lang.Binding");
-      Constructor gbcons;
+      Class<?> gbindingc = cl.loadClass("groovy.lang.Binding");
+      Constructor<?> gbcons;
       Object gbinding;
       try
       {
@@ -753,23 +895,23 @@ public class Jalview
       {
         // old style binding config - using series of string/object values to
         // setVariable.
-        gbcons = gbindingc.getConstructor(null);
-        gbinding = gbcons.newInstance(null);
+        gbcons = gbindingc.getConstructor();
+        gbinding = gbcons.newInstance();
         java.lang.reflect.Method setvar = gbindingc.getMethod(
                 "setVariable", bspec);
         setvar.invoke(gbinding, binding);
       }
-      ;
-      Class gsec = cl.loadClass("groovy.util.GroovyScriptEngine");
-      Constructor gseccons = gsec.getConstructor(new Class[]
-      { URL[].class }); // String[].class });
-      Object gse = gseccons.newInstance(new Object[]
-      { new URL[]
-      { sfile } }); // .toString() } });
-      java.lang.reflect.Method run = gsec.getMethod("run", new Class[]
-      { String.class, gbindingc });
-      run.invoke(gse, new Object[]
-      { sfile.toString(), gbinding });
+
+      Class<?> gsec = cl.loadClass("groovy.util.GroovyScriptEngine");
+      Constructor<?> gseccons = gsec
+              .getConstructor(new Class[] { URL[].class }); // String[].class
+                                                            // });
+      Object gse = gseccons
+              .newInstance(new Object[] { new URL[] { sfile } }); // .toString()
+                                                                  // } });
+      java.lang.reflect.Method run = gsec.getMethod("run", new Class[] {
+          String.class, gbindingc });
+      run.invoke(gse, new Object[] { sfile.toString(), gbinding });
       success = true;
     } catch (Exception e)
     {
@@ -834,6 +976,8 @@ public class Jalview
         }
         source.addElement(nickname);
       }
+      System.out.println("CMD [-dasserver " + data
+              + "] executed successfully!");
     } // loop until no more server entries are found.
     if (locsources != null && locsources.indexOf('|') > -1)
     {
@@ -861,7 +1005,7 @@ public class Jalview
   private static FeatureFetcher startFeatureFetching(final Vector dasSources)
   {
     FeatureFetcher ff = new FeatureFetcher();
-    AlignFrame afs[] = Desktop.getAlignframes();
+    AlignFrame afs[] = Desktop.getAlignFrames();
     if (afs == null || afs.length == 0)
     {
       return null;
@@ -871,6 +1015,16 @@ public class Jalview
       ff.addFetcher(afs[i], dasSources);
     }
     return ff;
+  }
+
+  public static boolean isHeadlessMode()
+  {
+    String isheadless = System.getProperty("java.awt.headless");
+    if (isheadless != null && isheadless.equalsIgnoreCase("true"))
+    {
+      return true;
+    }
+    return false;
   }
 }
 
@@ -883,6 +1037,24 @@ public class Jalview
  * @author Andrew Waterhouse and JBP documented.
  * 
  */
+
+class rnabuttonlistener implements ActionListener
+{
+  public void actionPerformed(ActionEvent arg0)
+  {
+    System.out.println("Good idea ! ");
+
+  }
+}
+
+class pbuttonlistener implements ActionListener
+{
+  public void actionPerformed(ActionEvent arg0)
+  {
+
+  }
+}
+
 class ArgsParser
 {
   Vector vargs = null;
@@ -1005,7 +1177,8 @@ class FeatureFetcher
           running++;
         }
 
-        af.setProgressBar("DAS features being retrieved...", id);
+        af.setProgressBar(MessageManager
+                .getString("status.das_features_being_retrived"), id);
         af.featureSettings_actionPerformed(null);
         af.featureSettings.fetchDasFeatures(dasSources, true);
         af.setProgressBar(null, id);
@@ -1021,4 +1194,5 @@ class FeatureFetcher
   {
     return queued == 0 && running == 0;
   }
-};
+
+}

@@ -1,25 +1,35 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import jalview.api.AlignViewportI;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+
+import javax.swing.JPanel;
 
 /**
  * DOCUMENT ME!
@@ -80,6 +90,20 @@ public class IdwidthAdjuster extends JPanel implements MouseListener,
   {
     active = false;
     repaint();
+
+    /*
+     * If in a SplitFrame with co-scaled alignments, set the other's id width to
+     * match
+     */
+    final AlignViewportI viewport = ap.getAlignViewport();
+    if (viewport.getCodingComplement() != null
+            && viewport.isScaleProteinAsCdna())
+    {
+      viewport.getCodingComplement().setIdWidth(viewport.getIdWidth());
+      SplitFrame sf = (SplitFrame) ap.alignFrame.getSplitViewContainer();
+      sf.repaint();
+    }
+
   }
 
   /**
@@ -116,13 +140,15 @@ public class IdwidthAdjuster extends JPanel implements MouseListener,
   {
     active = true;
 
-    Dimension d = ap.idPanel.idCanvas.getPreferredSize();
+    final AlignViewportI viewport = ap.getAlignViewport();
+    int curwidth = viewport.getIdWidth();
     int dif = evt.getX() - oldX;
 
-    if (((d.width + dif) > 20) || (dif > 0))
+    final int newWidth = curwidth + dif;
+    if ((newWidth > 20) || (dif > 0))
     {
-      ap.idPanel.idCanvas.setPreferredSize(new Dimension(d.width + dif,
-              d.height));
+      viewport.setIdWidth(newWidth);
+
       ap.paintAlignment(true);
     }
 

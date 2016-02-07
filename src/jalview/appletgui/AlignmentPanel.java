@@ -1,32 +1,50 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.util.Hashtable;
-import java.util.Vector;
-
+import jalview.analysis.AnnotationSorter;
+import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
-import jalview.datamodel.*;
+import jalview.bin.JalviewLite;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SequenceI;
 import jalview.structure.StructureSelectionManager;
 
-public class AlignmentPanel extends Panel implements AdjustmentListener, AlignmentViewPanel
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Panel;
+import java.awt.Scrollbar;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.util.List;
+
+public class AlignmentPanel extends Panel implements AdjustmentListener,
+        AlignmentViewPanel
 {
 
   public AlignViewport av;
@@ -49,19 +67,21 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
   // this value is set false when selection area being dragged
   boolean fastPaint = true;
-  
-  public void finalize() {
-    alignFrame=null;
-    av=null;
-    seqPanel=null;
-    seqPanelHolder=null;
-    sequenceHolderPanel=null;
-    scalePanel=null;
-    scalePanelHolder=null;
-    annotationPanel=null;
-    annotationPanelHolder=null;
-    annotationSpaceFillerHolder=null;
+
+  public void finalize()
+  {
+    alignFrame = null;
+    av = null;
+    seqPanel = null;
+    seqPanelHolder = null;
+    sequenceHolderPanel = null;
+    scalePanel = null;
+    scalePanelHolder = null;
+    annotationPanel = null;
+    annotationPanelHolder = null;
+    annotationSpaceFillerHolder = null;
   }
+
   public AlignmentPanel(AlignFrame af, final AlignViewport av)
   {
     try
@@ -82,10 +102,9 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     annotationPanelHolder.add(annotationPanel, BorderLayout.CENTER);
 
     sequenceHolderPanel.add(annotationPanelHolder, BorderLayout.SOUTH);
-
     alabels = new AnnotationLabels(this);
 
-    setAnnotationVisible(av.showAnnotation);
+    setAnnotationVisible(av.isShowAnnotation());
 
     idPanelHolder.add(idPanel, BorderLayout.CENTER);
     idSpaceFillerPanel1.add(idwidthAdjuster, BorderLayout.CENTER);
@@ -105,12 +124,14 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
       public void componentResized(ComponentEvent evt)
       {
         setScrollValues(av.getStartRes(), av.getStartSeq());
-        if (getSize().height>0 && annotationPanelHolder.getSize().height>0) {
+        if (getSize().height > 0
+                && annotationPanelHolder.getSize().height > 0)
+        {
           validateAnnotationDimensions(false);
         }
         repaint();
       }
-      
+
     });
 
     Dimension d = calculateIdWidth();
@@ -134,7 +155,12 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
         }
       }
     });
+  }
 
+  @Override
+  public AlignViewportI getAlignViewport()
+  {
+    return av;
   }
 
   public SequenceRenderer getSequenceRenderer()
@@ -142,9 +168,18 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     return seqPanel.seqCanvas.sr;
   }
 
-  public FeatureRenderer getFeatureRenderer()
+  @Override
+  public jalview.api.FeatureRenderer getFeatureRenderer()
   {
     return seqPanel.seqCanvas.fr;
+  }
+
+  @Override
+  public jalview.api.FeatureRenderer cloneFeatureRenderer()
+  {
+    FeatureRenderer nfr = new FeatureRenderer(av);
+    nfr.transferSettings(seqPanel.seqCanvas.fr);
+    return nfr;
   }
 
   public void alignmentChanged()
@@ -168,8 +203,9 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     idPanel.idCanvas.image = null;
     FontMetrics fm = getFontMetrics(av.getFont());
 
-    scalePanel.setSize(new Dimension(10, av.charHeight + fm.getDescent()));
-    idwidthAdjuster.setSize(new Dimension(10, av.charHeight
+    scalePanel.setSize(new Dimension(10, av.getCharHeight()
+            + fm.getDescent()));
+    idwidthAdjuster.setSize(new Dimension(10, av.getCharHeight()
             + fm.getDescent()));
     av.updateSequenceIdColours();
     annotationPanel.image = null;
@@ -177,10 +213,10 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     Dimension d = calculateIdWidth();
     d.setSize(d.width + 4, seqPanel.seqCanvas.getSize().height);
     alabels.setSize(d.width + 4, ap);
-    
+
     idPanel.idCanvas.setSize(d);
     hscrollFillerPanel.setSize(d);
-    
+
     validateAnnotationDimensions(false);
     annotationPanel.repaint();
     validate();
@@ -196,7 +232,8 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
   {
     idPanel.idCanvas.setSize(w, h);
     idPanelHolder.setSize(w, idPanelHolder.getSize().height);
-    annotationSpaceFillerHolder.setSize(w,annotationSpaceFillerHolder.getSize().height);
+    annotationSpaceFillerHolder.setSize(w,
+            annotationSpaceFillerHolder.getSize().height);
     alabels.setSize(w, alabels.getSize().height);
     validate();
   }
@@ -282,34 +319,66 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
   public boolean scrollToPosition(SearchResults results,
           boolean redrawOverview)
   {
-	  
+    return scrollToPosition(results, redrawOverview, false);
+  }
+
+  /**
+   * scroll the view to show the position of the highlighted region in results
+   * (if any)
+   * 
+   * @param results
+   * @param redrawOverview
+   *          - when set, the overview will be recalculated (takes longer)
+   * @return false if results were not found
+   */
+  public boolean scrollToPosition(SearchResults results,
+          boolean redrawOverview, boolean centre)
+  {
     // do we need to scroll the panel?
     if (results != null && results.getSize() > 0)
     {
-      int seqIndex = av.alignment.findIndex(results);
+      AlignmentI alignment = av.getAlignment();
+      int seqIndex = alignment.findIndex(results);
       if (seqIndex == -1)
       {
         return false;
       }
-      SequenceI seq = av.alignment.getSequenceAt(seqIndex);
-      int[] r = results.getResults(seq, 0,av.alignment.getWidth());
+      SequenceI seq = alignment.getSequenceAt(seqIndex);
+      int[] r = results.getResults(seq, 0, alignment.getWidth());
       if (r == null)
       {
-        if (av.applet.debug) {// DEBUG
-          System.out.println("DEBUG: scroll didn't happen - results not within alignment : "+seq.getStart()+","+seq.getEnd());
+        if (JalviewLite.debug)
+        {// DEBUG
+          System.out
+                  .println("DEBUG: scroll didn't happen - results not within alignment : "
+                          + seq.getStart() + "," + seq.getEnd());
         }
         return false;
       }
-      if (av.applet.debug) {
+      if (JalviewLite.debug)
+      {
         // DEBUG
-        /*System.out.println("DEBUG: scroll: start=" + r[0]
-                + " av.getStartRes()=" + av.getStartRes() + " end=" + r[1]
-                + " seq.end=" + seq.getEnd() + " av.getEndRes()="
-                + av.getEndRes() + " hextent=" + hextent);
+        /*
+         * System.out.println("DEBUG: scroll: start=" + r[0] +
+         * " av.getStartRes()=" + av.getStartRes() + " end=" + r[1] +
+         * " seq.end=" + seq.getEnd() + " av.getEndRes()=" + av.getEndRes() +
+         * " hextent=" + hextent);
          */
       }
       int start = r[0];
       int end = r[1];
+
+      /*
+       * To centre results, scroll to positions half the visible width
+       * left/right of the start/end positions
+       */
+      if (centre)
+      {
+        int offset = (av.getEndRes() - av.getStartRes() + 1) / 2 - 1;
+        start = Math.max(start - offset, 0);
+        end = Math.min(end + offset, seq.getEnd() - 1);
+      }
+
       if (start < 0)
       {
         return false;
@@ -322,18 +391,20 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     }
     return true;
   }
-  public boolean scrollTo(int ostart, int end, int seqIndex, boolean scrollToNearest, boolean redrawOverview)
-  {
-	    int startv, endv, starts, ends, width;
 
-	  int start=-1;
-    if (av.hasHiddenColumns)
+  public boolean scrollTo(int ostart, int end, int seqIndex,
+          boolean scrollToNearest, boolean redrawOverview)
+  {
+    int startv, endv, starts, ends, width;
+
+    int start = -1;
+    if (av.hasHiddenColumns())
     {
       start = av.getColumnSelection().findColumnPosition(ostart);
       end = av.getColumnSelection().findColumnPosition(end);
       if (start == end)
       {
-        if (!scrollToNearest && !av.colSel.isVisible(ostart))
+        if (!scrollToNearest && !av.getColumnSelection().isVisible(ostart))
         {
           // don't scroll - position isn't visible
           return false;
@@ -344,60 +415,80 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     {
       start = ostart;
     }
-    if (!av.wrapAlignment)
+    if (!av.getWrapAlignment())
     {
-    	  /*
-    	  int spos=av.getStartRes(),sqpos=av.getStartSeq();
-          if ((startv = av.getStartRes()) >= start)
-          {
-        	  spos=start-1;
-//        	  seqIn
-//            setScrollValues(start - 1, seqIndex);
-          }
-          else if ((endv = av.getEndRes()) <= end)
-          {
-//            setScrollValues(spos=startv + 1 + end - endv, seqIndex);
-        	  spos=startv + 1 + end - endv;
-          }
-          else if ((starts = av.getStartSeq()) > seqIndex)
-          {
-            setScrollValues(av.getStartRes(), seqIndex);
-          }
-          else if ((ends = av.getEndSeq()) <= seqIndex)
-          {
-            setScrollValues(av.getStartRes(), starts + seqIndex - ends + 1);
-          }
+      /*
+       * int spos=av.getStartRes(),sqpos=av.getStartSeq(); if ((startv =
+       * av.getStartRes()) >= start) { spos=start-1; // seqIn //
+       * setScrollValues(start - 1, seqIndex); } else if ((endv =
+       * av.getEndRes()) <= end) { // setScrollValues(spos=startv + 1 + end -
+       * endv, seqIndex); spos=startv + 1 + end - endv; } else if ((starts =
+       * av.getStartSeq()) > seqIndex) { setScrollValues(av.getStartRes(),
+       * seqIndex); } else if ((ends = av.getEndSeq()) <= seqIndex) {
+       * setScrollValues(av.getStartRes(), starts + seqIndex - ends + 1); }
+       */
 
-    	  /* */
-        if ((av.getStartRes() > end)
-                || (av.getEndRes() < start)
-                || ((av.getStartSeq() > seqIndex) || (av.getEndSeq() < seqIndex)))
-        {
-          if (start > av.alignment.getWidth() - hextent)
-          {
-            start = av.alignment.getWidth() - hextent;
-            if (start < 0)
-            {
-              start = 0;
-            }
-
-          }
-          if (seqIndex > av.alignment.getHeight() - vextent)
-          {
-            seqIndex = av.alignment.getHeight() - vextent;
-            if (seqIndex < 0)
-            {
-              seqIndex = 0;
-            }
-          }
-          // System.out.println("trying to scroll to: "+start+" "+seqIndex);
-          setScrollValues(start, seqIndex);
-        }/**/
-      }
-      else
+      // below is scrolling logic up to Jalview 2.8.2
+      // if ((av.getStartRes() > end)
+      // || (av.getEndRes() < start)
+      // || ((av.getStartSeq() > seqIndex) || (av.getEndSeq() < seqIndex)))
+      // {
+      // if (start > av.getAlignment().getWidth() - hextent)
+      // {
+      // start = av.getAlignment().getWidth() - hextent;
+      // if (start < 0)
+      // {
+      // start = 0;
+      // }
+      //
+      // }
+      // if (seqIndex > av.getAlignment().getHeight() - vextent)
+      // {
+      // seqIndex = av.getAlignment().getHeight() - vextent;
+      // if (seqIndex < 0)
+      // {
+      // seqIndex = 0;
+      // }
+      // }
+      // setScrollValues(start, seqIndex);
+      // }
+      // logic copied from jalview.gui.AlignmentPanel:
+      if ((startv = av.getStartRes()) >= start)
       {
-        scrollToWrappedVisible(start);
+        /*
+         * Scroll left to make start of search results visible
+         */
+        setScrollValues(start - 1, seqIndex);
       }
+      else if ((endv = av.getEndRes()) <= end)
+      {
+        /*
+         * Scroll right to make end of search results visible
+         */
+        setScrollValues(startv + 1 + end - endv, seqIndex);
+      }
+      else if ((starts = av.getStartSeq()) > seqIndex)
+      {
+        /*
+         * Scroll up to make start of search results visible
+         */
+        setScrollValues(av.getStartRes(), seqIndex);
+      }
+      else if ((ends = av.getEndSeq()) <= seqIndex)
+      {
+        /*
+         * Scroll down to make end of search results visible
+         */
+        setScrollValues(av.getStartRes(), starts + seqIndex - ends + 1);
+      }
+      /*
+       * Else results are already visible - no need to scroll
+       */
+    }
+    else
+    {
+      scrollToWrappedVisible(start);
+    }
     if (redrawOverview && overviewPanel != null)
     {
       overviewPanel.setBoxPosition();
@@ -429,15 +520,20 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
   public void setAnnotationVisible(boolean b)
   {
-    if (!av.wrapAlignment)
+    if (!av.getWrapAlignment())
     {
       annotationSpaceFillerHolder.setVisible(b);
       annotationPanelHolder.setVisible(b);
     }
+    else
+    {
+      annotationSpaceFillerHolder.setVisible(false);
+      annotationPanelHolder.setVisible(false);
+    }
     validate();
     repaint();
   }
-  
+
   /**
    * automatically adjust annotation panel height for new annotation whilst
    * ensuring the alignment is still visible.
@@ -448,7 +544,8 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     // this is called after loading new annotation onto alignment
     if (alignFrame.getSize().height == 0)
     {
-      System.out.println("NEEDS FIXING");
+      System.out
+              .println("adjustAnnotationHeight frame size zero NEEDS FIXING");
     }
     fontChanged();
     validateAnnotationDimensions(true);
@@ -457,55 +554,66 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     validate();
     paintAlignment(true);
   }
+
   /**
-   * calculate the annotation dimensions and refresh slider values accordingly.
-   * need to do repaints/notifys afterwards. 
+   * Calculate the annotation dimensions and refresh slider values accordingly.
+   * Need to do repaints/notifys afterwards.
    */
-  protected void validateAnnotationDimensions(boolean adjustPanelHeight) {
-    boolean modified=false;
-    int height = annotationPanel.calcPanelHeight();
-    int minsize=0;
-    if (hscroll.isVisible())
+  protected void validateAnnotationDimensions(boolean adjustPanelHeight)
+  {
+    int rowHeight = av.getCharHeight();
+    int alignmentHeight = rowHeight * av.getAlignment().getHeight();
+    int annotationHeight = av.calcPanelHeight();
+
+    int mheight = annotationHeight;
+    Dimension d = sequenceHolderPanel.getSize();
+
+    int availableHeight = d.height - scalePanelHolder.getHeight();
+
+    if (adjustPanelHeight)
     {
-      height += (minsize=hscroll.getPreferredSize().height);
+      /*
+       * If not enough vertical space, maximize annotation height while keeping
+       * at least two rows of alignment visible
+       */
+      if (annotationHeight + alignmentHeight > availableHeight)
+      {
+        annotationHeight = Math.min(annotationHeight, availableHeight - 2
+                * rowHeight);
+      }
     }
-    if (apvscroll.isVisible()) {
-      minsize+=apvscroll.getPreferredSize().height;
-    }
-    int mheight = height;
-    Dimension d=sequenceHolderPanel.getSize(),e=idPanel.getSize(); 
-    int seqandannot=d.height-scalePanelHolder.getSize().height;
-    // sets initial preferred height
-    if ((height+40) > seqandannot / 2)
-    {
-      height = seqandannot / 2;
-    }
-    if (!adjustPanelHeight)
+    else
     {
       // maintain same window layout whilst updating sliders
-      height=annotationPanelHolder.getSize().height;
+      annotationHeight = annotationPanelHolder.getSize().height;
     }
-            
-    if (seqandannot-height<5)
+
+    if (availableHeight - annotationHeight < 5)
     {
-      height = seqandannot;
+      annotationHeight = availableHeight;
     }
-    annotationPanel.setSize(new Dimension(d.width,height));
-    alabels.setSize(new Dimension(e.width,height));
-    annotationSpaceFillerHolder.setSize(new Dimension(e.width, height));
-    annotationPanelHolder.setSize(new Dimension(d.width, height));
-    seqPanelHolder.setSize(d.width,seqandannot-height);
-    seqPanel.seqCanvas.setSize(d.width, seqPanel.seqCanvas.getSize().height);
-    int s=apvscroll.getValue();
-    if (s>mheight-height)
+
+    annotationPanel.setSize(new Dimension(d.width, annotationHeight));
+    annotationPanelHolder.setSize(new Dimension(d.width, annotationHeight));
+    // seqPanelHolder.setSize(d.width, seqandannot - height);
+    seqPanel.seqCanvas
+            .setSize(d.width, seqPanel.seqCanvas.getSize().height);
+
+    Dimension e = idPanel.getSize();
+    alabels.setSize(new Dimension(e.width, annotationHeight));
+    annotationSpaceFillerHolder.setSize(new Dimension(e.width,
+            annotationHeight));
+
+    int s = apvscroll.getValue();
+    if (s > mheight - annotationHeight)
     {
       s = 0;
     }
-    apvscroll.setValues(s, height, 0, mheight);
-    annotationPanel.setScrollOffset(apvscroll.getValue());
-    alabels.setScrollOffset(apvscroll.getValue());
+    apvscroll.setValues(s, annotationHeight, 0, mheight);
+    annotationPanel.setScrollOffset(apvscroll.getValue(), false);
+    alabels.setScrollOffset(apvscroll.getValue(), false);
   }
-  
+
   public void setWrapAlignment(boolean wrap)
   {
     av.startSeq = 0;
@@ -520,7 +628,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
       annotationPanelHolder.setVisible(false);
       annotationSpaceFillerHolder.setVisible(false);
     }
-    else if (av.showAnnotation)
+    else if (av.isShowAnnotation())
     {
       annotationPanelHolder.setVisible(true);
       annotationSpaceFillerHolder.setVisible(true);
@@ -531,6 +639,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     fontChanged(); // This is so that the scalePanel is resized correctly
 
     validate();
+    sequenceHolderPanel.validate();
     repaint();
 
   }
@@ -588,18 +697,22 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
   public void setScrollValues(int x, int y)
   {
-    int width = av.alignment.getWidth();
-    int height = av.alignment.getHeight();
+    int width = av.getAlignment().getWidth();
+    int height = av.getAlignment().getHeight();
 
-    if (av.hasHiddenColumns)
+    if (av.hasHiddenColumns())
     {
       width = av.getColumnSelection().findColumnPosition(width);
     }
-    if (x<0) { x = 0; };
+    if (x < 0)
+    {
+      x = 0;
+    }
+    ;
 
-    hextent = seqPanel.seqCanvas.getSize().width / av.charWidth;
-    vextent = seqPanel.seqCanvas.getSize().height / av.charHeight;
-    
+    hextent = seqPanel.seqCanvas.getSize().width / av.getCharWidth();
+    vextent = seqPanel.seqCanvas.getSize().height / av.getCharHeight();
+
     if (hextent > width)
     {
       hextent = width;
@@ -612,7 +725,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
     if ((hextent + x) > width)
     {
-      System.err.println("hextent was "+hextent+" and x was "+x);
+      System.err.println("hextent was " + hextent + " and x was " + x);
 
       x = width - hextent;
     }
@@ -629,21 +742,22 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
     if (x < 0)
     {
-      System.err.println("x was "+x);
+      System.err.println("x was " + x);
       x = 0;
     }
 
     av.setStartSeq(y);
 
     int endSeq = y + vextent;
-    if (endSeq > av.alignment.getHeight())
+    if (endSeq > av.getAlignment().getHeight())
     {
-      endSeq = av.alignment.getHeight();
+      endSeq = av.getAlignment().getHeight();
     }
 
     av.setEndSeq(endSeq);
     av.setStartRes(x);
-    av.setEndRes((x + (seqPanel.seqCanvas.getSize().width / av.charWidth)) - 1);
+    av.setEndRes((x + (seqPanel.seqCanvas.getSize().width / av
+            .getCharWidth())) - 1);
 
     hscroll.setValues(x, hextent, 0, width);
     vscroll.setValues(y, vextent, 0, height);
@@ -654,7 +768,6 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
     }
     sendViewPosition();
 
-
   }
 
   public void adjustmentValueChanged(AdjustmentEvent evt)
@@ -664,8 +777,8 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
     if (evt == null || evt.getSource() == apvscroll)
     {
-      annotationPanel.setScrollOffset(apvscroll.getValue());
-      alabels.setScrollOffset(apvscroll.getValue());
+      annotationPanel.setScrollOffset(apvscroll.getValue(), false);
+      alabels.setScrollOffset(apvscroll.getValue(), false);
       // annotationPanel.image=null;
       // alabels.image=null;
       // alabels.repaint();
@@ -726,27 +839,128 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
       seqPanel.seqCanvas.fastPaint(scrollX, scrollY);
 
       scalePanel.repaint();
-      if (av.getShowAnnotation())
+      if (av.isShowAnnotation())
       {
         annotationPanel.fastPaint(av.getStartRes() - oldX);
       }
     }
     sendViewPosition();
 
-  }
-  private void sendViewPosition()
-  {
-    StructureSelectionManager.getStructureSelectionManager(av.applet).sendViewPosition(this, av.startRes, av.endRes, av.startSeq, av.endSeq);
+    /*
+     * If there is one, scroll the (Protein/cDNA) complementary alignment to
+     * match, unless we are ourselves doing that.
+     */
+    if (isFollowingComplementScroll())
+    {
+      setFollowingComplementScroll(false);
+    }
+    else
+    {
+      AlignmentPanel ap = getComplementPanel();
+      av.scrollComplementaryAlignment(ap);
+    }
+
   }
 
+  /**
+   * A helper method to return the AlignmentPanel in the other (complementary)
+   * half of a SplitFrame view. Returns null if not in a SplitFrame.
+   * 
+   * @return
+   */
+  private AlignmentPanel getComplementPanel()
+  {
+    AlignmentPanel ap = null;
+    if (alignFrame != null)
+    {
+      SplitFrame sf = alignFrame.getSplitFrame();
+      if (sf != null)
+      {
+        AlignFrame other = sf.getComplement(alignFrame);
+        if (other != null)
+        {
+          ap = other.alignPanel;
+        }
+      }
+    }
+    return ap;
+  }
+
+  /**
+   * Follow a scrolling change in the (cDNA/Protein) complementary alignment.
+   * The aim is to keep the two alignments 'lined up' on their centre columns.
+   * 
+   * @param sr
+   *          holds mapped region(s) of this alignment that we are scrolling
+   *          'to'; may be modified for sequence offset by this method
+   * @param seqOffset
+   *          the number of visible sequences to show above the mapped region
+   */
+  protected void scrollToCentre(SearchResults sr, int seqOffset)
+  {
+    /*
+     * To avoid jumpy vertical scrolling (if some sequences are gapped or not
+     * mapped), we can make the scroll-to location a sequence above the one
+     * actually mapped.
+     */
+    SequenceI mappedTo = sr.getResultSequence(0);
+    List<SequenceI> seqs = av.getAlignment().getSequences();
+
+    /*
+     * This is like AlignmentI.findIndex(seq) but here we are matching the
+     * dataset sequence not the aligned sequence
+     */
+    int sequenceIndex = 0;
+    boolean matched = false;
+    for (SequenceI seq : seqs)
+    {
+      if (mappedTo == seq.getDatasetSequence())
+      {
+        matched = true;
+        break;
+      }
+      sequenceIndex++;
+    }
+    if (!matched)
+    {
+      return; // failsafe, shouldn't happen
+    }
+    sequenceIndex = Math.max(0, sequenceIndex - seqOffset);
+    sr.getResults().get(0)
+            .setSequence(av.getAlignment().getSequenceAt(sequenceIndex));
+
+    /*
+     * Scroll to position but centring the target residue. Also set a state flag
+     * to prevent adjustmentValueChanged performing this recursively.
+     */
+    setFollowingComplementScroll(true);
+    scrollToPosition(sr, true, true);
+  }
+
+  private void sendViewPosition()
+  {
+    StructureSelectionManager.getStructureSelectionManager(av.applet)
+            .sendViewPosition(this, av.startRes, av.endRes, av.startSeq,
+                    av.endSeq);
+  }
+
+  /**
+   * Repaint the alignment and annotations, and, optionally, any overview window
+   */
   public void paintAlignment(boolean updateOverview)
   {
+    final AnnotationSorter sorter = new AnnotationSorter(getAlignment(),
+            av.isShowAutocalculatedAbove());
+    sorter.sort(getAlignment().getAlignmentAnnotation(),
+            av.getSortAnnotationsBy());
     repaint();
 
     if (updateOverview)
     {
+      // TODO: determine if this paintAlignment changed structure colours
       jalview.structure.StructureSelectionManager
-              .getStructureSelectionManager(av.applet).sequenceColoursChanged(this);
+              .getStructureSelectionManager(av.applet)
+              .sequenceColoursChanged(this);
 
       if (overviewPanel != null)
       {
@@ -764,13 +978,17 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
   {
     invalidate();
     Dimension d = idPanel.idCanvas.getSize();
-    idPanel.idCanvas.setSize(d.width, seqPanel.seqCanvas.getSize().height);
-    
+    final int canvasHeight = seqPanel.seqCanvas.getSize().height;
+    if (canvasHeight != d.height)
+    {
+      idPanel.idCanvas.setSize(d.width, canvasHeight);
+    }
+
     if (av.getWrapAlignment())
     {
-      int maxwidth = av.alignment.getWidth();
+      int maxwidth = av.getAlignment().getWidth();
 
-      if (av.hasHiddenColumns)
+      if (av.hasHiddenColumns())
       {
         maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
       }
@@ -791,12 +1009,18 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
       setScrollValues(av.getStartRes(), av.getStartSeq());
     }
 
-    alabels.repaint();
-
     seqPanel.seqCanvas.repaint();
-    scalePanel.repaint();
-    annotationPanel.repaint();
     idPanel.idCanvas.repaint();
+    if (!av.getWrapAlignment())
+    {
+      if (av.isShowAnnotation())
+      {
+        alabels.repaint();
+        annotationPanel.repaint();
+      }
+      scalePanel.repaint();
+    }
+
   }
 
   protected Panel sequenceHolderPanel = new Panel();
@@ -807,72 +1031,58 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
   protected Panel seqPanelHolder = new Panel();
 
-  BorderLayout borderLayout1 = new BorderLayout();
-
-  BorderLayout borderLayout3 = new BorderLayout();
-
   protected Panel scalePanelHolder = new Panel();
 
   protected Panel idPanelHolder = new Panel();
-
-  BorderLayout borderLayout5 = new BorderLayout();
 
   protected Panel idSpaceFillerPanel1 = new Panel();
 
   public Panel annotationSpaceFillerHolder = new Panel();
 
-  BorderLayout borderLayout6 = new BorderLayout();
-
-  BorderLayout borderLayout7 = new BorderLayout();
-
-  Panel hscrollHolder = new Panel();
-
-  BorderLayout borderLayout10 = new BorderLayout();
-
   protected Panel hscrollFillerPanel = new Panel();
-
-  BorderLayout borderLayout11 = new BorderLayout();
-
-  BorderLayout borderLayout4 = new BorderLayout();
-
-  BorderLayout borderLayout2 = new BorderLayout();
 
   Panel annotationPanelHolder = new Panel();
 
   protected Scrollbar apvscroll = new Scrollbar();
 
-  BorderLayout borderLayout12 = new BorderLayout();
+  /*
+   * Flag set while scrolling to follow complementary cDNA/protein scroll. When
+   * true, suppresses invoking the same method recursively.
+   */
+  private boolean followingComplementScroll;
 
   private void jbInit() throws Exception
   {
     // idPanelHolder.setPreferredSize(new Dimension(70, 10));
-    this.setLayout(borderLayout7);
+    this.setLayout(new BorderLayout());
 
-    //sequenceHolderPanel.setPreferredSize(new Dimension(150, 150));
-    sequenceHolderPanel.setLayout(borderLayout3);
-    seqPanelHolder.setLayout(borderLayout1);
+    // sequenceHolderPanel.setPreferredSize(new Dimension(150, 150));
+    sequenceHolderPanel.setLayout(new BorderLayout());
+    seqPanelHolder.setLayout(new BorderLayout());
     scalePanelHolder.setBackground(Color.white);
 
     // scalePanelHolder.setPreferredSize(new Dimension(10, 30));
-    scalePanelHolder.setLayout(borderLayout6);
-    idPanelHolder.setLayout(borderLayout5);
+    scalePanelHolder.setLayout(new BorderLayout());
+    idPanelHolder.setLayout(new BorderLayout());
     idSpaceFillerPanel1.setBackground(Color.white);
 
     // idSpaceFillerPanel1.setPreferredSize(new Dimension(10, 30));
-    idSpaceFillerPanel1.setLayout(borderLayout11);
+    idSpaceFillerPanel1.setLayout(new BorderLayout());
     annotationSpaceFillerHolder.setBackground(Color.white);
 
     // annotationSpaceFillerHolder.setPreferredSize(new Dimension(10, 80));
-    annotationSpaceFillerHolder.setLayout(borderLayout4);
+    annotationSpaceFillerHolder.setLayout(new BorderLayout());
     hscroll.setOrientation(Scrollbar.HORIZONTAL);
-    hscrollHolder.setLayout(borderLayout10);
+
+    Panel hscrollHolder = new Panel();
+    hscrollHolder.setLayout(new BorderLayout());
     hscrollFillerPanel.setBackground(Color.white);
     apvscroll.setOrientation(Scrollbar.VERTICAL);
     apvscroll.setVisible(true);
     apvscroll.addAdjustmentListener(this);
 
     annotationPanelHolder.setBackground(Color.white);
-    annotationPanelHolder.setLayout(borderLayout12);
+    annotationPanelHolder.setLayout(new BorderLayout());
     annotationPanelHolder.add(apvscroll, BorderLayout.EAST);
     // hscrollFillerPanel.setPreferredSize(new Dimension(70, 10));
     hscrollHolder.setBackground(Color.white);
@@ -905,79 +1115,57 @@ public class AlignmentPanel extends Panel implements AdjustmentListener, Alignme
 
   public void updateAnnotation(boolean applyGlobalSettings)
   {
-    // TODO: this should be merged with other annotation update stuff - that
-    // sits on AlignViewport
-    boolean updateCalcs = false;
-    boolean conv = av.isShowGroupConservation();
-    boolean cons = av.isShowGroupConsensus();
-    boolean showprf = av.isShowSequenceLogo();
-    boolean showConsHist = av.isShowConsensusHistogram();
+    updateAnnotation(applyGlobalSettings, false);
+  }
 
-    boolean sortg = true;
-
-    // remove old automatic annotation
-    // add any new annotation
-
-    Vector gr = av.alignment.getGroups(); // OrderedBy(av.alignment.getSequencesArray());
-    // intersect alignment annotation with alignment groups
-
-    AlignmentAnnotation[] aan = av.alignment.getAlignmentAnnotation();
-    Hashtable oldrfs = new Hashtable();
-    if (aan != null)
-    {
-      for (int an = 0; an < aan.length; an++)
-      {
-        if (aan[an].autoCalculated && aan[an].groupRef != null)
-        {
-          oldrfs.put(aan[an].groupRef, aan[an].groupRef);
-          av.alignment.deleteAnnotation(aan[an]);
-          aan[an] = null;
-        }
-      }
-    }
-    SequenceGroup sg;
-    if (gr != null)
-    {
-      for (int g = 0; g < gr.size(); g++)
-      {
-        updateCalcs = false;
-        sg = (SequenceGroup) gr.elementAt(g);
-        if (applyGlobalSettings || !oldrfs.containsKey(sg))
-        {
-          // set defaults for this group's conservation/consensus
-          sg.setshowSequenceLogo(showprf);
-          sg.setShowConsensusHistogram(showConsHist);
-        }
-        if (conv)
-        {
-          updateCalcs = true;
-          av.alignment.addAnnotation(sg.getConservationRow(), 0);
-        }
-        if (cons)
-        {
-          updateCalcs = true;
-          av.alignment.addAnnotation(sg.getConsensus(), 0);
-        }
-        // refresh the annotation rows
-        if (updateCalcs)
-        {
-          sg.recalcConservation();
-        }
-      }
-    }
-    oldrfs.clear();
+  public void updateAnnotation(boolean applyGlobalSettings,
+          boolean preserveNewGroupSettings)
+  {
+    av.updateGroupAnnotationSettings(applyGlobalSettings,
+            preserveNewGroupSettings);
     adjustAnnotationHeight();
   }
 
   @Override
   public AlignmentI getAlignment()
   {
-    return av.alignment;
+    return av.getAlignment();
   }
+
+  @Override
+  public String getViewName()
+  {
+    return getName();
+  }
+
   @Override
   public StructureSelectionManager getStructureSelectionManager()
   {
-    return StructureSelectionManager.getStructureSelectionManager(av.applet);
+    return StructureSelectionManager
+            .getStructureSelectionManager(av.applet);
+  }
+
+  @Override
+  public void raiseOOMWarning(String string, OutOfMemoryError error)
+  {
+    // TODO: JAL-960
+    System.err.println("Out of memory whilst '" + string + "'");
+    error.printStackTrace();
+  }
+
+  /**
+   * Set a flag to say we are scrolling to follow a (cDNA/protein) complement.
+   * 
+   * @param b
+   */
+  protected void setFollowingComplementScroll(boolean b)
+  {
+    this.followingComplementScroll = b;
+  }
+
+  protected boolean isFollowingComplementScroll()
+  {
+    return this.followingComplementScroll;
   }
 
 }

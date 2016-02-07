@@ -1,28 +1,45 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.util.*;
+import jalview.api.ComplexAlignFile;
+import jalview.api.FeaturesDisplayedI;
+import jalview.bin.Jalview;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SequenceI;
+import jalview.gui.AlignFrame;
+import jalview.gui.AlignViewport;
+import jalview.gui.Desktop;
+import jalview.gui.Jalview2XML;
+import jalview.schemes.ColourSchemeI;
+import jalview.structure.StructureSelectionManager;
+import jalview.util.MessageManager;
 
-import javax.swing.*;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
-import jalview.datamodel.*;
-import jalview.gui.*;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 public class FileLoader implements Runnable
 {
@@ -139,6 +156,7 @@ public class FileLoader implements Runnable
   public AlignFrame LoadFileWaitTillLoaded(FileParse source, String format)
   {
     this.source = source;
+
     file = source.getInFile();
     protocol = source.type;
     this.format = format;
@@ -240,6 +258,25 @@ public class FileLoader implements Runnable
         {
           format = new IdentifyFile().Identify(file, protocol);
         }
+
+      }
+
+      if (format == null || format.equalsIgnoreCase("EMPTY DATA FILE"))
+      {
+        Desktop.instance.stopLoading();
+        System.err.println("The input file \"" + file
+                + "\" has null or unidentifiable data content!");
+        if (!Jalview.isHeadlessMode())
+        {
+          javax.swing.JOptionPane.showInternalMessageDialog(
+                  Desktop.desktop,
+                  MessageManager.getString("label.couldnt_read_data")
+                          + " in " + file + "\n"
+                          + AppletFormatAdapter.SUPPORTED_FORMATS,
+                  MessageManager.getString("label.couldnt_read_data"),
+                  JOptionPane.WARNING_MESSAGE);
+        }
+        return;
       }
       // TODO: cache any stream datasources as a temporary file (eg. PDBs
       // retrieved via URL)
@@ -252,7 +289,7 @@ public class FileLoader implements Runnable
         // load
       }
       loadtime = -System.currentTimeMillis();
-      Alignment al = null;
+      AlignmentI al = null;
 
       if (format.equalsIgnoreCase("Jalview"))
       {
@@ -263,7 +300,7 @@ public class FileLoader implements Runnable
                   .println("IMPLEMENTATION ERROR: Cannot read consecutive Jalview XML projects from a stream.");
           // We read the data anyway - it might make sense.
         }
-        alignFrame = new Jalview2XML(raiseGUI).LoadJalviewAlign(file);
+        alignFrame = new Jalview2XML(raiseGUI).loadJalviewAlign(file);
       }
       else
       {
@@ -283,7 +320,8 @@ public class FileLoader implements Runnable
               // open a new source and read from it
               FormatAdapter fa = new FormatAdapter();
               al = fa.readFile(file, protocol, format);
-              source = fa.afile; // keep reference for later if necessary.
+              source = fa.getAlignFile(); // keep reference for later if
+                                          // necessary.
             }
           } catch (java.io.IOException ex)
           {
@@ -299,31 +337,81 @@ public class FileLoader implements Runnable
           }
         }
 
-        if ((al != null) && (al.getHeight() > 0))
+        if ((al != null) && (al.getHeight() > 0) && al.hasValidSequence())
         {
+          // construct and register dataset sequences
+          for (SequenceI sq : al.getSequences())
+          {
+            while (sq.getDatasetSequence() != null)
+            {
+              sq = sq.getDatasetSequence();
+            }
+            if (sq.getAllPDBEntries() != null)
+            {
+              for (PDBEntry pdbe : sq.getAllPDBEntries())
+              {
+                // register PDB entries with desktop's structure selection
+                // manager
+                StructureSelectionManager.getStructureSelectionManager(
+                        Desktop.instance).registerPDBEntry(pdbe);
+              }
+            }
+          }
+
           if (viewport != null)
           {
-            for (int i = 0; i < al.getHeight(); i++)
-            {
-              viewport.getAlignment().addSequence(al.getSequenceAt(i));
-            }
-            viewport.firePropertyChange("alignment", null, viewport
-                    .getAlignment().getSequences());
-
+            // append to existing alignment
+            viewport.addAlignment(al, title);
           }
           else
           {
-            alignFrame = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
-                    AlignFrame.DEFAULT_HEIGHT);
+            // otherwise construct the alignFrame
 
-            alignFrame.statusBar.setText("Successfully loaded file "
-                    + title);
+            if (source instanceof ComplexAlignFile)
+            {
+              ColumnSelection colSel = ((ComplexAlignFile) source)
+                      .getColumnSelection();
+              SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
+                      .getHiddenSequences();
+              boolean showSeqFeatures = ((ComplexAlignFile) source)
+                      .isShowSeqFeatures();
+              ColourSchemeI cs = ((ComplexAlignFile) source)
+                      .getColourScheme();
+              FeaturesDisplayedI fd = ((ComplexAlignFile) source)
+                      .getDisplayedFeatures();
+              alignFrame = new AlignFrame(al, hiddenSeqs, colSel,
+                      AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
 
+              alignFrame.getViewport().setShowSequenceFeatures(
+                      showSeqFeatures);
+              alignFrame.getViewport().setFeaturesDisplayed(fd);
+              alignFrame.changeColour(cs);
+            }
+            else
+            {
+              alignFrame = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
+                      AlignFrame.DEFAULT_HEIGHT);
+            }
+            // add metadata and update ui
             if (!protocol.equals(AppletFormatAdapter.PASTE))
+            {
               alignFrame.setFileName(file, format);
+            }
 
-            Desktop.addInternalFrame(alignFrame, title,
-                    AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+            alignFrame.statusBar.setText(MessageManager.formatMessage(
+                    "label.successfully_loaded_file",
+                    new String[] { title }));
+
+            if (raiseGUI)
+            {
+              // add the window to the GUI
+              // note - this actually should happen regardless of raiseGUI
+              // status in Jalview 3
+              // TODO: define 'virtual desktop' for benefit of headless scripts
+              // that perform queries to find the 'current working alignment'
+              Desktop.addInternalFrame(alignFrame, title,
+                      AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+            }
 
             try
             {
@@ -341,16 +429,22 @@ public class FileLoader implements Runnable
             Desktop.instance.stopLoading();
           }
 
-          final String errorMessage = "Couldn't load file " + title + "\n"
-                  + error;
-          if (raiseGUI)
+          final String errorMessage = MessageManager
+                  .getString("label.couldnt_load_file")
+                  + " "
+                  + title
+                  + "\n" + error;
+          // TODO: refactor FileLoader to be independent of Desktop / Applet GUI
+          // bits ?
+          if (raiseGUI && Desktop.desktop != null)
           {
             javax.swing.SwingUtilities.invokeLater(new Runnable()
             {
               public void run()
               {
                 JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                        errorMessage, "Error loading file",
+                        errorMessage, MessageManager
+                                .getString("label.error_loading_file"),
                         JOptionPane.WARNING_MESSAGE);
               }
             });
@@ -375,8 +469,10 @@ public class FileLoader implements Runnable
           public void run()
           {
             javax.swing.JOptionPane.showInternalMessageDialog(
-                    Desktop.desktop, "Encountered problems opening " + file
-                            + "!!", "File open error",
+                    Desktop.desktop, MessageManager.formatMessage(
+                            "label.problems_opening_file",
+                            new String[] { file }), MessageManager
+                            .getString("label.file_open_error"),
                     javax.swing.JOptionPane.WARNING_MESSAGE);
           }
         });
@@ -393,15 +489,12 @@ public class FileLoader implements Runnable
         {
           public void run()
           {
-            javax.swing.JOptionPane
-                    .showInternalMessageDialog(
-                            Desktop.desktop,
-                            "Out of memory loading file "
-                                    + file
-                                    + "!!"
-                                    + "\nSee help files for increasing Java Virtual Machine memory.",
-                            "Out of memory",
-                            javax.swing.JOptionPane.WARNING_MESSAGE);
+            javax.swing.JOptionPane.showInternalMessageDialog(
+                    Desktop.desktop, MessageManager.formatMessage(
+                            "warn.out_of_memory_loading_file", new String[]
+                            { file }), MessageManager
+                            .getString("label.out_of_memory"),
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
           }
         });
       }

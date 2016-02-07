@@ -1,30 +1,43 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
+
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentView;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.WebserviceInfo;
+import jalview.util.MessageManager;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 
-import ext.vamsas.*;
-import jalview.datamodel.*;
-import jalview.gui.*;
+import ext.vamsas.MuscleWS;
+import ext.vamsas.MuscleWSServiceLocator;
+import ext.vamsas.MuscleWSSoapBindingStub;
+import ext.vamsas.ServiceHandle;
 
 /**
  * DOCUMENT ME!
@@ -66,24 +79,22 @@ public class MsaWSClient extends WS1Client
     alignFrame = _alignFrame;
     if (!sh.getAbstractName().equals("MsaWS"))
     {
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      "The Service called \n"
-                              + sh.getName()
-                              + "\nis not a \nMultiple Sequence Alignment Service !",
-                      "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.service_called_is_not_msa_service",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
 
     if ((wsInfo = setWebService(sh)) == null)
     {
-      JOptionPane.showMessageDialog(
-              Desktop.desktop,
-              "The Multiple Sequence Alignment Service named "
-                      + sh.getName() + " is unknown",
-              "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.msa_service_is_unknown",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }

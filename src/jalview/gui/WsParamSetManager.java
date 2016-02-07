@@ -1,24 +1,33 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
+import jalview.bin.Cache;
+import jalview.io.JalviewFileChooser;
+import jalview.util.MessageManager;
+import jalview.ws.params.ParamDatastoreI;
+import jalview.ws.params.ParamManager;
+import jalview.ws.params.WsParamSetI;
+
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -29,15 +38,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import javax.swing.JButton;
 import javax.swing.JOptionPane;
-
-import jalview.bin.Cache;
-import jalview.io.JalviewFileChooser;
-import jalview.ws.jws2.dm.JabaWsParamSet;
-import jalview.ws.params.ParamDatastoreI;
-import jalview.ws.params.ParamManager;
-import jalview.ws.params.WsParamSetI;
 
 /**
  * store and retrieve web service parameter sets.
@@ -158,7 +159,7 @@ public class WsParamSetManager implements ParamManager
     {
       if (filename != null && !((outfile = new File(filename)).canWrite()))
       {
-        Cache.log.info("Can't write to " + filename
+        Cache.log.warn("Can't write to " + filename
                 + " - Prompting for new file to write to.");
         filename = null;
       }
@@ -178,18 +179,20 @@ public class WsParamSetManager implements ParamManager
     if (parser == null)
     {
       throw new Error(
-              "Implementation error: Can't find a marshaller for the parameter set");
+              MessageManager
+                      .getString("error.implementation_error_cannot_find_marshaller_for_param_set"));
     }
     if (filename == null)
     {
       JalviewFileChooser chooser = new JalviewFileChooser(
               jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-              { "wsparams" }, new String[]
-              { "Web Service Parameter File" },
+              { "wsparams" },
+              new String[] { "Web Service Parameter File" },
               "Web Service Parameter File");
       chooser.setFileView(new jalview.io.JalviewFileView());
-      chooser.setDialogTitle("Choose a filename for this parameter file");
-      chooser.setToolTipText("Save");
+      chooser.setDialogTitle(MessageManager
+              .getString("label.choose_filename_for_param_file"));
+      chooser.setToolTipText(MessageManager.getString("action.save"));
       int value = chooser.showSaveDialog(Desktop.instance);
       if (value == JalviewFileChooser.APPROVE_OPTION)
       {

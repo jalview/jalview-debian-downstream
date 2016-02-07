@@ -1,25 +1,40 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import jalview.util.MessageManager;
+
+import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 
 public class EPSOptions extends JPanel
 {
@@ -44,8 +59,7 @@ public class EPSOptions extends JPanel
     bg.add(text);
 
     JOptionPane pane = new JOptionPane(null, JOptionPane.DEFAULT_OPTION,
-            JOptionPane.DEFAULT_OPTION, null, new Object[]
-            { this });
+            JOptionPane.DEFAULT_OPTION, null, new Object[] { this });
 
     dialog = pane.createDialog(Desktop.desktop, "EPS Rendering options");
     dialog.setVisible(true);
@@ -55,13 +69,13 @@ public class EPSOptions extends JPanel
   private void jbInit() throws Exception
   {
     lineart.setFont(JvSwingUtils.getLabelFont());
-    lineart.setText("Lineart");
+    lineart.setText(MessageManager.getString("label.lineart"));
     text.setFont(JvSwingUtils.getLabelFont());
-    text.setText("Text");
+    text.setText(MessageManager.getString("action.text"));
     text.setSelected(true);
     askAgain.setFont(JvSwingUtils.getLabelFont());
-    askAgain.setText("Don\'t ask me again");
-    ok.setText("OK");
+    askAgain.setText(MessageManager.getString("label.dont_ask_me_again"));
+    ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -69,7 +83,7 @@ public class EPSOptions extends JPanel
         ok_actionPerformed(e);
       }
     });
-    cancel.setText("Cancel");
+    cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -78,7 +92,8 @@ public class EPSOptions extends JPanel
       }
     });
     jLabel1.setFont(JvSwingUtils.getLabelFont());
-    jLabel1.setText("Select EPS character rendering style");
+    jLabel1.setText(MessageManager
+            .getString("label.select_eps_character_rendering_style"));
     this.setLayout(borderLayout1);
     jPanel3.setBorder(BorderFactory.createEtchedBorder());
     jPanel2.add(text);

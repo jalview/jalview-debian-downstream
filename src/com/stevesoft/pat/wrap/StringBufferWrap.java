@@ -7,7 +7,8 @@
 //
 package com.stevesoft.pat.wrap;
 
-import com.stevesoft.pat.*;
+import com.stevesoft.pat.BasicStringBufferLike;
+import com.stevesoft.pat.StringLike;
 
 /**
  * This provides a wrapper for StringBuffer to capture the output of a

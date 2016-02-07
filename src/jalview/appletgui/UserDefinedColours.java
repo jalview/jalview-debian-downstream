@@ -1,32 +1,56 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
+import jalview.datamodel.SequenceGroup;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.GraduatedColor;
+import jalview.schemes.ResidueProperties;
+import jalview.schemes.UserColourScheme;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import jalview.datamodel.*;
-import jalview.schemes.*;
+import java.awt.Button;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dialog;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.GridLayout;
+import java.awt.Label;
+import java.awt.Panel;
+import java.awt.Rectangle;
+import java.awt.Scrollbar;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+import java.awt.event.MouseEvent;
+import java.util.Vector;
 
 public class UserDefinedColours extends Panel implements ActionListener,
-        AdjustmentListener
+        AdjustmentListener, FocusListener
 {
 
   AlignmentPanel ap;
@@ -165,7 +189,8 @@ public class UserDefinedColours extends Panel implements ActionListener,
     setTargetColour(colour);
 
     okcancelPanel.setBounds(new Rectangle(0, 113, 400, 35));
-    frame.setTitle("User Defined Colours - " + label);
+    frame.setTitle(MessageManager.getString("label.user_defined_colours")
+            + " - " + label);
     frame.setSize(420, 200);
   }
 
@@ -184,7 +209,9 @@ public class UserDefinedColours extends Panel implements ActionListener,
       // // not 1.1 compatible!
       // dialog = new Dialog(((JVDialog)alignframe), title, true);
       // } else {
-      throw new Error("Unsupported owner for User Colour scheme dialog.");
+      throw new Error(
+              MessageManager
+                      .getString("label.error_unsupported_owwner_user_colour_scheme"));
     }
 
     dialog.add(this);
@@ -203,27 +230,28 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
   public void actionPerformed(ActionEvent evt)
   {
-    if (evt.getSource() == okButton)
+    final Object source = evt.getSource();
+    if (source == okButton)
     {
       okButton_actionPerformed();
     }
-    else if (evt.getSource() == applyButton)
+    else if (source == applyButton)
     {
       applyButton_actionPerformed();
     }
-    else if (evt.getSource() == cancelButton)
+    else if (source == cancelButton)
     {
       cancelButton_actionPerformed();
     }
-    else if (evt.getSource() == rText)
+    else if (source == rText)
     {
       rText_actionPerformed();
     }
-    else if (evt.getSource() == gText)
+    else if (source == gText)
     {
       gText_actionPerformed();
     }
-    else if (evt.getSource() == bText)
+    else if (source == bText)
     {
       bText_actionPerformed();
     }
@@ -256,7 +284,8 @@ public class UserDefinedColours extends Panel implements ActionListener,
     }
     frame = new Frame();
     frame.add(this);
-    jalview.bin.JalviewLite.addFrame(frame, "User defined colours", 420,
+    jalview.bin.JalviewLite.addFrame(frame,
+            MessageManager.getString("label.user_defined_colours"), 420,
             345);
 
     if (seqGroup != null)
@@ -379,7 +408,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     {
       try
       {
-        col = oldColourScheme.findColour(aa.charAt(0), -1);
+        col = oldColourScheme.findColour(aa.charAt(0), -1, null);
       } catch (Exception ex)
       {
       }
@@ -404,7 +433,9 @@ public class UserDefinedColours extends Panel implements ActionListener,
   {
     applyButton_actionPerformed();
     if (dialog != null)
+    {
       dialog.setVisible(false);
+    }
 
     frame.setVisible(false);
   }
@@ -466,7 +497,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     UserColourScheme ucs = new UserColourScheme(newColours);
     if (ap != null)
     {
-      ucs.setThreshold(0, ap.av.getIgnoreGapsConsensus());
+      ucs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
     }
 
     if (ap != null)
@@ -534,7 +565,9 @@ public class UserDefinedColours extends Panel implements ActionListener,
         }
       }
       if (dialog != null)
+      {
         dialog.setVisible(false);
+      }
 
       frame.setVisible(false);
       return;
@@ -612,13 +645,13 @@ public class UserDefinedColours extends Panel implements ActionListener,
     gridLayout.setColumns(6);
     gridLayout.setRows(4);
     okButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    okButton.setLabel("OK");
+    okButton.setLabel(MessageManager.getString("action.ok"));
     okButton.addActionListener(this);
     applyButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    applyButton.setLabel("Apply");
+    applyButton.setLabel(MessageManager.getString("action.apply"));
     applyButton.addActionListener(this);
     cancelButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    cancelButton.setLabel("Cancel");
+    cancelButton.setLabel(MessageManager.getString("action.cancel"));
     cancelButton.addActionListener(this);
     this.setBackground(new Color(212, 208, 223));
     okcancelPanel.setBounds(new Rectangle(0, 265, 400, 35));
@@ -637,6 +670,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     rText.setText("0        ");
     rText.setBounds(new Rectangle(156, 27, 53, 19));
     rText.addActionListener(this);
+    rText.addFocusListener(this);
     label4.setAlignment(Label.RIGHT);
     label4.setText("G");
     label4.setBounds(new Rectangle(15, 56, 20, 15));
@@ -651,6 +685,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     gText.setText("0        ");
     gText.setBounds(new Rectangle(156, 52, 53, 20));
     gText.addActionListener(this);
+    gText.addFocusListener(this);
     label5.setAlignment(Label.RIGHT);
     label5.setText("B");
     label5.setBounds(new Rectangle(14, 82, 20, 15));
@@ -665,12 +700,16 @@ public class UserDefinedColours extends Panel implements ActionListener,
     bText.setText("0        ");
     bText.setBounds(new Rectangle(157, 78, 52, 20));
     bText.addActionListener(this);
+    bText.addFocusListener(this);
     target.setBackground(Color.black);
     target.setBounds(new Rectangle(229, 26, 134, 79));
     this.add(okcancelPanel, null);
     okcancelPanel.add(okButton, null);
     okcancelPanel.add(applyButton, null);
     okcancelPanel.add(cancelButton, null);
+    this.add(rText);
+    this.add(gText);
+    this.add(bText);
     this.add(buttonPanel, null);
     this.add(target, null);
     this.add(gScroller);
@@ -679,9 +718,40 @@ public class UserDefinedColours extends Panel implements ActionListener,
     this.add(label5);
     this.add(label4);
     this.add(label1);
-    this.add(gText);
-    this.add(rText);
-    this.add(bText);
+  }
+
+  @Override
+  public void focusGained(FocusEvent e)
+  {
+    // noop
+  }
+
+  /**
+   * This method applies any change to an RGB value if the user tabs out of the
+   * field instead of pressing Enter
+   */
+  @Override
+  public void focusLost(FocusEvent e)
+  {
+    Component c = e.getComponent();
+    if (c == rText)
+    {
+      rText_actionPerformed();
+    }
+    else
+    {
+      if (c == gText)
+      {
+        gText_actionPerformed();
+      }
+      else
+      {
+        if (c == bText)
+        {
+          bText_actionPerformed();
+        }
+      }
+    }
   }
 
 }

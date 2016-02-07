@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /** This class implements the word boundary pattern element: \b. */
 class Boundary extends Pattern

@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.util;
 
@@ -205,8 +208,7 @@ public class UrlLink
           if (ns == 0)
           {
             // take whole regex
-            return new String[]
-            { rg.stringMatched(),
+            return new String[] { rg.stringMatched(),
                 url_prefix + rg.stringMatched() + url_suffix };
           } /*
              * else if (ns==1) { // take only subgroup match return new String[]
@@ -285,13 +287,11 @@ public class UrlLink
       }
 
       // just return simple url substitution.
-      return new String[]
-      { idstring, url_prefix + idstring + url_suffix };
+      return new String[] { idstring, url_prefix + idstring + url_suffix };
     }
     else
     {
-      return new String[]
-      { "", url_prefix };
+      return new String[] { "", url_prefix };
     }
   }
 
@@ -326,8 +326,7 @@ public class UrlLink
 
   public static void main(String argv[])
   {
-    String[] links = new String[]
-    {
+    String[] links = new String[] {
     /*
      * "AlinkT|Target|http://foo.foo.soo/",
      * "myUrl1|http://$SEQUENCE_ID=/[0-9]+/=$.someserver.org/foo",
@@ -343,8 +342,7 @@ public class UrlLink
      * , "NOTFER|http://notfer.org/$SEQUENCE_ID=/(?<!\\s)(.+)/=$",
      */
     "NESTED|http://nested/$SEQUENCE_ID=/^(?:Label:)?(?:(?:gi\\|(\\d+))|([^:]+))/=$/nested" };
-    String[] idstrings = new String[]
-    {
+    String[] idstrings = new String[] {
     /*
      * //"LGUL_human", //"QWIQW_123123", "uniprot|why_do+_12313_foo",
      * //"123123312", "123123 ABCDE foo", "PFAM:PF23943",

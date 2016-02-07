@@ -7,7 +7,9 @@
 //
 package com.stevesoft.pat;
 
-import com.stevesoft.pat.wrap.*;
+import jalview.util.MessageManager;
+
+import com.stevesoft.pat.wrap.StringWrap;
 
 /** Internally used class. */
 class RegHolder
@@ -178,7 +180,9 @@ public class Replacer
     lastMatchedTo = 0;
     if (rh.me == null)
     {
-      throw new NullPointerException("Replacer has null Regex pointer");
+      throw new NullPointerException(
+              MessageManager
+                      .getString("exception.replace_null_regex_pointer"));
     }
     if (rh.me._search(s, start, end))
     {

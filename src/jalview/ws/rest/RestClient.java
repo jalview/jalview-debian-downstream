@@ -1,36 +1,24 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
-/**
  * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.rest;
-
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.Collection;
-import java.util.Hashtable;
-import java.util.Vector;
-
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
 
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentView;
@@ -40,9 +28,21 @@ import jalview.gui.AlignmentPanel;
 import jalview.gui.Desktop;
 import jalview.gui.WebserviceInfo;
 import jalview.io.packed.DataProvider.JvDataType;
+import jalview.util.MessageManager;
 import jalview.ws.WSClient;
 import jalview.ws.WSClientI;
 import jalview.ws.WSMenuEntryProviderI;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Hashtable;
+import java.util.Vector;
+
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 
 /**
  * @author JimP
@@ -80,16 +80,26 @@ public class RestClient extends WSClient implements WSClientI,
 
   public RestClient(RestServiceDescription service2, AlignFrame alignFrame)
   {
+    this(service2, alignFrame, false);
+  }
+
+  boolean headless = false;
+
+  public RestClient(RestServiceDescription service2, AlignFrame alignFrame,
+          boolean nogui)
+  {
     service = service2;
     af = alignFrame;
     av = alignFrame.getViewport();
+    headless = nogui;
     constructJob();
   }
 
   public void setWebserviceInfo(boolean headless)
   {
-    WebServiceJobTitle = service.details.Action + " using "
-            + service.details.Name;
+    WebServiceJobTitle = MessageManager.formatMessage(
+            "label.webservice_job_title", new String[] {
+                service.details.Action, service.details.Name });
     WebServiceName = service.details.Name;
     WebServiceReference = "No reference - go to url for more info";
     if (service.details.description != null)
@@ -99,7 +109,7 @@ public class RestClient extends WSClient implements WSClientI,
     if (!headless)
     {
       wsInfo = new WebserviceInfo(WebServiceJobTitle, WebServiceName + "\n"
-              + WebServiceReference);
+              + WebServiceReference, true);
       wsInfo.setRenderAsHtml(true);
     }
 
@@ -132,7 +142,9 @@ public class RestClient extends WSClient implements WSClientI,
           final AlignFrame alignFrame)
   {
     JMenuItem submit = new JMenuItem(service.details.Name);
-    submit.setToolTipText(service.details.Action+" using "+service.details.Name);
+    submit.setToolTipText(MessageManager.formatMessage(
+            "label.rest_client_submit", new String[] {
+                service.details.Action, service.details.Name }));
     submit.addActionListener(new ActionListener()
     {
 
@@ -191,17 +203,19 @@ public class RestClient extends WSClient implements WSClientI,
    */
   protected boolean isAlignmentModified()
   {
-    if (undoredo == null || av==null || av.getAlignment()==null)
+    if (undoredo == null || av == null || av.getAlignment() == null)
     {
-      // always return modified if we don't have access to live GUI elements anymore.
+      // always return modified if we don't have access to live GUI elements
+      // anymore.
       return true;
     }
     if (av.isUndoRedoHashModified(undoredo))
     {
-      // alignment has been modified in some way. 
+      // alignment has been modified in some way.
       return true;
     }
-    // TODO: look deeper into modification of selection state, etc that may affect RestJobThread.realiseResults(boolean merge); 
+    // TODO: look deeper into modification of selection state, etc that may
+    // affect RestJobThread.realiseResults(boolean merge);
     return false;
 
   }
@@ -234,99 +248,121 @@ public class RestClient extends WSClient implements WSClientI,
      */
     boolean selExists = (av.getSelectionGroup() != null)
             && (av.getSelectionGroup().getSize() > 1);
-    // TODO: JAL-715: refactor to alignViewport methods and revise to full focus+context+dataset input data staging model
+    // TODO: JAL-715: refactor to alignViewport methods and revise to full
+    // focus+context+dataset input data staging model
     if (selExists)
     {
       if (service.partitiondata)
       {
-        if (av.getAlignment().getGroups()!=null && av.getAlignment().getGroups().size() > 0)
+        if (av.getAlignment().getGroups() != null
+                && av.getAlignment().getGroups().size() > 0)
         {
           // intersect groups with selected region
-          _input = new AlignmentView(av.getAlignment(), 
-                  av.getColumnSelection(), 
-                  av.getSelectionGroup(), 
-                  av.hasHiddenColumns(), 
-                  true, 
-                  true);
-          viewTitle = "selected "+(av.hasHiddenColumns() ? "visible" : "") + " region of "+af.getTitle();
+          _input = new AlignmentView(av.getAlignment(),
+                  av.getColumnSelection(), av.getSelectionGroup(),
+                  av.hasHiddenColumns(), true, true);
+          viewTitle = MessageManager.formatMessage(
+                  "label.select_visible_region_of",
+                  new String[] {
+                      (av.hasHiddenColumns() ? MessageManager
+                              .getString("label.visible") : ""),
+                      af.getTitle() });
         }
         else
         {
           // use selected region to partition alignment
-          _input = new AlignmentView(av.getAlignment(), 
-                  av.getColumnSelection(), 
-                  av.getSelectionGroup(), 
-                  av.hasHiddenColumns(), 
-                  false, 
-                  true);
+          _input = new AlignmentView(av.getAlignment(),
+                  av.getColumnSelection(), av.getSelectionGroup(),
+                  av.hasHiddenColumns(), false, true);
         }
-        viewTitle = "select and unselected "+(av.hasHiddenColumns() ? "visible" : "") + " regions from "+af.getTitle();
+        viewTitle = MessageManager.formatMessage(
+                "label.select_unselect_visible_regions_from",
+                new String[] {
+                    (av.hasHiddenColumns() ? MessageManager
+                            .getString("label.visible") : ""),
+                    af.getTitle() });
       }
       else
       {
         // just take selected region intersection
-        _input = new AlignmentView(av.getAlignment(), 
-                av.getColumnSelection(), 
-                av.getSelectionGroup(), 
-                av.hasHiddenColumns(), 
-                true, 
-                true);
-        viewTitle = "selected "+(av.hasHiddenColumns() ? "visible" : "") + " region of "+af.getTitle();
+        _input = new AlignmentView(av.getAlignment(),
+                av.getColumnSelection(), av.getSelectionGroup(),
+                av.hasHiddenColumns(), true, true);
+        viewTitle = MessageManager.formatMessage(
+                "label.select_visible_region_of",
+                new String[] {
+                    (av.hasHiddenColumns() ? MessageManager
+                            .getString("label.visible") : ""),
+                    af.getTitle() });
       }
-    } else {
-      // standard alignment view without selection present
-      _input = new AlignmentView(av.getAlignment(), 
-              av.getColumnSelection(), 
-              null, 
-              av.hasHiddenColumns(), 
-              false, 
-              true);
-      viewTitle = ""+(av.hasHiddenColumns() ? "visible region of " : "") + af.getTitle();
     }
-    
+    else
+    {
+      // standard alignment view without selection present
+      _input = new AlignmentView(av.getAlignment(),
+              av.getColumnSelection(), null, av.hasHiddenColumns(), false,
+              true);
+      viewTitle = ""
+              + (av.hasHiddenColumns() ? (new StringBuffer(" ")
+                      .append(MessageManager
+                              .getString("label.visible_region_of"))
+                      .toString()) : "") + af.getTitle();
+    }
+
     RestJobThread jobsthread = new RestJobThread(this);
-    
+
     if (jobsthread.isValid())
     {
-      setWebserviceInfo(false);
-      wsInfo.setthisService(this);
-      jobsthread.setWebServiceInfo(wsInfo);
+      setWebserviceInfo(headless);
+      if (!headless)
+      {
+        wsInfo.setthisService(this);
+        jobsthread.setWebServiceInfo(wsInfo);
+      }
       jobsthread.start();
     }
     else
     {
       // TODO: try to tell the user why the job couldn't be started.
-      JOptionPane.showMessageDialog(Desktop.desktop,
-              (jobsthread.hasWarnings() ? jobsthread.getWarnings() : "The Job couldn't be started. Please check your input, and the Jalview console for any warning messages."),
-              "Unable to start web service analysis", JOptionPane.WARNING_MESSAGE);
+      JOptionPane
+              .showMessageDialog(
+                      Desktop.desktop,
+                      (jobsthread.hasWarnings() ? jobsthread.getWarnings()
+                              : MessageManager
+                                      .getString("label.job_couldnt_be_started_check_input")),
+                      MessageManager
+                              .getString("label.unable_start_web_service_analysis"),
+                      JOptionPane.WARNING_MESSAGE);
     }
   }
 
   public static RestClient makeShmmrRestClient()
   {
-    String action = "Analysis", description = "Sequence Harmony and Multi-Relief (Brandt et al. 2010)", name = "Multi-Harmony";
+    String action = "Analysis", description = "Sequence Harmony and Multi-Relief (Brandt et al. 2010)", name = MessageManager
+            .getString("label.multiharmony");
     Hashtable<String, InputType> iparams = new Hashtable<String, InputType>();
     jalview.ws.rest.params.JobConstant toolp;
-    //toolp = new jalview.ws.rest.JobConstant("tool","jalview");
-    //iparams.put(toolp.token, toolp);
-    toolp = new jalview.ws.rest.params.JobConstant("mbjob[method]","shmr");
-    iparams.put(toolp.token, toolp);
-    toolp = new jalview.ws.rest.params.JobConstant("mbjob[description]","step 1");
-    iparams.put(toolp.token, toolp);
-    toolp = new jalview.ws.rest.params.JobConstant("start_search","1");
-    iparams.put(toolp.token, toolp);
-    toolp = new jalview.ws.rest.params.JobConstant("blast","0");
-    iparams.put(toolp.token, toolp);
-    
+    // toolp = new jalview.ws.rest.JobConstant("tool","jalview");
+    // iparams.put(toolp.token, toolp);
+    // toolp = new jalview.ws.rest.params.JobConstant("mbjob[method]","shmr");
+    // iparams.put(toolp.token, toolp);
+    // toolp = new
+    // jalview.ws.rest.params.JobConstant("mbjob[description]","step 1");
+    // iparams.put(toolp.token, toolp);
+    // toolp = new jalview.ws.rest.params.JobConstant("start_search","1");
+    // iparams.put(toolp.token, toolp);
+    // toolp = new jalview.ws.rest.params.JobConstant("blast","0");
+    // iparams.put(toolp.token, toolp);
+
     jalview.ws.rest.params.Alignment aliinput = new jalview.ws.rest.params.Alignment();
-    aliinput.token = "ali";//_file";
-    aliinput.writeAsFile=false;//true;
-    //aliinput.token = "ali_file";
-    //aliinput.writeAsFile=true;
+    // SHMR server has a 65K limit for content pasted into the 'ali' parameter,
+    // so we always upload our files.
+    aliinput.token = "ali_file";
+    aliinput.writeAsFile = true;
     iparams.put(aliinput.token, aliinput);
     jalview.ws.rest.params.SeqGroupIndexVector sgroups = new jalview.ws.rest.params.SeqGroupIndexVector();
     sgroups.setMinsize(2);
-    sgroups.min=2;// need at least two group defined to make a partition
+    sgroups.min = 2;// need at least two group defined to make a partition
     iparams.put("groups", sgroups);
     sgroups.token = "groups";
     sgroups.sep = " ";
@@ -343,8 +379,9 @@ public class RestClient extends WSClient implements WSClientI,
 
   public AlignmentPanel recoverAlignPanelForView()
   {
-    AlignmentPanel[] aps = Desktop.getAlignmentPanels(av.getSequenceSetId());
-    for (AlignmentPanel alp:aps)
+    AlignmentPanel[] aps = Desktop
+            .getAlignmentPanels(av.getSequenceSetId());
+    for (AlignmentPanel alp : aps)
     {
       if (alp.av == av)
       {
@@ -360,55 +397,41 @@ public class RestClient extends WSClient implements WSClientI,
     return true;
   }
 
-  protected static Vector<String> services=null;
-  public static final String RSBS_SERVICES="RSBS_SERVICES";
+  protected static Vector<String> services = null;
+
+  public static final String RSBS_SERVICES = "RSBS_SERVICES";
+
   public static RestClient[] getRestClients()
   {
-    if (services==null)
+    if (services == null)
     {
       services = new Vector<String>();
-      try {
-      for (RestServiceDescription descr: RestServiceDescription.parseDescriptions(jalview.bin.Cache.getDefault(RSBS_SERVICES,makeShmmrRestClient().service.toString()))) 
+      try
       {
-        services.add(descr.toString());
-      }
-      }
-      catch (Exception ex) {
-        System.err.println("Serious - RSBS descriptions in user preferences are corrupt!");
+        for (RestServiceDescription descr : RestServiceDescription
+                .parseDescriptions(jalview.bin.Cache.getDefault(
+                        RSBS_SERVICES,
+                        makeShmmrRestClient().service.toString())))
+        {
+          services.add(descr.toString());
+        }
+      } catch (Exception ex)
+      {
+        System.err
+                .println("Serious - RSBS descriptions in user preferences are corrupt!");
         ex.printStackTrace();
       }
-      
+
     }
     RestClient[] lst = new RestClient[services.size()];
-    int i=0;
-    for (String svc:services) {
+    int i = 0;
+    for (String svc : services)
+    {
       lst[i++] = new RestClient(new RestServiceDescription(svc));
     }
     return lst;
   }
-  public static void main(String args[])
-  {
-    try {
-      RestClient[] clients = getRestClients();
-      System.out.println("Got "+clients.length+" clients.");
-      int i=0;
-      Vector<String> urls=new Vector<String>();
-      for (RestClient cl:clients) {
-        System.out.println(""+(++i)+": "+cl.service.toString());
-        urls.add(cl.service.toString());
-      }
-      setRsbsServices(urls);
-      if (clients.length!=getRestClients().length)
-      {
-        System.err.println("Failed. Differing numbers of clients when stringified and parsed again.");
-      }
-      
-    } catch (Throwable x)
-    {
-      System.err.println("Failed. Unexpected exception.");
-      x.printStackTrace();
-    }
-  }
+
   public String getAction()
   {
     return service.details.Action;
@@ -422,7 +445,7 @@ public class RestClient extends WSClient implements WSClientI,
   public static Vector<String> getRsbsDescriptions()
   {
     Vector<String> rsbsDescrs = new Vector<String>();
-    for (RestClient rsbs:getRestClients())
+    for (RestClient rsbs : getRestClients())
     {
       rsbsDescrs.add(rsbs.getRestDescription().toString());
     }
@@ -431,17 +454,17 @@ public class RestClient extends WSClient implements WSClientI,
 
   public static void setRsbsServices(Vector<String> rsbsUrls)
   {
-    if (rsbsUrls!=null)
+    if (rsbsUrls != null)
     {
       // TODO: consider validating services ?
       services = new Vector<String>(rsbsUrls);
       StringBuffer sprop = new StringBuffer();
-      for (String s:services)
+      for (String s : services)
       {
         sprop.append(s);
       }
       Cache.setProperty(RSBS_SERVICES, sprop.toString());
-    } 
+    }
     else
     {
       Cache.removeProperty(RSBS_SERVICES);

@@ -1,31 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.rest;
 
 import jalview.datamodel.SequenceI;
-import jalview.io.packed.DataProvider;
-import jalview.io.packed.SimpleDataProvider;
 import jalview.io.packed.DataProvider.JvDataType;
-import jalview.util.GroupUrlLink.UrlStringTooLongException;
-import jalview.util.Platform;
+import jalview.util.StringUtils;
 import jalview.ws.rest.params.Alignment;
 import jalview.ws.rest.params.AnnotationFile;
-import jalview.ws.rest.params.JobConstant;
 import jalview.ws.rest.params.SeqGroupIndexVector;
 
 import java.net.URL;
@@ -36,25 +35,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
-import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.swing.JViewport;
-
-import com.stevesoft.pat.Regex;
-import com.sun.org.apache.xml.internal.serialize.OutputFormat.DTD;
-import com.sun.tools.doclets.internal.toolkit.util.DocFinder.Output;
-
 public class RestServiceDescription
 {
+  private static final Pattern PARAM_ENCODED_URL_PATTERN = Pattern
+          .compile("([?&])([A-Za-z0-9_]+)=\\$([^$]+)\\$");
+
   /**
    * create a new rest service description ready to be configured
    */
   public RestServiceDescription()
   {
-    
+
   }
+
   /**
    * @param details
    * @param postUrl
@@ -85,6 +81,7 @@ public class RestServiceDescription
     this.gapCharacter = gapCharacter;
   }
 
+  @Override
   public boolean equals(Object o)
   {
     if (o == null || !(o instanceof RestServiceDescription))
@@ -95,7 +92,8 @@ public class RestServiceDescription
     boolean diff = (gapCharacter != other.gapCharacter);
     diff |= vseparable != other.vseparable;
     diff |= hseparable != other.hseparable;
-    diff |= !(urlSuffix.equals(other.urlSuffix));
+    diff |= !(urlSuffix == null && other.urlSuffix == null || (urlSuffix != null
+            && other.urlSuffix != null && urlSuffix.equals(other.urlSuffix)));
     // TODO - robust diff that includes constants and reordering of URL
     // diff |= !(postUrl.equals(other.postUrl));
     // diff |= !inputParams.equals(other.inputParams);
@@ -364,131 +362,6 @@ public class RestServiceDescription
     return invalidMessage == null;
   }
 
-  private static boolean debug = false;
-
-  /**
-   * parse the string into a list
-   * 
-   * @param list
-   * @param separator
-   * @return elements separated by separator
-   */
-  public static String[] separatorListToArray(String list, String separator)
-  {
-    int seplen = separator.length();
-    if (list == null || list.equals("") || list.equals(separator))
-      return null;
-    java.util.ArrayList<String> jv = new ArrayList<String>();
-    int cp = 0, pos, escape;
-    boolean wasescaped = false,wasquoted=false;
-    String lstitem = null;
-    while ((pos = list.indexOf(separator, cp)) >= cp)
-    {
-      
-      escape = (pos > 0 && list.charAt(pos - 1) == '\\') ? -1 : 0;
-      if (wasescaped || wasquoted)
-      {
-        // append to previous pos
-        jv.set(jv.size() - 1,
-                lstitem = lstitem + separator
-                        + list.substring(cp, pos + escape));
-
-      }
-      else
-      {
-        jv.add(lstitem = list.substring(cp, pos + escape));
-      }
-      cp = pos + seplen;
-      wasescaped = escape == -1;
-      if (!wasescaped)
-      {
-        // last separator may be in an unmatched quote
-        if (java.util.regex.Pattern.matches("('[^']*')*[^']*'",lstitem))
-        {
-          wasquoted=true;
-        }
-      }
-      
-    }
-    if (cp < list.length())
-    {
-      String c = list.substring(cp);
-      if (wasescaped || wasquoted)
-      {
-        // append final separator
-        jv.set(jv.size() - 1, lstitem + separator + c);
-      }
-      else
-      {
-        if (!c.equals(separator))
-        {
-          jv.add(c);
-        }
-      }
-    }
-    if (jv.size() > 0)
-    {
-      String[] v = jv.toArray(new String[jv.size()]);
-      jv.clear();
-      if (debug)
-      {
-        System.err.println("Array from '" + separator
-                + "' separated List:\n" + v.length);
-        for (int i = 0; i < v.length; i++)
-        {
-          System.err.println("item " + i + " '" + v[i] + "'");
-        }
-      }
-      return v;
-    }
-    if (debug)
-    {
-      System.err.println("Empty Array from '" + separator
-              + "' separated List");
-    }
-    return null;
-  }
-
-  /**
-   * concatenate the list with separator
-   * 
-   * @param list
-   * @param separator
-   * @return concatenated string
-   */
-  public static String arrayToSeparatorList(String[] list, String separator)
-  {
-    StringBuffer v = new StringBuffer();
-    if (list != null && list.length > 0)
-    {
-      for (int i = 0, iSize = list.length; i < iSize; i++)
-      {
-        if (list[i] != null)
-        {
-          if (v.length() > 0)
-          {
-            v.append(separator);
-          }
-          // TODO - escape any separator values in list[i]
-          v.append(list[i]);
-        }
-      }
-      if (debug)
-      {
-        System.err.println("Returning '" + separator
-                + "' separated List:\n");
-        System.err.println(v);
-      }
-      return v.toString();
-    }
-    if (debug)
-    {
-      System.err.println("Returning empty '" + separator
-              + "' separated List\n");
-    }
-    return "" + separator;
-  }
-
   /**
    * parse a string containing a list of service properties and configure the
    * service description
@@ -500,7 +373,7 @@ public class RestServiceDescription
   private boolean configureFromServiceInputProperties(String propList,
           StringBuffer warnings)
   {
-    String[] props = separatorListToArray(propList, ",");
+    String[] props = StringUtils.separatorListToArray(propList, ",");
     if (props == null)
     {
       return true;
@@ -606,11 +479,20 @@ public class RestServiceDescription
   private String getServiceIOProperties()
   {
     ArrayList<String> vls = new ArrayList<String>();
-    if (isHseparable()) { vls.add("hseparable");};
-    if (isVseparable()) { vls.add("vseparable");};
+    if (isHseparable())
+    {
+      vls.add("hseparable");
+    }
+    ;
+    if (isVseparable())
+    {
+      vls.add("vseparable");
+    }
+    ;
     vls.add(new String("gapCharacter='" + gapCharacter + "'"));
     vls.add(new String("returns='" + _genOutputFormatString() + "'"));
-    return arrayToSeparatorList(vls.toArray(new String[0]), ",");
+    return StringUtils
+            .arrayToSeparatorList(vls.toArray(new String[0]), ",");
   }
 
   public String toString()
@@ -641,27 +523,35 @@ public class RestServiceDescription
   }
 
   /**
-   * processes a service encoded as a string (as generated by RestServiceDescription.toString())
-   * Note - this will only use the first service definition encountered in the string to configure the service.
+   * processes a service encoded as a string (as generated by
+   * RestServiceDescription.toString()) Note - this will only use the first
+   * service definition encountered in the string to configure the service.
+   * 
    * @param encoding
-   * @param warnings - where warning messages are reported.
-   * @return true if configuration was parsed successfully. 
+   * @param warnings
+   *          - where warning messages are reported.
+   * @return true if configuration was parsed successfully.
    */
   public boolean configureFromEncodedString(String encoding,
           StringBuffer warnings)
   {
-    String[] list = separatorListToArray(encoding, "|");
-    
-    int nextpos=parseServiceList(list,warnings, 0);
-    if (nextpos>0)
+    String[] list = StringUtils.separatorListToArray(encoding, "|");
+
+    int nextpos = parseServiceList(list, warnings, 0);
+    if (nextpos > 0)
     {
       return true;
     }
     return false;
   }
+
   /**
-   * processes the given list from position p, attempting to configure the service from it.
-   * Service lists are formed by concatenating individual stringified services. The first character of a stringified service is '|', enabling this, and the parser will ignore empty fields in a '|' separated list when they fall outside a service definition.
+   * processes the given list from position p, attempting to configure the
+   * service from it. Service lists are formed by concatenating individual
+   * stringified services. The first character of a stringified service is '|',
+   * enabling this, and the parser will ignore empty fields in a '|' separated
+   * list when they fall outside a service definition.
+   * 
    * @param list
    * @param warnings
    * @param p
@@ -671,32 +561,34 @@ public class RestServiceDescription
   {
     boolean invalid = false;
     // look for the first non-empty position - expect it to be service name
-    while (list[p]!=null && list[p].trim().length()==0)
+    while (list[p] != null && list[p].trim().length() == 0)
     {
       p++;
     }
     details.Name = list[p];
-    details.Action = list[p+1];
-    details.description = list[p+2];
-    invalid |= !configureFromServiceInputProperties(list[p+3], warnings);
-    if (list.length-p > 5 && list[p+5]!=null && list[p+5].trim().length()>5)
+    details.Action = list[p + 1];
+    details.description = list[p + 2];
+    invalid |= !configureFromServiceInputProperties(list[p + 3], warnings);
+    if (list.length - p > 5 && list[p + 5] != null
+            && list[p + 5].trim().length() > 5)
     {
-      urlSuffix = list[p+4];
-      invalid |= !configureFromInputParamEncodedUrl(list[p+5], warnings);
-      p+=6;
+      urlSuffix = list[p + 4];
+      invalid |= !configureFromInputParamEncodedUrl(list[p + 5], warnings);
+      p += 6;
     }
     else
     {
-      if (list.length-p > 4 && list[p+4]!=null && list[p+4].trim().length()>5)
+      if (list.length - p > 4 && list[p + 4] != null
+              && list[p + 4].trim().length() > 5)
       {
         urlSuffix = null;
-        invalid |= !configureFromInputParamEncodedUrl(list[p+4], warnings);
-        p+=5;
+        invalid |= !configureFromInputParamEncodedUrl(list[p + 4], warnings);
+        p += 5;
       }
     }
     return invalid ? -1 : p;
   }
-  
+
   /**
    * @return string representation of the input parameters, their type and
    *         constraints, appended to the service's base submission URL
@@ -744,8 +636,8 @@ public class RestServiceDescription
             url.append("$");
             url.append(param.getValue().getURLtokenPrefix());
             url.append(":");
-            url.append(arrayToSeparatorList(vals.toArray(new String[0]),
-                    ","));
+            url.append(StringUtils.arrayToSeparatorList(
+                    vals.toArray(new String[0]), ","));
             url.append("$");
           }
         }
@@ -771,8 +663,7 @@ public class RestServiceDescription
     boolean valid = true;
     int lastp = 0;
     String url = new String();
-    Matcher prms = Pattern.compile("([?&])([A-Za-z0-9_]+)=\\$([^$]+)\\$")
-            .matcher(ipurl);
+    Matcher prms = PARAM_ENCODED_URL_PATTERN.matcher(ipurl);
     Map<String, InputType> iparams = new Hashtable<String, InputType>();
     InputType jinput;
     while (prms.find())
@@ -814,8 +705,7 @@ public class RestServiceDescription
   public static Class[] getInputTypes()
   {
     // TODO - find a better way of maintaining this classlist
-    return new Class[]
-    { jalview.ws.rest.params.Alignment.class,
+    return new Class[] { jalview.ws.rest.params.Alignment.class,
         jalview.ws.rest.params.AnnotationFile.class,
         SeqGroupIndexVector.class,
         jalview.ws.rest.params.SeqIdVector.class,
@@ -833,13 +723,15 @@ public class RestServiceDescription
     {
       try
       {
-        jinput = (InputType) (type.getConstructor().newInstance(null));
+        jinput = (InputType) (type.getConstructor().newInstance());
         if (iprm.equalsIgnoreCase(jinput.getURLtokenPrefix()))
         {
           ArrayList<String> al = new ArrayList<String>();
-          for (String prprm : separatorListToArray(iprmparams, ","))
+          for (String prprm : StringUtils.separatorListToArray(iprmparams,
+                  ","))
           {
-            // hack to ensure that strings like "sep=','" containing unescaped commas as values are concatenated
+            // hack to ensure that strings like "sep=','" containing unescaped
+            // commas as values are concatenated
             al.add(prprm.trim());
           }
           if (!jinput.configureFromURLtokenString(al, warnings))
@@ -863,98 +755,6 @@ public class RestServiceDescription
       ;
     }
     return valid;
-  }
-
-  public static void main(String argv[])
-  {
-    // test separator list
-    try {
-      assert(separatorListToArray("foo=',',min='foo',max='1,2,3',fa=','", ",").length==4);
-      if (separatorListToArray("minsize='2', sep=','", ",").length==2)
-      {
-        assert(false);
-      }
-      
-    } catch (AssertionError x)
-    {
-      System.err.println("separatorListToArray is faulty.");
-    }
-    if (argv.length == 0)
-    {
-      if (!testRsdExchange("Test using default Shmmr service",
-              RestClient.makeShmmrRestClient().service))
-      {
-        System.err.println("default test failed.");
-      }
-      else
-      {
-        System.err.println("default test passed.");
-      }
-    }
-    else
-    {
-      int i = 0, p = 0;
-      for (String svc : argv)
-      {
-        p += testRsdExchange("Test " + (++i), svc) ? 1 : 0;
-      }
-      System.err.println("" + p + " out of " + i + " tests passed.");
-
-    }
-  }
-
-  private static boolean testRsdExchange(String desc, String servicestring)
-  {
-    try
-    {
-      RestServiceDescription newService = new RestServiceDescription(
-              servicestring);
-      if (!newService.isValid())
-      {
-        throw new Error("Failed to create service from '" + servicestring
-                + "'.\n" + newService.getInvalidMessage());
-      }
-      return testRsdExchange(desc, newService);
-    } catch (Throwable x)
-    {
-      System.err.println("Failed for service (" + desc + "): "
-              + servicestring);
-      x.printStackTrace();
-      return false;
-    }
-  }
-
-  private static boolean testRsdExchange(String desc,
-          RestServiceDescription service)
-  {
-    try
-    {
-      String fromservicetostring = service.toString();
-      RestServiceDescription newService = new RestServiceDescription(
-              fromservicetostring);
-      if (!newService.isValid())
-      {
-        throw new Error("Failed to create service from '"
-                + fromservicetostring + "'.\n"
-                + newService.getInvalidMessage());
-      }
-
-      if (!service.equals(newService))
-      {
-        System.err.println("Failed for service (" + desc + ").");
-        System.err.println("Original service and parsed service differ.");
-        System.err.println("Original: " + fromservicetostring);
-        System.err.println("Parsed  : " + newService.toString());
-        return false;
-      }
-    } catch (Throwable x)
-    {
-      System.err.println("Failed for service (" + desc + "): "
-              + service.toString());
-      x.printStackTrace();
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -1070,26 +870,37 @@ public class RestServiceDescription
 
   /**
    * parse a concatenated list of rest service descriptions into an array
+   * 
    * @param services
    * @return zero or more services.
-   * @throws exceptions if the services are improperly encoded.
+   * @throws exceptions
+   *           if the services are improperly encoded.
    */
-  public static List<RestServiceDescription> parseDescriptions(String services) throws Exception
+  public static List<RestServiceDescription> parseDescriptions(
+          String services) throws Exception
   {
-    String[] list = separatorListToArray(services, "|");
+    String[] list = StringUtils.separatorListToArray(services, "|");
     List<RestServiceDescription> svcparsed = new ArrayList<RestServiceDescription>();
-    int p=0,lastp=0;
-    StringBuffer warnings=new StringBuffer();
-    do {
+    int p = 0, lastp = 0;
+    StringBuffer warnings = new StringBuffer();
+    do
+    {
       RestServiceDescription rsd = new RestServiceDescription();
-      p=rsd.parseServiceList(list, warnings, lastp=p);
-      if (p>lastp && rsd.isValid())
+      p = rsd.parseServiceList(list, warnings, lastp = p);
+      if (p > lastp && rsd.isValid())
       {
         svcparsed.add(rsd);
-      } else {
-        throw new Exception("Failed to parse user defined RSBS services from :"+services+"\nFirst error was encountered at token "+lastp+" starting "+list[lastp]+":\n"+rsd.getInvalidMessage());
       }
-    } while (p<lastp && p<list.length-1);
+      else
+      {
+        throw new Exception(
+                "Failed to parse user defined RSBS services from :"
+                        + services
+                        + "\nFirst error was encountered at token " + lastp
+                        + " starting " + list[lastp] + ":\n"
+                        + rsd.getInvalidMessage());
+      }
+    } while (p < lastp && p < list.length - 1);
     return svcparsed;
   }
 

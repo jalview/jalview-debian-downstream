@@ -1,24 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.awt.*;
-import java.awt.event.*;
+import jalview.datamodel.AlignmentI;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Panel;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 
 public class OverviewPanel extends Panel implements Runnable,
         MouseMotionListener, MouseListener
@@ -64,18 +78,17 @@ public class OverviewPanel extends Panel implements Runnable,
     sr.renderGaps = false;
     sr.forOverview = true;
     fr = new FeatureRenderer(av);
-    fr.overview = true;
 
     // scale the initial size of overviewpanel to shape of alignment
-    float initialScale = (float) av.alignment.getWidth()
-            / (float) av.alignment.getHeight();
+    float initialScale = (float) av.getAlignment().getWidth()
+            / (float) av.getAlignment().getHeight();
 
-    if (av.hconsensus == null)
+    if (av.getSequenceConsensusHash() == null)
     {
       graphHeight = 0;
     }
 
-    if (av.alignment.getWidth() > av.alignment.getHeight())
+    if (av.getAlignment().getWidth() > av.getAlignment().getHeight())
     {
       // wider
       width = 400;
@@ -100,6 +113,7 @@ public class OverviewPanel extends Panel implements Runnable,
     addComponentListener(new ComponentAdapter()
     {
 
+      @Override
       public void componentResized(ComponentEvent evt)
       {
         if (getSize().width != width
@@ -118,22 +132,27 @@ public class OverviewPanel extends Panel implements Runnable,
 
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     boxX = evt.getX();
@@ -141,6 +160,7 @@ public class OverviewPanel extends Panel implements Runnable,
     checkValid();
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     boxX = evt.getX();
@@ -148,6 +168,7 @@ public class OverviewPanel extends Panel implements Runnable,
     checkValid();
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     boxX = evt.getX();
@@ -174,7 +195,7 @@ public class OverviewPanel extends Panel implements Runnable,
 
     if (boxX > (width - boxWidth))
     {
-      if (av.hasHiddenColumns)
+      if (av.hasHiddenColumns())
       {
         // Try smallest possible box
         boxWidth = (int) ((av.endRes - av.startRes + 1) * av.getCharWidth() * scalew);
@@ -185,7 +206,7 @@ public class OverviewPanel extends Panel implements Runnable,
     int col = (int) (boxX / scalew / av.getCharWidth());
     int row = (int) (boxY / scaleh / av.getCharHeight());
 
-    if (av.hasHiddenColumns)
+    if (av.hasHiddenColumns())
     {
       if (!av.getColumnSelection().isVisible(col))
       {
@@ -195,10 +216,10 @@ public class OverviewPanel extends Panel implements Runnable,
       col = av.getColumnSelection().findColumnPosition(col);
     }
 
-    if (av.hasHiddenRows)
+    if (av.hasHiddenRows())
     {
-      row = av.alignment.getHiddenSequences().findIndexWithoutHiddenSeqs(
-              row);
+      row = av.getAlignment().getHiddenSequences()
+              .findIndexWithoutHiddenSeqs(row);
     }
 
     ap.setScrollValues(col, row);
@@ -216,10 +237,9 @@ public class OverviewPanel extends Panel implements Runnable,
       return;
     }
 
-    if (av.showSequenceFeatures)
+    if (av.isShowSequenceFeatures())
     {
-      fr.featureGroups = ap.seqPanel.seqCanvas.getFeatureRenderer().featureGroups;
-      fr.featureColours = ap.seqPanel.seqCanvas.getFeatureRenderer().featureColours;
+      fr.transferSettings(ap.seqPanel.seqCanvas.fr);
     }
 
     resizing = true;
@@ -240,13 +260,14 @@ public class OverviewPanel extends Panel implements Runnable,
   // the overview is being calculated
   boolean resizeAgain = false;
 
+  @Override
   public void run()
   {
     miniMe = null;
-    int alwidth = av.alignment.getWidth();
-    int alheight = av.alignment.getHeight();
+    int alwidth = av.getAlignment().getWidth();
+    int alheight = av.getAlignment().getHeight();
 
-    if (av.showSequenceFeatures)
+    if (av.isShowSequenceFeatures())
     {
       fr.transferSettings(ap.seqPanel.seqCanvas.getFeatureRenderer());
     }
@@ -277,7 +298,10 @@ public class OverviewPanel extends Panel implements Runnable,
     Color color = Color.yellow;
     int row, col, sameRow = 0, sameCol = 0;
     jalview.datamodel.SequenceI seq;
+    final boolean hasHiddenRows = av.hasHiddenRows(), hasHiddenCols = av
+            .hasHiddenColumns();
     boolean hiddenRow = false;
+    AlignmentI alignment = av.getAlignment();
     for (row = 0; row <= sequencesHeight; row++)
     {
       if ((int) (row * sampleRow) == lastrow)
@@ -287,15 +311,15 @@ public class OverviewPanel extends Panel implements Runnable,
       }
 
       hiddenRow = false;
-      if (av.hasHiddenRows)
+      if (hasHiddenRows)
       {
-        seq = av.alignment.getHiddenSequences().getHiddenSequence(lastrow);
+        seq = alignment.getHiddenSequences().getHiddenSequence(lastrow);
         if (seq == null)
         {
-          int index = av.alignment.getHiddenSequences()
+          int index = alignment.getHiddenSequences()
                   .findIndexWithoutHiddenSeqs(lastrow);
 
-          seq = av.alignment.getSequenceAt(index);
+          seq = alignment.getSequenceAt(index);
         }
         else
         {
@@ -304,7 +328,7 @@ public class OverviewPanel extends Panel implements Runnable,
       }
       else
       {
-        seq = av.alignment.getSequenceAt(lastrow);
+        seq = alignment.getSequenceAt(lastrow);
       }
 
       for (col = 0; col < width; col++)
@@ -322,7 +346,7 @@ public class OverviewPanel extends Panel implements Runnable,
         {
           color = sr.getResidueBoxColour(seq, lastcol);
 
-          if (av.showSequenceFeatures)
+          if (av.isShowSequenceFeatures())
           {
             color = fr.findFeatureColour(color, seq, lastcol);
           }
@@ -333,8 +357,8 @@ public class OverviewPanel extends Panel implements Runnable,
         }
 
         if (hiddenRow
-                || (av.hasHiddenColumns && !av.getColumnSelection()
-                        .isVisible(lastcol)))
+                || (hasHiddenCols && !av.getColumnSelection().isVisible(
+                        lastcol)))
         {
           color = color.darker().darker();
         }
@@ -357,14 +381,16 @@ public class OverviewPanel extends Panel implements Runnable,
       sameRow = 1;
     }
 
-    if (av.conservation != null)
+    if (av.getAlignmentConservationAnnotation() != null)
     {
       for (col = 0; col < width; col++)
       {
         lastcol = (int) (col * sampleCol);
         {
           mg.translate(col, sequencesHeight);
-          ap.annotationPanel.drawGraph(mg, av.conservation,
+          ap.annotationPanel.renderer.drawGraph(mg,
+                  av.getAlignmentConservationAnnotation(),
+                  av.getAlignmentConservationAnnotation().annotations,
                   (int) (sampleCol) + 1, graphHeight,
                   (int) (col * sampleCol), (int) (col * sampleCol) + 1);
           mg.translate(-col, -sequencesHeight);
@@ -386,14 +412,15 @@ public class OverviewPanel extends Panel implements Runnable,
 
   public void setBoxPosition()
   {
-    int fullsizeWidth = av.alignment.getWidth() * av.getCharWidth();
-    int fullsizeHeight = (av.alignment.getHeight() + av.alignment
-            .getHiddenSequences().getSize()) * av.getCharHeight();
+    int fullsizeWidth = av.getAlignment().getWidth() * av.getCharWidth();
+    int fullsizeHeight = (av.getAlignment().getHeight() + av.getAlignment()
+            .getHiddenSequences().getSize())
+            * av.getCharHeight();
 
     int startRes = av.getStartRes();
     int endRes = av.getEndRes();
 
-    if (av.hasHiddenColumns)
+    if (av.hasHiddenColumns())
     {
       startRes = av.getColumnSelection().adjustForHiddenColumns(startRes);
       endRes = av.getColumnSelection().adjustForHiddenColumns(endRes);
@@ -402,12 +429,12 @@ public class OverviewPanel extends Panel implements Runnable,
     int startSeq = av.startSeq;
     int endSeq = av.endSeq;
 
-    if (av.hasHiddenRows)
+    if (av.hasHiddenRows())
     {
-      startSeq = av.alignment.getHiddenSequences().adjustForHiddenSeqs(
-              startSeq);
+      startSeq = av.getAlignment().getHiddenSequences()
+              .adjustForHiddenSeqs(startSeq);
 
-      endSeq = av.alignment.getHiddenSequences()
+      endSeq = av.getAlignment().getHiddenSequences()
               .adjustForHiddenSeqs(endSeq);
 
     }
@@ -418,7 +445,7 @@ public class OverviewPanel extends Panel implements Runnable,
     boxX = (int) (startRes * av.getCharWidth() * scalew);
     boxY = (int) (startSeq * av.getCharHeight() * scaleh);
 
-    if (av.hasHiddenColumns)
+    if (av.hasHiddenColumns())
     {
       boxWidth = (int) ((endRes - startRes + 1) * av.getCharWidth() * scalew);
     }
@@ -432,11 +459,13 @@ public class OverviewPanel extends Panel implements Runnable,
     repaint();
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     Graphics og = offscreen.getGraphics();

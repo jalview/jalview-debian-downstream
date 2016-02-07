@@ -7,13 +7,13 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * Simple custom patterns. See <a
  * href="http://javaregex.com/code/deriv2.java.html">deriv2.java</a> and <a
- * href="http://javaregex.com/code/deriv3.java.html">deriv3.java</a> in the
- * test directory.
+ * href="http://javaregex.com/code/deriv3.java.html">deriv3.java</a> in the test
+ * directory.
  * 
  * @see com.stevesoft.pat.CustomEndpoint
  */

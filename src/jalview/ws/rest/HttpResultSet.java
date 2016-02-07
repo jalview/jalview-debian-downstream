@@ -1,28 +1,32 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.ws.rest;
 
 import jalview.bin.Cache;
 import jalview.io.FileParse;
 import jalview.io.packed.DataProvider;
+import jalview.io.packed.DataProvider.JvDataType;
 import jalview.io.packed.ParsePackedSet;
 import jalview.io.packed.SimpleDataProvider;
-import jalview.io.packed.DataProvider.JvDataType;
+import jalview.util.MessageManager;
 import jalview.ws.io.mime.JalviewMimeContentHandler;
 
 import java.io.BufferedReader;
@@ -37,7 +41,6 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.james.mime4j.MimeException;
-import org.apache.james.mime4j.parser.ContentHandler;
 import org.apache.james.mime4j.parser.MimeStreamParser;
 
 /**
@@ -96,6 +99,7 @@ public class HttpResultSet extends FileParse
 
   /**
    * parses the results of the service output.
+   * 
    * @return the result of ParsePackedSet.getAlignment()
    * @throws Exception
    * @throws Error
@@ -108,7 +112,8 @@ public class HttpResultSet extends FileParse
     if (en == null)
     {
       throw new Error(
-              "Implementation Error: need to have an HttpResponse to process.");
+              MessageManager
+                      .getString("error.implementation_error_need_to_have_httpresponse"));
     }
     jalview.io.packed.JalviewDataset ds = restJob.newJalviewDataset();
     // Decide how we deal with content.
@@ -220,9 +225,10 @@ public class HttpResultSet extends FileParse
    */
   public String getUrl()
   {
-    try {
+    try
+    {
       return cachedRequest.getURI().toURL().toString();
-    }  catch (Exception x)
+    } catch (Exception x)
     {
       x.printStackTrace();
       return null;

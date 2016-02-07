@@ -1,39 +1,47 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws2;
 
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentView;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.JvSwingUtils;
+import jalview.util.MessageManager;
+import jalview.ws.jws2.jabaws2.Jws2Instance;
+import jalview.ws.params.WsParamSetI;
+
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
-import javax.swing.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.ToolTipManager;
 
-import jalview.datamodel.*;
-import jalview.gui.*;
 import compbio.data.msa.MsaWS;
 import compbio.metadata.Argument;
-import compbio.metadata.Option;
-import compbio.metadata.Preset;
-import compbio.metadata.PresetManager;
-import jalview.ws.jws2.Jws2Discoverer.Jws2Instance;
-import jalview.ws.jws2.dm.JabaWsParamSet;
-import jalview.ws.params.WsParamSetI;
 
 /**
  * DOCUMENT ME!
@@ -48,13 +56,7 @@ public class MsaWSClient extends Jws2Client
    */
   MsaWS server;
 
-  AlignFrame alignFrame;
-
-  private WsParamSetI preset;
-
-  private List<Argument> paramset;
-
-  public MsaWSClient(Jws2Discoverer.Jws2Instance sh, String altitle,
+  public MsaWSClient(Jws2Instance sh, String altitle,
           jalview.datamodel.AlignmentView msa, boolean submitGaps,
           boolean preserveOrder, Alignment seqdataset,
           AlignFrame _alignFrame)
@@ -64,9 +66,9 @@ public class MsaWSClient extends Jws2Client
     // TODO Auto-generated constructor stub
   }
 
-  public MsaWSClient(Jws2Discoverer.Jws2Instance sh, WsParamSetI preset,
-          String altitle, jalview.datamodel.AlignmentView msa,
-          boolean submitGaps, boolean preserveOrder, Alignment seqdataset,
+  public MsaWSClient(Jws2Instance sh, WsParamSetI preset, String altitle,
+          jalview.datamodel.AlignmentView msa, boolean submitGaps,
+          boolean preserveOrder, Alignment seqdataset,
           AlignFrame _alignFrame)
   {
     this(sh, preset, null, false, altitle, msa, submitGaps, preserveOrder,
@@ -90,98 +92,41 @@ public class MsaWSClient extends Jws2Client
    *          DOCUMENT ME!
    */
 
-  public MsaWSClient(Jws2Discoverer.Jws2Instance sh, WsParamSetI preset,
+  public MsaWSClient(Jws2Instance sh, WsParamSetI preset,
           List<Argument> arguments, boolean editParams, String altitle,
           jalview.datamodel.AlignmentView msa, boolean submitGaps,
           boolean preserveOrder, Alignment seqdataset,
           AlignFrame _alignFrame)
   {
-    super();
-    alignFrame = _alignFrame;
+    super(_alignFrame, preset, arguments);
+    if (!processParams(sh, editParams))
+    {
+      return;
+    }
+
     if (!(sh.service instanceof MsaWS))
     {
       // redundant at mo - but may change
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      "The Service called \n"
-                              + sh.serviceType
-                              + "\nis not a \nMultiple Sequence Alignment Service !",
-                      "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.service_called_is_not_msa_service",
+                      new String[] { sh.serviceType }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
-    server = sh.service;
-    this.preset=preset;
-    if (preset != null)
-    {
-      if (!((preset instanceof JabaPreset) || preset instanceof JabaWsParamSet)) {
-      /*{
-        this.preset = ((JabaPreset) preset).p;
-      }
-      else if (preset instanceof JabaWsParamSet)
-      {
-        List<Argument> newargs = new ArrayList<Argument>();
-        JabaWsParamSet pset = ((JabaWsParamSet) preset);
-        for (Option opt : pset.getjabaArguments())
-        {
-          newargs.add(opt);
-        }
-        if (arguments != null && arguments.size() > 0)
-        {
-          // merge arguments with preset's own arguments.
-          for (Argument opt : arguments)
-          {
-            newargs.add(opt);
-          }
-        }
-        paramset = newargs;
-      }
-      else
-      {*/
-        throw new Error(
-                "Implementation error: Can only instantiate Jaba parameter sets.");
-      }
-    }
-    else
-    {
-      // just provided with a bunch of arguments
-      this.paramset = arguments;
-    }
-    if (editParams)
-    {
-      if (sh.paramStore == null)
-      {
-        sh.paramStore = new JabaParamStore(sh,
-                Desktop.getUserParameterStore());
-      }
-      WsJobParameters jobParams = new WsJobParameters(sh, preset);
-      if (!jobParams.showRunDialog())
-      {
-        return;
-      }
-      WsParamSetI prset = jobParams.getPreset();
-      if (prset == null)
-      {
-        paramset = JabaParamStore.getJabafromJwsArgs(jobParams
-                .getJobParams());
-      }
-      else
-      {
-        this.preset = prset; // ((JabaPreset) prset).p;
-        paramset = null; // no user supplied parameters.
-      }
-    }
-
+    server = (MsaWS) sh.service;
     if ((wsInfo = setWebService(sh, false)) == null)
     {
-      JOptionPane.showMessageDialog(Desktop.desktop,
-              "The Multiple Sequence Alignment Service named "
-                      + sh.serviceType + " is unknown",
-              "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.msa_service_is_unknown",
+                      new String[] { sh.serviceType }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
+
     startMsaWSClient(altitle, msa, submitGaps, preserveOrder, seqdataset);
 
   }
@@ -227,8 +172,25 @@ public class MsaWSClient extends Jws2Client
     MsaWSThread msathread = new MsaWSThread(server, preset, paramset,
             WsURL, wsInfo, alignFrame, WebServiceName, jobtitle, msa,
             submitGaps, preserveOrder, seqdataset);
-    wsInfo.setthisService(msathread);
-    msathread.start();
+    if (msathread.hasValidInput())
+    {
+      wsInfo.setthisService(msathread);
+      wsInfo.setVisible(true);
+      msathread.start();
+    }
+    else
+    {
+      JOptionPane.showMessageDialog(alignFrame,
+              MessageManager.getString("info.invalid_msa_input_mininfo"),
+              MessageManager.getString("info.invalid_msa_notenough"),
+              JOptionPane.INFORMATION_MESSAGE);
+      wsInfo.setVisible(false);
+    }
+  }
+
+  public static void main(String[] args)
+  {
+    System.out.println("A".matches("(-*[a-zA-Z]-*){1}[a-zA-Z-]*"));
   }
 
   protected String getServiceActionKey()
@@ -257,6 +219,11 @@ public class MsaWSClient extends Jws2Client
   public void attachWSMenuEntry(JMenu rmsawsmenu,
           final Jws2Instance service, final AlignFrame alignFrame)
   {
+    if (registerAAConWSInstance(rmsawsmenu, service, alignFrame))
+    {
+      // Alignment dependent analysis calculation WS gui
+      return;
+    }
     setWebService(service, true); // headless
     boolean finished = true, submitGaps = false;
     JMenu msawsmenu = rmsawsmenu;
@@ -279,24 +246,33 @@ public class MsaWSClient extends Jws2Client
       if (submitGaps == true)
       {
         action = "Realign ";
-        msawsmenu = new JMenu("Realign with " + svcname);
-        msawsmenu
-                .setToolTipText("Align sequences to an existing alignment");
+        msawsmenu = new JMenu(MessageManager.formatMessage(
+                "label.realign_with_params", new String[] { svcname }));
+        msawsmenu.setToolTipText(MessageManager
+                .getString("label.align_sequences_to_existing_alignment"));
         rmsawsmenu.add(msawsmenu);
       }
       final boolean withGaps = submitGaps;
 
-      JMenuItem method = new JMenuItem(calcName + "with Defaults");
-      method.setToolTipText(action + "with default settings");
+      JMenuItem method = new JMenuItem(MessageManager.formatMessage(
+              "label.calcname_with_default_settings",
+              new String[] { calcName }));
+      method.setToolTipText(MessageManager
+              .formatMessage("label.action_with_default_settings",
+                      new String[] { action }));
 
       method.addActionListener(new ActionListener()
       {
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = alignFrame.gatherSequencesForAlignment();
-          new MsaWSClient(service, alignFrame.getTitle(), msa, withGaps,
-                  true, alignFrame.getViewport().getAlignment()
-                          .getDataset(), alignFrame);
+
+          if (msa != null)
+          {
+            new MsaWSClient(service, alignFrame.getTitle(), msa, withGaps,
+                    true, alignFrame.getViewport().getAlignment()
+                            .getDataset(), alignFrame);
+          }
 
         }
       });
@@ -305,17 +281,23 @@ public class MsaWSClient extends Jws2Client
       {
         // only add these menu options if the service has user-modifiable
         // arguments
-        method = new JMenuItem("Edit settings and run ...");
-        method.setToolTipText("View and change the parameters before alignment.");
+        method = new JMenuItem(
+                MessageManager.getString("label.edit_settings_and_run"));
+        method.setToolTipText(MessageManager
+                .getString("label.view_and_change_parameters_before_alignment"));
 
         method.addActionListener(new ActionListener()
         {
           public void actionPerformed(ActionEvent e)
           {
             AlignmentView msa = alignFrame.gatherSequencesForAlignment();
-            new MsaWSClient(service, null, null, true, alignFrame
-                    .getTitle(), msa, withGaps, true, alignFrame
-                    .getViewport().getAlignment().getDataset(), alignFrame);
+            if (msa != null)
+            {
+              new MsaWSClient(service, null, null, true, alignFrame
+                      .getTitle(), msa, withGaps, true, alignFrame
+                      .getViewport().getAlignment().getDataset(),
+                      alignFrame);
+            }
 
           }
         });
@@ -323,25 +305,59 @@ public class MsaWSClient extends Jws2Client
         List<WsParamSetI> presets = service.getParamStore().getPresets();
         if (presets != null && presets.size() > 0)
         {
-          JMenu presetlist = new JMenu("Run "+calcName + "with preset");
+          JMenu presetlist = new JMenu(
+                  MessageManager.formatMessage(
+                          "label.run_with_preset_params",
+                          new String[] { calcName }));
 
+          final int showToolTipFor = ToolTipManager.sharedInstance()
+                  .getDismissDelay();
           for (final WsParamSetI preset : presets)
           {
             final JMenuItem methodR = new JMenuItem(preset.getName());
-            methodR.setToolTipText("<html><p>"
-                    + JvSwingUtils.wrapTooltip("<strong>"
-                            + (preset.isModifiable() ? "User Preset"
-                                    : "Service Preset") + "</strong><br/>"
-                            + preset.getDescription() + "</p>") + "</html>");
+            final int QUICK_TOOLTIP = 1500;
+            // JAL-1582 shorten tooltip display time in these menu items as
+            // they can obscure other options
+            methodR.addMouseListener(new MouseAdapter()
+            {
+              @Override
+              public void mouseEntered(MouseEvent e)
+              {
+                ToolTipManager.sharedInstance().setDismissDelay(
+                        QUICK_TOOLTIP);
+              }
+
+              @Override
+              public void mouseExited(MouseEvent e)
+              {
+                ToolTipManager.sharedInstance().setDismissDelay(
+                        showToolTipFor);
+              }
+
+            });
+            methodR.setToolTipText(JvSwingUtils.wrapTooltip(
+                    true,
+                    "<p><strong>"
+                            + (preset.isModifiable() ? MessageManager
+                                    .getString("label.user_preset")
+                                    : MessageManager
+                                            .getString("label.service_preset"))
+                            + "</strong><br/>" + preset.getDescription()
+                            + "</p>"));
             methodR.addActionListener(new ActionListener()
             {
               public void actionPerformed(ActionEvent e)
               {
                 AlignmentView msa = alignFrame
                         .gatherSequencesForAlignment();
-                new MsaWSClient(service, preset, alignFrame.getTitle(),
-                        msa, false, true, alignFrame.getViewport()
-                                .getAlignment().getDataset(), alignFrame);
+
+                if (msa != null)
+                {
+                  MsaWSClient msac = new MsaWSClient(service, preset,
+                          alignFrame.getTitle(), msa, false, true,
+                          alignFrame.getViewport().getAlignment()
+                                  .getDataset(), alignFrame);
+                }
 
               }
 

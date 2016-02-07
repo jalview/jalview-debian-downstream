@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
@@ -66,12 +69,20 @@ public class DBRefEntry
             (entry.map == null ? null : new Mapping(entry.map)));
   }
 
-  public boolean equals(DBRefEntry entry)
+  @Override
+  public boolean equals(Object o)
   {
-    if (entry == this)
-      return true;
-    if (entry == null)
+    // TODO should also override hashCode to ensure equal objects have equal
+    // hashcodes
+    if (o == null || !(o instanceof DBRefEntry))
+    {
       return false;
+    }
+    DBRefEntry entry = (DBRefEntry) o;
+    if (entry == this)
+    {
+      return true;
+    }
     if (equalRef(entry)
             && ((map == null && entry.map == null) || (map != null
                     && entry.map != null && map.equals(entry.map))))
@@ -94,7 +105,9 @@ public class DBRefEntry
       return false;
     }
     if (entry == this)
+    {
       return true;
+    }
     if ((source != null && entry.source != null && source
             .equalsIgnoreCase(entry.source))
             && (accessionId != null && entry.accessionId != null && accessionId
@@ -179,5 +192,10 @@ public class DBRefEntry
   {
     return ((source != null) ? source : "") + ":"
             + ((accessionId != null) ? accessionId : "");
+  }
+
+  public String toString()
+  {
+    return getSrcAccString();
   }
 }

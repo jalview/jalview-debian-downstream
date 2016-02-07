@@ -1,26 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
-import java.util.*;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.util.MessageManager;
 
-import jalview.datamodel.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Vector;
 
 /**
  * DOCUMENT ME!
@@ -37,12 +49,17 @@ public abstract class AlignFile extends FileParse
   /**
    * Sequences to be added to form a new alignment.
    */
-  protected Vector seqs;
+  protected Vector<SequenceI> seqs;
 
   /**
    * annotation to be added to generated alignment object
    */
-  protected Vector annotations;
+  protected Vector<AlignmentAnnotation> annotations;
+
+  /**
+   * SequenceGroups to be added to the alignment object
+   */
+  protected List<SequenceGroup> seqGroups;
 
   /**
    * Properties to be added to generated alignment object
@@ -55,11 +72,17 @@ public abstract class AlignFile extends FileParse
 
   boolean jvSuffix = true;
 
+  private boolean parseCalled;
+
   /**
    * Creates a new AlignFile object.
    */
   public AlignFile()
   {
+    // Shouldn't we init data structures (JBPNote: not sure - initData is for
+    // initialising the structures used for reading from a datasource, and the
+    // bare constructor hasn't got any datasource)
+    initData();
   }
 
   /**
@@ -72,11 +95,30 @@ public abstract class AlignFile extends FileParse
    */
   public AlignFile(String inFile, String type) throws IOException
   {
+    this(true, inFile, type);
+  }
+
+  /**
+   * Constructor which (optionally delays) parsing of data from a file of some
+   * specified type.
+   * 
+   * @param parseImmediately
+   *          if false, need to call 'doParse()' to begin parsing data
+   * @param inFile
+   *          Filename to read from.
+   * @param type
+   *          What type of file to read from (File, URL)
+   * @throws IOException
+   */
+  public AlignFile(boolean parseImmediately, String inFile, String type)
+          throws IOException
+  {
     super(inFile, type);
-
     initData();
-
-    parse();
+    if (parseImmediately)
+    {
+      doParse();
+    }
   }
 
   /**
@@ -88,17 +130,61 @@ public abstract class AlignFile extends FileParse
    */
   public AlignFile(FileParse source) throws IOException
   {
+    this(true, source);
+  }
+
+  /**
+   * Construct a new parser to read from the position where some other parsing
+   * process left
+   * 
+   * @param parseImmediately
+   *          if false, need to call 'doParse()' to begin parsing data
+   * @param source
+   */
+  public AlignFile(boolean parseImmediately, FileParse source)
+          throws IOException
+  {
     super(source);
     initData();
+    if (parseImmediately)
+    {
+      doParse();
+    }
+  }
+
+  /**
+   * called if parsing was delayed till after parser was constructed
+   * 
+   * @throws IOException
+   */
+  public void doParse() throws IOException
+  {
+    if (parseCalled)
+    {
+      throw new IOException(
+              "Implementation error: Parser called twice for same data.\n"
+                      + "Need to call initData() again before parsing can be reattempted.");
+    }
+    parseCalled = true;
     parse();
+    // sets the index of each sequence in the alignment
+    for (int i = 0, c = seqs.size(); i < c; i++)
+    {
+      seqs.get(i).setIndex(i);
+    }
   }
 
   /**
    * Return the seqs Vector
    */
-  public Vector getSeqs()
+  public Vector<SequenceI> getSeqs()
   {
     return seqs;
+  }
+
+  public List<SequenceGroup> getSeqGroups()
+  {
+    return seqGroups;
   }
 
   /**
@@ -110,7 +196,7 @@ public abstract class AlignFile extends FileParse
 
     for (int i = 0; i < seqs.size(); i++)
     {
-      s[i] = (SequenceI) seqs.elementAt(i);
+      s[i] = seqs.elementAt(i);
     }
 
     return s;
@@ -122,13 +208,33 @@ public abstract class AlignFile extends FileParse
    * 
    * @param al
    */
-  public void addAnnotations(Alignment al)
+  public void addAnnotations(AlignmentI al)
   {
     addProperties(al);
     for (int i = 0; i < annotations.size(); i++)
     {
-      al.addAnnotation((AlignmentAnnotation) annotations.elementAt(i));
+      // detect if annotations.elementAt(i) rna secondary structure
+      // if so then do:
+      /*
+       * SequenceFeature[] pairArray =
+       * Rna.GetBasePairsFromAlignmentAnnotation(annotations.elementAt(i));
+       * Rna.HelixMap(pairArray);
+       */
+      AlignmentAnnotation an = annotations.elementAt(i);
+      an.validateRangeAndDisplay();
+      al.addAnnotation(an);
     }
+
+  }
+
+  /**
+   * register sequence groups on the alignment for **output**
+   * 
+   * @param al
+   */
+  public void addSeqGroups(AlignmentI al)
+  {
+    this.seqGroups = al.getGroups();
 
   }
 
@@ -139,7 +245,7 @@ public abstract class AlignFile extends FileParse
    * @note implicitly called by addAnnotations()
    * @param al
    */
-  public void addProperties(Alignment al)
+  public void addProperties(AlignmentI al)
   {
     if (properties != null && properties.size() > 0)
     {
@@ -167,7 +273,8 @@ public abstract class AlignFile extends FileParse
     if (key == null)
     {
       throw new Error(
-              "Implementation error: Cannot have null alignment property key.");
+              MessageManager
+                      .getString("error.implementation_error_cannot_have_null_alignment"));
     }
     if (value == null)
     {
@@ -194,8 +301,10 @@ public abstract class AlignFile extends FileParse
    */
   protected void initData()
   {
-    seqs = new Vector();
-    annotations = new Vector();
+    seqs = new Vector<SequenceI>();
+    annotations = new Vector<AlignmentAnnotation>();
+    seqGroups = new ArrayList<SequenceGroup>();
+    parseCalled = false;
   }
 
   /**
@@ -206,7 +315,7 @@ public abstract class AlignFile extends FileParse
    */
   protected void setSeqs(SequenceI[] s)
   {
-    seqs = new Vector();
+    seqs = new Vector<SequenceI>();
 
     for (int i = 0; i < s.length; i++)
     {
@@ -266,25 +375,29 @@ public abstract class AlignFile extends FileParse
   /**
    * vector of String[] treeName, newickString pairs
    */
-  Vector newickStrings = null;
+  Vector<String[]> newickStrings = null;
 
   protected void addNewickTree(String treeName, String newickString)
   {
     if (newickStrings == null)
     {
-      newickStrings = new Vector();
+      newickStrings = new Vector<String[]>();
     }
-    newickStrings.addElement(new String[]
-    { treeName, newickString });
+    newickStrings.addElement(new String[] { treeName, newickString });
   }
 
   protected int getTreeCount()
   {
-    if (newickStrings == null)
+    return newickStrings == null ? 0 : newickStrings.size();
+  }
+
+  public void addGroups(AlignmentI al)
+  {
+
+    for (SequenceGroup sg : getSeqGroups())
     {
-      return 0;
+      al.addGroup(sg);
     }
-    return newickStrings.size();
   }
 
 }

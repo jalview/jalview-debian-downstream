@@ -1,25 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.analysis;
 
-import com.stevesoft.pat.Regex;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceI;
 
-import jalview.datamodel.*;
+import com.stevesoft.pat.Regex;
 
 public class ParseProperties
 {
@@ -52,9 +57,8 @@ public class ParseProperties
   public int getScoresFromDescription(String ScoreName,
           String ScoreDescriptions, String regex, boolean repeat)
   {
-    return getScoresFromDescription(new String[]
-    { ScoreName }, new String[]
-    { ScoreDescriptions }, regex, repeat);
+    return getScoresFromDescription(new String[] { ScoreName },
+            new String[] { ScoreDescriptions }, regex, repeat);
   }
 
   public int getScoresFromDescription(String[] ScoreNames,
@@ -98,7 +102,9 @@ public class ParseProperties
       ScoreNames = tnames;
       String descrbase = ScoreDescriptions[onamelen - 1];
       if (descrbase == null)
+      {
         descrbase = "Score parsed from (" + regex + ")";
+      }
       tnames = new String[pattern.numSubs() + 1];
       System.arraycopy(ScoreDescriptions, 0, tnames, 0,
               ScoreDescriptions.length);
@@ -113,7 +119,9 @@ public class ParseProperties
     {
       String descr = seqs[i].getDescription();
       if (descr == null)
+      {
         continue;
+      }
       int pos = 0;
       boolean added = false;
       int reps = 0;
@@ -137,7 +145,8 @@ public class ParseProperties
                   + ((reps > 0) ? "_" + reps : ""),
                   ScoreDescriptions[cols], null);
           an.setScore(score);
-          System.out.println("Score: " + ScoreNames[cols] + "=" + score); // DEBUG
+          System.out.println(seqs[i].getName() + " score: '"
+                  + ScoreNames[cols] + "' = " + score); // DEBUG
           an.setSequenceRef(seqs[i]);
           seqs[i].addAlignmentAnnotation(an);
           al.addAnnotation(an);
@@ -151,30 +160,5 @@ public class ParseProperties
       }
     }
     return count;
-  }
-
-  public static void main(String argv[])
-  {
-    SequenceI[] seqs = new SequenceI[]
-    { new Sequence("sq1", "THISISAPLACEHOLDER"),
-        new Sequence("sq2", "THISISAPLACEHOLDER"),
-        new Sequence("sq3", "THISISAPLACEHOLDER"),
-        new Sequence("sq4", "THISISAPLACEHOLDER") };
-    seqs[0].setDescription("1 mydescription1");
-    seqs[1].setDescription("mydescription2");
-    seqs[2].setDescription("2. 0.1 mydescription3");
-    seqs[3].setDescription("3 0.01 mydescription4");
-    // seqs[4].setDescription("5 mydescription5");
-    Alignment al = new Alignment(seqs);
-    ParseProperties pp = new ParseProperties(al);
-    String regex = ".*([-0-9.+]+)";
-    System.out.println("Matched "
-            + pp.getScoresFromDescription("my Score",
-                    "my Score Description", regex, true) + " for " + regex);
-    regex = ".*([-0-9.+]+).+([-0-9.+]+).*";
-    System.out.println("Matched "
-            + pp.getScoresFromDescription("my Score",
-                    "my Score Description", regex, true) + " for " + regex);
-    System.out.println("Finished.");
   }
 }

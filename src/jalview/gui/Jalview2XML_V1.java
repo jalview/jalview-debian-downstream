@@ -1,33 +1,57 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.jar.*;
-
-import javax.swing.*;
-
-import org.exolab.castor.xml.*;
-import jalview.binding.*;
-import jalview.schemes.*;
+import jalview.binding.Annotation;
+import jalview.binding.AnnotationElement;
+import jalview.binding.Features;
+import jalview.binding.JGroup;
+import jalview.binding.JSeq;
+import jalview.binding.JalviewModel;
+import jalview.binding.JalviewModelSequence;
+import jalview.binding.Pdbids;
+import jalview.binding.Sequence;
+import jalview.binding.SequenceSet;
+import jalview.binding.Setting;
+import jalview.binding.Tree;
+import jalview.binding.UserColours;
+import jalview.binding.Viewport;
+import jalview.datamodel.PDBEntry;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.ResidueProperties;
+import jalview.structure.StructureSelectionManager;
+import jalview.util.MessageManager;
 import jalview.util.jarInputStreamProvider;
+import jalview.viewmodel.seqfeatures.FeatureRendererSettings;
+
+import java.io.InputStreamReader;
+import java.util.Hashtable;
+import java.util.Vector;
+import java.util.jar.JarEntry;
+import java.util.jar.JarInputStream;
+
+import javax.swing.JOptionPane;
+
+import org.exolab.castor.xml.IDResolver;
 
 /**
  * DOCUMENT ME!
@@ -117,7 +141,7 @@ public class Jalview2XML_V1
           InputStreamReader in = new InputStreamReader(jin, "UTF-8");
           JalviewModel object = new JalviewModel();
 
-          object = (JalviewModel) object.unmarshal(in);
+          object = object.unmarshal(in);
 
           af = LoadFromObject(object, file);
           entryCount++;
@@ -136,7 +160,9 @@ public class Jalview2XML_V1
             System.err.println("Couldn't locate Jalview XML file : " + ex
                     + "\n");
             JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                    "Couldn't locate " + file, "URL not found",
+                    MessageManager.formatMessage("label.couldnt_locate",
+                            new String[] { file }), MessageManager
+                            .getString("label.url_not_found"),
                     JOptionPane.WARNING_MESSAGE);
           }
         });
@@ -154,7 +180,10 @@ public class Jalview2XML_V1
           {
 
             JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                    "Error loading  " + file, "Error loading Jalview file",
+                    MessageManager.formatMessage(
+                            "label.error_loading_file_params", new String[]
+                            { file }), MessageManager
+                            .getString("label.error_loading_jalview_file"),
                     JOptionPane.WARNING_MESSAGE);
           }
         });
@@ -214,8 +243,20 @@ public class Jalview2XML_V1
         {
           jalview.datamodel.PDBEntry entry = new jalview.datamodel.PDBEntry();
           entry.setId(ids[p].getId());
-          entry.setType(ids[p].getType());
+          if (ids[p].getType() != null)
+          {
+            if (ids[p].getType().equalsIgnoreCase("PDB"))
+            {
+              entry.setType(PDBEntry.Type.PDB);
+            }
+            else
+            {
+              entry.setType(PDBEntry.Type.FILE);
+            }
+          }
           al.getSequenceAt(i).getDatasetSequence().addPDBId(entry);
+          StructureSelectionManager.getStructureSelectionManager(
+                  Desktop.instance).registerPDBEntry(entry);
         }
 
       }
@@ -271,8 +312,8 @@ public class Jalview2XML_V1
 
     for (int i = 0; i < JSEQ.length; i++)
     {
-      af.viewport.setSequenceColour(af.viewport.alignment.getSequenceAt(i),
-              new java.awt.Color(JSEQ[i].getColour()));
+      af.viewport.setSequenceColour(af.viewport.getAlignment()
+              .getSequenceAt(i), new java.awt.Color(JSEQ[i].getColour()));
     }
 
     // af.changeColour() );
@@ -309,8 +350,7 @@ public class Jalview2XML_V1
 
         for (int s = 0; s < ids.length; s++)
         {
-          seqs.addElement((jalview.datamodel.SequenceI) seqids
-                  .elementAt(ids[s]));
+          seqs.addElement(seqids.elementAt(ids[s]));
         }
 
         jalview.datamodel.SequenceGroup sg = new jalview.datamodel.SequenceGroup(
@@ -343,15 +383,14 @@ public class Jalview2XML_V1
     af.viewport.setColourText(view.getShowColourText());
     af.viewport.setConservationSelected(view.getConservationSelected());
     af.viewport.setShowJVSuffix(view.getShowFullId());
-    af.viewport.setFont(new java.awt.Font(view.getFontName(), view
-            .getFontStyle(), view.getFontSize()));
-    af.alignPanel.fontChanged();
+    af.viewport.setFont(
+            new java.awt.Font(view.getFontName(), view.getFontStyle(), view
+                    .getFontSize()), true);
 
     af.viewport.setRenderGaps(view.getRenderGaps());
     af.viewport.setWrapAlignment(view.getWrapAlignment());
-    af.alignPanel.setWrapAlignment(view.getWrapAlignment());
-    af.viewport.setShowAnnotation(view.getShowAnnotation());
-    af.alignPanel.setAnnotationVisible(view.getShowAnnotation());
+
+    af.viewport.setShowAnnotation(view.isShowAnnotation());
     af.viewport.setShowBoxes(view.getShowBoxes());
     af.viewport.setShowText(view.getShowText());
 
@@ -371,12 +410,13 @@ public class Jalview2XML_V1
       if (cs != null)
       {
         cs.setThreshold(view.getPidThreshold(), true);
-        cs.setConsensus(af.viewport.hconsensus);
+        cs.setConsensus(af.viewport.getSequenceConsensusHash());
       }
     }
 
     af.viewport.setGlobalColourScheme(cs);
     af.viewport.setColourAppliesToAllGroups(false);
+    af.alignPanel.updateLayout();
     af.changeColour(cs);
     if (view.getConservationSelected() && cs != null)
     {
@@ -384,29 +424,33 @@ public class Jalview2XML_V1
     }
 
     af.viewport.setColourAppliesToAllGroups(true);
-    af.viewport.showSequenceFeatures = view.getShowSequenceFeatures();
+    af.viewport.setShowSequenceFeatures(view.getShowSequenceFeatures());
 
     if (jms.getFeatureSettings() != null)
     {
-      af.viewport.featuresDisplayed = new Hashtable();
+      Hashtable featuresDisplayed = new Hashtable();
+      Hashtable featureColours = new Hashtable();
       String[] renderOrder = new String[jms.getFeatureSettings()
               .getSettingCount()];
       for (int fs = 0; fs < jms.getFeatureSettings().getSettingCount(); fs++)
       {
         Setting setting = jms.getFeatureSettings().getSetting(fs);
 
-        af.alignPanel.seqPanel.seqCanvas.getFeatureRenderer().setColour(
-                setting.getType(), new java.awt.Color(setting.getColour()));
+        featureColours.put(setting.getType(),
+                new java.awt.Color(setting.getColour()));
 
         renderOrder[fs] = setting.getType();
 
         if (setting.getDisplay())
         {
-          af.viewport.featuresDisplayed.put(setting.getType(), new Integer(
-                  setting.getColour()));
+          featuresDisplayed.put(setting.getType(),
+                  new Integer(setting.getColour()));
         }
       }
-      af.alignPanel.seqPanel.seqCanvas.getFeatureRenderer().renderOrder = renderOrder;
+      FeatureRendererSettings frs = new FeatureRendererSettings(
+              renderOrder, new Hashtable(), featureColours, 1.0f, null);
+      af.alignPanel.getSeqPanel().seqCanvas.getFeatureRenderer()
+              .transferSettings(frs);
     }
 
     af.setMenusFromViewport(af.viewport);

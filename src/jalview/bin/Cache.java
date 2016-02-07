@@ -1,30 +1,47 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.bin;
 
+import jalview.ws.dbsources.das.api.DasSourceRegistryI;
+import jalview.ws.dbsources.das.datamodel.DasSourceRegistry;
+
 import java.awt.Color;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.Properties;
+import java.util.TreeSet;
 
-import org.apache.log4j.*;
-import org.biojava.dasobert.dasregistry.Das1Source;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.SimpleLayout;
 
 /**
  * Stores and retrieves Jalview Application Properties Lists and fields within
@@ -58,6 +75,10 @@ import org.biojava.dasobert.dasregistry.Das1Source;
  * <li>SHOW_QUALITY show alignment quality annotation</li>
  * <li>SHOW_ANNOTATIONS show alignment annotation rows</li>
  * <li>SHOW_CONSERVATION show alignment conservation annotation</li>
+ * <li>SORT_ANNOTATIONS currently either SEQUENCE_AND_LABEL or
+ * LABEL_AND_SEQUENCE</li>
+ * <li>SHOW_AUTOCALC_ABOVE true to show autocalculated annotations above
+ * sequence annotations</li>
  * <li>CENTRE_COLUMN_LABELS centre the labels at each column in a displayed
  * annotation row</li>
  * <li>DEFAULT_COLOUR default colour scheme to apply for a new alignment</li>
@@ -124,26 +145,51 @@ import org.biojava.dasobert.dasregistry.Das1Source;
  * histogram.</li>
  * <li>SHOW_CONSENSUS_LOGO (false) Show consensus annotation row's sequence
  * logo.</li>
+ * <li>NORMALISE_CONSENSUS_LOGO (false) Show consensus annotation row's sequence
+ * logo normalised to row height rather than histogram height.</li>
  * <li>FOLLOW_SELECTIONS (true) Controls whether a new alignment view should
  * respond to selections made in other alignments containing the same sequences.
  * </li>
+ * <li>JWS2HOSTURLS comma-separated list of URLs to try for JABAWS services</li>
  * <li>SHOW_WSDISCOVERY_ERRORS (true) Controls if the web service URL discovery
  * warning dialog box is displayed.</li>
- * <li>ANNOTATIONCOLOUR_MIN (orange) Shade used for minimum value of annotation when shading by annotation</li>
- * <li>ANNOTATIONCOLOUR_MAX (red) Shade used for maximum value of annotation when shading by annotation</li>
- * <li>www.jalview.org (http://www.jalview.org) a property enabling all HTTP requests to be redirected to a mirror of http://www.jalview.org</li>
- * 
- * <li></li>
+ * <li>ANNOTATIONCOLOUR_MIN (orange) Shade used for minimum value of annotation
+ * when shading by annotation</li>
+ * <li>ANNOTATIONCOLOUR_MAX (red) Shade used for maximum value of annotation
+ * when shading by annotation</li>
+ * <li>www.jalview.org (http://www.jalview.org) a property enabling all HTTP
+ * requests to be redirected to a mirror of http://www.jalview.org</li>
+ * <li>FIGURE_AUTOIDWIDTH (false) Expand the left hand column of an exported
+ * alignment figure to accommodate even the longest sequence ID or annotation
+ * label.</li>
+ * <li>FIGURE_FIXEDIDWIDTH Specifies the width to use for the left-hand column
+ * when exporting an alignment as a figure (setting FIGURE_AUTOIDWIDTH to true
+ * will override this).</li>
+ * <li>STRUCT_FROM_PDB (false) derive secondary structure annotation from PDB
+ * record</li>
+ * <li>USE_RNAVIEW (false) use RNAViewer to derive secondary structure</li>
+ * <li>ADD_SS_ANN (false) add secondary structure annotation to alignment
+ * display</li>
+ * <li>ADD_TEMPFACT_ANN (false) add Temperature Factor annotation to alignment
+ * display</li>
+ * <li>STRUCTURE_DISPLAY choose from JMOL (default) or CHIMERA for 3D structure
+ * display</li>
+ * <li>CHIMERA_PATH specify full path to Chimera program (if non-standard)</li>
  * 
  * </ul>
  * Deprecated settings:
  * <ul>
- *  * <li>DISCOVERY_START - Boolean - controls if discovery services are queried on
+ * *
+ * <li>DISCOVERY_START - Boolean - controls if discovery services are queried on
  * startup (JWS1 services only)</li>
- * <li>DISCOVERY_URLS - comma separated list of Discovery Service endpoints. (JWS1 services only)</li>
- * <li>SHOW_JWS1_SERVICES (true) enable or disable the original Jalview 2 services in the desktop GUI</li>
- * <li>ENABLE_RSBS_EDITOR (false for 2.7 release) enable or disable RSBS editing panel in web service preferences</li> 
+ * <li>DISCOVERY_URLS - comma separated list of Discovery Service endpoints.
+ * (JWS1 services only)</li>
+ * <li>SHOW_JWS1_SERVICES (true) enable or disable the original Jalview 2
+ * services in the desktop GUI</li>
+ * <li>ENABLE_RSBS_EDITOR (false for 2.7 release) enable or disable RSBS editing
+ * panel in web service preferences</li>
  * </ul>
+ * 
  * @author $author$
  * @version $Revision$
  */
@@ -176,12 +222,20 @@ public class Cache
   public static Logger log;
 
   /** Jalview Properties */
-  public static Properties applicationProperties = new Properties();
+  public static Properties applicationProperties = new Properties()
+  {
+    // override results in properties output in alphabetical order
+    @Override
+    public synchronized Enumeration<Object> keys()
+    {
+      return Collections.enumeration(new TreeSet<Object>(super.keySet()));
+    }
+  };
 
   /** Default file is ~/.jalview_properties */
   static String propertiesFile;
 
-  private static boolean propsAreReadOnly=false;
+  private static boolean propsAreReadOnly = false;
 
   public static void initLogger()
   {
@@ -235,7 +289,9 @@ public class Cache
     {
       propertiesFile = System.getProperty("user.home") + File.separatorChar
               + ".jalview_properties";
-    } else {
+    }
+    else
+    {
       // don't corrupt the file we've been given.
       propsAreReadOnly = true;
     }
@@ -261,8 +317,10 @@ public class Cache
         fis = new FileInputStream(propertiesFile);
       }
       applicationProperties.load(fis);
-      applicationProperties.remove("LATEST_VERSION");
-      applicationProperties.remove("VERSION");
+
+      // remove any old build properties
+
+      deleteBuildProperties();
       fis.close();
     } catch (Exception ex)
     {
@@ -271,11 +329,34 @@ public class Cache
 
     if (getDefault("USE_PROXY", false))
     {
-      System.out.println("Using proxyServer: "
-              + getDefault("PROXY_SERVER", null) + " proxyPort: "
-              + getDefault("PROXY_PORT", null));
-      System.setProperty("http.proxyHost", getDefault("PROXY_SERVER", null));
-      System.setProperty("http.proxyPort", getDefault("PROXY_PORT", null));
+      String proxyServer = getDefault("PROXY_SERVER", ""), proxyPort = getDefault(
+              "PROXY_PORT", "8080");
+
+      System.out.println("Using proxyServer: " + proxyServer
+              + " proxyPort: " + proxyPort);
+
+      System.setProperty("http.proxyHost", proxyServer);
+      System.setProperty("http.proxyPort", proxyPort);
+    }
+
+    // LOAD THE AUTHORS FROM THE authors.props file
+    try
+    {
+      String authorDetails = "jar:".concat(Cache.class
+              .getProtectionDomain().getCodeSource().getLocation()
+              .toString().concat("!/authors.props"));
+
+      java.net.URL localJarFileURL = new java.net.URL(authorDetails);
+
+      InputStream in = localJarFileURL.openStream();
+      applicationProperties.load(in);
+      in.close();
+    } catch (Exception ex)
+    {
+      System.out.println("Error reading author details: " + ex);
+      applicationProperties.remove("AUTHORS");
+      applicationProperties.remove("AUTHORFNAMES");
+      applicationProperties.remove("YEAR");
     }
 
     // FIND THE VERSION NUMBER AND BUILD DATE FROM jalview.jar
@@ -300,15 +381,21 @@ public class Cache
 
     String jnlpVersion = System.getProperty("jalview.version");
     String codeVersion = getProperty("VERSION");
-
+    String codeInstallation = getProperty("INSTALLATION");
     if (codeVersion == null)
     {
       // THIS SHOULD ONLY BE THE CASE WHEN TESTING!!
       codeVersion = "Test";
       jnlpVersion = "Test";
+      codeInstallation = "";
     }
-
-    System.out.println("Jalview Version: " + codeVersion);
+    else
+    {
+      codeInstallation = " (" + codeInstallation + ")";
+    }
+    new BuildDetails(codeVersion, null, codeInstallation);
+    System.out
+            .println("Jalview Version: " + codeVersion + codeInstallation);
 
     // jnlpVersion will be null if we're using InstallAnywhere
     // Dont do this check if running in headless mode
@@ -335,8 +422,9 @@ public class Cache
           {
             System.setProperty("sun.net.client.defaultConnectTimeout",
                     "5000");
-            java.net.URL url = new java.net.URL(
-                    Cache.getDefault("www.jalview.org", "http://www.jalview.org")+"/webstart/jalview.jnlp");
+            java.net.URL url = new java.net.URL(Cache.getDefault(
+                    "www.jalview.org", "http://www.jalview.org")
+                    + "/webstart/jalview.jnlp");
             BufferedReader in = new BufferedReader(new InputStreamReader(
                     url.openStream()));
             String line = null;
@@ -388,6 +476,17 @@ public class Cache
             .initUserColourSchemes(getProperty("USER_DEFINED_COLOURS"));
     jalview.io.PIRFile.useModellerOutput = Cache.getDefault("PIR_MODELLER",
             false);
+  }
+
+  private static void deleteBuildProperties()
+  {
+    applicationProperties.remove("LATEST_VERSION");
+    applicationProperties.remove("VERSION");
+    applicationProperties.remove("AUTHORS");
+    applicationProperties.remove("AUTHORFNAMES");
+    applicationProperties.remove("YEAR");
+    applicationProperties.remove("BUILD_DATE");
+    applicationProperties.remove("INSTALLATION");
   }
 
   /**
@@ -578,46 +677,6 @@ public class Cache
   }
 
   /**
-   * generate Das1Sources from the local das source list
-   * 
-   * @return Vector of Das1Sources
-   */
-  public static Vector getLocalDasSources()
-  {
-    Vector localSources = new Vector();
-    String local = jalview.bin.Cache.getProperty("DAS_LOCAL_SOURCE");
-    if (local != null)
-    {
-      StringTokenizer st = new StringTokenizer(local, "\t");
-      while (st.hasMoreTokens())
-      {
-        String token = st.nextToken();
-        int bar = token.indexOf("|");
-        Das1Source source = new Das1Source();
-        source.setUrl(token.substring(bar + 1));
-        if (source.getUrl().startsWith("sequence:"))
-        {
-          source.setUrl(source.getUrl().substring(9));
-          // this source also serves sequences as well as features
-          source.setCapabilities(new String[]
-          { "sequence", "features" });
-        }
-        else
-        {
-          // default is that all user added sources serve features
-          source.setCapabilities(new String[]
-          { "features" });
-        }
-
-        source.setNickname(token.substring(0, bar));
-
-        localSources.addElement(source);
-      }
-    }
-    return localSources;
-  }
-
-  /**
    * GA tracker object - actually JGoogleAnalyticsTracker null if tracking not
    * enabled.
    */
@@ -661,21 +720,22 @@ public class Cache
       try
       {
         // Google analytics tracking code for Library Finder
-        tracker = jgoogleanalyticstracker.getConstructor(new Class[]
-        { String.class, String.class, String.class }).newInstance(
-                new Object[]
-                {
-                    "Jalview Desktop",
-                    (vrs = jalview.bin.Cache.getProperty("VERSION")
-                            + "_"
-                            + jalview.bin.Cache.getDefault("BUILD_DATE",
-                                    "unknown")), "UA-9060947-1" });
+        tracker = jgoogleanalyticstracker.getConstructor(
+                new Class[] { String.class, String.class, String.class })
+                .newInstance(
+                        new Object[] {
+                            "Jalview Desktop",
+                            (vrs = jalview.bin.Cache.getProperty("VERSION")
+                                    + "_"
+                                    + jalview.bin.Cache.getDefault(
+                                            "BUILD_DATE", "unknown")),
+                            "UA-9060947-1" });
         jgoogleanalyticstracker.getMethod("trackAsynchronously",
-                new Class[]
-                { trackerfocus }).invoke(tracker, new Object[]
-        { trackerfocus.getConstructor(new Class[]
-        { String.class }).newInstance(new Object[]
-        { "Application Started." }) });
+                new Class[] { trackerfocus }).invoke(
+                tracker,
+                new Object[] { trackerfocus.getConstructor(
+                        new Class[] { String.class }).newInstance(
+                        new Object[] { "Application Started." }) });
       } catch (RuntimeException e)
       {
         re = e;
@@ -691,15 +751,21 @@ public class Cache
         if (log != null)
         {
           if (re != null)
+          {
             log.debug("Caught runtime exception in googletracker init:", re);
+          }
           if (ex != null)
+          {
             log.warn(
                     "Failed to initialise GoogleTracker for Jalview Desktop with version "
                             + vrs, ex);
+          }
           if (err != null)
+          {
             log.error(
                     "Whilst initing GoogleTracker for Jalview Desktop version "
                             + vrs, err);
+          }
         }
         else
         {
@@ -736,6 +802,7 @@ public class Cache
 
   /**
    * get the user's default colour if available
+   * 
    * @param property
    * @param defcolour
    * @return
@@ -743,38 +810,44 @@ public class Cache
   public static Color getDefaultColour(String property, Color defcolour)
   {
     String colprop = getProperty(property);
-    if (colprop==null) {
+    if (colprop == null)
+    {
       return defcolour;
     }
-    Color col = jalview.schemes.ColourSchemeProperty.getAWTColorFromName(colprop);
-    if (col==null)
+    Color col = jalview.schemes.ColourSchemeProperty
+            .getAWTColorFromName(colprop);
+    if (col == null)
     {
-      try {
+      try
+      {
         col = new jalview.schemes.UserColourScheme(colprop).findColour('A');
       } catch (Exception ex)
       {
-        log.warn("Couldn't parse '"+colprop+"' as a colour for "+property);
-        col=null;
+        log.warn("Couldn't parse '" + colprop + "' as a colour for "
+                + property);
+        col = null;
       }
     }
-    return (col==null) ? defcolour: col;
+    return (col == null) ? defcolour : col;
   }
 
   /**
    * store a colour as a Jalview user default property
+   * 
    * @param property
-   * @param colour     
+   * @param colour
    */
   public static void setColourProperty(String property, Color colour)
   {
-    setProperty(property, jalview.util.Format
-          .getHexString(colour));
+    setProperty(property, jalview.util.Format.getHexString(colour));
   }
 
-  public static final DateFormat  date_format = SimpleDateFormat.getDateTimeInstance();
+  public static final DateFormat date_format = SimpleDateFormat
+          .getDateTimeInstance();
 
   /**
    * store a date in a jalview property
+   * 
    * @param string
    * @param time
    */
@@ -782,8 +855,10 @@ public class Cache
   {
     setProperty(property, date_format.format(time));
   }
+
   /**
    * read a date stored in a jalview property
+   * 
    * @param property
    * @return valid date as stored by setDateProperty, or null
    * 
@@ -791,15 +866,80 @@ public class Cache
   public static Date getDateProperty(String property)
   {
     String val = getProperty(property);
-    if (val!=null)
+    if (val != null)
     {
-      try {
+      try
+      {
         return date_format.parse(val);
       } catch (Exception ex)
       {
-        System.err.println("Invalid or corrupt date in property '"+property+"' : value was '"+val+"'");
+        System.err.println("Invalid or corrupt date in property '"
+                + property + "' : value was '" + val + "'");
       }
     }
     return null;
+  }
+
+  /**
+   * get and parse a property as an integer. send any parsing problems to
+   * System.err
+   * 
+   * @param property
+   * @return null or Integer
+   */
+  public static Integer getIntegerProperty(String property)
+  {
+    String val = getProperty(property);
+    if (val != null && (val = val.trim()).length() > 0)
+    {
+      try
+      {
+        return Integer.valueOf(val);
+      } catch (NumberFormatException x)
+      {
+        System.err.println("Invalid integer in property '" + property
+                + "' (value was '" + val + "')");
+      }
+    }
+    return null;
+  }
+
+  private static DasSourceRegistryI sourceRegistry = null;
+
+  /**
+   * initialise and ..
+   * 
+   * @return instance of the das source registry
+   */
+  public static DasSourceRegistryI getDasSourceRegistry()
+  {
+    if (sourceRegistry == null)
+    {
+      sourceRegistry = new DasSourceRegistry();
+    }
+    return sourceRegistry;
+  }
+
+  /**
+   * Set the specified value, or remove it if null or empty. Does not save the
+   * properties file.
+   * 
+   * @param propName
+   * @param value
+   */
+  public static void setOrRemove(String propName, String value)
+  {
+    if (propName == null)
+    {
+      return;
+    }
+    if (value == null || value.trim().length() < 1)
+    {
+      Cache.applicationProperties.remove(propName);
+    }
+    else
+    {
+      Cache.applicationProperties.setProperty(propName, value);
+    }
   }
 }

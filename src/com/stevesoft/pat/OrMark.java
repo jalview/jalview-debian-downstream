@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /** Implements the parenthesis pattern subelement. */
 class OrMark extends Or

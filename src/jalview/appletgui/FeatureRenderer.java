@@ -1,32 +1,49 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
-
-import java.awt.*;
-
-import java.awt.event.*;
-
-import jalview.appletgui.FeatureSettings.MyCheckbox;
-import jalview.datamodel.*;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.schemes.GraduatedColor;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
+
+import java.awt.BorderLayout;
+import java.awt.Button;
+import java.awt.Choice;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.GridLayout;
+import java.awt.Label;
+import java.awt.Panel;
+import java.awt.ScrollPane;
+import java.awt.TextArea;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Hashtable;
 
 /**
  * DOCUMENT ME!
@@ -34,33 +51,13 @@ import jalview.schemes.GraduatedColor;
  * @author $author$
  * @version $Revision$
  */
-public class FeatureRenderer implements jalview.api.FeatureRenderer
+public class FeatureRenderer extends
+        jalview.renderer.seqfeatures.FeatureRenderer
 {
-  AlignViewport av;
-
-  Hashtable featureColours = new Hashtable();
-
-  // A higher level for grouping features of a
-  // particular type
-  Hashtable featureGroups = null;
 
   // Holds web links for feature groups and feature types
   // in the form label|link
   Hashtable featureLinks = null;
-
-  // This is actually an Integer held in the hashtable,
-  // Retrieved using the key feature type
-  Object currentColour;
-
-  String[] renderOrder;
-
-  FontMetrics fm;
-
-  int charOffset;
-
-  float transparency = 1f;
-
-  TransparencySetter transparencySetter = null;
 
   /**
    * Creates a new FeatureRenderer object.
@@ -68,39 +65,13 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
    * @param av
    *          DOCUMENT ME!
    */
-  public FeatureRenderer(AlignViewport av)
+  public FeatureRenderer(AlignmentViewport av)
   {
+    super();
     this.av = av;
 
-    if (!System.getProperty("java.version").startsWith("1.1"))
-    {
-      transparencySetter = new TransparencySetter();
-    }
-  }
-
-  public void transferSettings(FeatureRenderer fr)
-  {
-    renderOrder = fr.renderOrder;
-    featureGroups = fr.featureGroups;
-    featureColours = fr.featureColours;
-    transparency = fr.transparency;
-    if (av!=null && fr.av!=null && fr.av!=av)
-    {
-      if (fr.av.featuresDisplayed!=null)
-      {
-        if (av.featuresDisplayed==null)
-        {
-          av.featuresDisplayed = new Hashtable();
-        } else {
-          av.featuresDisplayed.clear();
-        }
-        Enumeration en=fr.av.featuresDisplayed.keys();
-        while (en.hasMoreElements())
-        {
-          av.featuresDisplayed.put(en.nextElement(), Boolean.TRUE);
-        }
-      }
-    }
+    setTransparencyAvailable(!System.getProperty("java.version")
+            .startsWith("1.1"));
   }
 
   static String lastFeatureAdded;
@@ -146,7 +117,9 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
       }
       else
       {
-        throw new Error("Invalid color for MyCheckBox");
+        throw new Error(
+                MessageManager
+                        .getString("error.invalid_colour_for_mycheckbox"));
       }
       if (col != null)
       {
@@ -193,7 +166,7 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
           g.setColor(Color.black);
           Font f = new Font("Verdana", Font.PLAIN, 10);
           g.setFont(f);
-          g.drawString("Label", 0, 0);
+          g.drawString(MessageManager.getString("label.label"), 0, 0);
         }
         else
         {
@@ -243,7 +216,9 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
                 + "-" + features[i].getEnd();
 
         if (features[i].getFeatureGroup() != null)
+        {
           item += " (" + features[i].getFeatureGroup() + ")";
+        }
 
         overlaps.addItem(item);
       }
@@ -348,8 +323,10 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
       }
     }
 
-    String title = newFeatures ? "Create New Sequence Feature(s)"
-            : "Amend/Delete Features for " + sequences[0].getName();
+    String title = newFeatures ? MessageManager
+            .getString("label.create_new_sequence_features")
+            : MessageManager.formatMessage("label.amend_delete_features",
+                    new String[] { sequences[0].getName() });
 
     final JVDialog dialog = new JVDialog(ap.alignFrame, title, true, 385,
             240);
@@ -363,7 +340,7 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
     }
     else
     {
-      dialog.ok.setLabel("Amend");
+      dialog.ok.setLabel(MessageManager.getString("label.amend"));
       dialog.buttonPanel.add(deleteButton, 1);
       deleteButton.addActionListener(new ActionListener()
       {
@@ -422,7 +399,9 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
     }
 
     if (lastFeatureGroupAdded != null && lastFeatureGroupAdded.length() < 1)
+    {
       lastFeatureGroupAdded = null;
+    }
 
     if (!newFeatures)
     {
@@ -447,6 +426,8 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
         }
 
         ffile.parseDescriptionHTML(sf, false);
+        setVisible(lastFeatureAdded); // if user edited name then make sure new
+                                      // type is visible
       }
       if (deleteFeature)
       {
@@ -467,36 +448,17 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
           ffile.parseDescriptionHTML(features[i], false);
         }
 
-        if (av.featuresDisplayed == null)
-        {
-          av.featuresDisplayed = new Hashtable();
-        }
-
-        if (featureGroups == null)
-        {
-          featureGroups = new Hashtable();
-        }
-
-        col = colourPanel.getBackground();
+        Color newColour = colourPanel.getBackground();
         // setColour(lastFeatureAdded, fcol);
 
         if (lastFeatureGroupAdded != null)
         {
-          featureGroups.put(lastFeatureGroupAdded, new Boolean(true));
+          setGroupVisibility(lastFeatureGroupAdded, true);
         }
-        if (fcol instanceof Color)
-        {
-          setColour(lastFeatureAdded, fcol);
-        }
-        av.featuresDisplayed.put(lastFeatureAdded,
-                getFeatureStyle(lastFeatureAdded));
-
-        findAllFeatures();
-
-        String[] tro = new String[renderOrder.length];
-        tro[0] = renderOrder[renderOrder.length - 1];
-        System.arraycopy(renderOrder, 0, tro, 1, renderOrder.length - 1);
-        renderOrder = tro;
+        setColour(lastFeatureAdded, newColour); // was fcol
+        setVisible(lastFeatureAdded);
+        findAllFeatures(false); // different to original applet behaviour ?
+        // findAllFeatures();
       }
       else
       {
@@ -505,762 +467,14 @@ public class FeatureRenderer implements jalview.api.FeatureRenderer
       }
     }
     // refresh the alignment and the feature settings dialog
-    if (av.featureSettings != null)
+    if (((jalview.appletgui.AlignViewport) av).featureSettings != null)
     {
-      av.featureSettings.refreshTable();
+      ((jalview.appletgui.AlignViewport) av).featureSettings.refreshTable();
     }
     // findAllFeatures();
 
     ap.paintAlignment(true);
 
     return true;
-  }
-
-  public Color findFeatureColour(Color initialCol, SequenceI seq, int i)
-  {
-    overview = true;
-    if (!av.showSequenceFeatures)
-    {
-      return initialCol;
-    }
-
-    lastSeq = seq;
-    sequenceFeatures = lastSeq.getSequenceFeatures();
-    if (sequenceFeatures == null)
-    {
-      return initialCol;
-    }
-
-    sfSize = sequenceFeatures.length;
-
-    if (jalview.util.Comparison.isGap(lastSeq.getCharAt(i)))
-    {
-      return Color.white;
-    }
-
-    currentColour = null;
-
-    drawSequence(null, lastSeq, lastSeq.findPosition(i), -1, -1);
-
-    if (currentColour == null)
-    {
-      return initialCol;
-    }
-
-    return new Color(((Integer) currentColour).intValue());
-  }
-
-  /**
-   * This is used by the Molecule Viewer to get the accurate colour of the
-   * rendered sequence
-   */
-  boolean overview = false;
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param g
-   *          DOCUMENT ME!
-   * @param seq
-   *          DOCUMENT ME!
-   * @param sg
-   *          DOCUMENT ME!
-   * @param start
-   *          DOCUMENT ME!
-   * @param end
-   *          DOCUMENT ME!
-   * @param x1
-   *          DOCUMENT ME!
-   * @param y1
-   *          DOCUMENT ME!
-   * @param width
-   *          DOCUMENT ME!
-   * @param height
-   *          DOCUMENT ME!
-   */
-  // String type;
-  // SequenceFeature sf;
-  SequenceI lastSeq;
-
-  SequenceFeature[] sequenceFeatures;
-
-  int sfSize, sfindex, spos, epos;
-
-  synchronized public void drawSequence(Graphics g, SequenceI seq,
-          int start, int end, int y1)
-  {
-    if (seq.getSequenceFeatures() == null
-            || seq.getSequenceFeatures().length == 0)
-    {
-      return;
-    }
-
-    if (transparencySetter != null && g != null)
-    {
-      transparencySetter.setTransparency(g, transparency);
-    }
-
-    if (lastSeq == null || seq != lastSeq
-            || sequenceFeatures != seq.getSequenceFeatures())
-    {
-      lastSeq = seq;
-      sequenceFeatures = seq.getSequenceFeatures();
-      sfSize = sequenceFeatures.length;
-    }
-
-    if (av.featuresDisplayed == null || renderOrder == null)
-    {
-      findAllFeatures();
-      if (av.featuresDisplayed.size() < 1)
-      {
-        return;
-      }
-
-      sequenceFeatures = seq.getSequenceFeatures();
-      sfSize = sequenceFeatures.length;
-    }
-    if (!overview)
-    {
-      spos = lastSeq.findPosition(start);
-      epos = lastSeq.findPosition(end);
-      if (g != null)
-      {
-        fm = g.getFontMetrics();
-      }
-    }
-    String type;
-    for (int renderIndex = 0; renderIndex < renderOrder.length; renderIndex++)
-    {
-      type = renderOrder[renderIndex];
-      if (!av.featuresDisplayed.containsKey(type))
-      {
-        continue;
-      }
-
-      // loop through all features in sequence to find
-      // current feature to render
-      for (sfindex = 0; sfindex < sfSize; sfindex++)
-      {
-        if (!sequenceFeatures[sfindex].type.equals(type))
-        {
-          continue;
-        }
-
-        if (featureGroups != null
-                && sequenceFeatures[sfindex].featureGroup != null
-                && featureGroups
-                        .containsKey(sequenceFeatures[sfindex].featureGroup)
-                && !((Boolean) featureGroups
-                        .get(sequenceFeatures[sfindex].featureGroup))
-                        .booleanValue())
-        {
-          continue;
-        }
-
-        if (!overview
-                && (sequenceFeatures[sfindex].getBegin() > epos || sequenceFeatures[sfindex]
-                        .getEnd() < spos))
-        {
-          continue;
-        }
-
-        if (overview)
-        {
-          if (sequenceFeatures[sfindex].begin <= start
-                  && sequenceFeatures[sfindex].end >= start)
-          {
-            currentColour = new Integer(
-                    getColour(sequenceFeatures[sfindex]).getRGB());// av.featuresDisplayed
-            // .get(sequenceFeatures[sfindex].type);
-          }
-
-        }
-        else if (sequenceFeatures[sfindex].type.equals("disulfide bond"))
-        {
-
-          renderFeature(g, seq,
-                  seq.findIndex(sequenceFeatures[sfindex].begin) - 1,
-                  seq.findIndex(sequenceFeatures[sfindex].begin) - 1,
-                  getColour(sequenceFeatures[sfindex])
-                  // new Color(((Integer) av.featuresDisplayed
-                  // .get(sequenceFeatures[sfindex].type)).intValue())
-                  , start, end, y1);
-          renderFeature(g, seq,
-                  seq.findIndex(sequenceFeatures[sfindex].end) - 1,
-                  seq.findIndex(sequenceFeatures[sfindex].end) - 1,
-                  getColour(sequenceFeatures[sfindex])
-                  // new Color(((Integer) av.featuresDisplayed
-                  // .get(sequenceFeatures[sfindex].type)).intValue())
-                  , start, end, y1);
-
-        }
-        else
-        {
-          if (showFeature(sequenceFeatures[sfindex]))
-          {
-            renderFeature(g, seq,
-                    seq.findIndex(sequenceFeatures[sfindex].begin) - 1,
-                    seq.findIndex(sequenceFeatures[sfindex].end) - 1,
-                    getColour(sequenceFeatures[sfindex]), start, end, y1);
-          }
-        }
-
-      }
-    }
-
-    if (transparencySetter != null && g != null)
-    {
-      transparencySetter.setTransparency(g, 1.0f);
-    }
-  }
-
-  char s;
-
-  int i;
-
-  void renderFeature(Graphics g, SequenceI seq, int fstart, int fend,
-          Color featureColour, int start, int end, int y1)
-  {
-
-    if (((fstart <= end) && (fend >= start)))
-    {
-      if (fstart < start)
-      { // fix for if the feature we have starts before the sequence start,
-        fstart = start; // but the feature end is still valid!!
-      }
-
-      if (fend >= end)
-      {
-        fend = end;
-      }
-
-      for (i = fstart; i <= fend; i++)
-      {
-        s = seq.getCharAt(i);
-
-        if (jalview.util.Comparison.isGap(s))
-        {
-          continue;
-        }
-
-        g.setColor(featureColour);
-
-        g.fillRect((i - start) * av.charWidth, y1, av.charWidth,
-                av.charHeight);
-
-        if (!av.validCharWidth)
-        {
-          continue;
-        }
-
-        g.setColor(Color.white);
-        charOffset = (av.charWidth - fm.charWidth(s)) / 2;
-        g.drawString(String.valueOf(s), charOffset
-                + (av.charWidth * (i - start)), (y1 + av.charHeight)
-                - av.charHeight / 5); // pady = height / 5;
-
-      }
-    }
-  }
-
-  Hashtable minmax = null;
-
-  /**
-   * Called when alignment in associated view has new/modified features to
-   * discover and display.
-   * 
-   */
-  public void featuresAdded()
-  {
-    lastSeq = null;
-    findAllFeatures();
-  }
-
-  /**
-   * find all features on the alignment
-   */
-  void findAllFeatures()
-  {
-    jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme();
-
-    av.featuresDisplayed = new Hashtable();
-    Vector allfeatures = new Vector();
-    minmax = new Hashtable();
-
-    for (int i = 0; i < av.alignment.getHeight(); i++)
-    {
-      SequenceFeature[] features = av.alignment.getSequenceAt(i)
-              .getSequenceFeatures();
-
-      if (features == null)
-      {
-        continue;
-      }
-
-      int index = 0;
-      while (index < features.length)
-      {
-        if (features[index].begin == 0 && features[index].end == 0)
-        {
-          index++;
-          continue;
-        }
-        if (!av.featuresDisplayed.containsKey(features[index].getType()))
-        {
-          if (getColour(features[index].getType()) == null)
-          {
-            featureColours.put(features[index].getType(),
-                    ucs.createColourFromName(features[index].getType()));
-          }
-
-          av.featuresDisplayed.put(features[index].getType(), new Integer(
-                  getColour(features[index].getType()).getRGB()));
-          allfeatures.addElement(features[index].getType());
-        }
-        if (features[index].score != Float.NaN)
-        {
-          int nonpos = features[index].getBegin() >= 1 ? 0 : 1;
-          float[][] mm = (float[][]) minmax.get(features[index].getType());
-          if (mm == null)
-          {
-            mm = new float[][]
-            { null, null };
-            minmax.put(features[index].getType(), mm);
-          }
-          if (mm[nonpos] == null)
-          {
-            mm[nonpos] = new float[]
-            { features[index].score, features[index].score };
-
-          }
-          else
-          {
-            if (mm[nonpos][0] > features[index].score)
-            {
-              mm[nonpos][0] = features[index].score;
-            }
-            if (mm[nonpos][1] < features[index].score)
-            {
-              mm[nonpos][1] = features[index].score;
-            }
-          }
-        }
-
-        index++;
-      }
-    }
-
-    renderOrder = new String[allfeatures.size()];
-    Enumeration en = allfeatures.elements();
-    int i = allfeatures.size() - 1;
-    while (en.hasMoreElements())
-    {
-      renderOrder[i] = en.nextElement().toString();
-      i--;
-    }
-  }
-
-  /**
-   * get a feature style object for the given type string. Creates a
-   * java.awt.Color for a featureType with no existing colourscheme. TODO:
-   * replace return type with object implementing standard abstract colour/style
-   * interface
-   * 
-   * @param featureType
-   * @return java.awt.Color or GraduatedColor
-   */
-  public Object getFeatureStyle(String featureType)
-  {
-    Object fc = featureColours.get(featureType);
-    if (fc == null)
-    {
-      jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme();
-      Color col = ucs.createColourFromName(featureType);
-      featureColours.put(featureType, fc = col);
-    }
-    return fc;
-  }
-
-  public Color getColour(String featureType)
-  {
-    Object fc = getFeatureStyle(featureType);
-
-    if (fc instanceof Color)
-    {
-      return (Color) fc;
-    }
-    else
-    {
-      if (fc instanceof GraduatedColor)
-      {
-        return ((GraduatedColor) fc).getMaxColor();
-      }
-    }
-    throw new Error("Implementation Error: Unrecognised render object "
-            + fc.getClass() + " for features of type " + featureType);
-  }
-
-  /**
-   * 
-   * @param sequenceFeature
-   * @return true if feature is visible.
-   */
-  private boolean showFeature(SequenceFeature sequenceFeature)
-  {
-    Object fc = getFeatureStyle(sequenceFeature.type);
-    if (fc instanceof GraduatedColor)
-    {
-      return ((GraduatedColor) fc).isColored(sequenceFeature);
-    }
-    else
-    {
-      return true;
-    }
-  }
-
-  /**
-   * implement graduated colouring for features with scores
-   * 
-   * @param feature
-   * @return render colour for the given feature
-   */
-  public Color getColour(SequenceFeature feature)
-  {
-    Object fc = getFeatureStyle(feature.getType());
-    if (fc instanceof Color)
-    {
-      return (Color) fc;
-    }
-    else
-    {
-      if (fc instanceof GraduatedColor)
-      {
-        return ((GraduatedColor) fc).findColor(feature);
-      }
-    }
-    throw new Error("Implementation Error: Unrecognised render object "
-            + fc.getClass() + " for features of type " + feature.getType());
-  }
-
-  public void setColour(String featureType, Object col)
-  {
-    // overwrite
-    // Color _col = (col instanceof Color) ? ((Color) col) : (col instanceof
-    // GraduatedColor) ? ((GraduatedColor) col).getMaxColor() : null;
-    // Object c = featureColours.get(featureType);
-    // if (c == null || c instanceof Color || (c instanceof GraduatedColor &&
-    // !((GraduatedColor)c).getMaxColor().equals(_col)))
-    {
-      featureColours.put(featureType, col);
-    }
-  }
-
-  public void setFeaturePriority(Object[][] data)
-  {
-    // The feature table will display high priority
-    // features at the top, but theses are the ones
-    // we need to render last, so invert the data
-    if (av.featuresDisplayed != null)
-    {
-      av.featuresDisplayed.clear();
-    }
-
-    /*
-     * if (visibleNew) { if (av.featuresDisplayed != null) {
-     * av.featuresDisplayed.clear(); } else { av.featuresDisplayed = new
-     * Hashtable(); } } if (data == null) { return; }
-     */
-
-    renderOrder = new String[data.length];
-
-    if (data.length > 0)
-    {
-      for (int i = 0; i < data.length; i++)
-      {
-        String type = data[i][0].toString();
-        setColour(type, data[i][1]);
-        if (((Boolean) data[i][2]).booleanValue())
-        {
-          av.featuresDisplayed.put(type, new Integer(getColour(type)
-                  .getRGB()));
-        }
-
-        renderOrder[data.length - i - 1] = type;
-      }
-    }
-  }
-
-  /**
-   * @return a simple list of feature group names or null
-   */
-  public String[] getGroups()
-  {
-    buildGroupHash();
-    if (featureGroups != null)
-    {
-      String[] gps = new String[featureGroups.size()];
-      Enumeration gn = featureGroups.keys();
-      int i = 0;
-      while (gn.hasMoreElements())
-      {
-        gps[i++] = (String) gn.nextElement();
-      }
-      return gps;
-    }
-    return null;
-  }
-
-  /**
-   * get visible or invisible groups
-   * 
-   * @param visible
-   *          true to return visible groups, false to return hidden ones.
-   * @return list of groups
-   */
-  public String[] getGroups(boolean visible)
-  {
-    buildGroupHash();
-    if (featureGroups != null)
-    {
-      Vector gp = new Vector();
-
-      Enumeration gn = featureGroups.keys();
-      while (gn.hasMoreElements())
-      {
-        String nm = (String) gn.nextElement();
-        Boolean state = (Boolean) featureGroups.get(nm);
-        if (state.booleanValue() == visible)
-        {
-          gp.addElement(nm);
-        }
-      }
-      String[] gps = new String[gp.size()];
-      gp.copyInto(gps);
-
-      int i = 0;
-      while (gn.hasMoreElements())
-      {
-        gps[i++] = (String) gn.nextElement();
-      }
-      return gps;
-    }
-    return null;
-  }
-
-  /**
-   * set all feature groups in toset to be visible or invisible
-   * 
-   * @param toset
-   *          group names
-   * @param visible
-   *          the state of the named groups to set
-   */
-  public void setGroupState(String[] toset, boolean visible)
-  {
-    buildGroupHash();
-    if (toset != null && toset.length > 0 && featureGroups != null)
-    {
-      boolean rdrw = false;
-      for (int i = 0; i < toset.length; i++)
-      {
-        Object st = featureGroups.get(toset[i]);
-        if (st != null)
-        {
-          featureGroups.put(toset[i], new Boolean(visible));
-          rdrw = rdrw || (visible != ((Boolean) st).booleanValue());
-        }
-      }
-      if (rdrw)
-      {
-        if (this.av != null)
-          if (this.av.featureSettings != null)
-          {
-            av.featureSettings.rebuildGroups();
-            this.av.featureSettings.resetTable(true);
-          }
-          else
-          {
-            buildFeatureHash();
-          }
-        if (av != null)
-        {
-          av.alignmentChanged(null);
-        }
-      }
-    }
-  }
-
-  /**
-   * analyse alignment for groups and hash tables (used to be embedded in
-   * FeatureSettings.setTableData)
-   * 
-   * @return true if features are on the alignment
-   */
-  public boolean buildGroupHash()
-  {
-    boolean alignmentHasFeatures = false;
-    if (featureGroups == null)
-    {
-      featureGroups = new Hashtable();
-    }
-    Vector allFeatures = new Vector();
-    Vector allGroups = new Vector();
-    SequenceFeature[] tmpfeatures;
-    String group;
-    for (int i = 0; i < av.alignment.getHeight(); i++)
-    {
-      if (av.alignment.getSequenceAt(i).getSequenceFeatures() == null)
-      {
-        continue;
-      }
-
-      alignmentHasFeatures = true;
-
-      tmpfeatures = av.alignment.getSequenceAt(i).getSequenceFeatures();
-      int index = 0;
-      while (index < tmpfeatures.length)
-      {
-        if (tmpfeatures[index].getFeatureGroup() != null)
-        {
-          group = tmpfeatures[index].featureGroup;
-          if (!allGroups.contains(group))
-          {
-            allGroups.addElement(group);
-
-            boolean visible = true;
-            if (featureGroups.containsKey(group))
-            {
-              visible = ((Boolean) featureGroups.get(group)).booleanValue();
-            }
-            else
-            {
-              featureGroups.put(group, new Boolean(visible));
-            }
-          }
-        }
-
-        if (!allFeatures.contains(tmpfeatures[index].getType()))
-        {
-          allFeatures.addElement(tmpfeatures[index].getType());
-        }
-        index++;
-      }
-    }
-
-    return alignmentHasFeatures;
-  }
-
-  /**
-   * rebuild the featuresDisplayed and renderorder list based on the
-   * featureGroups hash and any existing display state and force a repaint if
-   * necessary
-   * 
-   * @return true if alignment has visible features
-   */
-  public boolean buildFeatureHash()
-  {
-    boolean alignmentHasFeatures = false;
-    if (featureGroups == null)
-    {
-      alignmentHasFeatures = buildGroupHash();
-    }
-    if (!alignmentHasFeatures)
-      return false;
-    Hashtable fdisp = av.featuresDisplayed;
-    Vector allFeatures = new Vector();
-    SequenceFeature[] tmpfeatures;
-    String group;
-    for (int i = 0; i < av.alignment.getHeight(); i++)
-    {
-      if (av.alignment.getSequenceAt(i).getSequenceFeatures() == null)
-      {
-        continue;
-      }
-
-      alignmentHasFeatures = true;
-
-      tmpfeatures = av.alignment.getSequenceAt(i).getSequenceFeatures();
-      int index = 0;
-      while (index < tmpfeatures.length)
-      {
-        boolean visible = true;
-        if (tmpfeatures[index].getFeatureGroup() != null)
-        {
-          group = tmpfeatures[index].featureGroup;
-          if (featureGroups.containsKey(group))
-          {
-            visible = ((Boolean) featureGroups.get(group)).booleanValue();
-          }
-        }
-
-        if (visible && !allFeatures.contains(tmpfeatures[index].getType()))
-        {
-          allFeatures.addElement(tmpfeatures[index].getType());
-        }
-        index++;
-      }
-    }
-    if (allFeatures.size() > 0)
-    {
-      String[] neworder = new String[allFeatures.size()];
-      int p = neworder.length - 1;
-      for (int i = renderOrder.length - 1; i >= 0; i--)
-      {
-        if (allFeatures.contains(renderOrder[i]))
-        {
-          neworder[p--] = renderOrder[i];
-          allFeatures.removeElement(renderOrder[i]);
-        }
-        else
-        {
-          av.featuresDisplayed.remove(renderOrder[i]);
-        }
-      }
-      for (int i = allFeatures.size() - 1; i > 0; i++)
-      {
-        Object e = allFeatures.elementAt(i);
-        if (e != null)
-        {
-          neworder[p--] = (String) e;
-          av.featuresDisplayed.put(e, getColour((String) e));
-        }
-      }
-      renderOrder = neworder;
-      return true;
-    }
-
-    return alignmentHasFeatures;
-  }
-
-  /**
-   * 
-   * @return the displayed feature type as an array of strings
-   */
-  protected String[] getDisplayedFeatureTypes()
-  {
-    String[] typ = null;
-    synchronized (renderOrder)
-    {
-      typ = new String[renderOrder.length];
-      System.arraycopy(renderOrder, 0, typ, 0, typ.length);
-      for (int i = 0; i < typ.length; i++)
-      {
-        if (av.featuresDisplayed.get(typ[i]) == null)
-        {
-          typ[i] = null;
-        }
-      }
-    }
-    return typ;
-  }
-}
-
-class TransparencySetter
-{
-  void setTransparency(Graphics g, float value)
-  {
-    Graphics2D g2 = (Graphics2D) g;
-    g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
-            value));
   }
 }

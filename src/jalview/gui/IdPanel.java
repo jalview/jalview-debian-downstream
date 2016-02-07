@@ -1,33 +1,51 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.awt.*;
-import java.awt.event.*;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.io.SequenceAnnotationReport;
+import jalview.util.MessageManager;
+import jalview.util.UrlLink;
+import jalview.viewmodel.AlignmentViewport;
+
+import java.awt.BorderLayout;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.util.List;
 import java.util.Vector;
 
-import javax.swing.*;
-
-import jalview.datamodel.*;
-import jalview.util.UrlLink;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
 
 /**
- * DOCUMENT ME!
+ * This panel hosts alignment sequence ids and responds to mouse clicks on them,
+ * as well as highlighting ids matched by a search from the Find menu.
  * 
  * @author $author$
  * @version $Revision$
@@ -35,9 +53,9 @@ import jalview.util.UrlLink;
 public class IdPanel extends JPanel implements MouseListener,
         MouseMotionListener, MouseWheelListener
 {
-  protected IdCanvas idCanvas;
+  private IdCanvas idCanvas;
 
-  protected AlignViewport av;
+  protected AlignmentViewport av;
 
   protected AlignmentPanel alignPanel;
 
@@ -52,22 +70,23 @@ public class IdPanel extends JPanel implements MouseListener,
 
   boolean mouseDragging = false;
 
+  private final SequenceAnnotationReport seqAnnotReport;
+
   /**
    * Creates a new IdPanel object.
    * 
    * @param av
-   *          DOCUMENT ME!
    * @param parent
-   *          DOCUMENT ME!
    */
   public IdPanel(AlignViewport av, AlignmentPanel parent)
   {
     this.av = av;
     alignPanel = parent;
-    idCanvas = new IdCanvas(av);
+    setIdCanvas(new IdCanvas(av));
     linkImageURL = getClass().getResource("/images/link.gif").toString();
+    seqAnnotReport = new SequenceAnnotationReport(linkImageURL);
     setLayout(new BorderLayout());
-    add(idCanvas, BorderLayout.CENTER);
+    add(getIdCanvas(), BorderLayout.CENTER);
     addMouseListener(this);
     addMouseMotionListener(this);
     addMouseWheelListener(this);
@@ -75,86 +94,41 @@ public class IdPanel extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * Respond to mouse movement by constructing tooltip text for the sequence id
+   * under the mouse.
    * 
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseMoved(MouseEvent e)
   {
-    SeqPanel sp = alignPanel.seqPanel;
+    SeqPanel sp = alignPanel.getSeqPanel();
     int seq = Math.max(0, sp.findSeq(e));
-    String tmp;
-    if (seq > -1 && seq < av.alignment.getHeight())
+    if (seq > -1 && seq < av.getAlignment().getHeight())
     {
-      SequenceI sequence = av.alignment.getSequenceAt(seq);
-      StringBuffer tip = new StringBuffer();
-      tip.append("<i>");
-
-      int maxWidth = 0;
-      if (sequence.getDescription() != null)
-      {
-        tmp = sequence.getDescription();
-        tip.append("<br>" + tmp);
-        maxWidth = Math.max(maxWidth, tmp.length());
-      }
-
-      DBRefEntry[] dbrefs = sequence.getDatasetSequence().getDBRef();
-      if (av.isShowDbRefs() && dbrefs != null)
-      {
-        for (int i = 0; i < dbrefs.length; i++)
-        {
-          tip.append("<br>");
-          tmp = dbrefs[i].getSource() + " " + dbrefs[i].getAccessionId();
-          tip.append(tmp);
-          maxWidth = Math.max(maxWidth, tmp.length());
-        }
-      }
-
-      // ADD NON POSITIONAL SEQUENCE INFO
-      SequenceFeature[] features = sequence.getDatasetSequence()
-              .getSequenceFeatures();
-      SequenceFeature[] tfeat = new SequenceFeature[1];
-      if (av.isShowNpFeats() && features != null)
-      {
-        for (int i = 0; i < features.length; i++)
-        {
-          if (features[i].begin == 0 && features[i].end == 0)
-          {
-            int sz = -tip.length();
-            tfeat[0] = features[i];
-            sp.appendFeatures(tip, linkImageURL, 0, tfeat,
-                    sp.seqCanvas.fr.minmax);
-            sz += tip.length();
-            maxWidth = Math.max(maxWidth, sz);
-          }
-        }
-      }
-
-      if (maxWidth > 60)
-      {
-        tip.insert(0, "<table width=350 border=0><tr><td><i>");
-        tip.append("</i></td></tr></table>");
-      }
-
-      tip.append("</html>");
-
+      SequenceI sequence = av.getAlignment().getSequenceAt(seq);
+      StringBuffer tip = new StringBuffer(64);
+      seqAnnotReport.createSequenceAnnotationReport(tip, sequence,
+              av.isShowDBRefs(), av.isShowNPFeats(),
+              sp.seqCanvas.fr.getMinMax());
       setToolTipText("<html>" + sequence.getDisplayId(true) + " "
-              + tip.toString());
+              + tip.toString() + "</html>");
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Responds to a mouse drag by selecting the sequences under the dragged
+   * region.
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseDragged(MouseEvent e)
   {
     mouseDragging = true;
 
-    int seq = Math.max(0, alignPanel.seqPanel.findSeq(e));
+    int seq = Math.max(0, alignPanel.getSeqPanel().findSeq(e));
 
     if (seq < lastid)
     {
@@ -169,39 +143,66 @@ public class IdPanel extends JPanel implements MouseListener,
     alignPanel.paintAlignment(true);
   }
 
+  /**
+   * Response to the mouse wheel by scrolling the alignment panel.
+   */
+  @Override
   public void mouseWheelMoved(MouseWheelEvent e)
   {
     e.consume();
     if (e.getWheelRotation() > 0)
     {
-      alignPanel.scrollUp(false);
+      if (e.isShiftDown())
+      {
+        alignPanel.scrollRight(true);
+      }
+      else
+      {
+        alignPanel.scrollUp(false);
+      }
     }
     else
     {
-      alignPanel.scrollUp(true);
+      if (e.isShiftDown())
+      {
+        alignPanel.scrollRight(false);
+      }
+      else
+      {
+        alignPanel.scrollUp(true);
+      }
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Handle a mouse click event. Currently only responds to a double-click. The
+   * action is to try to open a browser window at a URL that searches for the
+   * selected sequence id. The search URL is configured in Preferences |
+   * Connections | URL link from Sequence ID. For example:
+   * 
+   * http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseClicked(MouseEvent e)
   {
-    if (e.getClickCount() < 2)
+    /*
+     * Ignore single click. Ignore 'left' click followed by 'right' click (user
+     * selects a row then its pop-up menu).
+     */
+    if (e.getClickCount() < 2 || SwingUtilities.isRightMouseButton(e))
     {
       return;
     }
 
-    java.util.Vector links = Preferences.sequenceURLLinks;
+    Vector links = Preferences.sequenceURLLinks;
     if (links == null || links.size() < 1)
     {
       return;
     }
 
-    int seq = alignPanel.seqPanel.findSeq(e);
+    int seq = alignPanel.getSeqPanel().findSeq(e);
     String url = null;
     int i = 0;
     String id = av.getAlignment().getSequenceAt(seq).getName();
@@ -243,15 +244,12 @@ public class IdPanel extends JPanel implements MouseListener,
       jalview.util.BrowserLauncher.openURL(url);
     } catch (Exception ex)
     {
-      JOptionPane
-              .showInternalMessageDialog(
-                      Desktop.desktop,
-                      "Unixers: Couldn't find default web browser."
-                              + "\nAdd the full path to your browser in Preferences.",
-                      "Web browser not found", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showInternalMessageDialog(Desktop.desktop,
+              MessageManager.getString("label.web_browser_not_found_unix"),
+              MessageManager.getString("label.web_browser_not_found"),
+              JOptionPane.WARNING_MESSAGE);
       ex.printStackTrace();
     }
-
   }
 
   /**
@@ -260,6 +258,7 @@ public class IdPanel extends JPanel implements MouseListener,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseEntered(MouseEvent e)
   {
     if (scrollThread != null)
@@ -274,6 +273,7 @@ public class IdPanel extends JPanel implements MouseListener,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseExited(MouseEvent e)
   {
     if (av.getWrapAlignment())
@@ -287,34 +287,42 @@ public class IdPanel extends JPanel implements MouseListener,
     }
 
     if (mouseDragging && (e.getY() >= getHeight())
-            && (av.alignment.getHeight() > av.getEndSeq()))
+            && (av.getAlignment().getHeight() > av.getEndSeq()))
     {
       scrollThread = new ScrollThread(false);
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Respond to a mouse press. Does nothing for (left) double-click as this is
+   * handled by mouseClicked().
+   * 
+   * Right mouse down - construct and show context menu.
+   * 
+   * Ctrl-down or Shift-down - add to or expand current selection group if there
+   * is one.
+   * 
+   * Mouse down - select this sequence.
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mousePressed(MouseEvent e)
   {
-    if (e.getClickCount() == 2)
+    if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e))
     {
       return;
     }
 
-    int seq = alignPanel.seqPanel.findSeq(e);
+    int seq = alignPanel.getSeqPanel().findSeq(e);
 
-    if (javax.swing.SwingUtilities.isRightMouseButton(e))
+    if (SwingUtilities.isRightMouseButton(e))
     {
       Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq);
       // build a new links menu based on the current links + any non-positional
       // features
       Vector nlinks = new Vector(Preferences.sequenceURLLinks);
-      SequenceFeature sf[] = sq==null ? null : sq.getDatasetSequence().getSequenceFeatures();
+      SequenceFeature sf[] = sq == null ? null : sq.getSequenceFeatures();
       for (int sl = 0; sf != null && sl < sf.length; sl++)
       {
         if (sf[sl].begin == sf[sl].end && sf[sl].begin == 0)
@@ -342,7 +350,7 @@ public class IdPanel extends JPanel implements MouseListener,
     {
       av.setSelectionGroup(new SequenceGroup());
       av.getSelectionGroup().setStartRes(0);
-      av.getSelectionGroup().setEndRes(av.alignment.getWidth() - 1);
+      av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
     }
 
     if (e.isShiftDown() && (lastid != -1))
@@ -353,14 +361,16 @@ public class IdPanel extends JPanel implements MouseListener,
     {
       selectSeq(seq);
     }
+    // TODO is this addition ok here?
+    av.isSelectionGroupChanged(true);
+
     alignPanel.paintAlignment(true);
   }
 
   /**
-   * DOCUMENT ME!
+   * Toggle whether the sequence is part of the current selection group.
    * 
    * @param seq
-   *          DOCUMENT ME!
    */
   void selectSeq(int seq)
   {
@@ -371,12 +381,11 @@ public class IdPanel extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * Add contiguous rows of the alignment to the current selection group. Does
+   * nothing if there is no selection group.
    * 
    * @param start
-   *          DOCUMENT ME!
    * @param end
-   *          DOCUMENT ME!
    */
   void selectSeqs(int start, int end)
   {
@@ -403,16 +412,17 @@ public class IdPanel extends JPanel implements MouseListener,
     for (int i = start; i <= end; i++)
     {
       av.getSelectionGroup().addSequence(
-              av.getAlignment().getSequenceAt(i), true);
+              av.getAlignment().getSequenceAt(i), i == end);
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Respond to mouse released. Refreshes the display and triggers broadcast of
+   * the new selection group to any listeners.
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseReleased(MouseEvent e)
   {
     if (scrollThread != null)
@@ -427,27 +437,37 @@ public class IdPanel extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * Highlight sequence ids that match the given list, and if necessary scroll
+   * to the start sequence of the list.
    * 
-   * @param found
-   *          DOCUMENT ME!
+   * @param list
    */
-  public void highlightSearchResults(java.util.Vector found)
+  public void highlightSearchResults(List<SequenceI> list)
   {
-    idCanvas.setHighlighted(found);
+    getIdCanvas().setHighlighted(list);
 
-    if (found == null)
+    if (list == null)
     {
       return;
     }
 
-    int index = av.alignment.findIndex((SequenceI) found.get(0));
+    int index = av.getAlignment().findIndex(list.get(0));
 
     // do we need to scroll the panel?
     if ((av.getStartSeq() > index) || (av.getEndSeq() < index))
     {
       alignPanel.setScrollValues(av.getStartRes(), index);
     }
+  }
+
+  public IdCanvas getIdCanvas()
+  {
+    return idCanvas;
+  }
+
+  public void setIdCanvas(IdCanvas idCanvas)
+  {
+    this.idCanvas = idCanvas;
   }
 
   // this class allows scrolling off the bottom of the visible alignment
@@ -468,6 +488,7 @@ public class IdPanel extends JPanel implements MouseListener,
       running = false;
     }
 
+    @Override
     public void run()
     {
       running = true;

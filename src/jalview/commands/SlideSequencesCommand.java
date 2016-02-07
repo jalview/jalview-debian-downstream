@@ -1,23 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.commands;
 
-import jalview.datamodel.*;
+import jalview.datamodel.SequenceI;
 
 public class SlideSequencesCommand extends EditCommand
 {
@@ -34,21 +37,29 @@ public class SlideSequencesCommand extends EditCommand
     for (i = 0; i < lSize; i++)
     {
       for (j = 0; j < slideSize; j++)
+      {
         if (!jalview.util.Comparison.isGap(seqsLeft[i].getCharAt(j)))
         {
           gapsInsertedBegin = true;
           break;
         }
+      }
     }
 
-    if (!gapsInsertedBegin)
-      edits = new Edit[]
-      { new Edit(DELETE_GAP, seqsLeft, 0, slideSize, gapChar) };
-    else
-      edits = new Edit[]
-      { new Edit(INSERT_GAP, seqsRight, 0, slideSize, gapChar) };
+    Edit e = null;
 
-    performEdit(0, null);
+    if (!gapsInsertedBegin)
+    {
+      e = new Edit(Action.DELETE_GAP, seqsLeft, 0, slideSize, gapChar);
+      setEdit(e);
+    }
+    else
+    {
+      e = new Edit(Action.INSERT_GAP, seqsRight, 0, slideSize, gapChar);
+      setEdit(e);
+    }
+
+    performEdit(e, null);
   }
 
   public boolean getGapsInsertedBegin()
@@ -60,12 +71,12 @@ public class SlideSequencesCommand extends EditCommand
   {
     boolean same = false;
 
-    if (command.edits[0].seqs.length == edits[0].seqs.length)
+    if (command.getEdit(0).seqs.length == getEdit(0).seqs.length)
     {
       same = true;
-      for (int i = 0; i < command.edits[0].seqs.length; i++)
+      for (int i = 0; i < command.getEdit(0).seqs.length; i++)
       {
-        if (edits[0].seqs[i] != command.edits[0].seqs[i])
+        if (getEdit(0).seqs[i] != command.getEdit(0).seqs[i])
         {
           same = false;
         }
@@ -74,10 +85,7 @@ public class SlideSequencesCommand extends EditCommand
 
     if (same)
     {
-      Edit[] temp = new Edit[command.edits.length + 1];
-      System.arraycopy(command.edits, 0, temp, 0, command.edits.length);
-      command.edits = temp;
-      command.edits[command.edits.length - 1] = edits[0];
+      command.addEdit(getEdit(0));
     }
 
     return same;

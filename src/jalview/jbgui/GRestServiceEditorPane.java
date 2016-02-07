@@ -1,34 +1,34 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.jbgui;
 
 import jalview.gui.JvSwingUtils;
+import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -38,19 +38,13 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
-import javax.swing.JViewport;
 import javax.swing.ListSelectionModel;
-import javax.swing.UIManager;
 import javax.swing.border.TitledBorder;
-import javax.swing.event.CaretEvent;
-import javax.swing.event.CaretListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.event.ListSelectionListener;
 
 import net.miginfocom.swing.MigLayout;
 
-public class GRestServiceEditorPane extends JPanel {
+public class GRestServiceEditorPane extends JPanel
+{
 
   protected JTabbedPane panels;
 
@@ -94,14 +88,15 @@ public class GRestServiceEditorPane extends JPanel {
   protected void jbInit()
   {
     details = new JPanel();
-    details.setName("Details");
+    details.setName(MessageManager.getString("label.details"));
     details.setLayout(new MigLayout());
     inputs = new JPanel();
-    inputs.setName("Input/Output");
-    inputs.setLayout(new MigLayout("","[grow 85,fill][]",""));
+    inputs.setName(MessageManager.getString("label.input_output"));
+    inputs.setLayout(new MigLayout("", "[grow 85,fill][]", ""));
     paste = new JPanel();
-    paste.setName("Cut'n'Paste");
-    paste.setLayout(new MigLayout("","[grow 100, fill]","[][grow 100,fill]"));
+    paste.setName(MessageManager.getString("label.cut_paste"));
+    paste.setLayout(new MigLayout("", "[grow 100, fill]",
+            "[][grow 100,fill]"));
 
     panels = new JTabbedPane();
     panels.addTab(details.getName(), details);
@@ -114,48 +109,45 @@ public class GRestServiceEditorPane extends JPanel {
     cpanel = details;
     name = new JTextArea(1, 12);
 
-    JvSwingUtils
-            .mgAddtoLayout(cpanel, "Short descriptive name for service",
-                    new JLabel("Name:"), name,"wrap");
+    JvSwingUtils.mgAddtoLayout(cpanel, MessageManager
+            .getString("label.short_descriptive_name_for_service"),
+            new JLabel(MessageManager.getString("label.name")), name,
+            "wrap");
     action = new JComboBox();
-    JvSwingUtils
-            .mgAddtoLayout(
-                    cpanel,
-                    "What kind of function the service performs (e.g. alignment, analysis, search, etc).",
-                    new JLabel("Service Action:"), action,"wrap");
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager.getString("label.function_service_performs"),
+            new JLabel(MessageManager.getString("label.service_action")),
+            action, "wrap");
     descr = new JTextArea(4, 60);
     descrVp = new JScrollPane();
     descrVp.setViewportView(descr);
-    JvSwingUtils.mgAddtoLayout(cpanel, "Brief description of service",
-            new JLabel("Description:"), descrVp,"wrap");
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager.getString("label.brief_description_service"),
+            new JLabel(MessageManager.getString("label.description")),
+            descrVp, "wrap");
 
     url = new JTextArea(2, 60);
     urlVp = new JScrollPane();
     urlVp.setViewportView(url);
-    JvSwingUtils
-            .mgAddtoLayout(
-                    cpanel,
-                    "URL to post data to service. Include any special parameters needed here",
-                    new JLabel("POST URL:"), urlVp,"wrap");
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager.getString("label.url_post_data_service"),
+            new JLabel(MessageManager.getString("label.post_url")), urlVp,
+            "wrap");
 
     urlsuff = new JTextArea();
     urlsuff.setColumns(60);
 
-    JvSwingUtils
-            .mgAddtoLayout(
-                    cpanel,
-                    "Optional suffix added to URL when retrieving results from service",
-                    new JLabel("URL Suffix:"), urlsuff,"wrap");
+    JvSwingUtils.mgAddtoLayout(cpanel, MessageManager
+            .getString("label.optional_suffix"),
+            new JLabel(MessageManager.getString("label.url_suffix")),
+            urlsuff, "wrap");
 
     // input options
     // details.add(cpanel = new JPanel(), BorderLayout.CENTER);
     // cpanel.setLayout(new FlowLayout());
-    hSeparable = new JCheckBox("per Sequence");
-    hSeparable
-            .setToolTipText("<html>"
-                    + JvSwingUtils
-                            .wrapTooltip("When checked, a job is created for every sequence in the current selection.")
-                    + "<html>");
+    hSeparable = new JCheckBox(MessageManager.getString("label.per_seq"));
+    hSeparable.setToolTipText(JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.job_created_when_checked")));
     hSeparable.addActionListener(new ActionListener()
     {
 
@@ -166,15 +158,13 @@ public class GRestServiceEditorPane extends JPanel {
 
       }
     });
-    vSeparable = new JCheckBox("Results are vertically separable");
+    vSeparable = new JCheckBox(
+            MessageManager.getString("label.result_vertically_separable"));
     vSeparable
-            .setToolTipText("<html>"
-                    + JvSwingUtils
-                            .wrapTooltip("When checked, a single job is created for the visible region and results"
-                                    + " mapped back onto their location in the alignment. Otherwise, a job would be"
-                                    + " created for every contiguous region visible in the alignment or current"
-                                    + " selection (e.g. a multiple alignment).")
-                    + "</html>");
+            .setToolTipText(JvSwingUtils.wrapTooltip(
+                    true,
+                    MessageManager
+                            .getString("label.when_checked_job_visible_region_and_results")));
     vSeparable.addActionListener(new ActionListener()
     {
 
@@ -186,12 +176,10 @@ public class GRestServiceEditorPane extends JPanel {
       }
     });
     gapChar = new JComboBox();
-    JvSwingUtils
-            .mgAddtoLayout(
-                    cpanel,
-                    "Which gap character does this service prefer ?",
-                    new JLabel("Gap Character:"), gapChar,"wrap");
-    
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager.getString("label.preferred_gap_character"),
+            new JLabel(MessageManager.getString("label.gap_character")
+                    + ":"), gapChar, "wrap");
 
     cpanel.add(hSeparable);
     cpanel.add(vSeparable);
@@ -199,56 +187,59 @@ public class GRestServiceEditorPane extends JPanel {
     // Input and Output lists
     // Inputparams
     JPanel iprmsList = new JPanel();
-    iprmsList.setBorder(new TitledBorder("Data input parameters"));
-    iprmsList.setLayout(new MigLayout("","[grow 90, fill][]"));
+    iprmsList.setBorder(new TitledBorder(MessageManager
+            .getString("label.data_input_parameters")));
+    iprmsList.setLayout(new MigLayout("", "[grow 90, fill][]"));
     iprmVp = new JScrollPane();
     iprmVp.getViewport().setView(iprms = new JList());
     iprmsList.add(iprmVp);
     iprms.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     iprms.addMouseListener(new MouseListener()
     {
-      
+
       @Override
       public void mouseReleased(MouseEvent e)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mousePressed(MouseEvent e)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mouseExited(MouseEvent e)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mouseEntered(MouseEvent e)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mouseClicked(MouseEvent e)
       {
-        if (e.getClickCount()>1) {
+        if (e.getClickCount() > 1)
+        {
           iprmListSelection_doubleClicked();
         }
-         
+
       }
     });
     JPanel iprmButs = new JPanel();
     iprmButs.setLayout(new MigLayout());
 
-    iprmsAdd = JvSwingUtils.makeButton("+", "Add input parameter",
+    iprmsAdd = JvSwingUtils.makeButton("+",
+            MessageManager.getString("action.add_input_parameter"),
             new ActionListener()
             {
 
@@ -260,7 +251,8 @@ public class GRestServiceEditorPane extends JPanel {
               }
             });
     iprmsRem = JvSwingUtils.makeButton("-",
-            "Remove selected input parameter", new ActionListener()
+            MessageManager.getString("action.remove_input_parameter"),
+            new ActionListener()
             {
 
               @Override
@@ -271,14 +263,15 @@ public class GRestServiceEditorPane extends JPanel {
               }
             });
 
-    iprmButs.add(iprmsAdd,"wrap");
-    iprmButs.add(iprmsRem,"wrap");
+    iprmButs.add(iprmsAdd, "wrap");
+    iprmButs.add(iprmsRem, "wrap");
     iprmsList.add(iprmButs, "wrap");
     inputs.add(iprmsList, "wrap");
 
     // Return Parameters
-    
-    rdataAdd = JvSwingUtils.makeButton("+", "Add return datatype",
+
+    rdataAdd = JvSwingUtils.makeButton("+",
+            MessageManager.getString("action.add_return_datatype"),
             new ActionListener()
             {
 
@@ -289,7 +282,8 @@ public class GRestServiceEditorPane extends JPanel {
 
               }
             });
-    rdataRem = JvSwingUtils.makeButton("-", "Remove return datatype",
+    rdataRem = JvSwingUtils.makeButton("-",
+            MessageManager.getString("action.remove_return_datatype"),
             new ActionListener()
             {
 
@@ -300,8 +294,10 @@ public class GRestServiceEditorPane extends JPanel {
 
               }
             });
-    rdataNup = JvSwingUtils.makeButton("Move Up",
-            "Move return type up order", new ActionListener()
+    rdataNup = JvSwingUtils.makeButton(
+            MessageManager.getString("action.move_up"),
+            MessageManager.getString("label.move_return_type_up_order"),
+            new ActionListener()
             {
 
               @Override
@@ -311,8 +307,10 @@ public class GRestServiceEditorPane extends JPanel {
 
               }
             });
-    rdataNdown = JvSwingUtils.makeButton("Move Down",
-            "Move return type down order", new ActionListener()
+    rdataNdown = JvSwingUtils.makeButton(
+            MessageManager.getString("action.move_down"),
+            MessageManager.getString("label.move_return_type_down_order"),
+            new ActionListener()
             {
 
               @Override
@@ -324,48 +322,50 @@ public class GRestServiceEditorPane extends JPanel {
             });
 
     JPanel rparamList = new JPanel();
-    rparamList.setBorder(new TitledBorder("Data returned by service"));
-    rparamList.setLayout(new MigLayout("","[grow 90, fill][]"));
+    rparamList.setBorder(new TitledBorder(MessageManager
+            .getString("label.data_returned_by_service")));
+    rparamList.setLayout(new MigLayout("", "[grow 90, fill][]"));
     rdata = new JList();
-    rdata.setToolTipText("Right click to edit currently selected parameter.");
+    rdata.setToolTipText(MessageManager
+            .getString("label.right_click_to_edit_currently_selected_parameter"));
     rdata.addMouseListener(new MouseListener()
     {
-      
+
       @Override
       public void mouseReleased(MouseEvent arg0)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mousePressed(MouseEvent arg0)
       {
-        
+
       }
-      
+
       @Override
       public void mouseExited(MouseEvent arg0)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mouseEntered(MouseEvent arg0)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void mouseClicked(MouseEvent arg0)
       {
-        if (arg0.getButton()==MouseEvent.BUTTON3)
+        if (arg0.getButton() == MouseEvent.BUTTON3)
         {
           rdata_rightClicked(arg0);
         }
-        
+
       }
     });
     rdataVp = new JScrollPane();
@@ -373,51 +373,58 @@ public class GRestServiceEditorPane extends JPanel {
     rparamList.add(rdataVp);
     JPanel rparamButs = new JPanel();
     rparamButs.setLayout(new MigLayout());
-    rparamButs.add(rdataAdd,"wrap");
-    rparamButs.add(rdataRem,"wrap");
-    rparamButs.add(rdataNup,"wrap");
-    rparamButs.add(rdataNdown,"wrap");
-    rparamList.add(rparamButs,"wrap");
-    inputs.add(rparamList,"wrap");
- 
+    rparamButs.add(rdataAdd, "wrap");
+    rparamButs.add(rdataRem, "wrap");
+    rparamButs.add(rdataNup, "wrap");
+    rparamButs.add(rdataNdown, "wrap");
+    rparamList.add(rparamButs, "wrap");
+    inputs.add(rparamList, "wrap");
+
     // Parse flat-text to a service
 
-    
-    urldesc = new JTextArea(4,60);
+    urldesc = new JTextArea(4, 60);
     urldesc.setEditable(true);
     urldesc.setWrapStyleWord(true);
     urldescVp = new JScrollPane();
     urldescVp.setViewportView(urldesc);
     JPanel urldescPane = new JPanel();
-    urldescPane.setLayout(new MigLayout("","[grow 100, fill]", "[grow 100, fill]"));
-    urldescPane.setBorder(new TitledBorder("RSBS Encoded Service"));
+    urldescPane.setLayout(new MigLayout("", "[grow 100, fill]",
+            "[grow 100, fill]"));
+    urldescPane.setBorder(new TitledBorder(MessageManager
+            .getString("label.rsbs_encoded_service")));
     urldescPane.add(urldescVp, "span");
-    paste.add(urldescPane,"span");
-    urldescPane.setToolTipText("<html>"+JvSwingUtils.wrapTooltip("Flat file representation of this rest service using the Really Simple Bioinformatics Service formalism"));
-    
+    paste.add(urldescPane, "span");
+    urldescPane.setToolTipText(JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.flat_file_representation")));
+
     parseRes = new JTextArea();
     parseResVp = new JScrollPane();
     parseResVp.setViewportView(parseRes);
     parseRes.setWrapStyleWord(true);
     parseRes.setColumns(60);
-    parseWarnings = new JPanel(new MigLayout("","[grow 100, fill]", "[grow 100, fill]"));
-    parseWarnings.setBorder(new TitledBorder("Parsing errors"));
-    parseWarnings.setToolTipText("<html>"+JvSwingUtils.wrapTooltip("Results of parsing the RSBS representation")+"</html>");
+    parseWarnings = new JPanel(new MigLayout("", "[grow 100, fill]",
+            "[grow 100, fill]"));
+    parseWarnings.setBorder(new TitledBorder(MessageManager
+            .getString("label.parsing_errors")));
+    parseWarnings.setToolTipText(JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.result_of_parsing_rsbs")));
     parseWarnings.add(parseResVp, "center");
     parseRes.setEditable(false);
     paste.add(parseWarnings, "span");
     setLayout(new BorderLayout());
     add(panels, BorderLayout.CENTER);
-    okButton = JvSwingUtils.makeButton("OK", "", new ActionListener()
-    {
+    okButton = JvSwingUtils.makeButton(
+            MessageManager.getString("action.ok"), "", new ActionListener()
+            {
 
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        ok_actionPerformed();
-      }
-    });
-    cancelButton = JvSwingUtils.makeButton("Cancel", "",
+              @Override
+              public void actionPerformed(ActionEvent e)
+              {
+                ok_actionPerformed();
+              }
+            });
+    cancelButton = JvSwingUtils.makeButton(
+            MessageManager.getString("action.cancel"), "",
             new ActionListener()
             {
 
@@ -433,13 +440,13 @@ public class GRestServiceEditorPane extends JPanel {
   protected void rdata_rightClicked(MouseEvent arg0)
   {
     // TODO Auto-generated method stub
-    
+
   }
 
   protected void iprmListSelection_doubleClicked()
   {
     // TODO Auto-generated method stub
-    
+
   }
 
   protected void hSeparable_actionPerformed(ActionEvent arg0)
