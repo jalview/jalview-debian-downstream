@@ -1,30 +1,76 @@
 /*
- Copyright Paul James Mutton, 2001-2004, http://www.jibble.org/
-
- This file is part of EpsGraphics2D.
-
- This software is dual-licensed, allowing you to choose between the GNU
- General Public License (GPL) and the www.jibble.org Commercial License.
- Since the GPL may be too restrictive for use in a proprietary application,
- a commercial license is also provided. Full license information can be
- found at http://www.jibble.org/licenses/
-
- $Author$
- $Id$
-
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
-
 package org.jibble.epsgraphics;
 
-import java.io.*;
-import java.text.*;
-import java.util.*;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.font.*;
-import java.awt.geom.*;
-import java.awt.image.*;
-import java.awt.image.renderable.*;
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Composite;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
+import java.awt.Paint;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphVector;
+import java.awt.font.TextAttribute;
+import java.awt.font.TextLayout;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Area;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImageOp;
+import java.awt.image.ColorModel;
+import java.awt.image.ImageObserver;
+import java.awt.image.PixelGrabber;
+import java.awt.image.RenderedImage;
+import java.awt.image.WritableRaster;
+import java.awt.image.renderable.RenderableImage;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.text.AttributedCharacterIterator;
+import java.text.AttributedString;
+import java.text.CharacterIterator;
+import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * EpsGraphics2D is suitable for creating high quality EPS graphics for use in
@@ -157,9 +203,8 @@ public class EpsGraphics2D extends java.awt.Graphics2D
    */
   private void methodNotSupported()
   {
-    EpsException e = new EpsException(
-            "Method not currently supported by EpsGraphics2D version "
-                    + VERSION);
+    EpsException e = new EpsException(MessageManager.formatMessage(
+            "exception.eps_method_not_supported", new String[] { VERSION }));
     e.printStackTrace(System.err);
   }
 
@@ -457,8 +502,8 @@ public class EpsGraphics2D extends java.awt.Graphics2D
 
     ColorModel cm = img.getColorModel();
     WritableRaster wr = img.copyData(null);
-    BufferedImage img1 = new BufferedImage(cm, wr, cm
-            .isAlphaPremultiplied(), properties);
+    BufferedImage img1 = new BufferedImage(cm, wr,
+            cm.isAlphaPremultiplied(), properties);
     AffineTransform at = AffineTransform.getTranslateInstance(
             img.getMinX(), img.getMinY());
     at.preConcatenate(xform);
@@ -991,8 +1036,9 @@ public class EpsGraphics2D extends java.awt.Graphics2D
         return t.createTransformedShape(_clip);
       } catch (Exception e)
       {
-        throw new EpsException("Unable to get inverse of matrix: "
-                + _transform);
+        throw new EpsException(MessageManager.formatMessage(
+                "exception.eps_unable_to_get_inverse_matrix",
+                new String[] { _transform.toString() }));
       }
     }
   }
@@ -1310,7 +1356,9 @@ public class EpsGraphics2D extends java.awt.Graphics2D
       matrix = matrix.createInverse();
     } catch (Exception e)
     {
-      throw new EpsException("Unable to get inverse of matrix: " + matrix);
+      throw new EpsException(MessageManager.formatMessage(
+              "exception.eps_unable_to_get_inverse_matrix",
+              new String[] { matrix.toString() }));
     }
     matrix.scale(1, -1);
     matrix.getMatrix(m);

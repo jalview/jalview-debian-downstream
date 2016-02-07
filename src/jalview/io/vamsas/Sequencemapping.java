@@ -1,35 +1,36 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io.vamsas;
 
-import java.util.Vector;
-
 import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Mapping;
 import jalview.datamodel.SequenceI;
 import jalview.gui.Desktop;
 import jalview.io.VamsasAppDatastore;
-import uk.ac.vamsas.client.Vobject;
+
+import java.util.Vector;
+
 import uk.ac.vamsas.objects.core.AlignmentSequence;
 import uk.ac.vamsas.objects.core.DataSet;
-import uk.ac.vamsas.objects.core.Local;
-import uk.ac.vamsas.objects.core.RangeType;
-import uk.ac.vamsas.objects.core.Seg;
 import uk.ac.vamsas.objects.core.Sequence;
 import uk.ac.vamsas.objects.core.SequenceMapping;
 import uk.ac.vamsas.objects.core.SequenceType;
@@ -283,12 +284,12 @@ public class Sequencemapping extends Rangetype
       jalview.bin.Cache.log.info("Ignoring non sequence-sequence mapping");
       return;
     }
-    mobj = this.getvObj2jv((Vobject) sdloc);
+    mobj = this.getvObj2jv(sdloc);
     if (mobj instanceof SequenceI)
     {
       from = (SequenceI) mobj;
     }
-    mobj = this.getvObj2jv((Vobject) sdmap);
+    mobj = this.getvObj2jv(sdmap);
     if (mobj instanceof SequenceI)
     {
       to = (SequenceI) mobj;
@@ -325,19 +326,17 @@ public class Sequencemapping extends Rangetype
     }
     // create mapping storage object and make each dataset alignment reference
     // it.
-    jalview.datamodel.AlignmentI dsLoc = (jalview.datamodel.AlignmentI) getvObj2jv(sdloc
-            .getV_parent());
-    jalview.datamodel.AlignmentI dsMap = (jalview.datamodel.AlignmentI) getvObj2jv(sdmap
-            .getV_parent());
-    AlignedCodonFrame afc = new AlignedCodonFrame(0);
+    AlignmentI dsLoc = (AlignmentI) getvObj2jv(sdloc.getV_parent());
+    AlignmentI dsMap = (AlignmentI) getvObj2jv(sdmap.getV_parent());
+    AlignedCodonFrame acf = new AlignedCodonFrame();
 
     if (dsLoc != null && dsLoc != dsMap)
     {
-      dsLoc.addCodonFrame(afc);
+      dsLoc.addCodonFrame(acf);
     }
     if (dsMap != null)
     {
-      dsMap.addCodonFrame(afc);
+      dsMap.addCodonFrame(acf);
     }
     // create and add the new mapping to (each) dataset's codonFrame
 
@@ -350,24 +349,23 @@ public class Sequencemapping extends Rangetype
         mapping = new jalview.util.MapList(mapping.getToRanges(),
                 mapping.getFromRanges(), mapping.getToRatio(),
                 mapping.getFromRatio());
-        afc.addMap(to, from, mapping);
+        acf.addMap(to, from, mapping);
       }
       else
       {
         mapping = this.parsemapType(sequenceMapping, 3, 1); // correct sense
-        afc.addMap(from, to, mapping);
+        acf.addMap(from, to, mapping);
       }
     }
     else
     {
       mapping = this.parsemapType(sequenceMapping, 1, 1); // correct sense
-      afc.addMap(from, to, mapping);
+      acf.addMap(from, to, mapping);
     }
     bindjvvobj(mapping, sequenceMapping);
     jalview.structure.StructureSelectionManager
-            .getStructureSelectionManager(Desktop.instance).addMappings(
-                    new AlignedCodonFrame[]
-                    { afc });
+            .getStructureSelectionManager(Desktop.instance)
+            .registerMapping(acf);
     // Try to link up any conjugate database references in the two sequences
     // matchConjugateDBRefs(from, to, mapping);
     // Try to propagate any dbrefs across this mapping.

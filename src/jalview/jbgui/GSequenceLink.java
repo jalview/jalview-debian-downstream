@@ -1,28 +1,44 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.jbgui;
 
 import jalview.gui.JvSwingUtils;
+import jalview.util.MessageManager;
 import jalview.util.UrlLink;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Panel;
+import java.awt.Rectangle;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 public class GSequenceLink extends Panel
 {
@@ -61,17 +77,17 @@ public class GSequenceLink extends Panel
     });
     jLabel1.setFont(JvSwingUtils.getLabelFont());
     jLabel1.setHorizontalAlignment(SwingConstants.TRAILING);
-    jLabel1.setText("Link Name");
+    jLabel1.setText(MessageManager.getString("label.link_name"));
     jLabel1.setBounds(new Rectangle(4, 10, 71, 24));
     jLabel2.setFont(JvSwingUtils.getLabelFont());
     jLabel2.setHorizontalAlignment(SwingConstants.TRAILING);
-    jLabel2.setText("URL");
+    jLabel2.setText(MessageManager.getString("label.url"));
     jLabel2.setBounds(new Rectangle(17, 37, 54, 27));
     jLabel3.setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
-    jLabel3.setText("Use $SEQUENCE_ID$ or $SEQUENCE_ID=/<regex>/=$");
+    jLabel3.setText(MessageManager.getString("label.use_sequence_id_1"));
     jLabel3.setBounds(new Rectangle(21, 72, 351, 15));
     jLabel4.setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
-    jLabel4.setText("\nto embed sequence id in URL");
+    jLabel4.setText(MessageManager.getString("label.use_sequence_id_2"));
     jLabel4.setBounds(new Rectangle(21, 93, 351, 15));
     jPanel1.setBorder(BorderFactory.createEtchedBorder());
     jPanel1.setLayout(null);
@@ -114,11 +130,10 @@ public class GSequenceLink extends Panel
       return true;
     }
 
-    JOptionPane
-            .showInternalMessageDialog(
-                    jalview.gui.Desktop.desktop,
-                    "Sequence URL must contain $SEQUENCE_ID$ or a regex $SEQUENCE_ID=/<regex>/=$",
-                    "URL not valid", JOptionPane.WARNING_MESSAGE);
+    JOptionPane.showInternalMessageDialog(jalview.gui.Desktop.desktop,
+            MessageManager.getString("warn.url_must_contain"),
+            MessageManager.getString("label.invalid_url"),
+            JOptionPane.WARNING_MESSAGE);
     return false;
   }
 

@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.BitSet;
 
 /**
  * Things that need to be kept track of during a match. Passed along with

@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
@@ -28,12 +31,13 @@ import jalview.structure.SelectionSource;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasListener;
 import jalview.structure.VamsasSource;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -45,7 +49,6 @@ import uk.ac.vamsas.client.ClientHandle;
 import uk.ac.vamsas.client.IClient;
 import uk.ac.vamsas.client.IClientDocument;
 import uk.ac.vamsas.client.InvalidSessionDocumentException;
-import uk.ac.vamsas.client.NoDefaultSessionException;
 import uk.ac.vamsas.client.UserHandle;
 import uk.ac.vamsas.client.VorbaId;
 import uk.ac.vamsas.client.picking.IMessageHandler;
@@ -62,7 +65,7 @@ import uk.ac.vamsas.objects.core.Seg;
  * @author jimp
  * 
  */
-public class VamsasApplication implements SelectionSource,VamsasSource
+public class VamsasApplication implements SelectionSource, VamsasSource
 {
   IClient vclient = null;
 
@@ -154,7 +157,8 @@ public class VamsasApplication implements SelectionSource,VamsasSource
         if (sess != null)
         {
           throw new Error(
-                  "Implementation Error - cannot import existing vamsas document into an existing session, Yet!");
+                  MessageManager
+                          .getString("error.implementation_error_cannot_import_vamsas_doc"));
         }
         try
         {
@@ -174,8 +178,10 @@ public class VamsasApplication implements SelectionSource,VamsasSource
                   .showInternalMessageDialog(
                           Desktop.desktop,
 
-                          "VAMSAS Document could not be opened as a new session - please choose another",
-                          "VAMSAS Document Import Failed",
+                          MessageManager
+                                  .getString("label.vamsas_doc_couldnt_be_opened_as_new_session"),
+                          MessageManager
+                                  .getString("label.vamsas_document_import_failed"),
                           JOptionPane.ERROR_MESSAGE);
 
         }
@@ -262,7 +268,8 @@ public class VamsasApplication implements SelectionSource,VamsasSource
     if (!inSession())
     {
       throw new Error(
-              "Impementation error! Vamsas Operations when client not initialised and connected.");
+              MessageManager
+                      .getString("error.implementation_error_vamsas_operation_not_init"));
     }
     addDocumentUpdateHandler();
     addStoreDocumentHandler();
@@ -346,7 +353,11 @@ public class VamsasApplication implements SelectionSource,VamsasSource
   public void end_session(boolean promptUser)
   {
     if (!inSession())
-      throw new Error("Jalview not connected to Vamsas session.");
+    {
+      throw new Error(
+              MessageManager
+                      .getString("error.jalview_no_connected_vamsas_session"));
+    }
     Cache.log.info("Jalview disconnecting from the Vamsas Session.");
     try
     {
@@ -715,7 +726,8 @@ public class VamsasApplication implements SelectionSource,VamsasSource
       }
 
       throw new Error(
-              "IMPLEMENTATION ERROR: Cannot recover vamsas object mappings - no backup was made.");
+              MessageManager
+                      .getString("error.implementation_error_cannot_recover_vamsas_object_mappings"));
     }
     jv2vobj.clear();
     Iterator el = _backup_jv2vobj.entrySet().iterator();
@@ -958,10 +970,14 @@ public class VamsasApplication implements SelectionSource,VamsasSource
 
           int i = -1;
 
-          public void mouseOver(SequenceI seq, int index, VamsasSource source)
+          @Override
+          public void mouseOverSequence(SequenceI seq, int index,
+                  VamsasSource source)
           {
             if (jv2vobj == null)
+            {
               return;
+            }
             if (seq != last || i != index)
             {
               VorbaId v = (VorbaId) jv2vobj.get(seq);
@@ -997,7 +1013,7 @@ public class VamsasApplication implements SelectionSource,VamsasSource
               AlignmentI visal = null;
               if (source instanceof AlignViewport)
               {
-                visal = ((AlignViewport) source).getAlignment();
+                visal = ((AlignmentViewport) source).getAlignment();
               }
               SelectionMessage sm = null;
               if ((seqsel == null || seqsel.getSize() == 0)
@@ -1007,9 +1023,9 @@ public class VamsasApplication implements SelectionSource,VamsasSource
                 if (source instanceof AlignViewport)
                 {
                   // the empty selection.
-                  sm = new SelectionMessage("jalview", new String[]
-                  { ((AlignViewport) source).getSequenceSetId() }, null,
-                          true);
+                  sm = new SelectionMessage("jalview",
+                          new String[] { ((AlignmentViewport) source)
+                                  .getSequenceSetId() }, null, true);
                 }
                 else
                 {
@@ -1021,10 +1037,8 @@ public class VamsasApplication implements SelectionSource,VamsasSource
               {
                 String[] vobj = new String[seqsel.getSize()];
                 int o = 0;
-                Enumeration sels = seqsel.getSequences(null).elements();
-                while (sels.hasMoreElements())
+                for (SequenceI sel : seqsel.getSequences(null))
                 {
-                  SequenceI sel = (SequenceI) sels.nextElement();
                   VorbaId v = (VorbaId) jv2vobj.get(sel);
                   if (v != null)
                   {
@@ -1051,10 +1065,9 @@ public class VamsasApplication implements SelectionSource,VamsasSource
                   {
                     // gather selected columns outwith the sequence positions
                     // too
-                    Enumeration cols = colsel.getSelected().elements();
-                    while (cols.hasMoreElements())
+                    for (Object obj : colsel.getSelected())
                     {
-                      int ival = ((Integer) cols.nextElement()).intValue();
+                      int ival = ((Integer) obj).intValue();
                       Pos p = new Pos();
                       p.setI(ival + 1);
                       range.addPos(p);

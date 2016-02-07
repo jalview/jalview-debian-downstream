@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel.xdb.embl;
 
@@ -25,11 +28,18 @@ import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 
-import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Vector;
 
+/**
+ * Data model for one entry returned from an EMBL query, as marshalled by a
+ * Castor binding file
+ * 
+ * For example: http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/embl/x53828/emblxml
+ * 
+ * @see embl_mapping.xml
+ */
 public class EmblEntry
 {
   String accession;
@@ -46,13 +56,11 @@ public class EmblEntry
 
   String lastUpdated;
 
-  Vector keywords;
+  Vector<String> keywords;
 
-  Vector refs;
+  Vector<DBRefEntry> dbRefs;
 
-  Vector dbRefs;
-
-  Vector features;
+  Vector<EmblFeature> features;
 
   EmblSequence sequence;
 
@@ -76,7 +84,7 @@ public class EmblEntry
   /**
    * @return the dbRefs
    */
-  public Vector getDbRefs()
+  public Vector<DBRefEntry> getDbRefs()
   {
     return dbRefs;
   }
@@ -85,7 +93,7 @@ public class EmblEntry
    * @param dbRefs
    *          the dbRefs to set
    */
-  public void setDbRefs(Vector dbRefs)
+  public void setDbRefs(Vector<DBRefEntry> dbRefs)
   {
     this.dbRefs = dbRefs;
   }
@@ -110,7 +118,7 @@ public class EmblEntry
   /**
    * @return the features
    */
-  public Vector getFeatures()
+  public Vector<EmblFeature> getFeatures()
   {
     return features;
   }
@@ -119,7 +127,7 @@ public class EmblEntry
    * @param features
    *          the features to set
    */
-  public void setFeatures(Vector features)
+  public void setFeatures(Vector<EmblFeature> features)
   {
     this.features = features;
   }
@@ -127,7 +135,7 @@ public class EmblEntry
   /**
    * @return the keywords
    */
-  public Vector getKeywords()
+  public Vector<String> getKeywords()
   {
     return keywords;
   }
@@ -136,7 +144,7 @@ public class EmblEntry
    * @param keywords
    *          the keywords to set
    */
-  public void setKeywords(Vector keywords)
+  public void setKeywords(Vector<String> keywords)
   {
     this.keywords = keywords;
   }
@@ -159,23 +167,6 @@ public class EmblEntry
   }
 
   /**
-   * @return the refs
-   */
-  public Vector getRefs()
-  {
-    return refs;
-  }
-
-  /**
-   * @param refs
-   *          the refs to set
-   */
-  public void setRefs(Vector refs)
-  {
-    this.refs = refs;
-  }
-
-  /**
    * @return the releaseCreated
    */
   public String getRCreated()
@@ -187,7 +178,7 @@ public class EmblEntry
    * @param releaseCreated
    *          the releaseCreated to set
    */
-  public void setRcreated(String releaseCreated)
+  public void setRCreated(String releaseCreated)
   {
     this.rCreated = releaseCreated;
   }
@@ -405,7 +396,7 @@ public class EmblEntry
           boolean noPeptide, String sourceDb)
   { // TODO: ensure emblEntry.getSequences behaves correctly for returning all
     // cases of noNa and noPeptide
-    Vector seqs = new Vector();
+    Vector<SequenceI> seqs = new Vector<SequenceI>();
     Sequence dna = null;
     if (!noNa)
     {
@@ -417,27 +408,30 @@ public class EmblEntry
       dna.addDBRef(retrievedref);
       // add map to indicate the sequence is a valid coordinate frame for the
       // dbref
-      retrievedref.setMap(new Mapping(null, new int[]
-      { 1, dna.getLength() }, new int[]
-      { 1, dna.getLength() }, 1, 1));
+      retrievedref.setMap(new Mapping(null,
+              new int[] { 1, dna.getLength() }, new int[] { 1,
+                  dna.getLength() }, 1, 1));
       // TODO: transform EMBL Database refs to canonical form
       if (dbRefs != null)
-        for (Iterator i = dbRefs.iterator(); i.hasNext(); dna
-                .addDBRef((DBRefEntry) i.next()))
-          ;
+      {
+        for (DBRefEntry dbref : dbRefs)
+        {
+          dna.addDBRef(dbref);
+        }
+      }
     }
     try
     {
-      for (Iterator i = features.iterator(); i.hasNext();)
+      for (EmblFeature feature : features)
       {
-        EmblFeature feature = (EmblFeature) i.next();
         if (!noNa)
         {
-          if (feature.dbRefs != null && feature.dbRefs.size() > 0)
+          if (feature.dbRefs != null)
           {
-            for (Iterator dbr = feature.dbRefs.iterator(); dbr.hasNext(); dna
-                    .addDBRef((DBRefEntry) dbr.next()))
-              ;
+            for (DBRefEntry dbref : feature.dbRefs)
+            {
+              dna.addDBRef(dbref);
+            }
           }
         }
         if (FeatureProperties.isCodingFeature(sourceDb, feature.getName()))
@@ -447,13 +441,15 @@ public class EmblEntry
         else
         {
           // General feature type.
+          // TODO this is just duplicated code ??
           if (!noNa)
           {
-            if (feature.dbRefs != null && feature.dbRefs.size() > 0)
+            if (feature.dbRefs != null)
             {
-              for (Iterator dbr = feature.dbRefs.iterator(); dbr.hasNext(); dna
-                      .addDBRef((DBRefEntry) dbr.next()))
-                ;
+              for (DBRefEntry dbref : feature.dbRefs)
+              {
+                dna.addDBRef(dbref);
+              }
             }
           }
         }
@@ -474,7 +470,7 @@ public class EmblEntry
     SequenceI[] sqs = new SequenceI[seqs.size()];
     for (int i = 0, j = seqs.size(); i < j; i++)
     {
-      sqs[i] = (SequenceI) seqs.elementAt(i);
+      sqs[i] = seqs.elementAt(i);
       seqs.set(i, null);
     }
     return sqs;
@@ -496,19 +492,16 @@ public class EmblEntry
    *          flag for generation of Peptide sequence objects
    */
   private void parseCodingFeature(EmblFeature feature, String sourceDb,
-          Vector seqs, Sequence dna, boolean noPeptide)
+          Vector<SequenceI> seqs, Sequence dna, boolean noPeptide)
   {
     boolean isEmblCdna = sourceDb.equals(DBRefSource.EMBLCDS);
     // extract coding region(s)
     jalview.datamodel.Mapping map = null;
     int[] exon = null;
-    if (feature.locations != null && feature.locations.size() > 0)
+    if (feature.locations != null)
     {
-      for (Enumeration locs = feature.locations.elements(); locs
-              .hasMoreElements();)
+      for (EmblFeatureLocations loc : feature.locations)
       {
-        EmblFeatureLocations loc = (EmblFeatureLocations) locs
-                .nextElement();
         int[] se = loc.getElementRanges(accession);
         if (exon == null)
         {
@@ -526,19 +519,17 @@ public class EmblEntry
     String prseq = null;
     String prname = new String();
     String prid = null;
-    Hashtable vals = new Hashtable();
+    Hashtable<String, String> vals = new Hashtable<String, String>();
     int prstart = 1;
     // get qualifiers
-    if (feature.getQualifiers() != null
-            && feature.getQualifiers().size() > 0)
+    if (feature.getQualifiers() != null)
     {
-      for (Iterator quals = feature.getQualifiers().iterator(); quals
-              .hasNext();)
+      for (Qualifier q : feature.getQualifiers())
       {
-        Qualifier q = (Qualifier) quals.next();
-        if (q.getName().equals("translation"))
+        String qname = q.getName();
+        if (qname.equals("translation"))
         {
-          StringBuffer prsq = new StringBuffer(q.getValues()[0]);
+          StringBuilder prsq = new StringBuilder(q.getValues()[0]);
           int p = prsq.indexOf(" ");
           while (p > -1)
           {
@@ -549,15 +540,15 @@ public class EmblEntry
           prsq = null;
 
         }
-        else if (q.getName().equals("protein_id"))
+        else if (qname.equals("protein_id"))
         {
           prid = q.getValues()[0];
         }
-        else if (q.getName().equals("codon_start"))
+        else if (qname.equals("codon_start"))
         {
           prstart = Integer.parseInt(q.getValues()[0]);
         }
-        else if (q.getName().equals("product"))
+        else if (qname.equals("product"))
         {
           prname = q.getValues()[0];
         }
@@ -565,7 +556,7 @@ public class EmblEntry
         {
           // throw anything else into the additional properties hash
           String[] s = q.getValues();
-          StringBuffer sb = new StringBuffer();
+          StringBuilder sb = new StringBuilder();
           if (s != null)
           {
             for (int i = 0; i < s.length; i++)
@@ -574,12 +565,14 @@ public class EmblEntry
               sb.append("\n");
             }
           }
-          vals.put(q.getName(), sb.toString());
+          vals.put(qname, sb.toString());
         }
       }
     }
     Sequence product = null;
+    DBRefEntry protEMBLCDS = null;
     exon = adjustForPrStart(prstart, exon);
+    boolean noProteinDbref = true;
 
     if (prseq != null && prname != null && prid != null)
     {
@@ -606,19 +599,18 @@ public class EmblEntry
                   .println("Not allowing for additional stop codon at end of cDNA fragment... !");
           // this might occur for CDS sequences where no features are
           // marked.
-          exon = new int[]
-          { dna.getStart() + (prstart - 1), dna.getEnd() };
-          map = new jalview.datamodel.Mapping(product, exon, new int[]
-          { 1, prseq.length() }, 3, 1);
+          exon = new int[] { dna.getStart() + (prstart - 1), dna.getEnd() };
+          map = new jalview.datamodel.Mapping(product, exon, new int[] { 1,
+              prseq.length() }, 3, 1);
         }
         if ((prseq.length() + 1) * 3 == (1 - prstart + dna.getSequence().length))
         {
           System.err
                   .println("Allowing for additional stop codon at end of cDNA fragment... will probably cause an error in VAMSAs!");
-          exon = new int[]
-          { dna.getStart() + (prstart - 1), dna.getEnd() - 3 };
-          map = new jalview.datamodel.Mapping(product, exon, new int[]
-          { 1, prseq.length() }, 3, 1);
+          exon = new int[] { dna.getStart() + (prstart - 1),
+              dna.getEnd() - 3 };
+          map = new jalview.datamodel.Mapping(product, exon, new int[] { 1,
+              prseq.length() }, 3, 1);
         }
       }
       else
@@ -639,8 +631,8 @@ public class EmblEntry
           // final product length trunctation check
 
           map = new jalview.datamodel.Mapping(product,
-                  adjustForProteinLength(prseq.length(), exon), new int[]
-                  { 1, prseq.length() }, 3, 1);
+                  adjustForProteinLength(prseq.length(), exon), new int[] {
+                      1, prseq.length() }, 3, 1);
           // reconstruct the EMBLCDS entry
           // TODO: this is only necessary when there codon annotation is
           // complete (I think JBPNote)
@@ -648,15 +640,21 @@ public class EmblEntry
           pcdnaref.setAccessionId(prid);
           pcdnaref.setSource(DBRefSource.EMBLCDS);
           pcdnaref.setVersion(getVersion()); // same as parent EMBL version.
-          jalview.util.MapList mp = new jalview.util.MapList(new int[]
-          { 1, prseq.length() }, new int[]
-          { 1 + (prstart - 1), (prstart - 1) + 3 * prseq.length() }, 1, 3);
+          jalview.util.MapList mp = new jalview.util.MapList(new int[] { 1,
+              prseq.length() }, new int[] { 1 + (prstart - 1),
+              (prstart - 1) + 3 * prseq.length() }, 1, 3);
           // { 1 + (prstart - 1) * 3,
           // 1 + (prstart - 1) * 3 + prseq.length() * 3 - 1 }, new int[]
           // { 1prstart, prstart + prseq.length() - 1 }, 3, 1);
           pcdnaref.setMap(new Mapping(mp));
           if (product != null)
+          {
             product.addDBRef(pcdnaref);
+            protEMBLCDS = new DBRefEntry(pcdnaref);
+            protEMBLCDS.setSource(DBRefSource.EMBLCDSProduct);
+            product.addDBRef(protEMBLCDS);
+
+          }
 
         }
       }
@@ -668,29 +666,25 @@ public class EmblEntry
         sf.setEnd(exon[xint + 1]);
         sf.setType(feature.getName());
         sf.setFeatureGroup(sourceDb);
-        sf.setDescription("Exon " + (1 + (int) (xint / 2))
-                + " for protein '" + prname + "' EMBLCDS:" + prid);
+        sf.setDescription("Exon " + (1 + xint / 2) + " for protein '"
+                + prname + "' EMBLCDS:" + prid);
         sf.setValue(FeatureProperties.EXONPOS, new Integer(1 + xint));
         sf.setValue(FeatureProperties.EXONPRODUCT, prname);
-        if (vals != null && vals.size() > 0)
+        if (vals != null)
         {
-          Enumeration kv = vals.elements();
-          while (kv.hasMoreElements())
+          for (Entry<String, String> val : vals.entrySet())
           {
-            Object key = kv.nextElement();
-            if (key != null)
-              sf.setValue(key.toString(), vals.get(key));
+            sf.setValue(val.getKey(), val.getValue());
           }
         }
         dna.addSequenceFeature(sf);
       }
     }
     // add dbRefs to sequence
-    if (feature.dbRefs != null && feature.dbRefs.size() > 0)
+    if (feature.dbRefs != null)
     {
-      for (Iterator dbr = feature.dbRefs.iterator(); dbr.hasNext();)
+      for (DBRefEntry ref : feature.dbRefs)
       {
-        DBRefEntry ref = (DBRefEntry) dbr.next();
         ref.setSource(jalview.util.DBRefUtils.getCanonicalName(ref
                 .getSource()));
         // Hard code the kind of protein product accessions that EMBL cite
@@ -709,6 +703,7 @@ public class EmblEntry
                               + ref.getAccessionId());
             }
           }
+          noProteinDbref = false;
         }
         if (product != null)
         {
@@ -730,6 +725,33 @@ public class EmblEntry
           }
         }
         dna.addDBRef(ref);
+      }
+      if (noProteinDbref && product != null)
+      {
+        // add protein coding reference to dna sequence so xref matches
+        if (protEMBLCDS == null)
+        {
+          protEMBLCDS = new DBRefEntry();
+          protEMBLCDS.setAccessionId(prid);
+          protEMBLCDS.setSource(DBRefSource.EMBLCDSProduct);
+          protEMBLCDS.setVersion(getVersion());
+          protEMBLCDS
+                  .setMap(new Mapping(product, map.getMap().getInverse()));
+        }
+        product.addDBRef(protEMBLCDS);
+
+        // Add converse mapping reference
+        if (map != null)
+        {
+          Mapping pmap = new Mapping(product, protEMBLCDS.getMap().getMap()
+                  .getInverse());
+          DBRefEntry ncMap = new DBRefEntry(protEMBLCDS);
+          ncMap.setMap(pmap);
+          if (map.getTo() != null)
+          {
+            dna.addDBRef(ncMap);
+          }
+        }
       }
     }
   }

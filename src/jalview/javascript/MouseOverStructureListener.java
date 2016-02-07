@@ -1,24 +1,24 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.javascript;
-
-import java.awt.Color;
-import java.util.ArrayList;
 
 import jalview.api.AlignmentViewPanel;
 import jalview.api.FeatureRenderer;
@@ -27,10 +27,14 @@ import jalview.appletgui.AlignFrame;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.SequenceI;
 import jalview.ext.jmol.JmolCommands;
+import jalview.structure.AtomSpec;
 import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
 import jalview.structure.StructureMappingcommandSet;
 import jalview.structure.StructureSelectionManager;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Propagate events involving PDB structures associated with sequences to a
@@ -38,13 +42,23 @@ import jalview.structure.StructureSelectionManager;
  * series of arguments like (eventname, ... ). As of Jalview 2.7, the following
  * different types of events are supported:
  * <ul>
- * <li>mouseover: javascript function called with arguments <pre>
+ * <li>mouseover: javascript function called with arguments
+ * 
+ * <pre>
  * ['mouseover',String(pdb file URI), String(pdb file chain ID), String(residue
- * number moused over), String(atom index corresponding to residue)]</pre></li>
- * <li>colourstruct: javascript function called with arguments <pre>
+ * number moused over), String(atom index corresponding to residue)]
+ * </pre>
+ * 
+ * </li>
+ * <li>colourstruct: javascript function called with arguments
+ * 
+ * <pre>
  * ['colourstruct',String(alignment view id),String(number of javascript message
  * chunks to collect),String(length of first chunk in set of messages - or zero
- * for null message)]</pre><br>
+ * for null message)]
+ * </pre>
+ * 
+ * <br>
  * The message contains a series of Jmol script commands that will colour
  * structures according to their associated sequences in the current view. Use
  * jalview
@@ -120,7 +134,6 @@ public class MouseOverStructureListener extends JSFunctionExec implements
     return modelSet;
   }
 
-  @Override
   public void mouseOverStructure(int atomIndex, String strInfo)
   {
 
@@ -131,36 +144,43 @@ public class MouseOverStructureListener extends JSFunctionExec implements
   }
 
   @Override
-  public void highlightAtom(int atomIndex, int pdbResNum, String chain,
-          String pdbId)
+  public void highlightAtoms(List<AtomSpec> atoms)
   {
-    String[] st = new String[0];
-    try
+    for (AtomSpec atom : atoms)
     {
-      executeJavascriptFunction(_listenerfn, st = new String[]
-      { "mouseover", "" + pdbId, "" + chain, "" + (pdbResNum),
-          "" + atomIndex });
-    } catch (Exception ex)
-    {
-      System.err.println("Couldn't execute callback with " + _listenerfn
-              + " using args { " + st[0] + ", " + st[1] + ", " + st[2]
-              + "," + st[3] + "\n");
-      ex.printStackTrace();
-
+      try
+      {
+        // TODO is this right? StructureSelectionManager passes pdbFile as the
+        // field that is interpreted (in 2.8.2) as pdbId?
+        // JBPComment: yep - this is right! the Javascript harness uses the
+        // absolute pdbFile URI to locate the PDB file in the external viewer
+        executeJavascriptFunction(_listenerfn,
+                new String[] { "mouseover", "" + atom.getPdbFile(),
+                    "" + atom.getChain(), "" + (atom.getPdbResNum()),
+                    "" + atom.getAtomIndex() });
+      } catch (Exception ex)
+      {
+        System.err.println("Couldn't execute callback with " + _listenerfn
+                + " for atomSpec: " + atom);
+        ex.printStackTrace();
+      }
     }
-
   }
 
   @Override
- public synchronized void updateColours(Object srce)
+  public synchronized void updateColours(Object srce)
   {
     final Object source = srce;
     StructureSelectionManager ssm = StructureSelectionManager
             .getStructureSelectionManager(jvlite);
-    // if (jvlite.debug)
-    // {
-    // ssm.reportMapping();
-    // }
+
+    if (JalviewLite.debug)
+    {
+      System.err.println(this.getClass().getName() + " modelSet[0]: "
+              + modelSet[0]);
+      ssm.reportMapping();
+    }
+
     if (source instanceof jalview.api.AlignmentViewPanel)
     {
       SequenceI[][] sequence = new SequenceI[modelSet.length][];
@@ -189,7 +209,7 @@ public class MouseOverStructureListener extends JSFunctionExec implements
       SequenceRenderer sr = ((jalview.appletgui.AlignmentPanel) source)
               .getSequenceRenderer();
       FeatureRenderer fr = ((jalview.appletgui.AlignmentPanel) source).av
-              .getShowSequenceFeatures() ? new jalview.appletgui.FeatureRenderer(
+              .isShowSequenceFeatures() ? new jalview.appletgui.FeatureRenderer(
               ((jalview.appletgui.AlignmentPanel) source).av) : null;
       if (fr != null)
       {
@@ -199,98 +219,73 @@ public class MouseOverStructureListener extends JSFunctionExec implements
       }
       ;
 
-      
-      // Form a colour command from the given alignment panel for each distinct structure 
-      ArrayList<String[]> ccomands=new ArrayList<String[]>();
-      ArrayList<String> pdbfn=new ArrayList<String>();
-      StructureMappingcommandSet[] colcommands=JmolCommands.getColourBySequenceCommand(
-              ssm, modelSet, sequence, sr, fr,
-              ((AlignmentViewPanel) source).getAlignment());
-      if (colcommands==null) {
+      // Form a colour command from the given alignment panel for each distinct
+      // structure
+      ArrayList<String[]> ccomands = new ArrayList<String[]>();
+      ArrayList<String> pdbfn = new ArrayList<String>();
+      StructureMappingcommandSet[] colcommands = JmolCommands
+              .getColourBySequenceCommand(ssm, modelSet, sequence, sr, fr,
+                      ((AlignmentViewPanel) source).getAlignment());
+      if (colcommands == null)
+      {
         return;
       }
-      int sz=0;
-      for (jalview.structure.StructureMappingcommandSet ccset: colcommands) {
-        sz+=ccset.commands.length;
+      int sz = 0;
+      for (jalview.structure.StructureMappingcommandSet ccset : colcommands)
+      {
+        sz += ccset.commands.length;
         ccomands.add(ccset.commands);
         pdbfn.add(ccset.mapping);
       }
-      
-      String mclass,mhandle;
+
+      String mclass, mhandle;
       String ccomandset[] = new String[sz];
-      sz=0;
-      for (String[] ccset: ccomands) {
+      sz = 0;
+      for (String[] ccset : ccomands)
+      {
         System.arraycopy(ccset, 0, ccomandset, sz, ccset.length);
-        sz+=ccset.length;
+        sz += ccset.length;
       }
-      if (jvlite.isJsMessageSetChanged(mclass="colourstruct",mhandle=((jalview.appletgui.AlignmentPanel) source).av
-              .getViewId(), ccomandset)) {
-      jvlite.setJsMessageSet(mclass, mhandle , ccomandset);
-      // and notify javascript handler
-      String st[] = new String[]
-                                                  {
-              "colourstruct",
-              ""
-                      + ((jalview.appletgui.AlignmentPanel) source).av
-                              .getViewId(), ""+ccomandset.length, jvlite.arrayToSeparatorList(pdbfn.toArray(new String[pdbfn.size()]))
-                              };
-      try
+      if (jvlite.isJsMessageSetChanged(
+              mclass = "colourstruct",
+              mhandle = ((jalview.appletgui.AlignmentPanel) source).av
+                      .getViewId(), ccomandset))
       {
-        executeJavascriptFunction(
-                true,
-                _listenerfn,st
-);
-      } catch (Exception ex)
-      {
-        System.err.println("Couldn't execute callback with "
-                + _listenerfn + " using args { " + st[0] + ", "
-                + st[1] + ", " + st[2] + "," + st[3]+"}"); //  + ","+st[4]+"\n");
-        ex.printStackTrace();
-
-      }
-      }
-/*      new Thread(new Runnable()
-      {
-        public void run()
+        jvlite.setJsMessageSet(mclass, mhandle, ccomandset);
+        // and notify javascript handler
+        String st[] = new String[] {
+            "colourstruct",
+            "" + ((jalview.appletgui.AlignmentPanel) source).av.getViewId(),
+            "" + ccomandset.length,
+            jvlite.arrayToSeparatorList(pdbfn.toArray(new String[pdbfn
+                    .size()])) };
+        try
         {
-          // and send to javascript handler
-          String st[] = new String[0];
-          int i = 0;
-          for (String colcommand : colcommands)
-          {
-            // do sync execution for each chunk
-            try
-            {
-              executeJavascriptFunction(
-                      false,
-                      _listenerfn,
-                      st = new String[]
-                      {
-                          "colourstruct",
-                          ""
-                                  + ((jalview.appletgui.AlignmentPanel) source).av
-                                          .getViewId(), handle, "" });
-            } catch (Exception ex)
-            {
-              System.err.println("Couldn't execute callback with "
-                      + _listenerfn + " using args { " + st[0] + ", "
-                      + st[1] + ", " + st[2] + "," + st[3] + "\n");
-              ex.printStackTrace();
+          executeJavascriptFunction(true, _listenerfn, st);
+        } catch (Exception ex)
+        {
+          System.err.println("Couldn't execute callback with "
+                  + _listenerfn + " using args { " + st[0] + ", " + st[1]
+                  + ", " + st[2] + "," + st[3] + "}"); // + ","+st[4]+"\n");
+          ex.printStackTrace();
 
-            }
-          }
         }
-      }).start();
-  */
+      }
+      /*
+       * new Thread(new Runnable() { public void run() { // and send to
+       * javascript handler String st[] = new String[0]; int i = 0; for (String
+       * colcommand : colcommands) { // do sync execution for each chunk try {
+       * executeJavascriptFunction( false, _listenerfn, st = new String[] {
+       * "colourstruct", "" + ((jalview.appletgui.AlignmentPanel) source).av
+       * .getViewId(), handle, "" }); } catch (Exception ex) {
+       * System.err.println("Couldn't execute callback with " + _listenerfn +
+       * " using args { " + st[0] + ", " + st[1] + ", " + st[2] + "," + st[3] +
+       * "\n"); ex.printStackTrace();
+       * 
+       * } } } }).start();
+       */
     }
 
-  }
-
-  @Override
-  public Color getColour(int atomIndex, int pdbResNum, String chain,
-          String pdbId)
-  {
-    return null;
   }
 
   @Override
@@ -308,15 +303,22 @@ public class MouseOverStructureListener extends JSFunctionExec implements
 
   public void finalise()
   {
-    jvlite=null;
+    jvlite = null;
     super.finalize();
   }
+
   @Override
   public void releaseReferences(Object svl)
   {
-    
+
     // TODO Auto-generated method stub
 
+  }
+
+  @Override
+  public boolean isListeningFor(SequenceI seq)
+  {
+    return true;
   }
 
 }

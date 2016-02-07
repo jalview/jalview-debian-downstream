@@ -7,9 +7,10 @@
 //
 package com.stevesoft.pat;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
 
-import com.stevesoft.pat.wrap.*;
+import com.stevesoft.pat.wrap.StringBufferWrap;
 
 /**
  * This class allows you to replace the text in strings as you read them in. Be

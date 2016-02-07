@@ -1,33 +1,46 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
 
-import java.util.*;
-
-import jalview.analysis.*;
-import jalview.bin.*;
-import jalview.datamodel.*;
-import jalview.gui.*;
-import jalview.io.*;
-import jalview.util.*;
+import jalview.analysis.AlignSeq;
+import jalview.bin.Cache;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SequenceI;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.WebserviceInfo;
+import jalview.io.FormatAdapter;
+import jalview.util.Comparison;
+import jalview.util.MessageManager;
 import jalview.ws.AWsJob;
 import jalview.ws.JobStateSummary;
 import jalview.ws.WSClientI;
+
+import java.util.Hashtable;
+import java.util.List;
+
 import vamsas.objects.simple.JpredResult;
 
 class JPredThread extends JWS1Thread implements WSClientI
@@ -91,7 +104,7 @@ class JPredThread extends JWS1Thread implements WSClientI
       {
         return null;
       }
-      Alignment al = null;
+      AlignmentI al = null;
       ColumnSelection alcsel = null;
       int FirstSeq = -1; // the position of the query sequence in Alignment al
 
@@ -134,24 +147,32 @@ class JPredThread extends JWS1Thread implements WSClientI
             {
               sqs[i] = al.getSequenceAt(i);
             }
-            if (!jalview.analysis.SeqsetUtils.deuniquify(
-                    (Hashtable) SequenceInfo, sqs))
+            if (!jalview.analysis.SeqsetUtils.deuniquify(SequenceInfo, sqs))
             {
               throw (new Exception(
-                      "Couldn't recover sequence properties for alignment."));
+                      MessageManager
+                              .getString("exception.couldnt_recover_sequence_properties_for_alignment")));
             }
           }
           FirstSeq = 0;
-          al.setDataset(null);
+          if (currentView.getDataset() != null)
+          {
+            al.setDataset(currentView.getDataset());
 
+          }
+          else
+          {
+            al.setDataset(null);
+          }
           jalview.io.JnetAnnotationMaker.add_annotation(prediction, al,
                   FirstSeq, false, predMap);
 
         }
         else
         {
-          throw (new Exception("Unknown format " + format
-                  + " for file : \n" + result.getAligfile()));
+          throw (new Exception(MessageManager.formatMessage(
+                  "exception.unknown_format_for_file", new String[] {
+                      format, result.getAligfile() })));
         }
       }
       else
@@ -161,20 +182,21 @@ class JPredThread extends JWS1Thread implements WSClientI
         if (predMap != null)
         {
           char gc = getGapChar();
-          SequenceI[] sqs = (SequenceI[]) ((java.lang.Object[]) input
-                  .getAlignmentAndColumnSelection(gc))[0];
+          SequenceI[] sqs = (SequenceI[]) input
+                  .getAlignmentAndColumnSelection(gc)[0];
           if (this.msaIndex >= sqs.length)
           {
             throw new Error(
-                    "Implementation Error! Invalid msaIndex for JPredJob on parent MSA input object!");
+                    MessageManager
+                            .getString("error.implementation_error_invalid_msa_index_for_job"));
           }
 
           // ///
           // Uses RemoveGapsCommand
           // ///
-          new jalview.commands.RemoveGapsCommand("Remove Gaps",
-                  new SequenceI[]
-                  { sqs[msaIndex] }, currentView);
+          new jalview.commands.RemoveGapsCommand(
+                  MessageManager.getString("label.remove_gaps"),
+                  new SequenceI[] { sqs[msaIndex] }, currentView);
 
           SequenceI profileseq = al.getSequenceAt(FirstSeq);
           profileseq.setSequence(sqs[msaIndex].getSequenceAsString());
@@ -184,11 +206,20 @@ class JPredThread extends JWS1Thread implements WSClientI
                 al.getSequenceAt(FirstSeq), SequenceInfo))
         {
           throw (new Exception(
-                  "Couldn't recover sequence properties for JNet Query sequence!"));
+                  MessageManager
+                          .getString("exception.couldnt_recover_sequence_props_for_jnet_query")));
         }
         else
         {
-          al.setDataset(null);
+          if (currentView.getDataset() != null)
+          {
+            al.setDataset(currentView.getDataset());
+
+          }
+          else
+          {
+            al.setDataset(null);
+          }
           jalview.io.JnetAnnotationMaker.add_annotation(prediction, al,
                   FirstSeq, true, predMap);
           SequenceI profileseq = al.getSequenceAt(0); // this includes any gaps.
@@ -197,12 +228,54 @@ class JPredThread extends JWS1Thread implements WSClientI
           {
             // Adjust input view for gaps
             // propagate insertions into profile
-            alcsel = ColumnSelection.propagateInsertions(profileseq, al, input);
+            alcsel = ColumnSelection.propagateInsertions(profileseq, al,
+                    input);
           }
         }
       }
-      return new Object[]
-      { al, alcsel }; // , FirstSeq, noMsa};
+      // transfer to dataset
+      for (AlignmentAnnotation alant : al.getAlignmentAnnotation())
+      {
+        if (alant.sequenceRef != null)
+        {
+          replaceAnnotationOnAlignmentWith(alant, alant.label,
+                  "jalview.jws1.Jpred" + (this.msa == null ? "" : "MSA"),
+                  alant.sequenceRef);
+        }
+      }
+      return new Object[] { al, alcsel }; // , FirstSeq, noMsa};
+    }
+
+    /**
+     * copied from JabawsCalcWorker
+     * 
+     * @param newAnnot
+     * @param typeName
+     * @param calcId
+     * @param aSeq
+     */
+    protected void replaceAnnotationOnAlignmentWith(
+            AlignmentAnnotation newAnnot, String typeName, String calcId,
+            SequenceI aSeq)
+    {
+      SequenceI dsseq = aSeq.getDatasetSequence();
+      while (dsseq.getDatasetSequence() != null)
+      {
+        dsseq = dsseq.getDatasetSequence();
+      }
+      // look for same annotation on dataset and lift this one over
+      List<AlignmentAnnotation> dsan = dsseq.getAlignmentAnnotations(
+              calcId, typeName);
+      if (dsan != null && dsan.size() > 0)
+      {
+        for (AlignmentAnnotation dssan : dsan)
+        {
+          dsseq.removeAlignmentAnnotation(dssan);
+        }
+      }
+      AlignmentAnnotation dssan = new AlignmentAnnotation(newAnnot);
+      dsseq.addAlignmentAnnotation(dssan);
+      dssan.adjustForAlignment();
     }
 
     /**
@@ -213,7 +286,7 @@ class JPredThread extends JWS1Thread implements WSClientI
      * @param al
      * @param profileseq
      */
-    private void alignToProfileSeq(Alignment al, SequenceI profileseq)
+    private void alignToProfileSeq(AlignmentI al, SequenceI profileseq)
     {
       char gc = al.getGapCharacter();
       int[] gapMap = profileseq.gapMap();
@@ -255,7 +328,6 @@ class JPredThread extends JWS1Thread implements WSClientI
       }
     }
 
-
     public JPredJob(Hashtable SequenceInfo, SequenceI seq, int[] delMap)
     {
       super();
@@ -268,6 +340,10 @@ class JPredThread extends JWS1Thread implements WSClientI
         sequence = new vamsas.objects.simple.Sequence();
         sequence.setId(seq.getName());
         sequence.setSeq(sq);
+      }
+      else
+      {
+        errorMessage = "Sequence is too short to predict with JPred - need at least 20 amino acids.";
       }
     }
 
@@ -283,6 +359,13 @@ class JPredThread extends JWS1Thread implements WSClientI
           msa.setMsf(pileup.print(msf));
         }
       }
+    }
+
+    String errorMessage = "";
+
+    public String getValidationMessages()
+    {
+      return errorMessage + "\n";
     }
   }
 
@@ -309,9 +392,12 @@ class JPredThread extends JWS1Thread implements WSClientI
     if (job.hasValidInput())
     {
       OutputHeader = wsInfo.getProgressText();
-      jobs = new WSJob[]
-      { job };
+      jobs = new WSJob[] { job };
       job.setJobnum(0);
+    }
+    else
+    {
+      wsInfo.appendProgressText(job.getValidationMessages());
     }
   }
 
@@ -324,10 +410,13 @@ class JPredThread extends JWS1Thread implements WSClientI
     JPredJob job = new JPredJob(SequenceInfo, msf, delMap);
     if (job.hasValidInput())
     {
-      jobs = new WSJob[]
-      { job };
+      jobs = new WSJob[] { job };
       OutputHeader = wsInfo.getProgressText();
       job.setJobnum(0);
+    }
+    else
+    {
+      wsInfo.appendProgressText(job.getValidationMessages());
     }
   }
 
@@ -335,9 +424,9 @@ class JPredThread extends JWS1Thread implements WSClientI
   {
     if (!(j instanceof JPredJob))
     {
-      throw new Error(
-              "Implementation error - StartJob(JpredJob) called on "
-                      + j.getClass());
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_startjob_called",
+              new String[] { j.getClass().toString() }));
     }
     try
     {
@@ -356,9 +445,11 @@ class JPredThread extends JWS1Thread implements WSClientI
       {
         if (job.getJobId().startsWith("Broken"))
         {
-          job.result = (vamsas.objects.simple.Result) new JpredResult();
+          job.result = new JpredResult();
           job.result.setInvalid(true);
-          job.result.setStatus("Submission " + job.getJobId());
+          job.result.setStatus(MessageManager.formatMessage(
+                  "label.submission_params", new String[] { job.getJobId()
+                          .toString() }));
           throw new Exception(job.getJobId());
         }
         else
@@ -370,7 +461,9 @@ class JPredThread extends JWS1Thread implements WSClientI
       }
       else
       {
-        throw new Exception("Server timed out - try again later\n");
+        throw new Exception(
+                MessageManager
+                        .getString("exception.server_timeout_try_later"));
       }
     } catch (Exception e)
     {
@@ -394,9 +487,11 @@ class JPredThread extends JWS1Thread implements WSClientI
       {
         wsInfo.setStatus(j.getJobnum(), WebserviceInfo.STATE_STOPPED_ERROR);
         // JBPNote - this could be a popup informing the user of the problem.
-        wsInfo.appendProgressText(j.getJobnum(),
-                "Failed to submit the prediction:\n" + e.getMessage()
-                        + wsInfo.getProgressText());
+        wsInfo.appendProgressText(j.getJobnum(), MessageManager
+                .formatMessage(
+                        "info.failed_to_submit_prediction",
+                        new String[] { e.getMessage(),
+                            wsInfo.getProgressText() }));
 
         jalview.bin.Cache.log.debug(
                 "Failed Submission of job " + j.getJobnum(), e);
@@ -451,6 +546,8 @@ class JPredThread extends JWS1Thread implements WSClientI
     }
     else
     {
+      wsInfo.setStatus(wsInfo.STATE_STOPPED_ERROR);
+      wsInfo.appendInfoText("No jobs ran.");
       wsInfo.setFinishedNoResults();
     }
   }
@@ -485,7 +582,8 @@ class JPredThread extends JWS1Thread implements WSClientI
             {
               // do merge with other job results
               throw new Error(
-                      "Multiple JNet subjob merging not yet implemented.");
+                      MessageManager
+                              .getString("error.multiple_jnet_subjob_merge_not_implemented"));
             }
           } catch (Exception e)
           {
@@ -493,9 +591,10 @@ class JPredThread extends JWS1Thread implements WSClientI
                     "JNet Client: JPred Annotation Parse Error", e);
             wsInfo.setStatus(j.getJobnum(),
                     WebserviceInfo.STATE_STOPPED_ERROR);
-            wsInfo.appendProgressText(j.getJobnum(), OutputHeader + "\n"
-                    + j.result.getStatus()
-                    + "\nInvalid JNet job result data!\n" + e.getMessage());
+            wsInfo.appendProgressText(j.getJobnum(), MessageManager
+                    .formatMessage("info.invalid_jnet_job_result_data",
+                            new String[] { OutputHeader.toString(),
+                                j.result.getStatus(), e.getMessage() }));
             j.result.setBroken(true);
           }
         }
@@ -506,6 +605,8 @@ class JPredThread extends JWS1Thread implements WSClientI
         if (newWindow)
         {
           AlignFrame af;
+          ((AlignmentI) res[0]).setSeqrep(((AlignmentI) res[0])
+                  .getSequenceAt(0));
           if (input == null)
           {
             if (res[1] != null)
@@ -563,7 +664,7 @@ class JPredThread extends JWS1Thread implements WSClientI
 
   public void cancelJob()
   {
-    throw new Error("Implementation error!");
+    throw new Error(MessageManager.getString("error.implementation_error"));
   }
 
   public boolean canMergeResults()

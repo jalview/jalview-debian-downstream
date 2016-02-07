@@ -1,30 +1,51 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
+import jalview.datamodel.GraphLine;
+import jalview.schemes.AnnotationColourGradient;
+import jalview.schemes.GraduatedColor;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import jalview.datamodel.*;
-import jalview.schemes.*;
-import java.awt.Rectangle;
+import java.awt.Checkbox;
+import java.awt.Choice;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.GridLayout;
+import java.awt.Label;
+import java.awt.Panel;
+import java.awt.Scrollbar;
+import java.awt.TextField;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.Hashtable;
 
 public class FeatureColourChooser extends Panel implements ActionListener,
         AdjustmentListener, ItemListener, MouseListener
@@ -70,10 +91,10 @@ public class FeatureColourChooser extends Panel implements ActionListener,
   {
     this.type = type;
     fr = frenderer;
-    float mm[] = ((float[][]) fr.minmax.get(type))[0];
+    float mm[] = ((float[][]) fr.getMinMax().get(type))[0];
     min = mm[0];
     max = mm[1];
-    oldcs = fr.featureColours.get(type);
+    oldcs = fr.getFeatureColours().get(type);
     if (oldcs instanceof GraduatedColor)
     {
       cs = new GraduatedColor((GraduatedColor) oldcs, min, max);
@@ -113,7 +134,8 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     slider.addAdjustmentListener(this);
     slider.addMouseListener(this);
     owner = (af != null) ? af : fs.frame;
-    frame = new JVDialog(owner, "Graduated Feature Colour for " + type,
+    frame = new JVDialog(owner, MessageManager.formatMessage(
+            "label.graduated_color_for_params", new String[] { type }),
             true, 480, 248);
     frame.setMainPanel(this);
     validate();
@@ -126,7 +148,7 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     {
       // cancel
       reset();
-      PaintRefresher.Refresh(this, fr.av.getSequenceSetId());
+      PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
       frame.setVisible(false);
     }
   }
@@ -144,7 +166,8 @@ public class FeatureColourChooser extends Panel implements ActionListener,
 
   private void jbInit() throws Exception
   {
-    Label minLabel = new Label("Min:"), maxLabel = new Label("Max:");
+    Label minLabel = new Label(MessageManager.getString("label.min")), maxLabel = new Label(
+            MessageManager.getString("label.max"));
     minLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
     maxLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
     // minColour.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
@@ -168,9 +191,12 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     jPanel2.setBackground(Color.white);
     jPanel4.setBackground(Color.white);
     threshold.addItemListener(this);
-    threshold.addItem("No Threshold");
-    threshold.addItem("Above Threshold");
-    threshold.addItem("Below Threshold");
+    threshold.addItem(MessageManager
+            .getString("label.threshold_feature_no_thereshold"));
+    threshold.addItem(MessageManager
+            .getString("label.threshold_feature_above_thereshold"));
+    threshold.addItem(MessageManager
+            .getString("label.threshold_feature_below_thereshold"));
     thresholdValue.addActionListener(this);
     slider.setBackground(Color.white);
     slider.setEnabled(false);
@@ -183,11 +209,13 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     jPanel3.setBackground(Color.white);
 
     colourFromLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
-    colourFromLabel.setLabel("Colour by Label");
+    colourFromLabel.setLabel(MessageManager
+            .getString("label.colour_by_label"));
     colourFromLabel.setSize(new Dimension(139, 22));
     // threshold.setBounds(new Rectangle(11, 3, 139, 22));
     thresholdIsMin.setBackground(Color.white);
-    thresholdIsMin.setLabel("Threshold is min/max");
+    thresholdIsMin.setLabel(MessageManager
+            .getString("label.threshold_minmax"));
     thresholdIsMin.setSize(new Dimension(135, 23));
     // thresholdIsMin.setBounds(new Rectangle(328, 3, 135, 23));
     jPanel1.add(minLabel);
@@ -279,7 +307,7 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     threshline.value = (float) slider.getValue() / 1000f;
     cs.setThresh(threshline.value);
     changeColour();
-    PaintRefresher.Refresh(this, fr.av.getSequenceSetId());
+    PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
     // ap.paintAlignment(false);
   }
 
@@ -289,7 +317,7 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     {
       UserDefinedColours udc = new UserDefinedColours(this,
               minColour.getBackground(), owner,
-              "Select Colour for Minimum Value"); // frame.owner,
+              MessageManager.getString("label.select_colour_minimum_value")); // frame.owner,
     }
     else
     {
@@ -310,7 +338,7 @@ public class FeatureColourChooser extends Panel implements ActionListener,
       // "Select Colour for Maximum Value",maxColour.getBackground(),true);
       UserDefinedColours udc = new UserDefinedColours(this,
               maxColour.getBackground(), owner,
-              "Select Colour for Maximum Value");
+              MessageManager.getString("label.select_colour_maximum_value"));
     }
     else
     {
@@ -330,11 +358,11 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     }
 
     int aboveThreshold = AnnotationColourGradient.NO_THRESHOLD;
-    if (threshold.getSelectedItem().equals("Above Threshold"))
+    if (threshold.getSelectedIndex() == 1)
     {
       aboveThreshold = AnnotationColourGradient.ABOVE_THRESHOLD;
     }
-    else if (threshold.getSelectedItem().equals("Below Threshold"))
+    else if (threshold.getSelectedIndex() == 2)
     {
       aboveThreshold = AnnotationColourGradient.BELOW_THRESHOLD;
     }
@@ -392,16 +420,16 @@ public class FeatureColourChooser extends Panel implements ActionListener,
       }
     }
 
-    fr.featureColours.put(type, acg);
+    fr.setColour(type, acg);
     cs = acg;
-    PaintRefresher.Refresh(this, fr.av.getSequenceSetId());
+    PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
     // ap.paintAlignment(false);
   }
 
   void reset()
   {
-    fr.featureColours.put(type, oldcs);
-    PaintRefresher.Refresh(this, fr.av.getSequenceSetId());
+    fr.setColour(type, oldcs);
+    PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
     // ap.paintAlignment(true);
 
   }
@@ -423,7 +451,7 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     }
     else
     {
-      PaintRefresher.Refresh(this, fr.av.getSequenceSetId());
+      PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
     }
     // ap.paintAlignment(true);
   }

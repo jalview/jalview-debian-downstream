@@ -1,23 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.commands;
 
-import jalview.datamodel.*;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceI;
+
+import java.util.List;
 
 public class ChangeCaseCommand implements CommandI
 {
@@ -33,10 +39,10 @@ public class ChangeCaseCommand implements CommandI
 
   SequenceI[] seqs;
 
-  int[][] regions;
+  List<int[]> regions;
 
   public ChangeCaseCommand(String description, SequenceI[] seqs,
-          int[][] regions, int caseChange)
+          List<int[]> regions, int caseChange)
   {
     this.description = description;
     this.seqs = seqs;
@@ -70,21 +76,21 @@ public class ChangeCaseCommand implements CommandI
     String sequence;
     int start, end;
     char nextChar;
-    for (int r = 0; r < regions.length; r++)
+    for (int[] r : regions)
     {
-      start = regions[r][0];
+      start = r[0];
       for (int s = 0; s < seqs.length; s++)
       {
         sequence = seqs[s].getSequenceAsString();
         StringBuffer newSeq = new StringBuffer();
 
-        if (regions[r][1] > sequence.length())
+        if (r[1] > sequence.length())
         {
           end = sequence.length();
         }
         else
         {
-          end = regions[r][1];
+          end = r[1];
         }
 
         if (start > 0)

@@ -1,48 +1,49 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package MCview;
 
-import java.util.*;
+import java.util.Vector;
 
 public class Residue
 {
-  Vector atoms = new Vector();
+  Vector<Atom> atoms;
 
   int number;
 
   int count;
 
-  int seqnumber;
-
-  public Residue(Vector atoms, int number, int count)
+  public Residue(Vector<Atom> resAtoms, int number, int count)
   {
-    this.atoms = atoms;
+    this.atoms = resAtoms;
     this.number = number;
     this.count = count;
   }
 
   public Atom findAtom(String name)
   {
-    for (int i = 0; i < atoms.size(); i++)
+    for (Atom atom : atoms)
     {
-      if (((Atom) atoms.elementAt(i)).name.equals(name))
+      if (atom.name.equals(name))
       {
-        return (Atom) atoms.elementAt(i);
+        return atom;
       }
     }
 

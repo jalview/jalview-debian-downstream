@@ -1,25 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.*;
+import jalview.analysis.AlignSeq;
+import jalview.util.StringUtils;
 
-import jalview.analysis.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Vector;
+
+import fr.orsay.lri.varna.models.rna.RNA;
 
 /**
  * 
@@ -28,7 +37,7 @@ import jalview.analysis.*;
  * @author $author$
  * @version $Revision$
  */
-public class Sequence implements SequenceI
+public class Sequence extends ASequence implements SequenceI
 {
   SequenceI datasetSequence;
 
@@ -42,19 +51,28 @@ public class Sequence implements SequenceI
 
   int end;
 
-  Vector pdbIds;
+  Vector<PDBEntry> pdbIds;
 
   String vamsasId;
 
   DBRefEntry[] dbrefs;
 
+  RNA rna;
+
   /**
    * This annotation is displayed below the alignment but the positions are tied
    * to the residues of this sequence
+   *
+   * TODO: change to List<>
    */
-  Vector annotation;
+  Vector<AlignmentAnnotation> annotation;
 
-  /** array of seuqence features - may not be null for a valid sequence object */
+  /**
+   * The index of the sequence in a MSA
+   */
+  int index = -1;
+
+  /** array of sequence features - may not be null for a valid sequence object */
   public SequenceFeature[] sequenceFeatures;
 
   /**
@@ -72,20 +90,30 @@ public class Sequence implements SequenceI
    */
   public Sequence(String name, String sequence, int start, int end)
   {
-    this.name = name;
-    this.sequence = sequence.toCharArray();
-    this.start = start;
-    this.end = end;
-    parseId();
-    checkValidRange();
+    initSeqAndName(name, sequence.toCharArray(), start, end);
   }
 
   public Sequence(String name, char[] sequence, int start, int end)
   {
-    this.name = name;
-    this.sequence = sequence;
-    this.start = start;
-    this.end = end;
+    initSeqAndName(name, sequence, start, end);
+  }
+
+  /**
+   * Stage 1 constructor - assign name, sequence, and set start and end fields.
+   * start and end are updated values from name2 if it ends with /start-end
+   * 
+   * @param name2
+   * @param sequence2
+   * @param start2
+   * @param end2
+   */
+  protected void initSeqAndName(String name2, char[] sequence2, int start2,
+          int end2)
+  {
+    this.name = name2;
+    this.sequence = sequence2;
+    this.start = start2;
+    this.end = end2;
     parseId();
     checkValidRange();
   }
@@ -103,7 +131,7 @@ public class Sequence implements SequenceI
               .println("POSSIBLE IMPLEMENTATION ERROR: null sequence name passed to constructor.");
       name = "";
     }
-    // Does sequence have the /start-end signiature?
+    // Does sequence have the /start-end signature?
     if (limitrx.search(name))
     {
       name = limitrx.left();
@@ -116,7 +144,8 @@ public class Sequence implements SequenceI
 
   void checkValidRange()
   {
-    // Note: JAL-774 : http://issues.jalview.org/browse/JAL-774?focusedCommentId=11239&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-11239
+    // Note: JAL-774 :
+    // http://issues.jalview.org/browse/JAL-774?focusedCommentId=11239&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-11239
     {
       int endRes = 0;
       for (int j = 0; j < sequence.length; j++)
@@ -131,7 +160,8 @@ public class Sequence implements SequenceI
         endRes += start - 1;
       }
 
-      if (end<endRes) { 
+      if (end < endRes)
+      {
         end = endRes;
       }
     }
@@ -176,7 +206,15 @@ public class Sequence implements SequenceI
    */
   public Sequence(SequenceI seq, AlignmentAnnotation[] alAnnotation)
   {
-    this(seq.getName(), seq.getSequence(), seq.getStart(), seq.getEnd());
+    initSeqFrom(seq, alAnnotation);
+
+  }
+
+  protected void initSeqFrom(SequenceI seq,
+          AlignmentAnnotation[] alAnnotation)
+  {
+    initSeqAndName(seq.getName(), seq.getSequence(), seq.getStart(),
+            seq.getEnd());
     description = seq.getDescription();
     if (seq.getSequenceFeatures() != null)
     {
@@ -221,9 +259,9 @@ public class Sequence implements SequenceI
         }
       }
     }
-    if (seq.getPDBId() != null)
+    if (seq.getAllPDBEntries() != null)
     {
-      Vector ids = seq.getPDBId();
+      Vector ids = seq.getAllPDBEntries();
       Enumeration e = ids.elements();
       while (e.hasMoreElements())
       {
@@ -307,24 +345,49 @@ public class Sequence implements SequenceI
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns the sequence features (if any), looking first on the sequence, then
+   * on its dataset sequence, and so on until a non-null value is found (or
+   * none). This supports retrieval of sequence features stored on the sequence
+   * (as in the applet) or on the dataset sequence (as in the Desktop version).
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   public SequenceFeature[] getSequenceFeatures()
   {
-    return sequenceFeatures;
+    SequenceFeature[] features = sequenceFeatures;
+
+    SequenceI seq = this;
+    int count = 0; // failsafe against loop in sequence.datasetsequence...
+    while (features == null && seq.getDatasetSequence() != null
+            && count++ < 10)
+    {
+      seq = seq.getDatasetSequence();
+      features = ((Sequence) seq).sequenceFeatures;
+    }
+    return features;
   }
 
   public void addPDBId(PDBEntry entry)
   {
     if (pdbIds == null)
     {
-      pdbIds = new Vector();
+      pdbIds = new Vector<PDBEntry>();
     }
-    if (!pdbIds.contains(entry))
+    if (pdbIds.contains(entry))
+    {
+      updatePDBEntry(pdbIds.get(pdbIds.indexOf(entry)), entry);
+    }
+    else
     {
       pdbIds.addElement(entry);
+    }
+  }
+
+  private static void updatePDBEntry(PDBEntry oldEntry, PDBEntry newEntry)
+  {
+    if (newEntry.getFile() != null)
+    {
+      oldEntry.setFile(newEntry.getFile());
     }
   }
 
@@ -334,7 +397,8 @@ public class Sequence implements SequenceI
    * @param id
    *          DOCUMENT ME!
    */
-  public void setPDBId(Vector id)
+  @Override
+  public void setPDBId(Vector<PDBEntry> id)
   {
     pdbIds = id;
   }
@@ -344,7 +408,8 @@ public class Sequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
-  public Vector getPDBId()
+  @Override
+  public Vector<PDBEntry> getAllPDBEntries()
   {
     return pdbIds;
   }
@@ -474,7 +539,9 @@ public class Sequence implements SequenceI
   public char[] getSequence(int start, int end)
   {
     if (start < 0)
+    {
       start = 0;
+    }
     // JBPNote - left to user to pad the result here (TODO:Decide on this
     // policy)
     if (start >= sequence.length)
@@ -493,16 +560,7 @@ public class Sequence implements SequenceI
     return reply;
   }
 
-  /**
-   * make a new Sequence object from start to end (including gaps) over this
-   * seqeunce
-   * 
-   * @param start
-   *          int
-   * @param end
-   *          int
-   * @return SequenceI
-   */
+  @Override
   public SequenceI getSubSequence(int start, int end)
   {
     if (start < 0)
@@ -571,13 +629,10 @@ public class Sequence implements SequenceI
     return this.description;
   }
 
-  /**
-   * Return the alignment position for a sequence position
+  /*
+   * (non-Javadoc)
    * 
-   * @param pos
-   *          lying from start to end
-   * 
-   * @return aligned position of residue pos
+   * @see jalview.datamodel.SequenceI#findIndex(int)
    */
   public int findIndex(int pos)
   {
@@ -605,14 +660,7 @@ public class Sequence implements SequenceI
     }
   }
 
-  /**
-   * Returns the sequence position for an alignment position
-   * 
-   * @param i
-   *          column index in alignment (from 1)
-   * 
-   * @return residue number for residue (left of and) nearest ith column
-   */
+  @Override
   public int findPosition(int i)
   {
     int j = 0;
@@ -659,11 +707,7 @@ public class Sequence implements SequenceI
     return map;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.SequenceI#findPositionMap()
-   */
+  @Override
   public int[] findPositionMap()
   {
     int map[] = new int[sequence.length];
@@ -683,33 +727,55 @@ public class Sequence implements SequenceI
     return map;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.SequenceI#deleteChars(int, int)
-   */
+  @Override
+  public List<int[]> getInsertions()
+  {
+    ArrayList<int[]> map = new ArrayList<int[]>();
+    int lastj = -1, j = 0;
+    int pos = start;
+    int seqlen = sequence.length;
+    while ((j < seqlen))
+    {
+      if (jalview.util.Comparison.isGap(sequence[j]))
+      {
+        if (lastj == -1)
+        {
+          lastj = j;
+        }
+      }
+      else
+      {
+        if (lastj != -1)
+        {
+          map.add(new int[] { lastj, j - 1 });
+          lastj = -1;
+        }
+      }
+      j++;
+    }
+    if (lastj != -1)
+    {
+      map.add(new int[] { lastj, j - 1 });
+      lastj = -1;
+    }
+    return map;
+  }
+
+  @Override
   public void deleteChars(int i, int j)
   {
     int newstart = start, newend = end;
-    if (i >= sequence.length)
+    if (i >= sequence.length || i < 0)
     {
       return;
     }
 
-    char[] tmp;
-
-    if (j >= sequence.length)
-    {
-      tmp = new char[i];
-      System.arraycopy(sequence, 0, tmp, 0, i);
-    }
-    else
-    {
-      tmp = new char[sequence.length - j + i];
-      System.arraycopy(sequence, 0, tmp, 0, i);
-      System.arraycopy(sequence, j, tmp, i, sequence.length - j);
-    }
+    char[] tmp = StringUtils.deleteChars(sequence, i, j);
     boolean createNewDs = false;
+    // TODO: take a (second look) at the dataset creation validation method for
+    // the very large sequence case
+    int eindex = -1, sindex = -1;
+    boolean ecalc = false, scalc = false;
     for (int s = i; s < j; s++)
     {
       if (jalview.schemes.ResidueProperties.aaIndex[sequence[s]] != 23)
@@ -720,7 +786,11 @@ public class Sequence implements SequenceI
         }
         else
         {
-          int sindex = findIndex(start) - 1;
+          if (!scalc)
+          {
+            sindex = findIndex(start) - 1;
+            scalc = true;
+          }
           if (sindex == s)
           {
             // delete characters including start of sequence
@@ -730,7 +800,11 @@ public class Sequence implements SequenceI
           else
           {
             // delete characters after start.
-            int eindex = findIndex(end) - 1;
+            if (!ecalc)
+            {
+              eindex = findIndex(end) - 1;
+              ecalc = true;
+            }
             if (eindex < j)
             {
               // delete characters at end of sequence
@@ -762,16 +836,7 @@ public class Sequence implements SequenceI
     sequence = tmp;
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param i
-   *          DOCUMENT ME!
-   * @param c
-   *          DOCUMENT ME!
-   * @param chop
-   *          DOCUMENT ME!
-   */
+  @Override
   public void insertCharAt(int i, int length, char c)
   {
     char[] tmp = new char[sequence.length + length];
@@ -801,26 +866,31 @@ public class Sequence implements SequenceI
     sequence = tmp;
   }
 
+  @Override
   public void insertCharAt(int i, char c)
   {
     insertCharAt(i, 1, c);
   }
 
+  @Override
   public String getVamsasId()
   {
     return vamsasId;
   }
 
+  @Override
   public void setVamsasId(String id)
   {
     vamsasId = id;
   }
 
+  @Override
   public void setDBRef(DBRefEntry[] dbref)
   {
     dbrefs = dbref;
   }
 
+  @Override
   public DBRefEntry[] getDBRef()
   {
     if (dbrefs == null && datasetSequence != null
@@ -831,6 +901,7 @@ public class Sequence implements SequenceI
     return dbrefs;
   }
 
+  @Override
   public void addDBRef(DBRefEntry entry)
   {
     if (dbrefs == null)
@@ -863,40 +934,42 @@ public class Sequence implements SequenceI
     dbrefs = temp;
   }
 
+  @Override
   public void setDatasetSequence(SequenceI seq)
   {
     datasetSequence = seq;
   }
 
+  @Override
   public SequenceI getDatasetSequence()
   {
     return datasetSequence;
   }
 
+  @Override
   public AlignmentAnnotation[] getAnnotation()
   {
-    if (annotation == null)
-    {
-      return null;
-    }
-
-    AlignmentAnnotation[] ret = new AlignmentAnnotation[annotation.size()];
-    for (int r = 0; r < ret.length; r++)
-    {
-      ret[r] = (AlignmentAnnotation) annotation.elementAt(r);
-    }
-
-    return ret;
+    return annotation == null ? null : annotation
+            .toArray(new AlignmentAnnotation[annotation.size()]);
   }
 
+  @Override
+  public boolean hasAnnotation(AlignmentAnnotation ann)
+  {
+    return annotation == null ? false : annotation.contains(ann);
+  }
+
+  @Override
   public void addAlignmentAnnotation(AlignmentAnnotation annotation)
   {
     if (this.annotation == null)
     {
-      this.annotation = new Vector();
+      this.annotation = new Vector<AlignmentAnnotation>();
     }
-
-    this.annotation.addElement(annotation);
+    if (!this.annotation.contains(annotation))
+    {
+      this.annotation.addElement(annotation);
+    }
     annotation.setSequenceRef(this);
   }
 
@@ -906,7 +979,9 @@ public class Sequence implements SequenceI
     {
       this.annotation.removeElement(annotation);
       if (this.annotation.size() == 0)
+      {
         this.annotation = null;
+      }
     }
   }
 
@@ -930,11 +1005,7 @@ public class Sequence implements SequenceI
     return true;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.SequenceI#deriveSequence()
-   */
+  @Override
   public SequenceI deriveSequence()
   {
     SequenceI seq = new Sequence(this);
@@ -982,9 +1053,20 @@ public class Sequence implements SequenceI
       // move database references onto dataset sequence
       datasetSequence.setDBRef(getDBRef());
       setDBRef(null);
-      datasetSequence.setPDBId(getPDBId());
+      datasetSequence.setPDBId(getAllPDBEntries());
       setPDBId(null);
       datasetSequence.updatePDBIds();
+      if (annotation != null)
+      {
+        for (AlignmentAnnotation aa : annotation)
+        {
+          AlignmentAnnotation _aa = new AlignmentAnnotation(aa);
+          _aa.sequenceRef = datasetSequence;
+          _aa.adjustForAlignment(); // uses annotation's own record of
+                                    // sequence-column mapping
+          datasetSequence.addAlignmentAnnotation(_aa);
+        }
+      }
     }
     return datasetSequence;
   }
@@ -1007,16 +1089,14 @@ public class Sequence implements SequenceI
       for (int i = 0; i < annotations.length; i++)
       {
         if (annotations[i] != null)
+        {
           addAlignmentAnnotation(annotations[i]);
+        }
       }
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.SequenceI#getAnnotation(java.lang.String)
-   */
+  @Override
   public AlignmentAnnotation[] getAnnotation(String label)
   {
     if (annotation == null || annotation.size() == 0)
@@ -1049,6 +1129,7 @@ public class Sequence implements SequenceI
     return anns;
   }
 
+  @Override
   public boolean updatePDBIds()
   {
     if (datasetSequence != null)
@@ -1102,13 +1183,7 @@ public class Sequence implements SequenceI
     return false;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * jalview.datamodel.SequenceI#transferAnnotation(jalview.datamodel.SequenceI,
-   * jalview.datamodel.Mapping)
-   */
+  @Override
   public void transferAnnotation(SequenceI entry, Mapping mp)
   {
     if (datasetSequence != null)
@@ -1129,8 +1204,7 @@ public class Sequence implements SequenceI
       for (int si = 0; si < sfs.length; si++)
       {
         SequenceFeature sf[] = (mp != null) ? mp.locateFeature(sfs[si])
-                : new SequenceFeature[]
-                { new SequenceFeature(sfs[si]) };
+                : new SequenceFeature[] { new SequenceFeature(sfs[si]) };
         if (sf != null && sf.length > 0)
         {
           for (int sfi = 0; sfi < sf.length; sfi++)
@@ -1142,9 +1216,9 @@ public class Sequence implements SequenceI
     }
 
     // transfer PDB entries
-    if (entry.getPDBId() != null)
+    if (entry.getAllPDBEntries() != null)
     {
-      Enumeration e = entry.getPDBId().elements();
+      Enumeration e = entry.getAllPDBEntries().elements();
       while (e.hasMoreElements())
       {
         PDBEntry pdb = (PDBEntry) e.nextElement();
@@ -1170,6 +1244,81 @@ public class Sequence implements SequenceI
         addDBRef(newref);
       }
     }
+  }
+
+  /**
+   * @return The index (zero-based) on this sequence in the MSA. It returns
+   *         {@code -1} if this information is not available.
+   */
+  public int getIndex()
+  {
+    return index;
+  }
+
+  /**
+   * Defines the position of this sequence in the MSA. Use the value {@code -1}
+   * if this information is undefined.
+   * 
+   * @param The
+   *          position for this sequence. This value is zero-based (zero for
+   *          this first sequence)
+   */
+  public void setIndex(int value)
+  {
+    index = value;
+  }
+
+  public void setRNA(RNA r)
+  {
+    rna = r;
+  }
+
+  public RNA getRNA()
+  {
+    return rna;
+  }
+
+  @Override
+  public List<AlignmentAnnotation> getAlignmentAnnotations(String calcId,
+          String label)
+  {
+    List<AlignmentAnnotation> result = new ArrayList<AlignmentAnnotation>();
+    if (this.annotation != null)
+    {
+      for (AlignmentAnnotation ann : annotation)
+      {
+        if (ann.calcId != null && ann.calcId.equals(calcId)
+                && ann.label != null && ann.label.equals(label))
+        {
+          result.add(ann);
+        }
+      }
+    }
+    return result;
+  }
+
+  public String toString()
+  {
+    return getDisplayId(false);
+  }
+
+  @Override
+  public PDBEntry getPDBEntry(String pdbIdStr)
+  {
+    if (getDatasetSequence() == null
+            || getDatasetSequence().getAllPDBEntries() == null)
+    {
+      return null;
+    }
+    List<PDBEntry> entries = getDatasetSequence().getAllPDBEntries();
+    for (PDBEntry entry : entries)
+    {
+      if (entry.getId().equalsIgnoreCase(pdbIdStr))
+      {
+        return entry;
+      }
+    }
+    return null;
   }
 
 }

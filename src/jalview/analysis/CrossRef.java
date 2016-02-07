@@ -1,35 +1,39 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.analysis;
-
-import java.util.Enumeration;
-import java.util.Vector;
-import java.util.Hashtable;
 
 import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.DBRefSource;
 import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
+import jalview.util.DBRefUtils;
 import jalview.ws.SequenceFetcher;
 import jalview.ws.seqfetcher.ASequenceFetcher;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Vector;
 
 /**
  * Functions for cross-referencing sequence databases. user must first specify
@@ -41,39 +45,22 @@ import jalview.ws.seqfetcher.ASequenceFetcher;
 public class CrossRef
 {
   /**
-   * get the DNA or protein references for a protein or dna sequence
+   * Select just the DNA or protein references for a protein or dna sequence
    * 
-   * @param dna
-   * @param rfs
+   * @param fromDna
+   *          if true, select references from DNA (i.e. Protein databases), else
+   *          DNA database references
+   * @param refs
+   *          a set of references to select from
    * @return
    */
-  public static DBRefEntry[] findXDbRefs(boolean dna, DBRefEntry[] rfs)
+  public static DBRefEntry[] findXDbRefs(boolean fromDna, DBRefEntry[] refs)
   {
-    if (dna)
-    {
-      rfs = jalview.util.DBRefUtils.selectRefs(rfs, DBRefSource.PROTEINDBS);
-    }
-    else
-    {
-      rfs = jalview.util.DBRefUtils.selectRefs(rfs,
-              DBRefSource.DNACODINGDBS); // could attempt to find other cross
-      // refs and return here - ie PDB xrefs
-      // (not dna, not protein seq)
-    }
-    return rfs;
-  }
-
-  public static Hashtable classifyDbRefs(DBRefEntry[] rfs)
-  {
-    Hashtable classes = new Hashtable();
-    classes.put(DBRefSource.PROTEINDBS,
-            jalview.util.DBRefUtils.selectRefs(rfs, DBRefSource.PROTEINDBS));
-    classes.put(DBRefSource.DNACODINGDBS, jalview.util.DBRefUtils
-            .selectRefs(rfs, DBRefSource.DNACODINGDBS));
-    classes.put(DBRefSource.DOMAINDBS,
-            jalview.util.DBRefUtils.selectRefs(rfs, DBRefSource.DOMAINDBS));
-    // classes.put(OTHER, )
-    return classes;
+    return DBRefUtils.selectRefs(refs, fromDna ? DBRefSource.PROTEINDBS
+            : DBRefSource.DNACODINGDBS);
+    // could attempt to find other cross
+    // refs here - ie PDB xrefs
+    // (not dna, not protein seq)
   }
 
   /**
@@ -100,12 +87,11 @@ public class CrossRef
           SequenceI[] seqs, AlignmentI dataset)
   {
     String[] dbrefs = null;
-    Vector refs = new Vector();
+    List<String> refs = new ArrayList<String>();
     for (int s = 0; s < seqs.length; s++)
     {
       if (seqs[s] != null)
       {
-
         SequenceI dss = seqs[s];
         while (dss.getDatasetSequence() != null)
         {
@@ -116,7 +102,7 @@ public class CrossRef
         {
           if (!refs.contains(rfs[r].getSource()))
           {
-            refs.addElement(rfs[r].getSource());
+            refs.add(rfs[r].getSource());
           }
         }
         if (dataset != null)
@@ -124,19 +110,17 @@ public class CrossRef
           // search for references to this sequence's direct references.
           DBRefEntry[] lrfs = CrossRef
                   .findXDbRefs(!dna, seqs[s].getDBRef());
-          Vector rseqs = new Vector();
+          List<SequenceI> rseqs = new ArrayList<SequenceI>();
           CrossRef.searchDatasetXrefs(seqs[s], !dna, lrfs, dataset, rseqs,
                   null); // don't need to specify codon frame for mapping here
-          Enumeration lr = rseqs.elements();
-          while (lr.hasMoreElements())
+          for (SequenceI rs : rseqs)
           {
-            SequenceI rs = (SequenceI) lr.nextElement();
-            DBRefEntry[] xrs = findXDbRefs(dna, rs.getDBRef());
+            DBRefEntry[] xrs = findXDbRefs(dna, rs.getDBRef()); // not used??
             for (int r = 0; rfs != null && r < rfs.length; r++)
             {
               if (!refs.contains(rfs[r].getSource()))
               {
-                refs.addElement(rfs[r].getSource());
+                refs.add(rfs[r].getSource());
               }
             }
           }
@@ -146,7 +130,7 @@ public class CrossRef
     if (refs.size() > 0)
     {
       dbrefs = new String[refs.size()];
-      refs.copyInto(dbrefs);
+      refs.toArray(dbrefs);
     }
     return dbrefs;
   }
@@ -224,9 +208,9 @@ public class CrossRef
   public static Alignment findXrefSequences(SequenceI[] seqs, boolean dna,
           String source, AlignmentI dataset)
   {
-    Vector rseqs = new Vector();
+    List<SequenceI> rseqs = new ArrayList<SequenceI>();
     Alignment ral = null;
-    AlignedCodonFrame cf = new AlignedCodonFrame(0); // nominal width
+    AlignedCodonFrame cf = new AlignedCodonFrame(); // nominal width
     for (int s = 0; s < seqs.length; s++)
     {
       SequenceI dss = seqs[s];
@@ -239,14 +223,8 @@ public class CrossRef
       if ((xrfs == null || xrfs.length == 0) && dataset != null)
       {
         System.out.println("Attempting to find ds Xrefs refs.");
-        DBRefEntry[] lrfs = CrossRef.findXDbRefs(!dna, seqs[s].getDBRef()); // less
-        // ambiguous
-        // would
-        // be a
-        // 'find
-        // primary
-        // dbRefEntry'
-        // method.
+        DBRefEntry[] lrfs = CrossRef.findXDbRefs(!dna, seqs[s].getDBRef());
+        // less ambiguous would be a 'find primary dbRefEntry' method.
         // filter for desired source xref here
         found = CrossRef.searchDatasetXrefs(dss, !dna, lrfs, dataset,
                 rseqs, cf);
@@ -254,13 +232,15 @@ public class CrossRef
       for (int r = 0; xrfs != null && r < xrfs.length; r++)
       {
         if (source != null && !source.equals(xrfs[r].getSource()))
+        {
           continue;
+        }
         if (xrfs[r].hasMap())
         {
           if (xrfs[r].getMap().getTo() != null)
           {
-            Sequence rsq = new Sequence(xrfs[r].getMap().getTo());
-            rseqs.addElement(rsq);
+            SequenceI rsq = new Sequence(xrfs[r].getMap().getTo());
+            rseqs.add(rsq);
             if (xrfs[r].getMap().getMap().getFromRatio() != xrfs[r]
                     .getMap().getMap().getToRatio())
             {
@@ -287,7 +267,9 @@ public class CrossRef
           {
             found |= searchDataset(dss, xrfs[r], dataset, rseqs, cf); // ,false,!dna);
             if (found)
+            {
               xrfs[r] = null; // we've recovered seqs for this one.
+            }
           }
         }
       }
@@ -324,7 +306,9 @@ public class CrossRef
             for (int r = 0; r < xrfs.length; r++)
             {
               if (xrfs[r] != null)
+              {
                 t[l++] = xrfs[r];
+              }
             }
             xrfs = t;
             try
@@ -391,7 +375,7 @@ public class CrossRef
                   }
                 }
                 retrieved[rs].updatePDBIds();
-                rseqs.addElement(retrieved[rs]);
+                rseqs.add(retrieved[rs]);
               }
             }
           }
@@ -401,7 +385,7 @@ public class CrossRef
     if (rseqs.size() > 0)
     {
       SequenceI[] rsqs = new SequenceI[rseqs.size()];
-      rseqs.copyInto(rsqs);
+      rseqs.toArray(rsqs);
       ral = new Alignment(rsqs);
       if (cf != null && cf.getProtMappings() != null)
       {
@@ -423,12 +407,14 @@ public class CrossRef
    * @return true if matches were found.
    */
   private static boolean searchDatasetXrefs(SequenceI sequenceI,
-          boolean dna, DBRefEntry[] lrfs, AlignmentI dataset, Vector rseqs,
-          AlignedCodonFrame cf)
+          boolean dna, DBRefEntry[] lrfs, AlignmentI dataset,
+          List<SequenceI> rseqs, AlignedCodonFrame cf)
   {
     boolean found = false;
     if (lrfs == null)
+    {
       return false;
+    }
     for (int i = 0; i < lrfs.length; i++)
     {
       DBRefEntry xref = new DBRefEntry(lrfs[i]);
@@ -453,7 +439,7 @@ public class CrossRef
    * @return true if one or more unique sequences were found and added
    */
   public static boolean searchDataset(SequenceI sequenceI, DBRefEntry xrf,
-          AlignmentI dataset, Vector rseqs, AlignedCodonFrame cf)
+          AlignmentI dataset, List<SequenceI> rseqs, AlignedCodonFrame cf)
   {
     return searchDataset(sequenceI, xrf, dataset, rseqs, cf, true, false);
   }
@@ -474,89 +460,95 @@ public class CrossRef
    * @return true if relationship found and sequence added.
    */
   public static boolean searchDataset(SequenceI sequenceI, DBRefEntry xrf,
-          AlignmentI dataset, Vector rseqs, AlignedCodonFrame cf,
+          AlignmentI dataset, List<SequenceI> rseqs, AlignedCodonFrame cf,
           boolean direct, boolean dna)
   {
     boolean found = false;
     SequenceI[] typer = new SequenceI[1];
     if (dataset == null)
+    {
       return false;
+    }
     if (dataset.getSequences() == null)
     {
       System.err.println("Empty dataset sequence set - NO VECTOR");
       return false;
     }
-    Enumeration e = dataset.getSequences().elements();
-    while (e.hasMoreElements())
+    List<SequenceI> ds;
+    synchronized (ds = dataset.getSequences())
     {
-      SequenceI nxt = (SequenceI) e.nextElement();
-      if (nxt != null)
+      for (SequenceI nxt : ds)
       {
-        if (nxt.getDatasetSequence() != null)
+        if (nxt != null)
         {
-          System.err
-                  .println("Implementation warning: getProducts passed a dataset alignment without dataset sequences in it!");
-        }
-        if (nxt != sequenceI && nxt != sequenceI.getDatasetSequence())
-        {
-          // check if this is the correct sequence type
+          if (nxt.getDatasetSequence() != null)
           {
-            typer[0] = nxt;
-            boolean isDna = jalview.util.Comparison.isNucleotide(typer);
-            if ((direct && isDna == dna) || (!direct && isDna != dna))
+            System.err
+                    .println("Implementation warning: getProducts passed a dataset alignment without dataset sequences in it!");
+          }
+          if (nxt != sequenceI && nxt != sequenceI.getDatasetSequence())
+          {
+            // check if this is the correct sequence type
             {
-              // skip this sequence because it is same molecule type
-              continue;
-            }
-          }
-
-          // look for direct or indirect references in common
-          DBRefEntry[] poss = nxt.getDBRef(), cands = null;
-          if (direct)
-          {
-            cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
-          }
-          else
-          {
-            poss = CrossRef.findXDbRefs(dna, poss); //
-            cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
-          }
-          if (cands != null)
-          {
-            if (!rseqs.contains(nxt))
-            {
-              rseqs.addElement(nxt);
-              boolean foundmap = cf != null; // don't search if we aren't given
-              // a codon map object
-              for (int r = 0; foundmap && r < cands.length; r++)
+              typer[0] = nxt;
+              boolean isDna = jalview.util.Comparison.isNucleotide(typer);
+              if ((direct && isDna == dna) || (!direct && isDna != dna))
               {
-                if (cands[r].hasMap())
+                // skip this sequence because it is same molecule type
+                continue;
+              }
+            }
+
+            // look for direct or indirect references in common
+            DBRefEntry[] poss = nxt.getDBRef(), cands = null;
+            if (direct)
+            {
+              cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
+            }
+            else
+            {
+              poss = CrossRef.findXDbRefs(dna, poss); //
+              cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
+            }
+            if (cands != null)
+            {
+              if (!rseqs.contains(nxt))
+              {
+                rseqs.add(nxt);
+                boolean foundmap = cf != null;
+                // don't search if we aren't given a codon map object
+                for (int r = 0; foundmap && r < cands.length; r++)
                 {
-                  if (cands[r].getMap().getTo() != null
-                          && cands[r].getMap().getMap().getFromRatio() != cands[r]
-                                  .getMap().getMap().getToRatio())
+                  if (cands[r].hasMap())
                   {
-                    foundmap = true;
-                    // get sense of map correct for adding to product alignment.
-                    if (dna)
+                    if (cands[r].getMap().getTo() != null
+                            && cands[r].getMap().getMap().getFromRatio() != cands[r]
+                                    .getMap().getMap().getToRatio())
                     {
-                      // map is from dna seq to a protein product
-                      cf.addMap(sequenceI, nxt, cands[r].getMap().getMap());
-                    }
-                    else
-                    {
-                      // map should be from protein seq to its coding dna
-                      cf.addMap(nxt, sequenceI, cands[r].getMap().getMap()
-                              .getInverse());
+                      foundmap = true;
+                      // get sense of map correct for adding to product
+                      // alignment.
+                      if (dna)
+                      {
+                        // map is from dna seq to a protein product
+                        cf.addMap(sequenceI, nxt, cands[r].getMap()
+                                .getMap());
+                      }
+                      else
+                      {
+                        // map should be from protein seq to its coding dna
+                        cf.addMap(nxt, sequenceI, cands[r].getMap()
+                                .getMap().getInverse());
+                      }
                     }
                   }
                 }
+                // TODO: add mapping between sequences if necessary
+                found = true;
               }
-              // TODO: add mapping between sequences if necessary
-              found = true;
             }
-          }
 
+          }
         }
       }
     }

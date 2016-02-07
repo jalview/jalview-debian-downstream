@@ -175,8 +175,8 @@ public class Skip
       else if (p instanceof Or
               && ((Or) p).v.size() == 1
               && !((Or) p).leftForm().equals("(?!")
-              && null != (subsk = findSkip((Pattern) ((Or) p).v
-                      .elementAt(0), ignoreCase, trnc)))
+              && null != (subsk = findSkip(
+                      (Pattern) ((Or) p).v.elementAt(0), ignoreCase, trnc)))
       {
         subsk.offset += offset;
         return subsk;

@@ -1,29 +1,53 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import jalview.analysis.Conservation;
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.Annotation;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.GraphLine;
+import jalview.datamodel.HiddenSequences;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.ResidueProperties;
+import jalview.schemes.UserColourScheme;
 
-import jalview.analysis.*;
-import jalview.datamodel.*;
-import jalview.schemes.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
 public class AnnotationFile
 {
@@ -57,25 +81,25 @@ public class AnnotationFile
 
   private void init()
   {
-    text = new StringBuffer("JALVIEW_ANNOTATION"+newline + "# Created: "
+    text = new StringBuffer("JALVIEW_ANNOTATION" + newline + "# Created: "
             + new java.util.Date() + newline + newline);
     refSeq = null;
     refSeqId = null;
   }
 
   /**
-   * convenience method for pre-2.4 feature files which have no view, hidden
+   * convenience method for pre-2.9 annotation files which have no view, hidden
    * columns or hidden row keywords.
    * 
    * @param annotations
-   * @param groups
+   * @param list
    * @param properties
-   * @return feature file as a string.
+   * @return annotation file as a string.
    */
   public String printAnnotations(AlignmentAnnotation[] annotations,
-          Vector groups, Hashtable properties)
+          List<SequenceGroup> list, Hashtable properties)
   {
-    return printAnnotations(annotations, groups, properties, null);
+    return printAnnotations(annotations, list, properties, null, null, null);
 
   }
 
@@ -110,16 +134,62 @@ public class AnnotationFile
    * properties and views.
    * 
    * @param annotations
-   * @param groups
+   * @param list
    * @param properties
    * @param views
    * @return annotation file
    */
   public String printAnnotations(AlignmentAnnotation[] annotations,
-          Vector groups, Hashtable properties, ViewDef[] views)
+          List<SequenceGroup> list, Hashtable properties,
+          ColumnSelection cs, AlignmentI al, ViewDef view)
   {
-    // TODO: resolve views issue : annotationFile could contain visible region,
-    // or full data + hidden region specifications for a view.
+    if (view != null)
+    {
+      if (view.viewname != null)
+      {
+        text.append("VIEW_DEF\t" + view.viewname + "\n");
+      }
+      if (list == null)
+      {
+        list = view.visibleGroups;
+      }
+      if (cs == null)
+      {
+        cs = view.hiddencols;
+      }
+      if (al == null)
+      {
+        // add hidden rep sequences.
+      }
+    }
+    // first target - store and restore all settings for a view.
+    if (al != null && al.hasSeqrep())
+    {
+      text.append("VIEW_SETREF\t" + al.getSeqrep().getName() + "\n");
+    }
+    if (cs != null && cs.hasHiddenColumns())
+    {
+      text.append("VIEW_HIDECOLS\t");
+      List<int[]> hc = cs.getHiddenColumns();
+      boolean comma = false;
+      for (int[] r : hc)
+      {
+        if (!comma)
+        {
+          comma = true;
+        }
+        else
+        {
+          text.append(",");
+        }
+        text.append(r[0]);
+        text.append("-");
+        text.append(r[1]);
+      }
+      text.append("\n");
+    }
+    // TODO: allow efficient recovery of annotation data shown in several
+    // different views
     if (annotations != null)
     {
       boolean oneColour = true;
@@ -131,7 +201,9 @@ public class AnnotationFile
       StringBuffer colours = new StringBuffer();
       StringBuffer graphLine = new StringBuffer();
       StringBuffer rowprops = new StringBuffer();
-      Hashtable graphGroup = new Hashtable();
+      Hashtable<Integer, String> graphGroup = new Hashtable<Integer, String>();
+      Hashtable<Integer, Object[]> graphGroup_refs = new Hashtable<Integer, Object[]>();
+      BitSet graphGroupSeen = new BitSet();
 
       java.awt.Color color;
 
@@ -139,7 +211,10 @@ public class AnnotationFile
       {
         row = annotations[i];
 
-        if (!row.visible && !row.hasScore())
+        if (!row.visible
+                && !row.hasScore()
+                && !(row.graphGroup > -1 && graphGroupSeen
+                        .get(row.graphGroup)))
         {
           continue;
         }
@@ -147,53 +222,12 @@ public class AnnotationFile
         color = null;
         oneColour = true;
 
-        if (row.sequenceRef == null)
-        {
-          if (refSeq != null)
-          {
-            text.append(newline);
-            text.append("SEQUENCE_REF\tALIGNMENT");
-            text.append(newline);
-          }
-
-          refSeq = null;
-        }
-
-        else
-        {
-          if (refSeq == null || refSeq != row.sequenceRef)
-          {
-            refSeq = row.sequenceRef;
-            text.append(newline);
-            text.append("SEQUENCE_REF\t");
-            text.append(refSeq.getName());
-            text.append(newline);
-          }
-        }
+        // mark any sequence references for the row
+        writeSequence_Ref(refSeq, row.sequenceRef);
+        refSeq = row.sequenceRef;
         // mark any group references for the row
-        if (row.groupRef == null)
-        {
-
-          if (refGroup != null)
-          {
-            text.append(newline);
-            text.append("GROUP_REF\tALIGNMENT");
-            text.append(newline);
-          }
-
-          refGroup = null;
-        }
-        else
-        {
-          if (refGroup == null || refGroup != row.groupRef)
-          {
-            refGroup = row.groupRef;
-            text.append(newline);
-            text.append("GROUP_REF\t");
-            text.append(refGroup.getName());
-            text.append(newline);
-          }
-        }
+        writeGroup_Ref(refGroup, row.groupRef);
+        refGroup = row.groupRef;
 
         boolean hasGlyphs = row.hasIcons, hasLabels = row.hasText, hasValues = row.hasScore, hasText = false;
         // lookahead to check what the annotation row object actually contains.
@@ -207,7 +241,7 @@ public class AnnotationFile
                     && row.annotations[j].displayCharacter.length() > 0 && !row.annotations[j].displayCharacter
                     .equals(" "));
             hasGlyphs |= (row.annotations[j].secondaryStructure != 0 && row.annotations[j].secondaryStructure != ' ');
-            hasValues |= (row.annotations[j].value != Float.NaN); // NaNs can't
+            hasValues |= (!Float.isNaN(row.annotations[j].value)); // NaNs can't
             // be
             // rendered..
             hasText |= (row.annotations[j].description != null && row.annotations[j].description
@@ -251,13 +285,16 @@ public class AnnotationFile
 
           if (row.graphGroup > -1)
           {
-            String key = String.valueOf(row.graphGroup);
+            graphGroupSeen.set(row.graphGroup);
+            Integer key = new Integer(row.graphGroup);
             if (graphGroup.containsKey(key))
             {
               graphGroup.put(key, graphGroup.get(key) + "\t" + row.label);
+
             }
             else
             {
+              graphGroup_refs.put(key, new Object[] { refSeq, refGroup });
               graphGroup.put(key, row.label);
             }
           }
@@ -293,13 +330,13 @@ public class AnnotationFile
             }
             if (hasValues)
             {
-              if (row.annotations[j].value != Float.NaN)
+              if (!Float.isNaN(row.annotations[j].value))
               {
                 text.append(comma + row.annotations[j].value);
               }
               else
               {
-                System.err.println("Skipping NaN - not valid value.");
+                // System.err.println("Skipping NaN - not valid value.");
                 text.append(comma + 0f);// row.annotations[j].value);
               }
               comma = ",";
@@ -349,7 +386,9 @@ public class AnnotationFile
         }
 
         if (row.hasScore())
+        {
           text.append("\t" + row.score);
+        }
 
         text.append(newline);
 
@@ -374,28 +413,47 @@ public class AnnotationFile
           rowprops.append(row.centreColLabels);
           rowprops.append(newline);
         }
+        if (graphLine.length() > 0)
+        {
+          text.append(graphLine.toString());
+          graphLine.setLength(0);
+        }
       }
 
       text.append(newline);
 
       text.append(colours.toString());
-      text.append(graphLine.toString());
       if (graphGroup.size() > 0)
       {
-        text.append("COMBINE\t");
-        Enumeration en = graphGroup.elements();
-        while (en.hasMoreElements())
+        SequenceI oldRefSeq = refSeq;
+        SequenceGroup oldRefGroup = refGroup;
+        for (Map.Entry<Integer, String> combine_statement : graphGroup
+                .entrySet())
         {
-          text.append(en.nextElement());
+          Object[] seqRefAndGroup = graphGroup_refs.get(combine_statement
+                  .getKey());
+
+          writeSequence_Ref(refSeq, (SequenceI) seqRefAndGroup[0]);
+          refSeq = (SequenceI) seqRefAndGroup[0];
+
+          writeGroup_Ref(refGroup, (SequenceGroup) seqRefAndGroup[1]);
+          refGroup = (SequenceGroup) seqRefAndGroup[1];
+          text.append("COMBINE\t");
+          text.append(combine_statement.getValue());
           text.append(newline);
         }
+        writeSequence_Ref(refSeq, oldRefSeq);
+        refSeq = oldRefSeq;
+
+        writeGroup_Ref(refGroup, oldRefGroup);
+        refGroup = oldRefGroup;
       }
       text.append(rowprops.toString());
     }
 
-    if (groups != null)
+    if (list != null)
     {
-      printGroups(groups);
+      printGroups(list);
     }
 
     if (properties != null)
@@ -413,19 +471,76 @@ public class AnnotationFile
         text.append(properties.get(key));
       }
       // TODO: output alignment visualization settings here if required
-
+      // iterate through one or more views, defining, marking columns and rows
+      // as visible/hidden, and emmitting view properties.
+      // View specific annotation is
     }
 
     return text.toString();
   }
 
-  public void printGroups(Vector sequenceGroups)
+  private Object writeGroup_Ref(SequenceGroup refGroup,
+          SequenceGroup next_refGroup)
   {
-    SequenceGroup sg;
-    SequenceI seqrep = null;
-    for (int i = 0; i < sequenceGroups.size(); i++)
+    if (next_refGroup == null)
     {
-      sg = (SequenceGroup) sequenceGroups.elementAt(i);
+
+      if (refGroup != null)
+      {
+        text.append(newline);
+        text.append("GROUP_REF\t");
+        text.append("ALIGNMENT");
+        text.append(newline);
+      }
+      return true;
+    }
+    else
+    {
+      if (refGroup == null || refGroup != next_refGroup)
+      {
+        text.append(newline);
+        text.append("GROUP_REF\t");
+        text.append(next_refGroup.getName());
+        text.append(newline);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean writeSequence_Ref(SequenceI refSeq, SequenceI next_refSeq)
+  {
+
+    if (next_refSeq == null)
+    {
+      if (refSeq != null)
+      {
+        text.append(newline);
+        text.append("SEQUENCE_REF\t");
+        text.append("ALIGNMENT");
+        text.append(newline);
+        return true;
+      }
+    }
+    else
+    {
+      if (refSeq == null || refSeq != next_refSeq)
+      {
+        text.append(newline);
+        text.append("SEQUENCE_REF\t");
+        text.append(next_refSeq.getName());
+        text.append(newline);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public void printGroups(List<SequenceGroup> list)
+  {
+    SequenceI seqrep = null;
+    for (SequenceGroup sg : list)
+    {
       if (!sg.hasSeqrep())
       {
         text.append("SEQUENCE_GROUP\t" + sg.getName() + "\t"
@@ -545,8 +660,32 @@ public class AnnotationFile
 
   String refSeqId = null;
 
+  public boolean annotateAlignmentView(AlignViewportI viewport,
+          String file, String protocol)
+  {
+    ColumnSelection colSel = viewport.getColumnSelection();
+    if (colSel == null)
+    {
+      colSel = new ColumnSelection();
+    }
+    boolean rslt = readAnnotationFile(viewport.getAlignment(), colSel,
+            file, protocol);
+    if (rslt && (colSel.hasSelectedColumns() || colSel.hasHiddenColumns()))
+    {
+      viewport.setColumnSelection(colSel);
+    }
+
+    return rslt;
+  }
+
   public boolean readAnnotationFile(AlignmentI al, String file,
           String protocol)
+  {
+    return readAnnotationFile(al, null, file, protocol);
+  }
+
+  public boolean readAnnotationFile(AlignmentI al, ColumnSelection colSel,
+          String file, String protocol)
   {
     BufferedReader in = null;
     try
@@ -574,21 +713,35 @@ public class AnnotationFile
       }
       if (in != null)
       {
-        return parseAnnotationFrom(al, in);
+        return parseAnnotationFrom(al, colSel, in);
       }
 
     } catch (Exception ex)
     {
       ex.printStackTrace();
       System.out.println("Problem reading annotation file: " + ex);
+      if (nlinesread > 0)
+      {
+        System.out.println("Last read line " + nlinesread + ": '"
+                + lastread + "' (first 80 chars) ...");
+      }
       return false;
     }
     return false;
   }
 
-  public boolean parseAnnotationFrom(AlignmentI al, BufferedReader in)
-          throws Exception
+  long nlinesread = 0;
+
+  String lastread = "";
+
+  private static String GRAPHLINE = "GRAPHLINE", COMBINE = "COMBINE";
+
+  public boolean parseAnnotationFrom(AlignmentI al, ColumnSelection colSel,
+          BufferedReader in) throws Exception
   {
+    nlinesread = 0;
+    ArrayList<Object[]> combineAnnotation_calls = new ArrayList<Object[]>();
+    ArrayList<Object[]> deferredAnnotation_calls = new ArrayList<Object[]>();
     boolean modified = false;
     String groupRef = null;
     Hashtable groupRefRows = new Hashtable();
@@ -633,6 +786,8 @@ public class AnnotationFile
       boolean jvAnnotationFile = false;
       while ((line = in.readLine()) != null)
       {
+        nlinesread++;
+        lastread = new String(line);
         if (line.indexOf("#") == 0)
         {
           continue;
@@ -653,6 +808,8 @@ public class AnnotationFile
 
       while ((line = in.readLine()) != null)
       {
+        nlinesread++;
+        lastread = new String(line);
         if (line.indexOf("#") == 0
                 || line.indexOf("JALVIEW_ANNOTATION") > -1
                 || line.length() == 0)
@@ -670,9 +827,11 @@ public class AnnotationFile
           continue;
         }
 
-        else if (token.equalsIgnoreCase("COMBINE"))
+        else if (token.equalsIgnoreCase(COMBINE))
         {
-          combineAnnotations(al, st);
+          // keep a record of current state and resolve groupRef at end
+          combineAnnotation_calls
+                  .add(new Object[] { st, refSeq, groupRef });
           modified = true;
           continue;
         }
@@ -682,9 +841,11 @@ public class AnnotationFile
           modified = true;
           continue;
         }
-        else if (token.equalsIgnoreCase("GRAPHLINE"))
+        else if (token.equalsIgnoreCase(GRAPHLINE))
         {
-          addLine(al, st);
+          // resolve at end
+          deferredAnnotation_calls.add(new Object[] { GRAPHLINE, st,
+              refSeq, groupRef });
           modified = true;
           continue;
         }
@@ -744,6 +905,7 @@ public class AnnotationFile
         else if (token.equalsIgnoreCase("SEQUENCE_GROUP"))
         {
           addGroup(al, st);
+          modified = true;
           continue;
         }
 
@@ -766,6 +928,58 @@ public class AnnotationFile
           modified = true;
           continue;
         }
+        // else if (token.equalsIgnoreCase("VIEW_DEF"))
+        // {
+        // addOrSetView(al,st);
+        // modified = true;
+        // continue;
+        // }
+        else if (token.equalsIgnoreCase("VIEW_SETREF"))
+        {
+          if (refSeq != null)
+          {
+            al.setSeqrep(refSeq);
+          }
+          modified = true;
+          continue;
+        }
+        else if (token.equalsIgnoreCase("VIEW_HIDECOLS"))
+        {
+          if (st.hasMoreTokens())
+          {
+            if (colSel == null)
+            {
+              colSel = new ColumnSelection();
+            }
+            parseHideCols(colSel, st.nextToken());
+          }
+          modified = true;
+          continue;
+        }
+        else if (token.equalsIgnoreCase("HIDE_INSERTIONS"))
+        {
+          SequenceI sr = refSeq == null ? al.getSeqrep() : refSeq;
+          if (sr == null)
+          {
+            sr = al.getSequenceAt(0);
+          }
+          if (sr != null)
+          {
+            if (colSel == null)
+            {
+              System.err
+                      .println("Cannot process HIDE_INSERTIONS without an alignment view: Ignoring line: "
+                              + line);
+            }
+            else
+            {
+              // consider deferring this till after the file has been parsed ?
+              colSel.hideInsertionsFor(sr);
+            }
+          }
+          modified = true;
+          continue;
+        }
 
         // Parse out the annotation row
         graphStyle = AlignmentAnnotation.getGraphValueFromString(token);
@@ -784,7 +998,9 @@ public class AnnotationFile
           {
             description = line;
             if (st.hasMoreTokens())
+            {
               line = st.nextToken();
+            }
           }
 
           if (st.hasMoreTokens())
@@ -887,19 +1103,17 @@ public class AnnotationFile
         // and set modification flag
         modified = true;
       }
-      // Finally, resolve the groupRefs
+      // Resolve the groupRefs
+      Hashtable<String, SequenceGroup> groupRefLookup = new Hashtable<String, SequenceGroup>();
       Enumeration en = groupRefRows.keys();
-      SequenceGroup theGroup = null;
 
       while (en.hasMoreElements())
       {
         groupRef = (String) en.nextElement();
         boolean matched = false;
         // Resolve group: TODO: add a getGroupByName method to alignments
-        Vector grps = al.getGroups();
-        for (int g = 0, gSize = grps.size(); g < gSize; g++)
+        for (SequenceGroup theGroup : al.getGroups())
         {
-          theGroup = (SequenceGroup) grps.elementAt(g);
           if (theGroup.getName().equals(groupRef))
           {
             if (matched)
@@ -914,6 +1128,7 @@ public class AnnotationFile
             {
               matched = true;
               Vector rowset = (Vector) groupRefRows.get(groupRef);
+              groupRefLookup.put(groupRef, theGroup);
               if (rowset != null && rowset.size() > 0)
               {
                 AlignmentAnnotation alan = null;
@@ -928,8 +1143,75 @@ public class AnnotationFile
         }
         ((Vector) groupRefRows.get(groupRef)).removeAllElements();
       }
+      // process any deferred attribute settings for each context
+      for (Object[] _deferred_args : deferredAnnotation_calls)
+      {
+        if (_deferred_args[0] == GRAPHLINE)
+        {
+          addLine(al,
+                  (StringTokenizer) _deferred_args[1], // st
+                  (SequenceI) _deferred_args[2], // refSeq
+                  (_deferred_args[3] == null) ? null : groupRefLookup
+                          .get(_deferred_args[3]) // the reference
+                                                  // group, or null
+          );
+        }
+      }
+
+      // finally, combine all the annotation rows within each context.
+      /**
+       * number of combine statements in this annotation file. Used to create
+       * new groups for combined annotation graphs without disturbing existing
+       * ones
+       */
+      int combinecount = 0;
+      for (Object[] _combine_args : combineAnnotation_calls)
+      {
+        combineAnnotations(al,
+                ++combinecount,
+                (StringTokenizer) _combine_args[0], // st
+                (SequenceI) _combine_args[1], // refSeq
+                (_combine_args[2] == null) ? null : groupRefLookup
+                        .get(_combine_args[2]) // the reference group,
+                                               // or null
+        );
+      }
     }
     return modified;
+  }
+
+  private void parseHideCols(ColumnSelection colSel, String nextToken)
+  {
+    StringTokenizer inval = new StringTokenizer(nextToken, ",");
+    while (inval.hasMoreTokens())
+    {
+      String range = inval.nextToken().trim();
+      int from, to = range.indexOf("-");
+      if (to == -1)
+      {
+        from = to = Integer.parseInt(range);
+        if (from >= 0)
+        {
+          colSel.hideColumns(from, to);
+        }
+      }
+      else
+      {
+        from = Integer.parseInt(range.substring(0, to));
+        if (to < range.length() - 1)
+        {
+          to = Integer.parseInt(range.substring(to + 1));
+        }
+        else
+        {
+          to = from;
+        }
+        if (from > 0 && to >= from)
+        {
+          colSel.hideColumns(from, to);
+        }
+      }
+    }
   }
 
   private Object autoAnnotsKey(AlignmentAnnotation annotation,
@@ -1018,8 +1300,8 @@ public class AnnotationFile
         }
       }
       if (hasSymbols
-              && (token.equals("H") || token.equals("E") || token
-                      .equals(" ")))
+              && (token.length() == 1 && "()<>[]{}AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz"
+                      .contains(token)))
       {
         // Either this character represents a helix or sheet
         // or an integer which can be displayed
@@ -1084,19 +1366,38 @@ public class AnnotationFile
     }
   }
 
-  void combineAnnotations(AlignmentI al, StringTokenizer st)
+  void combineAnnotations(AlignmentI al, int combineCount,
+          StringTokenizer st, SequenceI seqRef, SequenceGroup groupRef)
   {
-    int graphGroup = -1;
     String group = st.nextToken();
     // First make sure we are not overwriting the graphIndex
+    int graphGroup = 0;
     if (al.getAlignmentAnnotation() != null)
     {
       for (int i = 0; i < al.getAlignmentAnnotation().length; i++)
       {
-        if (al.getAlignmentAnnotation()[i].label.equalsIgnoreCase(group))
+        AlignmentAnnotation aa = al.getAlignmentAnnotation()[i];
+
+        if (aa.graphGroup > graphGroup)
         {
-          graphGroup = al.getAlignmentAnnotation()[i].graphGroup + 1;
-          al.getAlignmentAnnotation()[i].graphGroup = graphGroup;
+          // try to number graphGroups in order of occurence.
+          graphGroup = aa.graphGroup + 1;
+        }
+        if (aa.sequenceRef == seqRef && aa.groupRef == groupRef
+                && aa.label.equalsIgnoreCase(group))
+        {
+          if (aa.graphGroup > -1)
+          {
+            graphGroup = aa.graphGroup;
+          }
+          else
+          {
+            if (graphGroup <= combineCount)
+            {
+              graphGroup = combineCount + 1;
+            }
+            aa.graphGroup = graphGroup;
+          }
           break;
         }
       }
@@ -1107,9 +1408,11 @@ public class AnnotationFile
         group = st.nextToken();
         for (int i = 0; i < al.getAlignmentAnnotation().length; i++)
         {
-          if (al.getAlignmentAnnotation()[i].label.equalsIgnoreCase(group))
+          AlignmentAnnotation aa = al.getAlignmentAnnotation()[i];
+          if (aa.sequenceRef == seqRef && aa.groupRef == groupRef
+                  && aa.label.equalsIgnoreCase(group))
           {
-            al.getAlignmentAnnotation()[i].graphGroup = graphGroup;
+            aa.graphGroup = graphGroup;
             break;
           }
         }
@@ -1122,26 +1425,12 @@ public class AnnotationFile
     }
   }
 
-  void addLine(AlignmentI al, StringTokenizer st)
+  void addLine(AlignmentI al, StringTokenizer st, SequenceI seqRef,
+          SequenceGroup groupRef)
   {
     String group = st.nextToken();
     AlignmentAnnotation annotation = null, alannot[] = al
             .getAlignmentAnnotation();
-    if (alannot != null)
-    {
-      for (int i = 0; i < alannot.length; i++)
-      {
-        if (alannot[i].label.equalsIgnoreCase(group))
-        {
-          annotation = alannot[i];
-          break;
-        }
-      }
-    }
-    if (annotation == null)
-    {
-      return;
-    }
     float value = new Float(st.nextToken()).floatValue();
     String label = st.hasMoreTokens() ? st.nextToken() : null;
     java.awt.Color colour = null;
@@ -1150,8 +1439,22 @@ public class AnnotationFile
       UserColourScheme ucs = new UserColourScheme(st.nextToken());
       colour = ucs.findColour('A');
     }
-
-    annotation.setThreshold(new GraphLine(value, label, colour));
+    if (alannot != null)
+    {
+      for (int i = 0; i < alannot.length; i++)
+      {
+        if (alannot[i].label.equalsIgnoreCase(group)
+                && (seqRef == null || alannot[i].sequenceRef == seqRef)
+                && (groupRef == null || alannot[i].groupRef == groupRef))
+        {
+          alannot[i].setThreshold(new GraphLine(value, label, colour));
+        }
+      }
+    }
+    if (annotation == null)
+    {
+      return;
+    }
   }
 
   void addGroup(AlignmentI al, StringTokenizer st)
@@ -1293,15 +1596,12 @@ public class AnnotationFile
     {
       return;
     }
-    SequenceGroup sg = null;
 
     String name = st.nextToken();
-
-    Vector groups = al.getGroups();
-    for (int i = 0; i < groups.size(); i++)
+    SequenceGroup sg = null;
+    for (SequenceGroup _sg : al.getGroups())
     {
-      sg = (SequenceGroup) groups.elementAt(i);
-      if (sg.getName().equals(name))
+      if ((sg = _sg).getName().equals(name))
       {
         break;
       }
@@ -1343,7 +1643,7 @@ public class AnnotationFile
                   sg.getStartRes(), sg.getEndRes() + 1);
 
           c.calculate();
-          c.verdict(false, 25);
+          c.verdict(false, 25); // TODO: refer to conservation percent threshold
 
           sg.cs.setConservation(c);
 
@@ -1483,5 +1783,20 @@ public class AnnotationFile
       } while (p > 0);
     }
     return sp.toString();
+  }
+
+  public String printAnnotationsForView(AlignViewportI viewport)
+  {
+    return printAnnotations(viewport.isShowAnnotation() ? viewport
+            .getAlignment().getAlignmentAnnotation() : null, viewport
+            .getAlignment().getGroups(), viewport.getAlignment()
+            .getProperties(), viewport.getColumnSelection(),
+            viewport.getAlignment(), null);
+  }
+
+  public String printAnnotationsForAlignment(AlignmentI al)
+  {
+    return printAnnotations(al.getAlignmentAnnotation(), al.getGroups(),
+            al.getProperties(), null, al, null);
   }
 }

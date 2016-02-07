@@ -1,23 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.*;
+import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * DOCUMENT ME!
@@ -39,7 +43,7 @@ public class SequenceFeature
 
   public Hashtable otherDetails;
 
-  public java.util.Vector links;
+  public Vector<String> links;
 
   // Feature group can be set from a features file
   // as a group of features between STARTGROUP and ENDGROUP markers
@@ -87,7 +91,7 @@ public class SequenceFeature
       }
       if (cpy.links != null && cpy.links.size() > 0)
       {
-        links = new Vector();
+        links = new Vector<String>();
         for (int i = 0, iSize = cpy.links.size(); i < iSize; i++)
         {
           links.addElement(cpy.links.elementAt(i));
@@ -208,7 +212,7 @@ public class SequenceFeature
   {
     if (links == null)
     {
-      links = new java.util.Vector();
+      links = new Vector<String>();
     }
 
     links.insertElementAt(labelLink, 0);
@@ -280,7 +284,9 @@ public class SequenceFeature
     {
       String stat = (String) otherDetails.get("status");
       if (stat != null)
+      {
         return new String(stat);
+      }
     }
     return null;
   }
@@ -294,6 +300,25 @@ public class SequenceFeature
   public int getPosition()
   {
     return begin;
+  }
+
+  public int getStrand()
+  {
+    String str;
+    if (otherDetails == null
+            || (str = otherDetails.get("STRAND").toString()) == null)
+    {
+      return 0;
+    }
+    if (str.equals("-"))
+    {
+      return -1;
+    }
+    if (str.equals("+"))
+    {
+      return 1;
+    }
+    return 0;
   }
 
 }

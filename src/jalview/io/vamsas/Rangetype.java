@@ -1,34 +1,37 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io.vamsas;
 
+import jalview.io.VamsasAppDatastore;
+import jalview.util.MessageManager;
+
+import java.util.List;
 import java.util.Vector;
 
 import uk.ac.vamsas.client.Vobject;
 import uk.ac.vamsas.objects.core.Local;
-import uk.ac.vamsas.objects.core.Map;
 import uk.ac.vamsas.objects.core.MapType;
 import uk.ac.vamsas.objects.core.Mapped;
 import uk.ac.vamsas.objects.core.RangeType;
 import uk.ac.vamsas.objects.core.Seg;
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.Mapping;
-import jalview.io.VamsasAppDatastore;
 
 /**
  * Enhances DatastoreItem objects with additional functions to do with RangeType
@@ -76,7 +79,8 @@ public abstract class Rangetype extends DatastoreItem
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
         throw new Error(
-                "Invalid vamsas RangeType - cannot resolve both lists of Pos and Seg from choice!");
+                MessageManager
+                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -99,8 +103,7 @@ public abstract class Rangetype extends DatastoreItem
         // could do a polarity for pos range too. and pass back indication of
         // discontinuities.
         int pos = dseta.getPos(0).getI();
-        se = new int[]
-        { pos, pos };
+        se = new int[] { pos, pos };
         for (int p = 0, pSize = dseta.getPosCount(); p < pSize; p++)
         {
           pos = dseta.getPos(p).getI();
@@ -135,7 +138,8 @@ public abstract class Rangetype extends DatastoreItem
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
         throw new Error(
-                "Invalid vamsas RangeType - cannot resolve both lists of Pos and Seg from choice!");
+                MessageManager
+                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -183,7 +187,8 @@ public abstract class Rangetype extends DatastoreItem
       if (range.getSegCount() > 0 && range.getPosCount() > 0)
       {
         throw new Error(
-                "Invalid vamsas RangeType - cannot resolve both lists of Pos and Seg from choice!");
+                MessageManager
+                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (range.getSegCount() > 0)
       {
@@ -223,15 +228,15 @@ public abstract class Rangetype extends DatastoreItem
    * initialise a range type object from a set of start/end inclusive intervals
    * 
    * @param mrt
-   * @param range
+   * @param ranges
    */
-  protected void initRangeType(RangeType mrt, int[] range)
+  protected void initRangeType(RangeType mrt, List<int[]> ranges)
   {
-    for (int i = 0; i < range.length; i += 2)
+    for (int[] range : ranges)
     {
       Seg vSeg = new Seg();
-      vSeg.setStart(range[i]);
-      vSeg.setEnd(range[i + 1]);
+      vSeg.setStart(range[0]);
+      vSeg.setEnd(range[1]);
       vSeg.setInclusive(true);
       mrt.addSeg(vSeg);
     }
@@ -300,7 +305,8 @@ public abstract class Rangetype extends DatastoreItem
     if (ml == null)
     {
       throw new Error(
-              "Implementation error. MapList is null for initMapType.");
+              MessageManager
+                      .getString("error.implementation_error_maplist_is_null"));
     }
     maprange.setLocal(new Local());
     maprange.setMapped(new Mapped());

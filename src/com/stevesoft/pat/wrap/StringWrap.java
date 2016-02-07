@@ -7,7 +7,8 @@
 //
 package com.stevesoft.pat.wrap;
 
-import com.stevesoft.pat.*;
+import com.stevesoft.pat.BasicStringBufferLike;
+import com.stevesoft.pat.StringLike;
 
 /**
  * A basic wrapper for the String object. Regex does not search String directly

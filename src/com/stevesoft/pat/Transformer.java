@@ -7,7 +7,9 @@
 //
 package com.stevesoft.pat;
 
-import com.stevesoft.pat.wrap.*;
+import jalview.util.MessageManager;
+
+import com.stevesoft.pat.wrap.StringWrap;
 
 /**
  * Replacement rule used by the Transformer.
@@ -149,7 +151,9 @@ public class Transformer
     Regex r = Regex.perlCode(rs);
     if (r == null)
     {
-      throw new NullPointerException("bad pattern to Regex.perlCode: " + rs);
+      throw new NullPointerException(MessageManager.formatMessage(
+              "exception.bad_pattern_to_regex_perl_code",
+              new String[] { rs }));
     }
     add(r);
   }

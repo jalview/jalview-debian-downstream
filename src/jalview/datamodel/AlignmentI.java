@@ -1,42 +1,50 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * modify it under the terms of the GNU General License 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
- * PURPOSE.  See the GNU General Public License for more details.
+ * PURPOSE.  See the GNU General License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.*;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Data structure to hold and manipulate a multiple sequence alignment
  */
-public interface AlignmentI
+public interface AlignmentI extends AnnotatedCollectionI
 {
   /**
    * Calculates the number of sequences in an alignment
    * 
    * @return Number of sequences in alignment
    */
-  public int getHeight();
+  int getHeight();
 
   /**
+   * 
    * Calculates the maximum width of the alignment, including gaps.
    * 
    * @return Greatest sequence length within alignment.
    */
-  public int getWidth();
+  @Override
+  int getWidth();
 
   /**
    * Calculates if this set of sequences (visible and invisible) are all the
@@ -44,7 +52,7 @@ public interface AlignmentI
    * 
    * @return true if all sequences in alignment are the same length
    */
-  public boolean isAligned();
+  boolean isAligned();
 
   /**
    * Calculates if this set of sequences is all the same length
@@ -53,21 +61,22 @@ public interface AlignmentI
    *          optionally exclude hidden sequences from test
    * @return true if all (or just visible) sequences are the same length
    */
-  public boolean isAligned(boolean includeHidden);
+  boolean isAligned(boolean includeHidden);
 
   /**
-   * Gets sequences as a Vector
+   * Gets sequences as a Synchronized collection
    * 
    * @return All sequences in alignment.
    */
-  public Vector getSequences();
+  @Override
+  List<SequenceI> getSequences();
 
   /**
    * Gets sequences as a SequenceI[]
    * 
    * @return All sequences in alignment.
    */
-  public SequenceI[] getSequencesArray();
+  SequenceI[] getSequencesArray();
 
   /**
    * Find a specific sequence in this alignment.
@@ -77,7 +86,14 @@ public interface AlignmentI
    * 
    * @return SequenceI at given index.
    */
-  public SequenceI getSequenceAt(int i);
+  SequenceI getSequenceAt(int i);
+
+  /**
+   * Returns a map of lists of sequences keyed by sequence name.
+   * 
+   * @return
+   */
+  Map<String, List<SequenceI>> getSequencesByName();
 
   /**
    * Add a new sequence to this alignment.
@@ -85,7 +101,7 @@ public interface AlignmentI
    * @param seq
    *          New sequence will be added at end of alignment.
    */
-  public void addSequence(SequenceI seq);
+  void addSequence(SequenceI seq);
 
   /**
    * Used to set a particular index of the alignment with the given sequence.
@@ -95,7 +111,7 @@ public interface AlignmentI
    * @param seq
    *          New sequence to be inserted.
    */
-  public void setSequenceAt(int i, SequenceI seq);
+  void setSequenceAt(int i, SequenceI seq);
 
   /**
    * Deletes a sequence from the alignment
@@ -103,7 +119,7 @@ public interface AlignmentI
    * @param s
    *          Sequence to be deleted.
    */
-  public void deleteSequence(SequenceI s);
+  void deleteSequence(SequenceI s);
 
   /**
    * Deletes a sequence from the alignment.
@@ -111,7 +127,7 @@ public interface AlignmentI
    * @param i
    *          Index of sequence to be deleted.
    */
-  public void deleteSequence(int i);
+  void deleteSequence(int i);
 
   /**
    * Finds sequence in alignment using sequence name as query.
@@ -121,9 +137,9 @@ public interface AlignmentI
    * 
    * @return Sequence matching query, if found. If not found returns null.
    */
-  public SequenceI findName(String name);
+  SequenceI findName(String name);
 
-  public SequenceI[] findSequenceMatch(String name);
+  SequenceI[] findSequenceMatch(String name);
 
   /**
    * Finds index of a given sequence in the alignment.
@@ -133,7 +149,7 @@ public interface AlignmentI
    * 
    * @return Index of sequence within the alignment or -1 if not found
    */
-  public int findIndex(SequenceI s);
+  int findIndex(SequenceI s);
 
   /**
    * Finds group that given sequence is part of.
@@ -144,7 +160,7 @@ public interface AlignmentI
    * @return First group found for sequence. WARNING : Sequences may be members
    *         of several groups. This method is incomplete.
    */
-  public SequenceGroup findGroup(SequenceI s);
+  SequenceGroup findGroup(SequenceI s);
 
   /**
    * Finds all groups that a given sequence is part of.
@@ -154,7 +170,7 @@ public interface AlignmentI
    * 
    * @return All groups containing given sequence.
    */
-  public SequenceGroup[] findAllGroups(SequenceI s);
+  SequenceGroup[] findAllGroups(SequenceI s);
 
   /**
    * Adds a new SequenceGroup to this alignment.
@@ -162,7 +178,7 @@ public interface AlignmentI
    * @param sg
    *          New group to be added.
    */
-  public void addGroup(SequenceGroup sg);
+  void addGroup(SequenceGroup sg);
 
   /**
    * Deletes a specific SequenceGroup
@@ -170,19 +186,19 @@ public interface AlignmentI
    * @param g
    *          Group will be deleted from alignment.
    */
-  public void deleteGroup(SequenceGroup g);
+  void deleteGroup(SequenceGroup g);
 
   /**
    * Get all the groups associated with this alignment.
    * 
-   * @return All groups as a Vector.
+   * @return All groups as a list.
    */
-  public Vector getGroups();
+  List<SequenceGroup> getGroups();
 
   /**
    * Deletes all groups from this alignment.
    */
-  public void deleteAllGroups();
+  void deleteAllGroups();
 
   /**
    * Adds a new AlignmentAnnotation to this alignment
@@ -190,7 +206,7 @@ public interface AlignmentI
    * @note Care should be taken to ensure that annotation is at least as wide as
    *       the longest sequence in the alignment for rendering purposes.
    */
-  public void addAnnotation(AlignmentAnnotation aa);
+  void addAnnotation(AlignmentAnnotation aa);
 
   /**
    * moves annotation to a specified index in alignment annotation display stack
@@ -200,33 +216,44 @@ public interface AlignmentI
    * @param index
    *          the destination position
    */
-  public void setAnnotationIndex(AlignmentAnnotation aa, int index);
+  void setAnnotationIndex(AlignmentAnnotation aa, int index);
+
+  /**
+   * Delete all annotations, including auto-calculated if the flag is set true.
+   * Returns true if at least one annotation was deleted, else false.
+   * 
+   * @param includingAutoCalculated
+   * @return
+   */
+  boolean deleteAllAnnotations(boolean includingAutoCalculated);
 
   /**
    * Deletes a specific AlignmentAnnotation from the alignment, and removes its
-   * reference from any SequenceI or SequenceGroup object's annotation if and only if aa is
-   * contained within the alignment's annotation vector. Otherwise, it will do
-   * nothing.
+   * reference from any SequenceI or SequenceGroup object's annotation if and
+   * only if aa is contained within the alignment's annotation vector.
+   * Otherwise, it will do nothing.
    * 
    * @param aa
    *          the annotation to delete
    * @return true if annotation was deleted from this alignment.
    */
-  public boolean deleteAnnotation(AlignmentAnnotation aa);
+  boolean deleteAnnotation(AlignmentAnnotation aa);
 
   /**
-   * Deletes a specific AlignmentAnnotation from the alignment, and optionally removes any
-   * reference from any SequenceI or SequenceGroup object's annotation if and only if aa is
-   * contained within the alignment's annotation vector. Otherwise, it will do
-   * nothing.
+   * Deletes a specific AlignmentAnnotation from the alignment, and optionally
+   * removes any reference from any SequenceI or SequenceGroup object's
+   * annotation if and only if aa is contained within the alignment's annotation
+   * vector. Otherwise, it will do nothing.
    * 
    * @param aa
    *          the annotation to delete
    * @param unhook
-   *          flag indicating if any references should be removed from annotation - use this if you intend to add the annotation back into the alignment
+   *          flag indicating if any references should be removed from
+   *          annotation - use this if you intend to add the annotation back
+   *          into the alignment
    * @return true if annotation was deleted from this alignment.
    */
-  public boolean deleteAnnotation(AlignmentAnnotation aa, boolean unhook);
+  boolean deleteAnnotation(AlignmentAnnotation aa, boolean unhook);
 
   /**
    * Get the annotation associated with this alignment (this can be null if no
@@ -234,7 +261,8 @@ public interface AlignmentI
    * 
    * @return array of AlignmentAnnotation objects
    */
-  public AlignmentAnnotation[] getAlignmentAnnotation();
+  @Override
+  AlignmentAnnotation[] getAlignmentAnnotation();
 
   /**
    * Change the gap character used in this alignment to 'gc'
@@ -242,27 +270,34 @@ public interface AlignmentI
    * @param gc
    *          the new gap character.
    */
-  public void setGapCharacter(char gc);
+  void setGapCharacter(char gc);
 
   /**
    * Get the gap character used in this alignment
    * 
    * @return gap character
    */
-  public char getGapCharacter();
+  char getGapCharacter();
 
   /**
    * Test for all nucleotide alignment
    * 
    * @return true if alignment is nucleotide sequence
    */
-  public boolean isNucleotide();
+  boolean isNucleotide();
+
+  /**
+   * Test if alignment contains RNA structure
+   * 
+   * @return true if RNA structure AligmnentAnnotation was added to alignment
+   */
+  boolean hasRNAStructure();
 
   /**
    * Set alignment to be a nucleotide sequence
    * 
    */
-  public void setNucleotide(boolean b);
+  void setNucleotide(boolean b);
 
   /**
    * Get the associated dataset for the alignment.
@@ -270,7 +305,7 @@ public interface AlignmentI
    * @return Alignment containing dataset sequences or null of this is a
    *         dataset.
    */
-  public Alignment getDataset();
+  Alignment getDataset();
 
   /**
    * Set the associated dataset for the alignment, or create one.
@@ -278,23 +313,23 @@ public interface AlignmentI
    * @param dataset
    *          The dataset alignment or null to construct one.
    */
-  public void setDataset(Alignment dataset);
+  void setDataset(Alignment dataset);
 
   /**
    * pads sequences with gaps (to ensure the set looks like an alignment)
    * 
    * @return boolean true if alignment was modified
    */
-  public boolean padGaps();
+  boolean padGaps();
 
-  public HiddenSequences getHiddenSequences();
+  HiddenSequences getHiddenSequences();
 
   /**
    * Compact representation of alignment
    * 
    * @return CigarArray
    */
-  public CigarArray getCompactAlignment();
+  CigarArray getCompactAlignment();
 
   /**
    * Set an arbitrary key value pair for an alignment. Note: both key and value
@@ -303,7 +338,7 @@ public interface AlignmentI
    * @param key
    * @param value
    */
-  public void setProperty(Object key, Object value);
+  void setProperty(Object key, Object value);
 
   /**
    * Get a named property from the alignment.
@@ -311,21 +346,21 @@ public interface AlignmentI
    * @param key
    * @return value of property
    */
-  public Object getProperty(Object key);
+  Object getProperty(Object key);
 
   /**
    * Get the property hashtable.
    * 
    * @return hashtable of alignment properties (or null if none are defined)
    */
-  public Hashtable getProperties();
+  Hashtable getProperties();
 
   /**
    * add a reference to a frame of aligned codons for this alignment
    * 
    * @param codons
    */
-  public void addCodonFrame(AlignedCodonFrame codons);
+  void addCodonFrame(AlignedCodonFrame codons);
 
   /**
    * remove a particular codon frame reference from this alignment
@@ -333,27 +368,24 @@ public interface AlignmentI
    * @param codons
    * @return true if codon frame was removed.
    */
-  public boolean removeCodonFrame(AlignedCodonFrame codons);
+  boolean removeCodonFrame(AlignedCodonFrame codons);
 
   /**
    * get all codon frames associated with this alignment
    * 
    * @return
    */
-  public AlignedCodonFrame[] getCodonFrames();
+  Set<AlignedCodonFrame> getCodonFrames();
 
   /**
-   * get a particular codon frame
-   * 
-   * @param index
-   * @return
+   * Set the codon frame mappings (replacing any existing set).
    */
-  public AlignedCodonFrame getCodonFrame(int index);
+  void setCodonFrames(Set<AlignedCodonFrame> acfs);
 
   /**
    * get codon frames involving sequenceI
    */
-  public AlignedCodonFrame[] getCodonFrame(SequenceI seq);
+  List<AlignedCodonFrame> getCodonFrame(SequenceI seq);
 
   /**
    * find sequence with given name in alignment
@@ -365,7 +397,7 @@ public interface AlignmentI
    *          tried
    * @return matched sequence or null
    */
-  public SequenceI findName(String token, boolean b);
+  SequenceI findName(String token, boolean b);
 
   /**
    * find next sequence with given name in alignment starting after a given
@@ -381,7 +413,7 @@ public interface AlignmentI
    *          tried
    * @return matched sequence or null
    */
-  public SequenceI findName(SequenceI startAfter, String token, boolean b);
+  SequenceI findName(SequenceI startAfter, String token, boolean b);
 
   /**
    * find first sequence in alignment which is involved in the given search
@@ -390,7 +422,7 @@ public interface AlignmentI
    * @param results
    * @return -1 or index of sequence in alignment
    */
-  public int findIndex(SearchResults results);
+  int findIndex(SearchResults results);
 
   /**
    * append sequences and annotation from another alignment object to this one.
@@ -403,7 +435,7 @@ public interface AlignmentI
    * @param toappend
    *          - the alignment to be appended.
    */
-  public void append(AlignmentI toappend);
+  void append(AlignmentI toappend);
 
   /**
    * Justify the sequences to the left or right by deleting and inserting gaps
@@ -413,7 +445,7 @@ public interface AlignmentI
    *          true if alignment padded to right, false to justify to left
    * @return true if alignment was changed TODO: return undo object
    */
-  public boolean justify(boolean right);
+  boolean justify(boolean right);
 
   /**
    * add given annotation row at given position (0 is start, -1 is end)
@@ -421,5 +453,75 @@ public interface AlignmentI
    * @param consensus
    * @param i
    */
-  public void addAnnotation(AlignmentAnnotation consensus, int i);
+  void addAnnotation(AlignmentAnnotation consensus, int i);
+
+  /**
+   * search for or create a specific annotation row on the alignment
+   * 
+   * @param name
+   *          name for annotation (must match)
+   * @param calcId
+   *          calcId for the annotation (null or must match)
+   * @param autoCalc
+   *          - value of autocalc flag for the annotation
+   * @param seqRef
+   *          - null or specific sequence reference
+   * @param groupRef
+   *          - null or specific group reference
+   * @param method
+   *          - CalcId for the annotation (must match)
+   * 
+   * @return existing annotation matching the given attributes
+   */
+  AlignmentAnnotation findOrCreateAnnotation(String name, String calcId,
+          boolean autoCalc, SequenceI seqRef, SequenceGroup groupRef);
+
+  /**
+   * move the given group up or down in the alignment by the given number of
+   * rows. Implementor assumes given group is already present on alignment - no
+   * recalculations are triggered.
+   * 
+   * @param sg
+   * @param map
+   * @param up
+   * @param i
+   */
+  void moveSelectedSequencesByOne(SequenceGroup sg,
+          Map<SequenceI, SequenceCollectionI> map, boolean up);
+
+  /**
+   * validate annotation after an edit and update any alignment state flags
+   * accordingly
+   * 
+   * @param alignmentAnnotation
+   */
+  void validateAnnotation(AlignmentAnnotation alignmentAnnotation);
+
+  /**
+   * Align this alignment the same as the given one. If both of the same type
+   * (nucleotide/protein) then align both identically. If this is nucleotide and
+   * the other is protein, make 3 gaps for each gap in the protein sequences. If
+   * this is protein and the other is nucleotide, insert a gap for each 3 gaps
+   * (or part thereof) between nucleotide bases. Returns the number of mapped
+   * sequences that were realigned .
+   * 
+   * @param al
+   * @return
+   */
+  int alignAs(AlignmentI al);
+
+  /**
+   * Returns the set of distinct sequence names in the alignment.
+   * 
+   * @return
+   */
+  Set<String> getSequenceNames();
+
+  /**
+   * Checks if the alignment has at least one sequence with one non-gaped
+   * residue
+   * 
+   * @return
+   */
+  public boolean hasValidSequence();
 }

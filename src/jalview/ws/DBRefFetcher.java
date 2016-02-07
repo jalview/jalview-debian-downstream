@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws;
 
@@ -30,14 +33,16 @@ import jalview.gui.CutAndPasteTransfer;
 import jalview.gui.Desktop;
 import jalview.gui.IProgressIndicator;
 import jalview.gui.OOMWarning;
+import jalview.util.MessageManager;
+import jalview.ws.dbsources.das.api.jalviewSourceI;
+import jalview.ws.seqfetcher.DbSourceProxy;
 
-import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
-
-import org.biojava.dasobert.dasregistry.DasSource;
 
 import uk.ac.ebi.picr.model.UPEntry;
 
@@ -69,11 +74,17 @@ public class DBRefFetcher implements Runnable
   // The key will be the seq name or accession id of the seq
   Hashtable seqRefs;
 
-  String[] dbSources;
+  DbSourceProxy[] dbSources;
 
   SequenceFetcher sfetcher;
 
   private SequenceI[] alseqs;
+
+  /**
+   * when true - retrieved sequences will be trimmed to cover longest derived
+   * alignment sequence
+   */
+  private boolean trimDsSeqs = true;
 
   public DBRefFetcher()
   {
@@ -104,7 +115,8 @@ public class DBRefFetcher implements Runnable
    * @param sources
    *          array of database source strings to query references from
    */
-  public DBRefFetcher(SequenceI[] seqs, AlignFrame af, String[] sources)
+  public DBRefFetcher(SequenceI[] seqs, AlignFrame af,
+          DbSourceProxy[] sources)
   {
     this.af = af;
     alseqs = new SequenceI[seqs.length];
@@ -120,30 +132,30 @@ public class DBRefFetcher implements Runnable
     this.dataset = ds;
     // TODO Jalview 2.5 lots of this code should be in the gui package!
     sfetcher = jalview.gui.SequenceFetcher.getSequenceFetcherSingleton(af);
+    // set default behaviour for transferring excess sequence data to the
+    // dataset
+    trimDsSeqs = Cache.getDefault("TRIM_FETCHED_DATASET_SEQS", true);
     if (sources == null)
     {
       // af.featureSettings_actionPerformed(null);
       String[] defdb = null, otherdb = sfetcher
-              .getDbInstances(jalview.ws.dbsources.DasSequenceSource.class);
-      Vector selsources = new Vector(), dasselsrc = (af.featureSettings != null) ? af.featureSettings
+              .getDbInstances(jalview.ws.dbsources.das.datamodel.DasSequenceSource.class);
+      List<DbSourceProxy> selsources = new ArrayList<DbSourceProxy>();
+      Vector dasselsrc = (af.featureSettings != null) ? af.featureSettings
               .getSelectedSources() : new jalview.gui.DasSourceBrowser()
               .getSelectedSources();
-      Enumeration en = dasselsrc.elements();
+      Enumeration<jalviewSourceI> en = dasselsrc.elements();
       while (en.hasMoreElements())
       {
-        DasSource src = (DasSource) en.nextElement();
-        selsources.addElement(src.getNickname());
-      }
-      int osel = 0;
-      for (int o = 0; otherdb != null && o < otherdb.length; o++)
-      {
-        if (!selsources.contains(otherdb[o]))
+        jalviewSourceI src = en.nextElement();
+        List<DbSourceProxy> sp = src.getSequenceSourceProxies();
+        if (sp != null)
         {
-          otherdb[o] = null;
-        }
-        else
-        {
-          osel++;
+          selsources.addAll(sp);
+          if (sp.size() > 1)
+          {
+            Cache.log.debug("Added many Db Sources for :" + src.getTitle());
+          }
         }
       }
       // select appropriate databases based on alignFrame context.
@@ -155,17 +167,19 @@ public class DBRefFetcher implements Runnable
       {
         defdb = DBRefSource.PROTEINDBS;
       }
-      // append the selected sequence sources to the default dbs
-      dbSources = new String[defdb.length + osel];
-      System.arraycopy(defdb, 0, dbSources, 0, defdb.length);
-      for (int o = 0, op = defdb.length; otherdb != null
-              && o < otherdb.length; o++)
+      List<DbSourceProxy> srces = new ArrayList<DbSourceProxy>();
+      for (String ddb : defdb)
       {
-        if (otherdb[o] != null)
+        List<DbSourceProxy> srcesfordb = sfetcher.getSourceProxy(ddb);
+        if (srcesfordb != null)
         {
-          dbSources[op++] = otherdb[o];
+          srces.addAll(srcesfordb);
         }
       }
+
+      // append the selected sequence sources to the default dbs
+      srces.addAll(selsources);
+      dbSources = srces.toArray(new DbSourceProxy[0]);
     }
     else
     {
@@ -183,15 +197,15 @@ public class DBRefFetcher implements Runnable
   {
     if (dbSources == null)
     {
-      dbSources = new String[]
-      {};
+      dbSources = new DbSourceProxy[0];
     }
     // append additional sources
-    String[] otherdb = sfetcher
-            .getDbInstances(jalview.ws.dbsources.DasSequenceSource.class);
+    DbSourceProxy[] otherdb = sfetcher
+            .getDbSourceProxyInstances(jalview.ws.dbsources.das.datamodel.DasSequenceSource.class);
     if (otherdb != null && otherdb.length > 0)
     {
-      String[] newsrc = new String[dbSources.length + otherdb.length];
+      DbSourceProxy[] newsrc = new DbSourceProxy[dbSources.length
+              + otherdb.length];
       System.arraycopy(dbSources, 0, newsrc, 0, dbSources.length);
       System.arraycopy(otherdb, 0, newsrc, dbSources.length, otherdb.length);
       dbSources = newsrc;
@@ -269,11 +283,14 @@ public class DBRefFetcher implements Runnable
   {
     if (dbSources == null)
     {
-      throw new Error("Implementation error. Must initialise dbSources");
+      throw new Error(
+              MessageManager
+                      .getString("error.implementation_error_must_init_dbsources"));
     }
     running = true;
     long startTime = System.currentTimeMillis();
-    af.setProgressBar("Fetching db refs", startTime);
+    af.setProgressBar(MessageManager.getString("status.fetching_db_refs"),
+            startTime);
     try
     {
       if (Cache.getDefault("DBREFFETCH_USEPICR", false))
@@ -295,25 +312,9 @@ public class DBRefFetcher implements Runnable
     while (sdataset.size() > 0 && db < dbSources.length)
     {
       int maxqlen = 1; // default number of queries made to at one time
-      System.err.println("Verifying against " + dbSources[db]);
-      jalview.ws.seqfetcher.DbSourceProxy dbsource = sfetcher
-              .getSourceProxy(dbSources[db]);
-      if (dbsource == null)
-      {
-        System.err.println("No proxy for " + dbSources[db]);
-        db++;
-        continue;
-      }
-      if (dbsource.getDbSourceProperties()
-              .containsKey(DBRefSource.MULTIACC))
-      {
-        maxqlen = ((Integer) dbsource.getDbSourceProperties().get(
-                DBRefSource.MULTIACC)).intValue();
-      }
-      else
-      {
-        maxqlen = 1;
-      }
+      System.err.println("Verifying against " + dbSources[db].getDbName());
+      boolean dn = false;
+
       // iterate through db for each remaining un-verified sequence
       SequenceI[] currSeqs = new SequenceI[sdataset.size()];
       sdataset.copyInto(currSeqs);// seqs that are to be validated against
@@ -323,116 +324,136 @@ public class DBRefFetcher implements Runnable
 
       int seqIndex = 0;
 
-      while (queries.size() > 0 || seqIndex < currSeqs.length)
+      jalview.ws.seqfetcher.DbSourceProxy dbsource = dbSources[db];
       {
-        if (queries.size() > 0)
+        // for moment, we dumbly iterate over all retrieval sources for a
+        // particular database
+        // TODO: introduce multithread multisource queries and logic to remove a
+        // query from other sources if any source for a database returns a
+        // record
+        if (dbsource.getDbSourceProperties().containsKey(
+                DBRefSource.MULTIACC))
         {
-          // Still queries to make for current seqIndex
-          StringBuffer queryString = new StringBuffer("");
-          int numq = 0, nqSize = (maxqlen > queries.size()) ? queries
-                  .size() : maxqlen;
-
-          while (queries.size() > 0 && numq < nqSize)
-          {
-            String query = (String) queries.elementAt(0);
-            if (dbsource.isValidReference(query))
-            {
-              queryString.append((numq == 0) ? "" : dbsource
-                      .getAccessionSeparator());
-              queryString.append(query);
-              numq++;
-            }
-            // remove the extracted query string
-            queries.removeElementAt(0);
-          }
-          // make the queries and process the response
-          AlignmentI retrieved = null;
-          try
-          {
-            if (jalview.bin.Cache.log.isDebugEnabled())
-            {
-              jalview.bin.Cache.log.debug("Querying "
-                      + dbsource.getDbName() + " with : '"
-                      + queryString.toString() + "'");
-            }
-            retrieved = dbsource.getSequenceRecords(queryString.toString());
-          } catch (Exception ex)
-          {
-            ex.printStackTrace();
-          } catch (OutOfMemoryError err)
-          {
-            new OOMWarning("retrieving database references ("
-                    + queryString.toString() + ")", err);
-          }
-          if (retrieved != null)
-          {
-            transferReferences(sdataset, dbSources[db], retrieved);
-          }
+          maxqlen = ((Integer) dbsource.getDbSourceProperties().get(
+                  DBRefSource.MULTIACC)).intValue();
         }
         else
         {
-          // make some more strings for use as queries
-          for (int i = 0; (seqIndex < dataset.length) && (i < 50); seqIndex++, i++)
+          maxqlen = 1;
+        }
+        while (queries.size() > 0 || seqIndex < currSeqs.length)
+        {
+          if (queries.size() > 0)
           {
-            SequenceI sequence = dataset[seqIndex];
-            DBRefEntry[] uprefs = jalview.util.DBRefUtils.selectRefs(
-                    sequence.getDBRef(), new String[]
-                    { dbSources[db] }); // jalview.datamodel.DBRefSource.UNIPROT
-            // });
-            // check for existing dbrefs to use
-            if (uprefs != null && uprefs.length > 0)
+            // Still queries to make for current seqIndex
+            StringBuffer queryString = new StringBuffer("");
+            int numq = 0, nqSize = (maxqlen > queries.size()) ? queries
+                    .size() : maxqlen;
+
+            while (queries.size() > 0 && numq < nqSize)
             {
-              for (int j = 0; j < uprefs.length; j++)
+              String query = (String) queries.elementAt(0);
+              if (dbsource.isValidReference(query))
               {
-                addSeqId(sequence, uprefs[j].getAccessionId());
-                queries.addElement(uprefs[j].getAccessionId().toUpperCase());
+                queryString.append((numq == 0) ? "" : dbsource
+                        .getAccessionSeparator());
+                queryString.append(query);
+                numq++;
               }
+              // remove the extracted query string
+              queries.removeElementAt(0);
             }
-            else
+            // make the queries and process the response
+            AlignmentI retrieved = null;
+            try
             {
-              // generate queries from sequence ID string
-              StringTokenizer st = new StringTokenizer(sequence.getName(),
-                      "|");
-              while (st.hasMoreTokens())
+              if (jalview.bin.Cache.log.isDebugEnabled())
               {
-                String token = st.nextToken();
-                UPEntry[] presp = null;
-                if (picrClient != null)
+                jalview.bin.Cache.log.debug("Querying "
+                        + dbsource.getDbName() + " with : '"
+                        + queryString.toString() + "'");
+              }
+              retrieved = dbsource.getSequenceRecords(queryString
+                      .toString());
+            } catch (Exception ex)
+            {
+              ex.printStackTrace();
+            } catch (OutOfMemoryError err)
+            {
+              new OOMWarning("retrieving database references ("
+                      + queryString.toString() + ")", err);
+            }
+            if (retrieved != null)
+            {
+              transferReferences(sdataset, dbsource.getDbSource(),
+                      retrieved, trimDsSeqs);
+            }
+          }
+          else
+          {
+            // make some more strings for use as queries
+            for (int i = 0; (seqIndex < dataset.length) && (i < 50); seqIndex++, i++)
+            {
+              SequenceI sequence = dataset[seqIndex];
+              DBRefEntry[] uprefs = jalview.util.DBRefUtils.selectRefs(
+                      sequence.getDBRef(),
+                      new String[] { dbsource.getDbSource() }); // jalview.datamodel.DBRefSource.UNIPROT
+              // });
+              // check for existing dbrefs to use
+              if (uprefs != null && uprefs.length > 0)
+              {
+                for (int j = 0; j < uprefs.length; j++)
                 {
-                  // resolve the string against PICR to recover valid IDs
-                  try
-                  {
-                    presp = picrClient
-                            .getUPIForAccession(token, null,
-                                    picrClient.getMappedDatabaseNames(),
-                                    null, true);
-                  } catch (Exception e)
-                  {
-                    System.err.println("Exception with Picr for '" + token
-                            + "'\n");
-                    e.printStackTrace();
-                  }
+                  addSeqId(sequence, uprefs[j].getAccessionId());
+                  queries.addElement(uprefs[j].getAccessionId()
+                          .toUpperCase());
                 }
-                if (presp != null && presp.length > 0)
+              }
+              else
+              {
+                // generate queries from sequence ID string
+                StringTokenizer st = new StringTokenizer(
+                        sequence.getName(), "|");
+                while (st.hasMoreTokens())
                 {
-                  for (int id = 0; id < presp.length; id++)
+                  String token = st.nextToken();
+                  UPEntry[] presp = null;
+                  if (picrClient != null)
                   {
-                    // construct sequences from response if sequences are
-                    // present, and do a transferReferences
-                    // otherwise transfer non sequence x-references directly.
+                    // resolve the string against PICR to recover valid IDs
+                    try
+                    {
+                      presp = picrClient.getUPIForAccession(token, null,
+                              picrClient.getMappedDatabaseNames(), null,
+                              true);
+                    } catch (Exception e)
+                    {
+                      System.err.println("Exception with Picr for '"
+                              + token + "'\n");
+                      e.printStackTrace();
+                    }
                   }
-                  System.out
-                          .println("Validated ID against PICR... (for what its worth):"
-                                  + token);
-                  addSeqId(sequence, token);
-                  queries.addElement(token.toUpperCase());
-                }
-                else
-                {
-                  // if ()
-                  // System.out.println("Not querying source with token="+token+"\n");
-                  addSeqId(sequence, token);
-                  queries.addElement(token.toUpperCase());
+                  if (presp != null && presp.length > 0)
+                  {
+                    for (int id = 0; id < presp.length; id++)
+                    {
+                      // construct sequences from response if sequences are
+                      // present, and do a transferReferences
+                      // otherwise transfer non sequence x-references directly.
+                    }
+                    System.out
+                            .println("Validated ID against PICR... (for what its worth):"
+                                    + token);
+                    addSeqId(sequence, token);
+                    queries.addElement(token.toUpperCase());
+                  }
+                  else
+                  {
+                    // if ()
+                    // System.out.println("Not querying source with token="+token+"\n");
+                    addSeqId(sequence, token);
+                    queries.addElement(token.toUpperCase());
+                  }
                 }
               }
             }
@@ -444,17 +465,20 @@ public class DBRefFetcher implements Runnable
     } // all databases have been queries.
     if (sbuffer.length() > 0)
     {
-      output.setText("Your sequences have been verified against known sequence databases. Some of the ids have been\n"
-              + "altered, most likely the start/end residue will have been updated.\n"
-              + "Save your alignment to maintain the updated id.\n\n"
+      output.setText(MessageManager
+              .getString("label.your_sequences_have_been_verified")
               + sbuffer.toString());
-      Desktop.addInternalFrame(output, "Sequence names updated ", 600, 300);
+      Desktop.addInternalFrame(output,
+              MessageManager.getString("label.sequence_names_updated"),
+              600, 300);
       // The above is the dataset, we must now find out the index
       // of the viewed sequence
 
     }
 
-    af.setProgressBar("DBRef search completed", startTime);
+    af.setProgressBar(
+            MessageManager.getString("label.dbref_search_completed"),
+            startTime);
     // promptBeforeBlast();
 
     running = false;
@@ -465,11 +489,14 @@ public class DBRefFetcher implements Runnable
    * Verify local sequences in seqRefs against the retrieved sequence database
    * records.
    * 
+   * @param trimDatasetSeqs
+   * 
    */
   void transferReferences(Vector sdataset, String dbSource,
-          AlignmentI retrievedAl) // File
+          AlignmentI retrievedAl, boolean trimDatasetSeqs) // File
   // file)
   {
+    System.out.println("trimming ? " + trimDatasetSeqs);
     if (retrievedAl == null || retrievedAl.getHeight() == 0)
     {
       return;
@@ -493,8 +520,7 @@ public class DBRefFetcher implements Runnable
       Vector sequenceMatches = new Vector();
       // look for corresponding accession ids
       DBRefEntry[] entryRefs = jalview.util.DBRefUtils.selectRefs(
-              entry.getDBRef(), new String[]
-              { dbSource });
+              entry.getDBRef(), new String[] { dbSource });
       if (entryRefs == null)
       {
         System.err
@@ -563,6 +589,7 @@ public class DBRefFetcher implements Runnable
         // mappings are made (but content matches retrieved set)
         boolean updateRefFrame = sequence.getDBRef() == null
                 || sequence.getDBRef().length == 0;
+        // TODO:
         // verify sequence against the entry sequence
 
         String nonGapped = AlignSeq.extractGaps("-. ",
@@ -591,11 +618,10 @@ public class DBRefFetcher implements Runnable
           // absStart = 0;
           // create valid mapping between matching region of local sequence and
           // the mapped sequence
-          mp = new Mapping(null, new int[]
-          { sequence.getStart() + absStart,
+          mp = new Mapping(null, new int[] {
+              sequence.getStart() + absStart,
               sequence.getStart() + absStart + entrySeq.length() - 1 },
-                  new int[]
-                  { entry.getStart(),
+                  new int[] { entry.getStart(),
                       entry.getStart() + entrySeq.length() - 1 }, 1, 1);
           updateRefFrame = false; // mapping is based on current start/end so
           // don't modify start and end
@@ -643,11 +669,21 @@ public class DBRefFetcher implements Runnable
         // unknownSequences.remove(sequence);
         int absEnd = absStart + nonGapped.length();
         absStart += 1;
+        if (!trimDatasetSeqs)
+        {
+          // insert full length sequence from record
+          sequence.setSequence(entry.getSequenceAsString());
+          sequence.setStart(entry.getStart());
+        }
         if (updateRefFrame)
         {
           // finally, update local sequence reference frame if we're allowed
-          sequence.setStart(absStart);
-          sequence.setEnd(absEnd);
+          if (trimDatasetSeqs)
+          {
+            // just fix start/end
+            sequence.setStart(absStart);
+            sequence.setEnd(absEnd);
+          }
           // search for alignment sequences to update coordinate frame for
           for (int alsq = 0; alsq < alseqs.length; alsq++)
           {

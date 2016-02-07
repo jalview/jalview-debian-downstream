@@ -4,7 +4,7 @@ Jalview Readme
 
 The source is available as a tar file and comes complete with the GNU General Public License. 
 
-To build the application you will need a J2SDK 1.6+. 
+To build the application you will need a J2SDK 1.7+. 
 
 An Ant build file (build.xml) is provided, you will need to install Apache Ant first. 
 Run ant to view usage which will display a list of useful build targets.

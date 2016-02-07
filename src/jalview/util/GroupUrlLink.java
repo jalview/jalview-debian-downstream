@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.util;
 
@@ -21,7 +24,6 @@ import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
 
 import java.util.Hashtable;
-import java.util.Vector;
 
 public class GroupUrlLink
 {
@@ -80,8 +82,7 @@ public class GroupUrlLink
   {
     if (tokens == null)
     {
-      tokens = new String[]
-      { "SEQUENCEIDS", "SEQUENCES", "DATASETID" };
+      tokens = new String[] { "SEQUENCEIDS", "SEQUENCES", "DATASETID" };
     }
   }
 
@@ -389,12 +390,12 @@ public class GroupUrlLink
     Hashtable rstrings = new Hashtable();
     rstrings.put(tokens[0], idstrings);
     rstrings.put(tokens[1], seqstrings);
-    rstrings.put(tokens[2], new String[]
-    { dsstring });
+    rstrings.put(tokens[2], new String[] { dsstring });
     if (idstrings.length != seqstrings.length)
     {
       throw new Error(
-              "idstrings and seqstrings contain one string each per sequence.");
+              MessageManager
+                      .getString("error.idstring_seqstrings_only_one_per_sequence"));
     }
     return rstrings;
   }
@@ -421,9 +422,8 @@ public class GroupUrlLink
     Object[] stubs = makeUrlsIf(false, rstrings, b);
     if (stubs != null)
     {
-      return new Object[]
-      { stubs[0], stubs[1], rstrings, new boolean[]
-      { b } };
+      return new Object[] { stubs[0], stubs[1], rstrings,
+          new boolean[] { b } };
     }
     // TODO Auto-generated method stub
     return null;
@@ -484,18 +484,19 @@ public class GroupUrlLink
         {
           if (maxs != idseq[i].length)
           {
-            throw new Error(
-                    "Cannot have mixed length replacement vectors. Replacement vector for "
-                            + (mtch[i]) + " is " + idseq[i].length
-                            + " strings long, and have already seen a "
-                            + maxs + " length vector.");
+            throw new Error(MessageManager.formatMessage(
+                    "error.cannot_have_mixed_length_replacement_vectors",
+                    new String[] { (mtch[i]),
+                        Integer.valueOf(idseq[i].length).toString(),
+                        Integer.valueOf(maxs).toString() }));
           }
         }
       }
       else
       {
         throw new Error(
-                "Cannot have zero length vector of replacement strings - either 1 value or n values.");
+                MessageManager
+                        .getString("error.cannot_have_zero_length_vector_replacement_strings"));
       }
     }
     // iterate through input, collating segments to be inserted into url
@@ -691,9 +692,7 @@ public class GroupUrlLink
     {
       // just return the essential info about what the URL would be generated
       // from
-      return new Object[]
-      { new int[]
-      { seqsmatched }, thismatched };
+      return new Object[] { new int[] { seqsmatched }, thismatched };
     }
     // otherwise, create the URL completely.
 
@@ -708,10 +707,8 @@ public class GroupUrlLink
       }
     }
 
-    return new Object[]
-    { new int[]
-    { seqsmatched }, thismatched, matched, new String[]
-    { submiturl.toString() } };
+    return new Object[] { new int[] { seqsmatched }, thismatched, matched,
+        new String[] { submiturl.toString() } };
   }
 
   /**
@@ -818,8 +815,8 @@ public class GroupUrlLink
 
   public static void main(String argv[])
   {
-    String[] links = new String[]
-    {
+    // note - JAL-1383 - these services are all dead
+    String[] links = new String[] {
         "EnVision2|IDS|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=Enfin%20Default%20Workflow&datasetName=linkInDatasetFromJalview&input=$SEQUENCEIDS$&inputType=0|,",
         "EnVision2|Seqs|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=Enfin%20Default%20Workflow&datasetName=linkInDatasetFromJalview&input=$SEQUENCES$&inputType=1|,",
         "EnVision2|IDS|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=Enfin%20Default%20Workflow&datasetName=$DATASETID$&input=$SEQUENCEIDS$&inputType=0|,",
@@ -835,8 +832,8 @@ public class GroupUrlLink
      */
     };
 
-    SequenceI[] seqs = new SequenceI[]
-    { new Sequence("StupidLabel:gi|9234|pdb|102L|A",
+    SequenceI[] seqs = new SequenceI[] { new Sequence(
+            "StupidLabel:gi|9234|pdb|102L|A",
             "asdiasdpasdpadpwpadasdpaspdw"), };
     String[][] seqsandids = formStrings(seqs);
     for (int i = 0; i < links.length; i++)

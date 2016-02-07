@@ -7,9 +7,14 @@
 //
 package com.stevesoft.pat.wrap;
 
-import java.io.*;
+import jalview.util.MessageManager;
 
-import com.stevesoft.pat.*;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+
+import com.stevesoft.pat.BasicStringBufferLike;
+import com.stevesoft.pat.Regex;
+import com.stevesoft.pat.StringLike;
 
 /**
  * Provides a wrapper for a RandomAccessFile so that it can be searched by
@@ -84,13 +89,16 @@ public class RandomAccessFileWrap implements StringLike
     {
     }
 
-    throw new ArrayIndexOutOfBoundsException("Out of bounds for file:"
-            + " i=" + i + ", Final Buffer: i0=" + i0 + " iend=" + iend);
+    throw new ArrayIndexOutOfBoundsException(MessageManager.formatMessage(
+            "exception.out_of_bounds_for_file", new String[] {
+                Integer.valueOf(i).toString(),
+                Integer.valueOf(i0).toString(),
+                Integer.valueOf(iend).toString() }));
   }
 
   public String toString()
   {
-    throw new Error("Not implemented");
+    throw new Error(MessageManager.getString("error.not_implemented"));
   }
 
   public int length()

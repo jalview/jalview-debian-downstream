@@ -1,28 +1,39 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
 import jalview.bin.Cache;
 import jalview.io.FileLoader;
 import jalview.io.FormatAdapter;
 import jalview.io.IdentifyFile;
 import jalview.io.JalviewFileChooser;
 import jalview.io.JalviewFileView;
+import jalview.jbgui.GSplitFrame;
+import jalview.jbgui.GStructureViewer;
+import jalview.structure.StructureSelectionManager;
+import jalview.util.ImageMaker;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
 import jalview.ws.params.ParamManager;
 
 import java.awt.BorderLayout;
@@ -62,8 +73,12 @@ import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 import javax.swing.DefaultDesktopManager;
 import javax.swing.DesktopManager;
@@ -80,6 +95,8 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkEvent.EventType;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 
@@ -91,7 +108,8 @@ import javax.swing.event.MenuListener;
  * @version $Revision: 1.155 $
  */
 public class Desktop extends jalview.jbgui.GDesktop implements
-        DropTargetListener, ClipboardOwner, IProgressIndicator, jalview.api.StructureSelectionManagerProvider
+        DropTargetListener, ClipboardOwner, IProgressIndicator,
+        jalview.api.StructureSelectionManagerProvider
 {
 
   private JalviewChangeSupport changeSupport = new JalviewChangeSupport();
@@ -99,7 +117,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   /**
    * news reader - null if it was never started.
    */
-  private BlogReader jvnews=null;
+  private BlogReader jvnews = null;
+
+  private File projectFile;
 
   /**
    * @param listener
@@ -146,6 +166,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   static final int xOffset = 30;
 
   static final int yOffset = 30;
+
+  private static AlignFrame currentAlignFrame;
 
   public static jalview.ws.jws1.Discoverer discoverer;
 
@@ -204,6 +226,10 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
     public void dragFrame(JComponent f, int newX, int newY)
     {
+      if (newY < 0)
+      {
+        newY = 0;
+      }
       delegate.dragFrame(f, newX, newY);
     }
 
@@ -237,9 +263,14 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       delegate.openFrame(f);
     }
 
+    @Override
     public void resizeFrame(JComponent f, int newX, int newY, int newWidth,
             int newHeight)
     {
+      if (newY < 0)
+      {
+        newY = 0;
+      }
       delegate.resizeFrame(f, newX, newY, newWidth, newHeight);
     }
 
@@ -266,7 +297,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     instance = this;
     doVamsasClientCheck();
     doGroovyCheck();
-
+    doConfigureStructurePrefs();
     setTitle("Jalview " + jalview.bin.Cache.getProperty("VERSION"));
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     boolean selmemusage = jalview.bin.Cache.getDefault("SHOW_MEMUSAGE",
@@ -278,16 +309,17 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     desktop.setBackground(Color.white);
     getContentPane().setLayout(new BorderLayout());
     // alternate config - have scrollbars - see notes in JAL-153
-    //JScrollPane sp = new JScrollPane();
-    //sp.getViewport().setView(desktop);
-    //getContentPane().add(sp, BorderLayout.CENTER);
+    // JScrollPane sp = new JScrollPane();
+    // sp.getViewport().setView(desktop);
+    // getContentPane().add(sp, BorderLayout.CENTER);
     getContentPane().add(desktop, BorderLayout.CENTER);
-      desktop.setDragMode(JDesktopPane.OUTLINE_DRAG_MODE);
-      
+    desktop.setDragMode(JDesktopPane.OUTLINE_DRAG_MODE);
+
     // This line prevents Windows Look&Feel resizing all new windows to maximum
     // if previous window was maximised
     desktop.setDesktopManager(new MyDesktopManager(
             new DefaultDesktopManager()));
+
     Rectangle dims = getLastKnownDimensions("");
     if (dims != null)
     {
@@ -296,14 +328,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     else
     {
       Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-      setBounds((int) (screenSize.width - 900) / 2,
-              (int) (screenSize.height - 650) / 2, 900, 650);
+      setBounds((screenSize.width - 900) / 2,
+              (screenSize.height - 650) / 2, 900, 650);
     }
     jconsole = new Console(this, showjconsole);
     // add essential build information
-    jconsole.setHeader("Jalview Desktop "
+    jconsole.setHeader("Jalview Version: "
             + jalview.bin.Cache.getProperty("VERSION") + "\n"
-            + "Build Date: "
+            + "Jalview Installation: "
+            + jalview.bin.Cache.getDefault("INSTALLATION", "unknown")
+            + "\n" + "Build Date: "
             + jalview.bin.Cache.getDefault("BUILD_DATE", "unknown") + "\n"
             + "Java version: " + System.getProperty("java.version") + "\n"
             + System.getProperty("os.arch") + " "
@@ -313,20 +347,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     showConsole(showjconsole);
 
     showNews.setVisible(false);
-    final Desktop me = this;
-    // Thread off the news reader, in case there are connection problems.
-    new Thread( new Runnable() {
-      @Override
-      public void run()
-      {
-        Cache.log.debug("Starting news thread.");
 
-        jvnews = new BlogReader(me);
-        showNews.setVisible(true);
-        Cache.log.debug("Completed news thread.");
-      }
-    }).start();
-    
     this.addWindowListener(new WindowAdapter()
     {
       public void windowClosing(WindowEvent evt)
@@ -335,7 +356,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       }
     });
 
-    this.addMouseListener(new MouseAdapter()
+    MouseAdapter ma;
+    this.addMouseListener(ma = new MouseAdapter()
     {
       public void mousePressed(MouseEvent evt)
       {
@@ -345,16 +367,18 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         }
       }
     });
+    desktop.addMouseListener(ma);
+
     this.addFocusListener(new FocusListener()
     {
-      
+
       @Override
       public void focusLost(FocusEvent e)
       {
         // TODO Auto-generated method stub
-        
+
       }
-      
+
       @Override
       public void focusGained(FocusEvent e)
       {
@@ -381,7 +405,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       public void run()
       {
         Cache.log.debug("Filechooser init thread started.");
-        JalviewFileChooser chooser = new JalviewFileChooser(
+        new JalviewFileChooser(
                 jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
                 jalview.io.AppletFormatAdapter.READABLE_EXTENSIONS,
                 jalview.io.AppletFormatAdapter.READABLE_FNAMES,
@@ -405,25 +429,69 @@ public class Desktop extends jalview.jbgui.GDesktop implements
             });
   }
 
+  public void doConfigureStructurePrefs()
+  {
+    // configure services
+    StructureSelectionManager ssm = StructureSelectionManager
+            .getStructureSelectionManager(this);
+    if (jalview.bin.Cache.getDefault(Preferences.ADD_SS_ANN, true))
+    {
+      ssm.setAddTempFacAnnot(jalview.bin.Cache.getDefault(
+              Preferences.ADD_TEMPFACT_ANN, true));
+      ssm.setProcessSecondaryStructure(jalview.bin.Cache.getDefault(
+              Preferences.STRUCT_FROM_PDB, true));
+      ssm.setSecStructServices(jalview.bin.Cache.getDefault(
+              Preferences.USE_RNAVIEW, true));
+    }
+    else
+    {
+      ssm.setAddTempFacAnnot(false);
+      ssm.setProcessSecondaryStructure(false);
+      ssm.setSecStructServices(false);
+    }
+  }
+
+  public void checkForNews()
+  {
+    final Desktop me = this;
+    // Thread off the news reader, in case there are connection problems.
+    addDialogThread(new Runnable()
+    {
+      @Override
+      public void run()
+      {
+        Cache.log.debug("Starting news thread.");
+
+        jvnews = new BlogReader(me);
+        showNews.setVisible(true);
+        Cache.log.debug("Completed news thread.");
+      }
+    });
+  }
+
+  @Override
   protected void showNews_actionPerformed(ActionEvent e)
   {
     showNews(showNews.isSelected());
   }
+
   void showNews(boolean visible)
   {
     {
-      Cache.log.debug((visible?"Showing":"Hiding")+" news.");
+      Cache.log.debug((visible ? "Showing" : "Hiding") + " news.");
       showNews.setSelected(visible);
       if (visible && !jvnews.isVisible())
       {
-        new Thread(new Runnable() {
+        new Thread(new Runnable()
+        {
           @Override
           public void run()
           {
-            long instance=System.currentTimeMillis();
-            Desktop.instance.setProgressBar("Refreshing news", instance);
+            long now = System.currentTimeMillis();
+            Desktop.instance.setProgressBar(
+                    MessageManager.getString("status.refreshing_news"), now);
             jvnews.refreshNews();
-            Desktop.instance.setProgressBar(null, instance);
+            Desktop.instance.setProgressBar(null, now);
             jvnews.showNews();
           }
         }).start();
@@ -531,7 +599,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   void showPasteMenu(int x, int y)
   {
     JPopupMenu popup = new JPopupMenu();
-    JMenuItem item = new JMenuItem("Paste To New Window");
+    JMenuItem item = new JMenuItem(
+            MessageManager.getString("label.paste_new_window"));
     item.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent evt)
@@ -574,37 +643,83 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * Adds and opens the given frame to the desktop
    * 
    * @param frame
-   *          DOCUMENT ME!
+   *          Frame to show
    * @param title
-   *          DOCUMENT ME!
+   *          Visible Title
    * @param w
-   *          DOCUMENT ME!
+   *          width
    * @param h
-   *          DOCUMENT ME!
+   *          height
    */
   public static synchronized void addInternalFrame(
           final JInternalFrame frame, String title, int w, int h)
   {
-    addInternalFrame(frame, title, w, h, true);
+    addInternalFrame(frame, title, true, w, h, true);
   }
 
   /**
-   * DOCUMENT ME!
+   * Add an internal frame to the Jalview desktop
    * 
    * @param frame
-   *          DOCUMENT ME!
+   *          Frame to show
    * @param title
-   *          DOCUMENT ME!
+   *          Visible Title
+   * @param makeVisible
+   *          When true, display frame immediately, otherwise, caller must call
+   *          setVisible themselves.
    * @param w
-   *          DOCUMENT ME!
+   *          width
    * @param h
-   *          DOCUMENT ME!
+   *          height
+   */
+  public static synchronized void addInternalFrame(
+          final JInternalFrame frame, String title, boolean makeVisible,
+          int w, int h)
+  {
+    addInternalFrame(frame, title, makeVisible, w, h, true);
+  }
+
+  /**
+   * Add an internal frame to the Jalview desktop and make it visible
+   * 
+   * @param frame
+   *          Frame to show
+   * @param title
+   *          Visible Title
+   * @param w
+   *          width
+   * @param h
+   *          height
    * @param resizable
-   *          DOCUMENT ME!
+   *          Allow resize
    */
   public static synchronized void addInternalFrame(
           final JInternalFrame frame, String title, int w, int h,
           boolean resizable)
+  {
+    addInternalFrame(frame, title, true, w, h, resizable);
+  }
+
+  /**
+   * Add an internal frame to the Jalview desktop
+   * 
+   * @param frame
+   *          Frame to show
+   * @param title
+   *          Visible Title
+   * @param makeVisible
+   *          When true, display frame immediately, otherwise, caller must call
+   *          setVisible themselves.
+   * @param w
+   *          width
+   * @param h
+   *          height
+   * @param resizable
+   *          Allow resize
+   */
+  public static synchronized void addInternalFrame(
+          final JInternalFrame frame, String title, boolean makeVisible,
+          int w, int h, boolean resizable)
   {
 
     // TODO: allow callers to determine X and Y position of frame (eg. via
@@ -621,15 +736,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     // A HEADLESS STATE WHEN NO DESKTOP EXISTS. MUST RETURN
     // IF JALVIEW IS RUNNING HEADLESS
     // ///////////////////////////////////////////////
-    if (System.getProperty("java.awt.headless") != null
-            && System.getProperty("java.awt.headless").equals("true"))
+    if (instance == null
+            || (System.getProperty("java.awt.headless") != null && System
+                    .getProperty("java.awt.headless").equals("true")))
     {
       return;
     }
 
     openFrameCount++;
 
-    frame.setVisible(true);
+    frame.setVisible(makeVisible);
     frame.setClosable(true);
     frame.setResizable(resizable);
     frame.setMaximizable(resizable);
@@ -687,17 +803,17 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     });
     menuItem.addMouseListener(new MouseListener()
     {
-      
+
       @Override
       public void mouseReleased(MouseEvent e)
       {
       }
-      
+
       @Override
       public void mousePressed(MouseEvent e)
       {
       }
-      
+
       @Override
       public void mouseExited(MouseEvent e)
       {
@@ -708,7 +824,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         {
         }
       }
-      
+
       @Override
       public void mouseEntered(MouseEvent e)
       {
@@ -719,11 +835,11 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         {
         }
       }
-      
+
       @Override
       public void mouseClicked(MouseEvent e)
       {
-        
+
       }
     });
 
@@ -737,10 +853,11 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       frame.requestFocus();
     } catch (java.beans.PropertyVetoException ve)
     {
-    }
-    catch (java.lang.ClassCastException cex)
+    } catch (java.lang.ClassCastException cex)
     {
-      Cache.log.warn("Squashed a possible GUI implementation error. If you can recreate this, please look at http://issues.jalview.org/browse/JAL-869",cex);
+      Cache.log
+              .warn("Squashed a possible GUI implementation error. If you can recreate this, please look at http://issues.jalview.org/browse/JAL-869",
+                      cex);
     }
   }
 
@@ -766,6 +883,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
   }
 
+  @Override
   public void dropActionChanged(DropTargetDragEvent evt)
   {
   }
@@ -778,6 +896,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    */
   public void drop(DropTargetDropEvent evt)
   {
+    boolean success = true;
     Transferable t = evt.getTransferable();
     java.util.List files = null;
     java.util.List protocols = null;
@@ -826,6 +945,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       }
     } catch (Exception e)
     {
+      success = false;
     }
 
     if (files != null)
@@ -854,8 +974,11 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         }
       } catch (Exception ex)
       {
+        success = false;
       }
     }
+    evt.dropComplete(success); // need this to ensure input focus is properly
+                               // transfered to any new windows created
   }
 
   /**
@@ -864,6 +987,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void inputLocalFileMenuItem_actionPerformed(AlignViewport viewport)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
@@ -873,8 +997,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
             jalview.bin.Cache.getProperty("DEFAULT_FILE_FORMAT"));
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Open local file");
-    chooser.setToolTipText("Open");
+    chooser.setDialogTitle(MessageManager
+            .getString("label.open_local_file"));
+    chooser.setToolTipText(MessageManager.getString("action.open"));
 
     int value = chooser.showOpenDialog(this);
 
@@ -885,7 +1010,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
               .getSelectedFile().getParent());
 
       String format = null;
-      if (chooser.getSelectedFormat().equals("Jalview"))
+      if (chooser.getSelectedFormat() != null
+              && chooser.getSelectedFormat().equals("Jalview"))
       {
         format = "Jalview";
       }
@@ -898,6 +1024,13 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       {
         new FileLoader().LoadFile(viewport, choice, FormatAdapter.FILE,
                 format);
+        // viewport.setShowSequenceFeatures(JSONFile.isSeqFeaturesEnabled());
+        // AlignFrame af = viewport.getAlignPanel().alignFrame;
+        // if (af != null)
+        // {
+        // af.changeColour(JSONFile.getColourScheme());
+        // af.setMenusForViewport();
+        // }
       }
       else
       {
@@ -912,11 +1045,13 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void inputURLMenuItem_actionPerformed(AlignViewport viewport)
   {
     // This construct allows us to have a wider textfield
     // for viewing
-    JLabel label = new JLabel("Enter URL of Input File");
+    JLabel label = new JLabel(
+            MessageManager.getString("label.input_file_url"));
     final JComboBox history = new JComboBox();
 
     JPanel panel = new JPanel(new GridLayout(2, 1));
@@ -941,7 +1076,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     }
 
     int reply = JOptionPane.showInternalConfirmDialog(desktop, panel,
-            "Input Alignment From URL", JOptionPane.OK_CANCEL_OPTION);
+            MessageManager.getString("label.input_alignment_from_url"),
+            JOptionPane.OK_CANCEL_OPTION);
 
     if (reply != JOptionPane.OK_OPTION)
     {
@@ -969,7 +1105,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       if (format.equals("URL NOT FOUND"))
       {
         JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                "Couldn't locate " + url, "URL not found",
+                MessageManager.formatMessage("label.couldnt_locate",
+                        new Object[] { url }), MessageManager
+                        .getString("label.url_not_found"),
                 JOptionPane.WARNING_MESSAGE);
 
         return;
@@ -987,21 +1125,27 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   }
 
   /**
-   * DOCUMENT ME!
+   * Opens the CutAndPaste window for the user to paste an alignment in to
    * 
-   * @param e
-   *          DOCUMENT ME!
+   * @param viewPanel
+   *          - if not null, the pasted alignment is added to the current
+   *          alignment; if null, to a new alignment window
    */
-  public void inputTextboxMenuItem_actionPerformed(AlignViewport viewport)
+  @Override
+  public void inputTextboxMenuItem_actionPerformed(
+          AlignmentViewPanel viewPanel)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
-    cap.setForInput(viewport);
-    Desktop.addInternalFrame(cap, "Cut & Paste Alignment File", 600, 500);
+    cap.setForInput(viewPanel);
+    Desktop.addInternalFrame(cap,
+            MessageManager.getString("label.cut_paste_alignmen_file"),
+            true, 600, 500);
   }
 
   /*
    * Exit the program
    */
+  @Override
   public void quit()
   {
     Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
@@ -1017,12 +1161,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       storeLastKnownDimensions("JAVA_CONSOLE_", jconsole.getBounds());
       jconsole.stopConsole();
     }
-    if (jvnews!=null)
+    if (jvnews != null)
     {
       storeLastKnownDimensions("JALVIEW_RSS_WINDOW_", jvnews.getBounds());
-      
+
     }
-      
+    if (dialogExecutor != null)
+    {
+      dialogExecutor.shutdownNow();
+    }
+    closeAll_actionPerformed(null);
     System.exit(0);
   }
 
@@ -1044,32 +1192,85 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void aboutMenuItem_actionPerformed(ActionEvent e)
   {
-    StringBuffer message = new StringBuffer("Jalview version "
-            + jalview.bin.Cache.getProperty("VERSION") + "; last updated: "
-            + jalview.bin.Cache.getDefault("BUILD_DATE", "unknown"));
-
-    if (!jalview.bin.Cache.getProperty("LATEST_VERSION").equals(
-            jalview.bin.Cache.getProperty("VERSION")))
+    // StringBuffer message = getAboutMessage(false);
+    // JOptionPane.showInternalMessageDialog(Desktop.desktop,
+    //
+    // message.toString(), "About Jalview", JOptionPane.INFORMATION_MESSAGE);
+    new Thread(new Runnable()
     {
-      message.append("\n\n!! Jalview version "
-              + jalview.bin.Cache.getProperty("LATEST_VERSION")
-              + " is available for download from "+jalview.bin.Cache.getDefault("www.jalview.org","http://www.jalview.org")+" !!\n");
+      public void run()
+      {
+        new SplashScreen(true);
+      }
+    }).start();
+  }
+
+  public StringBuffer getAboutMessage(boolean shortv)
+  {
+    StringBuffer message = new StringBuffer();
+    message.append("<html>");
+    if (shortv)
+    {
+      message.append("<h1><strong>Version: "
+              + jalview.bin.Cache.getProperty("VERSION") + "</strong></h1>");
+      message.append("<strong>Last Updated: <em>"
+              + jalview.bin.Cache.getDefault("BUILD_DATE", "unknown")
+              + "</em></strong>");
 
     }
-    // TODO: update this text for each release or centrally store it for lite
-    // and application
-    message.append("\nAuthors:  Jim Procter, Andrew Waterhouse, Michele Clamp, James Cuff, Steve Searle,\n    David Martin & Geoff Barton."
-            + "\nDevelopment managed by The Barton Group, University of Dundee, Scotland, UK.\n"
-            + "\nFor help, see the FAQ at www.jalview.org and/or join the jalview-discuss@jalview.org mailing list\n"
-            + "\nIf  you use Jalview, please cite:"
-            + "\nWaterhouse, A.M., Procter, J.B., Martin, D.M.A, Clamp, M. and Barton, G. J. (2009)"
-            + "\nJalview Version 2 - a multiple sequence alignment editor and analysis workbench"
-            + "\nBioinformatics doi: 10.1093/bioinformatics/btp033");
-    JOptionPane.showInternalMessageDialog(Desktop.desktop,
+    else
+    {
 
-    message.toString(), "About Jalview", JOptionPane.INFORMATION_MESSAGE);
+      message.append("<strong>Version "
+              + jalview.bin.Cache.getProperty("VERSION")
+              + "; last updated: "
+              + jalview.bin.Cache.getDefault("BUILD_DATE", "unknown"));
+    }
+
+    if (jalview.bin.Cache.getDefault("LATEST_VERSION", "Checking").equals(
+            "Checking"))
+    {
+      message.append("<br>...Checking latest version...</br>");
+    }
+    else if (!jalview.bin.Cache.getDefault("LATEST_VERSION", "Checking")
+            .equals(jalview.bin.Cache.getProperty("VERSION")))
+    {
+      boolean red = false;
+      if (jalview.bin.Cache.getProperty("VERSION").toLowerCase()
+              .indexOf("automated build") == -1)
+      {
+        red = true;
+        // Displayed when code version and jnlp version do not match and code
+        // version is not a development build
+        message.append("<div style=\"color: #FF0000;font-style: bold;\">");
+      }
+
+      message.append("<br>!! Version "
+              + jalview.bin.Cache.getDefault("LATEST_VERSION",
+                      "..Checking..")
+              + " is available for download from "
+              + jalview.bin.Cache.getDefault("www.jalview.org",
+                      "http://www.jalview.org") + " !!");
+      if (red)
+      {
+        message.append("</div>");
+      }
+    }
+    message.append("<br>Authors:  "
+            + jalview.bin.Cache
+                    .getDefault("AUTHORFNAMES",
+                            "The Jalview Authors (See AUTHORS file for current list)")
+            + "<br><br>Development managed by The Barton Group, University of Dundee, Scotland, UK.<br>"
+            + "<br><br>For help, see the FAQ at <a href=\"http://www.jalview.org/faq\">www.jalview.org/faq</a> and/or join the jalview-discuss@jalview.org mailing list"
+            + "<br><br>If  you use Jalview, please cite:"
+            + "<br>Waterhouse, A.M., Procter, J.B., Martin, D.M.A, Clamp, M. and Barton, G. J. (2009)"
+            + "<br>Jalview Version 2 - a multiple sequence alignment editor and analysis workbench"
+            + "<br>Bioinformatics doi: 10.1093/bioinformatics/btp033"
+            + "</html>");
+    return message;
   }
 
   /**
@@ -1078,22 +1279,18 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void documentationMenuItem_actionPerformed(ActionEvent e)
   {
     try
     {
-      ClassLoader cl = jalview.gui.Desktop.class.getClassLoader();
-      java.net.URL url = javax.help.HelpSet.findHelpSet(cl, "help/help");
-      javax.help.HelpSet hs = new javax.help.HelpSet(cl, url);
-
-      javax.help.HelpBroker hb = hs.createHelpBroker();
-      hb.setCurrentID("home");
-      hb.setDisplayed(true);
+      Help.showHelpWindow();
     } catch (Exception ex)
     {
     }
   }
 
+  @Override
   public void closeAll_actionPerformed(ActionEvent e)
   {
     JInternalFrame[] frames = desktop.getAllFrames();
@@ -1110,15 +1307,27 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     if (v_client != null)
     {
       // TODO clear binding to vamsas document objects on close_all
+    }
 
+    /*
+     * reset state of singleton objects as appropriate (clear down session state
+     * when all windows are closed)
+     */
+    StructureSelectionManager ssm = StructureSelectionManager
+            .getStructureSelectionManager(this);
+    if (ssm != null)
+    {
+      ssm.resetAll();
     }
   }
 
+  @Override
   public void raiseRelated_actionPerformed(ActionEvent e)
   {
     reorderAssociatedWindows(false, false);
   }
 
+  @Override
   public void minimizeAssociated_actionPerformed(ActionEvent e)
   {
     reorderAssociatedWindows(true, false);
@@ -1135,6 +1344,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @seejalview.jbgui.GDesktop#garbageCollect_actionPerformed(java.awt.event.
    * ActionEvent)
    */
+  @Override
   protected void garbageCollect_actionPerformed(ActionEvent e)
   {
     // We simply collect the garbage
@@ -1150,6 +1360,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * jalview.jbgui.GDesktop#showMemusage_actionPerformed(java.awt.event.ActionEvent
    * )
    */
+  @Override
   protected void showMemusage_actionPerformed(ActionEvent e)
   {
     desktop.showMemoryUsage(showMemusage.isSelected());
@@ -1162,6 +1373,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * jalview.jbgui.GDesktop#showConsole_actionPerformed(java.awt.event.ActionEvent
    * )
    */
+  @Override
   protected void showConsole_actionPerformed(ActionEvent e)
   {
     showConsole(showConsole.isSelected());
@@ -1191,7 +1403,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       return;
     }
 
-    AlignViewport source = null, target = null;
+    AlignmentViewport source = null, target = null;
     if (frames[0] instanceof AlignFrame)
     {
       source = ((AlignFrame) frames[0]).getCurrentView();
@@ -1266,6 +1478,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void preferences_actionPerformed(ActionEvent e)
   {
     new Preferences();
@@ -1277,15 +1490,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void saveState_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-            { "jar" }, new String[]
-            { "Jalview Project" }, "Jalview Project");
+            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
+            new String[] { "jvp" }, new String[] { "Jalview Project" },
+            "Jalview Project");
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Save State");
+    chooser.setDialogTitle(MessageManager.getString("label.save_state"));
 
     int value = chooser.showSaveDialog(this);
 
@@ -1293,36 +1507,52 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     {
       final Desktop me = this;
       final java.io.File choice = chooser.getSelectedFile();
+      setProjectFile(choice);
+
       new Thread(new Runnable()
       {
         public void run()
         {
-
-      setProgressBar("Saving jalview project " + choice.getName(),
-              choice.hashCode());
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", choice.getParent());
-      // TODO catch and handle errors for savestate
-      // TODO prevent user from messing with the Desktop whilst we're saving
-      try
-      {
-        new Jalview2XML().SaveState(choice);
-      } catch (OutOfMemoryError oom)
-      {
-        new OOMWarning(
-                "Whilst saving current state to " + choice.getName(), oom);
-      } catch (Exception ex)
-      {
-        Cache.log
-                .error("Problems whilst trying to save to "
-                        + choice.getName(), ex);
-        JOptionPane.showMessageDialog(me,
-                "Error whilst saving current state to " + choice.getName(),
-                "Couldn't save project", JOptionPane.WARNING_MESSAGE);
-      }
-      setProgressBar(null, choice.hashCode());
+          // TODO: refactor to Jalview desktop session controller action.
+          setProgressBar(MessageManager.formatMessage(
+                  "label.saving_jalview_project",
+                  new Object[] { choice.getName() }), choice.hashCode());
+          jalview.bin.Cache.setProperty("LAST_DIRECTORY",
+                  choice.getParent());
+          // TODO catch and handle errors for savestate
+          // TODO prevent user from messing with the Desktop whilst we're saving
+          try
+          {
+            new Jalview2XML().saveState(choice);
+          } catch (OutOfMemoryError oom)
+          {
+            new OOMWarning("Whilst saving current state to "
+                    + choice.getName(), oom);
+          } catch (Exception ex)
+          {
+            Cache.log.error(
+                    "Problems whilst trying to save to " + choice.getName(),
+                    ex);
+            JOptionPane.showMessageDialog(me, MessageManager.formatMessage(
+                    "label.error_whilst_saving_current_state_to",
+                    new Object[] { choice.getName() }), MessageManager
+                    .getString("label.couldnt_save_project"),
+                    JOptionPane.WARNING_MESSAGE);
+          }
+          setProgressBar(null, choice.hashCode());
         }
       }).start();
     }
+  }
+
+  private void setProjectFile(File choice)
+  {
+    this.projectFile = choice;
+  }
+
+  public File getProjectFile()
+  {
+    return this.projectFile;
   }
 
   /**
@@ -1331,31 +1561,36 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void loadState_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-            { "jar" }, new String[]
-            { "Jalview Project" }, "Jalview Project");
+            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[] {
+                "jvp", "jar" }, new String[] { "Jalview Project",
+                "Jalview Project (old)" }, "Jalview Project");
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Restore state");
+    chooser.setDialogTitle(MessageManager.getString("label.restore_state"));
 
     int value = chooser.showOpenDialog(this);
 
     if (value == JalviewFileChooser.APPROVE_OPTION)
     {
-      final String choice = chooser.getSelectedFile().getAbsolutePath();
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", chooser
-              .getSelectedFile().getParent());
+      final File selectedFile = chooser.getSelectedFile();
+      setProjectFile(selectedFile);
+      final String choice = selectedFile.getAbsolutePath();
+      jalview.bin.Cache.setProperty("LAST_DIRECTORY",
+              selectedFile.getParent());
       new Thread(new Runnable()
       {
         public void run()
         {
-          setProgressBar("loading jalview project " + choice,
-                  choice.hashCode());
+          setProgressBar(
+                  MessageManager.formatMessage(
+                          "label.loading_jalview_project",
+                          new Object[] { choice }), choice.hashCode());
           try
           {
-            new Jalview2XML().LoadJalviewAlign(choice);
+            new Jalview2XML().loadJalviewAlign(choice);
           } catch (OutOfMemoryError oom)
           {
             new OOMWarning("Whilst loading project from " + choice, oom);
@@ -1363,9 +1598,12 @@ public class Desktop extends jalview.jbgui.GDesktop implements
           {
             Cache.log.error("Problems whilst loading project from "
                     + choice, ex);
-            JOptionPane.showMessageDialog(Desktop.desktop,
-                    "Error whilst loading project from " + choice,
-                    "Couldn't load project", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+                    .formatMessage(
+                            "label.error_whilst_loading_project_from",
+                            new Object[] { choice }), MessageManager
+                    .getString("label.couldnt_load_project"),
+                    JOptionPane.WARNING_MESSAGE);
           }
           setProgressBar(null, choice.hashCode());
         }
@@ -1373,18 +1611,22 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     }
   }
 
+  @Override
   public void inputSequence_actionPerformed(ActionEvent e)
   {
     new SequenceFetcher(this);
   }
 
   JPanel progressPanel;
-  ArrayList<JPanel> fileLoadingPanels=new ArrayList<JPanel>();
+
+  ArrayList<JPanel> fileLoadingPanels = new ArrayList<JPanel>();
+
   public void startLoading(final String fileName)
   {
     if (fileLoadingCount == 0)
     {
-      fileLoadingPanels.add(addProgressPanel("Loading File: " + fileName + "   "));
+      fileLoadingPanels.add(addProgressPanel(MessageManager.formatMessage(
+              "label.loading_file", new Object[] { fileName })));
     }
     fileLoadingCount++;
   }
@@ -1393,11 +1635,11 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
     if (progressPanel == null)
     {
-      progressPanel = new JPanel(new GridLayout(1,1));
+      progressPanel = new JPanel(new GridLayout(1, 1));
       totalProgressCount = 0;
       instance.getContentPane().add(progressPanel, BorderLayout.SOUTH);
     }
-    JPanel thisprogress=new JPanel(new BorderLayout(10,5));
+    JPanel thisprogress = new JPanel(new BorderLayout(10, 5));
     JProgressBar progressBar = new JProgressBar();
     progressBar.setIndeterminate(true);
 
@@ -1405,7 +1647,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
     thisprogress.add(progressBar, BorderLayout.CENTER);
     progressPanel.add(thisprogress);
-    ((GridLayout)progressPanel.getLayout()).setRows(((GridLayout)progressPanel.getLayout()).getRows()+1);
+    ((GridLayout) progressPanel.getLayout())
+            .setRows(((GridLayout) progressPanel.getLayout()).getRows() + 1);
     ++totalProgressCount;
     instance.validate();
     return thisprogress;
@@ -1417,13 +1660,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
     if (progressPanel != null)
     {
-      progressPanel.remove(progbar);
-      GridLayout gl = (GridLayout) progressPanel.getLayout();
-      gl.setRows(gl.getRows()-1);
-      if (--totalProgressCount < 1)
+      synchronized (progressPanel)
       {
-        this.getContentPane().remove(progressPanel);
-        progressPanel = null;
+        progressPanel.remove(progbar);
+        GridLayout gl = (GridLayout) progressPanel.getLayout();
+        gl.setRows(gl.getRows() - 1);
+        if (--totalProgressCount < 1)
+        {
+          this.getContentPane().remove(progressPanel);
+          progressPanel = null;
+        }
       }
     }
     validate();
@@ -1434,9 +1680,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     fileLoadingCount--;
     if (fileLoadingCount < 1)
     {
-      for (JPanel flp : fileLoadingPanels)
+      while (fileLoadingPanels.size() > 0)
       {
-        removeProgressPanel(flp);
+        removeProgressPanel(fileLoadingPanels.remove(0));
       }
       fileLoadingPanels.clear();
       fileLoadingCount = 0;
@@ -1446,39 +1692,38 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
   public static int getViewCount(String alignmentId)
   {
-    AlignViewport[] aps = getViewports(alignmentId);
+    AlignmentViewport[] aps = getViewports(alignmentId);
     return (aps == null) ? 0 : aps.length;
   }
 
   /**
    * 
    * @param alignmentId
+   *          - if null, all sets are returned
    * @return all AlignmentPanels concerning the alignmentId sequence set
    */
   public static AlignmentPanel[] getAlignmentPanels(String alignmentId)
   {
-    int count = 0;
     if (Desktop.desktop == null)
     {
       // no frames created and in headless mode
       // TODO: verify that frames are recoverable when in headless mode
       return null;
     }
-    JInternalFrame[] frames = Desktop.desktop.getAllFrames();
-    ArrayList aps = new ArrayList();
-    for (int t = 0; t < frames.length; t++)
+    List<AlignmentPanel> aps = new ArrayList<AlignmentPanel>();
+    AlignFrame[] frames = getAlignFrames();
+    if (frames == null)
     {
-      if (frames[t] instanceof AlignFrame)
+      return null;
+    }
+    for (AlignFrame af : frames)
+    {
+      for (AlignmentPanel ap : af.alignPanels)
       {
-        AlignFrame af = (AlignFrame) frames[t];
-        for (int a = 0; a < af.alignPanels.size(); a++)
+        if (alignmentId == null
+                || alignmentId.equals(ap.av.getSequenceSetId()))
         {
-          if (alignmentId
-                  .equals(((AlignmentPanel) af.alignPanels.elementAt(a)).av
-                          .getSequenceSetId()))
-          {
-            aps.add(af.alignPanels.elementAt(a));
-          }
+          aps.add(ap);
         }
       }
     }
@@ -1486,11 +1731,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     {
       return null;
     }
-    AlignmentPanel[] vap = new AlignmentPanel[aps.size()];
-    for (int t = 0; t < vap.length; t++)
-    {
-      vap[t] = (AlignmentPanel) aps.get(t);
-    }
+    AlignmentPanel[] vap = aps.toArray(new AlignmentPanel[aps.size()]);
     return vap;
   }
 
@@ -1498,52 +1739,53 @@ public class Desktop extends jalview.jbgui.GDesktop implements
    * get all the viewports on an alignment.
    * 
    * @param sequenceSetId
-   *          unique alignment id
+   *          unique alignment id (may be null - all viewports returned in that
+   *          case)
    * @return all viewports on the alignment bound to sequenceSetId
    */
-  public static AlignViewport[] getViewports(String sequenceSetId)
+  public static AlignmentViewport[] getViewports(String sequenceSetId)
   {
-    Vector viewp = new Vector();
+    List<AlignmentViewport> viewp = new ArrayList<AlignmentViewport>();
     if (desktop != null)
     {
-      javax.swing.JInternalFrame[] frames = instance.getAllFrames();
+      AlignFrame[] frames = Desktop.getAlignFrames();
 
-      for (int t = 0; t < frames.length; t++)
+      for (AlignFrame afr : frames)
       {
-        if (frames[t] instanceof AlignFrame)
+        if (sequenceSetId == null
+                || afr.getViewport().getSequenceSetId()
+                        .equals(sequenceSetId))
         {
-          AlignFrame afr = ((AlignFrame) frames[t]);
-          if (afr.getViewport().getSequenceSetId().equals(sequenceSetId))
+          if (afr.alignPanels != null)
           {
-            if (afr.alignPanels != null)
+            for (AlignmentPanel ap : afr.alignPanels)
             {
-              for (int a = 0; a < afr.alignPanels.size(); a++)
+              if (sequenceSetId == null
+                      || sequenceSetId.equals(ap.av.getSequenceSetId()))
               {
-                if (sequenceSetId.equals(((AlignmentPanel) afr.alignPanels
-                        .elementAt(a)).av.getSequenceSetId()))
-                {
-                  viewp.addElement(((AlignmentPanel) afr.alignPanels
-                          .elementAt(a)).av);
-                }
+                viewp.add(ap.av);
               }
             }
-            else
-            {
-              viewp.addElement(((AlignFrame) frames[t]).getViewport());
-            }
+          }
+          else
+          {
+            viewp.add(afr.getViewport());
           }
         }
       }
       if (viewp.size() > 0)
       {
-        AlignViewport[] vp = new AlignViewport[viewp.size()];
-        viewp.copyInto(vp);
-        return vp;
+        return viewp.toArray(new AlignmentViewport[viewp.size()]);
       }
     }
     return null;
   }
 
+  /**
+   * Explode the views in the given frame into separate AlignFrame
+   * 
+   * @param af
+   */
   public void explodeViews(AlignFrame af)
   {
     int size = af.alignPanels.size();
@@ -1554,15 +1796,21 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
     for (int i = 0; i < size; i++)
     {
-      AlignmentPanel ap = (AlignmentPanel) af.alignPanels.elementAt(i);
+      AlignmentPanel ap = af.alignPanels.get(i);
       AlignFrame newaf = new AlignFrame(ap);
-      if (ap.av.explodedPosition != null
-              && !ap.av.explodedPosition.equals(af.getBounds()))
+
+      /*
+       * Restore the view's last exploded frame geometry if known. Multiple
+       * views from one exploded frame share and restore the same (frame)
+       * position and size.
+       */
+      Rectangle geometry = ap.av.getExplodedGeometry();
+      if (geometry != null)
       {
-        newaf.setBounds(ap.av.explodedPosition);
+        newaf.setBounds(geometry);
       }
 
-      ap.av.gatherViewsHere = false;
+      ap.av.setGatherViewsHere(false);
 
       addInternalFrame(newaf, af.getTitle(), AlignFrame.DEFAULT_WIDTH,
               AlignFrame.DEFAULT_HEIGHT);
@@ -1573,12 +1821,20 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
   }
 
+  /**
+   * Gather expanded views (separate AlignFrame's) with the same sequence set
+   * identifier back in to this frame as additional views, and close the
+   * expanded views. Note the expanded frames may themselves have multiple
+   * views. We take the lot.
+   * 
+   * @param source
+   */
   public void gatherViews(AlignFrame source)
   {
-    source.viewport.gatherViewsHere = true;
-    source.viewport.explodedPosition = source.getBounds();
+    source.viewport.setGatherViewsHere(true);
+    source.viewport.setExplodedGeometry(source.getBounds());
     JInternalFrame[] frames = desktop.getAllFrames();
-    String viewId = source.viewport.sequenceSetID;
+    String viewId = source.viewport.getSequenceSetId();
 
     for (int t = 0; t < frames.length; t++)
     {
@@ -1588,12 +1844,12 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         boolean gatherThis = false;
         for (int a = 0; a < af.alignPanels.size(); a++)
         {
-          AlignmentPanel ap = (AlignmentPanel) af.alignPanels.elementAt(a);
+          AlignmentPanel ap = af.alignPanels.get(a);
           if (viewId.equals(ap.av.getSequenceSetId()))
           {
             gatherThis = true;
-            ap.av.gatherViewsHere = false;
-            ap.av.explodedPosition = af.getBounds();
+            ap.av.setGatherViewsHere(false);
+            ap.av.setExplodedGeometry(af.getBounds());
             source.addAlignmentPanel(ap, false);
           }
         }
@@ -1610,6 +1866,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
   jalview.gui.VamsasApplication v_client = null;
 
+  @Override
   public void vamsasImport_actionPerformed(ActionEvent e)
   {
     if (v_client == null)
@@ -1619,8 +1876,10 @@ public class Desktop extends jalview.jbgui.GDesktop implements
               jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
 
       chooser.setFileView(new JalviewFileView());
-      chooser.setDialogTitle("Open a saved VAMSAS session");
-      chooser.setToolTipText("select a vamsas session to be opened as a new vamsas session.");
+      chooser.setDialogTitle(MessageManager
+              .getString("label.open_saved_vamsas_session"));
+      chooser.setToolTipText(MessageManager
+              .getString("label.select_vamsas_session_opened_as_new_vamsas_session"));
 
       int value = chooser.showOpenDialog(this);
 
@@ -1629,10 +1888,15 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         String fle = chooser.getSelectedFile().toString();
         if (!vamsasImport(chooser.getSelectedFile()))
         {
-          JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                  "Couldn't import '" + fle + "' as a new vamsas session.",
-                  "Vamsas Document Import Failed",
-                  JOptionPane.ERROR_MESSAGE);
+          JOptionPane
+                  .showInternalMessageDialog(
+                          Desktop.desktop,
+                          MessageManager.formatMessage(
+                                  "label.couldnt_import_as_vamsas_session",
+                                  new Object[] { fle }),
+                          MessageManager
+                                  .getString("label.vamsas_document_import_failed"),
+                          JOptionPane.ERROR_MESSAGE);
         }
       }
     }
@@ -1705,23 +1969,26 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       return false;
     }
 
-    setProgressBar("Importing VAMSAS session from " + file.getName(),
-            file.hashCode());
+    setProgressBar(MessageManager.formatMessage(
+            "status.importing_vamsas_session_from",
+            new Object[] { file.getName() }), file.hashCode());
     try
     {
       v_client = new jalview.gui.VamsasApplication(this, file, null);
     } catch (Exception ex)
     {
-      setProgressBar("Importing VAMSAS session from " + file.getName(),
-              file.hashCode());
+      setProgressBar(MessageManager.formatMessage(
+              "status.importing_vamsas_session_from",
+              new Object[] { file.getName() }), file.hashCode());
       jalview.bin.Cache.log.error(
               "New vamsas session from existing session file failed:", ex);
       return false;
     }
     setupVamsasConnectedGui();
     v_client.initial_update(); // TODO: thread ?
-    setProgressBar("Importing VAMSAS session from " + file.getName(),
-            file.hashCode());
+    setProgressBar(MessageManager.formatMessage(
+            "status.importing_vamsas_session_from",
+            new Object[] { file.getName() }), file.hashCode());
     return v_client.inSession();
   }
 
@@ -1730,11 +1997,13 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     if (v_client != null)
     {
       throw new Error(
-              "Trying to join a vamsas session when another is already connected.");
+              MessageManager
+                      .getString("error.try_join_vamsas_session_another"));
     }
     if (mysesid == null)
     {
-      throw new Error("Invalid vamsas session id.");
+      throw new Error(
+              MessageManager.getString("error.invalid_vamsas_session_id"));
     }
     v_client = new VamsasApplication(this, mysesid);
     setupVamsasConnectedGui();
@@ -1742,6 +2011,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     return (v_client.inSession());
   }
 
+  @Override
   public void vamsasStart_actionPerformed(ActionEvent e)
   {
     if (v_client == null)
@@ -1774,7 +2044,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
   protected void setupVamsasConnectedGui()
   {
-    vamsasStart.setText("Session Update");
+    vamsasStart.setText(MessageManager.getString("label.session_update"));
     vamsasSave.setVisible(true);
     vamsasStop.setVisible(true);
     vamsasImport.setVisible(false); // Document import to existing session is
@@ -1786,9 +2056,11 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     vamsasSave.setVisible(false);
     vamsasStop.setVisible(false);
     vamsasImport.setVisible(true);
-    vamsasStart.setText("New Vamsas Session");
+    vamsasStart.setText(MessageManager
+            .getString("label.new_vamsas_session"));
   }
 
+  @Override
   public void vamsasStop_actionPerformed(ActionEvent e)
   {
     if (v_client != null)
@@ -1822,7 +2094,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         {
           JMenuItem sessit = new JMenuItem();
           sessit.setText(sess[i]);
-          sessit.setToolTipText("Connect to session " + sess[i]);
+          sessit.setToolTipText(MessageManager.formatMessage(
+                  "label.connect_to_session", new Object[] { sess[i] }));
           final Desktop dsktp = this;
           final String mysesid = sess[i];
           sessit.addActionListener(new ActionListener()
@@ -1867,6 +2140,7 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     }
   }
 
+  @Override
   public void vamsasSave_actionPerformed(ActionEvent e)
   {
     if (v_client != null)
@@ -1874,19 +2148,20 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       JalviewFileChooser chooser = new JalviewFileChooser(
               jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
               { "vdj" }, // TODO: VAMSAS DOCUMENT EXTENSION is VDJ
-              new String[]
-              { "Vamsas Document" }, "Vamsas Document");
+              new String[] { "Vamsas Document" }, "Vamsas Document");
 
       chooser.setFileView(new JalviewFileView());
-      chooser.setDialogTitle("Save Vamsas Document Archive");
+      chooser.setDialogTitle(MessageManager
+              .getString("label.save_vamsas_document_archive"));
 
       int value = chooser.showSaveDialog(this);
 
       if (value == JalviewFileChooser.APPROVE_OPTION)
       {
         java.io.File choice = chooser.getSelectedFile();
-        JPanel progpanel = addProgressPanel("Saving VAMSAS Document to "
-                + choice.getName());
+        JPanel progpanel = addProgressPanel(MessageManager.formatMessage(
+                "label.saving_vamsas_doc",
+                new Object[] { choice.getName() }));
         jalview.bin.Cache.setProperty("LAST_DIRECTORY", choice.getParent());
         String warnmsg = null;
         String warnttl = null;
@@ -1938,7 +2213,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     }
     if (b)
     {
-      vamUpdate = this.addProgressPanel("Updating vamsas session");
+      vamUpdate = this.addProgressPanel(MessageManager
+              .getString("label.updating_vamsas_session"));
     }
     vamsasStart.setVisible(!b);
     vamsasStop.setVisible(!b);
@@ -1973,6 +2249,8 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   public class MyDesktopPane extends JDesktopPane implements Runnable
   {
 
+    private static final float ONE_MB = 1048576f;
+
     boolean showMemoryUsage = false;
 
     Runtime runtime;
@@ -1987,10 +2265,10 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       showMemoryUsage(showMemoryUsage);
     }
 
-    public void showMemoryUsage(boolean showMemoryUsage)
+    public void showMemoryUsage(boolean showMemory)
     {
-      this.showMemoryUsage = showMemoryUsage;
-      if (showMemoryUsage)
+      this.showMemoryUsage = showMemory;
+      if (showMemory)
       {
         Thread worker = new Thread(this);
         worker.start();
@@ -2012,9 +2290,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       {
         try
         {
-          maxMemory = runtime.maxMemory() / 1048576f;
-          allocatedMemory = runtime.totalMemory() / 1048576f;
-          freeMemory = runtime.freeMemory() / 1048576f;
+          maxMemory = runtime.maxMemory() / ONE_MB;
+          allocatedMemory = runtime.totalMemory() / ONE_MB;
+          freeMemory = runtime.freeMemory() / ONE_MB;
           totalFreeMemory = freeMemory + (maxMemory - allocatedMemory);
 
           percentUsage = (totalFreeMemory / maxMemory) * 100;
@@ -2035,32 +2313,35 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       }
     }
 
+    @Override
     public void paintComponent(Graphics g)
     {
       if (showMemoryUsage && g != null && df != null)
       {
         if (percentUsage < 20)
+        {
           g.setColor(Color.red);
+        }
         FontMetrics fm = g.getFontMetrics();
         if (fm != null)
         {
-          g.drawString(
-                  "Total Free Memory: " + df.format(totalFreeMemory)
-                          + "MB; Max Memory: " + df.format(maxMemory)
-                          + "MB; " + df.format(percentUsage) + "%", 10,
+          g.drawString(MessageManager.formatMessage(
+                  "label.memory_stats",
+                  new Object[] { df.format(totalFreeMemory),
+                      df.format(maxMemory), df.format(percentUsage) }), 10,
                   getHeight() - fm.getHeight());
         }
       }
     }
-
   }
 
   /**
-   * fixes stacking order after a modal dialog to ensure windows that should be on top actually are
+   * fixes stacking order after a modal dialog to ensure windows that should be
+   * on top actually are
    */
   public void relayerWindows()
   {
-    
+
   }
 
   protected JMenuItem groovyShell;
@@ -2070,12 +2351,12 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     if (jalview.bin.Cache.groovyJarsPresent())
     {
       groovyShell = new JMenuItem();
-      groovyShell.setText("Groovy Console...");
+      groovyShell.setText(MessageManager.getString("label.groovy_console"));
       groovyShell.addActionListener(new ActionListener()
       {
         public void actionPerformed(ActionEvent e)
         {
-          groovyShell_actionPerformed(e);
+          groovyShell_actionPerformed();
         }
       });
       toolsMenu.add(groovyShell);
@@ -2085,8 +2366,10 @@ public class Desktop extends jalview.jbgui.GDesktop implements
 
   /**
    * Accessor method to quickly get all the AlignmentFrames loaded.
+   * 
+   * @return an array of AlignFrame, or null if none found
    */
-  public static AlignFrame[] getAlignframes()
+  public static AlignFrame[] getAlignFrames()
   {
     JInternalFrame[] frames = Desktop.desktop.getAllFrames();
 
@@ -2094,35 +2377,44 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     {
       return null;
     }
-    Vector avp = new Vector();
-    try
+    List<AlignFrame> avp = new ArrayList<AlignFrame>();
+    // REVERSE ORDER
+    for (int i = frames.length - 1; i > -1; i--)
     {
-      // REVERSE ORDER
-      for (int i = frames.length - 1; i > -1; i--)
+      if (frames[i] instanceof AlignFrame)
       {
-        if (frames[i] instanceof AlignFrame)
+        avp.add((AlignFrame) frames[i]);
+      }
+      else if (frames[i] instanceof SplitFrame)
+      {
+        /*
+         * Also check for a split frame containing an AlignFrame
+         */
+        GSplitFrame sf = (GSplitFrame) frames[i];
+        if (sf.getTopFrame() instanceof AlignFrame)
         {
-          AlignFrame af = (AlignFrame) frames[i];
-          avp.addElement(af);
+          avp.add((AlignFrame) sf.getTopFrame());
+        }
+        if (sf.getBottomFrame() instanceof AlignFrame)
+        {
+          avp.add((AlignFrame) sf.getBottomFrame());
         }
       }
-    } catch (Exception ex)
-    {
-      ex.printStackTrace();
     }
     if (avp.size() == 0)
     {
       return null;
     }
-    AlignFrame afs[] = new AlignFrame[avp.size()];
-    for (int i = 0, j = avp.size(); i < j; i++)
-    {
-      afs[i] = (AlignFrame) avp.elementAt(i);
-    }
-    avp.clear();
+    AlignFrame afs[] = avp.toArray(new AlignFrame[avp.size()]);
     return afs;
   }
-  public AppJmol[] getJmols()
+
+  /**
+   * Returns an array of any AppJmol frames in the Desktop (or null if none).
+   * 
+   * @return
+   */
+  public GStructureViewer[] getJmols()
   {
     JInternalFrame[] frames = Desktop.desktop.getAllFrames();
 
@@ -2130,77 +2422,64 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     {
       return null;
     }
-    Vector avp = new Vector();
-    try
+    List<GStructureViewer> avp = new ArrayList<GStructureViewer>();
+    // REVERSE ORDER
+    for (int i = frames.length - 1; i > -1; i--)
     {
-      // REVERSE ORDER
-      for (int i = frames.length - 1; i > -1; i--)
+      if (frames[i] instanceof AppJmol)
       {
-        if (frames[i] instanceof AppJmol)
-        {
-          AppJmol af = (AppJmol) frames[i];
-          avp.addElement(af);
-        }
+        GStructureViewer af = (GStructureViewer) frames[i];
+        avp.add(af);
       }
-    } catch (Exception ex)
-    {
-      ex.printStackTrace();
     }
     if (avp.size() == 0)
     {
       return null;
     }
-    AppJmol afs[] = new AppJmol[avp.size()];
-    for (int i = 0, j = avp.size(); i < j; i++)
-    {
-      afs[i] = (AppJmol) avp.elementAt(i);
-    }
-    avp.clear();
+    GStructureViewer afs[] = avp.toArray(new GStructureViewer[avp.size()]);
     return afs;
   }
 
   /**
    * Add Groovy Support to Jalview
    */
-  public void groovyShell_actionPerformed(ActionEvent e)
+  public void groovyShell_actionPerformed()
   {
     // use reflection to avoid creating compilation dependency.
     if (!jalview.bin.Cache.groovyJarsPresent())
     {
       throw new Error(
-              "Implementation Error. Cannot create groovyShell without Groovy on the classpath!");
+              MessageManager
+                      .getString("error.implementation_error_cannot_create_groovyshell"));
     }
     try
     {
-      Class gcClass = Desktop.class.getClassLoader().loadClass(
+      Class<?> gcClass = Desktop.class.getClassLoader().loadClass(
               "groovy.ui.Console");
-      Constructor gccons = gcClass.getConstructor(null);
+      Constructor<?> gccons = gcClass.getConstructor();
       java.lang.reflect.Method setvar = gcClass.getMethod("setVariable",
-              new Class[]
-              { String.class, Object.class });
-      java.lang.reflect.Method run = gcClass.getMethod("run", null);
-      Object gc = gccons.newInstance(null);
-      setvar.invoke(gc, new Object[]
-      { "Jalview", this });
-      run.invoke(gc, null);
+              new Class[] { String.class, Object.class });
+      java.lang.reflect.Method run = gcClass.getMethod("run");
+      Object gc = gccons.newInstance();
+      setvar.invoke(gc, new Object[] { "Jalview", this });
+      run.invoke(gc);
     } catch (Exception ex)
     {
       jalview.bin.Cache.log.error("Groovy Shell Creation failed.", ex);
-      JOptionPane
-              .showInternalMessageDialog(
-                      Desktop.desktop,
+      JOptionPane.showInternalMessageDialog(Desktop.desktop,
 
-                      "Couldn't create the groovy Shell. Check the error log for the details of what went wrong.",
-                      "Jalview Groovy Support Failed",
-                      JOptionPane.ERROR_MESSAGE);
+      MessageManager.getString("label.couldnt_create_groovy_shell"),
+              MessageManager.getString("label.groovy_support_failed"),
+              JOptionPane.ERROR_MESSAGE);
     }
   }
 
   /**
    * Progress bars managed by the IProgressIndicator method.
    */
-  private Hashtable<Long,JPanel> progressBars;
-  private Hashtable<Long,IProgressIndicatorHandler> progressBarHandlers;
+  private Hashtable<Long, JPanel> progressBars;
+
+  private Hashtable<Long, IProgressIndicatorHandler> progressBarHandlers;
 
   /*
    * (non-Javadoc)
@@ -2211,19 +2490,18 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
     if (progressBars == null)
     {
-      progressBars = new Hashtable<Long,JPanel>();
-      progressBarHandlers = new Hashtable<Long,IProgressIndicatorHandler>();
+      progressBars = new Hashtable<Long, JPanel>();
+      progressBarHandlers = new Hashtable<Long, IProgressIndicatorHandler>();
     }
 
     if (progressBars.get(new Long(id)) != null)
     {
-      JPanel progressPanel = progressBars
-              .remove(new Long(id));
+      JPanel panel = progressBars.remove(new Long(id));
       if (progressBarHandlers.contains(new Long(id)))
       {
         progressBarHandlers.remove(new Long(id));
       }
-      removeProgressPanel(progressPanel);
+      removeProgressPanel(panel);
     }
     else
     {
@@ -2240,16 +2518,19 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   public void registerHandler(final long id,
           final IProgressIndicatorHandler handler)
   {
-    if (progressBarHandlers == null || !progressBars.contains(new Long(id)))
+    if (progressBarHandlers == null
+            || !progressBars.containsKey(new Long(id)))
     {
       throw new Error(
-              "call setProgressBar before registering the progress bar's handler.");
+              MessageManager
+                      .getString("error.call_setprogressbar_before_registering_handler"));
     }
     progressBarHandlers.put(new Long(id), handler);
-    final JPanel progressPanel = (JPanel) progressBars.get(new Long(id));
+    final JPanel progressPanel = progressBars.get(new Long(id));
     if (handler.canCancel())
     {
-      JButton cancel = new JButton("Cancel");
+      JButton cancel = new JButton(
+              MessageManager.getString("action.cancel"));
       final IProgressIndicator us = this;
       cancel.addActionListener(new ActionListener()
       {
@@ -2257,10 +2538,10 @@ public class Desktop extends jalview.jbgui.GDesktop implements
         public void actionPerformed(ActionEvent e)
         {
           handler.cancelActivity(id);
-          us.setProgressBar(
-                  "Cancelled "
-                          + ((JLabel) progressPanel.getComponent(0))
-                                  .getText(), id);
+          us.setProgressBar(MessageManager.formatMessage(
+                  "label.cancelled_params",
+                  new Object[] { ((JLabel) progressPanel.getComponent(0))
+                          .getText() }), id);
         }
       });
       progressPanel.add(cancel, BorderLayout.EAST);
@@ -2268,20 +2549,35 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   }
 
   /**
-   * This will return the first AlignFrame viewing AlignViewport av. It will
-   * break if there are more than one AlignFrames viewing a particular av. This
    * 
-   * @param av
-   * @return alignFrame for av
+   * @return true if any progress bars are still active
    */
-  public static AlignFrame getAlignFrameFor(AlignViewport av)
+  @Override
+  public boolean operationInProgress()
+  {
+    if (progressBars != null && progressBars.size() > 0)
+    {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * This will return the first AlignFrame holding the given viewport instance.
+   * It will break if there are more than one AlignFrames viewing a particular
+   * av.
+   * 
+   * @param viewport
+   * @return alignFrame for viewport
+   */
+  public static AlignFrame getAlignFrameFor(AlignViewportI viewport)
   {
     if (desktop != null)
     {
-      AlignmentPanel[] aps = getAlignmentPanels(av.getSequenceSetId());
+      AlignmentPanel[] aps = getAlignmentPanels(viewport.getSequenceSetId());
       for (int panel = 0; aps != null && panel < aps.length; panel++)
       {
-        if (aps[panel] != null && aps[panel].av == av)
+        if (aps[panel] != null && aps[panel].av == viewport)
         {
           return aps[panel].alignFrame;
         }
@@ -2330,37 +2626,21 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
     boolean alive = true;
     Thread t0 = null, t1 = null, t2 = null;
-
-    // todo: changesupport handlers need to be transferred
-    if (discoverer == null)
-    {
-      discoverer = new jalview.ws.jws1.Discoverer();
-      // register PCS handler for desktop.
-      discoverer.addPropertyChangeListener(changeSupport);
-    }
-    // JAL-940 - disabled JWS1 service configuration - always start discoverer until we phase out completely
+    // JAL-940 - JALVIEW 1 services are now being EOLed as of JABA 2.1 release
     if (true)
     {
+      // todo: changesupport handlers need to be transferred
+      if (discoverer == null)
+      {
+        discoverer = new jalview.ws.jws1.Discoverer();
+        // register PCS handler for desktop.
+        discoverer.addPropertyChangeListener(changeSupport);
+      }
+      // JAL-940 - disabled JWS1 service configuration - always start discoverer
+      // until we phase out completely
       (t0 = new Thread(discoverer)).start();
     }
 
-    try
-    {
-      if (Cache.getDefault("SHOW_ENFIN_SERVICES", true))
-      {
-        // EnfinEnvision web service menu entries are rebuild every time the
-        // menu is shown, so no changeSupport events are needed.
-        jalview.ws.EnfinEnvision2OneWay.getInstance();
-        (t1 = new Thread(jalview.ws.EnfinEnvision2OneWay.getInstance()))
-                .start();
-      }
-    } catch (Exception e)
-    {
-      Cache.log
-              .info("Exception when trying to launch Envision2 workflow discovery.",
-                      e);
-      Cache.log.info(e.getStackTrace());
-    }
     if (Cache.getDefault("SHOW_JWS2_SERVICES", true))
     {
       if (jalview.ws.jws2.Jws2Discoverer.getDiscoverer().isRunning())
@@ -2369,9 +2649,9 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       }
       t2 = jalview.ws.jws2.Jws2Discoverer.getDiscoverer().startDiscoverer(
               changeSupport);
-      
+
     }
-    Thread t3=null;
+    Thread t3 = null;
     {
       // TODO: do rest service discovery
     }
@@ -2408,28 +2688,58 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       {
         if (Cache.getDefault("SHOW_WSDISCOVERY_ERRORS", true))
         {
-        if (serviceChangedDialog == null)
-        {
-          // only run if we aren't already displaying one of these.
-          javax.swing.SwingUtilities
-                  .invokeLater(serviceChangedDialog = new Runnable()
-                  {
-                    public void run()
-                    {
+          if (serviceChangedDialog == null)
+          {
+            // only run if we aren't already displaying one of these.
+            addDialogThread(serviceChangedDialog = new Runnable()
+            {
+              public void run()
+              {
 
-                      JOptionPane
-                              .showInternalMessageDialog(
-                                      Desktop.desktop,
-                                      ermsg
-                                                + "It may be that you have invalid JABA URLs\nin your web service preferences.\n\nGo to the Web services tab of the\nTools->Preferences dialog box to change them.\n",
-                                      "Preferences Problem",
-                                      JOptionPane.WARNING_MESSAGE);
-                      serviceChangedDialog = null;
+                /*
+                 * JalviewDialog jd =new JalviewDialog() {
+                 * 
+                 * @Override protected void cancelPressed() { // TODO
+                 * Auto-generated method stub
+                 * 
+                 * }@Override protected void okPressed() { // TODO
+                 * Auto-generated method stub
+                 * 
+                 * }@Override protected void raiseClosed() { // TODO
+                 * Auto-generated method stub
+                 * 
+                 * } }; jd.initDialogFrame(new
+                 * JLabel("<html><table width=\"450\"><tr><td>" + ermsg +
+                 * "<br/>It may be that you have invalid JABA URLs in your web service preferences,"
+                 * + " or mis-configured HTTP proxy settings.<br/>" +
+                 * "Check the <em>Connections</em> and <em>Web services</em> tab of the"
+                 * +
+                 * " Tools->Preferences dialog box to change them.</td></tr></table></html>"
+                 * ), true, true, "Web Service Configuration Problem", 450,
+                 * 400);
+                 * 
+                 * jd.waitForInput();
+                 */
+                JOptionPane
+                        .showConfirmDialog(
+                                Desktop.desktop,
+                                new JLabel(
+                                        "<html><table width=\"450\"><tr><td>"
+                                                + ermsg
+                                                + "</td></tr></table>"
+                                                + "<p>It may be that you have invalid JABA URLs<br/>in your web service preferences,"
+                                                + "<br>or as a command-line argument, or mis-configured HTTP proxy settings.</p>"
+                                                + "<p>Check the <em>Connections</em> and <em>Web services</em> tab<br/>of the"
+                                                + " Tools->Preferences dialog box to change them.</p></html>"),
+                                "Web Service Configuration Problem",
+                                JOptionPane.DEFAULT_OPTION,
+                                JOptionPane.ERROR_MESSAGE);
+                serviceChangedDialog = null;
 
-                    }
-                  });
+              }
+            });
+          }
         }
-      }
         else
         {
           Cache.log
@@ -2453,12 +2763,16 @@ public class Desktop extends jalview.jbgui.GDesktop implements
   {
     showUrl(url, Desktop.instance);
   }
+
   /**
    * Like showUrl but allows progress handler to be specified
+   * 
    * @param url
-   * @param progress (null) or object implementing IProgressIndicator
+   * @param progress
+   *          (null) or object implementing IProgressIndicator
    */
-  public static void showUrl(final String url, final IProgressIndicator progress)
+  public static void showUrl(final String url,
+          final IProgressIndicator progress)
   {
     new Thread(new Runnable()
     {
@@ -2466,23 +2780,25 @@ public class Desktop extends jalview.jbgui.GDesktop implements
       {
         try
         {
-          if (progress!=null) {
-            progress.setProgressBar("Opening "+url, this.hashCode());
+          if (progress != null)
+          {
+            progress.setProgressBar(MessageManager.formatMessage(
+                    "status.opening_params", new Object[] { url }), this
+                    .hashCode());
           }
           jalview.util.BrowserLauncher.openURL(url);
         } catch (Exception ex)
         {
-          JOptionPane
-                  .showInternalMessageDialog(
-                          Desktop.desktop,
-                          "Unixers: Couldn't find default web browser."
-                                  + "\nAdd the full path to your browser in Preferences.",
-                          "Web browser not found",
-                          JOptionPane.WARNING_MESSAGE);
+          JOptionPane.showInternalMessageDialog(Desktop.desktop,
+                  MessageManager
+                          .getString("label.web_browser_not_found_unix"),
+                  MessageManager.getString("label.web_browser_not_found"),
+                  JOptionPane.WARNING_MESSAGE);
 
           ex.printStackTrace();
         }
-        if (progress!=null) {
+        if (progress != null)
+        {
           progress.setProgressBar(null, this.hashCode());
         }
       }
@@ -2500,5 +2816,256 @@ public class Desktop extends jalview.jbgui.GDesktop implements
     return wsparamManager;
   }
 
+  /**
+   * static hyperlink handler proxy method for use by Jalview's internal windows
+   * 
+   * @param e
+   */
+  public static void hyperlinkUpdate(HyperlinkEvent e)
+  {
+    if (e.getEventType() == EventType.ACTIVATED)
+    {
+      String url = null;
+      try
+      {
+        url = e.getURL().toString();
+        Desktop.showUrl(url);
+      } catch (Exception x)
+      {
+        if (url != null)
+        {
+          if (Cache.log != null)
+          {
+            Cache.log.error("Couldn't handle string " + url + " as a URL.");
+          }
+          else
+          {
+            System.err.println("Couldn't handle string " + url
+                    + " as a URL.");
+          }
+        }
+        // ignore any exceptions due to dud links.
+      }
+
+    }
+  }
+
+  /**
+   * single thread that handles display of dialogs to user.
+   */
+  ExecutorService dialogExecutor = Executors.newSingleThreadExecutor();
+
+  /**
+   * flag indicating if dialogExecutor should try to acquire a permit
+   */
+  private volatile boolean dialogPause = true;
+
+  /**
+   * pause the queue
+   */
+  private java.util.concurrent.Semaphore block = new Semaphore(0);
+
+  /**
+   * add another dialog thread to the queue
+   * 
+   * @param prompter
+   */
+  public void addDialogThread(final Runnable prompter)
+  {
+    dialogExecutor.submit(new Runnable()
+    {
+      public void run()
+      {
+        if (dialogPause)
+        {
+          try
+          {
+            block.acquire();
+          } catch (InterruptedException x)
+          {
+          }
+          ;
+        }
+        if (instance == null)
+        {
+          return;
+        }
+        try
+        {
+          SwingUtilities.invokeAndWait(prompter);
+        } catch (Exception q)
+        {
+          Cache.log.warn("Unexpected Exception in dialog thread.", q);
+        }
+      }
+    });
+  }
+
+  public void startDialogQueue()
+  {
+    // set the flag so we don't pause waiting for another permit and semaphore
+    // the current task to begin
+    dialogPause = false;
+    block.release();
+  }
+
+  @Override
+  protected void snapShotWindow_actionPerformed(ActionEvent e)
+  {
+    invalidate();
+    File of;
+    ImageMaker im = new jalview.util.ImageMaker(this, ImageMaker.TYPE.EPS,
+            "View of Desktop", getWidth(), getHeight(), of = new File(
+                    "Jalview_snapshot" + System.currentTimeMillis()
+                            + ".eps"), "View of desktop");
+    try
+    {
+      paintAll(im.getGraphics());
+      im.writeImage();
+    } catch (Exception q)
+    {
+      Cache.log.error("Couldn't write snapshot to " + of.getAbsolutePath(),
+              q);
+      return;
+    }
+    Cache.log.info("Successfully written snapshot to file "
+            + of.getAbsolutePath());
+  }
+
+  /**
+   * Explode the views in the given frame into separate AlignFrame windows.
+   * 
+   * @param sf
+   */
+  public void explodeViews(SplitFrame sf)
+  {
+    AlignFrame oldTopFrame = (AlignFrame) sf.getTopFrame();
+    AlignFrame oldBottomFrame = (AlignFrame) sf.getBottomFrame();
+    List<? extends AlignmentViewPanel> topPanels = oldTopFrame
+            .getAlignPanels();
+    List<? extends AlignmentViewPanel> bottomPanels = oldBottomFrame
+            .getAlignPanels();
+    int viewCount = topPanels.size();
+    if (viewCount < 2)
+    {
+      return;
+    }
+
+    /*
+     * Processing in reverse order works, forwards order leaves the first panels
+     * not visible. I don't know why!
+     */
+    for (int i = viewCount - 1; i >= 0; i--)
+    {
+      /*
+       * Make new top and bottom frames. These take over the respective
+       * AlignmentPanel objects, including their AlignmentViewports, so the
+       * cdna/protein relationships between the viewports is carried over to the
+       * new split frames.
+       */
+      AlignmentPanel topPanel = (AlignmentPanel) topPanels.get(i);
+      AlignFrame newTopFrame = new AlignFrame(topPanel);
+      newTopFrame.setSize(new Dimension(AlignFrame.DEFAULT_WIDTH,
+              AlignFrame.DEFAULT_HEIGHT));
+      newTopFrame.setVisible(true);
+      AlignmentPanel bottomPanel = (AlignmentPanel) bottomPanels.get(i);
+      AlignFrame newBottomFrame = new AlignFrame(bottomPanel);
+      newBottomFrame.setSize(new Dimension(AlignFrame.DEFAULT_WIDTH,
+              AlignFrame.DEFAULT_HEIGHT));
+      newBottomFrame.setVisible(true);
+      topPanel.av.setGatherViewsHere(false);
+      bottomPanel.av.setGatherViewsHere(false);
+      JInternalFrame splitFrame = new SplitFrame(newTopFrame,
+              newBottomFrame);
+      // either panel may hold previous exploded frame geometry
+      Rectangle geometry = ((AlignViewport) topPanel.getAlignViewport())
+              .getExplodedGeometry();
+      if (geometry != null)
+      {
+        splitFrame.setBounds(geometry);
+      }
+      Desktop.addInternalFrame(splitFrame, sf.getTitle(), -1, -1);
+    }
+
+    /*
+     * Clear references to the panels (now relocated in the new SplitFrames)
+     * before closing the old SplitFrame.
+     */
+    topPanels.clear();
+    bottomPanels.clear();
+    sf.close();
+  }
+
+  /**
+   * Gather expanded split frames, sharing the same pairs of sequence set ids,
+   * back into the given SplitFrame as additional views. Note that the gathered
+   * frames may themselves have multiple views.
+   * 
+   * @param source
+   */
+  public void gatherViews(GSplitFrame source)
+  {
+    AlignFrame myTopFrame = (AlignFrame) source.getTopFrame();
+    AlignFrame myBottomFrame = (AlignFrame) source.getBottomFrame();
+    myTopFrame.viewport.setExplodedGeometry(source.getBounds());
+    myBottomFrame.viewport.setExplodedGeometry(source.getBounds());
+    myTopFrame.viewport.setGatherViewsHere(true);
+    myBottomFrame.viewport.setGatherViewsHere(true);
+    String topViewId = myTopFrame.viewport.getSequenceSetId();
+    String bottomViewId = myBottomFrame.viewport.getSequenceSetId();
+
+    JInternalFrame[] frames = desktop.getAllFrames();
+    for (JInternalFrame frame : frames)
+    {
+      if (frame instanceof SplitFrame && frame != source)
+      {
+        SplitFrame sf = (SplitFrame) frame;
+        AlignFrame topFrame = (AlignFrame) sf.getTopFrame();
+        AlignFrame bottomFrame = (AlignFrame) sf.getBottomFrame();
+        boolean gatherThis = false;
+        for (int a = 0; a < topFrame.alignPanels.size(); a++)
+        {
+          AlignmentPanel topPanel = topFrame.alignPanels.get(a);
+          AlignmentPanel bottomPanel = bottomFrame.alignPanels.get(a);
+          if (topViewId.equals(topPanel.av.getSequenceSetId())
+                  && bottomViewId.equals(bottomPanel.av.getSequenceSetId()))
+          {
+            gatherThis = true;
+            topPanel.av.setGatherViewsHere(false);
+            bottomPanel.av.setGatherViewsHere(false);
+            // both panels refer to the same split frame geometry
+            Rectangle position = sf.getBounds();
+            topPanel.av.setExplodedGeometry(position);
+            bottomPanel.av.setExplodedGeometry(position);
+            myTopFrame.addAlignmentPanel(topPanel, false);
+            myBottomFrame.addAlignmentPanel(bottomPanel, false);
+          }
+        }
+
+        if (gatherThis)
+        {
+          topFrame.getAlignPanels().clear();
+          bottomFrame.getAlignPanels().clear();
+          sf.close();
+        }
+      }
+    }
+
+    /*
+     * The dust settles...give focus to the tab we did this from.
+     */
+    myTopFrame.setDisplayedView(myTopFrame.alignPanel);
+
+  }
+
+  public static AlignFrame getCurrentAlignFrame()
+  {
+    return currentAlignFrame;
+  }
+
+  public static void setCurrentAlignFrame(AlignFrame currentAlignFrame)
+  {
+    Desktop.currentAlignFrame = currentAlignFrame;
+  }
 
 }

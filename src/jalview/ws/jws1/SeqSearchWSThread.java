@@ -1,32 +1,42 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
 
-import java.util.*;
-
-import jalview.analysis.*;
-import jalview.bin.*;
-import jalview.datamodel.*;
-import jalview.gui.*;
+import jalview.analysis.AlignSeq;
+import jalview.bin.Cache;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.SequenceI;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.WebserviceInfo;
 import jalview.io.NewickFile;
+import jalview.util.MessageManager;
 import jalview.ws.AWsJob;
 import jalview.ws.JobStateSummary;
 import jalview.ws.WSClientI;
+
+import java.util.Hashtable;
+import java.util.Vector;
+
 import vamsas.objects.simple.MsaResult;
 import vamsas.objects.simple.SeqSearchResult;
 
@@ -58,7 +68,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
         subjobComplete = true;
         result = new MsaResult();
         result.setFinished(true);
-        result.setStatus("Job never ran - input returned to user.");
+        result.setStatus(MessageManager.getString("label.job_never_ran"));
       }
 
     }
@@ -82,7 +92,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       if (minlen < 0)
       {
         throw new Error(
-                "Implementation error: minlen must be zero or more.");
+                MessageManager
+                        .getString("error.implementation_error_minlen_must_be_greater_zero"));
       }
       for (int i = 0; i < seqs.length; i++)
       {
@@ -123,8 +134,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
                     .extractGaps(jalview.util.Comparison.GapChars,
                             seqs[i].getSequenceAsString());
           }
-          emptySeqs.add(new String[]
-          { newname, empty });
+          emptySeqs.add(new String[] { newname, empty });
         }
       }
       if (submitGaps)
@@ -256,8 +266,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
          * trigger a 'fetchDBids' to annotate sequences with database ids...
          */
 
-        return new Object[]
-        { al, nf };
+        return new Object[] { al, nf };
       }
       return null;
     }
@@ -443,8 +452,9 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
   {
     if (!(job instanceof SeqSearchWSJob))
     {
-      throw new Error("StartJob(MsaWSJob) called on a WSJobInstance "
-              + job.getClass());
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_msawbjob_called",
+              new String[] { job.getClass().toString() }));
     }
     SeqSearchWSJob j = (SeqSearchWSJob) job;
     if (j.isSubmitted())
@@ -462,7 +472,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       j.setSubmitted(true);
       j.result = new MsaResult();
       j.result.setFinished(true);
-      j.result.setStatus("Empty Alignment Job");
+      j.result.setStatus(MessageManager
+              .getString("label.empty_alignment_job"));
       ((MsaResult) j.result).setMsa(null);
     }
     try
@@ -481,10 +492,9 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       {
         if (jobsubmit == null)
         {
-          throw new Exception(
-                  "Server at "
-                          + WsUrl
-                          + " returned null object, it probably cannot be contacted. Try again later ?");
+          throw new Exception(MessageManager.formatMessage(
+                  "exception.web_service_returned_null_try_later",
+                  new String[] { WsUrl }));
         }
 
         throw new Exception(jobsubmit.getJobId());
@@ -502,11 +512,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
               WebserviceInfo.STATE_STOPPED_SERVERERROR);
-      wsInfo.appendProgressText(
-              j.getJobnum(),
-              "Failed to submit sequences for alignment.\n"
-                      + "It is most likely that there is a problem with the server.\n"
-                      + "Just close the window\n");
+      wsInfo.appendProgressText(j.getJobnum(), MessageManager
+              .getString("info.failed_to_submit_sequences_for_alignment"));
 
       // e.printStackTrace(); // TODO: JBPNote DEBUG
     }
@@ -544,8 +551,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
                   .getAlignment();
           if (valign != null)
           {
-            wsInfo.appendProgressText(jobs[j].getJobnum(),
-                    "\nAlignment Object Method Notes\n");
+            wsInfo.appendProgressText(jobs[j].getJobnum(), MessageManager
+                    .getString("info.alignment_object_method_notes"));
             String[] lines = valign.getMethod();
             for (int line = 0; line < lines.length; line++)
             {
@@ -645,7 +652,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
               AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
       if (nf != null)
       {
-        af.ShowNewickTree(nf, "Tree from " + this.alTitle);
+        af.ShowNewickTree(nf, MessageManager.formatMessage(
+                "label.tree_from", new String[] { this.alTitle }));
       }
       // initialise with same renderer settings as in parent alignframe.
       af.getFeatureRenderer().transferSettings(this.featureSettings);

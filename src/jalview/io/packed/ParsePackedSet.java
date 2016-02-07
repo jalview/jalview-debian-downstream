@@ -1,20 +1,23 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.io.packed;
 
 import jalview.datamodel.AlignmentI;
@@ -120,11 +123,14 @@ public class ParsePackedSet
           {
             br = new BufferedReader(src.getReader());
           }
-          if (new jalview.io.AnnotationFile()
-                  .parseAnnotationFrom(context.getLastAlignment(), br))
+          // TODO: add columnSelection to context
+          if (new jalview.io.AnnotationFile().parseAnnotationFrom(
+                  context.getLastAlignment(), null, br))
           {
             context.updateSetModified(true);
-          } else {
+          }
+          else
+          {
             errmsg = "Annotation file contained no data.";
           }
 
@@ -156,7 +162,7 @@ public class ParsePackedSet
         try
         {
           jalview.io.FeaturesFile ff = new jalview.io.FeaturesFile(src);
-          context.updateSetModified(ff.parse(context.getLastAlignment(), 
+          context.updateSetModified(ff.parse(context.getLastAlignment(),
                   context.featureColours, false, context.relaxedIdMatching));
         } catch (Exception e)
         {
@@ -189,19 +195,23 @@ public class ParsePackedSet
         }
 
       }
-      if (exerror!=null)
+      if (exerror != null)
       {
-        if (errmsg!=null && errmsg.length()>0)
+        if (errmsg != null && errmsg.length() > 0)
         {
-          throw new IOException(errmsg,exerror);
-        } else {
-          throw new IOException(errmsg,exerror);
+          throw new IOException(errmsg, exerror);
         }
-      } else {
-      if (errmsg!=null && errmsg.length()>0)
-      {
-        throw new IOException(errmsg);
+        else
+        {
+          throw new IOException(errmsg, exerror);
+        }
       }
+      else
+      {
+        if (errmsg != null && errmsg.length() > 0)
+        {
+          throw new IOException(errmsg);
+        }
       }
     }
     if (deuniquify)
@@ -287,10 +297,13 @@ public class ParsePackedSet
       // to buffers.
       // import with deuniquify info, and compare results to input.
 
-    } else {
+    }
+    else
+    {
       if (context.getLastAlignmentSet().isModified())
       {
-        System.err.println("Initial alignment set was modified and any associated views should be updated.");
+        System.err
+                .println("Initial alignment set was modified and any associated views should be updated.");
       }
     }
   }

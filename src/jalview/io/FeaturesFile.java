@@ -1,29 +1,47 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
-import java.util.*;
-
 import jalview.analysis.SequenceIdMatcher;
-import jalview.datamodel.*;
-import jalview.schemes.*;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceDummy;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.schemes.AnnotationColourGradient;
+import jalview.schemes.GraduatedColor;
+import jalview.schemes.UserColourScheme;
 import jalview.util.Format;
+import jalview.util.MapList;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
 /**
  * Parse and create Jalview Features files Detects GFF format features files and
@@ -42,6 +60,8 @@ public class FeaturesFile extends AlignFile
    */
   private boolean doGffSource = true;
 
+  private int gffversion;
+
   /**
    * Creates a new FeaturesFile object.
    */
@@ -50,31 +70,57 @@ public class FeaturesFile extends AlignFile
   }
 
   /**
-   * Creates a new FeaturesFile object.
-   * 
    * @param inFile
-   *          DOCUMENT ME!
    * @param type
-   *          DOCUMENT ME!
-   * 
    * @throws IOException
-   *           DOCUMENT ME!
    */
   public FeaturesFile(String inFile, String type) throws IOException
   {
     super(inFile, type);
   }
 
+  /**
+   * @param source
+   * @throws IOException
+   */
   public FeaturesFile(FileParse source) throws IOException
   {
     super(source);
   }
 
   /**
-   * Parse GFF or sequence features file using case-independent matching, discarding URLs
-   * @param align - alignment/dataset containing sequences that are to be annotated
-   * @param colours - hashtable to store feature colour definitions
-   * @param removeHTML - process html strings into plain text
+   * @param parseImmediately
+   * @param source
+   * @throws IOException
+   */
+  public FeaturesFile(boolean parseImmediately, FileParse source)
+          throws IOException
+  {
+    super(parseImmediately, source);
+  }
+
+  /**
+   * @param parseImmediately
+   * @param inFile
+   * @param type
+   * @throws IOException
+   */
+  public FeaturesFile(boolean parseImmediately, String inFile, String type)
+          throws IOException
+  {
+    super(parseImmediately, inFile, type);
+  }
+
+  /**
+   * Parse GFF or sequence features file using case-independent matching,
+   * discarding URLs
+   * 
+   * @param align
+   *          - alignment/dataset containing sequences that are to be annotated
+   * @param colours
+   *          - hashtable to store feature colour definitions
+   * @param removeHTML
+   *          - process html strings into plain text
    * @return true if features were added
    */
   public boolean parse(AlignmentI align, Hashtable colours,
@@ -84,51 +130,94 @@ public class FeaturesFile extends AlignFile
   }
 
   /**
-   * Parse GFF or sequence features file optionally using case-independent matching, discarding URLs
-   * @param align - alignment/dataset containing sequences that are to be annotated
-   * @param colours - hashtable to store feature colour definitions
-   * @param removeHTML - process html strings into plain text
-   * @param relaxedIdmatching - when true, ID matches to compound sequence IDs are allowed
+   * Parse GFF or sequence features file optionally using case-independent
+   * matching, discarding URLs
+   * 
+   * @param align
+   *          - alignment/dataset containing sequences that are to be annotated
+   * @param colours
+   *          - hashtable to store feature colour definitions
+   * @param removeHTML
+   *          - process html strings into plain text
+   * @param relaxedIdmatching
+   *          - when true, ID matches to compound sequence IDs are allowed
    * @return true if features were added
    */
-  public boolean parse(AlignmentI align, 
-          Hashtable colours, boolean removeHTML, boolean relaxedIdMatching)
+  public boolean parse(AlignmentI align, Map colours, boolean removeHTML,
+          boolean relaxedIdMatching)
   {
     return parse(align, colours, null, removeHTML, relaxedIdMatching);
   }
 
   /**
-   * Parse GFF or sequence features file optionally using case-independent matching
-   * @param align - alignment/dataset containing sequences that are to be annotated
-   * @param colours - hashtable to store feature colour definitions
-   * @param featureLink - hashtable to store associated URLs 
-   * @param removeHTML - process html strings into plain text
+   * Parse GFF or sequence features file optionally using case-independent
+   * matching
+   * 
+   * @param align
+   *          - alignment/dataset containing sequences that are to be annotated
+   * @param colours
+   *          - hashtable to store feature colour definitions
+   * @param featureLink
+   *          - hashtable to store associated URLs
+   * @param removeHTML
+   *          - process html strings into plain text
    * @return true if features were added
    */
-  public boolean parse(AlignmentI align, Hashtable colours,
-          Hashtable featureLink, boolean removeHTML)
+  public boolean parse(AlignmentI align, Map colours, Map featureLink,
+          boolean removeHTML)
   {
     return parse(align, colours, featureLink, removeHTML, false);
   }
 
+  @Override
+  public void addAnnotations(AlignmentI al)
+  {
+    // TODO Auto-generated method stub
+    super.addAnnotations(al);
+  }
+
+  @Override
+  public void addProperties(AlignmentI al)
+  {
+    // TODO Auto-generated method stub
+    super.addProperties(al);
+  }
+
+  @Override
+  public void addSeqGroups(AlignmentI al)
+  {
+    // TODO Auto-generated method stub
+    super.addSeqGroups(al);
+  }
+
   /**
-  /**
-   * Parse GFF or sequence features file 
-   * @param align - alignment/dataset containing sequences that are to be annotated
-   * @param colours - hashtable to store feature colour definitions
-   * @param featureLink - hashtable to store associated URLs 
-   * @param removeHTML - process html strings into plain text
-   * @param relaxedIdmatching - when true, ID matches to compound sequence IDs are allowed
+   * Parse GFF or sequence features file
+   * 
+   * @param align
+   *          - alignment/dataset containing sequences that are to be annotated
+   * @param colours
+   *          - hashtable to store feature colour definitions
+   * @param featureLink
+   *          - hashtable to store associated URLs
+   * @param removeHTML
+   *          - process html strings into plain text
+   * @param relaxedIdmatching
+   *          - when true, ID matches to compound sequence IDs are allowed
    * @return true if features were added
    */
-  public boolean parse(AlignmentI align,
-          Hashtable colours, Hashtable featureLink, boolean removeHTML, boolean relaxedIdmatching)
+  public boolean parse(AlignmentI align, Map colours, Map featureLink,
+          boolean removeHTML, boolean relaxedIdmatching)
   {
 
     String line = null;
     try
     {
       SequenceI seq = null;
+      /**
+       * keep track of any sequences we try to create from the data if it is a
+       * GFF3 file
+       */
+      ArrayList<SequenceI> newseqs = new ArrayList<SequenceI>();
       String type, desc, token = null;
 
       int index, start, end;
@@ -136,15 +225,23 @@ public class FeaturesFile extends AlignFile
       StringTokenizer st;
       SequenceFeature sf;
       String featureGroup = null, groupLink = null;
-      Hashtable typeLink = new Hashtable();
+      Map typeLink = new Hashtable();
       /**
        * when true, assume GFF style features rather than Jalview style.
        */
       boolean GFFFile = true;
+      Map<String, String> gffProps = new HashMap<String, String>();
       while ((line = nextLine()) != null)
       {
+        // skip comments/process pragmas
         if (line.startsWith("#"))
         {
+          if (line.startsWith("##"))
+          {
+            // possibly GFF2/3 version and metadata header
+            processGffPragma(line, gffProps, align, newseqs);
+            line = "";
+          }
           continue;
         }
 
@@ -402,7 +499,7 @@ public class FeaturesFile extends AlignFile
             // Still possible this is an old Jalview file,
             // which does not have type colours at the beginning
             seqId = token = st.nextToken();
-            seq = findName(align, seqId, relaxedIdmatching);
+            seq = findName(align, seqId, relaxedIdmatching, newseqs);
             if (seq != null)
             {
               desc = st.nextToken();
@@ -471,9 +568,11 @@ public class FeaturesFile extends AlignFile
               if (st.hasMoreTokens())
               {
                 StringBuffer attributes = new StringBuffer();
+                boolean sep = false;
                 while (st.hasMoreTokens())
                 {
-                  attributes.append("\t" + st.nextElement());
+                  attributes.append((sep ? "\t" : "") + st.nextElement());
+                  sep = true;
                 }
                 // TODO validate and split GFF2 attributes field ? parse out
                 // ([A-Za-z][A-Za-z0-9_]*) <value> ; and add as
@@ -481,10 +580,15 @@ public class FeaturesFile extends AlignFile
                 sf.setValue("ATTRIBUTES", attributes.toString());
               }
 
-              seq.addSequenceFeature(sf);
-              while ((seq = align.findName(seq, seqId, true)) != null)
+              if (processOrAddSeqFeature(align, newseqs, seq, sf, GFFFile,
+                      relaxedIdmatching))
               {
-                seq.addSequenceFeature(new SequenceFeature(sf));
+                // check whether we should add the sequence feature to any other
+                // sequences in the alignment with the same or similar
+                while ((seq = align.findName(seq, seqId, true)) != null)
+                {
+                  seq.addSequenceFeature(new SequenceFeature(sf));
+                }
               }
               break;
             }
@@ -511,7 +615,7 @@ public class FeaturesFile extends AlignFile
 
           if (!token.equals("ID_NOT_SPECIFIED"))
           {
-            seq = findName(align, seqId = token, relaxedIdmatching);
+            seq = findName(align, seqId = token, relaxedIdmatching, null);
             st.nextToken();
           }
           else
@@ -584,7 +688,9 @@ public class FeaturesFile extends AlignFile
       resetMatcher();
     } catch (Exception ex)
     {
-      System.out.println(line);
+      // should report somewhere useful for UI if necessary
+      warningMessage = ((warningMessage == null) ? "" : warningMessage)
+              + "Parsing error at\n" + line;
       System.out.println("Error parsing feature file: " + ex + "\n" + line);
       ex.printStackTrace(System.err);
       resetMatcher();
@@ -592,6 +698,402 @@ public class FeaturesFile extends AlignFile
     }
 
     return true;
+  }
+
+  private enum GffPragmas
+  {
+    gff_version, sequence_region, feature_ontology, attribute_ontology, source_ontology, species_build, fasta, hash
+  };
+
+  private static Map<String, GffPragmas> GFFPRAGMA;
+  static
+  {
+    GFFPRAGMA = new HashMap<String, GffPragmas>();
+    GFFPRAGMA.put("sequence-region", GffPragmas.sequence_region);
+    GFFPRAGMA.put("feature-ontology", GffPragmas.feature_ontology);
+    GFFPRAGMA.put("#", GffPragmas.hash);
+    GFFPRAGMA.put("fasta", GffPragmas.fasta);
+    GFFPRAGMA.put("species-build", GffPragmas.species_build);
+    GFFPRAGMA.put("source-ontology", GffPragmas.source_ontology);
+    GFFPRAGMA.put("attribute-ontology", GffPragmas.attribute_ontology);
+  }
+
+  private void processGffPragma(String line, Map<String, String> gffProps,
+          AlignmentI align, ArrayList<SequenceI> newseqs)
+          throws IOException
+  {
+    // line starts with ##
+    int spacepos = line.indexOf(' ');
+    String pragma = spacepos == -1 ? line.substring(2).trim() : line
+            .substring(2, spacepos);
+    GffPragmas gffpragma = GFFPRAGMA.get(pragma.toLowerCase());
+    if (gffpragma == null)
+    {
+      return;
+    }
+    switch (gffpragma)
+    {
+    case gff_version:
+      try
+      {
+        gffversion = Integer.parseInt(line.substring(spacepos + 1));
+      } finally
+      {
+
+      }
+      break;
+    case feature_ontology:
+      // resolve against specific feature ontology
+      break;
+    case attribute_ontology:
+      // resolve against specific attribute ontology
+      break;
+    case source_ontology:
+      // resolve against specific source ontology
+      break;
+    case species_build:
+      // resolve against specific NCBI taxon version
+      break;
+    case hash:
+      // close off any open feature hierarchies
+      break;
+    case fasta:
+      // process the rest of the file as a fasta file and replace any dummy
+      // sequence IDs
+      process_as_fasta(align, newseqs);
+      break;
+    default:
+      // we do nothing ?
+      System.err.println("Ignoring unknown pragma:\n" + line);
+    }
+  }
+
+  private void process_as_fasta(AlignmentI align, List<SequenceI> newseqs)
+          throws IOException
+  {
+    try
+    {
+      mark();
+    } catch (IOException q)
+    {
+    }
+    FastaFile parser = new FastaFile(this);
+    List<SequenceI> includedseqs = parser.getSeqs();
+    SequenceIdMatcher smatcher = new SequenceIdMatcher(newseqs);
+    // iterate over includedseqs, and replacing matching ones with newseqs
+    // sequences. Generic iterator not used here because we modify includedseqs
+    // as we go
+    for (int p = 0, pSize = includedseqs.size(); p < pSize; p++)
+    {
+      // search for any dummy seqs that this sequence can be used to update
+      SequenceI dummyseq = smatcher.findIdMatch(includedseqs.get(p));
+      if (dummyseq != null)
+      {
+        // dummyseq was created so it could be annotated and referred to in
+        // alignments/codon mappings
+
+        SequenceI mseq = includedseqs.get(p);
+        // mseq is the 'template' imported from the FASTA file which we'll use
+        // to coomplete dummyseq
+        if (dummyseq instanceof SequenceDummy)
+        {
+          // probably have the pattern wrong
+          // idea is that a flyweight proxy for a sequence ID can be created for
+          // 1. stable reference creation
+          // 2. addition of annotation
+          // 3. future replacement by a real sequence
+          // current pattern is to create SequenceDummy objects - a convenience
+          // constructor for a Sequence.
+          // problem is that when promoted to a real sequence, all references
+          // need
+          // to be updated somehow.
+          ((SequenceDummy) dummyseq).become(mseq);
+          includedseqs.set(p, dummyseq); // template is no longer needed
+        }
+      }
+    }
+    // finally add sequences to the dataset
+    for (SequenceI seq : includedseqs)
+    {
+      align.addSequence(seq);
+    }
+  }
+
+  /**
+   * take a sequence feature and examine its attributes to decide how it should
+   * be added to a sequence
+   * 
+   * @param seq
+   *          - the destination sequence constructed or discovered in the
+   *          current context
+   * @param sf
+   *          - the base feature with ATTRIBUTES property containing any
+   *          additional attributes
+   * @param gFFFile
+   *          - true if we are processing a GFF annotation file
+   * @return true if sf was actually added to the sequence, false if it was
+   *         processed in another way
+   */
+  public boolean processOrAddSeqFeature(AlignmentI align,
+          List<SequenceI> newseqs, SequenceI seq, SequenceFeature sf,
+          boolean gFFFile, boolean relaxedIdMatching)
+  {
+    String attr = (String) sf.getValue("ATTRIBUTES");
+    boolean add = true;
+    if (gFFFile && attr != null)
+    {
+      int nattr = 8;
+
+      for (String attset : attr.split("\t"))
+      {
+        if (attset == null || attset.trim().length() == 0)
+        {
+          continue;
+        }
+        nattr++;
+        Map<String, List<String>> set = new HashMap<String, List<String>>();
+        // normally, only expect one column - 9 - in this field
+        // the attributes (Gff3) or groups (gff2) field
+        for (String pair : attset.trim().split(";"))
+        {
+          pair = pair.trim();
+          if (pair.length() == 0)
+          {
+            continue;
+          }
+
+          // expect either space seperated (gff2) or '=' separated (gff3)
+          // key/value pairs here
+
+          int eqpos = pair.indexOf('='), sppos = pair.indexOf(' ');
+          String key = null, value = null;
+
+          if (sppos > -1 && (eqpos == -1 || sppos < eqpos))
+          {
+            key = pair.substring(0, sppos);
+            value = pair.substring(sppos + 1);
+          }
+          else
+          {
+            if (eqpos > -1 && (sppos == -1 || eqpos < sppos))
+            {
+              key = pair.substring(0, eqpos);
+              value = pair.substring(eqpos + 1);
+            }
+            else
+            {
+              key = pair;
+            }
+          }
+          if (key != null)
+          {
+            List<String> vals = set.get(key);
+            if (vals == null)
+            {
+              vals = new ArrayList<String>();
+              set.put(key, vals);
+            }
+            if (value != null)
+            {
+              vals.add(value.trim());
+            }
+          }
+        }
+        try
+        {
+          add &= processGffKey(set, nattr, seq, sf, align, newseqs,
+                  relaxedIdMatching); // process decides if
+                                      // feature is actually
+                                      // added
+        } catch (InvalidGFF3FieldException ivfe)
+        {
+          System.err.println(ivfe);
+        }
+      }
+    }
+    if (add)
+    {
+      seq.addSequenceFeature(sf);
+    }
+    return add;
+  }
+
+  public class InvalidGFF3FieldException extends Exception
+  {
+    String field, value;
+
+    public InvalidGFF3FieldException(String field,
+            Map<String, List<String>> set, String message)
+    {
+      super(message + " (Field was " + field + " and value was "
+              + set.get(field).toString());
+      this.field = field;
+      this.value = set.get(field).toString();
+    }
+
+  }
+
+  /**
+   * take a set of keys for a feature and interpret them
+   * 
+   * @param set
+   * @param nattr
+   * @param seq
+   * @param sf
+   * @return
+   */
+  public boolean processGffKey(Map<String, List<String>> set, int nattr,
+          SequenceI seq, SequenceFeature sf, AlignmentI align,
+          List<SequenceI> newseqs, boolean relaxedIdMatching)
+          throws InvalidGFF3FieldException
+  {
+    String attr;
+    // decide how to interpret according to type
+    if (sf.getType().equals("similarity"))
+    {
+      int strand = sf.getStrand();
+      // exonerate cdna/protein map
+      // look for fields
+      List<SequenceI> querySeq = findNames(align, newseqs,
+              relaxedIdMatching, set.get(attr = "Query"));
+      if (querySeq == null || querySeq.size() != 1)
+      {
+        throw new InvalidGFF3FieldException(attr, set,
+                "Expecting exactly one sequence in Query field (got "
+                        + set.get(attr) + ")");
+      }
+      if (set.containsKey(attr = "Align"))
+      {
+        // process the align maps and create cdna/protein maps
+        // ideally, the query sequences are in the alignment, but maybe not...
+
+        AlignedCodonFrame alco = new AlignedCodonFrame();
+        MapList codonmapping = constructCodonMappingFromAlign(set, attr,
+                strand);
+
+        // add codon mapping, and hope!
+        alco.addMap(seq, querySeq.get(0), codonmapping);
+        align.addCodonFrame(alco);
+        // everything that's needed to be done is done
+        // no features to create here !
+        return false;
+      }
+
+    }
+    return true;
+  }
+
+  private MapList constructCodonMappingFromAlign(
+          Map<String, List<String>> set, String attr, int strand)
+          throws InvalidGFF3FieldException
+  {
+    if (strand == 0)
+    {
+      throw new InvalidGFF3FieldException(attr, set,
+              "Invalid strand for a codon mapping (cannot be 0)");
+    }
+    List<Integer> fromrange = new ArrayList<Integer>(), torange = new ArrayList<Integer>();
+    int lastppos = 0, lastpframe = 0;
+    for (String range : set.get(attr))
+    {
+      List<Integer> ints = new ArrayList<Integer>();
+      StringTokenizer st = new StringTokenizer(range, " ");
+      while (st.hasMoreTokens())
+      {
+        String num = st.nextToken();
+        try
+        {
+          ints.add(new Integer(num));
+        } catch (NumberFormatException nfe)
+        {
+          throw new InvalidGFF3FieldException(attr, set,
+                  "Invalid number in field " + num);
+        }
+      }
+      // Align positionInRef positionInQuery LengthInRef
+      // contig_1146 exonerate:protein2genome:local similarity 8534 11269
+      // 3652 - . alignment_id 0 ;
+      // Query DDB_G0269124
+      // Align 11270 143 120
+      // corresponds to : 120 bases align at pos 143 in protein to 11270 on
+      // dna in strand direction
+      // Align 11150 187 282
+      // corresponds to : 282 bases align at pos 187 in protein to 11150 on
+      // dna in strand direction
+      //
+      // Align 10865 281 888
+      // Align 9977 578 1068
+      // Align 8909 935 375
+      //
+      if (ints.size() != 3)
+      {
+        throw new InvalidGFF3FieldException(attr, set,
+                "Invalid number of fields for this attribute ("
+                        + ints.size() + ")");
+      }
+      fromrange.add(new Integer(ints.get(0).intValue()));
+      fromrange.add(new Integer(ints.get(0).intValue() + strand
+              * ints.get(2).intValue()));
+      // how are intron/exon boundaries that do not align in codons
+      // represented
+      if (ints.get(1).equals(lastppos) && lastpframe > 0)
+      {
+        // extend existing to map
+        lastppos += ints.get(2) / 3;
+        lastpframe = ints.get(2) % 3;
+        torange.set(torange.size() - 1, new Integer(lastppos));
+      }
+      else
+      {
+        // new to map range
+        torange.add(ints.get(1));
+        lastppos = ints.get(1) + ints.get(2) / 3;
+        lastpframe = ints.get(2) % 3;
+        torange.add(new Integer(lastppos));
+      }
+    }
+    // from and to ranges must end up being a series of start/end intervals
+    if (fromrange.size() % 2 == 1)
+    {
+      throw new InvalidGFF3FieldException(attr, set,
+              "Couldn't parse the DNA alignment range correctly");
+    }
+    if (torange.size() % 2 == 1)
+    {
+      throw new InvalidGFF3FieldException(attr, set,
+              "Couldn't parse the protein alignment range correctly");
+    }
+    // finally, build the map
+    int[] frommap = new int[fromrange.size()], tomap = new int[torange
+            .size()];
+    int p = 0;
+    for (Integer ip : fromrange)
+    {
+      frommap[p++] = ip.intValue();
+    }
+    p = 0;
+    for (Integer ip : torange)
+    {
+      tomap[p++] = ip.intValue();
+    }
+
+    return new MapList(frommap, tomap, 3, 1);
+  }
+
+  private List<SequenceI> findNames(AlignmentI align,
+          List<SequenceI> newseqs, boolean relaxedIdMatching,
+          List<String> list)
+  {
+    List<SequenceI> found = new ArrayList<SequenceI>();
+    for (String seqId : list)
+    {
+      SequenceI seq = findName(align, seqId, relaxedIdMatching, newseqs);
+      if (seq != null)
+      {
+        found.add(seq);
+      }
+    }
+    return found;
   }
 
   private AlignmentI lastmatchedAl = null;
@@ -608,7 +1110,7 @@ public class FeaturesFile extends AlignFile
   }
 
   private SequenceI findName(AlignmentI align, String seqId,
-          boolean relaxedIdMatching)
+          boolean relaxedIdMatching, List<SequenceI> newseqs)
   {
     SequenceI match = null;
     if (relaxedIdMatching)
@@ -617,12 +1119,37 @@ public class FeaturesFile extends AlignFile
       {
         matcher = new SequenceIdMatcher(
                 (lastmatchedAl = align).getSequencesArray());
+        if (newseqs != null)
+        {
+          matcher.addAll(newseqs);
+        }
       }
       match = matcher.findIdMatch(seqId);
     }
     else
     {
       match = align.findName(seqId, true);
+      if (match == null && newseqs != null)
+      {
+        for (SequenceI m : newseqs)
+        {
+          if (seqId.equals(m.getName()))
+          {
+            return m;
+          }
+        }
+      }
+
+    }
+    if (match == null && newseqs != null)
+    {
+      match = new SequenceDummy(seqId);
+      if (relaxedIdMatching)
+      {
+        matcher.addAll(Arrays.asList(new SequenceI[] { match }));
+      }
+      // add dummy sequence to the newseqs list
+      newseqs.add(match);
     }
     return match;
   }
@@ -633,10 +1160,12 @@ public class FeaturesFile extends AlignFile
     {
       return;
     }
-    jalview.util.ParseHtmlBodyAndLinks parsed = new jalview.util.ParseHtmlBodyAndLinks(sf.getDescription(), removeHTML, newline);
+    jalview.util.ParseHtmlBodyAndLinks parsed = new jalview.util.ParseHtmlBodyAndLinks(
+            sf.getDescription(), removeHTML, newline);
 
-    sf.description = (removeHTML) ? parsed.getNonHtmlContent() : sf.description;
-    for (String link:parsed.getLinks())
+    sf.description = (removeHTML) ? parsed.getNonHtmlContent()
+            : sf.description;
+    for (String link : parsed.getLinks())
     {
       sf.addLink(link);
     }
@@ -652,7 +1181,8 @@ public class FeaturesFile extends AlignFile
    *          hash of feature types and colours
    * @return features file contents
    */
-  public String printJalviewFormat(SequenceI[] seqs, Hashtable visible)
+  public String printJalviewFormat(SequenceI[] seqs,
+          Map<String, Object> visible)
   {
     return printJalviewFormat(seqs, visible, true, true);
   }
@@ -671,7 +1201,7 @@ public class FeaturesFile extends AlignFile
    *          of group or type)
    * @return features file contents
    */
-  public String printJalviewFormat(SequenceI[] seqs, Hashtable visible,
+  public String printJalviewFormat(SequenceI[] seqs, Map visible,
           boolean visOnly, boolean nonpos)
   {
     StringBuffer out = new StringBuffer();
@@ -688,11 +1218,11 @@ public class FeaturesFile extends AlignFile
       // write feature colours only if we're given them and we are generating
       // viewed features
       // TODO: decide if feature links should also be written here ?
-      Enumeration en = visible.keys();
+      Iterator en = visible.keySet().iterator();
       String type, color;
-      while (en.hasMoreElements())
+      while (en.hasNext())
       {
-        type = en.nextElement().toString();
+        type = en.next().toString();
 
         if (visible.get(type) instanceof GraduatedColor)
         {
@@ -860,7 +1390,7 @@ public class FeaturesFile extends AlignFile
             out.append(next[j].end);
             out.append("\t");
             out.append(next[j].type);
-            if (next[j].score != Float.NaN)
+            if (!Float.isNaN(next[j].score))
             {
               out.append("\t");
               out.append(next[j].score);
@@ -900,13 +1430,13 @@ public class FeaturesFile extends AlignFile
    * @param visible
    * @return
    */
-  public String printGFFFormat(SequenceI[] seqs, Hashtable visible)
+  public String printGFFFormat(SequenceI[] seqs, Map<String, Object> visible)
   {
     return printGFFFormat(seqs, visible, true, true);
   }
 
-  public String printGFFFormat(SequenceI[] seqs, Hashtable visible,
-          boolean visOnly, boolean nonpos)
+  public String printGFFFormat(SequenceI[] seqs,
+          Map<String, Object> visible, boolean visOnly, boolean nonpos)
   {
     StringBuffer out = new StringBuffer();
     SequenceFeature[] next;

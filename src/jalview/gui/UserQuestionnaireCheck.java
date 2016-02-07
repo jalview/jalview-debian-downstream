@@ -1,26 +1,32 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.io.*;
-import java.net.*;
+import jalview.util.MessageManager;
 
-import javax.swing.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URL;
+
+import javax.swing.JOptionPane;
 
 public class UserQuestionnaireCheck implements Runnable
 {
@@ -136,11 +142,13 @@ public class UserQuestionnaireCheck implements Runnable
                 + qid + "&rid=" + rid;
         jalview.bin.Cache.log.info("Prompting user for questionnaire at "
                 + qurl);
-        int reply = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-                "There is a new Questionnaire available."
-                        + "Would you like to complete it now ?\n",
-                "Jalview User Survey", JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
+        int reply = JOptionPane
+                .showInternalConfirmDialog(Desktop.desktop, MessageManager
+                        .getString("label.jalview_new_questionnaire"),
+                        MessageManager
+                                .getString("label.jalview_user_survey"),
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE);
 
         if (reply == JOptionPane.YES_OPTION)
         {

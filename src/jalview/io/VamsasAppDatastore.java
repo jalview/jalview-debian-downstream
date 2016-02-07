@@ -1,30 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
 import jalview.bin.Cache;
 import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.GraphLine;
-import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.AlignViewport;
@@ -34,7 +33,8 @@ import jalview.io.vamsas.Datasetsequence;
 import jalview.io.vamsas.DatastoreItem;
 import jalview.io.vamsas.DatastoreRegistry;
 import jalview.io.vamsas.Rangetype;
-import jalview.util.UrlLink;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
 
 import java.io.IOException;
 import java.util.Enumeration;
@@ -42,23 +42,47 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 
-import uk.ac.vamsas.client.*;
-import uk.ac.vamsas.objects.core.*;
+import uk.ac.vamsas.client.IClientAppdata;
+import uk.ac.vamsas.client.IClientDocument;
+import uk.ac.vamsas.client.Vobject;
+import uk.ac.vamsas.client.VorbaId;
+import uk.ac.vamsas.objects.core.Alignment;
+import uk.ac.vamsas.objects.core.AlignmentSequence;
+import uk.ac.vamsas.objects.core.AlignmentSequenceAnnotation;
+import uk.ac.vamsas.objects.core.AnnotationElement;
+import uk.ac.vamsas.objects.core.DataSet;
+import uk.ac.vamsas.objects.core.DataSetAnnotations;
+import uk.ac.vamsas.objects.core.DbRef;
+import uk.ac.vamsas.objects.core.Entry;
+import uk.ac.vamsas.objects.core.Glyph;
+import uk.ac.vamsas.objects.core.Local;
+import uk.ac.vamsas.objects.core.MapType;
+import uk.ac.vamsas.objects.core.Mapped;
+import uk.ac.vamsas.objects.core.Property;
+import uk.ac.vamsas.objects.core.Provenance;
+import uk.ac.vamsas.objects.core.RangeAnnotation;
+import uk.ac.vamsas.objects.core.RangeType;
+import uk.ac.vamsas.objects.core.Seg;
+import uk.ac.vamsas.objects.core.Sequence;
+import uk.ac.vamsas.objects.core.SequenceType;
+import uk.ac.vamsas.objects.core.VAMSAS;
 import uk.ac.vamsas.objects.utils.Properties;
 
 /*
- * 
+ *
  * static {
  * org.exolab.castor.util.LocalConfiguration.getInstance().getProperties().setProperty(
  * "org.exolab.castor.serializer", "org.apache.xml.serialize.XMLSerilazizer"); }
- * 
+ *
  */
 /*
- * TODO: check/verify consistency for vamsas sync with group associated alignment annotation  
+ * TODO: check/verify consistency for vamsas sync with group associated alignment annotation
  */
 public class VamsasAppDatastore
 {
@@ -127,7 +151,7 @@ public class VamsasAppDatastore
   private void buildSkipList()
   {
     skipList = new Hashtable();
-    AlignFrame[] al = Desktop.getAlignframes();
+    AlignFrame[] al = Desktop.getAlignFrames();
     for (int f = 0; al != null && f < al.length; f++)
     {
       skipList.put(al[f].getViewport().getSequenceSetId(), al[f]);
@@ -222,10 +246,12 @@ public class VamsasAppDatastore
     if (vobj2jv.containsKey(vobj.getVorbaId())
             && !((VorbaId) vobj2jv.get(vobj.getVorbaId())).equals(jvobj))
     {
-      Cache.log.debug(
-              "Warning? Overwriting existing vamsas id binding for "
-                      + vobj.getVorbaId(), new Exception(
-                      "Overwriting vamsas id binding."));
+      Cache.log
+              .debug("Warning? Overwriting existing vamsas id binding for "
+                      + vobj.getVorbaId(),
+                      new Exception(
+                              MessageManager
+                                      .getString("exception.overwriting_vamsas_id_binding")));
     }
     else if (jv2vobj.containsKey(jvobj)
             && !((VorbaId) jv2vobj.get(jvobj)).equals(vobj.getVorbaId()))
@@ -313,7 +339,8 @@ public class VamsasAppDatastore
                         && dataset != vbound.getV_parent())
                 {
                   throw new Error(
-                          "IMPLEMENTATION ERROR: Cannot map an alignment of sequences from different datasets into a single alignment in the vamsas document.");
+                          MessageManager
+                                  .getString("error.implementation_error_cannot_map_alignment_sequences"));
                   // This occurs because the dataset for the alignment we are
                   // trying to
                 }
@@ -546,12 +573,8 @@ public class VamsasAppDatastore
             else
             {
               // first find the alignment sequence to associate this with.
-              SequenceI jvalsq = null;
-              Enumeration jval = av.getAlignment().getSequences()
-                      .elements();
-              while (jval.hasMoreElements())
+              for (SequenceI jvalsq : av.getAlignment().getSequences())
               {
-                jvalsq = (SequenceI) jval.nextElement();
                 // saveDatasetSequenceAnnotation(AlSeqMaps,(uk.ac.vamsas.objects.core.Sequence)
                 // sref, aa[i]);
                 if (jvalsq.getDatasetSequence() == aa[i].sequenceRef)
@@ -734,12 +757,12 @@ public class VamsasAppDatastore
    * @return true if alignment associated with this view will be stored in
    *         document.
    */
-  public boolean alignmentWillBeSkipped(AlignViewport av)
+  public boolean alignmentWillBeSkipped(AlignmentViewport av)
   {
     return (!av.getAlignment().isAligned());
   }
 
-  private void addToSkipList(AlignViewport av)
+  private void addToSkipList(AlignmentViewport av)
   {
     if (skipList == null)
     {
@@ -884,7 +907,7 @@ public class VamsasAppDatastore
    * creates/syncs the jvalsq from the alignment sequence
    */
   private boolean syncFromAlignmentSequence(AlignmentSequence valseq,
-          char valGapchar, char gapChar, Vector dsseqs)
+          char valGapchar, char gapChar, List<SequenceI> dsseqs)
 
   {
     boolean modal = false;
@@ -1074,8 +1097,10 @@ public class VamsasAppDatastore
         an.addProperty(Properties.newProperty(THRESHOLD,
                 Properties.FLOATTYPE, "" + alan.getThreshold().value));
         if (alan.getThreshold().label != null)
+        {
           an.addProperty(Properties.newProperty(THRESHOLD + "Name",
                   Properties.STRINGTYPE, "" + alan.getThreshold().label));
+        }
       }
       ((DataSet) sref.getV_parent()).addDataSetAnnotations(an);
       bindjvvobj(alan, an);
@@ -1238,8 +1263,7 @@ public class VamsasAppDatastore
       end = start;
       start = t;
     }
-    return new int[]
-    { start, end, pol < 0 ? 1 : 0 };
+    return new int[] { start, end, pol < 0 ? 1 : 0 };
   }
 
   /**
@@ -1260,7 +1284,7 @@ public class VamsasAppDatastore
   /**
    * list of alignment views created when updating Jalview from document.
    */
-  private Vector newAlignmentViews = new Vector();
+  private final Vector newAlignmentViews = new Vector();
 
   /**
    * update local jalview view settings from the stored appdata (if any)
@@ -1292,6 +1316,7 @@ public class VamsasAppDatastore
             jalview.util.jarInputStreamProvider jprovider = new jalview.util.jarInputStreamProvider()
             {
 
+              @Override
               public String getFilename()
               {
 
@@ -1299,6 +1324,7 @@ public class VamsasAppDatastore
                 return "Jalview Vamsas Document Client Data";
               }
 
+              @Override
               public JarInputStream getJarInputStream() throws IOException
               {
                 jalview.bin.Cache.log
@@ -1308,7 +1334,7 @@ public class VamsasAppDatastore
             };
             if (dojvsync)
             {
-              fromxml.LoadJalviewAlign(jprovider);
+              fromxml.loadJalviewAlign(jprovider);
             }
           } catch (Exception e)
           {
@@ -1338,6 +1364,7 @@ public class VamsasAppDatastore
           jalview.util.jarInputStreamProvider jarstream = new jalview.util.jarInputStreamProvider()
           {
 
+            @Override
             public String getFilename()
             {
 
@@ -1345,6 +1372,7 @@ public class VamsasAppDatastore
               return "Jalview Vamsas Document User Data";
             }
 
+            @Override
             public JarInputStream getJarInputStream() throws IOException
             {
               jalview.bin.Cache.log
@@ -1354,7 +1382,7 @@ public class VamsasAppDatastore
           };
           if (dojvsync)
           {
-            fromxml.LoadJalviewAlign(jarstream);
+            fromxml.loadJalviewAlign(jarstream);
           }
         } catch (Exception e)
         {
@@ -1383,12 +1411,12 @@ public class VamsasAppDatastore
     // sync,
     // and if any contain more than one view, then remove the one generated by
     // document update.
-    AlignViewport views[], av = null;
+    AlignmentViewport views[], av = null;
     AlignFrame af = null;
     Iterator newviews = newAlignmentViews.iterator();
     while (newviews.hasNext())
     {
-      av = (AlignViewport) newviews.next();
+      av = (AlignmentViewport) newviews.next();
       af = Desktop.getAlignFrameFor(av);
       // TODO implement this : af.getNumberOfViews
       String seqsetidobj = av.getSequenceSetId();
@@ -1405,7 +1433,8 @@ public class VamsasAppDatastore
         // to the align frames.
         boolean gathered = false;
         String newviewid = null;
-        AlignedCodonFrame[] mappings = av.getAlignment().getCodonFrames();
+        Set<AlignedCodonFrame> mappings = av.getAlignment()
+                .getCodonFrames();
         for (int i = 0; i < views.length; i++)
         {
           if (views[i] != av)
@@ -1440,10 +1469,11 @@ public class VamsasAppDatastore
         {
           // ensure sequence mappings from vamsas document view still
           // active
-          if (mappings != null && mappings.length > 0)
+          if (mappings != null)
           {
             jalview.structure.StructureSelectionManager
-                    .getStructureSelectionManager(Desktop.instance).addMappings(mappings);
+                    .getStructureSelectionManager(Desktop.instance)
+                    .registerMappings(mappings);
           }
         }
       }
@@ -1472,9 +1502,11 @@ public class VamsasAppDatastore
     Object vobject = jv2vobj.remove(oldjvobject);
     if (vobject == null)
     {
-      throw new Error(
-              "IMPLEMENTATION ERROR: old jalview object is not bound ! ("
-                      + oldjvobject + ")");
+      // NOTE: this happens if user deletes object in one session then updates
+      // from another client
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_old_jalview_object_not_bound",
+              new String[] { oldjvobject.toString() }));
     }
     if (newjvobject != null)
     {
@@ -1499,7 +1531,7 @@ public class VamsasAppDatastore
         jxml.setSkipList(skipList);
         if (dojvsync)
         {
-          jxml.SaveState(new JarOutputStream(cappdata
+          jxml.saveState(new JarOutputStream(cappdata
                   .getClientOutputStream()));
         }
 
@@ -1573,7 +1605,7 @@ public class VamsasAppDatastore
         // ///LOAD DATASET
         DataSet dataset = root.getDataSet(_ds);
         int i, iSize = dataset.getSequenceCount();
-        Vector dsseqs;
+        List<SequenceI> dsseqs;
         jalview.datamodel.Alignment jdataset = (jalview.datamodel.Alignment) getvObj2jv(dataset);
         int jremain = 0;
         if (jdataset == null)
@@ -1620,8 +1652,8 @@ public class VamsasAppDatastore
           SequenceI[] seqs = new SequenceI[dsseqs.size()];
           for (i = 0, iSize = dsseqs.size(); i < iSize; i++)
           {
-            seqs[i] = (SequenceI) dsseqs.elementAt(i);
-            dsseqs.setElementAt(null, i);
+            seqs[i] = dsseqs.get(i);
+            dsseqs.set(i, null);
           }
           jdataset = new jalview.datamodel.Alignment(seqs);
           Cache.log.debug("New vamsas dataset imported into jalview.");
@@ -1683,7 +1715,7 @@ public class VamsasAppDatastore
             uk.ac.vamsas.objects.core.Alignment alignment = dataset
                     .getAlignment(al);
             // TODO check this handles multiple views properly
-            AlignViewport av = findViewport(alignment);
+            AlignmentViewport av = findViewport(alignment);
 
             jalview.datamodel.AlignmentI jal = null;
             if (av != null)
@@ -1782,8 +1814,8 @@ public class VamsasAppDatastore
               SequenceI[] seqs = new SequenceI[dsseqs.size()];
               for (i = 0, iSize = dsseqs.size(); i < iSize; i++)
               {
-                seqs[i] = (SequenceI) dsseqs.elementAt(i);
-                dsseqs.setElementAt(null, i);
+                seqs[i] = dsseqs.get(i);
+                dsseqs.set(i, null);
               }
               jal = new jalview.datamodel.Alignment(seqs);
               Cache.log.debug("New vamsas alignment imported into jalview "
@@ -1957,10 +1989,10 @@ public class VamsasAppDatastore
     return newAlignmentViews.size();
   }
 
-  public AlignViewport findViewport(Alignment alignment)
+  public AlignmentViewport findViewport(Alignment alignment)
   {
-    AlignViewport av = null;
-    AlignViewport[] avs = Desktop
+    AlignmentViewport av = null;
+    AlignmentViewport[] avs = Desktop
             .getViewports((String) getvObj2jv(alignment));
     if (avs != null)
     {
@@ -2003,8 +2035,7 @@ public class VamsasAppDatastore
     // may not quite cope with this (without binding an array of annotations to
     // a vamsas alignment annotation)
     // summary flags saying what we found over the set of annotation rows.
-    boolean[] AeContent = new boolean[]
-    { false, false, false, false, false };
+    boolean[] AeContent = new boolean[] { false, false, false, false, false };
     int[] rangeMap = getMapping(annotation);
     jalview.datamodel.Annotation[][] anot = new jalview.datamodel.Annotation[][]
     { new jalview.datamodel.Annotation[rangeMap.length],
@@ -2139,15 +2170,13 @@ public class VamsasAppDatastore
           anot[1][i].description = anot[1][i].description + " (after)";
         }
       }
-      return new Object[]
-      { AeContent, rangeMap, anot[0], anot[1] };
+      return new Object[] { AeContent, rangeMap, anot[0], anot[1] };
     }
     else
     {
       // no annotations to parse. Just return an empty annotationElement[]
       // array.
-      return new Object[]
-      { AeContent, rangeMap, anot[0], anot[1] };
+      return new Object[] { AeContent, rangeMap, anot[0], anot[1] };
     }
     // return null;
   }
@@ -2208,6 +2237,7 @@ public class VamsasAppDatastore
             Cache.log.warn("Failed to parse threshold property");
           }
           if (val != null)
+          {
             if (gl == null)
             {
               gl = new GraphLine(val.floatValue(), "", java.awt.Color.black);
@@ -2216,11 +2246,14 @@ public class VamsasAppDatastore
             {
               gl.value = val.floatValue();
             }
+          }
         }
         else if (props[p].getName().equalsIgnoreCase(THRESHOLD + "Name"))
         {
           if (gl == null)
+          {
             gl = new GraphLine(0, "", java.awt.Color.black);
+          }
           gl.label = props[p].getContent();
         }
       }
@@ -2417,7 +2450,8 @@ public class VamsasAppDatastore
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
         throw new Error(
-                "Invalid vamsas RangeType - cannot resolve both lists of Pos and Seg from choice!");
+                MessageManager
+                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -2440,8 +2474,7 @@ public class VamsasAppDatastore
         // could do a polarity for pos range too. and pass back indication of
         // discontinuities.
         int pos = dseta.getPos(0).getI();
-        se = new int[]
-        { pos, pos };
+        se = new int[] { pos, pos };
         for (int p = 0, pSize = dseta.getPosCount(); p < pSize; p++)
         {
           pos = dseta.getPos(p).getI();
@@ -2476,7 +2509,8 @@ public class VamsasAppDatastore
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
         throw new Error(
-                "Invalid vamsas RangeType - cannot resolve both lists of Pos and Seg from choice!");
+                MessageManager
+                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -2542,15 +2576,15 @@ public class VamsasAppDatastore
    * initialise a range type object from a set of start/end inclusive intervals
    * 
    * @param mrt
-   * @param range
+   * @param ranges
    */
-  private void initRangeType(RangeType mrt, int[] range)
+  private void initRangeType(RangeType mrt, List<int[]> ranges)
   {
-    for (int i = 0; i < range.length; i += 2)
+    for (int[] range : ranges)
     {
       Seg vSeg = new Seg();
-      vSeg.setStart(range[i]);
-      vSeg.setEnd(range[i + 1]);
+      vSeg.setStart(range[0]);
+      vSeg.setEnd(range[1]);
       mrt.addSeg(vSeg);
     }
   }
@@ -2673,10 +2707,10 @@ public class VamsasAppDatastore
     return vobj2jv;
   }
 
-  public void storeSequenceMappings(AlignViewport viewport, String title)
+  public void storeSequenceMappings(AlignmentViewport viewport, String title)
           throws Exception
   {
-    AlignViewport av = viewport;
+    AlignmentViewport av = viewport;
     try
     {
       jalview.datamodel.AlignmentI jal = av.getAlignment();
@@ -2698,18 +2732,15 @@ public class VamsasAppDatastore
 
       }
       // Store any sequence mappings.
-      if (av.getAlignment().getCodonFrames() != null
-              && av.getAlignment().getCodonFrames().length > 0)
+      Set<AlignedCodonFrame> cframes = av.getAlignment().getCodonFrames();
+      if (cframes != null)
       {
-        jalview.datamodel.AlignedCodonFrame[] cframes = av.getAlignment()
-                .getCodonFrames();
-        for (int cf = 0; cf < cframes.length; cf++)
+        for (AlignedCodonFrame acf : cframes)
         {
-          if (cframes[cf].getdnaSeqs() != null
-                  && cframes[cf].getdnaSeqs().length > 0)
+          if (acf.getdnaSeqs() != null && acf.getdnaSeqs().length > 0)
           {
-            jalview.datamodel.SequenceI[] dmps = cframes[cf].getdnaSeqs();
-            jalview.datamodel.Mapping[] mps = cframes[cf].getProtMappings();
+            jalview.datamodel.SequenceI[] dmps = acf.getdnaSeqs();
+            jalview.datamodel.Mapping[] mps = acf.getProtMappings();
             for (int smp = 0; smp < mps.length; smp++)
             {
               uk.ac.vamsas.objects.core.SequenceType mfrom = (SequenceType) getjv2vObj(dmps[smp]);
@@ -2732,8 +2763,9 @@ public class VamsasAppDatastore
       }
     } catch (Exception e)
     {
-      throw new Exception("Couldn't store sequence mappings for " + title,
-              e);
+      throw new Exception(MessageManager.formatMessage(
+              "exception.couldnt_store_sequence_mappings",
+              new String[] { title }), e);
     }
   }
 

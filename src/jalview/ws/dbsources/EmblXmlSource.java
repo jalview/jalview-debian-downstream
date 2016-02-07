@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.dbsources;
 
@@ -21,11 +24,11 @@ import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.xdb.embl.EmblEntry;
+import jalview.datamodel.xdb.embl.EmblFile;
+import jalview.util.MessageManager;
 import jalview.ws.ebi.EBIFetchClient;
 
 import java.io.File;
-import java.util.Iterator;
-import java.util.Vector;
 
 public abstract class EmblXmlSource extends EbiFileRetrievedProxy
 {
@@ -33,7 +36,7 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
   /**
    * Last properly parsed embl file.
    */
-  public jalview.datamodel.xdb.embl.EmblFile efile = null;
+  public EmblFile efile = null;
 
   public EmblXmlSource()
   {
@@ -63,8 +66,9 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
     } catch (Exception e)
     {
       stopQuery();
-      throw new Exception("EBI EMBL XML retrieval failed on "
-              + emprefx.toLowerCase() + ":" + query.trim(), e);
+      throw new Exception(MessageManager.formatMessage(
+              "exception.ebiembl_retrieval_failed_on", new String[] {
+                  emprefx.toLowerCase(), query.trim() }), e);
     }
     return getEmblSequenceRecords(emprefx, query, reply);
   }
@@ -92,29 +96,21 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
       file = reply.getAbsolutePath();
       if (reply.length() > 25)
       {
-        efile = jalview.datamodel.xdb.embl.EmblFile.getEmblFile(reply);
+        efile = EmblFile.getEmblFile(reply);
       }
       else
       {
-        result.append("# No EMBL record retrieved for "
-                + emprefx.toLowerCase() + ":" + query.trim());
+        result.append(MessageManager.formatMessage(
+                "label.no_embl_record_found",
+                new String[] { emprefx.toLowerCase(), query.trim() }));
       }
     }
     if (efile != null)
     {
-      for (Iterator i = efile.getEntries().iterator(); i.hasNext();)
+      for (EmblEntry entry : efile.getEntries())
       {
-        EmblEntry entry = (EmblEntry) i.next();
-        SequenceI[] seqparts = entry.getSequences(false, true, emprefx); // TODO:
-        // use
-        // !fetchNa,!fetchPeptide
-        // here
-        // instead
-        // -
-        // see
-        // todo
-        // in
-        // emblEntry
+        SequenceI[] seqparts = entry.getSequences(false, true, emprefx);
+        // TODO: use !fetchNa,!fetchPeptide here instead - see todo in EmblEntry
         if (seqparts != null)
         {
           SequenceI[] newseqs = null;
@@ -135,8 +131,8 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
           }
           for (int j = 0; j < seqparts.length; si++, j++)
           {
-            newseqs[si] = seqparts[j].deriveSequence(); // place DBReferences on
-            // dataset and refer
+            newseqs[si] = seqparts[j].deriveSequence();
+            // place DBReferences on dataset and refer
           }
           seqs = newseqs;
 
@@ -151,8 +147,8 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
     if (seqs != null && seqs.length > 0)
     {
       al = new Alignment(seqs);
-      result.append("# Successfully parsed the " + emprefx
-              + " queries into an Alignment");
+      result.append(MessageManager.formatMessage(
+              "label.embl_successfully_parsed", new String[] { emprefx }));
       results = result;
     }
     stopQuery();

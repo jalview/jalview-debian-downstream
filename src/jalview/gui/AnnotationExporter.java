@@ -1,30 +1,47 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.io.AnnotationFile;
+import jalview.io.FeaturesFile;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
-import jalview.datamodel.*;
-import jalview.io.*;
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.SwingConstants;
 
 /**
  * 
@@ -42,11 +59,9 @@ public class AnnotationExporter extends JPanel
 
   boolean features = true;
 
-  AlignmentAnnotation[] annotations;
+  private AlignmentAnnotation[] annotations;
 
-  Vector sequenceGroups;
-
-  Hashtable alignmentProperties;
+  private boolean wholeView;
 
   public AnnotationExporter()
   {
@@ -61,7 +76,8 @@ public class AnnotationExporter extends JPanel
     frame = new JInternalFrame();
     frame.setContentPane(this);
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
-    Desktop.addInternalFrame(frame, "", frame.getPreferredSize().width, frame.getPreferredSize().height);
+    Desktop.addInternalFrame(frame, "", frame.getPreferredSize().width,
+            frame.getPreferredSize().height);
   }
 
   public void exportFeatures(AlignmentPanel ap)
@@ -69,21 +85,33 @@ public class AnnotationExporter extends JPanel
     this.ap = ap;
     features = true;
     CSVFormat.setVisible(false);
-    frame.setTitle("Export Features");
+    frame.setTitle(MessageManager.getString("label.export_features"));
   }
 
-  public void exportAnnotations(AlignmentPanel ap,
-          AlignmentAnnotation[] annotations, Vector sequenceGroups,
-          Hashtable alProperties)
+  public void exportAnnotations(AlignmentPanel ap)
   {
     this.ap = ap;
+    annotations = ap.av.isShowAnnotation() ? null : ap.av.getAlignment()
+            .getAlignmentAnnotation();
+    wholeView = true;
+    startExportAnnotation();
+  }
+
+  public void exportAnnotations(AlignmentPanel alp,
+          AlignmentAnnotation[] toExport)
+  {
+    ap = alp;
+    annotations = toExport;
+    wholeView = false;
+    startExportAnnotation();
+  }
+
+  private void startExportAnnotation()
+  {
     features = false;
     GFFFormat.setVisible(false);
     CSVFormat.setVisible(true);
-    this.annotations = annotations;
-    this.sequenceGroups = sequenceGroups;
-    this.alignmentProperties = alProperties;
-    frame.setTitle("Export Annotations");
+    frame.setTitle(MessageManager.getString("label.export_annotations"));
   }
 
   public void toFile_actionPerformed(ActionEvent e)
@@ -92,42 +120,16 @@ public class AnnotationExporter extends JPanel
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(features ? "Save Features to File"
-            : "Save Annotation to File");
-    chooser.setToolTipText("Save");
+    chooser.setDialogTitle(features ? MessageManager
+            .getString("label.save_features_to_file") : MessageManager
+            .getString("label.save_annotation_to_file"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
 
     if (value == JalviewFileChooser.APPROVE_OPTION)
     {
-      String text = "No features found on alignment";
-      if (features)
-      {
-        if (GFFFormat.isSelected())
-        {
-          text = new FeaturesFile().printGFFFormat(ap.av.alignment
-                  .getDataset().getSequencesArray(),
-                  getDisplayedFeatureCols(), true, ap.av.isShowNpFeats());// ap.av.featuresDisplayed//);
-        }
-        else
-        {
-          text = new FeaturesFile().printJalviewFormat(ap.av.alignment
-                  .getDataset().getSequencesArray(),
-                  getDisplayedFeatureCols(), true, ap.av.isShowNpFeats()); // ap.av.featuresDisplayed);
-        }
-      }
-      else
-      {
-        if (CSVFormat.isSelected())
-        {
-          text = new AnnotationFile().printCSVAnnotations(annotations);
-        }
-        else
-        {
-          text = new AnnotationFile().printAnnotations(annotations,
-                  sequenceGroups, alignmentProperties);
-        }
-      }
+      String text = getFileContents();
 
       try
       {
@@ -145,25 +147,26 @@ public class AnnotationExporter extends JPanel
     close_actionPerformed(null);
   }
 
-  public void toTextbox_actionPerformed(ActionEvent e)
+  private String getFileContents()
   {
-    String text = "No features found on alignment";
+    String text = MessageManager
+            .getString("label.no_features_on_alignment");
     if (features)
     {
       if (GFFFormat.isSelected())
       {
-        text = new FeaturesFile().printGFFFormat(ap.av.alignment
-                .getDataset().getSequencesArray(),
-                getDisplayedFeatureCols(), true, ap.av.isShowNpFeats());
+        text = new FeaturesFile().printGFFFormat(ap.av.getAlignment()
+                .getDataset().getSequencesArray(), ap.getFeatureRenderer()
+                .getDisplayedFeatureCols(), true, ap.av.isShowNPFeats());// ap.av.featuresDisplayed//);
       }
       else
       {
-        text = new FeaturesFile().printJalviewFormat(ap.av.alignment
-                .getDataset().getSequencesArray(),
-                getDisplayedFeatureCols(), true, ap.av.isShowNpFeats());
+        text = new FeaturesFile().printJalviewFormat(ap.av.getAlignment()
+                .getDataset().getSequencesArray(), ap.getFeatureRenderer()
+                .getDisplayedFeatureCols(), true, ap.av.isShowNPFeats()); // ap.av.featuresDisplayed);
       }
     }
-    else if (!features)
+    else
     {
       if (CSVFormat.isSelected())
       {
@@ -171,46 +174,49 @@ public class AnnotationExporter extends JPanel
       }
       else
       {
-        text = new AnnotationFile().printAnnotations(annotations,
-                sequenceGroups, alignmentProperties);
+        if (wholeView)
+        {
+          text = new AnnotationFile().printAnnotationsForView(ap.av);
+        }
+        else
+        {
+          text = new AnnotationFile().printAnnotations(annotations, null,
+                  null);
+        }
       }
     }
+    return text;
+  }
 
+  public void toTextbox_actionPerformed(ActionEvent e)
+  {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
+
     try
     {
+      String text = getFileContents();
       cap.setText(text);
-      Desktop.addInternalFrame(cap, (features ? "Features for - "
-              : "Annotations for - ") + ap.alignFrame.getTitle(), 600, 500);
+      Desktop.addInternalFrame(
+              cap,
+              (features ? MessageManager.formatMessage(
+                      "label.features_for_params",
+                      new String[] { ap.alignFrame.getTitle() })
+                      : MessageManager.formatMessage(
+                              "label.annotations_for_params",
+                              new String[] { ap.alignFrame.getTitle() })),
+              600, 500);
     } catch (OutOfMemoryError oom)
     {
-      new OOMWarning("generating "
-              + (features ? "Features for - " : "Annotations for - ")
-              + ap.alignFrame.getTitle(), oom);
+      new OOMWarning((features ? MessageManager.formatMessage(
+              "label.generating_features_for_params",
+              new String[] { ap.alignFrame.getTitle() })
+              : MessageManager.formatMessage(
+                      "label.generating_annotations_for_params",
+                      new String[] { ap.alignFrame.getTitle() })), oom);
       cap.dispose();
     }
 
     close_actionPerformed(null);
-  }
-
-  private Hashtable getDisplayedFeatureCols()
-  {
-    Hashtable fcols = new Hashtable();
-    if (ap.av.featuresDisplayed == null)
-    {
-      return fcols;
-    }
-    Enumeration en = ap.av.featuresDisplayed.keys();
-    FeatureRenderer fr = ap.seqPanel.seqCanvas.getFeatureRenderer(); // consider
-                                                                     // higher
-                                                                     // level
-                                                                     // method ?
-    while (en.hasMoreElements())
-    {
-      Object col = en.nextElement();
-      fcols.put(col, fr.featureColours.get(col));
-    }
-    return fcols;
   }
 
   public void close_actionPerformed(ActionEvent e)
@@ -226,8 +232,8 @@ public class AnnotationExporter extends JPanel
   private void jbInit() throws Exception
   {
     this.setLayout(new BorderLayout());
-    
-    toFile.setText("to File");
+
+    toFile.setText(MessageManager.getString("label.to_file"));
     toFile.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -235,7 +241,7 @@ public class AnnotationExporter extends JPanel
         toFile_actionPerformed(e);
       }
     });
-    toTextbox.setText("to Textbox");
+    toTextbox.setText(MessageManager.getString("label.to_textbox"));
     toTextbox.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -243,7 +249,7 @@ public class AnnotationExporter extends JPanel
         toTextbox_actionPerformed(e);
       }
     });
-    close.setText("Close");
+    close.setText(MessageManager.getString("action.close"));
     close.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -257,9 +263,9 @@ public class AnnotationExporter extends JPanel
     GFFFormat.setOpaque(false);
     GFFFormat.setText("GFF");
     CSVFormat.setOpaque(false);
-    CSVFormat.setText("CSV(Spreadsheet)");
+    CSVFormat.setText(MessageManager.getString("label.csv_spreadsheet"));
     jLabel1.setHorizontalAlignment(SwingConstants.TRAILING);
-    jLabel1.setText("Format: ");
+    jLabel1.setText(MessageManager.getString("action.format") + " ");
     this.setBackground(Color.white);
     jPanel3.setBorder(BorderFactory.createEtchedBorder());
     jPanel3.setOpaque(false);
@@ -299,5 +305,4 @@ public class AnnotationExporter extends JPanel
   JPanel jPanel3 = new JPanel();
 
   FlowLayout flowLayout1 = new FlowLayout();
-
 }

@@ -1,25 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.schemes;
 
-public class ScoreMatrix
+import jalview.analysis.scoremodels.PairwiseSeqScoreModel;
+import jalview.api.analysis.ScoreModelI;
+
+public class ScoreMatrix extends PairwiseSeqScoreModel implements
+        ScoreModelI
 {
   String name;
+
+  @Override
+  public String getName()
+  {
+    return name;
+  }
 
   /**
    * reference to integer score matrix
@@ -31,22 +44,35 @@ public class ScoreMatrix
    */
   int type;
 
+  /**
+   * 
+   * @param name
+   *          Unique, human readable name for the matrix
+   * @param matrix
+   *          Pairwise scores indexed according to appropriate symbol alphabet
+   * @param type
+   *          0 for Protein, 1 for NA
+   */
   ScoreMatrix(String name, int[][] matrix, int type)
   {
     this.matrix = matrix;
     this.type = type;
+    this.name = name;
   }
 
+  @Override
   public boolean isDNA()
   {
     return type == 1;
   }
 
+  @Override
   public boolean isProtein()
   {
     return type == 0;
   }
 
+  @Override
   public int[][] getMatrix()
   {
     return matrix;
@@ -83,4 +109,65 @@ public class ScoreMatrix
     return pog;
   }
 
+  /**
+   * pretty print the matrix
+   */
+  public String toString()
+  {
+    return outputMatrix(false);
+  }
+
+  public String outputMatrix(boolean html)
+  {
+    StringBuffer sb = new StringBuffer();
+    int[] symbols = (type == 0) ? ResidueProperties.aaIndex
+            : ResidueProperties.nucleotideIndex;
+    int symMax = (type == 0) ? ResidueProperties.maxProteinIndex
+            : ResidueProperties.maxNucleotideIndex;
+    boolean header = true;
+    if (html)
+    {
+      sb.append("<table border=\"1\">");
+    }
+    for (char sym = 'A'; sym <= 'Z'; sym++)
+    {
+      if (symbols[sym] >= 0 && symbols[sym] < symMax)
+      {
+        if (header)
+        {
+          sb.append(html ? "<tr><td></td>" : "");
+          for (char sym2 = 'A'; sym2 <= 'Z'; sym2++)
+          {
+            if (symbols[sym2] >= 0 && symbols[sym2] < symMax)
+            {
+              sb.append((html ? "<td>&nbsp;" : "\t") + sym2
+                      + (html ? "&nbsp;</td>" : ""));
+            }
+          }
+          header = false;
+          sb.append(html ? "</tr>\n" : "\n");
+        }
+        if (html)
+        {
+          sb.append("<tr>");
+        }
+        sb.append((html ? "<td>" : "") + sym + (html ? "</td>" : ""));
+        for (char sym2 = 'A'; sym2 <= 'Z'; sym2++)
+        {
+          if (symbols[sym2] >= 0 && symbols[sym2] < symMax)
+          {
+            sb.append((html ? "<td>" : "\t")
+                    + matrix[symbols[sym]][symbols[sym2]]
+                    + (html ? "</td>" : ""));
+          }
+        }
+        sb.append(html ? "</tr>\n" : "\n");
+      }
+    }
+    if (html)
+    {
+      sb.append("</table>");
+    }
+    return sb.toString();
+  }
 }

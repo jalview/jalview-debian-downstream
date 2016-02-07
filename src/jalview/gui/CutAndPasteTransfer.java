@@ -1,33 +1,59 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
+ * Copyright (C) 2015 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.awt.*;
-import java.awt.datatransfer.*;
-import java.awt.event.*;
-import javax.swing.*;
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
+import jalview.api.ComplexAlignFile;
+import jalview.api.FeaturesDisplayedI;
+import jalview.bin.Jalview;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SequenceI;
+import jalview.io.AppletFormatAdapter;
+import jalview.io.FileParse;
+import jalview.io.FormatAdapter;
+import jalview.io.IdentifyFile;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
+import jalview.jbgui.GCutAndPasteTransfer;
+import jalview.schemes.ColourSchemeI;
+import jalview.util.MessageManager;
 
-import jalview.datamodel.*;
-import jalview.io.*;
-import jalview.jbgui.*;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 
 /**
- * DOCUMENT ME!
+ * Cut'n'paste files into the desktop See JAL-1105
  * 
  * @author $author$
  * @version $Revision$
@@ -35,7 +61,11 @@ import jalview.jbgui.*;
 public class CutAndPasteTransfer extends GCutAndPasteTransfer
 {
 
-  AlignViewport viewport;
+  AlignmentViewPanel alignpanel;
+
+  AlignViewportI viewport;
+
+  FileParse source = null;
 
   public CutAndPasteTransfer()
   {
@@ -52,12 +82,16 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
   /**
    * DOCUMENT ME!
    */
-  public void setForInput(AlignViewport viewport)
+  public void setForInput(AlignmentViewPanel viewpanel)
   {
-    this.viewport = viewport;
+    this.alignpanel = viewpanel;
+    if (alignpanel != null)
+    {
+      this.viewport = alignpanel.getAlignViewport();
+    }
     if (viewport != null)
     {
-      ok.setText("Add");
+      ok.setText(MessageManager.getString("action.add"));
     }
 
     getContentPane().add(inputButtonPanel, java.awt.BorderLayout.SOUTH);
@@ -96,8 +130,9 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
 
     chooser.setAcceptAllFileFilterUsed(false);
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Save Text to File");
-    chooser.setToolTipText("Save");
+    chooser.setDialogTitle(MessageManager
+            .getString("label.save_text_to_file"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
 
@@ -164,43 +199,89 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
    */
   public void ok_actionPerformed(ActionEvent e)
   {
-    String format = new IdentifyFile().Identify(getText(), "Paste");
+    String text = getText();
+    if (text.trim().length() < 1)
+    {
+      return;
+    }
+
+    String format = new IdentifyFile().Identify(text, "Paste");
+    if (format == null || format.equalsIgnoreCase("EMPTY DATA FILE"))
+    {
+      System.err.println(MessageManager
+              .getString("label.couldnt_read_data"));
+      if (!Jalview.isHeadlessMode())
+      {
+        javax.swing.JOptionPane.showInternalMessageDialog(Desktop.desktop,
+                AppletFormatAdapter.SUPPORTED_FORMATS,
+                MessageManager.getString("label.couldnt_read_data"),
+                JOptionPane.WARNING_MESSAGE);
+      }
+      return;
+    }
+
     // TODO: identify feature, annotation or tree file and parse appropriately.
-    Alignment al = null;
+    AlignmentI al = null;
 
     if (FormatAdapter.isValidFormat(format))
     {
       try
       {
-        al = new FormatAdapter().readFile(getText(), "Paste", format);
+        FormatAdapter fa = new FormatAdapter(alignpanel);
+        al = fa.readFile(getText(), "Paste", format);
+        source = fa.getAlignFile();
+
       } catch (java.io.IOException ex)
       {
         JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                "Couldn't read the pasted text.\n" + ex.toString(),
-                "Error parsing text", JOptionPane.WARNING_MESSAGE);
+                MessageManager.formatMessage(
+                        "label.couldnt_read_pasted_text",
+                        new String[] { ex.toString() }), MessageManager
+                        .getString("label.error_parsing_text"),
+                JOptionPane.WARNING_MESSAGE);
       }
     }
 
-    if (al != null)
+    if (al != null && al.hasValidSequence())
     {
+      String title = MessageManager.formatMessage(
+              "label.input_cut_paste_params", new String[] { format });
       if (viewport != null)
       {
-        for (int i = 0; i < al.getHeight(); i++)
-        {
-          viewport.getAlignment().addSequence(al.getSequenceAt(i));
-        }
-
-        viewport.firePropertyChange("alignment", null, viewport
-                .getAlignment().getSequences());
+        ((AlignViewport) viewport).addAlignment(al, title);
       }
       else
       {
-        AlignFrame af = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
-                AlignFrame.DEFAULT_HEIGHT);
+
+        AlignFrame af;
+        if (source instanceof ComplexAlignFile)
+        {
+          ColumnSelection colSel = ((ComplexAlignFile) source)
+                  .getColumnSelection();
+          SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
+                  .getHiddenSequences();
+          boolean showSeqFeatures = ((ComplexAlignFile) source)
+                  .isShowSeqFeatures();
+          ColourSchemeI cs = ((ComplexAlignFile) source).getColourScheme();
+          FeaturesDisplayedI fd = ((ComplexAlignFile) source)
+                  .getDisplayedFeatures();
+          af = new AlignFrame(al, hiddenSeqs, colSel,
+                  AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+          af.getViewport().setShowSequenceFeatures(showSeqFeatures);
+          af.getViewport().setFeaturesDisplayed(fd);
+          af.changeColour(cs);
+        }
+        else
+        {
+          af = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
+                  AlignFrame.DEFAULT_HEIGHT);
+        }
+
         af.currentFileFormat = format;
-        Desktop.addInternalFrame(af, "Cut & Paste input - " + format,
-                AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
-        af.statusBar.setText("Successfully pasted alignment file");
+        Desktop.addInternalFrame(af, title, AlignFrame.DEFAULT_WIDTH,
+                AlignFrame.DEFAULT_HEIGHT);
+        af.statusBar.setText(MessageManager
+                .getString("label.successfully_pasted_alignment_file"));
 
         try
         {
@@ -209,6 +290,18 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
         } catch (Exception ex)
         {
         }
+      }
+    }
+    else
+    {
+      System.err.println(MessageManager
+              .getString("label.couldnt_read_data"));
+      if (!Jalview.isHeadlessMode())
+      {
+        javax.swing.JOptionPane.showInternalMessageDialog(Desktop.desktop,
+                AppletFormatAdapter.SUPPORTED_FORMATS,
+                MessageManager.getString("label.couldnt_read_data"),
+                JOptionPane.WARNING_MESSAGE);
       }
     }
   }
@@ -233,8 +326,10 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
   {
     if (SwingUtilities.isRightMouseButton(e))
     {
-      JPopupMenu popup = new JPopupMenu("Edit");
-      JMenuItem item = new JMenuItem("Copy");
+      JPopupMenu popup = new JPopupMenu(
+              MessageManager.getString("action.edit"));
+      JMenuItem item = new JMenuItem(
+              MessageManager.getString("action.copy"));
       item.addActionListener(new ActionListener()
       {
         public void actionPerformed(ActionEvent e)
@@ -243,7 +338,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
         }
       });
       popup.add(item);
-      item = new JMenuItem("Paste");
+      item = new JMenuItem(MessageManager.getString("action.paste"));
       item.addActionListener(new ActionListener()
       {
         public void actionPerformed(ActionEvent e)
