@@ -1,38 +1,22 @@
-Index: jalview-2.7.dfsg~almost/build.xml
-===================================================================
---- jalview-2.7.dfsg~almost.orig/build.xml	2011-09-27 16:50:20.000000000 +0200
-+++ jalview-2.7.dfsg~almost/build.xml	2011-10-16 00:25:56.823058139 +0200
-@@ -18,13 +18,6 @@
- -->
- <project name="jalviewX" default="usage" basedir=".">
- 	<!-- we use jalopy to format our sources -->
--	<taskdef name="jalopy" classname="de.hunsicker.jalopy.plugin.ant.AntPlugin">
--		<classpath>
--			<fileset dir="utils/jalopy/lib">
--				<include name="*.jar" />
--			</fileset>
--		</classpath>
--	</taskdef>
+--- jalview.orig/build.xml
++++ jalview/build.xml
+@@ -136,10 +136,6 @@
+     <property name="wsdl.ClientNS" value="ext.vamsas" />
+     <!-- the class path for building the application -->
+     <path id="build.classpath">
+-      <fileset dir="utils">
+-        <include name="*.jar" />
+-        <include name="**/*.jar" />
+-      </fileset>
+       <fileset dir="${libDir}">
+         <include name="*.jar" />
+         <include name="**/*.jar" />
+@@ -503,7 +499,7 @@
+   </axis-wsdl2java>
+ </target>
  
- 	<target name="help" depends="usage" />
- 	<target name="usage">
-@@ -114,10 +107,6 @@
- 		<property name="wsdl.ClientNS" value="ext.vamsas" />
- 		<!-- the class path for building the application -->
- 		<path id="build.classpath">
--			<fileset dir="utils">
--				<include name="*.jar" />
--				<include name="**/*.jar" />
--			</fileset>
- 			<fileset dir="${libDir}">
- 				<include name="*.jar" />
- 				<include name="**/*.jar" />
-@@ -407,7 +396,7 @@
- 		</axis-wsdl2java>
- 	</target>
- 
--	<target name="makedist" depends="build, buildPropertiesFile, buildindices">
-+	<target name="makedist" depends="build, buildindices">
- 		<!-- make the package jar if not already existing -->
- 		<mkdir dir="${packageDir}" />
- 		<!-- clean dir if it already existed -->
+-<target name="makedist" depends="build, buildPropertiesFile, buildindices">
++<target name="makedist" depends="build, buildindices">
+   <!-- make the package jar if not already existing -->
+   <mkdir dir="${packageDir}" />
+   <!-- clean dir if it already existed -->

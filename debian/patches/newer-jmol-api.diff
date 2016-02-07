@@ -3,299 +3,45 @@ Description: fix build with newer Jmol API
  Patch from 12808bb..a60375a of http://source.jalview.org/git/jalview.git
 
 
-Index: jalview-2.7.dfsg/build.xml
-===================================================================
---- jalview-2.7.dfsg.orig/build.xml	2011-11-07 20:46:31.000000000 +0100
-+++ jalview-2.7.dfsg/build.xml	2011-11-07 20:46:54.096166723 +0100
-@@ -92,7 +92,7 @@
- 		<property name="packageDir" value="dist" />
- 		<property name="outputJar" value="jalview.jar" />
- 		<!-- Jalview Applet JMol Jar Dependency -->
--		<property name="jmolJar" value="JmolApplet-12.1.13.jar" />
-+		<property name="jmolJar" value="JmolApplet-12.2.4.jar" />
- 		<property name="jalviewLiteJar" value="jalviewApplet.jar" />
- 		<!-- switch to indicate if we should obfuscate jalviewLite -->
- 		<!--<property name="donotobfuscate" value="true"/> -->
-Index: jalview-2.7.dfsg/nbproject/project.properties
-===================================================================
---- jalview-2.7.dfsg.orig/nbproject/project.properties	2011-09-27 16:50:21.000000000 +0200
-+++ jalview-2.7.dfsg/nbproject/project.properties	2011-11-07 20:46:54.096166723 +0100
+--- jalview.orig/build.xml
++++ jalview/build.xml
+@@ -112,7 +112,7 @@
+     <property name="packageDir" value="dist" />
+     <property name="outputJar" value="jalview.jar" />
+     <!-- Jalview Applet JMol Jar Dependency -->
+-    <property name="jmolJar" value="JmolApplet-14.2.14_2015.06.11.jar" />
++    <property name="jmolJar" value="JmolApplet.jar" />
+     <property name="varnaJar" value="VARNAv3-93.jar" />
+     <property name="jsoup" value="jsoup-1.8.1.jar" />
+     <property name="jsonSimple" value="json_simple-1.1.jar" />
+--- jalview.orig/nbproject/project.properties
++++ jalview/nbproject/project.properties
 @@ -59,8 +59,8 @@
  file.reference.jaxrpc.jar=lib/jaxrpc.jar
  file.reference.JGoogleAnalytics_0.3.jar=lib/JGoogleAnalytics_0.3.jar
  file.reference.jhall.jar=lib/jhall.jar
--file.reference.Jmol-12.1.13.jar=lib/Jmol-12.1.13.jar
--file.reference.JmolApplet-12.1.13.jar=appletlib/JmolApplet-12.1.13.jar
-+file.reference.Jmol-12.2.4.jar=lib/Jmol-12.2.4.jar
-+file.reference.JmolApplet-12.2.4.jar=appletlib/JmolApplet-12.2.4.jar
+-file.reference.Jmol-14.2.14_2015.06.11.jar=lib/Jmol-14.2.14_2015.06.11.jar
+-file.reference.JmolApplet-14.2.14_2015.06.11.jar=appletlib/JmolApplet-14.2.14_2015.06.11.jar
++file.reference.Jmol-12.2.32.jar=lib/Jmol-12.2.32.jar
++file.reference.JmolApplet-12.2.32.jar=appletlib/JmolApplet-12.2.32jar
  file.reference.log4j-1.2.8.jar=lib/log4j-1.2.8.jar
  file.reference.mail.jar=lib/mail.jar
- file.reference.min-jaba-client.jar=lib/min-jaba-client.jar
-@@ -91,7 +91,7 @@
+ file.reference.min-jaba-client.jar=lib/min-jaba-client-2.0.jar
+@@ -92,7 +92,7 @@
      ${file.reference.jaxrpc.jar}:\
      ${file.reference.JGoogleAnalytics_0.3.jar}:\
      ${file.reference.jhall.jar}:\
--    ${file.reference.Jmol-12.1.13.jar}:\
-+    ${file.reference.Jmol-12.2.4.jar}:\
+-    ${file.reference.Jmol-14.2.14_2015.06.11.jar}:\
++    ${file.reference.Jmol-12.2.32.jar}:\
      ${file.reference.miglayout-4.0-swing.jar}:\
      ${file.reference.log4j-1.2.8.jar}:\
      ${file.reference.mail.jar}:\
-@@ -100,7 +100,7 @@
+@@ -101,7 +101,7 @@
      ${file.reference.xml-apis.jar}:\
      ${file.reference.xercesImpl.jar}:\
      ${file.reference.wsdl4j.jar}:\
--    ${file.reference.JmolApplet-12.1.13.jar}
-+    ${file.reference.JmolApplet-12.2.4.jar}
+-    ${file.reference.JmolApplet-14.2.14_2015.06.11.jar} \
++    ${file.reference.JmolApplet-12.2.32.jar} \
+     ${file.reference.varna-3.9-dev.jar}
  # Space-separated list of extra javac options
  javac.compilerargs=
- javac.deprecation=false
-Index: jalview-2.7.dfsg/src/jalview/appletgui/AppletJmolBinding.java
-===================================================================
---- jalview-2.7.dfsg.orig/src/jalview/appletgui/AppletJmolBinding.java	2011-09-27 16:50:21.000000000 +0200
-+++ jalview-2.7.dfsg/src/jalview/appletgui/AppletJmolBinding.java	2011-11-07 20:46:54.096166723 +0100
-@@ -17,18 +17,16 @@
-  */
- package jalview.appletgui;
- 
--import java.awt.Container;
--import java.util.BitSet;
--
- import jalview.api.AlignmentViewPanel;
--import jalview.datamodel.AlignmentI;
- import jalview.datamodel.PDBEntry;
- import jalview.datamodel.SequenceI;
- import jalview.structure.StructureSelectionManager;
- 
-+import java.awt.Container;
-+import java.util.BitSet;
-+
- import org.jmol.api.JmolAppConsoleInterface;
- import org.jmol.api.JmolViewer;
--import org.jmol.applet.AppletConsole;
- import org.jmol.popup.JmolPopup;
- 
- class AppletJmolBinding extends jalview.ext.jmol.JalviewJmolBinding
-@@ -119,7 +117,8 @@
-           boolean asPopup)
-   {
- 
--    jmolpopup = JmolPopup.newJmolPopup(viewer, translateLocale, menuName,
-+    jmolpopup = new JmolPopup();
-+    jmolpopup.initialize(viewer, translateLocale, menuName,
-             asPopup);
-   }
- 
-@@ -150,7 +149,9 @@
-   protected JmolAppConsoleInterface createJmolConsole(JmolViewer viewer2,
-           Container consolePanel, String buttonsToShow)
-   {
--    return new AppletConsole(viewer2, consolePanel);
-+    //return new org.jmol.console.AppletConsole(viewer2, consolePanel);
-+    JmolAppConsoleInterface appc = new org.jmol.console.AppletConsole().getAppConsole(viewer2);
-+    return appc;
-   }
- 
-   @Override
-@@ -177,5 +178,10 @@
-   public void releaseReferences(Object svl)
-   {
-   }
--
-+  @Override
-+  public void resizeInnerPanel(String data)
-+  {
-+    // TODO Auto-generated method stub
-+    
-+  }
- }
-Index: jalview-2.7.dfsg/src/jalview/ext/jmol/JalviewJmolBinding.java
-===================================================================
---- jalview-2.7.dfsg.orig/src/jalview/ext/jmol/JalviewJmolBinding.java	2011-09-27 16:50:21.000000000 +0200
-+++ jalview-2.7.dfsg/src/jalview/ext/jmol/JalviewJmolBinding.java	2011-11-07 20:46:54.096166723 +0100
-@@ -17,32 +17,40 @@
-  */
- package jalview.ext.jmol;
- 
--import java.io.File;
--import java.net.URL;
--import java.util.*;
--import java.applet.Applet;
--import java.awt.*;
--import java.awt.event.*;
--
--import javax.swing.JPanel;
--
- import jalview.api.AlignmentViewPanel;
- import jalview.api.FeatureRenderer;
- import jalview.api.SequenceRenderer;
- import jalview.api.SequenceStructureBinding;
- import jalview.api.StructureSelectionManagerProvider;
--import jalview.datamodel.*;
--import jalview.structure.*;
--import jalview.io.*;
-+import jalview.datamodel.AlignmentI;
-+import jalview.datamodel.ColumnSelection;
-+import jalview.datamodel.PDBEntry;
-+import jalview.datamodel.SequenceI;
-+import jalview.io.AppletFormatAdapter;
-+import jalview.schemes.ColourSchemeI;
-+import jalview.schemes.ResidueProperties;
-+import jalview.structure.StructureListener;
-+import jalview.structure.StructureMapping;
-+import jalview.structure.StructureSelectionManager;
-+
-+import java.awt.Color;
-+import java.awt.Container;
-+import java.awt.event.ComponentEvent;
-+import java.awt.event.ComponentListener;
-+import java.io.File;
-+import java.net.URL;
-+import java.util.Enumeration;
-+import java.util.Hashtable;
-+import java.util.Map;
-+import java.util.Vector;
- 
--import org.jmol.api.*;
- import org.jmol.adapter.smarter.SmarterJmolAdapter;
--
--import org.jmol.popup.*;
--import org.jmol.viewer.JmolConstants;
--import org.jmol.viewer.Viewer;
--
--import jalview.schemes.*;
-+import org.jmol.api.JmolAppConsoleInterface;
-+import org.jmol.api.JmolSelectionListener;
-+import org.jmol.api.JmolStatusListener;
-+import org.jmol.api.JmolViewer;
-+import org.jmol.constant.EnumCallback;
-+import org.jmol.popup.JmolPopup;
- 
- public abstract class JalviewJmolBinding implements StructureListener,
-         JmolStatusListener, SequenceStructureBinding,
-@@ -940,47 +948,48 @@
- 
-   }
- 
--  public void notifyCallback(int type, Object[] data)
-+  @Override
-+  public void notifyCallback(EnumCallback type, Object[] data)
-   {
-     try
-     {
-       switch (type)
-       {
--      case JmolConstants.CALLBACK_LOADSTRUCT:
-+      case LOADSTRUCT:
-         notifyFileLoaded((String) data[1], (String) data[2],
-                 (String) data[3], (String) data[4],
-                 ((Integer) data[5]).intValue());
- 
-         break;
--      case JmolConstants.CALLBACK_PICK:
-+      case PICK:
-         notifyAtomPicked(((Integer) data[2]).intValue(), (String) data[1],
-                 (String) data[0]);
-         // also highlight in alignment
--      case JmolConstants.CALLBACK_HOVER:
-+      case HOVER:
-         notifyAtomHovered(((Integer) data[2]).intValue(), (String) data[1],
-                 (String) data[0]);
-         break;
--      case JmolConstants.CALLBACK_SCRIPT:
-+      case SCRIPT:
-         notifyScriptTermination((String) data[2],
-                 ((Integer) data[3]).intValue());
-         break;
--      case JmolConstants.CALLBACK_ECHO:
-+      case ECHO:
-         sendConsoleEcho((String) data[1]);
-         break;
--      case JmolConstants.CALLBACK_MESSAGE:
-+      case MESSAGE:
-         sendConsoleMessage((data == null) ? ((String) null)
-                 : (String) data[1]);
-         break;
--      case JmolConstants.CALLBACK_ERROR:
-+      case ERROR:
-         // System.err.println("Ignoring error callback.");
-         break;
--      case JmolConstants.CALLBACK_SYNC:
--      case JmolConstants.CALLBACK_RESIZE:
-+      case SYNC:
-+      case RESIZE:
-         refreshGUI();
-         break;
--      case JmolConstants.CALLBACK_MEASURE:
-+      case MEASURE:
- 
--      case JmolConstants.CALLBACK_CLICK:
-+      case CLICK:
-       default:
-         System.err.println("Unhandled callback " + type + " "
-                 + data[1].toString());
-@@ -993,24 +1002,25 @@
-     }
-   }
- 
--  public boolean notifyEnabled(int callbackPick)
-+  @Override
-+  public boolean notifyEnabled(EnumCallback callbackPick)
-   {
-     switch (callbackPick)
-     {
--    case JmolConstants.CALLBACK_ECHO:
--    case JmolConstants.CALLBACK_LOADSTRUCT:
--    case JmolConstants.CALLBACK_MEASURE:
--    case JmolConstants.CALLBACK_MESSAGE:
--    case JmolConstants.CALLBACK_PICK:
--    case JmolConstants.CALLBACK_SCRIPT:
--    case JmolConstants.CALLBACK_HOVER:
--    case JmolConstants.CALLBACK_ERROR:
-+    case ECHO:
-+    case LOADSTRUCT:
-+    case MEASURE:
-+    case MESSAGE:
-+    case PICK:
-+    case SCRIPT:
-+    case HOVER:
-+    case ERROR:
-       return true;
--    case JmolConstants.CALLBACK_RESIZE:
--    case JmolConstants.CALLBACK_SYNC:
--    case JmolConstants.CALLBACK_CLICK:
--    case JmolConstants.CALLBACK_ANIMFRAME:
--    case JmolConstants.CALLBACK_MINIMIZATION:
-+    case RESIZE:
-+    case SYNC:
-+    case CLICK:
-+    case ANIMFRAME:
-+    case MINIMIZATION:
-     }
-     return false;
-   }
-@@ -1542,5 +1552,10 @@
-   {
-     return ssm.printMapping(pdbfile);
-   }
--
-+  @Override
-+  public void resizeInnerPanel(String data)
-+  {
-+    // Jalview doesn't honour resize panel requests
-+    
-+  }
- }
-Index: jalview-2.7.dfsg/src/jalview/gui/AppJmolBinding.java
-===================================================================
---- jalview-2.7.dfsg.orig/src/jalview/gui/AppJmolBinding.java	2011-09-27 16:50:21.000000000 +0200
-+++ jalview-2.7.dfsg/src/jalview/gui/AppJmolBinding.java	2011-11-07 20:46:54.096166723 +0100
-@@ -152,7 +152,8 @@
-           boolean asPopup)
-   {
- 
--    jmolpopup = JmolPopup.newJmolPopup(viewer, translateLocale, menuName,
-+    jmolpopup = new JmolPopup();
-+    jmolpopup.initialize(viewer, translateLocale, menuName,
-             asPopup);
-   }
- 

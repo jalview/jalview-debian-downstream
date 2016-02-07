@@ -1,11 +1,14 @@
-jalview (2.7.dfsg-5) UNRELEASED; urgency=low
+jalview (2.9+dfsg-1) UNRELEASED; urgency=low
 
   [ Steffen Moeller and Hervé Ménager ]
   * Updated Standards-Version to 3.6
   * Introduced EDAM annotation to
     debian/upstream/edam
 
- -- Steffen Moeller <moeller@debian.org>  Fri, 05 Feb 2016 13:47:26 +0100
+  [ Michael R. Crusoe ]
+  * Update to version 2.9
+
+ -- Michael R. Crusoe <crusoe@ucdavis.edu>  Sun, 07 Feb 2016 12:26:10 -0800
 
 jalview (2.7.dfsg-4) unstable; urgency=low
 

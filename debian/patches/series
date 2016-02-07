@@ -1,4 +1,6 @@
+encoding-fix
 mutilate-build-system.diff
 newer-jmol-api.diff
 newer-mime4j-api.diff
-java8-compatibility.patch
+testng
+drop-lib
