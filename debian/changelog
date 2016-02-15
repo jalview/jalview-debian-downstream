@@ -7,6 +7,10 @@ jalview (2.9+dfsg-1) UNRELEASED; urgency=low
 
   [ Michael R. Crusoe ]
   * Update to version 2.9
+  * Build-Depends: varna
+
+  [ Andreas Tille ]
+  * Build-Depends: libjson-simple-java
 
  -- Michael R. Crusoe <crusoe@ucdavis.edu>  Sun, 07 Feb 2016 12:26:10 -0800
 

@@ -28,7 +28,8 @@ Build-Depends: ant,
                libvamsas-client-java,
                libwsdl4j-java,
                testng,
-               varna
+               varna,
+               libjson-simple-java
 Standards-Version: 3.9.6
 Vcs-Git: git://anonscm.debian.org/git/pkg-java/jalview.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-java/jalview.git
