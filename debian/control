@@ -30,7 +30,7 @@ Build-Depends: ant,
                testng,
                varna,
                libjson-simple-java
-Standards-Version: 3.9.6
+Standards-Version: 3.9.7
 Vcs-Git: git://anonscm.debian.org/git/pkg-java/jalview.git
 Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-java/jalview.git
 Homepage: http://www.jalview.org
