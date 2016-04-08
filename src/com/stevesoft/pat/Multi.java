@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /**
  * Matches any number of instances of sub Pattern this was the hardest method to
@@ -38,11 +38,11 @@ class Multi extends PatternSub
 
   /**
    * @param a
-   *          The fewest number of times the sub pattern can match.
+   *                The fewest number of times the sub pattern can match.
    * @param b
-   *          The maximum number of times the sub pattern can match.
+   *                The maximum number of times the sub pattern can match.
    * @param p
-   *          The sub pattern.
+   *                The sub pattern.
    * @see Multi_stage2
    * @see MultiMin
    */

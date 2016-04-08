@@ -1,38 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.jbgui;
 
-import jalview.api.AlignmentViewPanel;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.FlowLayout;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JFrame;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
+import javax.swing.*;
 
 /**
  * DOCUMENT ME!
@@ -102,8 +90,6 @@ public class GDesktop extends JFrame
 
   protected JCheckBoxMenuItem showNews = new JCheckBoxMenuItem();
 
-  protected JMenuItem snapShotWindow = new JMenuItem();
-
   /**
    * Creates a new GDesktop object.
    */
@@ -140,17 +126,13 @@ public class GDesktop extends JFrame
    */
   private void jbInit() throws Exception
   {
-
-    FileMenu.setText(MessageManager.getString("action.file"));
-    HelpMenu.setText(MessageManager.getString("action.help"));
+    FileMenu.setText("File");
+    HelpMenu.setText("Help");
     VamsasMenu.setText("Vamsas");
-    VamsasMenu.setToolTipText(MessageManager
-            .getString("label.share_data_vamsas_applications"));
-    VamsasStMenu.setText(MessageManager.getString("label.connect_to"));
-    VamsasStMenu.setToolTipText(MessageManager
-            .getString("label.join_existing_vamsas_session"));
-    inputLocalFileMenuItem.setText(MessageManager
-            .getString("label.load_tree_from_file"));
+    VamsasMenu.setToolTipText("Share data with other vamsas applications.");
+    VamsasStMenu.setText("Connect to");
+    VamsasStMenu.setToolTipText("Join an existing vamsas session");
+    inputLocalFileMenuItem.setText("from File");
     inputLocalFileMenuItem.setAccelerator(javax.swing.KeyStroke
             .getKeyStroke(java.awt.event.KeyEvent.VK_O, Toolkit
                     .getDefaultToolkit().getMenuShortcutKeyMask(), false));
@@ -162,7 +144,7 @@ public class GDesktop extends JFrame
                 inputLocalFileMenuItem_actionPerformed(null);
               }
             });
-    inputURLMenuItem.setText(MessageManager.getString("label.from_url"));
+    inputURLMenuItem.setText("from URL");
     inputURLMenuItem.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -170,8 +152,7 @@ public class GDesktop extends JFrame
         inputURLMenuItem_actionPerformed(null);
       }
     });
-    inputTextboxMenuItem.setText(MessageManager
-            .getString("label.from_textbox"));
+    inputTextboxMenuItem.setText("from Textbox");
     inputTextboxMenuItem
             .addActionListener(new java.awt.event.ActionListener()
             {
@@ -180,7 +161,7 @@ public class GDesktop extends JFrame
                 inputTextboxMenuItem_actionPerformed(null);
               }
             });
-    quit.setText(MessageManager.getString("action.quit"));
+    quit.setText("Quit");
     quit.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -188,7 +169,7 @@ public class GDesktop extends JFrame
         quit();
       }
     });
-    aboutMenuItem.setText(MessageManager.getString("label.about"));
+    aboutMenuItem.setText("About");
     aboutMenuItem.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -196,8 +177,7 @@ public class GDesktop extends JFrame
         aboutMenuItem_actionPerformed(e);
       }
     });
-    documentationMenuItem.setText(MessageManager
-            .getString("label.documentation"));
+    documentationMenuItem.setText("Documentation");
     documentationMenuItem.setAccelerator(javax.swing.KeyStroke
             .getKeyStroke(java.awt.event.KeyEvent.VK_F1, 0, false));
     documentationMenuItem
@@ -209,8 +189,8 @@ public class GDesktop extends JFrame
               }
             });
     this.getContentPane().setLayout(flowLayout1);
-    windowMenu.setText(MessageManager.getString("label.window"));
-    preferences.setText(MessageManager.getString("label.preferences"));
+    windowMenu.setText("Window");
+    preferences.setText("Preferences...");
     preferences.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -218,8 +198,8 @@ public class GDesktop extends JFrame
         preferences_actionPerformed(e);
       }
     });
-    toolsMenu.setText(MessageManager.getString("label.tools"));
-    saveState.setText(MessageManager.getString("action.save_project"));
+    toolsMenu.setText("Tools");
+    saveState.setText("Save Project");
     saveState.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -227,7 +207,7 @@ public class GDesktop extends JFrame
         saveState_actionPerformed(e);
       }
     });
-    loadState.setText(MessageManager.getString("action.load_project"));
+    loadState.setText("Load Project");
     loadState.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -235,9 +215,8 @@ public class GDesktop extends JFrame
         loadState_actionPerformed(e);
       }
     });
-    inputMenu.setText(MessageManager.getString("label.input_alignment"));
-    vamsasStart.setText(MessageManager
-            .getString("label.new_vamsas_session"));
+    inputMenu.setText("Input Alignment");
+    vamsasStart.setText("New Vamsas Session...");
     vamsasStart.setVisible(false);
     vamsasStart.addActionListener(new ActionListener()
     {
@@ -246,8 +225,7 @@ public class GDesktop extends JFrame
         vamsasStart_actionPerformed(e);
       }
     });
-    vamsasImport.setText(MessageManager
-            .getString("action.load_vamsas_session"));
+    vamsasImport.setText("Load Vamsas Session...");
     vamsasImport.setVisible(false);
     vamsasImport.addActionListener(new ActionListener()
     {
@@ -256,8 +234,7 @@ public class GDesktop extends JFrame
         vamsasImport_actionPerformed(e);
       }
     });
-    vamsasSave.setText(MessageManager
-            .getString("action.save_vamsas_session"));
+    vamsasSave.setText("Save Vamsas Session...");
     vamsasSave.setVisible(false);
     vamsasSave.addActionListener(new ActionListener()
     {
@@ -266,8 +243,7 @@ public class GDesktop extends JFrame
         vamsasSave_actionPerformed(e);
       }
     });
-    inputSequence.setText(MessageManager
-            .getString("action.fetch_sequences"));
+    inputSequence.setText("Fetch Sequence(s)...");
     inputSequence.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -275,8 +251,7 @@ public class GDesktop extends JFrame
         inputSequence_actionPerformed(e);
       }
     });
-    vamsasStop.setText(MessageManager
-            .getString("label.stop_vamsas_session"));
+    vamsasStop.setText("Stop Vamsas Session");
     vamsasStop.setVisible(false);
     vamsasStop.addActionListener(new ActionListener()
     {
@@ -285,7 +260,7 @@ public class GDesktop extends JFrame
         vamsasStop_actionPerformed(e);
       }
     });
-    closeAll.setText(MessageManager.getString("action.close_all"));
+    closeAll.setText("Close All");
     closeAll.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -293,8 +268,7 @@ public class GDesktop extends JFrame
         closeAll_actionPerformed(e);
       }
     });
-    raiseRelated.setText(MessageManager
-            .getString("action.raise_associated_windows"));
+    raiseRelated.setText("Raise Associated Windows");
     raiseRelated.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -302,8 +276,7 @@ public class GDesktop extends JFrame
         raiseRelated_actionPerformed(e);
       }
     });
-    minimizeAssociated.setText(MessageManager
-            .getString("action.minimize_associated_windows"));
+    minimizeAssociated.setText("Minimize Associated Windows");
     minimizeAssociated.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -311,8 +284,7 @@ public class GDesktop extends JFrame
         minimizeAssociated_actionPerformed(e);
       }
     });
-    garbageCollect.setText(MessageManager
-            .getString("label.collect_garbage"));
+    garbageCollect.setText("Collect Garbage");
     garbageCollect.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -320,8 +292,7 @@ public class GDesktop extends JFrame
         garbageCollect_actionPerformed(e);
       }
     });
-    showMemusage.setText(MessageManager
-            .getString("label.show_memory_usage"));
+    showMemusage.setText("Show Memory Usage");
     showMemusage.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -329,8 +300,7 @@ public class GDesktop extends JFrame
         showMemusage_actionPerformed(e);
       }
     });
-    showConsole
-            .setText(MessageManager.getString("label.show_java_console"));
+    showConsole.setText("Show Java Console");
     showConsole.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -338,7 +308,7 @@ public class GDesktop extends JFrame
         showConsole_actionPerformed(e);
       }
     });
-    showNews.setText(MessageManager.getString("label.show_jalview_news"));
+    showNews.setText("Show Jalview News");
     showNews.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -346,15 +316,6 @@ public class GDesktop extends JFrame
         showNews_actionPerformed(e);
       }
     });
-    snapShotWindow.setText(MessageManager.getString("label.take_snapshot"));
-    snapShotWindow.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        snapShotWindow_actionPerformed(e);
-      }
-    });
-
     desktopMenubar.add(FileMenu);
     desktopMenubar.add(toolsMenu);
     VamsasMenu.setVisible(false);
@@ -381,7 +342,6 @@ public class GDesktop extends JFrame
     toolsMenu.add(showConsole);
     toolsMenu.add(showNews);
     toolsMenu.add(garbageCollect);
-    // toolsMenu.add(snapShotWindow);
     inputMenu.add(inputLocalFileMenuItem);
     inputMenu.add(inputURLMenuItem);
     inputMenu.add(inputTextboxMenuItem);
@@ -392,24 +352,16 @@ public class GDesktop extends JFrame
     // inputMenu.add(vamsasLoad);
   }
 
-  protected void snapShotWindow_actionPerformed(ActionEvent e)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
   protected void showConsole_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
 
   }
-
   protected void showNews_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
 
   }
-
   protected void showMemusage_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
@@ -458,7 +410,8 @@ public class GDesktop extends JFrame
    * @param e
    *          DOCUMENT ME!
    */
-  protected void inputTextboxMenuItem_actionPerformed(AlignmentViewPanel avp)
+  protected void inputTextboxMenuItem_actionPerformed(
+          jalview.gui.AlignViewport av)
   {
   }
 

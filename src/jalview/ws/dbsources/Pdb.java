@@ -1,41 +1,43 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.dbsources;
 
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
+import jalview.datamodel.Alignment;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.DBRefSource;
-import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
-import jalview.io.FormatAdapter;
-import jalview.util.MessageManager;
-import jalview.ws.ebi.EBIFetchClient;
-import jalview.ws.seqfetcher.DbSourceProxy;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.BufferedInputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Hashtable;
 import java.util.Vector;
 
+import MCview.PDBChain;
+import MCview.PDBfile;
+
 import com.stevesoft.pat.Regex;
+
+import jalview.datamodel.AlignmentI;
+import jalview.io.FileParse;
+import jalview.ws.ebi.EBIFetchClient;
+import jalview.ws.seqfetcher.DbSourceProxy;
+import jalview.ws.seqfetcher.DbSourceProxyImpl;
 
 /**
  * @author JimP
@@ -97,7 +99,7 @@ public class Pdb extends EbiFileRetrievedProxy implements DbSourceProxy
    */
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
-    AlignmentI pdbfile = null;
+
     Vector result = new Vector();
     String chain = null;
     String id = null;
@@ -131,87 +133,62 @@ public class Pdb extends EbiFileRetrievedProxy implements DbSourceProxy
     try
     {
 
-      pdbfile = new FormatAdapter().readFile(file,
-              jalview.io.AppletFormatAdapter.FILE, "PDB");
-      if (pdbfile != null)
+      PDBfile pdbfile = new PDBfile(file,
+              jalview.io.AppletFormatAdapter.FILE);
+      for (int i = 0; i < pdbfile.chains.size(); i++)
       {
-        List<SequenceI> toremove = new ArrayList<SequenceI>();
-        for (SequenceI pdbcs : pdbfile.getSequences())
+        if (chain == null
+                || ((PDBChain) pdbfile.chains.elementAt(i)).id
+                        .toUpperCase().equals(chain))
         {
-          String chid = null;
-          // Mapping map=null;
-          for (PDBEntry pid : pdbcs.getAllPDBEntries())
-          {
-            if (pid.getFile() == file)
-            {
-              chid = pid.getChainCode();
-
-            }
-            ;
-
-          }
-          if (chain == null
-                  || (chid != null && (chid.equals(chain)
-                          || chid.trim().equals(chain.trim()) || (chain
-                          .trim().length() == 0 && chid.equals("_")))))
-          {
-            pdbcs.setName(jalview.datamodel.DBRefSource.PDB + "|" + id
-                    + "|" + pdbcs.getName());
-            // Might need to add more metadata to the PDBEntry object
-            // like below
-            /*
-             * PDBEntry entry = new PDBEntry(); // Construct the PDBEntry
-             * entry.setId(id); if (entry.getProperty() == null)
-             * entry.setProperty(new Hashtable());
-             * entry.getProperty().put("chains", pdbchain.id + "=" +
-             * sq.getStart() + "-" + sq.getEnd());
-             * sq.getDatasetSequence().addPDBId(entry);
-             */
-            // Add PDB DB Refs
-            // We make a DBRefEtntry because we have obtained the PDB file from
-            // a
-            // verifiable source
-            // JBPNote - PDB DBRefEntry should also carry the chain and mapping
-            // information
-            DBRefEntry dbentry = new DBRefEntry(getDbSource(),
-                    getDbVersion(), (chid == null ? id : id + chid));
-            // dbentry.setMap()
-            pdbcs.addDBRef(dbentry);
-          }
-          else
-          {
-            // mark this sequence to be removed from the alignment
-            // - since it's not from the right chain
-            toremove.add(pdbcs);
-          }
-        }
-        // now remove marked sequences
-        for (SequenceI pdbcs : toremove)
-        {
-          pdbfile.deleteSequence(pdbcs);
-          if (pdbcs.getAnnotation() != null)
-          {
-            for (AlignmentAnnotation aa : pdbcs.getAnnotation())
-            {
-              pdbfile.deleteAnnotation(aa);
-            }
-          }
+          PDBChain pdbchain = (PDBChain) pdbfile.chains.elementAt(i);
+          // Get the Chain's Sequence - who's dataset includes any special
+          // features added from the PDB file
+          SequenceI sq = pdbchain.sequence;
+          // Specially formatted name for the PDB chain sequences retrieved from
+          // the PDB
+          sq.setName(jalview.datamodel.DBRefSource.PDB + "|" + id + "|"
+                  + sq.getName());
+          // Might need to add more metadata to the PDBEntry object
+          // like below
+          /*
+           * PDBEntry entry = new PDBEntry(); // Construct the PDBEntry
+           * entry.setId(id); if (entry.getProperty() == null)
+           * entry.setProperty(new Hashtable());
+           * entry.getProperty().put("chains", pdbchain.id + "=" + sq.getStart()
+           * + "-" + sq.getEnd()); sq.getDatasetSequence().addPDBId(entry);
+           */
+          // Add PDB DB Refs
+          // We make a DBRefEtntry because we have obtained the PDB file from a
+          // verifiable source
+          // JBPNote - PDB DBRefEntry should also carry the chain and mapping
+          // information
+          DBRefEntry dbentry = new DBRefEntry(getDbSource(),
+                  getDbVersion(), id + pdbchain.id);
+          sq.addDBRef(dbentry);
+          // and add seuqence to the retrieved set
+          result.addElement(sq.deriveSequence());
         }
       }
 
-      if (pdbfile == null || pdbfile.getHeight() < 1)
+      if (result.size() < 1)
       {
-        throw new Exception(MessageManager.formatMessage(
-                "exception.no_pdb_records_for_chain", new String[] { id,
-                    ((chain == null) ? "' '" : chain) }));
+        throw new Exception("No PDB Records for " + id + " chain "
+                + ((chain == null) ? "' '" : chain));
       }
-
     } catch (Exception ex) // Problem parsing PDB file
     {
       stopQuery();
       throw (ex);
     }
-    return pdbfile;
+
+    SequenceI[] results = new SequenceI[result.size()];
+    for (int i = 0, j = result.size(); i < j; i++)
+    {
+      results[i] = (SequenceI) result.elementAt(i);
+      result.setElementAt(null, i);
+    }
+    return new Alignment(results);
   }
 
   /*
@@ -238,9 +215,4 @@ public class Pdb extends EbiFileRetrievedProxy implements DbSourceProxy
     return "PDB"; // getDbSource();
   }
 
-  @Override
-  public int getTier()
-  {
-    return 0;
-  }
 }

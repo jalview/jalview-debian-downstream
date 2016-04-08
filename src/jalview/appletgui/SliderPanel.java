@@ -1,48 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.SequenceGroup;
-import jalview.schemes.ColourSchemeI;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Checkbox;
-import java.awt.Color;
-import java.awt.FlowLayout;
-import java.awt.Frame;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.Scrollbar;
-import java.awt.TextField;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.util.Iterator;
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.datamodel.*;
+import jalview.schemes.*;
 
 public class SliderPanel extends Panel implements ActionListener,
         AdjustmentListener, MouseListener
@@ -74,11 +55,9 @@ public class SliderPanel extends Panel implements ActionListener,
       sp.cs = cs;
     }
 
-    conservationSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.conservation_colour_increment",
-                    new String[] { source }));
-    if (ap.av.getAlignment().getGroups() != null)
+    conservationSlider.setTitle("Conservation Colour Increment  (" + source
+            + ")");
+    if (ap.av.alignment.getGroups() != null)
     {
       sp.setAllGroupsCheckEnabled(true);
     }
@@ -131,11 +110,9 @@ public class SliderPanel extends Panel implements ActionListener,
       pid = (SliderPanel) PIDSlider.getComponent(0);
       pid.cs = cs;
     }
-    PIDSlider.setTitle(MessageManager
-            .formatMessage("label.percentage_identity_thereshold",
-                    new String[] { source }));
+    PIDSlider.setTitle("Percentage Identity Threshold (" + source + ")");
 
-    if (ap.av.getAlignment().getGroups() != null)
+    if (ap.av.alignment.getGroups() != null)
     {
       pid.setAllGroupsCheckEnabled(true);
     }
@@ -190,16 +167,14 @@ public class SliderPanel extends Panel implements ActionListener,
     applyButton.setVisible(false);
     if (forConservation)
     {
-      label.setText(MessageManager
-              .getString("label.modify_conservation_visibility"));
+      label.setText("Modify conservation visibility");
       slider.setMinimum(0);
       slider.setMaximum(50 + slider.getVisibleAmount());
       slider.setUnitIncrement(1);
     }
     else
     {
-      label.setText(MessageManager
-              .getString("label.colour_residues_above_occurence"));
+      label.setText("Colour residues above % occurence");
       slider.setMinimum(0);
       slider.setMaximum(100 + slider.getVisibleAmount());
       slider.setBlockIncrement(1);
@@ -219,36 +194,37 @@ public class SliderPanel extends Panel implements ActionListener,
       return;
     }
 
-    ColourSchemeI toChange = cs;
-    Iterator<SequenceGroup> allGroups = null;
+    ColourSchemeI toChange = null;
+    Vector allGroups = null;
+    int groupIndex = 0;
 
     if (allGroupsCheck.getState())
     {
-      allGroups = ap.av.getAlignment().getGroups().listIterator();
+      allGroups = ap.av.alignment.getGroups();
+      groupIndex = allGroups.size() - 1;
+    }
+    else
+    {
+      toChange = cs;
     }
 
-    while (toChange != null)
+    while (groupIndex > -1)
     {
+      if (allGroups != null)
+      {
+        toChange = ((SequenceGroup) allGroups.elementAt(groupIndex)).cs;
+      }
+
       if (forConservation)
       {
         toChange.setConservationInc(i);
       }
       else
       {
-        toChange.setThreshold(i, ap.av.isIgnoreGapsConsensus());
+        toChange.setThreshold(i, ap.av.getIgnoreGapsConsensus());
       }
-      if (allGroups != null && allGroups.hasNext())
-      {
-        while ((toChange = allGroups.next().cs) == null
-                && allGroups.hasNext())
-        {
-          ;
-        }
-      }
-      else
-      {
-        toChange = null;
-      }
+
+      groupIndex--;
     }
 
     ap.seqPanel.seqCanvas.repaint();
@@ -340,26 +316,23 @@ public class SliderPanel extends Panel implements ActionListener,
     slider.setFont(new java.awt.Font("Verdana", 0, 11));
     slider.setOrientation(0);
     valueField.setFont(new java.awt.Font("Verdana", 0, 11));
-    valueField.setText("   ");
+    valueField.setText("      ");
     valueField.addActionListener(this);
-    valueField.setColumns(3);
     label.setFont(new java.awt.Font("Verdana", 0, 11));
-    label.setText(MessageManager.getString("label.set_this_label_text"));
+    label.setText("set this label text");
     jPanel1.setLayout(borderLayout1);
     jPanel2.setLayout(flowLayout1);
     applyButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    applyButton.setLabel(MessageManager.getString("action.apply"));
+    applyButton.setLabel("Apply");
     applyButton.addActionListener(this);
     undoButton.setEnabled(false);
     undoButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    undoButton.setLabel(MessageManager.getString("action.undo"));
+    undoButton.setLabel("Undo");
     undoButton.addActionListener(this);
     allGroupsCheck.setEnabled(false);
     allGroupsCheck.setFont(new java.awt.Font("Verdana", 0, 11));
-    allGroupsCheck.setLabel(MessageManager
-            .getString("action.apply_threshold_all_groups"));
-    allGroupsCheck.setName(MessageManager
-            .getString("action.apply_all_groups"));
+    allGroupsCheck.setLabel("Apply threshold to all groups");
+    allGroupsCheck.setName("Apply to all Groups");
     this.setBackground(Color.white);
     this.setForeground(Color.black);
     jPanel2.add(label, null);

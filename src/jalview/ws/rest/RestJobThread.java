@@ -1,23 +1,20 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.ws.rest;
 
 import jalview.bin.Cache;
@@ -36,7 +33,6 @@ import jalview.gui.WebserviceInfo;
 import jalview.io.NewickFile;
 import jalview.io.packed.JalviewDataset;
 import jalview.io.packed.JalviewDataset.AlignmentSet;
-import jalview.util.MessageManager;
 import jalview.ws.AWSThread;
 import jalview.ws.AWsJob;
 
@@ -44,9 +40,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Vector;
 
 import org.apache.axis.transport.http.HTTPConstants;
 import org.apache.http.Header;
@@ -108,7 +106,8 @@ public class RestJobThread extends AWSThread
         jobs = new RestJob[viscontigals.length];
         for (int j = 0; j < jobs.length; j++)
         {
-          int[] visc = new int[] { viscontig[j * 2], viscontig[j * 2 + 1] };
+          int[] visc = new int[]
+          { viscontig[j * 2], viscontig[j * 2 + 1] };
           if (j != 0)
           {
             jobs[j] = new RestJob(j, this, viscontigals[j], visc);
@@ -805,10 +804,7 @@ public class RestJobThread extends AWSThread
               destAls.add(destAl);
               destColsel.add(destCs);
               resultDest.add(AddDataTo.newAlignment);
-              throw new Error(
-                      MessageManager
-                              .getString("error.implementation_error")
-                              + "TODO: ");
+              throw new Error("Impl. Error! TODO: ");
             }
           }
           /**
@@ -864,8 +860,10 @@ public class RestJobThread extends AWSThread
                 // TODO: cope with recovering hidden sequences from
                 // resultContext
                 {
-                  for (SequenceI oseq : sg.getSequences(null))
+                  Vector sqs = sg.getSequences(null);
+                  for (int sqsi = 0, iSize = sqs.size(); sqsi < iSize; sqsi++)
                   {
+                    SequenceI oseq = (SequenceI) sqs.get(sqsi);
                     SequenceI nseq = getNewSeq(oseq, rseqs[nrj],
                             ordermap[nrj], destAl);
                     if (nseq != null)
@@ -1044,10 +1042,9 @@ public class RestJobThread extends AWSThread
     {
       AlignmentI destal;
       ColumnSelection destcs;
-      String alTitle = MessageManager.formatMessage(
-              "label.webservice_job_title_on", new String[] {
-                  restClient.service.details.Action,
-                  restClient.service.details.Name, restClient.viewTitle });
+      String alTitle = restClient.service.details.Action + " using "
+              + restClient.service.details.Name + " on "
+              + restClient.viewTitle;
       switch (action)
       {
       case newAlignment:

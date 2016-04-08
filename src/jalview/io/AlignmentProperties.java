@@ -1,38 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.util.Enumeration;
+import java.util.Hashtable;
 
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Enumeration;
-import java.util.Hashtable;
-
 /**
- * Render associated attributes of an alignment. The heart of this code was
- * refactored from jalview.gui.AlignFrame and jalview.appletgui.AlignFrame TODO:
- * consider extending the html renderer to annotate elements with CSS ids
- * enabling finer output format control.
+ * Render associated attributes of an alignment. The heart of this code was refactored from jalview.gui.AlignFrame and jalview.appletgui.AlignFrame 
+ * TODO: consider extending the html renderer to annotate elements with CSS ids enabling finer output format control.
  * 
  */
 public class AlignmentProperties
@@ -46,7 +42,6 @@ public class AlignmentProperties
 
   /**
    * render the alignment's properties report as text or an HTML fragment
-   * 
    * @param pw
    * @param html
    */
@@ -61,15 +56,11 @@ public class AlignmentProperties
               - alignment.getSequenceAt(i).getStart();
       avg += size;
       if (size > max)
-      {
         max = size;
-      }
       if (size < min)
-      {
         min = size;
-      }
     }
-    avg = avg / alignment.getHeight();
+    avg = avg / (float) alignment.getHeight();
     pw.print(nl);
     pw.print("Sequences: " + alignment.getHeight());
     pw.print(nl);

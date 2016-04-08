@@ -1,124 +1,80 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SequenceI;
-import jalview.io.AppletFormatAdapter;
-import jalview.io.FileParse;
-import jalview.schemes.BuriedColourScheme;
-import jalview.schemes.HelixColourScheme;
-import jalview.schemes.HydrophobicColourScheme;
-import jalview.schemes.PurinePyrimidineColourScheme;
-import jalview.schemes.StrandColourScheme;
-import jalview.schemes.TaylorColourScheme;
-import jalview.schemes.TurnColourScheme;
-import jalview.schemes.UserColourScheme;
-import jalview.schemes.ZappoColourScheme;
-import jalview.structure.StructureSelectionManager;
-import jalview.util.MessageManager;
+import java.util.*;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.BorderLayout;
-import java.awt.CheckboxMenuItem;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
-import java.awt.Panel;
-import java.awt.TextArea;
-import java.awt.TextField;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Vector;
+import jalview.api.SequenceStructureBinding;
+import jalview.datamodel.*;
+import jalview.structure.*;
+import jalview.io.*;
+
+import org.jmol.api.*;
+
+import org.jmol.popup.*;
+import org.jmol.viewer.JmolConstants;
+
+import jalview.schemes.*;
 
 public class AppletJmol extends EmbmenuFrame implements
 // StructureListener,
-        KeyListener, ActionListener, ItemListener
+        KeyListener, ActionListener, ItemListener, SequenceStructureBinding
 
 {
-  Menu fileMenu = new Menu(MessageManager.getString("action.file"));
+  Menu fileMenu = new Menu("File");
 
-  Menu viewMenu = new Menu(MessageManager.getString("action.view"));
+  Menu viewMenu = new Menu("View");
 
-  Menu coloursMenu = new Menu(MessageManager.getString("action.colour"));
+  Menu coloursMenu = new Menu("Colours");
 
-  Menu chainMenu = new Menu(MessageManager.getString("action.show_chain"));
+  Menu chainMenu = new Menu("Show Chain");
 
-  Menu helpMenu = new Menu(MessageManager.getString("action.help"));
+  Menu helpMenu = new Menu("Help");
 
-  MenuItem mappingMenuItem = new MenuItem(
-          MessageManager.getString("label.view_mapping"));
+  MenuItem mappingMenuItem = new MenuItem("View Mapping");
 
-  CheckboxMenuItem seqColour = new CheckboxMenuItem(
-          MessageManager.getString("action.by_sequence"), true);
+  CheckboxMenuItem seqColour = new CheckboxMenuItem("By Sequence", true);
 
-  CheckboxMenuItem jmolColour = new CheckboxMenuItem(
-          MessageManager.getString("action.using_jmol"), false);
+  CheckboxMenuItem jmolColour = new CheckboxMenuItem("Using Jmol", false);
+  
+  MenuItem chain = new MenuItem("By Chain");
 
-  MenuItem chain = new MenuItem(MessageManager.getString("action.by_chain"));
+  MenuItem charge = new MenuItem("Charge & Cysteine");
 
-  MenuItem charge = new MenuItem(
-          MessageManager.getString("label.charge_cysteine"));
+  MenuItem zappo = new MenuItem("Zappo");
 
-  MenuItem zappo = new MenuItem(MessageManager.getString("label.zappo"));
+  MenuItem taylor = new MenuItem("Taylor");
 
-  MenuItem taylor = new MenuItem(MessageManager.getString("label.taylor"));
+  MenuItem hydro = new MenuItem("Hydrophobicity");
 
-  MenuItem hydro = new MenuItem(
-          MessageManager.getString("label.hydrophobicity"));
+  MenuItem helix = new MenuItem("Helix Propensity");
 
-  MenuItem helix = new MenuItem(
-          MessageManager.getString("label.helix_propensity"));
+  MenuItem strand = new MenuItem("Strand Propensity");
 
-  MenuItem strand = new MenuItem(
-          MessageManager.getString("label.strand_propensity"));
+  MenuItem turn = new MenuItem("Turn Propensity");
 
-  MenuItem turn = new MenuItem(
-          MessageManager.getString("label.turn_propensity"));
+  MenuItem buried = new MenuItem("Buried Index");
 
-  MenuItem buried = new MenuItem(
-          MessageManager.getString("label.buried_index"));
+  MenuItem user = new MenuItem("User Defined Colours");
 
-  MenuItem purinepyrimidine = new MenuItem(
-          MessageManager.getString("label.purine_pyrimidine"));
-
-  MenuItem user = new MenuItem(
-          MessageManager.getString("label.user_defined_colours"));
-
-  MenuItem jmolHelp = new MenuItem(
-          MessageManager.getString("label.jmol_help"));
+  MenuItem jmolHelp = new MenuItem("Jmol Help");
 
   Panel scriptWindow;
 
@@ -129,9 +85,7 @@ public class AppletJmol extends EmbmenuFrame implements
   RenderPanel renderPanel;
 
   AlignmentPanel ap;
-
-  List<AlignmentPanel> _aps = new ArrayList<AlignmentPanel>(); // remove? never
-                                                               // added to
+  ArrayList _aps = new ArrayList();
 
   String fileLoadingError;
 
@@ -171,16 +125,17 @@ public class AppletJmol extends EmbmenuFrame implements
           String[][] boundchains, boolean align, AlignmentPanel ap,
           String protocol)
   {
-    throw new Error(MessageManager.getString("error.not_yet_implemented"));
+    throw new Error("Not yet implemented.");
   }
 
   public AppletJmol(PDBEntry pdbentry, SequenceI[] seq, String[] chains,
           AlignmentPanel ap, String protocol)
   {
     this.ap = ap;
-    jmb = new AppletJmolBinding(this, ap.getStructureSelectionManager(),
-            new PDBEntry[] { pdbentry }, new SequenceI[][] { seq },
-            new String[][] { chains }, protocol);
+    jmb = new AppletJmolBinding(this, ap.getStructureSelectionManager(), new PDBEntry[]
+    { pdbentry }, new SequenceI[][]
+    { seq }, new String[][]
+    { chains }, protocol);
     jmb.setColourBySequence(true);
     if (pdbentry.getId() == null || pdbentry.getId().length() < 1)
     {
@@ -202,14 +157,13 @@ public class AppletJmol extends EmbmenuFrame implements
     }
 
     String alreadyMapped = StructureSelectionManager
-            .getStructureSelectionManager(ap.av.applet)
-            .alreadyMappedToFile(pdbentry.getId());
+            .getStructureSelectionManager(ap.av.applet).alreadyMappedToFile(
+                    pdbentry.getId());
     MCview.PDBfile reader = null;
     if (alreadyMapped != null)
     {
-      reader = StructureSelectionManager.getStructureSelectionManager(
-              ap.av.applet).setMapping(seq, chains, pdbentry.getFile(),
-              protocol);
+      reader = StructureSelectionManager.getStructureSelectionManager(ap.av.applet)
+              .setMapping(seq, chains, pdbentry.getFile(), protocol);
       // PROMPT USER HERE TO ADD TO NEW OR EXISTING VIEW?
       // FOR NOW, LETS JUST OPEN A NEW WINDOW
     }
@@ -233,9 +187,8 @@ public class AppletJmol extends EmbmenuFrame implements
     strand.addActionListener(this);
     turn.addActionListener(this);
     buried.addActionListener(this);
-    purinepyrimidine.addActionListener(this);
     user.addActionListener(this);
-
+    
     jmolHelp.addActionListener(this);
 
     coloursMenu.add(seqColour);
@@ -248,7 +201,6 @@ public class AppletJmol extends EmbmenuFrame implements
     coloursMenu.add(strand);
     coloursMenu.add(turn);
     coloursMenu.add(buried);
-    coloursMenu.add(purinepyrimidine);
     coloursMenu.add(user);
     coloursMenu.add(jmolColour);
     helpMenu.add(jmolHelp);
@@ -279,7 +231,7 @@ public class AppletJmol extends EmbmenuFrame implements
       dispose();
       return;
     }
-    // jmb.newJmolPopup(true, "Jmol", true);
+    jmb.newJmolPopup(true, "Jmol", true);
 
     this.addWindowListener(new WindowAdapter()
     {
@@ -346,8 +298,7 @@ public class AppletJmol extends EmbmenuFrame implements
           if (freader == null)
           {
             throw new Exception(
-                    MessageManager
-                            .getString("exception.invalid_datasource_couldnt_obtain_reader"));
+                    "Invalid datasource. Could not obtain Reader.");
           }
           jmb.viewer.openReader(pdbentry.getFile(), pdbentry.getId(),
                   freader);
@@ -371,19 +322,20 @@ public class AppletJmol extends EmbmenuFrame implements
     jmb.loadInline(string);
   }
 
-  void setChainMenuItems(Vector<String> chains)
+  void setChainMenuItems(Vector chains)
   {
     chainMenu.removeAll();
 
-    MenuItem menuItem = new MenuItem(MessageManager.getString("label.all"));
+    MenuItem menuItem = new MenuItem("All");
     menuItem.addActionListener(this);
 
     chainMenu.add(menuItem);
 
     CheckboxMenuItem menuItemCB;
-    for (String ch : chains)
+    for (int c = 0; c < chains.size(); c++)
     {
-      menuItemCB = new CheckboxMenuItem(ch, true);
+      menuItemCB = new CheckboxMenuItem(chains.elementAt(c).toString(),
+              true);
       menuItemCB.addItemListener(this);
       chainMenu.add(menuItemCB);
     }
@@ -393,7 +345,9 @@ public class AppletJmol extends EmbmenuFrame implements
 
   void centerViewer()
   {
-    Vector<String> toshow = new Vector<String>();
+    Vector toshow = new Vector();
+    String lbl;
+    int mlength, p, mnum;
     for (int i = 0; i < chainMenu.getItemCount(); i++)
     {
       if (chainMenu.getItem(i) instanceof CheckboxMenuItem)
@@ -427,7 +381,13 @@ public class AppletJmol extends EmbmenuFrame implements
       StringBuffer sb = new StringBuffer();
       try
       {
-        cap.setText(jmb.printMappings());
+        for (int s = 0; s < jmb.pdbentry.length; s++)
+        {
+          sb.append(jmb.printMapping(
+                          jmb.pdbentry[s].getFile()));
+          sb.append("\n");
+        }
+        cap.setText(sb.toString());
       } catch (OutOfMemoryError ex)
       {
         frame.dispose();
@@ -435,9 +395,8 @@ public class AppletJmol extends EmbmenuFrame implements
                 .println("Out of memory when trying to create dialog box with sequence-structure mapping.");
         return;
       }
-      jalview.bin.JalviewLite.addFrame(frame,
-              MessageManager.getString("label.pdb_sequence_mapping"), 550,
-              600);
+      jalview.bin.JalviewLite.addFrame(frame, "PDB - Sequence Mapping",
+              550, 600);
     }
     else if (evt.getSource() == charge)
     {
@@ -485,10 +444,6 @@ public class AppletJmol extends EmbmenuFrame implements
       setEnabled(buried);
       jmb.setJalviewColourScheme(new BuriedColourScheme());
     }
-    else if (evt.getSource() == purinepyrimidine)
-    {
-      jmb.setJalviewColourScheme(new PurinePyrimidineColourScheme());
-    }
     else if (evt.getSource() == user)
     {
       setEnabled(user);
@@ -512,9 +467,7 @@ public class AppletJmol extends EmbmenuFrame implements
       for (int i = 0; i < chainMenu.getItemCount(); i++)
       {
         if (chainMenu.getItem(i) instanceof CheckboxMenuItem)
-        {
           ((CheckboxMenuItem) chainMenu.getItem(i)).setState(true);
-        }
       }
 
       centerViewer();
@@ -523,8 +476,8 @@ public class AppletJmol extends EmbmenuFrame implements
   }
 
   /**
-   * tick or untick the seqColour menu entry or jmoColour entry depending upon
-   * if it was selected or not.
+   * tick or untick the seqColour menu entry or jmoColour entry depending upon if it was selected
+   * or not.
    * 
    * @param itm
    */
@@ -541,16 +494,14 @@ public class AppletJmol extends EmbmenuFrame implements
     {
       setEnabled(jmolColour);
       jmb.setColourBySequence(false);
-    }
-    else if (evt.getSource() == seqColour)
+    } else
+    if (evt.getSource() == seqColour)
     {
       setEnabled(seqColour);
-      jmb.colourBySequence(ap);
+      jmb.colourBySequence(ap.av.getShowSequenceFeatures(), ap);
     }
     else if (!allChainsSelected)
-    {
       centerViewer();
-    }
   }
 
   public void keyPressed(KeyEvent evt)
@@ -558,7 +509,7 @@ public class AppletJmol extends EmbmenuFrame implements
     if (evt.getKeyCode() == KeyEvent.VK_ENTER && scriptWindow.isVisible())
     {
       jmb.eval(inputLine.getText());
-      addToHistory("$ " + inputLine.getText());
+      history.append("\n$ " + inputLine.getText());
       inputLine.setText("");
     }
 
@@ -574,8 +525,8 @@ public class AppletJmol extends EmbmenuFrame implements
 
   public void updateColours(Object source)
   {
-    AlignmentPanel panel = (AlignmentPanel) source;
-    jmb.colourBySequence(panel);
+    AlignmentPanel ap = (AlignmentPanel) source;
+    jmb.colourBySequence(ap.av.getShowSequenceFeatures(), ap);
   }
 
   public void updateTitleAndMenus()
@@ -586,7 +537,7 @@ public class AppletJmol extends EmbmenuFrame implements
       return;
     }
     setChainMenuItems(jmb.chainNames);
-    jmb.colourBySequence(ap);
+    jmb.colourBySequence(ap.av.getShowSequenceFeatures(), ap);
 
     setTitle(jmb.getViewerTitle());
   }
@@ -641,6 +592,8 @@ public class AppletJmol extends EmbmenuFrame implements
   {
     Dimension currentSize = new Dimension();
 
+    Rectangle rectClip = new Rectangle();
+
     public void update(Graphics g)
     {
       paint(g);
@@ -649,6 +602,7 @@ public class AppletJmol extends EmbmenuFrame implements
     public void paint(Graphics g)
     {
       currentSize = this.getSize();
+      rectClip = g.getClipBounds();
 
       if (jmb.viewer == null)
       {
@@ -656,13 +610,11 @@ public class AppletJmol extends EmbmenuFrame implements
         g.fillRect(0, 0, currentSize.width, currentSize.height);
         g.setColor(Color.white);
         g.setFont(new Font("Verdana", Font.BOLD, 14));
-        g.drawString(MessageManager.getString("label.retrieving_pdb_data"),
-                20, currentSize.height / 2);
+        g.drawString("Retrieving PDB data....", 20, currentSize.height / 2);
       }
       else
       {
-        jmb.viewer.renderScreenImage(g, currentSize.width,
-                currentSize.height);
+        jmb.viewer.renderScreenImage(g, currentSize, rectClip);
       }
     }
   }
@@ -692,27 +644,13 @@ public class AppletJmol extends EmbmenuFrame implements
 
   public AlignmentPanel getAlignmentPanelFor(AlignmentI alignment)
   {
-    for (int i = 0; i < _aps.size(); i++)
+    for (int i=0;i<_aps.size();i++)
     {
-      if (_aps.get(i).av.getAlignment() == alignment)
+      if (((AlignmentPanel)_aps.get(i)).av.getAlignment()==alignment)
       {
-        return (_aps.get(i));
+        return ((AlignmentPanel)_aps.get(i));
       }
     }
     return ap;
-  }
-
-  /**
-   * Append the given text to the history object
-   * 
-   * @param text
-   */
-  public void addToHistory(String text)
-  {
-    // actually currently never initialised
-    if (history != null)
-    {
-      history.append("\n" + text);
-    }
   }
 }

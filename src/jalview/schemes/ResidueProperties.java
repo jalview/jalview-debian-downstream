@@ -1,57 +1,40 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.schemes;
 
-import jalview.analysis.scoremodels.FeatureScoreModel;
-import jalview.analysis.scoremodels.PIDScoreModel;
-import jalview.api.analysis.ScoreModelI;
+import java.util.*;
 
-import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
+import java.awt.*;
 
 public class ResidueProperties
 {
-  public static Hashtable<String, ScoreModelI> scoreMatrices = new Hashtable();
+  public static Hashtable scoreMatrices = new Hashtable();
 
   // Stores residue codes/names and colours and other things
   public static final int[] aaIndex; // aaHash version 2.1.1 and below
 
   public static final int[] nucleotideIndex;
 
-  public static final int[] purinepyrimidineIndex;
+  public static final Hashtable aa3Hash = new Hashtable();
 
-  public static final Map<String, Integer> aa3Hash = new HashMap<String, Integer>();
+  public static final Hashtable aa2Triplet = new Hashtable();
 
-  public static final Map<String, String> aa2Triplet = new HashMap<String, String>();
-
-  public static final Map<String, String> nucleotideName = new HashMap<String, String>();
-
-  // lookup from modified amino acid (e.g. MSE) to canonical form (e.g. MET)
-  public static final Map<String, String> modifications = new HashMap<String, String>();
+  public static final Hashtable nucleotideName = new Hashtable();
 
   static
   {
@@ -112,16 +95,6 @@ public class ResidueProperties
     // extend subt. matrices
   }
 
-  /**
-   * maximum (gap) index for matrices involving protein alphabet
-   */
-  public final static int maxProteinIndex = 23;
-
-  /**
-   * maximum (gap) index for matrices involving nucleotide alphabet
-   */
-  public final static int maxNucleotideIndex = 10;
-
   static
   {
     nucleotideIndex = new int[255];
@@ -171,54 +144,6 @@ public class ResidueProperties
     nucleotideName.put("y", "Unknown Pyrimidine");
     nucleotideName.put("N", "Unknown");
     nucleotideName.put("n", "Unknown");
-    nucleotideName.put("W", "Weak nucleotide (A or T)");
-    nucleotideName.put("w", "Weak nucleotide (A or T)");
-    nucleotideName.put("S", "Strong nucleotide (G or C)");
-    nucleotideName.put("s", "Strong nucleotide (G or C)");
-    nucleotideName.put("M", "Amino (A or C)");
-    nucleotideName.put("m", "Amino (A or C)");
-    nucleotideName.put("K", "Keto (G or T)");
-    nucleotideName.put("k", "Keto (G or T)");
-    nucleotideName.put("B", "Not A (G or C or T)");
-    nucleotideName.put("b", "Not A (G or C or T)");
-    nucleotideName.put("H", "Not G (A or C or T)");
-    nucleotideName.put("h", "Not G (A or C or T)");
-    nucleotideName.put("D", "Not C (A or G or T)");
-    nucleotideName.put("d", "Not C (A or G or T)");
-    nucleotideName.put("V", "Not T (A or G or C");
-    nucleotideName.put("v", "Not T (A or G or C");
-
-  }
-
-  static
-  {
-    purinepyrimidineIndex = new int[255];
-    for (int i = 0; i < 255; i++)
-    {
-      purinepyrimidineIndex[i] = 3; // non-nucleotide symbols are all non-gap
-      // gaps.
-    }
-
-    purinepyrimidineIndex['A'] = 0;
-    purinepyrimidineIndex['a'] = 0;
-    purinepyrimidineIndex['C'] = 1;
-    purinepyrimidineIndex['c'] = 1;
-    purinepyrimidineIndex['G'] = 0;
-    purinepyrimidineIndex['g'] = 0;
-    purinepyrimidineIndex['T'] = 1;
-    purinepyrimidineIndex['t'] = 1;
-    purinepyrimidineIndex['U'] = 1;
-    purinepyrimidineIndex['u'] = 1;
-    purinepyrimidineIndex['I'] = 2;
-    purinepyrimidineIndex['i'] = 2;
-    purinepyrimidineIndex['X'] = 2;
-    purinepyrimidineIndex['x'] = 2;
-    purinepyrimidineIndex['R'] = 0;
-    purinepyrimidineIndex['r'] = 0;
-    purinepyrimidineIndex['Y'] = 1;
-    purinepyrimidineIndex['y'] = 1;
-    purinepyrimidineIndex['N'] = 2;
-    purinepyrimidineIndex['n'] = 2;
   }
 
   static
@@ -298,9 +223,9 @@ public class ResidueProperties
     aa2Triplet.put("v", "VAL");
   }
 
-  public static final String[] aa = { "A", "R", "N", "D", "C", "Q", "E",
-      "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V", "B",
-      "Z", "X", "_", "*", ".", " " };
+  public static final String[] aa =
+  { "A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F",
+      "P", "S", "T", "W", "Y", "V", "B", "Z", "X", "_", "*", ".", " " };
 
   public static final Color midBlue = new Color(100, 100, 255);
 
@@ -320,8 +245,8 @@ public class ResidueProperties
     scaleColours.addElement(Color.white);
   }
 
-  public static final Color[] taylor = { new Color(204, 255, 0), // A
-                                                                 // Greenish-yellowy-yellow
+  public static final Color[] taylor =
+  { new Color(204, 255, 0), // A Greenish-yellowy-yellow
       new Color(0, 0, 255), // R Blueish-bluey-blue
       new Color(204, 0, 255), // N Blueish-reddy-blue
       new Color(255, 0, 0), // D Reddish-reddy-red
@@ -349,29 +274,23 @@ public class ResidueProperties
       Color.white // .
   };
 
-  public static final Color[] nucleotide = { new Color(100, 247, 63), // A
+  public static final Color[] nucleotide =
+  { new Color(100, 247, 63), // A
       new Color(255, 179, 64), // C
       new Color(235, 65, 60), // G
       new Color(60, 136, 238), // T
       new Color(60, 136, 238), // U
-      Color.white, // I (inosine)
-      Color.white, // X (xanthine)
+      Color.white, // I
+      Color.white, // X
       Color.white, // R
       Color.white, // Y
       Color.white, // N
       Color.white, // Gap
   };
 
-  // Added for PurinePyrimidineColourScheme
-  public static final Color[] purinepyrimidine = {
-      new Color(255, 131, 250), // A, G, R purines purplish/orchid
-      new Color(64, 224, 208), // C,U, T, Y pyrimidines turquoise
-      Color.white, // all other nucleotides
-      Color.white // Gap
-  };
-
   // Zappo
-  public static final Color[] zappo = { Color.pink, // A
+  public static final Color[] zappo =
+  { Color.pink, // A
       midBlue, // R
       Color.green, // N
       Color.red, // D
@@ -401,7 +320,8 @@ public class ResidueProperties
   };
 
   // Dunno where I got these numbers from
-  public static final double[] hyd2 = { 0.62, // A
+  public static final double[] hyd2 =
+  { 0.62, // A
       0.29, // R
       -0.90, // N
       -0.74, // D
@@ -426,33 +346,34 @@ public class ResidueProperties
       0.0 // X
   };
 
-  public static final double[] helix = { 1.42, 0.98, 0.67, 1.01, 0.70,
-      1.11, 1.51, 0.57, 1.00, 1.08, 1.21, 1.16, 1.45, 1.13, 0.57, 0.77,
-      0.83, 1.08, 0.69, 1.06, 0.84, 1.31, 1.00, 0.0 };
+  public static final double[] helix =
+  { 1.42, 0.98, 0.67, 1.01, 0.70, 1.11, 1.51, 0.57, 1.00, 1.08, 1.21, 1.16,
+      1.45, 1.13, 0.57, 0.77, 0.83, 1.08, 0.69, 1.06, 0.84, 1.31, 1.00, 0.0 };
 
   public static final double helixmin = 0.57;
 
   public static final double helixmax = 1.51;
 
-  public static final double[] strand = { 0.83, 0.93, 0.89, 0.54, 1.19,
-      1.10, 0.37, 0.75, 0.87, 1.60, 1.30, 0.74, 1.05, 1.38, 0.55, 0.75,
-      1.19, 1.37, 1.47, 1.70, 0.72, 0.74, 1.0, 0.0 };
+  public static final double[] strand =
+  { 0.83, 0.93, 0.89, 0.54, 1.19, 1.10, 0.37, 0.75, 0.87, 1.60, 1.30, 0.74,
+      1.05, 1.38, 0.55, 0.75, 1.19, 1.37, 1.47, 1.70, 0.72, 0.74, 1.0, 0.0 };
 
   public static final double strandmin = 0.37;
 
   public static final double strandmax = 1.7;
 
-  public static final double[] turn = { 0.66, 0.95, 1.56, 1.46, 1.19, 0.98,
-      0.74, 1.56, 0.95, 0.47, 0.59, 1.01, 0.60, 0.60, 1.52, 1.43, 0.96,
-      0.96, 1.14, 0.50, 1.51, 0.86, 1.00, 0, 0 };
+  public static final double[] turn =
+  { 0.66, 0.95, 1.56, 1.46, 1.19, 0.98, 0.74, 1.56, 0.95, 0.47, 0.59, 1.01,
+      0.60, 0.60, 1.52, 1.43, 0.96, 0.96, 1.14, 0.50, 1.51, 0.86, 1.00, 0,
+      0 };
 
   public static final double turnmin = 0.47;
 
   public static final double turnmax = 1.56;
 
-  public static final double[] buried = { 1.7, 0.1, 0.4, 0.4, 4.6, 0.3,
-      0.3, 1.8, 0.8, 3.1, 2.4, 0.05, 1.9, 2.2, 0.6, 0.8, 0.7, 1.6, 0.5,
-      2.9, 0.4, 0.3, 1.358, 0.00 };
+  public static final double[] buried =
+  { 1.7, 0.1, 0.4, 0.4, 4.6, 0.3, 0.3, 1.8, 0.8, 3.1, 2.4, 0.05, 1.9, 2.2,
+      0.6, 0.8, 0.7, 1.6, 0.5, 2.9, 0.4, 0.3, 1.358, 0.00 };
 
   public static final double buriedmin = 0.05;
 
@@ -461,9 +382,9 @@ public class ResidueProperties
   // This is hydropathy index
   // Kyte, J., and Doolittle, R.F., J. Mol. Biol.
   // 1157, 105-132, 1982
-  public static final double[] hyd = { 1.8, -4.5, -3.5, -3.5, 2.5, -3.5,
-      -3.5, -0.4, -3.2, 4.5, 3.8, -3.9, 1.9, 2.8, -1.6, -0.8, -0.7, -0.9,
-      -1.3, 4.2, -3.5, -3.5, -0.49, 0.0 };
+  public static final double[] hyd =
+  { 1.8, -4.5, -3.5, -3.5, 2.5, -3.5, -3.5, -0.4, -3.2, 4.5, 3.8, -3.9,
+      1.9, 2.8, -1.6, -0.8, -0.7, -0.9, -1.3, 4.2, -3.5, -3.5, -0.49, 0.0 };
 
   public static final double hydmax = 4.5;
 
@@ -471,7 +392,8 @@ public class ResidueProperties
 
   // public static final double hydmax = 1.38;
   // public static final double hydmin = -2.53;
-  private static final int[][] BLOSUM62 = {
+  private static final int[][] BLOSUM62 =
+  {
       { 4, -1, -2, -2, 0, -1, -1, 0, -2, -1, -1, -1, -1, -2, -1, 1, 0, -3,
           -2, 0, -2, -1, 0, -4 },
       { -1, 5, 0, -2, -3, 1, 0, -2, 0, -3, -2, 2, -1, -3, -2, -1, -1, -3,
@@ -521,7 +443,8 @@ public class ResidueProperties
       { -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,
           -4, -4, -4, -4, -4, -4, 1 }, };
 
-  static final int[][] PAM250 = {
+  static final int[][] PAM250 =
+  {
       { 2, -2, 0, 0, -2, 0, 0, 1, -1, -1, -2, -1, -1, -3, 1, 1, 1, -6, -3,
           0, 0, 0, 0, -8 },
       { -2, 6, 0, -1, -4, 1, -1, -3, 2, -2, -3, 3, 0, -4, 0, 0, -1, 2, -4,
@@ -591,22 +514,18 @@ public class ResidueProperties
    * new Color(60, 136, 238), // U Color.white, // I Color.white, // X
    * Color.white, // R Color.white, // Y Color.white, // N Color.white, // Gap
    */
-
-  // JBPNote: patch matrix for T/U equivalence when working with DNA or RNA.
-  // Will equate sequences if working with mixed nucleotide sets.
-  // treats T and U identically. R and Y weak equivalence with AG and CTU.
-  // N matches any other base weakly
-  //
-  static final int[][] DNA = { { 10, -8, -8, -8, -8, 1, 1, 1, -8, 1, 1 }, // A
-      { -8, 10, -8, -8, -8, 1, 1, -8, 1, 1, 1 }, // C
-      { -8, -8, 10, -8, -8, 1, 1, 1, -8, 1, 1 }, // G
-      { -8, -8, -8, 10, 10, 1, 1, -8, 1, 1, 1 }, // T
-      { -8, -8, -8, 10, 10, 1, 1, -8, 1, 1, 1 }, // U
-      { 1, 1, 1, 1, 1, 10, 0, 0, 0, 1, 1 }, // I
-      { 1, 1, 1, 1, 1, 0, 10, 0, 0, 1, 1 }, // X
-      { 1, -8, 1, -8, -8, 0, 0, 10, -8, 1, 1 }, // R
-      { -8, 1, -8, 1, 1, 0, 0, -8, 10, 1, 1 }, // Y
-      { 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 1 }, // N
+  static final int[][] DNA =
+  {
+  { 10, -8, -8, -8, 1, 0, 0, 0, 0, 0, 1 }, // C
+      { -8, 10, -8, -8, 1, 0, 0, 0, 0, 0, 1 }, // T
+      { -8, -8, 10, -8, 1, 0, 0, 0, 0, 0, 1 }, // A
+      { -8, -8, -8, 10, 1, 0, 0, 0, 0, 0, 1 }, // G
+      { 1, 1, 1, 1, 10, 0, 0, 0, 0, 0, 1 }, // -
+      { 1, 1, 1, 1, 1, 10, 0, 0, 0, 0, 1 }, // -
+      { 1, 1, 1, 1, 1, 0, 10, 0, 0, 0, 1 }, // -
+      { 1, 1, 1, 1, 1, 0, 0, 10, 0, 0, 1 }, // -
+      { 1, 1, 1, 1, 1, 0, 0, 0, 10, 0, 1 }, // -
+      { 1, 1, 1, 1, 1, 0, 0, 0, 0, 10, 1 }, // -
       { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // -
   };
   /**
@@ -617,61 +536,59 @@ public class ResidueProperties
     scoreMatrices.put("BLOSUM62", new ScoreMatrix("BLOSUM62", BLOSUM62, 0));
     scoreMatrices.put("PAM250", new ScoreMatrix("PAM250", PAM250, 0));
     scoreMatrices.put("DNA", new ScoreMatrix("DNA", DNA, 1));
-
   }
 
-  public static final Color[] pidColours = { midBlue,
-      new Color(153, 153, 255),
+  public static final Color[] pidColours =
+  { midBlue, new Color(153, 153, 255),
       // Color.lightGray,
       new Color(204, 204, 255), };
 
-  public static final float[] pidThresholds = { 80, 60, 40, };
+  public static final float[] pidThresholds =
+  { 80, 60, 40, };
 
-  public static Map<String, List<String>> codonHash = new HashMap<String, List<String>>();
+  public static Hashtable codonHash = new Hashtable();
 
-  private static List<String> Lys = new ArrayList<String>();
+  public static Vector Lys = new Vector();
 
-  private static List<String> Asn = new ArrayList<String>();
+  public static Vector Asn = new Vector();
 
-  private static List<String> Gln = new ArrayList<String>();
+  public static Vector Gln = new Vector();
 
-  private static List<String> His = new ArrayList<String>();
+  public static Vector His = new Vector();
 
-  private static List<String> Glu = new ArrayList<String>();
+  public static Vector Glu = new Vector();
 
-  private static List<String> Asp = new ArrayList<String>();
+  public static Vector Asp = new Vector();
 
-  private static List<String> Tyr = new ArrayList<String>();
+  public static Vector Tyr = new Vector();
 
-  private static List<String> Thr = new ArrayList<String>();
+  public static Vector Thr = new Vector();
 
-  private static List<String> Pro = new ArrayList<String>();
+  public static Vector Pro = new Vector();
 
-  private static List<String> Ala = new ArrayList<String>();
+  public static Vector Ala = new Vector();
 
-  private static List<String> Ser = new ArrayList<String>();
+  public static Vector Ser = new Vector();
 
-  private static List<String> Arg = new ArrayList<String>();
+  public static Vector Arg = new Vector();
 
-  private static List<String> Gly = new ArrayList<String>();
+  public static Vector Gly = new Vector();
 
-  private static List<String> Trp = new ArrayList<String>();
+  public static Vector Trp = new Vector();
 
-  private static List<String> Cys = new ArrayList<String>();
+  public static Vector Cys = new Vector();
 
-  private static List<String> Ile = new ArrayList<String>();
+  public static Vector Ile = new Vector();
 
-  private static List<String> Met = new ArrayList<String>();
+  public static Vector Met = new Vector();
 
-  private static List<String> Leu = new ArrayList<String>();
+  public static Vector Leu = new Vector();
 
-  private static List<String> Val = new ArrayList<String>();
+  public static Vector Val = new Vector();
 
-  private static List<String> Phe = new ArrayList<String>();
+  public static Vector Phe = new Vector();
 
-  public static List<String> STOP = new ArrayList<String>();
-
-  public static String START = "ATG";
+  public static Vector STOP = new Vector();
 
   static
   {
@@ -698,52 +615,22 @@ public class ResidueProperties
     codonHash.put("STOP", STOP);
   }
 
-  /**
-   * Nucleotide Ambiguity Codes
-   */
-  public static final Map<String, String[]> ambiguityCodes = new Hashtable<String, String[]>();
-
-  /**
-   * Codon triplets with additional symbols for unambiguous codons that include
-   * ambiguity codes
-   */
-  public static final Hashtable<String, String> codonHash2 = new Hashtable<String, String>();
-
-  /**
-   * all ambiguity codes for a given base
-   */
-  public final static Hashtable<String, List<String>> _ambiguityCodes = new Hashtable<String, List<String>>();
+  public static Hashtable codonHash2 = new Hashtable();
 
   static
   {
-    /*
-     * Ambiguity codes as per http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html
-     */
-    ambiguityCodes.put("R", new String[] { "A", "G" });
-    ambiguityCodes.put("Y", new String[] { "T", "C" });
-    ambiguityCodes.put("W", new String[] { "A", "T" });
-    ambiguityCodes.put("S", new String[] { "G", "C" });
-    ambiguityCodes.put("M", new String[] { "A", "C" });
-    ambiguityCodes.put("K", new String[] { "G", "T" });
-    ambiguityCodes.put("H", new String[] { "A", "T", "C" });
-    ambiguityCodes.put("B", new String[] { "G", "T", "C" });
-    ambiguityCodes.put("V", new String[] { "G", "A", "C" });
-    ambiguityCodes.put("D", new String[] { "G", "A", "T" });
-    ambiguityCodes.put("N", new String[] { "G", "A", "T", "C" });
-
-    // Now build codon translation table
     codonHash2.put("AAA", "K");
     codonHash2.put("AAG", "K");
     codonHash2.put("AAC", "N");
     codonHash2.put("AAT", "N");
 
-    codonHash2.put("CAA", "Q");
-    codonHash2.put("CAG", "Q");
+    codonHash2.put("CAA", "E");
+    codonHash2.put("CAG", "E");
     codonHash2.put("CAC", "H");
     codonHash2.put("CAT", "H");
 
-    codonHash2.put("GAA", "E");
-    codonHash2.put("GAG", "E");
+    codonHash2.put("GAA", "Q");
+    codonHash2.put("GAG", "Q");
     codonHash2.put("GAC", "D");
     codonHash2.put("GAT", "D");
 
@@ -751,9 +638,9 @@ public class ResidueProperties
     codonHash2.put("TAT", "Y");
 
     codonHash2.put("ACA", "T");
+    codonHash2.put("AAG", "T");
     codonHash2.put("ACC", "T");
     codonHash2.put("ACT", "T");
-    codonHash2.put("ACG", "T");
 
     codonHash2.put("CCA", "P");
     codonHash2.put("CCG", "P");
@@ -813,229 +700,91 @@ public class ResidueProperties
 
     codonHash2.put("TTC", "F");
     codonHash2.put("TTT", "F");
-
-    buildAmbiguityCodonSet();
-  }
-
-  /**
-   * programmatic generation of codons including ambiguity codes
-   */
-  public static void buildAmbiguityCodonSet()
-  {
-    if (_ambiguityCodes.size() > 0)
-    {
-      System.err
-              .println("Ignoring multiple calls to buildAmbiguityCodonSet");
-      return;
-    }
-    // Invert the ambiguity code set
-    for (Map.Entry<String, String[]> acode : ambiguityCodes.entrySet())
-    {
-      for (String r : acode.getValue())
-      {
-        List<String> codesfor = _ambiguityCodes.get(r);
-        if (codesfor == null)
-        {
-          _ambiguityCodes.put(r, codesfor = new ArrayList<String>());
-        }
-        if (!codesfor.contains(acode.getKey()))
-        {
-          codesfor.add(acode.getKey());
-        }
-        else
-        {
-          System.err
-                  .println("Inconsistency in the IUBMB ambiguity code nomenclature table: collision for "
-                          + acode.getKey() + " in residue " + r);
-        }
-      }
-    }
-    // and programmatically add in the ambiguity codes that yield the same amino
-    // acid
-    String[] unambcodons = codonHash2.keySet().toArray(
-            new String[codonHash2.size()]);
-    for (String codon : unambcodons)
-    {
-      String residue = codonHash2.get(codon);
-      String acodon[][] = new String[codon.length()][];
-      for (int i = 0, iSize = codon.length(); i < iSize; i++)
-      {
-        String _ac = "" + codon.charAt(i);
-        List<String> acodes = _ambiguityCodes.get(_ac);
-        if (acodes != null)
-        {
-          acodon[i] = acodes.toArray(new String[acodes.size()]);
-        }
-        else
-        {
-          acodon[i] = new String[] {};
-        }
-      }
-      // enumerate all combinations and test for veracity of translation
-      int tpos[] = new int[codon.length()], cpos[] = new int[codon.length()];
-      for (int i = 0; i < tpos.length; i++)
-      {
-        tpos[i] = -1;
-      }
-      tpos[acodon.length - 1] = 0;
-      int ipos, j;
-      while (tpos[0] < acodon[0].length)
-      {
-        // make all codons for this combination
-        char allres[][] = new char[tpos.length][];
-        String _acodon = "";
-        char _anuc;
-        for (ipos = 0; ipos < tpos.length; ipos++)
-        {
-          if (acodon[ipos].length == 0 || tpos[ipos] < 0)
-          {
-            _acodon += codon.charAt(ipos);
-            allres[ipos] = new char[] { codon.charAt(ipos) };
-          }
-          else
-          {
-            _acodon += acodon[ipos][tpos[ipos]];
-            String[] altbase = ambiguityCodes.get(acodon[ipos][tpos[ipos]]);
-            allres[ipos] = new char[altbase.length];
-            j = 0;
-            for (String ab : altbase)
-            {
-              allres[ipos][j++] = ab.charAt(0);
-            }
-          }
-        }
-        // test all codons for this combination
-        for (ipos = 0; ipos < cpos.length; ipos++)
-        {
-          cpos[ipos] = 0;
-        }
-        boolean valid = true;
-        do
-        {
-          String _codon = "";
-          for (j = 0; j < cpos.length; j++)
-          {
-            _codon += allres[j][cpos[j]];
-          }
-          String tr = codonHash2.get(_codon);
-          if (valid = (tr != null && tr.equals(residue)))
-          {
-            // advance to next combination
-            ipos = acodon.length - 1;
-            while (++cpos[ipos] >= allres[ipos].length && ipos > 0)
-            {
-              cpos[ipos] = 0;
-              ipos--;
-            }
-          }
-        } while (valid && cpos[0] < allres[0].length);
-        if (valid)
-        {
-          // Add this to the set of codons we will translate
-          // System.out.println("Adding ambiguity codon: " + _acodon + " for "
-          // + residue);
-          codonHash2.put(_acodon, residue);
-        }
-        else
-        {
-          // System.err.println("Rejecting ambiguity codon: " + _acodon
-          // + " for " + residue);
-        }
-        // next combination
-        ipos = acodon.length - 1;
-        while (++tpos[ipos] >= acodon[ipos].length && ipos > 0)
-        {
-          tpos[ipos] = -1;
-          ipos--;
-        }
-      }
-    }
-
   }
 
   static
   {
-    Lys.add("AAA");
-    Lys.add("AAG");
-    Asn.add("AAC");
-    Asn.add("AAT");
+    Lys.addElement("AAA");
+    Lys.addElement("AAG");
+    Asn.addElement("AAC");
+    Asn.addElement("AAT");
 
-    Gln.add("CAA");
-    Gln.add("CAG");
-    His.add("CAC");
-    His.add("CAT");
+    Gln.addElement("CAA");
+    Gln.addElement("CAG");
+    His.addElement("CAC");
+    His.addElement("CAT");
 
-    Glu.add("GAA");
-    Glu.add("GAG");
-    Asp.add("GAC");
-    Asp.add("GAT");
+    Glu.addElement("GAA");
+    Glu.addElement("GAG");
+    Asp.addElement("GAC");
+    Asp.addElement("GAT");
 
-    Tyr.add("TAC");
-    Tyr.add("TAT");
+    Tyr.addElement("TAC");
+    Tyr.addElement("TAT");
 
-    Thr.add("ACA");
-    Thr.add("ACG");
-    Thr.add("ACC");
-    Thr.add("ACT");
+    Thr.addElement("ACA");
+    Thr.addElement("ACG");
+    Thr.addElement("ACC");
+    Thr.addElement("ACT");
 
-    Pro.add("CCA");
-    Pro.add("CCG");
-    Pro.add("CCC");
-    Pro.add("CCT");
+    Pro.addElement("CCA");
+    Pro.addElement("CCG");
+    Pro.addElement("CCC");
+    Pro.addElement("CCT");
 
-    Ala.add("GCA");
-    Ala.add("GCG");
-    Ala.add("GCC");
-    Ala.add("GCT");
+    Ala.addElement("GCA");
+    Ala.addElement("GCG");
+    Ala.addElement("GCC");
+    Ala.addElement("GCT");
 
-    Ser.add("TCA");
-    Ser.add("TCG");
-    Ser.add("TCC");
-    Ser.add("TCT");
-    Ser.add("AGC");
-    Ser.add("AGT");
+    Ser.addElement("TCA");
+    Ser.addElement("TCG");
+    Ser.addElement("TCC");
+    Ser.addElement("TCT");
+    Ser.addElement("AGC");
+    Ser.addElement("AGT");
 
-    Arg.add("AGA");
-    Arg.add("AGG");
-    Arg.add("CGA");
-    Arg.add("CGG");
-    Arg.add("CGC");
-    Arg.add("CGT");
+    Arg.addElement("AGA");
+    Arg.addElement("AGG");
+    Arg.addElement("CGA");
+    Arg.addElement("CGG");
+    Arg.addElement("CGC");
+    Arg.addElement("CGT");
 
-    Gly.add("GGA");
-    Gly.add("GGG");
-    Gly.add("GGC");
-    Gly.add("GGT");
+    Gly.addElement("GGA");
+    Gly.addElement("GGG");
+    Gly.addElement("GGC");
+    Gly.addElement("GGT");
 
-    STOP.add("TGA");
-    STOP.add("TAA");
-    STOP.add("TAG");
+    STOP.addElement("TGA");
+    STOP.addElement("TAA");
+    STOP.addElement("TAG");
 
-    Trp.add("TGG");
+    Trp.addElement("TGG");
 
-    Cys.add("TGC");
-    Cys.add("TGT");
+    Cys.addElement("TGC");
+    Cys.addElement("TGT");
 
-    Ile.add("ATA");
-    Ile.add("ATC");
-    Ile.add("ATT");
+    Ile.addElement("ATA");
+    Ile.addElement("ATC");
+    Ile.addElement("ATT");
 
-    Met.add("ATG");
+    Met.addElement("ATG");
 
-    Leu.add("CTA");
-    Leu.add("CTG");
-    Leu.add("CTC");
-    Leu.add("CTT");
-    Leu.add("TTA");
-    Leu.add("TTG");
+    Leu.addElement("CTA");
+    Leu.addElement("CTG");
+    Leu.addElement("CTC");
+    Leu.addElement("CTT");
+    Leu.addElement("TTA");
+    Leu.addElement("TTG");
 
-    Val.add("GTA");
-    Val.add("GTG");
-    Val.add("GTC");
-    Val.add("GTT");
+    Val.addElement("GTA");
+    Val.addElement("GTG");
+    Val.addElement("GTC");
+    Val.addElement("GTT");
 
-    Phe.add("TTC");
-    Phe.add("TTT");
+    Phe.addElement("TTC");
+    Phe.addElement("TTT");
   }
 
   // Stores residue codes/names and colours and other things
@@ -1338,79 +1087,6 @@ public class ResidueProperties
     propHash.put("proline", proline);
     propHash.put("polar", polar);
   }
-  static
-  {
-    int[][] propMatrixF = new int[maxProteinIndex][maxProteinIndex], propMatrixPos = new int[maxProteinIndex][maxProteinIndex], propMatrixEpos = new int[maxProteinIndex][maxProteinIndex];
-    for (int i = 0; i < maxProteinIndex; i++)
-    {
-      int maxF = 0, maxP = 0, maxEP = 0;
-      String ic = "";
-      if (aa.length > i)
-      {
-        ic += aa[i];
-      }
-      else
-      {
-        ic = "-";
-      }
-      for (int j = i + 1; j < maxProteinIndex; j++)
-      {
-        String jc = "";
-        if (aa.length > j)
-        {
-          jc += aa[j];
-        }
-        else
-        {
-          jc = "-";
-        }
-        propMatrixF[i][j] = 0;
-        propMatrixPos[i][j] = 0;
-        propMatrixEpos[i][j] = 0;
-        for (Enumeration<String> en = propHash.keys(); en.hasMoreElements();)
-        {
-          String ph = en.nextElement();
-          Map<String, Integer> pph = (Map<String, Integer>) propHash
-                  .get(ph);
-          if (pph.get(ic) != null && pph.get(jc) != null)
-          {
-            int icp = pph.get(ic).intValue(), jcp = pph.get(jc).intValue();
-            // Still working on these definitions.
-            propMatrixPos[i][j] += icp == jcp && icp > 0 ? 2 : 0;
-            propMatrixPos[j][i] += icp == jcp && icp > 0 ? 2 : 0;
-            propMatrixF[i][j] += icp == jcp ? 2 : 0;
-            propMatrixF[j][i] += icp == jcp ? 2 : 0;
-            propMatrixEpos[i][j] += icp == jcp ? (1 + icp * 2) : 0;
-            propMatrixEpos[j][i] += icp == jcp ? (1 + icp * 2) : 0;
-          }
-        }
-        if (maxF < propMatrixF[i][j])
-        {
-          maxF = propMatrixF[i][j];
-        }
-        if (maxP < propMatrixPos[i][j])
-        {
-          maxP = propMatrixPos[i][j];
-        }
-        if (maxEP < propMatrixEpos[i][j])
-        {
-          maxEP = propMatrixEpos[i][j];
-        }
-      }
-      propMatrixF[i][i] = maxF;
-      propMatrixPos[i][i] = maxP;
-      propMatrixEpos[i][i] = maxEP;
-    }
-    // JAL-1512 comment out physicochemical score matrices for 2.8.1 release
-    // scoreMatrices.put("Conservation Pos", new
-    // ScoreMatrix("Conservation Pos",propMatrixPos,0));
-    // scoreMatrices.put("Conservation Both", new
-    // ScoreMatrix("Conservation Both",propMatrixF,0));
-    // scoreMatrices.put("Conservation EnhPos", new
-    // ScoreMatrix("Conservation EnhPos",propMatrixEpos,0));
-    scoreMatrices.put("PID", new PIDScoreModel());
-    scoreMatrices.put("Displayed Features", new FeatureScoreModel());
-  }
 
   private ResidueProperties()
   {
@@ -1431,7 +1107,7 @@ public class ResidueProperties
     return hyd;
   }
 
-  public static Map<String, Integer> getAA3Hash()
+  public static Hashtable getAA3Hash()
   {
     return aa3Hash;
   }
@@ -1481,29 +1157,20 @@ public class ResidueProperties
 
   public static String codonTranslate(String lccodon)
   {
-    if (false)
-    {
-      return _codonTranslate(lccodon);
-    }
-    String cdn = codonHash2.get(lccodon.toUpperCase());
-    if ("*".equals(cdn))
-    {
-      return "STOP";
-    }
-    return cdn;
-  }
-
-  public static String _codonTranslate(String lccodon)
-  {
     String codon = lccodon.toUpperCase();
     // all base ambiguity codes yield an 'X' amino acid residue
     if (codon.indexOf('X') > -1 || codon.indexOf('N') > -1)
     {
       return "X";
     }
-    for (String key : codonHash.keySet())
+    Enumeration e = codonHash.keys();
+
+    while (e.hasMoreElements())
     {
-      if (codonHash.get(key).contains(codon))
+      String key = (String) e.nextElement();
+      Vector tmp = (Vector) codonHash.get(key);
+
+      if (tmp.contains(codon))
       {
         return key;
       }
@@ -1531,22 +1198,11 @@ public class ResidueProperties
   public static ScoreMatrix getScoreMatrix(String pwtype)
   {
     Object val = scoreMatrices.get(pwtype);
-    if (val != null && val instanceof ScoreMatrix)
+    if (val != null)
     {
       return (ScoreMatrix) val;
     }
     return null;
-  }
-
-  /**
-   * get a ScoreModel based on its string name
-   * 
-   * @param pwtype
-   * @return scoremodel of type pwtype or null
-   */
-  public static ScoreModelI getScoreModel(String pwtype)
-  {
-    return scoreMatrices.get(pwtype);
   }
 
   public static int getPAM250(char c, char d)
@@ -1602,141 +1258,6 @@ public class ResidueProperties
     return ss.toString();
   }
 
-  /**
-   * Used by getRNASecStrucState
-   * 
-   */
-  public static Hashtable<String, String> toRNAssState;
-
-  public static boolean RNAcloseParen[] = new boolean[255];
-  static
-  {
-    toRNAssState = new Hashtable<String, String>();
-    toRNAssState.put(")", "(");
-    toRNAssState.put("(", "(");
-    toRNAssState.put("]", "[");
-    toRNAssState.put("[", "[");
-    toRNAssState.put("{", "{");
-    toRNAssState.put("}", "{");
-    toRNAssState.put(">", ">");
-    toRNAssState.put("<", ">");
-    toRNAssState.put("A", "A");
-    toRNAssState.put("a", "A");
-    toRNAssState.put("B", "B");
-    toRNAssState.put("b", "B");
-    toRNAssState.put("C", "C");
-    toRNAssState.put("c", "C");
-    toRNAssState.put("D", "D");
-    toRNAssState.put("d", "D");
-    toRNAssState.put("E", "E");
-    toRNAssState.put("e", "E");
-    toRNAssState.put("F", "F");
-    toRNAssState.put("f", "F");
-    toRNAssState.put("G", "G");
-    toRNAssState.put("g", "G");
-    toRNAssState.put("H", "H");
-    toRNAssState.put("h", "H");
-    toRNAssState.put("I", "I");
-    toRNAssState.put("i", "I");
-    toRNAssState.put("J", "J");
-    toRNAssState.put("j", "J");
-    toRNAssState.put("K", "K");
-    toRNAssState.put("k", "K");
-    toRNAssState.put("L", "L");
-    toRNAssState.put("l", "L");
-    toRNAssState.put("M", "M");
-    toRNAssState.put("m", "M");
-    toRNAssState.put("N", "N");
-    toRNAssState.put("n", "N");
-    toRNAssState.put("O", "O");
-    toRNAssState.put("o", "O");
-    toRNAssState.put("P", "P");
-    toRNAssState.put("p", "P");
-    toRNAssState.put("Q", "Q");
-    toRNAssState.put("q", "Q");
-    toRNAssState.put("R", "R");
-    toRNAssState.put("r", "R");
-    toRNAssState.put("S", "S");
-    toRNAssState.put("s", "S");
-    toRNAssState.put("T", "T");
-    toRNAssState.put("t", "T");
-    toRNAssState.put("U", "U");
-    toRNAssState.put("u", "U");
-    toRNAssState.put("V", "V");
-    toRNAssState.put("v", "V");
-    toRNAssState.put("W", "W");
-    toRNAssState.put("w", "W");
-    toRNAssState.put("X", "X");
-    toRNAssState.put("x", "X");
-    toRNAssState.put("Y", "Y");
-    toRNAssState.put("y", "Y");
-    toRNAssState.put("Z", "Z");
-    toRNAssState.put("z", "Z");
-    for (int p = 0; p < RNAcloseParen.length; p++)
-    {
-      RNAcloseParen[p] = false;
-    }
-    for (String k : toRNAssState.keySet())
-    {
-      RNAcloseParen[k.charAt(0)] = k.charAt(0) != toRNAssState.get(k)
-              .charAt(0);
-    }
-  }
-
-  static
-  {
-    modifications.put("MSE", "MET"); // Selenomethionine
-    // the rest tbc; from
-    // http://sourceforge.net/p/jmol/mailman/message/12833570/
-    // modifications.put("CSE", "CYS"); // Selenocysteine
-    // modifications.put("PTR", "TYR"); // Phosphotyrosine
-    // modifications.put("SEP", "SER"); // Phosphoserine
-    // modifications.put("HYP", "PRO"); // 4-hydroxyproline
-    // modifications.put("5HP", "GLU"); // Pyroglutamic acid; 5-hydroxyproline
-    // modifications.put("PCA", "GLU"); // Pyroglutamic acid
-    // modifications.put("LYZ", "LYS"); // 5-hydroxylysine
-  }
-
-  public static String getCanonicalAminoAcid(String aa)
-  {
-    String canonical = modifications.get(aa);
-    return canonical == null ? aa : canonical;
-  }
-
-  /**
-   * translate to RNA secondary structure representation
-   * 
-   * @param ssstring
-   * @return ssstring as a RNA-state secondary structure assignment.
-   */
-  public static String getRNASecStrucState(String ssstring)
-  {
-    if (ssstring == null)
-    {
-      return null;
-    }
-    StringBuffer ss = new StringBuffer();
-    for (int i = 0; i < ssstring.length(); i++)
-    {
-      String ssc = ssstring.substring(i, i + 1);
-      if (toRNAssState.containsKey(ssc))
-      {
-        // valid ss character - so return it
-        ss.append(ssc); // (String) toRNAssState.get(ssc));
-      }
-      else
-      {
-        ss.append(" ");
-      }
-    }
-    return ss.toString();
-  }
-
-  public static boolean isCloseParenRNA(char dc)
-  {
-    return RNAcloseParen[dc];
-  }
-
   // main method generates perl representation of residue property hash
   // / cut here
   public static void main(String[] args)
@@ -1785,74 +1306,5 @@ public class ResidueProperties
     }
     System.out.println("};");
   }
-
   // to here
-
-  /**
-   * Returns a list of residue characters for the specified inputs
-   * 
-   * @param nucleotide
-   * @param includeAmbiguous
-   * @return
-   */
-  public static List<String> getResidues(boolean nucleotide,
-          boolean includeAmbiguous)
-  {
-    List<String> result = new ArrayList<String>();
-    if (nucleotide)
-    {
-      for (String nuc : nucleotideName.keySet())
-      {
-        int val = nucleotideIndex[nuc.charAt(0)];
-        if ((!includeAmbiguous && val > 4) || (val >= maxNucleotideIndex))
-        {
-          continue;
-        }
-        nuc = nuc.toUpperCase();
-        if (!result.contains(nuc))
-        {
-          result.add(nuc);
-        }
-      }
-    }
-    else
-    {
-      /*
-       * Peptide
-       */
-      for (String res : aa3Hash.keySet())
-      {
-        int index = aa3Hash.get(res).intValue();
-        if ((!includeAmbiguous && index >= 20) || index >= maxProteinIndex)
-        {
-          continue;
-        }
-        res = res.toUpperCase();
-        if (!result.contains(res))
-        {
-          result.add(res);
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Returns the single letter code for a three letter code, or '0' if not known
-   * 
-   * @param threeLetterCode
-   *          not case sensitive
-   * @return
-   */
-  public static char getSingleCharacterCode(String threeLetterCode)
-  {
-    if (threeLetterCode == null)
-    {
-      return '0';
-    }
-    Integer index = ResidueProperties.aa3Hash.get(threeLetterCode
-            .toUpperCase());
-    return index == null ? '0' : aa[index].charAt(0);
-  }
 }

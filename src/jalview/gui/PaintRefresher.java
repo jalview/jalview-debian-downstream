@@ -1,98 +1,86 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SequenceI;
+import java.util.*;
 
-import java.awt.Component;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.awt.*;
+
+import jalview.datamodel.*;
 
 /**
- * Route datamodel/view update events for a sequence set to any display
- * components involved TODO: JV3 refactor to abstract gui/view package
+ * DOCUMENT ME!
  * 
  * @author $author$
  * @version $Revision$
  */
 public class PaintRefresher
 {
-  static Map<String, List<Component>> components = new HashMap<String, List<Component>>();
+  static Hashtable components;
 
   /**
-   * Add the given component to those registered under the given sequence set
-   * id. Does nothing if already added.
+   * DOCUMENT ME!
    * 
    * @param comp
+   *          DOCUMENT ME!
    * @param al
+   *          DOCUMENT ME!
    */
   public static void Register(Component comp, String seqSetId)
   {
+    if (components == null)
+    {
+      components = new Hashtable();
+    }
+
     if (components.containsKey(seqSetId))
     {
-      List<Component> comps = components.get(seqSetId);
+      Vector comps = (Vector) components.get(seqSetId);
       if (!comps.contains(comp))
       {
-        comps.add(comp);
+        comps.addElement(comp);
       }
     }
     else
     {
-      List<Component> vcoms = new ArrayList<Component>();
-      vcoms.add(comp);
+      Vector vcoms = new Vector();
+      vcoms.addElement(comp);
       components.put(seqSetId, vcoms);
     }
   }
 
-  /**
-   * Remove this component from all registrations. Also removes a registered
-   * sequence set id if there are no remaining components registered against it.
-   * 
-   * @param comp
-   */
   public static void RemoveComponent(Component comp)
   {
-    List<String> emptied = new ArrayList<String>();
-    for (Entry<String, List<Component>> registered : components.entrySet())
+    if (components == null)
     {
-      String id = registered.getKey();
-      List<Component> comps = components.get(id);
-      comps.remove(comp);
-      if (comps.isEmpty())
-      {
-        emptied.add(id);
-      }
+      return;
     }
 
-    /*
-     * Remove now empty ids after the above (to avoid
-     * ConcurrentModificationException).
-     */
-    for (String id : emptied)
+    Enumeration en = components.keys();
+    while (en.hasMoreElements())
     {
-      components.remove(id);
+      String id = en.nextElement().toString();
+      Vector comps = (Vector) components.get(id);
+      comps.remove(comp);
+      if (comps.size() == 0)
+      {
+        components.remove(id);
+      }
     }
   }
 
@@ -104,15 +92,24 @@ public class PaintRefresher
   public static void Refresh(Component source, String id,
           boolean alignmentChanged, boolean validateSequences)
   {
-    List<Component> comps = components.get(id);
+    if (components == null)
+    {
+      return;
+    }
+
+    Component comp;
+    Vector comps = (Vector) components.get(id);
 
     if (comps == null)
     {
       return;
     }
 
-    for (Component comp : comps)
+    Enumeration e = comps.elements();
+    while (e.hasMoreElements())
     {
+      comp = (Component) e.nextElement();
+
       if (comp == source)
       {
         continue;
@@ -121,8 +118,8 @@ public class PaintRefresher
       if (validateSequences && comp instanceof AlignmentPanel
               && source instanceof AlignmentPanel)
       {
-        validateSequences(((AlignmentPanel) source).av.getAlignment(),
-                ((AlignmentPanel) comp).av.getAlignment());
+        validateSequences(((AlignmentPanel) source).av.alignment,
+                ((AlignmentPanel) comp).av.alignment);
       }
 
       if (comp instanceof AlignmentPanel && alignmentChanged)
@@ -182,20 +179,7 @@ public class PaintRefresher
       {
         if (i < comp.getHeight())
         {
-          // TODO: the following does not trigger any recalculation of
-          // height/etc, or maintain the dataset
-          if (comp.getDataset() != source.getDataset())
-          {
-            // raise an implementation warning here - not sure if this situation
-            // will ever occur
-            System.err
-                    .println("IMPLEMENTATION PROBLEM: DATASET out of sync due to an insert whilst calling PaintRefresher.validateSequences(AlignmentI, ALignmentI)");
-          }
-          List<SequenceI> alsq;
-          synchronized (alsq = comp.getSequences())
-          {
-            alsq.add(i, a1[i]);
-          }
+          comp.getSequences().insertElementAt(a1[i], i);
         }
         else
         {
@@ -240,20 +224,22 @@ public class PaintRefresher
 
   static AlignmentPanel[] getAssociatedPanels(String id)
   {
-    List<Component> comps = components.get(id);
-    if (comps == null)
+    if (components==null) { return new AlignmentPanel[0]; };
+    Vector comps = (Vector) components.get(id);
+    if (comps==null) { return new AlignmentPanel[0]; };
+    Vector tmp = new Vector();
+    int i, iSize = comps.size();
+    for (i = 0; i < iSize; i++)
     {
-      return new AlignmentPanel[0];
-    }
-    List<AlignmentPanel> tmp = new ArrayList<AlignmentPanel>();
-    for (Component comp : comps)
-    {
-      if (comp instanceof AlignmentPanel)
+      if (comps.elementAt(i) instanceof AlignmentPanel)
       {
-        tmp.add((AlignmentPanel) comp);
+        tmp.addElement(((AlignmentPanel) comps.elementAt(i)));
       }
     }
-    return tmp.toArray(new AlignmentPanel[tmp.size()]);
+    AlignmentPanel[] result = new AlignmentPanel[tmp.size()];
+    tmp.toArray(result);
+
+    return result;
   }
 
 }

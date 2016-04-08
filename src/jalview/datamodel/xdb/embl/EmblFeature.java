@@ -1,48 +1,39 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel.xdb.embl;
 
-import jalview.datamodel.DBRefEntry;
-
+import java.util.Hashtable;
 import java.util.Vector;
 
-/**
- * Data model for a &lt;feature&gt; element returned from an EMBL query reply
- * 
- * @see embl_mapping.xml
- */
 public class EmblFeature
 {
   String name;
 
-  Vector<DBRefEntry> dbRefs;
+  Vector dbRefs;
 
-  Vector<Qualifier> qualifiers;
+  Vector qualifiers;
 
-  Vector<EmblFeatureLocations> locations;
+  Vector locations;
 
   /**
    * @return the dbRefs
    */
-  public Vector<DBRefEntry> getDbRefs()
+  public Vector getDbRefs()
   {
     return dbRefs;
   }
@@ -51,7 +42,7 @@ public class EmblFeature
    * @param dbRefs
    *          the dbRefs to set
    */
-  public void setDbRefs(Vector<DBRefEntry> dbRefs)
+  public void setDbRefs(Vector dbRefs)
   {
     this.dbRefs = dbRefs;
   }
@@ -59,7 +50,7 @@ public class EmblFeature
   /**
    * @return the locations
    */
-  public Vector<EmblFeatureLocations> getLocations()
+  public Vector getLocations()
   {
     return locations;
   }
@@ -68,7 +59,7 @@ public class EmblFeature
    * @param locations
    *          the locations to set
    */
-  public void setLocations(Vector<EmblFeatureLocations> locations)
+  public void setLocations(Vector locations)
   {
     this.locations = locations;
   }
@@ -93,7 +84,7 @@ public class EmblFeature
   /**
    * @return the qualifiers
    */
-  public Vector<Qualifier> getQualifiers()
+  public Vector getQualifiers()
   {
     return qualifiers;
   }
@@ -102,7 +93,7 @@ public class EmblFeature
    * @param qualifiers
    *          the qualifiers to set
    */
-  public void setQualifiers(Vector<Qualifier> qualifiers)
+  public void setQualifiers(Vector qualifiers)
   {
     this.qualifiers = qualifiers;
   }

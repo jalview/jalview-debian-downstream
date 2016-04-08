@@ -47,7 +47,9 @@ public class RegRes implements Cloneable
     for (int i = 0; i < numSubs(); i++)
     {
       int n = i + 1;
-      sb.append(" sub(" + n + ")=" + matchedFrom(n) + ":" + charsMatched(n));
+      sb
+              .append(" sub(" + n + ")=" + matchedFrom(n) + ":"
+                      + charsMatched(n));
     }
     return sb.toString();
   }

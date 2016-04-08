@@ -1,80 +1,84 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
+import java.awt.Container;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.ContainerEvent;
+import java.awt.event.ContainerListener;
+import java.util.BitSet;
+
+import javax.swing.JPanel;
+
 import jalview.api.AlignmentViewPanel;
 import jalview.bin.Cache;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
-import jalview.ext.jmol.JalviewJmolBinding;
 import jalview.structure.StructureSelectionManager;
 
-import java.awt.Container;
-import java.util.Map;
-
 import org.jmol.api.JmolAppConsoleInterface;
-import org.jmol.java.BS;
-import org.openscience.jmol.app.jmolpanel.console.AppConsole;
+import org.jmol.api.JmolViewer;
+import org.jmol.popup.JmolPopup;
+import org.openscience.jmol.app.jmolpanel.AppConsole;
 
-public class AppJmolBinding extends JalviewJmolBinding
+public class AppJmolBinding extends jalview.ext.jmol.JalviewJmolBinding
 {
+
+  /**
+   * 
+   */
   private AppJmol appJmolWindow;
 
-  private FeatureRenderer fr = null;
-
-  public AppJmolBinding(AppJmol appJmol, StructureSelectionManager sSm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String[][] chains,
-          String protocol)
+  public AppJmolBinding(AppJmol appJmol, StructureSelectionManager sSm, PDBEntry[] pdbentry,
+          SequenceI[][] sequenceIs, String[][] chains, String protocol)
   {
     super(sSm, pdbentry, sequenceIs, chains, protocol);
     appJmolWindow = appJmol;
   }
 
+  FeatureRenderer fr = null;
+
   @Override
-  public FeatureRenderer getFeatureRenderer(AlignmentViewPanel alignment)
+  public jalview.api.FeatureRenderer getFeatureRenderer(AlignmentViewPanel alignment)
   {
-    AlignmentPanel ap = (alignment == null) ? appJmolWindow
-            .getAlignmentPanel() : (AlignmentPanel) alignment;
-    if (ap.av.isShowSequenceFeatures())
+    AlignmentPanel ap = (alignment==null) ? appJmolWindow.ap : (AlignmentPanel) alignment;
+    if (ap.av.showSequenceFeatures)
     {
       if (fr == null)
       {
-        fr = (jalview.gui.FeatureRenderer) ap.cloneFeatureRenderer();
+        fr = new FeatureRenderer(ap);
       }
-      else
-      {
-        ap.updateFeatureRenderer(fr);
-      }
+
+      fr.transferSettings(ap.
+              seqPanel.seqCanvas.getFeatureRenderer());
     }
 
     return fr;
   }
 
   @Override
-  public SequenceRenderer getSequenceRenderer(AlignmentViewPanel alignment)
+  public jalview.api.SequenceRenderer getSequenceRenderer(AlignmentViewPanel alignment)
   {
-    return new SequenceRenderer(((AlignmentPanel) alignment).av);
+    return new SequenceRenderer(((AlignmentPanel)alignment).av);
   }
 
-  @Override
   public void sendConsoleEcho(String strEcho)
   {
     if (console != null)
@@ -83,7 +87,6 @@ public class AppJmolBinding extends JalviewJmolBinding
     }
   }
 
-  @Override
   public void sendConsoleMessage(String strStatus)
   {
     if (console != null && strStatus != null)
@@ -123,19 +126,15 @@ public class AppJmolBinding extends JalviewJmolBinding
 
   public void updateColours(Object source)
   {
-    AlignmentPanel ap = (AlignmentPanel) source;
+    AlignmentPanel ap = (AlignmentPanel) source,topap;
     // ignore events from panels not used to colour this view
     if (!appJmolWindow.isUsedforcolourby(ap))
-    {
       return;
-    }
-    if (!isLoadingFromArchive())
-    {
-      colourBySequence(ap);
+    if (!isLoadingFromArchive()) {
+      colourBySequence(ap.av.getShowSequenceFeatures(), ap);
     }
   }
 
-  @Override
   public void notifyScriptTermination(String strStatus, int msWalltime)
   {
     // todo - script termination doesn't happen ?
@@ -149,37 +148,54 @@ public class AppJmolBinding extends JalviewJmolBinding
     showUrl(url, "jmol");
   }
 
-  public void newJmolPopup(String menuName)
+  public void newJmolPopup(boolean translateLocale, String menuName,
+          boolean asPopup)
   {
-    // jmolpopup = new JmolAwtPopup();
-    // jmolpopup.jpiInitialize((viewer), menuName);
+
+    jmolpopup = JmolPopup.newJmolPopup(viewer, translateLocale, menuName,
+            asPopup);
   }
 
-  @Override
-  public void selectionChanged(BS arg0)
+  public void selectionChanged(BitSet arg0)
   {
     // TODO Auto-generated method stub
 
   }
 
-  @Override
   public void refreshPdbEntries()
   {
     // TODO Auto-generated method stub
 
   }
 
-  @Override
   public void showConsole(boolean b)
   {
     appJmolWindow.showConsole(b);
   }
 
+  /**
+   * add the given sequences to the mapping scope for the given pdb file handle
+   * 
+   * @param pdbFile
+   *          - pdbFile identifier
+   * @param seq
+   *          - set of sequences it can be mapped to
+   */
+  public void addSequenceForStructFile(String pdbFile, SequenceI[] seq)
+  {
+    for (int pe = 0; pe < pdbentry.length; pe++)
+    {
+      if (pdbentry[pe].getFile().equals(pdbFile))
+      {
+        addSequence(pe, seq);
+      }
+    }
+  }
+
   @Override
-  protected JmolAppConsoleInterface createJmolConsole(
+  protected JmolAppConsoleInterface createJmolConsole(JmolViewer viewer2,
           Container consolePanel, String buttonsToShow)
   {
-    viewer.setJmolCallbackListener(this);
     return new AppConsole(viewer, consolePanel, buttonsToShow);
   }
 
@@ -187,22 +203,28 @@ public class AppJmolBinding extends JalviewJmolBinding
   protected void releaseUIResources()
   {
     appJmolWindow = null;
-    closeConsole();
+    if (console != null)
+    {
+      try
+      {
+        console.setVisible(false);
+      } catch (Error e)
+      {
+      } catch (Exception x)
+      {
+      }
+      ;
+      console = null;
+    }
+
   }
 
   @Override
   public void releaseReferences(Object svl)
   {
-    if (svl instanceof SeqPanel)
-    {
+    if (svl instanceof SeqPanel) {
       appJmolWindow.removeAlignmentPanel(((SeqPanel) svl).ap);
-    }
-  }
-
-  @Override
-  public Map<String, Object> getJSpecViewProperty(String arg0)
-  {
-    // TODO Auto-generated method stub
-    return null;
+      
+    };
   }
 }

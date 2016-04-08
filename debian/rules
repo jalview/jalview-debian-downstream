@@ -27,8 +27,5 @@ DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 ANT_OPTS             := -Dbuild.sysclasspath=last \
 	-DJALVIEW_VERSION=$(VERSION)
 
-
-JH_CLASSPATH_ARGS := -c"$(shell echo $(DEB_CLASSPATH) | sed 's/:/ /g')" debian/jalview/usr/share/java/jalview.jar
-
 clean::
 	rm -Rf dist

@@ -1,18 +1,13 @@
-jalview (2.9+dfsg-1) UNRELEASED; urgency=low
+jalview (2.7.dfsg-5) unstable; urgency=medium
 
-  [ Steffen Moeller and Hervé Ménager ]
-  * Updated Standards-Version to 3.6
-  * Introduced EDAM annotation to
-    debian/upstream/edam
+  * Team upload.
+  * Add debian/jalview.classpath and replace usage of JH_CLASSPATH_ARGS to
+    avoid unwanted dependency on openjdk-7-jdk. (Closes: #814177)
+  * Declare compliance with Debian Policy 3.9.7.
+  * Vcs: Use cgit and https.
+  * Fix Lintian warning dep5-copyright-license-name-not-unique.
 
-  [ Michael R. Crusoe ]
-  * Update to version 2.9
-  * Build-Depends: varna
-
-  [ Andreas Tille ]
-  * Build-Depends: libjson-simple-java
-
- -- Michael R. Crusoe <crusoe@ucdavis.edu>  Sun, 07 Feb 2016 12:26:10 -0800
+ -- Markus Koschany <apo@debian.org>  Fri, 08 Apr 2016 23:36:00 +0200
 
 jalview (2.7.dfsg-4) unstable; urgency=low
 

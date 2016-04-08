@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
@@ -38,15 +35,12 @@ public class DBRefSource
   /**
    * UNIPROT Entry Name
    */
-  public static String UP_NAME = "UNIPROT_NAME".toUpperCase();
+  public static String UP_NAME = "UNIPROT_NAME";
 
   /**
    * Uniprot Knowledgebase/TrEMBL as served from EMBL protein products.
    */
-  public static final String UNIPROTKB = "UniProtKB/TrEMBL".toUpperCase();
-
-  public static final String EMBLCDSProduct = "EMBLCDSProtein"
-          .toUpperCase();
+  public static final String UNIPROTKB = "UniProtKB/TrEMBL";
 
   /**
    * PDB Entry Code
@@ -69,31 +63,30 @@ public class DBRefSource
   public static String PFAM = "PFAM";
 
   /**
-   * RFAM ID
-   */
-  public static String RFAM = "RFAM";
-
-  /**
    * GeneDB ID
    */
-  public static final String GENEDB = "GeneDB".toUpperCase();
+  public static final String GENEDB = "GeneDB";
 
   /**
    * List of databases whose sequences might have coding regions annotated
    */
-  public static final String[] DNACODINGDBS = { EMBL, EMBLCDS, GENEDB };
+  public static final String[] DNACODINGDBS =
+  { EMBL, EMBLCDS, GENEDB };
 
-  public static final String[] CODINGDBS = { EMBLCDS, GENEDB };
+  public static final String[] CODINGDBS =
+  { EMBLCDS, GENEDB };
 
-  public static final String[] PROTEINDBS = { UNIPROT, PDB, UNIPROTKB,
-      EMBLCDSProduct };
+  public static final String[] PROTEINDBS =
+  { UNIPROT, PDB, UNIPROTKB };
 
-  public static final String[] PROTEINSEQ = { UNIPROT, UNIPROTKB,
-      EMBLCDSProduct };
+  public static final String[] PROTEINSEQ =
+  { UNIPROT, UNIPROTKB };
 
-  public static final String[] PROTEINSTR = { PDB };
+  public static final String[] PROTEINSTR =
+  { PDB };
 
-  public static final String[] DOMAINDBS = { PFAM, RFAM };
+  public static final String[] DOMAINDBS =
+  { PFAM };
 
   /**
    * set of unique DBRefSource property constants. These could be used to
@@ -122,7 +115,7 @@ public class DBRefSource
   public static final Object DNACODINGSEQDB = "XONCODING";
 
   /**
-   * DB returns several sequences associated with a protein/nucleotide domain
+   * DB returns several sequences associated with a protein domain
    */
   public static final Object DOMAINDB = "DOMAIN";
 

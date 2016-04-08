@@ -1,58 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.util;
 
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.DBRefSource;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SequenceI;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-
-import com.stevesoft.pat.Regex;
+import jalview.datamodel.*;
 
 public class DBRefUtils
 {
-  private static Map<String, String> canonicalSourceNameLookup = new HashMap<String, String>();
-
-  private static Map<String, String> dasCoordinateSystemsLookup = new HashMap<String, String>();
-
-  static
-  {
-    // TODO load these from a resource file?
-    canonicalSourceNameLookup.put("uniprotkb/swiss-prot",
-            DBRefSource.UNIPROT);
-    canonicalSourceNameLookup.put("uniprotkb/trembl", DBRefSource.UNIPROT);
-    canonicalSourceNameLookup.put("pdb", DBRefSource.PDB);
-
-    dasCoordinateSystemsLookup.put("pdbresnum", DBRefSource.PDB);
-    dasCoordinateSystemsLookup.put("uniprot", DBRefSource.UNIPROT);
-    dasCoordinateSystemsLookup.put("embl", DBRefSource.EMBL);
-    // dasCoordinateSystemsLookup.put("embl", DBRefSource.EMBLCDS);
-  }
-
   /**
    * Utilities for handling DBRef objects and their collections.
    */
@@ -75,8 +45,8 @@ public class DBRefUtils
     {
       return dbrefs;
     }
-    Map<String, Integer> srcs = new HashMap<String, Integer>();
-    ArrayList<DBRefEntry> res = new ArrayList<DBRefEntry>();
+    Hashtable srcs = new Hashtable();
+    Vector res = new Vector();
 
     for (int i = 0; i < sources.length; i++)
     {
@@ -86,14 +56,18 @@ public class DBRefUtils
     {
       if (srcs.containsKey(dbrefs[i].getSource()))
       {
-        res.add(dbrefs[i]);
+        res.addElement(dbrefs[i]);
       }
     }
 
     if (res.size() > 0)
     {
       DBRefEntry[] reply = new DBRefEntry[res.size()];
-      return res.toArray(reply);
+      for (int i = 0; i < res.size(); i++)
+      {
+        reply[i] = (DBRefEntry) res.elementAt(i);
+      }
+      return reply;
     }
     res = null;
     // there are probable memory leaks in the hashtable!
@@ -110,18 +84,36 @@ public class DBRefUtils
    * @return boolean true if Source DBRefEntry is compatible with DAS
    *         CoordinateSystem name
    */
+  public static Hashtable DasCoordinateSystemsLookup = null;
 
   public static boolean isDasCoordinateSystem(String string,
           DBRefEntry dBRefEntry)
   {
-    if (string == null || dBRefEntry == null)
+    if (DasCoordinateSystemsLookup == null)
     {
-      return false;
+      // TODO: Make a DasCoordinateSystemsLookup properties resource
+      // Initialise
+      DasCoordinateSystemsLookup = new Hashtable();
+      DasCoordinateSystemsLookup.put("pdbresnum",
+              jalview.datamodel.DBRefSource.PDB);
+      DasCoordinateSystemsLookup.put("uniprot",
+              jalview.datamodel.DBRefSource.UNIPROT);
+      DasCoordinateSystemsLookup.put("EMBL",
+              jalview.datamodel.DBRefSource.EMBL);
+      // DasCoordinateSystemsLookup.put("EMBL",
+      // jalview.datamodel.DBRefSource.EMBLCDS);
     }
-    String coordsys = dasCoordinateSystemsLookup.get(string.toLowerCase());
-    return coordsys == null ? false : coordsys.equals(dBRefEntry
-            .getSource());
+
+    String coordsys = (String) DasCoordinateSystemsLookup.get(string
+            .toLowerCase());
+    if (coordsys != null)
+    {
+      return coordsys.equals(dBRefEntry.getSource());
+    }
+    return false;
   }
+
+  public static Hashtable CanonicalSourceNameLookup = null;
 
   /**
    * look up source in an internal list of database reference sources and return
@@ -134,27 +126,34 @@ public class DBRefUtils
    */
   public static String getCanonicalName(String source)
   {
-    if (source == null)
+    if (CanonicalSourceNameLookup == null)
     {
-      return null;
+      CanonicalSourceNameLookup = new Hashtable();
+      CanonicalSourceNameLookup.put("uniprotkb/swiss-prot",
+              jalview.datamodel.DBRefSource.UNIPROT);
+      CanonicalSourceNameLookup.put("uniprotkb/trembl",
+              jalview.datamodel.DBRefSource.UNIPROT);
+      CanonicalSourceNameLookup.put("pdb",
+              jalview.datamodel.DBRefSource.PDB);
     }
-    String canonical = canonicalSourceNameLookup.get(source.toLowerCase());
-    return canonical == null ? source : canonical;
+    String canonical = (String) CanonicalSourceNameLookup.get(source
+            .toLowerCase());
+    if (canonical == null)
+    {
+      return source;
+    }
+    return canonical;
   }
 
   /**
-   * Returns an array of those references that match the given entry, or null if
-   * no matches. Currently uses a comparator which matches if
-   * <ul>
-   * <li>database sources are the same</li>
-   * <li>accession ids are the same</li>
-   * <li>both have no mapping, or the mappings are the same</li>
-   * </ul>
+   * find RefEntry corresponding to a particular pattern the equals method of
+   * each entry is used, from String attributes right down to Mapping
+   * attributes.
    * 
    * @param ref
    *          Set of references to search
    * @param entry
-   *          pattern to match
+   *          pattern to collect - null any entry for wildcard match
    * @return
    */
   public static DBRefEntry[] searchRefs(DBRefEntry[] ref, DBRefEntry entry)
@@ -163,36 +162,30 @@ public class DBRefUtils
             matchDbAndIdAndEitherMapOrEquivalentMapList);
   }
 
-  /**
-   * Returns an array of those references that match the given entry, according
-   * to the given comparator. Returns null if no matches.
-   * 
-   * @param refs
-   *          an array of database references to search
-   * @param entry
-   *          an entry to compare against
-   * @param comparator
-   * @return
-   */
-  static DBRefEntry[] searchRefs(DBRefEntry[] refs, DBRefEntry entry,
+  public static DBRefEntry[] searchRefs(DBRefEntry[] ref, DBRefEntry entry,
           DbRefComp comparator)
   {
-    if (refs == null || entry == null)
-    {
+    if (ref == null || entry == null)
       return null;
-    }
-    List<DBRefEntry> rfs = new ArrayList<DBRefEntry>();
-    for (int i = 0; i < refs.length; i++)
+    Vector rfs = new Vector();
+    for (int i = 0; i < ref.length; i++)
     {
-      if (comparator.matches(entry, refs[i]))
+      if (comparator.matches(entry, ref[i]))
       {
-        rfs.add(refs[i]);
+        rfs.addElement(ref[i]);
       }
     }
-    return rfs.size() == 0 ? null : rfs.toArray(new DBRefEntry[rfs.size()]);
+    // TODO Auto-generated method stub
+    if (rfs.size() > 0)
+    {
+      DBRefEntry[] rf = new DBRefEntry[rfs.size()];
+      rfs.copyInto(rf);
+      return rf;
+    }
+    return null;
   }
 
-  interface DbRefComp
+  public interface DbRefComp
   {
     public boolean matches(DBRefEntry refa, DBRefEntry refb);
   }
@@ -307,7 +300,6 @@ public class DBRefUtils
         {
           if ((refa.getMap() == null && refb.getMap() == null)
                   || (refa.getMap() != null && refb.getMap() != null))
-          {
             if ((refb.getMap().getMap() == null && refa.getMap().getMap() == null)
                     || (refb.getMap().getMap() != null
                             && refa.getMap().getMap() != null && refb
@@ -316,7 +308,6 @@ public class DBRefUtils
             {
               return true;
             }
-          }
         }
       }
       return false;
@@ -402,17 +393,14 @@ public class DBRefUtils
   };
 
   /**
-   * Parses a DBRefEntry and adds it to the sequence, also a PDBEntry if the
-   * database is PDB.
-   * <p>
-   * Used by file parsers to generate DBRefs from annotation within file (eg
-   * Stockholm)
+   * used by file parsers to generate DBRefs from annotation within file (eg
+   * stockholm)
    * 
    * @param dbname
    * @param version
    * @param acn
    * @param seq
-   *          where to annotate with reference
+   *          where to anotate with reference
    * @return parsed version of entry that was added to seq (if any)
    */
   public static DBRefEntry parseToDbRef(SequenceI seq, String dbname,
@@ -421,25 +409,19 @@ public class DBRefUtils
     DBRefEntry ref = null;
     if (dbname != null)
     {
-      String locsrc = DBRefUtils.getCanonicalName(dbname);
-      if (locsrc.equals(DBRefSource.PDB))
+      String locsrc = jalview.util.DBRefUtils.getCanonicalName(dbname);
+      if (locsrc.equals(jalview.datamodel.DBRefSource.PDB))
       {
-        /*
-         * Check for PFAM style stockhom PDB accession id citation e.g.
-         * "1WRI A; 7-80;"
-         */
-        Regex r = new com.stevesoft.pat.Regex(
-                "([0-9][0-9A-Za-z]{3})\\s*(.?)\\s*;\\s*([0-9]+)-([0-9]+)");
+        // check for chaincode and mapping
+        // PFAM style stockhom PDB citation
+        com.stevesoft.pat.Regex r = new com.stevesoft.pat.Regex(
+                "([0-9][0-9A-Za-z]{3})\\s*(.?)\\s*;([0-9]+)-([0-9]+)");
         if (r.search(acn.trim()))
         {
           String pdbid = r.stringMatched(1);
           String chaincode = r.stringMatched(2);
-          if (chaincode == null)
-          {
-            chaincode = " ";
-          }
-          // String mapstart = r.stringMatched(3);
-          // String mapend = r.stringMatched(4);
+          String mapstart = r.stringMatched(3);
+          String mapend = r.stringMatched(4);
           if (chaincode.equals(" "))
           {
             chaincode = "_";
@@ -448,15 +430,7 @@ public class DBRefUtils
           ref = new DBRefEntry(locsrc, version, pdbid + chaincode);
           PDBEntry pdbr = new PDBEntry();
           pdbr.setId(pdbid);
-          pdbr.setType(PDBEntry.Type.PDB);
-          pdbr.setProperty(new Hashtable());
-          pdbr.setChainCode(chaincode);
-          // pdbr.getProperty().put("CHAIN", chaincode);
           seq.addPDBId(pdbr);
-        }
-        else
-        {
-          System.err.println("Malformed PDB DR line:" + acn);
         }
       }
       else

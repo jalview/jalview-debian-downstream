@@ -1,26 +1,23 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import jalview.datamodel.SequenceI;
+import jalview.datamodel.*;
 
 public class ModellerDescription
 {
@@ -29,12 +26,13 @@ public class ModellerDescription
    * single line, and sequence start/end and other properties. See PIRFile IO
    * for its use.
    */
-  final String[] seqTypes = { "sequence", "structure", "structureX",
-      "structureN" };
+  final String[] seqTypes =
+  { "sequence", "structure", "structureX", "structureN" };
 
-  final String[] Fields = { "objectType", "objectId", "startField",
-      "startCode", "endField", "endCode", "description1", "description2",
-      "resolutionField", "tailField" };
+  final String[] Fields =
+  { "objectType", "objectId", "startField", "startCode", "endField",
+      "endCode", "description1", "description2", "resolutionField",
+      "tailField" };
 
   final int TYPE = 0;
 
@@ -59,9 +57,11 @@ public class ModellerDescription
   /**
    * 0 is free text or empty 1 is something that parses to an integer, or \@
    */
-  final int Types[] = { 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 };
+  final int Types[] =
+  { 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 };
 
-  final char Padding[] = { ' ', ' ', ' ', '.', ' ', '.', '.', '.', '.', '.' };
+  final char Padding[] =
+  { ' ', ' ', ' ', '.', ' ', '.', '.', '.', '.', '.' };
 
   java.util.Hashtable fields = new java.util.Hashtable();
 
@@ -119,9 +119,8 @@ public class ModellerDescription
   private java.util.Hashtable parseDescription(String desc)
   {
     java.util.Hashtable fields = new java.util.Hashtable();
-    java.util.StringTokenizer st = new java.util.StringTokenizer(desc, ":",
-            true);
-
+    java.util.StringTokenizer st = new java.util.StringTokenizer(desc, ":",true);
+    
     String field;
     int type = -1;
     if (st.countTokens() > 0)
@@ -149,31 +148,28 @@ public class ModellerDescription
           {
             if (!field.equals(":"))
             {
-              // validate residue field value
-              if (Types[i] == 1)
-              {
-                resCode val = validResidueCode(field);
-                if (val != null)
-                {
-                  fields.put(new String(Fields[i] + "num"), val);
-                }
-                else
-                {
-                  // jalview.bin.Cache.log.debug(
-                  // "Ignoring non-Modeller description: invalid integer-like
-                  // field '" + field + "'");
-                  type = -1; /* invalid field! - throw the FieldSet away */
-                }
-                ;
-              }
-              fields.put(Fields[i++], field);
-              if (st.hasMoreTokens())
-              {
-                st.nextToken(); // skip token sep.
-              }
-            }
-            else
+            // validate residue field value
+            if (Types[i] == 1)
             {
+              resCode val = validResidueCode(field);
+              if (val != null)
+              {
+                fields.put(new String(Fields[i] + "num"), val);
+              }
+              else
+              {
+                // jalview.bin.Cache.log.debug(
+                // "Ignoring non-Modeller description: invalid integer-like
+                // field '" + field + "'");
+                type = -1; /* invalid field! - throw the FieldSet away */
+              }
+              ;
+            }
+            fields.put(Fields[i++], field);
+            if (st.hasMoreTokens()) {
+              st.nextToken(); // skip token sep.
+            }
+            } else {
               i++;
             }
           }
@@ -184,7 +180,7 @@ public class ModellerDescription
           while (st.hasMoreTokens())
           {
             String tl = st.nextToken(":");
-            field += tl.equals(":") ? tl : (":" + tl);
+            field += tl.equals(":") ? tl : (":" + tl); 
           }
           fields.put(Fields[TAIL], field);
         }
@@ -244,15 +240,13 @@ public class ModellerDescription
     {
       // Set start and end before we update the type (in the case of a
       // synthesized field set)
-      if (getStartCode() == null
-              || (getStartNum() != seq.getStart() && getStartCode().val != null))
+      if (getStartCode()==null || (getStartNum() != seq.getStart() && getStartCode().val != null))
       {
         // unset or user updated sequence start position
         setStartCode(seq.getStart());
       }
 
-      if (getEndCode() == null
-              || (getEndNum() != seq.getEnd() && getStartCode() != null && getStartCode().val != null))
+      if (getEndCode()==null || (getEndNum() != seq.getEnd() && getStartCode()!=null && getStartCode().val != null))
       {
         setEndCode(seq.getEnd());
       }
@@ -355,7 +349,7 @@ public class ModellerDescription
   {
     int start = 0;
     resCode val = getStartCode();
-    if (val != null && val.val != null)
+    if (val!=null && val.val != null)
     {
       return val.val.intValue();
     }
@@ -384,7 +378,7 @@ public class ModellerDescription
   {
     int end = 0;
     resCode val = getEndCode();
-    if (val != null && val.val != null)
+    if (val!=null && val.val != null)
     {
       return val.val.intValue();
     }
@@ -402,8 +396,8 @@ public class ModellerDescription
   {
     if (isModellerFieldset())
     {
-      resCode rc = getStartCode();
-      if (rc != null && rc.val != null)
+      resCode rc=getStartCode();
+      if (rc!=null && rc.val != null)
       {
         newSeq.setStart(getStartNum());
       }
@@ -411,8 +405,8 @@ public class ModellerDescription
       {
         newSeq.setStart(1);
       }
-      rc = getEndCode();
-      if (rc != null && rc.val != null)
+      rc=getEndCode();
+      if (rc!=null && rc.val != null)
       {
         newSeq.setEnd(getEndNum());
       }

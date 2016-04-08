@@ -1,36 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel.xdb.embl;
 
+import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.Vector;
 
-/**
- * Data model for a &lt;loctaion&gt; child element of a &lt;feature&gt; read
- * from an EMBL query reply
- * 
- * @see embl_mapping.xml
- */
 public class EmblFeatureLocations
 {
-  Vector<EmblFeatureLocElement> locElements;
+  Vector locElements;
 
   String locationType;
 
@@ -73,7 +66,7 @@ public class EmblFeatureLocations
   /**
    * @return the locElements
    */
-  public Vector<EmblFeatureLocElement> getLocElements()
+  public Vector getLocElements()
   {
     return locElements;
   }
@@ -82,7 +75,7 @@ public class EmblFeatureLocations
    * @param locElements
    *          the locElements to set
    */
-  public void setLocElements(Vector<EmblFeatureLocElement> locElements)
+  public void setLocElements(Vector locElements)
   {
     this.locElements = locElements;
   }
@@ -115,10 +108,12 @@ public class EmblFeatureLocations
   {
     int sepos = 0;
     int[] se = new int[locElements.size() * 2];
-    if (locationType.equalsIgnoreCase("single")) // TODO: or "simple" ?
+    if (locationType.equalsIgnoreCase("single"))
     {
-      for (EmblFeatureLocElement loce : locElements)
+      for (Enumeration le = locElements.elements(); le.hasMoreElements();)
       {
+        EmblFeatureLocElement loce = (EmblFeatureLocElement) le
+                .nextElement();
         if (accession == null || loce.accession != null
                 && accession.equals(loce.accession))
         {
@@ -133,8 +128,10 @@ public class EmblFeatureLocations
     }
     else if (locationType.equalsIgnoreCase("join"))
     {
-      for (EmblFeatureLocElement loce : locElements)
+      for (Enumeration le = locElements.elements(); le.hasMoreElements();)
       {
+        EmblFeatureLocElement loce = (EmblFeatureLocElement) le
+                .nextElement();
         if (accession == null || loce.accession != null
                 && accession.equals(loce.accession))
         {
@@ -151,17 +148,13 @@ public class EmblFeatureLocations
     else if (locationType != null)
     {
       if (jalview.bin.Cache.log != null)
-      {
         jalview.bin.Cache.log
                 .error("EmbleFeatureLocations.getElementRanges cannot deal with locationType=='"
                         + locationType + "'");
-      }
       else
-      {
         System.err
                 .println("EmbleFeatureLocations.getElementRanges cannot deal with locationType=='"
                         + locationType + "'");
-      }
     }
     // trim range if necessary.
     if (se != null && sepos != se.length)

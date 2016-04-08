@@ -1,43 +1,39 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- *
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *
- * Jalview is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
 
 /**
  * DOCUMENT ME!
- *
+ * 
  * @author $author$
  * @version $Revision$
  */
 public class IdentifyFile
 {
-  public static final String GFF3File = "GFF v2 or v3";
-
   /**
    * Identify a datasource's file content.
-   *
+   * 
    * @note Do not use this method for stream sources - create a FileParse object
    *       instead.
-   *
+   * 
    * @param file
    *          DOCUMENT ME!
    * @param protocol
@@ -62,9 +58,7 @@ public class IdentifyFile
       emessage = e.getMessage();
     }
     if (parser != null)
-    {
       return parser.errormessage;
-    }
     return emessage;
   }
 
@@ -77,7 +71,7 @@ public class IdentifyFile
   /**
    * Identify contents of source, closing it or resetting source to start
    * afterwards.
-   *
+   * 
    * @param source
    * @param closeSource
    * @return filetype string
@@ -98,7 +92,7 @@ public class IdentifyFile
       }
       while ((data = source.nextLine()) != null)
       {
-        length += data.trim().length();
+        length += data.length();
         if (!lineswereskipped)
         {
           for (int i = 0; !isBinary && i < data.length(); i++)
@@ -132,141 +126,13 @@ public class IdentifyFile
         }
         data = data.toUpperCase();
 
-        if (data.startsWith("##GFF-VERSION"))
-        {
-          reply = GFF3File;
-          break;
-        }
-        if (data.indexOf("# STOCKHOLM") > -1)
+        if ((data.indexOf("# STOCKHOLM") > -1))
         {
           reply = "STH";
+
           break;
         }
-        // if (data.indexOf(">") > -1)
-        if (data.startsWith(">"))
-        {
-          // FASTA, PIR file or BLC file
-          boolean checkPIR = false, starterm = false;
-          if ((data.indexOf(">P1;") > -1) || (data.indexOf(">DL;") > -1))
-          {
-            // watch for PIR file attributes
-            checkPIR = true;
-            reply = "PIR";
-          }
-          // could also be BLC file, read next line to confirm
-          data = source.nextLine();
 
-          if (data.indexOf(">") > -1)
-          {
-            reply = "BLC";
-          }
-          else
-          {
-            // Is this a single line BLC file?
-            String data1 = source.nextLine();
-            String data2 = source.nextLine();
-            int c1;
-            if (checkPIR)
-            {
-              starterm = (data1 != null && data1.indexOf("*") > -1)
-                      || (data2 != null && data2.indexOf("*") > -1);
-            }
-            if (data2 != null && (c1 = data.indexOf("*")) > -1)
-            {
-              if (c1 == 0 && c1 == data2.indexOf("*"))
-              {
-                reply = "BLC";
-              }
-              else
-              {
-                reply = "FASTA"; // possibly a bad choice - may be recognised as
-                // PIR
-              }
-              // otherwise can still possibly be a PIR file
-            }
-            else
-            {
-              reply = "FASTA";
-              // TODO : AMSA File is indicated if there is annotation in the
-              // FASTA file - but FASTA will automatically generate this at the
-              // mo.
-              if (!checkPIR)
-              {
-                break;
-              }
-            }
-          }
-          // final check for PIR content. require
-          // >P1;title\n<blah>\nterminated sequence to occur at least once.
-
-          // TODO the PIR/fasta ambiguity may be the use case that is needed to
-          // have
-          // a 'Parse as type XXX' parameter for the applet/application.
-          if (checkPIR)
-          {
-            String dta = null;
-            if (!starterm)
-            {
-              do
-              {
-                try
-                {
-                  dta = source.nextLine();
-                } catch (IOException ex)
-                {
-                }
-                ;
-                if (dta != null && dta.indexOf("*") > -1)
-                {
-                  starterm = true;
-                }
-              } while (dta != null && !starterm);
-            }
-            if (starterm)
-            {
-              reply = "PIR";
-              break;
-            }
-            else
-            {
-              reply = "FASTA"; // probably a bad choice!
-            }
-          }
-          // read as a FASTA (probably)
-          break;
-        }
-        if ((data.indexOf("<") > -1)) // possible Markup Language data i.e HTML,
-                                      // RNAML, XML
-        {
-          boolean identified = false;
-          do
-          {
-            if (data.matches("<(?i)html(\"[^\"]*\"|'[^']*'|[^'\">])*>"))
-            {
-              reply = HtmlFile.FILE_DESC;
-              identified = true;
-              break;
-            }
-
-            if (data.matches("<(?i)rnaml (\"[^\"]*\"|'[^']*'|[^'\">])*>"))
-            {
-              reply = "RNAML";
-              identified = true;
-              break;
-            }
-          } while ((data = source.nextLine()) != null);
-
-          if (identified)
-          {
-            break;
-          }
-        }
-
-        if (data.indexOf("{\"") > -1)
-        {
-          reply = JSONFile.FILE_DESC;
-          break;
-        }
         if ((data.length() < 1) || (data.indexOf("#") == 0))
         {
           lineswereskipped = true;
@@ -294,18 +160,87 @@ public class IdentifyFile
 
           break;
         }
+        else if (data.indexOf(">") > -1)
+        {
+          // FASTA, PIR file or BLC file
+          boolean checkPIR = false,starterm=false;
+          if ((data.indexOf(">P1;") > -1) || (data.indexOf(">DL;") > -1))
+          {
+            // watch for PIR file attributes
+            checkPIR = true;
+            reply = "PIR";
+          }
+          // could also be BLC file, read next line to confirm
+          data = source.nextLine();
 
+          if (data.indexOf(">") > -1)
+          {
+            reply = "BLC";
+          }
+          else
+          {
+            // Is this a single line BLC file?
+            String data1 = source.nextLine();
+            String data2 = source.nextLine();
+            if (checkPIR)
+            {
+              starterm = (data1!=null && data1.indexOf("*")>-1) || (data2!=null && data2.indexOf("*")>-1);
+            }
+            if (data2 != null && data.indexOf("*") > -1)
+            {
+              if (data.indexOf("*") == data2.indexOf("*"))
+              {
+                reply = "BLC";
+              }
+              // otherwise can still possibly be a PIR file
+            }
+            else
+            {
+              reply = "FASTA";
+              // TODO : AMSA File is indicated if there is annotation in the
+              // FASTA file - but FASTA will automatically generate this at the
+              // mo.
+              if (!checkPIR) {
+                break;
+              }
+            }
+          }
+          // final check for PIR content. require
+          // >P1;title\n<blah>\nterminated sequence to occur at least once.
+
+          // TODO the PIR/fasta ambiguity may be the use case that is needed to have
+          // a 'Parse as type XXX' parameter for the applet/application.
+          if (checkPIR)
+          {
+            String dta=null;
+            if (!starterm)
+            {
+              do {
+                try {
+                  dta = source.nextLine();
+                } catch(IOException ex) {};
+                if (dta!=null && dta.indexOf("*")>-1)
+                {
+                  starterm = true;
+                }
+              } while (dta!=null && !starterm);
+            }
+            if (starterm)
+            {
+              reply="PIR";
+              break;
+            } else {
+              reply="FASTA"; // probably a bad choice!
+            }
+          }
+          // read as a FASTA (probably)
+          break;
+        }
         else if (data.indexOf("HEADER") == 0 || data.indexOf("ATOM") == 0)
         {
           reply = "PDB";
           break;
         }
-        else if (data.matches("\\s*\\d+\\s+\\d+\\s*"))
-        {
-          reply = PhylipFile.FILE_DESC;
-          break;
-        }
-
         /*
          * // TODO comment out SimpleBLAST identification for Jalview 2.4.1 else
          * if (!lineswereskipped && data.indexOf("BLAST")<4) { reply =
@@ -351,7 +286,6 @@ public class IdentifyFile
 
   public static void main(String[] args)
   {
-
     for (int i = 0; args != null && i < args.length; i++)
     {
       IdentifyFile ider = new IdentifyFile();

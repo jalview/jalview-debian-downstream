@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /**
  * ReplaceRule is a singly linked list of Objects which describe how to replace

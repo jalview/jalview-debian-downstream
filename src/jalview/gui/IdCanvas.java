@@ -1,38 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.datamodel.SequenceI;
+import java.awt.*;
+import java.awt.image.*;
+import javax.swing.*;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.util.List;
-
-import javax.swing.JPanel;
+import jalview.datamodel.*;
 
 /**
  * DOCUMENT ME!
@@ -58,7 +47,7 @@ public class IdCanvas extends JPanel
 
   boolean fastPaint = false;
 
-  List<SequenceI> searchResults;
+  java.util.Vector searchResults;
 
   FontMetrics fm;
 
@@ -66,7 +55,7 @@ public class IdCanvas extends JPanel
 
   AnnotationPanel ap;
 
-  private Font idfont;
+  Font idfont;
 
   /**
    * Creates a new IdCanvas object.
@@ -86,8 +75,6 @@ public class IdCanvas extends JPanel
    * 
    * @param gg
    *          DOCUMENT ME!
-   * @param hiddenRows
-   *          true - check and display hidden row marker if need be
    * @param s
    *          DOCUMENT ME!
    * @param i
@@ -97,12 +84,12 @@ public class IdCanvas extends JPanel
    * @param ypos
    *          DOCUMENT ME!
    */
-  public void drawIdString(Graphics2D gg, boolean hiddenRows, SequenceI s,
-          int i, int starty, int ypos)
+  public void drawIdString(Graphics2D gg, SequenceI s, int i, int starty,
+          int ypos)
   {
     int xPos = 0;
     int panelWidth = getWidth();
-    int charHeight = av.getCharHeight();
+    int charHeight = av.charHeight;
 
     if ((searchResults != null) && searchResults.contains(s))
     {
@@ -127,7 +114,7 @@ public class IdCanvas extends JPanel
       gg.setColor(Color.black);
     }
 
-    if (av.isRightAlignIds())
+    if (av.rightAlignIds)
     {
       xPos = panelWidth
               - fm.stringWidth(s.getDisplayId(av.getShowJVSuffix())) - 4;
@@ -136,7 +123,7 @@ public class IdCanvas extends JPanel
     gg.drawString(s.getDisplayId(av.getShowJVSuffix()), xPos,
             (((i - starty + 1) * charHeight) + ypos) - (charHeight / 5));
 
-    if (hiddenRows)
+    if (av.hasHiddenRows && av.showHiddenMarkers)
     {
       drawMarker(i, starty, ypos);
     }
@@ -158,8 +145,7 @@ public class IdCanvas extends JPanel
       return;
     }
 
-    gg.copyArea(0, 0, getWidth(), imgHeight, 0,
-            -vertical * av.getCharHeight());
+    gg.copyArea(0, 0, getWidth(), imgHeight, 0, -vertical * av.charHeight);
 
     int ss = av.startSeq;
     int es = av.endSeq;
@@ -175,7 +161,7 @@ public class IdCanvas extends JPanel
       }
       else
       {
-        transY = imgHeight - (vertical * av.getCharHeight());
+        transY = imgHeight - (vertical * av.charHeight);
       }
     }
     else if (vertical < 0)
@@ -220,7 +206,7 @@ public class IdCanvas extends JPanel
     int oldHeight = imgHeight;
 
     imgHeight = getHeight();
-    imgHeight -= (imgHeight % av.getCharHeight());
+    imgHeight -= (imgHeight % av.charHeight);
 
     if (imgHeight < 1)
     {
@@ -254,17 +240,17 @@ public class IdCanvas extends JPanel
    */
   void drawIds(int starty, int endy)
   {
-    if (av.isSeqNameItalics())
+    if (av.seqNameItalics)
     {
-      setIdfont(new Font(av.getFont().getName(), Font.ITALIC, av.getFont()
-              .getSize()));
+      idfont = new Font(av.getFont().getName(), Font.ITALIC, av.getFont()
+              .getSize());
     }
     else
     {
-      setIdfont(av.getFont());
+      idfont = av.getFont();
     }
 
-    gg.setFont(getIdfont());
+    gg.setFont(idfont);
     fm = gg.getFontMetrics();
 
     if (av.antiAlias)
@@ -276,22 +262,19 @@ public class IdCanvas extends JPanel
     Color currentColor = Color.white;
     Color currentTextColor = Color.black;
 
-    final boolean doHiddenCheck = av.isDisplayReferenceSeq()
-            || av.hasHiddenRows(), hiddenRows = av.hasHiddenRows();
-
     if (av.getWrapAlignment())
     {
-      int maxwidth = av.getAlignment().getWidth();
-      int alheight = av.getAlignment().getHeight();
+      int maxwidth = av.alignment.getWidth();
+      int alheight = av.alignment.getHeight();
 
-      if (av.hasHiddenColumns())
+      if (av.hasHiddenColumns)
       {
         maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
       }
 
       int annotationHeight = 0;
 
-      if (av.isShowAnnotation())
+      if (av.showAnnotation)
       {
         if (ap == null)
         {
@@ -305,13 +288,13 @@ public class IdCanvas extends JPanel
         }
       }
 
-      int hgap = av.getCharHeight();
-      if (av.getScaleAboveWrapped())
+      int hgap = av.charHeight;
+      if (av.scaleAboveWrapped)
       {
-        hgap += av.getCharHeight();
+        hgap += av.charHeight;
       }
 
-      int cHeight = alheight * av.getCharHeight() + hgap + annotationHeight;
+      int cHeight = alheight * av.charHeight + hgap + annotationHeight;
 
       int rowSize = av.getEndRes() - av.getStartRes();
 
@@ -321,24 +304,24 @@ public class IdCanvas extends JPanel
       {
         for (int i = starty; i < alheight; i++)
         {
-          SequenceI s = av.getAlignment().getSequenceAt(i);
-          if (doHiddenCheck)
+          SequenceI s = av.alignment.getSequenceAt(i);
+          if (av.hasHiddenRows)
           {
             setHiddenFont(s);
           }
           else
           {
-            gg.setFont(getIdfont());
+            gg.setFont(idfont);
           }
 
-          drawIdString(gg, hiddenRows, s, i, 0, ypos);
+          drawIdString(gg, s, i, 0, ypos);
         }
 
-        if (labels != null && av.isShowAnnotation())
+        if (labels != null && av.showAnnotation)
         {
-          gg.translate(0, ypos + (alheight * av.getCharHeight()));
+          gg.translate(0, ypos + (alheight * av.charHeight));
           labels.drawComponent(gg, getWidth());
-          gg.translate(0, -ypos - (alheight * av.getCharHeight()));
+          gg.translate(0, -ypos - (alheight * av.charHeight));
         }
       }
     }
@@ -355,14 +338,14 @@ public class IdCanvas extends JPanel
       // Now draw the id strings
       for (int i = starty; i < endy; i++)
       {
-        sequence = av.getAlignment().getSequenceAt(i);
+        sequence = av.alignment.getSequenceAt(i);
 
         if (sequence == null)
         {
           continue;
         }
 
-        if (doHiddenCheck)
+        if (av.hasHiddenRows)
         {
           setHiddenFont(sequence);
         }
@@ -388,23 +371,23 @@ public class IdCanvas extends JPanel
 
         gg.setColor(currentColor);
 
-        gg.fillRect(0, (i - starty) * av.getCharHeight(), getWidth(),
-                av.getCharHeight());
+        gg.fillRect(0, (i - starty) * av.charHeight, getWidth(),
+                av.charHeight);
 
         gg.setColor(currentTextColor);
 
         String string = sequence.getDisplayId(av.getShowJVSuffix());
 
-        if (av.isRightAlignIds())
+        if (av.rightAlignIds)
         {
           xPos = panelWidth - fm.stringWidth(string) - 4;
         }
 
         gg.drawString(string, xPos,
-                (((i - starty) * av.getCharHeight()) + av.getCharHeight())
-                        - (av.getCharHeight() / 5));
+                (((i - starty) * av.charHeight) + av.charHeight)
+                        - (av.charHeight / 5));
 
-        if (hiddenRows)
+        if (av.hasHiddenRows && av.showHiddenMarkers)
         {
           drawMarker(i, starty, 0);
         }
@@ -417,7 +400,7 @@ public class IdCanvas extends JPanel
   void drawMarker(int i, int starty, int yoffset)
   {
 
-    SequenceI[] hseqs = av.getAlignment().getHiddenSequences().hiddenSequences;
+    SequenceI[] hseqs = av.alignment.getHiddenSequences().hiddenSequences;
     // Use this method here instead of calling hiddenSeq adjust
     // 3 times.
     int hSize = hseqs.length;
@@ -452,24 +435,25 @@ public class IdCanvas extends JPanel
     if (below)
     {
       gg.fillPolygon(
-              new int[] { getWidth() - av.getCharHeight(),
-                  getWidth() - av.getCharHeight(), getWidth() },
-              new int[] {
-                  (i - starty) * av.getCharHeight() + yoffset,
-                  (i - starty) * av.getCharHeight() + yoffset
-                          + av.getCharHeight() / 4,
-                  (i - starty) * av.getCharHeight() + yoffset }, 3);
+              new int[]
+              { getWidth() - av.charHeight, getWidth() - av.charHeight,
+                  getWidth() }, new int[]
+              {
+                  (i - starty) * av.charHeight + yoffset,
+                  (i - starty) * av.charHeight + yoffset + av.charHeight
+                          / 4, (i - starty) * av.charHeight + yoffset }, 3);
     }
     if (above)
     {
       gg.fillPolygon(
-              new int[] { getWidth() - av.getCharHeight(),
-                  getWidth() - av.getCharHeight(), getWidth() },
-              new int[] {
-                  (i - starty + 1) * av.getCharHeight() + yoffset,
-                  (i - starty + 1) * av.getCharHeight() + yoffset
-                          - av.getCharHeight() / 4,
-                  (i - starty + 1) * av.getCharHeight() + yoffset }, 3);
+              new int[]
+              { getWidth() - av.charHeight, getWidth() - av.charHeight,
+                  getWidth() }, new int[]
+              {
+                  (i - starty + 1) * av.charHeight + yoffset,
+                  (i - starty + 1) * av.charHeight + yoffset
+                          - av.charHeight / 4,
+                  (i - starty + 1) * av.charHeight + yoffset }, 3);
 
     }
   }
@@ -479,35 +463,26 @@ public class IdCanvas extends JPanel
     Font bold = new Font(av.getFont().getName(), Font.BOLD, av.getFont()
             .getSize());
 
-    if (av.isHiddenRepSequence(seq))
+    if (av.hiddenRepSequences != null
+            && av.hiddenRepSequences.containsKey(seq))
     {
       gg.setFont(bold);
     }
     else
     {
-      gg.setFont(getIdfont());
+      gg.setFont(idfont);
     }
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param list
+   * @param found
    *          DOCUMENT ME!
    */
-  public void setHighlighted(List<SequenceI> list)
+  public void setHighlighted(java.util.Vector found)
   {
-    searchResults = list;
+    searchResults = found;
     repaint();
-  }
-
-  public Font getIdfont()
-  {
-    return idfont;
-  }
-
-  public void setIdfont(Font idfont)
-  {
-    this.idfont = idfont;
   }
 }

@@ -1,35 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.schemes;
 
-import jalview.analysis.AAFrequency;
-import jalview.analysis.Conservation;
-import jalview.datamodel.AnnotatedCollectionI;
-import jalview.datamodel.SequenceCollectionI;
-import jalview.datamodel.SequenceI;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.Color;
-import java.util.Hashtable;
-import java.util.Map;
+import java.awt.*;
+
+import jalview.analysis.*;
 
 /**
  * DOCUMENT ME!
@@ -39,7 +31,6 @@ import java.util.Map;
  */
 public class ResidueColourScheme implements ColourSchemeI
 {
-  final int[] symbolIndex;
 
   boolean conservationColouring = false;
 
@@ -64,37 +55,22 @@ public class ResidueColourScheme implements ColourSchemeI
   /**
    * Creates a new ResidueColourScheme object.
    * 
-   * @param final int[] index table into colors (ResidueProperties.naIndex or
-   *        ResidueProperties.aaIndex)
    * @param colors
-   *          colours for symbols in sequences
+   *          DOCUMENT ME!
    * @param threshold
-   *          threshold for conservation shading
+   *          DOCUMENT ME!
    */
-  public ResidueColourScheme(int[] aaOrnaIndex, Color[] colours,
-          int threshold)
+  public ResidueColourScheme(Color[] colours, int threshold)
   {
-    symbolIndex = aaOrnaIndex;
     this.colors = colours;
     this.threshold = threshold;
   }
 
   /**
-   * Creates a new ResidueColourScheme object with a lookup table for indexing
-   * the colour map
-   */
-  public ResidueColourScheme(int[] aaOrNaIndex)
-  {
-    symbolIndex = aaOrNaIndex;
-  }
-
-  /**
-   * Creates a new ResidueColourScheme object - default constructor for
-   * non-sequence dependent colourschemes
+   * Creates a new ResidueColourScheme object.
    */
   public ResidueColourScheme()
   {
-    symbolIndex = null;
   }
 
   /**
@@ -102,18 +78,17 @@ public class ResidueColourScheme implements ColourSchemeI
    */
   public Color findColour(char c)
   {
-    return colors == null ? Color.white : colors[symbolIndex[c]];
+    return colors == null ? Color.white
+            : colors[ResidueProperties.aaIndex[c]];
   }
 
-  @Override
-  public Color findColour(char c, int j, SequenceI seq)
+  public Color findColour(char c, int j)
   {
     Color currentColour;
 
-    if (colors != null && symbolIndex != null && (threshold == 0)
-            || aboveThreshold(c, j))
+    if ((threshold == 0) || aboveThreshold(c, j))
     {
-      currentColour = colors[symbolIndex[c]];
+      currentColour = colors[ResidueProperties.aaIndex[c]];
     }
     else
     {
@@ -196,12 +171,6 @@ public class ResidueColourScheme implements ColourSchemeI
   public boolean conservationApplied()
   {
     return conservationColouring;
-  }
-
-  @Override
-  public void setConservationApplied(boolean conservationApplied)
-  {
-    conservationColouring = conservationApplied;
   }
 
   public void setConservationInc(int i)
@@ -309,24 +278,4 @@ public class ResidueColourScheme implements ColourSchemeI
     return currentColour;
   }
 
-  @Override
-  public void alignmentChanged(AnnotatedCollectionI alignment,
-          Map<SequenceI, SequenceCollectionI> hiddenReps)
-  {
-  }
-
-  @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
-  {
-    try
-    {
-      return getClass().newInstance();
-    } catch (Exception q)
-    {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_cannot_duplicate_colour_scheme",
-              new String[] { getClass().getName() }), q);
-    }
-  }
 }

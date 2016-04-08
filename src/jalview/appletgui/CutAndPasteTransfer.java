@@ -1,54 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.analysis.AlignmentUtils;
-import jalview.api.ComplexAlignFile;
-import jalview.bin.JalviewLite;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SequenceI;
-import jalview.io.AnnotationFile;
-import jalview.io.AppletFormatAdapter;
-import jalview.io.FileParse;
-import jalview.io.IdentifyFile;
-import jalview.io.NewickFile;
-import jalview.io.TCoffeeScoreFile;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.TCoffeeColourScheme;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Dialog;
-import java.awt.Font;
-import java.awt.Frame;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.TextArea;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import jalview.datamodel.*;
+import jalview.io.*;
 
 public class CutAndPasteTransfer extends Panel implements ActionListener,
         MouseListener
@@ -59,11 +32,9 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
 
   boolean annotationImport = false;
 
-  SequenceI seq;
+  Sequence seq;
 
   AlignFrame alignFrame;
-
-  FileParse source = null;
 
   public CutAndPasteTransfer(boolean forImport, AlignFrame alignFrame)
   {
@@ -93,10 +64,10 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     textarea.setText(text);
   }
 
-  public void setPDBImport(SequenceI seq)
+  public void setPDBImport(Sequence seq)
   {
     this.seq = seq;
-    accept.setLabel(MessageManager.getString("action.accept"));
+    accept.setLabel("Accept");
     addSequences.setVisible(false);
     pdbImport = true;
   }
@@ -104,14 +75,14 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   public void setTreeImport()
   {
     treeImport = true;
-    accept.setLabel(MessageManager.getString("action.accept"));
+    accept.setLabel("Accept");
     addSequences.setVisible(false);
   }
 
   public void setAnnotationImport()
   {
     annotationImport = true;
-    accept.setLabel(MessageManager.getString("action.accept"));
+    accept.setLabel("Accept");
     addSequences.setVisible(false);
   }
 
@@ -152,27 +123,83 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
 
     if (pdbImport)
     {
-      openPdbViewer(text);
+      PDBEntry pdb = new PDBEntry();
+      pdb.setFile(text);
+
+      if (alignFrame.alignPanel.av.applet.jmolAvailable)
+        new jalview.appletgui.AppletJmol(pdb, new Sequence[]
+        { seq }, null, alignFrame.alignPanel, AppletFormatAdapter.PASTE);
+      else
+
+        new MCview.AppletPDBViewer(pdb, new Sequence[]
+        { seq }, null, alignFrame.alignPanel, AppletFormatAdapter.PASTE);
 
     }
     else if (treeImport)
     {
-      if (!loadTree())
+      try
       {
+        jalview.io.NewickFile fin = new jalview.io.NewickFile(
+                textarea.getText(), "Paste");
+
+        fin.parse();
+        if (fin.getTree() != null)
+        {
+          alignFrame.loadTree(fin, "Pasted tree file");
+        }
+
+      } catch (Exception ex)
+      {
+        textarea.setText("Could not parse Newick file!\n" + ex);
         return;
       }
     }
     else if (annotationImport)
     {
-      loadAnnotations();
+      if (new AnnotationFile().readAnnotationFile(
+              alignFrame.viewport.alignment, textarea.getText(),
+              jalview.io.AppletFormatAdapter.PASTE))
+      {
+        alignFrame.alignPanel.fontChanged();
+        alignFrame.alignPanel.setScrollValues(0, 0);
+
+      }
+      else
+      {
+        alignFrame.parseFeaturesFile(textarea.getText(),
+                jalview.io.AppletFormatAdapter.PASTE);
+      }
     }
     else if (alignFrame != null)
     {
-      loadAlignment(text, newWindow, alignFrame.getAlignViewport());
+      Alignment al = null;
+
+      String format = new IdentifyFile().Identify(text,
+              AppletFormatAdapter.PASTE);
+      try
+      {
+        al = new AppletFormatAdapter().readFile(text,
+                AppletFormatAdapter.PASTE, format);
+      } catch (java.io.IOException ex)
+      {
+        ex.printStackTrace();
+      }
+
+      if (al != null)
+      {
+        if (newWindow)
+        {
+          AlignFrame af = new AlignFrame(al, alignFrame.viewport.applet,
+                  "Cut & Paste input - " + format, false);
+          af.statusBar.setText("Successfully pasted alignment file");
+        }
+        else
+        {
+          alignFrame.addSequences(al.getSequencesArray());
+        }
+      }
     }
 
-    // TODO: dialog should indicate if data was parsed correctly or not - see
-    // JAL-1102
     if (this.getParent() instanceof Frame)
     {
       ((Frame) this.getParent()).setVisible(false);
@@ -180,259 +207,6 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     else
     {
       ((Dialog) this.getParent()).setVisible(false);
-    }
-  }
-
-  /**
-   * Parses text as Newick Tree format, and loads on to the alignment. Returns
-   * true if successful, else false.
-   */
-  protected boolean loadTree()
-  {
-    try
-    {
-      NewickFile fin = new NewickFile(textarea.getText(), "Paste");
-
-      fin.parse();
-      if (fin.getTree() != null)
-      {
-        alignFrame.loadTree(fin, "Pasted tree file");
-        return true;
-      }
-    } catch (Exception ex)
-    {
-      // TODO: JAL-1102 - should have a warning message in dialog, not simply
-      // overwrite the broken input data with the exception
-      textarea.setText(MessageManager.formatMessage(
-              "label.could_not_parse_newick_file",
-              new Object[] { ex.getMessage() }));
-      return false;
-    }
-    return false;
-  }
-
-  /**
-   * Parse text as an alignment file and add to the current or a new window.
-   * 
-   * @param text
-   * @param newWindow
-   */
-  protected void loadAlignment(String text, boolean newWindow,
-          AlignViewport viewport)
-  {
-    AlignmentI al = null;
-
-    String format = new IdentifyFile().Identify(text,
-            AppletFormatAdapter.PASTE);
-    AppletFormatAdapter afa = new AppletFormatAdapter(alignFrame.alignPanel);
-    try
-    {
-      al = afa.readFile(text, AppletFormatAdapter.PASTE, format);
-      source = afa.getAlignFile();
-    } catch (java.io.IOException ex)
-    {
-      ex.printStackTrace();
-    }
-
-    if (al != null)
-    {
-      al.setDataset(null); // set dataset on alignment/sequences
-
-      /*
-       * SplitFrame option dependent on applet parameter for now.
-       */
-      boolean allowSplitFrame = alignFrame.viewport.applet
-              .getDefaultParameter("enableSplitFrame", false);
-      if (allowSplitFrame && openSplitFrame(al, format))
-      {
-        return;
-      }
-      if (newWindow)
-      {
-        AlignFrame af;
-
-        if (source instanceof ComplexAlignFile)
-        {
-          ColumnSelection colSel = ((ComplexAlignFile) source)
-                  .getColumnSelection();
-          SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
-                  .getHiddenSequences();
-          boolean showSeqFeatures = ((ComplexAlignFile) source)
-                  .isShowSeqFeatures();
-          ColourSchemeI cs = ((ComplexAlignFile) source).getColourScheme();
-          af = new AlignFrame(al, hiddenSeqs, colSel,
-                  alignFrame.viewport.applet, "Cut & Paste input - "
-                          + format, false);
-          af.getAlignViewport().setShowSequenceFeatures(showSeqFeatures);
-          af.changeColour(cs);
-        }
-        else
-        {
-          af = new AlignFrame(al, alignFrame.viewport.applet,
-                  "Cut & Paste input - " + format, false);
-        }
-
-        af.statusBar
-                .setText(MessageManager
-                        .getString("label.successfully_pasted_annotation_to_alignment"));
-      }
-      else
-      {
-        alignFrame.addSequences(al.getSequencesArray());
-        alignFrame.statusBar.setText(MessageManager
-                .getString("label.successfully_pasted_alignment_file"));
-      }
-    }
-  }
-
-  /**
-   * Check whether the new alignment could be mapped to the current one as
-   * cDNA/protein, if so offer the option to open as split frame view. Returns
-   * true if a split frame view is opened, false if not.
-   * 
-   * @param al
-   * @return
-   */
-  protected boolean openSplitFrame(AlignmentI al, String format)
-  {
-    final AlignmentI thisAlignment = this.alignFrame.getAlignViewport()
-            .getAlignment();
-    if (thisAlignment.isNucleotide() == al.isNucleotide())
-    {
-      // both nucleotide or both protein
-      return false;
-    }
-    AlignmentI protein = thisAlignment.isNucleotide() ? al : thisAlignment;
-    AlignmentI dna = thisAlignment.isNucleotide() ? thisAlignment : al;
-    boolean mapped = AlignmentUtils.mapProteinToCdna(protein, dna);
-    if (!mapped)
-    {
-      return false;
-    }
-
-    /*
-     * A mapping is possible; ask user if they want a split frame.
-     */
-    String title = MessageManager.getString("label.open_split_window");
-    final JVDialog dialog = new JVDialog((Frame) this.getParent(), title,
-            true, 100, 400);
-    dialog.ok.setLabel(MessageManager.getString("action.yes"));
-    dialog.cancel.setLabel(MessageManager.getString("action.no"));
-    Panel question = new Panel(new BorderLayout());
-    final String text = MessageManager
-            .getString("label.open_split_window?");
-    question.add(new Label(text, Label.CENTER), BorderLayout.CENTER);
-    dialog.setMainPanel(question);
-    dialog.setVisible(true);
-    dialog.toFront();
-
-    if (!dialog.accept)
-    {
-      return false;
-    }
-
-    /*
-     * Open SplitFrame with DNA above and protein below, including the alignment
-     * from textbox and a copy of the original.
-     */
-    final JalviewLite applet = this.alignFrame.viewport.applet;
-    AlignFrame copyFrame = new AlignFrame(
-            this.alignFrame.viewport.getAlignment(), applet,
-            alignFrame.getTitle(), false, false);
-    AlignFrame newFrame = new AlignFrame(al, alignFrame.viewport.applet,
-            "Cut & Paste input - " + format, false, false);
-    AlignFrame dnaFrame = al.isNucleotide() ? newFrame : copyFrame;
-    AlignFrame proteinFrame = al.isNucleotide() ? copyFrame : newFrame;
-    SplitFrame sf = new SplitFrame(dnaFrame, proteinFrame);
-    sf.addToDisplay(false, applet);
-    return true;
-  }
-
-  /**
-   * Parse the text as a TCoffee score file, if successful add scores as
-   * alignment annotations.
-   */
-  protected void loadAnnotations()
-  {
-    TCoffeeScoreFile tcf = null;
-    try
-    {
-      tcf = new TCoffeeScoreFile(textarea.getText(),
-              jalview.io.AppletFormatAdapter.PASTE);
-      if (tcf.isValid())
-      {
-        if (tcf.annotateAlignment(alignFrame.viewport.getAlignment(), true))
-        {
-          alignFrame.tcoffeeColour.setEnabled(true);
-          alignFrame.alignPanel.fontChanged();
-          alignFrame.changeColour(new TCoffeeColourScheme(
-                  alignFrame.viewport.getAlignment()));
-          alignFrame.statusBar
-                  .setText(MessageManager
-                          .getString("label.successfully_pasted_tcoffee_scores_to_alignment"));
-        }
-        else
-        {
-          // file valid but didn't get added to alignment for some reason
-          alignFrame.statusBar.setText(MessageManager.formatMessage(
-                  "label.failed_add_tcoffee_scores",
-                  new Object[] { (tcf.getWarningMessage() != null ? tcf
-                          .getWarningMessage() : "") }));
-        }
-      }
-      else
-      {
-        tcf = null;
-      }
-    } catch (Exception x)
-    {
-      tcf = null;
-    }
-    if (tcf == null)
-    {
-      if (new AnnotationFile().annotateAlignmentView(alignFrame.viewport,
-              textarea.getText(), jalview.io.AppletFormatAdapter.PASTE))
-      {
-        alignFrame.alignPanel.fontChanged();
-        alignFrame.alignPanel.setScrollValues(0, 0);
-        alignFrame.statusBar
-                .setText(MessageManager
-                        .getString("label.successfully_pasted_annotation_to_alignment"));
-
-      }
-      else
-      {
-        if (!alignFrame.parseFeaturesFile(textarea.getText(),
-                jalview.io.AppletFormatAdapter.PASTE))
-        {
-          alignFrame.statusBar
-                  .setText(MessageManager
-                          .getString("label.couldnt_parse_pasted_text_as_valid_annotation_feature_GFF_tcoffee_file"));
-        }
-      }
-    }
-  }
-
-  /**
-   * Open a Jmol viewer (if available), failing that the built-in PDB viewer,
-   * passing the input text as the PDB file data.
-   * 
-   * @param text
-   */
-  protected void openPdbViewer(String text)
-  {
-    PDBEntry pdb = new PDBEntry();
-    pdb.setFile(text);
-
-    if (alignFrame.alignPanel.av.applet.jmolAvailable)
-    {
-      new jalview.appletgui.AppletJmol(pdb, new SequenceI[] { seq }, null,
-              alignFrame.alignPanel, AppletFormatAdapter.PASTE);
-    }
-    else
-    {
-      new MCview.AppletPDBViewer(pdb, new SequenceI[] { seq }, null,
-              alignFrame.alignPanel, AppletFormatAdapter.PASTE);
     }
   }
 
@@ -464,8 +238,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   private void jbInit() throws Exception
   {
     textarea.setFont(new java.awt.Font("Monospaced", Font.PLAIN, 10));
-    textarea.setText(MessageManager
-            .getString("label.paste_your_alignment_file"));
+    textarea.setText("Paste your alignment file here");
     textarea.addMouseListener(this);
     this.setLayout(borderLayout1);
     accept.addActionListener(this);
@@ -480,8 +253,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
 
   public void mousePressed(MouseEvent evt)
   {
-    if (textarea.getText().startsWith(
-            MessageManager.getString("label.paste_your")))
+    if (textarea.getText().startsWith("Paste your"))
     {
       textarea.setText("");
     }

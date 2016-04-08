@@ -1,199 +1,192 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- -->
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
 <head>
 <meta name="generator" content="HTML Tidy, see www.w3.org">
 <title>Sequence Features File</title>
 </head>
 <body>
-  <p>
-    <strong>Sequence Features File</strong>
-  <p>
-  <p>The Sequence features file (which used to be known as the
-    "Groups file" prior to version 2.08) is a simple way of getting your
-    own sequence annotations into Jalview. It was introduced to allow
-    sequence features to be rendered in the Jalview applet, and so is
-    intentionally lightweight and minimal because the applet is often
-    used in situations where data file size must be kept to a minimum,
-    and no XML parser is available.</p>
+<p><strong>Sequence Features File</strong><p>
+<p>
+The Sequence features file (which used to be known as the
+"Groups file" prior to version 2.08) is a simple way of getting
+your own sequence annotations into Jalview. It was introduced to
+allow sequence features to be rendered in the Jalview applet, and
+so is intentionally lightweight and minimal because the applet is
+often used in situations where data file size must be kept to a
+minimum, and no XML parser is available.</p>
 
-  <p>
-    Features files are imported into Jalview in the following ways:<br>
-  <ul>
-    <li>from the command line <pre>
+<p>Features files are imported into Jalview in the following
+ways:<br>
+
+<ul>
+<li>from the command line
+
+<pre>
 <strong> -features &lt;<em>Features filename</em>&gt;</strong>
 </pre>
-    </li>
+</li>
 
-    <li>Dragging a features file onto an alignment window</li>
+<li>Dragging a features file onto an alignment window</li>
 
-    <li>Via the &quot;Load Features / Annotations&quot; entry in
-      the <strong>File</strong> menu of an alignment window.
-    </li>
-  </ul>
+<li>Via the &quot;Load Features / Annotations&quot; entry in the
+<strong>File</strong> menu of an alignment window.</li>
+</ul>
 
-  </p>
+</p>
 
-  <p>
-    <strong>Sequence Features File Format</strong>
-  </p>
-  <p>
-    A features file is a simple ASCII text file, where each line
-    contains tab separated text fields. <strong>No comments are
-      allowed</strong>.
-  </p>
-  <p>The first set of lines contain type definitions:
-  <pre>
+<p><strong>Sequence Features File Format</strong></p>
+<p>
+A features file is a simple ASCII text file, where each line
+contains tab separated text fields. <strong>No comments are
+allowed</strong>.</p>
+<p>
+The first set of lines contain type definitions:
+
+<pre>
 <strong><em>Feature label</em>&#9;<em>Feature Colour</em>
 <!-- &#9;<em>Feature links</em>  --></strong>
 </pre>
 
-  A feature type has a text label, and a colour specification. This can
-  be either:
+A feature type has a text label, and a colour specification. This
+can be either: 
 
-  <ul>
-    <li>A single colour specified as either a red,green,blue 24 bit
-      triplet in hexadecimal (eg. 00ff00) or as comma separated numbers
-      (ranging from 0 to 255))</li>
+<ul>
+<li>A single colour specified as either a red,green,blue 24 bit
+triplet in hexadecimal (eg. 00ff00) or as comma separated numbers
+(ranging from 0 to 255))</li>
 
-    <li>A <a href="featureschemes.html">graduated colourscheme</a>
-      specified as a "|" separated list of fields: <pre>
+<li>A <a href="featureschemes.html">graduated colourscheme</a>
+specified as a "|" separated list of fields:
+
+<pre>
 [label|]&lt;mincolor&gt;|&lt;maxcolor&gt;|[absolute|]&lt;minvalue&gt;|&lt;maxvalue&gt;[|&lt;thresholdtype&gt;|[&lt;threshold value&gt;]]
-</pre> The fields are as follows:
+</pre>
 
-      <ul>
-        <li><em>label</em><br> Indicate that the feature
-          description should be used to create a colour for features of
-          this type.<br> <em>Note: if no threshold value is
-            needed then the final '|' may be ommitted.<br> This
-            keyword was added in Jalview 2.6
-        </em></li>
+The fields are as follows:
 
-        <li><em>mincolor</em> and <em>maxcolor</em><br> Colour
-          triplets specified as hexadecimal or comma separated values
-          (may be left blank for a <em>label</em> style colourscheme,
-          but remember to specify the remaining fields)</li>
+<ul>
+<li><em>label</em><br>
+ Indicate that the feature description should be used to create a
+colour for features of this type.<br>
+<em>Note: if no threshold value is needed then the final '|' may be
+ommitted.<br>
+This keyword was added in Jalview 2.6</em></li>
 
-        <li><em>absolute</em><br> An optional switch
-          indicating that the <em>minvalue</em> and <em>maxvalue</em>
-          parameters should be left as is, rather than rescaled
-          according to the range of scores for this feature type.</li>
+<li><em>mincolor</em> and <em>maxcolor</em><br>
+ Colour triplets specified as hexadecimal or comma separated values
+(may be left blank for a <em>label</em> style colourscheme, but
+remember to specify the remaining fields)</li>
 
-        <li><em>minvalue</em> and <em>maxvalue</em><br>
-          Minimum and maximum values defining the range of scores for
-          which the colour range will be defined over. If minvalue is
-          greater than maxvalue then the linear mapping will have
-          negative gradient.</li>
+<li><em>absolute</em><br>
+ An optional switch indicating that the <em>minvalue</em> and
+<em>maxvalue</em> parameters should be left as is, rather than
+rescaled according to the range of scores for this feature
+type.</li>
 
-        <li><em>thresholdtype</em><br> Either
-          &quot;none&quot;, &quot;below&quot;, or &quot;above&quot;. <em>below</em>
-          and <em>above</em> require an additional <em>threshold
-            value</em> which is used to control the display of features with
-          a score either below or above the value.</li>
-      </ul>
-    </li>
-  </ul>
-  </p>
+<li><em>minvalue</em> and <em>maxvalue</em><br>
+ Minimum and maximum values defining the range of scores for which
+the colour range will be defined over. If minvalue is greater than
+maxvalue then the linear mapping will have negative gradient.</li>
 
-  <p>The remaining lines in the file are the sequence annotation
-    definitions, where the now defined features are attached to regions
-    on particular sequences. Each feature can optionally include some
-    descriptive text which is displayed in a tooltip when the mouse is
-    near the feature on that sequence (and can also be used to generate
-    a colour the feature).</p>
+<li><em>thresholdtype</em><br>
+ Either &quot;none&quot;, &quot;below&quot;, or &quot;above&quot;. <em>below</em> and
+<em>above</em> require an additional <em>threshold value</em> which
+is used to control the display of features with a score either
+below or above the value.</li>
+</ul>
+</li>
+</ul>
+</p>
 
-  <p>
-    If your sequence annotation is already available in GFF Format (see
-    <a href="http://www.sanger.ac.uk/resources/software/gff/spec.html">http://www.sanger.ac.uk/resources/software/gff/spec.html</a>),
-    then you can leave it as is, after first adding a line containing
-    only 'GFF' after any Jalview feature colour definitions (<em>this
-      mixed format capability was added in Jalview 2.6</em>). Alternately,
-    you can use Jalview's own sequence feature annotation format, which
-    additionally allows HTML and URLs to be directly attached to each
-    piece of annotation.
-  </p>
+<p>The remaining lines in the file are the sequence annotation
+definitions, where the now defined features are attached to regions
+on particular sequences. Each feature can optionally include some descriptive text
+which is displayed in a tooltip when the mouse is near the feature on that
+sequence (and can also be used to generate a colour the feature).</p>
 
-  <p>
-    <strong>Jalview's sequence feature annotation format</strong>
-  </p>
-  <p>Each feature is specified as a tab-separated series of columns
-    as defined below:
-  <pre>
+<p>If your sequence annotation is already available in GFF Format (see <a href="http://www.sanger.ac.uk/resources/software/gff/spec.html">http://www.sanger.ac.uk/resources/software/gff/spec.html</a>),
+then you can leave it as is, after first adding a line containing
+only 'GFF' after any Jalview feature colour definitions (<em>this mixed format capability was added in Jalview 2.6</em>). Alternately, you can use Jalview's own sequence feature
+annotation format, which additionally allows HTML and URLs to be
+directly attached to each piece of annotation.</p>
+
+<p><strong>Jalview's sequence feature annotation format</strong></p>
+<p>
+Each feature is specified as a tab-separated series of columns as defined below:
+<pre>
 <em>description</em>&#9;<em>sequenceId</em>&#9;<em>sequenceIndex</em>&#9;<em>start</em>&#9;<em>end</em>&#9;<em>featureType</em>&#9;<em>score (optional)</em>
 </pre>
 
-  This format allows two alternate ways of referring to a sequence,
-  either by its text ID, or its index in an associated alignment.
-  Normally, sequence features are associated with sequences rather than
-  alignments, and the sequenceIndex field is given as &quot;-1&quot;. In
-  order to specify a sequence by its index in a particular alignment,
-  the sequenceId should be given as &quot;ID_NOT_SPECIFIED&quot;,
-  otherwise the sequenceId field will be used in preference to the
-  sequenceIndex field.
-  </p>
+This format allows two alternate ways of referring to a sequence, either by
+its text ID, or its index in an associated alignment. Normally, sequence features are associated with sequences rather
+than alignments, and the sequenceIndex field is given as &quot;-1&quot;. In
+order to specify a sequence by its index in a particular alignment,
+the sequenceId should be given as &quot;ID_NOT_SPECIFIED&quot;, otherwise the
+sequenceId field will be used in preference to the sequenceIndex
+field.
+</p>
+ 
 
+<p>The description may contain simple HTML document body tags if
+enclosed by &quot;&lt;html&gt;&lt;/html&gt;&quot; and these will be rendered
+as formatted tooltips in the Jalview Application (the Jalview
+applet is not capable of rendering HTML tooltips, so all formatting
+tags will be removed).<br>
+<em>Attaching Links to Sequence Features</em><br>
+Any anchor tags in an html formatted description line will be
+translated into URL links. A link symbol will be displayed adjacent
+to any feature which includes links, and these are made available
+from the <a href="../menus/popupMenu.html#sqid.popup">links
+submenu</a> of the popup menu which is obtained by right-clicking
+when a link symbol is displayed in the tooltip.<br>
+<em>Non-positional features</em><br>
+Specify the <em>start</em> and <em>end</em> for a feature to be
+<strong>0</strong> in order to attach it to the whole sequence.
+Non-positional features are shown in a tooltip when the mouse
+hovers over the sequence ID panel, and any embedded links can be
+accessed from the popup menu. <em>Scores</em><br>
+Scores can be associated with sequence features, and used to sort
+sequences or shade the alignment (this was added in jalview 2.5).
+The score field is optional, and malformed scores will be
+ignored.</p>
 
-  <p>
-    The description may contain simple HTML document body tags if
-    enclosed by &quot;&lt;html&gt;&lt;/html&gt;&quot; and these will be
-    rendered as formatted tooltips in the Jalview Application (the
-    Jalview applet is not capable of rendering HTML tooltips, so all
-    formatting tags will be removed).<br> <em>Attaching Links
-      to Sequence Features</em><br> Any anchor tags in an html formatted
-    description line will be translated into URL links. A link symbol
-    will be displayed adjacent to any feature which includes links, and
-    these are made available from the <a
-      href="../menus/popupMenu.html#sqid.popup"
-    >links submenu</a> of the popup menu which is obtained by
-    right-clicking when a link symbol is displayed in the tooltip.<br>
-    <em>Non-positional features</em><br> Specify the <em>start</em>
-    and <em>end</em> for a feature to be <strong>0</strong> in order to
-    attach it to the whole sequence. Non-positional features are shown
-    in a tooltip when the mouse hovers over the sequence ID panel, and
-    any embedded links can be accessed from the popup menu.<br /> <em>Scores</em><br>
-    Scores can be associated with sequence features, and used to sort
-    sequences or shade the alignment (this was added in Jalview 2.5).
-    The score field is optional, and malformed scores will be ignored.
-  </p>
+<p>Feature annotations can be collected into named groups by
+prefixing definitions with lines of the form:
 
-  <p>Feature annotations can be collected into named groups by
-    prefixing definitions with lines of the form:
-  <pre>
+<pre>
 <strong>startgroup	groupname</strong>
 </pre>
 
-  .. and subsequently post-fixing the group with:
+.. and subsequently post-fixing the group with:
 
-  <pre>
+<pre>
 <strong>endgroup	groupname</strong>
 </pre>
 
-  Feature grouping was introduced in version 2.08, and used to control
-  whether a set of features are either hidden or shown together in the
-  <a href="seqfeatures.html">sequence Feature settings dialog box</a>.
-  </p>
+Feature grouping was introduced in version 2.08, and used to
+control whether a set of features are either hidden or shown
+together in the <a href="seqfeatures.html">sequence Feature
+settings dialog box</a>.</p>
+ 
 
-
-  <p>A complete example is shown below :
-  <pre>
+<p>A complete example is shown below :
+<pre>
 domain&#9;red
 metal ion-binding site&#9;00ff00
 transit peptide&#9;0,105,215

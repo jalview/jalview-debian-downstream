@@ -1,28 +1,23 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class AlignmentOrder
 {
@@ -53,7 +48,7 @@ public class AlignmentOrder
 
   private String Name;
 
-  private List<SequenceI> Order = null;
+  private Vector Order = null;
 
   /**
    * Creates a new AlignmentOrder object.
@@ -66,8 +61,9 @@ public class AlignmentOrder
    * AlignmentOrder
    * 
    * @param anOrder
+   *          Vector
    */
-  public AlignmentOrder(List<SequenceI> anOrder)
+  public AlignmentOrder(Vector anOrder)
   {
     Order = anOrder;
   }
@@ -80,11 +76,11 @@ public class AlignmentOrder
    */
   public AlignmentOrder(AlignmentI orderFrom)
   {
-    Order = new ArrayList<SequenceI>();
+    Order = new Vector();
 
-    for (SequenceI seq : orderFrom.getSequences())
+    for (int i = 0, ns = orderFrom.getHeight(); i < ns; i++)
     {
-      Order.add(seq);
+      Order.addElement(orderFrom.getSequenceAt(i));
     }
   }
 
@@ -96,7 +92,12 @@ public class AlignmentOrder
    */
   public AlignmentOrder(SequenceI[] orderFrom)
   {
-    Order = new ArrayList<SequenceI>(Arrays.asList(orderFrom));
+    Order = new Vector();
+
+    for (int i = 0, ns = orderFrom.length; i < ns; i++)
+    {
+      Order.addElement(orderFrom[i]);
+    }
   }
 
   /**
@@ -147,7 +148,7 @@ public class AlignmentOrder
    * @param Order
    *          DOCUMENT ME!
    */
-  public void setOrder(List<SequenceI> Order)
+  public void setOrder(Vector Order)
   {
     this.Order = Order;
   }
@@ -157,7 +158,7 @@ public class AlignmentOrder
    * 
    * @return DOCUMENT ME!
    */
-  public List<SequenceI> getOrder()
+  public Vector getOrder()
   {
     return Order;
   }
@@ -174,7 +175,7 @@ public class AlignmentOrder
     int found = Order.indexOf(oldref);
     if (found > -1)
     {
-      Order.set(found, newref);
+      Order.setElementAt(newref, found);
     }
     return found > -1;
   }
@@ -185,14 +186,9 @@ public class AlignmentOrder
    * @param o
    * @return true if o orders the same sequenceI objects in the same way
    */
-  @Override
-  public boolean equals(Object o)
+  public boolean equals(AlignmentOrder o)
   {
-    if (o == null || !(o instanceof AlignmentOrder))
-    {
-      return false;
-    }
-    return equals((AlignmentOrder) o, true);
+    return equals(o, true);
   }
 
   /**
@@ -224,7 +220,7 @@ public class AlignmentOrder
         {
           for (int i = 0, j = o.Order.size(); i < j; i++)
           {
-            if (Order.get(i) != o.Order.get(i))
+            if (Order.elementAt(i) != o.Order.elementAt(i))
             {
               return false;
             }
@@ -272,7 +268,7 @@ public class AlignmentOrder
       }
       if (Order != null && o.Order != null)
       {
-        List<SequenceI> c, s;
+        Vector c, s;
         if (o.Order.size() > Order.size())
         {
           c = o.Order;
@@ -293,7 +289,7 @@ public class AlignmentOrder
           int last = -1;
           for (int i = 0, j = s.size(); i < j; i++)
           {
-            int pos = c.indexOf(s.get(i)); // JBPNote - optimize by
+            int pos = c.indexOf(s.elementAt(i)); // JBPNote - optimize by
             // incremental position search
             if (pos > last)
             {

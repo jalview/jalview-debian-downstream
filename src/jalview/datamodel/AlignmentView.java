@@ -1,31 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.util.MessageManager;
 import jalview.util.ShiftList;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Enumeration;
 import java.util.Vector;
 
 /**
@@ -47,19 +42,7 @@ public class AlignmentView
    * one or more ScGroup objects, which are referenced by each seqCigar's group
    * membership
    */
-  private List<ScGroup> scGroups = null;
-
-  private boolean isNa = false;
-
-  /**
-   * false if the view concerns peptides
-   * 
-   * @return
-   */
-  public boolean isNa()
-  {
-    return isNa;
-  }
+  private Vector scGroups;
 
   /**
    * Group defined over SeqCigars. Unlike AlignmentI associated groups, each
@@ -87,7 +70,7 @@ public class AlignmentView
 
   /**
    * Construct an alignmentView from a live jalview alignment view. Note -
-   * hidden rows will be excluded from alignmentView Note: JAL-1179
+   * hidden rows will be excluded from alignmentView
    * 
    * @param alignment
    *          - alignment as referenced by an AlignViewport
@@ -114,43 +97,48 @@ public class AlignmentView
             (selectedRegionOnly ? selection : null)),
             (selectedRegionOnly && selection != null) ? selection
                     .getStartRes() : 0);
-    isNa = alignment.isNucleotide();
     // walk down SeqCigar array and Alignment Array - optionally restricted by
     // selected region.
     // test group membership for each sequence in each group, store membership
     // and record non-empty groups in group list.
     // record / sub-select selected region on the alignment view
     SequenceI[] selseqs;
-    if (selection != null && selection.getSize() > 0)
+    if (selection != null)
     {
-      List<SequenceI> sel = selection.getSequences(null);
+      Vector sel = selection.getSequences(null);
       this.selected = new Vector();
-      selseqs = selection
-              .getSequencesInOrder(alignment, selectedRegionOnly);
+      selseqs = selection.getSequencesInOrder(alignment, selectedRegionOnly);
     }
     else
     {
       selseqs = alignment.getSequencesArray();
     }
 
-    List<List<SequenceI>> seqsets = new ArrayList<List<SequenceI>>();
     // get the alignment's group list and make a copy
-    List<SequenceGroup> grps = new ArrayList<SequenceGroup>();
-    List<SequenceGroup> gg = alignment.getGroups();
-    grps.addAll(gg);
+    Vector grps = new Vector();
+    Vector gg = alignment.getGroups();
+    Enumeration gge = gg.elements();
+    while (gge.hasMoreElements())
+    {
+      grps.addElement(gge.nextElement());
+    }
     ScGroup[] sgrps = null;
     boolean addedgps[] = null;
     if (grps != null)
     {
+      SequenceGroup sg;
       if (selection != null && selectedRegionOnly)
       {
         // trim annotation to the region being stored.
         // strip out any groups that do not actually intersect with the
         // visible and selected region
         int ssel = selection.getStartRes(), esel = selection.getEndRes();
-        List<SequenceGroup> isg = new ArrayList<SequenceGroup>();
-        for (SequenceGroup sg : grps)
+        Vector isg = new Vector();
+        Enumeration en = grps.elements();
+        while (en.hasMoreElements())
         {
+          sg = (SequenceGroup) en.nextElement();
+
           if (!(sg.getStartRes() > esel || sg.getEndRes() < ssel))
           {
             // adjust bounds of new group, if necessary.
@@ -162,10 +150,10 @@ public class AlignmentView
             {
               sg.setEndRes(esel);
             }
-            sg.setStartRes(sg.getStartRes() - ssel + 1);
-            sg.setEndRes(sg.getEndRes() - ssel + 1);
-
-            isg.add(sg);
+            sg.setStartRes(sg.getStartRes()-ssel+1);
+            sg.setEndRes(sg.getEndRes()-ssel+1);
+            
+            isg.addElement(sg);
           }
         }
         grps = isg;
@@ -175,15 +163,13 @@ public class AlignmentView
       addedgps = new boolean[grps.size()];
       for (int g = 0; g < sgrps.length; g++)
       {
-        SequenceGroup sg = grps.get(g);
+        sg = (SequenceGroup) grps.elementAt(g);
         sgrps[g] = new ScGroup();
         sgrps[g].sg = new SequenceGroup(sg);
         addedgps[g] = false;
-        // can't set entry 0 in an empty list
-        // seqsets.set(g, sg.getSequences(null));
-        seqsets.add(sg.getSequences());
+        grps.setElementAt(sg.getSequences(null), g);
       }
-      // seqsets now contains vectors (should be sets) for each group, so we can
+      // grps now contains vectors (should be sets) for each group, so we can
       // track when we've done with the group
     }
     int csi = 0;
@@ -191,17 +177,16 @@ public class AlignmentView
     {
       if (selseqs[i] != null)
       {
-        if (selection != null && selection.getSize() > 0
-                && !selectedRegionOnly)
+        if (selection != null && !selectedRegionOnly)
         {
           sequences[csi].setGroupMembership(selected);
           selected.addElement(sequences[csi]);
         }
-        if (seqsets != null)
+        if (grps != null)
         {
           for (int sg = 0; sg < sgrps.length; sg++)
           {
-            if ((seqsets.get(sg)).contains(selseqs[i]))
+            if (((Vector) grps.elementAt(sg)).contains(selseqs[i]))
             {
               sequences[csi].setGroupMembership(sgrps[sg]);
               sgrps[sg].sg.deleteSequence(selseqs[i], false);
@@ -210,10 +195,10 @@ public class AlignmentView
               {
                 if (scGroups == null)
                 {
-                  scGroups = new ArrayList<ScGroup>();
+                  scGroups = new Vector();
                 }
                 addedgps[sg] = true;
-                scGroups.add(sgrps[sg]);
+                scGroups.addElement(sgrps[sg]);
               }
             }
           }
@@ -242,8 +227,7 @@ public class AlignmentView
     if (!seqcigararray.isSeqCigarArray())
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_can_only_make_alignmnet_from_cigararray"));
+              "Implementation Error - can only make an alignment view from a CigarArray of sequences.");
     }
     // contigs = seqcigararray.applyDeletions();
     contigs = seqcigararray.getDeletedRegions();
@@ -300,7 +284,8 @@ public class AlignmentView
   {
     ColumnSelection colsel = new ColumnSelection();
 
-    return new Object[] {
+    return new Object[]
+    {
         SeqCigar.createAlignmentSequences(sequences, gapCharacter, colsel,
                 contigs), colsel };
   }
@@ -356,7 +341,7 @@ public class AlignmentView
           SequenceGroup[] nsg = new SequenceGroup[nvg];
           for (int g = 0; g < nvg; g++)
           {
-            SequenceGroup sg = scGroups.get(g).sg;
+            SequenceGroup sg = ((ScGroup) scGroups.elementAt(g)).sg;
             if (r)
             {
               if (sg.getStartRes() > gend || sg.getEndRes() < gstart)
@@ -373,8 +358,7 @@ public class AlignmentView
             // may need to shift/trim start and end ?
             if (r && !viscontigs)
             {
-              // Not fully tested code - routine not yet called with
-              // viscontigs==false
+              // Not fully tested code - routine not yet called with viscontigs==false
               if (nsg[g].getStartRes() < gstart)
               {
                 nsg[g].setStartRes(0);
@@ -384,9 +368,9 @@ public class AlignmentView
                 nsg[g].setStartRes(nsg[g].getStartRes() - gstart);
                 nsg[g].setEndRes(nsg[g].getEndRes() - gstart);
               }
-              if (nsg[g].getEndRes() > (gend - gstart))
+              if (nsg[g].getEndRes() > (gend-gstart))
               {
-                nsg[g].setEndRes(gend - gstart);
+                nsg[g].setEndRes(gend-gstart);
               }
             }
           }
@@ -442,7 +426,7 @@ public class AlignmentView
             for (int g = 0; g < nvg; g++)
             {
               if (nsg[g] != null
-                      && sequences[nsq].isMemberOf(scGroups.get(g)))
+                      && sequences[nsq].isMemberOf(scGroups.elementAt(g)))
               {
                 nsg[g].addSequence(aln[nsq], false);
               }
@@ -466,7 +450,6 @@ public class AlignmentView
    * alignment.
    * 
    * @param c
-   *          gap character to use to recreate the alignment
    * @return
    */
   private SequenceI[] getVisibleSeqs(char c)
@@ -474,9 +457,13 @@ public class AlignmentView
     SequenceI[] aln = new SequenceI[sequences.length];
     for (int i = 0, j = sequences.length; i < j; i++)
     {
-      aln[i] = sequences[i].getSeq(c);
-      // Remove hidden regions from sequence
-      aln[i].setSequence(getASequenceString(c, i));
+      aln[i] = sequences[i].getSeq('-');
+    }
+    // Remove hidden regions from sequence objects.
+    String seqs[] = getSequenceStrings('-');
+    for (int i = 0, j = aln.length; i < j; i++)
+    {
+      aln[i].setSequence(seqs[i]);
     }
     return aln;
   }
@@ -502,48 +489,18 @@ public class AlignmentView
     for (nvc = 0; nvc < contigviews.length; nvc++)
     {
       vcals[nvc] = new Alignment(contigviews[nvc]);
-      if (scGroups != null && scGroups.size() > 0)
+      if (scGroups!=null && scGroups.size()>0)
       {
-        addPrunedGroupsInOrder(vcals[nvc], vcontigs[nvc * 2],
-                vcontigs[nvc * 2 + 1], true);
+        addPrunedGroupsInOrder(vcals[nvc], vcontigs[nvc*2],vcontigs[nvc*2+1], true);
       }
     }
     return vcals;
   }
 
-  /**
-   * build a string excluding hidden regions from a particular sequence in the
-   * view
-   * 
-   * @param c
-   * @param n
-   * @return
-   */
-  private String getASequenceString(char c, int n)
-  {
-    String sqn;
-    String fullseq = sequences[n].getSequenceString(c);
-    if (contigs != null)
-    {
-      sqn = "";
-      int p = 0;
-      for (int h = 0; h < contigs.length; h += 3)
-      {
-        sqn += fullseq.substring(p, contigs[h + 1]);
-        p = contigs[h + 1] + contigs[h + 2];
-      }
-      sqn += fullseq.substring(p);
-    }
-    else
-    {
-      sqn = fullseq;
-    }
-    return sqn;
-  }
 
   /**
    * get an array of visible sequence strings for a view on an alignment using
-   * the given gap character uses getASequenceString
+   * the given gap character
    * 
    * @param c
    *          char
@@ -554,7 +511,22 @@ public class AlignmentView
     String[] seqs = new String[sequences.length];
     for (int n = 0; n < sequences.length; n++)
     {
-      seqs[n] = getASequenceString(c, n);
+      String fullseq = sequences[n].getSequenceString(c);
+      if (contigs != null)
+      {
+        seqs[n] = "";
+        int p = 0;
+        for (int h = 0; h < contigs.length; h += 3)
+        {
+          seqs[n] += fullseq.substring(p, contigs[h + 1]);
+          p = contigs[h + 1] + contigs[h + 2];
+        }
+        seqs[n] += fullseq.substring(p);
+      }
+      else
+      {
+        seqs[n] = fullseq;
+      }
     }
     return seqs;
   }
@@ -664,9 +636,7 @@ public class AlignmentView
   {
     if (sequences == null || width <= 0)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.empty_view_cannot_be_updated"));
+      throw new Error("empty view cannot be updated.");
     }
     if (nvismsa == null)
     {
@@ -697,16 +667,10 @@ public class AlignmentView
               if (mseq.length != sequences.length)
               {
                 throw new Error(
-                        MessageManager
-                                .formatMessage(
-                                        "error.mismatch_between_number_of_sequences_in_block",
-                                        new String[] {
-                                            Integer.valueOf(j).toString(),
-                                            Integer.valueOf(mseq.length)
-                                                    .toString(),
-                                            Integer.valueOf(
-                                                    sequences.length)
-                                                    .toString() }));
+                        "Mismatch between number of sequences in block "
+                                + j + " (" + mseq.length
+                                + ") and the original view ("
+                                + sequences.length + ")");
               }
               swidth = mseq[0].getLength(); // JBPNote: could ensure padded
               // here.
@@ -859,30 +823,27 @@ public class AlignmentView
               else
               {
                 // place gaps.
-                throw new Error(
-                        MessageManager
-                                .getString("error.padding_not_yet_implemented"));
+                throw new Error("Padding not yet implemented.");
               }
             }
           }
         }
       }
-      return new Object[] { alignment, columnselection };
+      return new Object[]
+      { alignment, columnselection };
     }
     else
     {
       if (nvismsa.length != 1)
       {
         throw new Error(
-                MessageManager
-                        .formatMessage(
-                                "error.mismatch_between_visible_blocks_to_update_and_number_of_contigs_in_view",
-                                new String[] { Integer.valueOf(
-                                        nvismsa.length).toString() }));
+                "Mismatch between visible blocks to update and number of contigs in view (contigs=0,blocks="
+                        + nvismsa.length);
       }
       if (nvismsa[0] != null)
       {
-        return new Object[] { nvismsa[0], new ColumnSelection() };
+        return new Object[]
+        { nvismsa[0], new ColumnSelection() };
       }
       else
       {
@@ -943,7 +904,8 @@ public class AlignmentView
     }
     else
     {
-      return new int[] { 0, width };
+      return new int[]
+      { 0, width };
     }
   }
 
@@ -1033,13 +995,10 @@ public class AlignmentView
           PrintStream os)
   {
     os.print("View has " + view.sequences.length + " of which ");
-    if (view.selected == null)
-    {
+    if (view.selected == null) {
       os.print("None");
-    }
-    else
-    {
-      os.print(" " + view.selected.size());
+    } else {
+      os.print(" "+view.selected.size());
     }
     os.println(" are selected.");
     os.print("View is " + view.getWidth() + " columns wide");
@@ -1066,7 +1025,7 @@ public class AlignmentView
               + " groups defined on the view.");
       for (int g = 0; g < view.scGroups.size(); g++)
       {
-        ScGroup sgr = view.scGroups.get(g);
+        ScGroup sgr = (ScGroup) view.scGroups.elementAt(g);
         os.println("Group " + g + ": Name = " + sgr.sg.getName()
                 + " Contains " + sgr.seqs.size() + " Seqs.");
         os.println("This group runs from " + sgr.sg.getStartRes() + " to "
@@ -1088,10 +1047,12 @@ public class AlignmentView
                 + " wide and has " + visal.getHeight() + " seqs.");
         if (visal.getGroups() != null && visal.getGroups().size() > 0)
         {
-
+          SequenceGroup sg;
+          Enumeration en = visal.getGroups().elements();
           int i = 1;
-          for (SequenceGroup sg : visal.getGroups())
+          while (en.hasMoreElements())
           {
+            sg = (SequenceGroup) en.nextElement();
             os.println("Group " + (i++) + " begins at column "
                     + sg.getStartRes() + " and ends at " + sg.getEndRes());
           }

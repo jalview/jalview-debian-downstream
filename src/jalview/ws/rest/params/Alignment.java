@@ -1,23 +1,20 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.ws.rest.params;
 
 import jalview.datamodel.AlignmentI;
@@ -27,13 +24,19 @@ import jalview.ws.params.simple.Option;
 import jalview.ws.rest.InputType;
 import jalview.ws.rest.NoValidInputDataException;
 import jalview.ws.rest.RestJob;
+import jalview.ws.rest.InputType.molType;
+import jalview.ws.rest.RestServiceDescription;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -52,7 +55,8 @@ public class Alignment extends InputType
 {
   public Alignment()
   {
-    super(new Class[] { AlignmentI.class });
+    super(new Class[]
+    { AlignmentI.class });
   }
 
   String format = "FASTA";
@@ -64,7 +68,7 @@ public class Alignment extends InputType
   /**
    * input data as a file upload rather than inline content
    */
-  public boolean writeAsFile = false;
+  public boolean writeAsFile=false;
 
   @Override
   public ContentBody formatForInput(RestJob rj)
@@ -182,24 +186,19 @@ public class Alignment extends InputType
     }
     return false;
   }
-
   @Override
   public List<OptionI> getOptions()
   {
     List<OptionI> lst = getBaseOptions();
-    lst.add(new BooleanOption("jvsuffix",
-            "Append jalview style /start-end suffix to ID", false, false,
-            jvsuffix, null));
-    lst.add(new BooleanOption("writeasfile",
-            "Append jalview style /start-end suffix to ID", false, false,
-            writeAsFile, null));
-
-    lst.add(new Option("format", "Alignment upload format", true, "FASTA",
-            format, Arrays
-                    .asList(jalview.io.FormatAdapter.WRITEABLE_FORMATS),
+    lst.add(new BooleanOption("jvsuffix","Append jalview style /start-end suffix to ID", false, false, jvsuffix, null));
+    lst.add(new BooleanOption("writeasfile","Append jalview style /start-end suffix to ID", false, false, writeAsFile, null));
+    
+    lst.add(new Option("format",
+            "Alignment upload format", true, "FASTA",
+            format, Arrays.asList(jalview.io.FormatAdapter.WRITEABLE_FORMATS), null));
+    lst.add(createMolTypeOption("type", "Sequence type", false, type,
             null));
-    lst.add(createMolTypeOption("type", "Sequence type", false, type, null));
-
+    
     return lst;
   }
 

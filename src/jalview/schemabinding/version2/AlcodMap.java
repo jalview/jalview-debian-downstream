@@ -1,3 +1,20 @@
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
+ * This file is part of Jalview.
+ *
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 /*
  * This class was automatically generated with 
  * <a href="http://www.castor.org">Castor 1.1</a>, using an XML
@@ -7,8 +24,8 @@
 
 package jalview.schemabinding.version2;
 
-//---------------------------------/
-//- Imported classes and packages -/
+  //---------------------------------/
+ //- Imported classes and packages -/
 //---------------------------------/
 
 import org.exolab.castor.xml.Marshaller;
@@ -19,174 +36,166 @@ import org.exolab.castor.xml.Unmarshaller;
  * 
  * @version $Revision$ $Date$
  */
-public class AlcodMap implements java.io.Serializable
-{
+public class AlcodMap implements java.io.Serializable {
 
-  // --------------------------/
-  // - Class/Member Variables -/
-  // --------------------------/
 
-  /**
-   * internal jalview id for the dnasq for this mapping.
-   * 
-   */
-  private java.lang.String _dnasq;
+      //--------------------------/
+     //- Class/Member Variables -/
+    //--------------------------/
 
-  /**
-   * a Mapping entry and an associated protein sequence
-   * 
-   */
-  private jalview.schemabinding.version2.Mapping _mapping;
+    /**
+     * internal jalview id for the dnasq for this mapping.
+     *  
+     */
+    private java.lang.String _dnasq;
 
-  // ----------------/
-  // - Constructors -/
-  // ----------------/
+    /**
+     * a Mapping entry and an associated protein sequence
+     *  
+     */
+    private jalview.schemabinding.version2.Mapping _mapping;
 
-  public AlcodMap()
-  {
-    super();
-  }
 
-  // -----------/
-  // - Methods -/
-  // -----------/
+      //----------------/
+     //- Constructors -/
+    //----------------/
 
-  /**
-   * Returns the value of field 'dnasq'. The field 'dnasq' has the following
-   * description: internal jalview id for the dnasq for this mapping.
-   * 
-   * 
-   * @return the value of field 'Dnasq'.
-   */
-  public java.lang.String getDnasq()
-  {
-    return this._dnasq;
-  }
-
-  /**
-   * Returns the value of field 'mapping'. The field 'mapping' has the following
-   * description: a Mapping entry and an associated protein sequence
-   * 
-   * 
-   * @return the value of field 'Mapping'.
-   */
-  public jalview.schemabinding.version2.Mapping getMapping()
-  {
-    return this._mapping;
-  }
-
-  /**
-   * Method isValid.
-   * 
-   * @return true if this object is valid according to the schema
-   */
-  public boolean isValid()
-  {
-    try
-    {
-      validate();
-    } catch (org.exolab.castor.xml.ValidationException vex)
-    {
-      return false;
+    public AlcodMap() {
+        super();
     }
-    return true;
-  }
 
-  /**
-   * 
-   * 
-   * @param out
-   * @throws org.exolab.castor.xml.MarshalException
-   *           if object is null or if any SAXException is thrown during
-   *           marshaling
-   * @throws org.exolab.castor.xml.ValidationException
-   *           if this object is an invalid instance according to the schema
-   */
-  public void marshal(final java.io.Writer out)
-          throws org.exolab.castor.xml.MarshalException,
-          org.exolab.castor.xml.ValidationException
-  {
-    Marshaller.marshal(this, out);
-  }
 
-  /**
-   * 
-   * 
-   * @param handler
-   * @throws java.io.IOException
-   *           if an IOException occurs during marshaling
-   * @throws org.exolab.castor.xml.ValidationException
-   *           if this object is an invalid instance according to the schema
-   * @throws org.exolab.castor.xml.MarshalException
-   *           if object is null or if any SAXException is thrown during
-   *           marshaling
-   */
-  public void marshal(final org.xml.sax.ContentHandler handler)
-          throws java.io.IOException,
-          org.exolab.castor.xml.MarshalException,
-          org.exolab.castor.xml.ValidationException
-  {
-    Marshaller.marshal(this, handler);
-  }
+      //-----------/
+     //- Methods -/
+    //-----------/
 
-  /**
-   * Sets the value of field 'dnasq'. The field 'dnasq' has the following
-   * description: internal jalview id for the dnasq for this mapping.
-   * 
-   * 
-   * @param dnasq
-   *          the value of field 'dnasq'.
-   */
-  public void setDnasq(final java.lang.String dnasq)
-  {
-    this._dnasq = dnasq;
-  }
+    /**
+     * Returns the value of field 'dnasq'. The field 'dnasq' has
+     * the following description: internal jalview id for the dnasq
+     * for this mapping.
+     *  
+     * 
+     * @return the value of field 'Dnasq'.
+     */
+    public java.lang.String getDnasq(
+    ) {
+        return this._dnasq;
+    }
 
-  /**
-   * Sets the value of field 'mapping'. The field 'mapping' has the following
-   * description: a Mapping entry and an associated protein sequence
-   * 
-   * 
-   * @param mapping
-   *          the value of field 'mapping'.
-   */
-  public void setMapping(
-          final jalview.schemabinding.version2.Mapping mapping)
-  {
-    this._mapping = mapping;
-  }
+    /**
+     * Returns the value of field 'mapping'. The field 'mapping'
+     * has the following description: a Mapping entry and an
+     * associated protein sequence
+     *  
+     * 
+     * @return the value of field 'Mapping'.
+     */
+    public jalview.schemabinding.version2.Mapping getMapping(
+    ) {
+        return this._mapping;
+    }
 
-  /**
-   * Method unmarshal.
-   * 
-   * @param reader
-   * @throws org.exolab.castor.xml.MarshalException
-   *           if object is null or if any SAXException is thrown during
-   *           marshaling
-   * @throws org.exolab.castor.xml.ValidationException
-   *           if this object is an invalid instance according to the schema
-   * @return the unmarshaled jalview.schemabinding.version2.AlcodMap
-   */
-  public static jalview.schemabinding.version2.AlcodMap unmarshal(
-          final java.io.Reader reader)
-          throws org.exolab.castor.xml.MarshalException,
-          org.exolab.castor.xml.ValidationException
-  {
-    return (jalview.schemabinding.version2.AlcodMap) Unmarshaller
-            .unmarshal(jalview.schemabinding.version2.AlcodMap.class,
-                    reader);
-  }
+    /**
+     * Method isValid.
+     * 
+     * @return true if this object is valid according to the schema
+     */
+    public boolean isValid(
+    ) {
+        try {
+            validate();
+        } catch (org.exolab.castor.xml.ValidationException vex) {
+            return false;
+        }
+        return true;
+    }
 
-  /**
-   * 
-   * 
-   * @throws org.exolab.castor.xml.ValidationException
-   *           if this object is an invalid instance according to the schema
-   */
-  public void validate() throws org.exolab.castor.xml.ValidationException
-  {
-    org.exolab.castor.xml.Validator validator = new org.exolab.castor.xml.Validator();
-    validator.validate(this);
-  }
+    /**
+     * 
+     * 
+     * @param out
+     * @throws org.exolab.castor.xml.MarshalException if object is
+     * null or if any SAXException is thrown during marshaling
+     * @throws org.exolab.castor.xml.ValidationException if this
+     * object is an invalid instance according to the schema
+     */
+    public void marshal(
+            final java.io.Writer out)
+    throws org.exolab.castor.xml.MarshalException, org.exolab.castor.xml.ValidationException {
+        Marshaller.marshal(this, out);
+    }
+
+    /**
+     * 
+     * 
+     * @param handler
+     * @throws java.io.IOException if an IOException occurs during
+     * marshaling
+     * @throws org.exolab.castor.xml.ValidationException if this
+     * object is an invalid instance according to the schema
+     * @throws org.exolab.castor.xml.MarshalException if object is
+     * null or if any SAXException is thrown during marshaling
+     */
+    public void marshal(
+            final org.xml.sax.ContentHandler handler)
+    throws java.io.IOException, org.exolab.castor.xml.MarshalException, org.exolab.castor.xml.ValidationException {
+        Marshaller.marshal(this, handler);
+    }
+
+    /**
+     * Sets the value of field 'dnasq'. The field 'dnasq' has the
+     * following description: internal jalview id for the dnasq for
+     * this mapping.
+     *  
+     * 
+     * @param dnasq the value of field 'dnasq'.
+     */
+    public void setDnasq(
+            final java.lang.String dnasq) {
+        this._dnasq = dnasq;
+    }
+
+    /**
+     * Sets the value of field 'mapping'. The field 'mapping' has
+     * the following description: a Mapping entry and an associated
+     * protein sequence
+     *  
+     * 
+     * @param mapping the value of field 'mapping'.
+     */
+    public void setMapping(
+            final jalview.schemabinding.version2.Mapping mapping) {
+        this._mapping = mapping;
+    }
+
+    /**
+     * Method unmarshal.
+     * 
+     * @param reader
+     * @throws org.exolab.castor.xml.MarshalException if object is
+     * null or if any SAXException is thrown during marshaling
+     * @throws org.exolab.castor.xml.ValidationException if this
+     * object is an invalid instance according to the schema
+     * @return the unmarshaled
+     * jalview.schemabinding.version2.AlcodMap
+     */
+    public static jalview.schemabinding.version2.AlcodMap unmarshal(
+            final java.io.Reader reader)
+    throws org.exolab.castor.xml.MarshalException, org.exolab.castor.xml.ValidationException {
+        return (jalview.schemabinding.version2.AlcodMap) Unmarshaller.unmarshal(jalview.schemabinding.version2.AlcodMap.class, reader);
+    }
+
+    /**
+     * 
+     * 
+     * @throws org.exolab.castor.xml.ValidationException if this
+     * object is an invalid instance according to the schema
+     */
+    public void validate(
+    )
+    throws org.exolab.castor.xml.ValidationException {
+        org.exolab.castor.xml.Validator validator = new org.exolab.castor.xml.Validator();
+        validator.validate(this);
+    }
 
 }

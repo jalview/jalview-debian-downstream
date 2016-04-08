@@ -1,23 +1,20 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.javascript;
 
 import jalview.appletgui.AlignFrame;
@@ -35,7 +32,7 @@ import jalview.appletgui.AlignFrame;
 
 /**
  * @author jimp
- * 
+ *
  */
 public interface JalviewLiteJsApi
 {
@@ -179,42 +176,31 @@ public interface JalviewLiteJsApi
           AlignFrame alf, String format, String suffix);
 
   /**
-   * get a separator separated list of sequence IDs reflecting the order of the
-   * current alignment
-   * 
+   * get a separator separated list of sequence IDs reflecting the order of the current alignment 
    * @return
    */
   public abstract String getAlignmentOrder();
-
   /**
-   * get a separator separated list of sequence IDs reflecting the order of the
-   * alignment in alf
-   * 
+   * get a separator separated list of sequence IDs reflecting the order of the alignment in alf 
+   *
    * @param alf
    * @return
    */
   public abstract String getAlignmentOrderFrom(AlignFrame alf);
 
   /**
-   * get a sep separated list of sequence IDs reflecting the order of the
-   * alignment in alf
+   * get a sep separated list of sequence IDs reflecting the order of the alignment in alf 
    * 
    * @param alf
-   * @param sep
-   *          - separator to use
+   * @param sep - separator to use
    * @return
    */
   public abstract String getAlignmentOrderFrom(AlignFrame alf, String sep);
-
   /**
    * re-order the current alignment using the given list of sequence IDs
-   * 
-   * @param order
-   *          - sep separated list
-   * @param undoName
-   *          - string to use when referring to ordering action in undo buffer
-   * @return 'true' if alignment was actually reordered. empty string if
-   *         alignment did not contain sequences.
+   * @param order - sep separated list
+   * @param undoName - string to use when referring to ordering action in undo buffer
+   * @return 'true' if alignment was actually reordered. empty string if alignment did not contain sequences.
    */
   public abstract String orderBy(String order, String undoName);
 
@@ -227,14 +213,13 @@ public interface JalviewLiteJsApi
    * @param undoName
    *          - string to use when referring to ordering action in undo buffer
    * @param sep
-   * @return 'true' if alignment was actually reordered. empty string if
-   *         alignment did not contain sequences.
+   * @return 'true' if alignment was actually reordered. empty string if alignment did not contain sequences.
    */
   public abstract String orderBy(String order, String undoName, String sep);
 
   /**
-   * re-order the given alignment using the given list of sequence IDs separated
-   * by sep
+   * re-order the given alignment using the given list of sequence IDs
+   * separated by sep
    * 
    * @param alf
    * @param order
@@ -242,16 +227,13 @@ public interface JalviewLiteJsApi
    * @param undoName
    *          - string to use when referring to ordering action in undo buffer
    * @param sep
-   * @return 'true' if alignment was actually reordered. empty string if
-   *         alignment did not contain sequences.
+   * @return 'true' if alignment was actually reordered. empty string if alignment did not contain sequences.
    */
   public abstract String orderAlignmentBy(AlignFrame alf, String order,
           String undoName, String sep);
 
   /**
-   * get alignment as format (format names FASTA, BLC, CLUSTAL, MSF, PILEUP,
-   * PFAM - see jalview.io.AppletFormatAdapter for full list)
-   * 
+   * get alignment as format (format names FASTA, BLC, CLUSTAL, MSF, PILEUP, PFAM - see jalview.io.AppletFormatAdapter for full list)
    * @param format
    * @return
    */
@@ -259,7 +241,6 @@ public interface JalviewLiteJsApi
 
   /**
    * get alignment displayed in alf as format
-   * 
    * @param alf
    * @param format
    * @return
@@ -268,7 +249,6 @@ public interface JalviewLiteJsApi
 
   /**
    * get alignment as format with jalview start-end sequence suffix appended
-   * 
    * @param format
    * @param suffix
    * @return
@@ -276,9 +256,8 @@ public interface JalviewLiteJsApi
   public abstract String getAlignment(String format, String suffix);
 
   /**
-   * get alignment displayed in alf as format with or without the jalview
-   * start-end sequence suffix appended
-   * 
+   * get alignment displayed in alf as format 
+   *  with or without the jalview start-end sequence suffix appended
    * @param alf
    * @param format
    * @param suffix
@@ -289,50 +268,19 @@ public interface JalviewLiteJsApi
 
   /**
    * add the given features or annotation to the current alignment
-   * 
    * @param annotation
    */
   public abstract void loadAnnotation(String annotation);
 
   /**
    * add the given features or annotation to the given alignment view
-   * 
    * @param alf
    * @param annotation
    */
   public abstract void loadAnnotationFrom(AlignFrame alf, String annotation);
 
   /**
-   * parse the given string as a jalview feature or GFF annotation file and
-   * optionally enable feature display on the current alignFrame
-   * 
-   * @param features
-   *          - gff or features file
-   * @param autoenabledisplay
-   *          - when true, feature display will be enabled if any features can
-   *          be parsed from the string.
-   */
-  public abstract void loadFeatures(String features,
-          boolean autoenabledisplay);
-
-  /**
-   * parse the given string as a jalview feature or GFF annotation file and
-   * optionally enable feature display on the given alignFrame.
-   * 
-   * @param alf
-   * @param features
-   *          - gff or features file
-   * @param autoenabledisplay
-   *          - when true, feature display will be enabled if any features can
-   *          be parsed from the string.
-   * @return true if data parsed as features
-   */
-  public abstract boolean loadFeaturesFrom(AlignFrame alf, String features,
-          boolean autoenabledisplay);
-
-  /**
    * get the sequence features in the given format (Jalview or GFF)
-   * 
    * @param format
    * @return
    */
@@ -340,7 +288,6 @@ public interface JalviewLiteJsApi
 
   /**
    * get the sequence features in alf in the given format (Jalview or GFF)
-   * 
    * @param alf
    * @param format
    * @return
@@ -349,14 +296,12 @@ public interface JalviewLiteJsApi
 
   /**
    * get current alignment's annotation as an annotation file
-   * 
    * @return
    */
   public abstract String getAnnotation();
 
   /**
    * get alignment view alf's annotation as an annotation file
-   * 
    * @param alf
    * @return
    */
@@ -364,14 +309,12 @@ public interface JalviewLiteJsApi
 
   /**
    * create a new view and return the alignFrame instance
-   * 
    * @return
    */
   public abstract AlignFrame newView();
 
   /**
    * create a new view named name and return the alignFrame instance
-   * 
    * @param name
    * @return
    */
@@ -379,7 +322,6 @@ public interface JalviewLiteJsApi
 
   /**
    * create a new view on alf and return the alignFrame instance
-   * 
    * @param alf
    * @return
    */
@@ -387,7 +329,6 @@ public interface JalviewLiteJsApi
 
   /**
    * create a new view named name on alf
-   * 
    * @param alf
    * @param name
    * @return
@@ -406,53 +347,30 @@ public interface JalviewLiteJsApi
 
   /**
    * register a javascript function to handle any alignment mouseover events
-   * 
-   * @param listener
-   *          name of javascript function (called with arguments
-   *          [jalview.appletgui.AlignFrame,String(sequence id),String(column in
-   *          alignment), String(position in sequence)]
+   * @param listener name of javascript function  (called with arguments [jalview.appletgui.AlignFrame,String(sequence id),String(column in alignment), String(position in sequence)]
    */
   public abstract void setMouseoverListener(String listener);
 
   /**
    * register a javascript function to handle mouseover events
-   * 
-   * @param af
-   *          (null or specific alignframe for which events are to be listened
-   *          for)
-   * @param listener
-   *          name of javascript function
+   * @param af (null or specific alignframe for which events are to be listened for)
+   * @param listener name of javascript function 
    */
   public abstract void setMouseoverListener(AlignFrame af, String listener);
 
   /**
-   * register a javascript function to handle any alignment selection events.
-   * Events are generated when the user completes a selection event, or when the
-   * user deselects all selected regions.
-   * 
-   * @param listener
-   *          name of javascript function (called with arguments
-   *          [jalview.appletgui.AlignFrame, String(sequence set id),
-   *          String(separator separated list of sequences which were selected),
-   *          String(separator separated list of column ranges (i.e. single
-   *          number or hyphenated range) that were selected)]
+   * register a javascript function to handle any alignment selection events. Events are generated when the user completes a selection event, or when the user deselects all selected regions.
+   * @param listener name of javascript function  (called with arguments [jalview.appletgui.AlignFrame, String(sequence set id), String(separator separated list of sequences which were selected), String(separator separated list of column ranges (i.e. single number or hyphenated range) that were selected)]
    */
   public abstract void setSelectionListener(String listener);
 
   public abstract void setSelectionListener(AlignFrame af, String listener);
 
   /**
-   * register a javascript function to handle events normally routed to a Jmol
-   * structure viewer.
-   * 
-   * @param listener
-   *          - javascript function (arguments are variable, see
-   *          jalview.javascript.MouseOverStructureListener for full details)
-   * @param modelSet
-   *          - separator separated list of PDB file URIs that this viewer is
-   *          handling. These files must be in the same order they appear in
-   *          Jmol (e.g. first one is frame 1, second is frame 2, etc).
-   * @see jalview.javascript.MouseOverStructureListener
+   * register a javascript function to handle events normally routed to a Jmol structure viewer.
+   * @param listener - javascript function (arguments are variable, see jalview.javascript.MouseOverStructureListener for full details)
+   * @param modelSet - separator separated list of PDB file URIs that this viewer is handling. These files must be in the same order they appear in Jmol (e.g. first one is frame 1, second is frame 2, etc). 
+     @see jalview.javascript.MouseOverStructureListener 
    */
   public abstract void setStructureListener(String listener, String modelSet);
 
@@ -499,8 +417,7 @@ public interface JalviewLiteJsApi
           String pdbEntryString, String pdbFile);
 
   /**
-   * adjust horizontal/vertical scroll to make the given location the top left
-   * hand corner for the given view
+   * adjust horizontal/vertical scroll to make the given location the top left hand corner for the given view
    * 
    * @param alf
    * @param topRow
@@ -508,7 +425,6 @@ public interface JalviewLiteJsApi
    */
   public abstract void scrollViewToIn(AlignFrame alf, String topRow,
           String leftHandColumn);
-
   /**
    * adjust vertical scroll to make the given row the top one for given view
    * 
@@ -516,16 +432,13 @@ public interface JalviewLiteJsApi
    * @param topRow
    */
   public abstract void scrollViewToRowIn(AlignFrame alf, String topRow);
-
   /**
-   * adjust horizontal scroll to make the given column the left one in the given
-   * view
+   * adjust horizontal scroll to make the given column the left one in the given view
    * 
    * @param alf
    * @param leftHandColumn
    */
-  public abstract void scrollViewToColumnIn(AlignFrame alf,
-          String leftHandColumn);
+  public abstract void scrollViewToColumnIn(AlignFrame alf, String leftHandColumn);
 
   /**
    * 
@@ -589,7 +502,6 @@ public interface JalviewLiteJsApi
 
   /**
    * Retrieve fragments of a large packet of data made available by JalviewLite.
-   * 
    * @param messageclass
    * @param viewId
    * @return next chunk of message

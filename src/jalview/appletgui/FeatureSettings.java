@@ -1,70 +1,36 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.api.FeatureSettingsControllerI;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SequenceFeature;
+import java.util.*;
+
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.analysis.AlignmentSorter;
+import jalview.commands.OrderCommand;
+import jalview.datamodel.*;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.schemes.GraduatedColor;
-import jalview.util.MessageManager;
-
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Checkbox;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.GridLayout;
-import java.awt.Image;
-import java.awt.Label;
-import java.awt.MenuItem;
-import java.awt.Panel;
-import java.awt.PopupMenu;
-import java.awt.ScrollPane;
-import java.awt.Scrollbar;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
-import java.awt.event.InputEvent;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Vector;
 
 public class FeatureSettings extends Panel implements ItemListener,
         MouseListener, MouseMotionListener, ActionListener,
-        AdjustmentListener, FeatureSettingsControllerI
+        AdjustmentListener
 {
   FeatureRenderer fr;
 
@@ -80,6 +46,8 @@ public class FeatureSettings extends Panel implements ItemListener,
 
   ScrollPane scrollPane;
 
+  boolean alignmentHasFeatures = false;
+
   Image linkImage;
 
   Scrollbar transparency;
@@ -92,9 +60,9 @@ public class FeatureSettings extends Panel implements ItemListener,
     fr = ap.seqPanel.seqCanvas.getFeatureRenderer();
 
     transparency = new Scrollbar(Scrollbar.HORIZONTAL,
-            100 - (int) (fr.getTransparency() * 100), 1, 1, 100);
+            100 - (int) (fr.transparency * 100), 1, 1, 100);
 
-    if (fr.isTransparencyAvailable())
+    if (fr.transparencySetter != null)
     {
       transparency.addAdjustmentListener(this);
     }
@@ -109,18 +77,17 @@ public class FeatureSettings extends Panel implements ItemListener,
       linkImage = java.awt.Toolkit.getDefaultToolkit().getImage(url);
     }
 
-    if (av.isShowSequenceFeatures() || !fr.hasRenderOrder())
+    if (av.featuresDisplayed == null)
     {
-      fr.findAllFeatures(true); // was default - now true to make all visible
+      fr.findAllFeatures();
     }
 
-    discoverAllFeatureData();
+    setTableData();
 
     this.setLayout(new BorderLayout());
     scrollPane = new ScrollPane();
     scrollPane.add(featurePanel);
-    if (fr.getAllFeatureColours() != null
-            && fr.getAllFeatureColours().size() > 0)
+    if (alignmentHasFeatures)
     {
       add(scrollPane, BorderLayout.CENTER);
     }
@@ -133,7 +100,7 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     Panel tPanel = new Panel(new BorderLayout());
 
-    if (fr.isTransparencyAvailable())
+    if (fr.transparencySetter != null)
     {
       tPanel.add(transparency, BorderLayout.CENTER);
       tPanel.add(new Label("Transparency"), BorderLayout.EAST);
@@ -151,11 +118,8 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     if (groupPanel != null)
     {
-      groupPanel.setLayout(new GridLayout(
-              (fr.getFeatureGroupsSize()) / 4 + 1, 4)); // JBPNote - this was
-                                                        // scaled on number of
-                                                        // visible groups. seems
-                                                        // broken
+      groupPanel.setLayout(new GridLayout(fr.featureGroups.size() / 4 + 1,
+              4));
       groupPanel.validate();
 
       add(groupPanel, BorderLayout.NORTH);
@@ -180,22 +144,16 @@ public class FeatureSettings extends Panel implements ItemListener,
     height = Math.max(200, height);
     height = Math.min(400, height);
     int width = 300;
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("label.sequence_feature_settings"),
-            width, height);
+    jalview.bin.JalviewLite.addFrame(frame, "Feature Settings", width,
+            height);
   }
 
   public void paint(Graphics g)
   {
     g.setColor(Color.black);
-    g.drawString(MessageManager
-            .getString("label.no_features_added_to_this_alignment"), 10, 20);
-    g.drawString(MessageManager
-            .getString("label.features_can_be_added_from_searches_1"), 10,
-            40);
-    g.drawString(MessageManager
-            .getString("label.features_can_be_added_from_searches_2"), 10,
-            60);
+    g.drawString("No Features added to this alignment!!", 10, 20);
+    g.drawString("(Features can be added from searches or", 10, 40);
+    g.drawString("from Jalview / GFF features files)", 10, 60);
   }
 
   protected void popupSort(final MyCheckbox check, final Hashtable minmax,
@@ -203,10 +161,8 @@ public class FeatureSettings extends Panel implements ItemListener,
   {
     final String type = check.type;
     final Object typeCol = fr.getFeatureStyle(type);
-    java.awt.PopupMenu men = new PopupMenu(MessageManager.formatMessage(
-            "label.settings_for_type", new String[] { type }));
-    java.awt.MenuItem scr = new MenuItem(
-            MessageManager.getString("label.sort_by_score"));
+    java.awt.PopupMenu men = new PopupMenu("Settings for " + type);
+    java.awt.MenuItem scr = new MenuItem("Sort by Score");
     men.add(scr);
     final FeatureSettings me = this;
     scr.addActionListener(new ActionListener()
@@ -214,20 +170,19 @@ public class FeatureSettings extends Panel implements ItemListener,
 
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc
-                .sortAlignmentByFeatureScore(new String[] { type });
+        me.sortByScore(new String[]
+        { type });
       }
 
     });
-    MenuItem dens = new MenuItem(
-            MessageManager.getString("label.sort_by_density"));
+    MenuItem dens = new MenuItem("Sort by Density");
     dens.addActionListener(new ActionListener()
     {
 
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc
-                .sortAlignmentByFeatureDensity(new String[] { type });
+        me.sortByDens(new String[]
+        { type });
       }
 
     });
@@ -280,11 +235,10 @@ public class FeatureSettings extends Panel implements ItemListener,
     men.show(this.featurePanel, x, y);
   }
 
-  @Override
-  public void discoverAllFeatureData()
+  public void setTableData()
   {
-    if (fr.getAllFeatureColours() != null
-            && fr.getAllFeatureColours().size() > 0)
+    alignmentHasFeatures = fr.buildGroupHash();
+    if (alignmentHasFeatures)
     {
       rebuildGroups();
 
@@ -307,19 +261,18 @@ public class FeatureSettings extends Panel implements ItemListener,
       rdrw = true;
       groupPanel.removeAll();
     }
-    // TODO: JAL-964 - smoothly incorporate new group entries if panel already
-    // displayed and new groups present
-    for (String group : fr.getFeatureGroups())
+
+    Enumeration gps = fr.featureGroups.keys();
+    while (gps.hasMoreElements())
     {
-      boolean vis = fr.checkGroupVisibility(group, false);
-      Checkbox check = new MyCheckbox(group, vis,
+      String group = (String) gps.nextElement();
+      Boolean vis = (Boolean) fr.featureGroups.get(group);
+      Checkbox check = new MyCheckbox(group, vis.booleanValue(),
               (fr.featureLinks != null && fr.featureLinks
                       .containsKey(group)));
       check.addMouseListener(this);
       check.setFont(new Font("Serif", Font.BOLD, 12));
-      check.addItemListener(groupItemListener);
-      // note - visibility seems to correlate with displayed. ???wtf ??
-      check.setVisible(vis);
+      check.addItemListener(this);
       groupPanel.add(check);
     }
     if (rdrw)
@@ -335,21 +288,22 @@ public class FeatureSettings extends Panel implements ItemListener,
     SequenceFeature[] tmpfeatures;
     String group = null, type;
     Vector visibleChecks = new Vector();
-    AlignmentI alignment = av.getAlignment();
-    for (int i = 0; i < alignment.getHeight(); i++)
+
+    for (int i = 0; i < av.alignment.getHeight(); i++)
     {
-      if (alignment.getSequenceAt(i).getSequenceFeatures() == null)
+      if (av.alignment.getSequenceAt(i).getSequenceFeatures() == null)
       {
         continue;
       }
 
-      tmpfeatures = alignment.getSequenceAt(i).getSequenceFeatures();
+      tmpfeatures = av.alignment.getSequenceAt(i).getSequenceFeatures();
       int index = 0;
       while (index < tmpfeatures.length)
       {
         group = tmpfeatures[index].featureGroup;
 
-        if (group == null || fr.checkGroupVisibility(group, true))
+        if (group == null || fr.featureGroups.get(group) == null
+                || ((Boolean) fr.featureGroups.get(group)).booleanValue())
         {
           type = tmpfeatures[index].getType();
           if (!visibleChecks.contains(type))
@@ -378,14 +332,13 @@ public class FeatureSettings extends Panel implements ItemListener,
       }
     }
 
-    if (fr.getRenderOrder() != null)
+    if (fr.renderOrder != null)
     {
       // First add the checks in the previous render order,
       // in case the window has been closed and reopened
-      List<String> rol = fr.getRenderOrder();
-      for (int ro = rol.size() - 1; ro > -1; ro--)
+      for (int ro = fr.renderOrder.length - 1; ro > -1; ro--)
       {
-        String item = rol.get(ro);
+        String item = fr.renderOrder[ro];
 
         if (!visibleChecks.contains(item))
         {
@@ -447,7 +400,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     if (addCheck)
     {
       boolean selected = false;
-      if (groupsChanged || av.getFeaturesDisplayed().isVisible(type))
+      if (groupsChanged || av.featuresDisplayed.containsKey(type))
       {
         selected = true;
       }
@@ -484,24 +437,26 @@ public class FeatureSettings extends Panel implements ItemListener,
     selectionChanged();
   }
 
-  private ItemListener groupItemListener = new ItemListener()
-  {
-    public void itemStateChanged(ItemEvent evt)
-    {
-      Checkbox source = (Checkbox) evt.getSource();
-      fr.setGroupVisibility(source.getLabel(), source.getState());
-      ap.seqPanel.seqCanvas.repaint();
-      if (ap.overviewPanel != null)
-      {
-        ap.overviewPanel.updateOverviewImage();
-      }
-      resetTable(true);
-      return;
-    };
-  };
-
   public void itemStateChanged(ItemEvent evt)
   {
+    if (evt != null)
+    {
+      // Is the source a top level featureGroup?
+      Checkbox source = (Checkbox) evt.getSource();
+      if (fr.featureGroups.containsKey(source.getLabel()))
+      {
+        fr.featureGroups.put(source.getLabel(),
+                new Boolean(source.getState()));
+        ap.seqPanel.seqCanvas.repaint();
+        if (ap.overviewPanel != null)
+        {
+          ap.overviewPanel.updateOverviewImage();
+        }
+
+        resetTable(true);
+        return;
+      }
+    }
     selectionChanged();
   }
 
@@ -620,8 +575,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     else
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_unsupported_feature_colour_object"));
+              "Implementation error: Unsupported feature colour object.");
     }
     refreshTable();
   }
@@ -646,7 +600,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     MyCheckbox check = (MyCheckbox) evt.getSource();
     if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) != 0)
     {
-      this.popupSort(check, fr.getMinMax(), evt.getX(), evt.getY());
+      this.popupSort(check, fr.minmax, evt.getX(), evt.getY());
     }
     if (fr.featureLinks != null && fr.featureLinks.containsKey(check.type))
     {
@@ -686,7 +640,7 @@ public class FeatureSettings extends Panel implements ItemListener,
 
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
-    fr.setTransparency((100 - transparency.getValue()) / 100f);
+    fr.transparency = ((float) (100 - transparency.getValue()) / 100f);
     ap.seqPanel.seqCanvas.repaint();
 
   }
@@ -717,9 +671,7 @@ public class FeatureSettings extends Panel implements ItemListener,
       }
       else
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_colour_for_mycheckbox"));
+        throw new Error("Invalid color for MyCheckBox");
       }
       if (col != null)
       {
@@ -800,6 +752,83 @@ public class FeatureSettings extends Panel implements ItemListener,
                 (getSize().height - linkImage.getHeight(this)) / 2, this);
       }
     }
+  }
+
+  protected void sortByDens(String[] typ)
+  {
+    sortBy(typ, "Sort by Density", AlignmentSorter.FEATURE_DENSITY);
+  }
+
+  private String[] getDisplayedFeatureTypes()
+  {
+    String[] typ = null;
+    if (fr != null)
+    {
+      synchronized (fr.renderOrder)
+      {
+        typ = new String[fr.renderOrder.length];
+        System.arraycopy(fr.renderOrder, 0, typ, 0, typ.length);
+        for (int i = 0; i < typ.length; i++)
+        {
+          if (av.featuresDisplayed.get(typ[i]) == null)
+          {
+            typ[i] = null;
+          }
+        }
+      }
+    }
+    return typ;
+  }
+
+  protected void sortBy(String[] typ, String methodText, final String method)
+  {
+    if (typ == null)
+    {
+      typ = getDisplayedFeatureTypes();
+    }
+    String gps[] = null;
+    gps = fr.getGroups(true);
+    if (typ != null)
+    {
+      for (int i = 0; i < typ.length; i++)
+      {
+        System.err.println("Sorting on Types:" + typ[i]);
+      }
+    }
+    if (gps != null)
+    {
+
+      for (int i = 0; i < gps.length; i++)
+      {
+        System.err.println("Sorting on groups:" + gps[i]);
+      }
+    }
+    AlignmentPanel alignPanel = ap;
+    AlignmentI al = alignPanel.av.getAlignment();
+
+    int start, stop;
+    SequenceGroup sg = alignPanel.av.getSelectionGroup();
+    if (sg != null)
+    {
+      start = sg.getStartRes();
+      stop = sg.getEndRes();
+    }
+    else
+    {
+      start = 0;
+      stop = al.getWidth();
+    }
+    SequenceI[] oldOrder = al.getSequencesArray();
+    AlignmentSorter.sortByFeature(typ, gps, start, stop, al, method);
+    this.ap.alignFrame.addHistoryItem(new OrderCommand(methodText,
+            oldOrder, alignPanel.av.getAlignment()));
+    alignPanel.paintAlignment(true);
+
+  }
+
+  protected void sortByScore(String[] typ)
+  {
+    sortBy(typ, "Sort by Feature Score", AlignmentSorter.FEATURE_SCORE);
   }
 
 }

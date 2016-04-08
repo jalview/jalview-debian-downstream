@@ -1,52 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.api.RotatableCanvasI;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.SequencePoint;
-import jalview.math.RotatableMatrix;
-import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
+import java.util.*;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
-import javax.swing.JPanel;
-import javax.swing.ToolTipManager;
+import jalview.datamodel.*;
+import jalview.math.*;
 
 /**
  * DOCUMENT ME!
@@ -55,7 +33,7 @@ import javax.swing.ToolTipManager;
  * @version $Revision$
  */
 public class RotatableCanvas extends JPanel implements MouseListener,
-        MouseMotionListener, KeyListener, RotatableCanvasI
+        MouseMotionListener, KeyListener
 {
   RotatableMatrix idmat = new RotatableMatrix(3, 3);
 
@@ -118,7 +96,7 @@ public class RotatableCanvas extends JPanel implements MouseListener,
 
   float scalefactor = 1;
 
-  AlignmentViewport av;
+  AlignViewport av;
 
   AlignmentPanel ap;
 
@@ -160,18 +138,14 @@ public class RotatableCanvas extends JPanel implements MouseListener,
     repaint();
   }
 
-  boolean first = true;
-
   public void setPoints(Vector points, int npoint)
   {
     this.points = points;
     this.npoint = npoint;
-    if (first)
-    {
-      ToolTipManager.sharedInstance().registerComponent(this);
-      ToolTipManager.sharedInstance().setInitialDelay(0);
-      ToolTipManager.sharedInstance().setDismissDelay(10000);
-    }
+    ToolTipManager.sharedInstance().registerComponent(this);
+    ToolTipManager.sharedInstance().setInitialDelay(0);
+    ToolTipManager.sharedInstance().setDismissDelay(10000);
+
     prefsize = getPreferredSize();
     orig = new float[npoint][3];
 
@@ -212,14 +186,11 @@ public class RotatableCanvas extends JPanel implements MouseListener,
     findWidth();
 
     scale = findScale();
-    if (first)
-    {
 
-      addMouseListener(this);
+    addMouseListener(this);
 
-      addMouseMotionListener(this);
-    }
-    first = false;
+    addMouseMotionListener(this);
+
   }
 
   public void initAxes()
@@ -390,8 +361,7 @@ public class RotatableCanvas extends JPanel implements MouseListener,
     if (points == null)
     {
       g.setFont(new Font("Verdana", Font.PLAIN, 18));
-      g.drawString(MessageManager.getString("label.calculating_pca")
-              + "....", 20, getHeight() / 2);
+      g.drawString("Calculating PCA....", 20, getHeight() / 2);
     }
     else
     {
@@ -674,7 +644,7 @@ public class RotatableCanvas extends JPanel implements MouseListener,
           aps[a].av.setSelectionGroup(new SequenceGroup());
           aps[a].av.getSelectionGroup().addOrRemove(found, true);
           aps[a].av.getSelectionGroup().setEndRes(
-                  aps[a].av.getAlignment().getWidth() - 1);
+                  aps[a].av.alignment.getWidth() - 1);
         }
       }
       PaintRefresher.Refresh(this, av.getSequenceSetId());
@@ -842,7 +812,8 @@ public class RotatableCanvas extends JPanel implements MouseListener,
     }
     else
     {
-      return new AlignmentPanel[] { ap };
+      return new AlignmentPanel[]
+      { ap };
     }
   }
 

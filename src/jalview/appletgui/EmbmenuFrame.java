@@ -1,44 +1,45 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
+import java.awt.GraphicsConfiguration;
 import java.awt.HeadlessException;
 import java.awt.Label;
 import java.awt.Menu;
 import java.awt.MenuBar;
 import java.awt.Panel;
 import java.awt.PopupMenu;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Enumeration;
+import java.util.Hashtable;
 
 /**
- * This class implements a pattern for embedding toolbars as a panel with popups
- * for situations where the system menu bar is either invisible or
+ * This class implements a pattern form embedding toolbars as a panel with
+ * popups for situations where the system menu bar is either invisible or
  * inappropriate. It was derived from the code for embedding the jalview applet
  * alignFrame as a component on the web-page, which requires the local
  * alignFrame menu to be attached to that panel rather than placed on the parent
@@ -51,15 +52,10 @@ import java.util.Map;
  */
 public class EmbmenuFrame extends Frame implements MouseListener
 {
-  protected static final Font FONT_ARIAL_PLAIN_11 = new Font("Arial",
-          Font.PLAIN, 11);
-
-  public static final Font DEFAULT_MENU_FONT = FONT_ARIAL_PLAIN_11;
-
   /**
    * map from labels to popup menus for the embedded menubar
    */
-  protected Map<Label, PopupMenu> embeddedPopup = new HashMap<Label, PopupMenu>();
+  protected Hashtable embeddedPopup;
 
   /**
    * the embedded menu is built on this and should be added to the frame at the
@@ -97,16 +93,39 @@ public class EmbmenuFrame extends Frame implements MouseListener
     // DEBUG Hint: can test embedded menus by inserting true here.
     if (new jalview.util.Platform().isAMac())
     {
-      // Build the embedded menu panel, allowing override with system font
-      embeddedMenu = makeEmbeddedPopupMenu(topMenuBar, true, false);
+      // Build the embedded menu panel
+      embeddedMenu = makeEmbeddedPopupMenu(topMenuBar, "Arial", Font.PLAIN,
+              10, true); // try to pickup system font.
       setMenuBar(null);
-      // add the components to the Panel area.
+      // add the components to the TreePanel area.
       add(embeddedMenu, BorderLayout.NORTH);
-      tobeAdjusted.setSize(getSize().width,
-              getSize().height - embeddedMenu.getHeight());
+      tobeAdjusted.setSize(getSize().width, getSize().height
+              - embeddedMenu.HEIGHT);
       return true;
     }
     return false;
+  }
+
+  /**
+   * move all menus on menuBar onto embeddedMenu. embeddedPopup is used to store
+   * the popups for each menu removed from the menuBar and added to the panel.
+   * NOTE: it is up to the caller to remove menuBar from the Frame if it is
+   * already attached.
+   * 
+   * @param menuBar
+   * @param fn
+   * @param fstyle
+   * @param fsz
+   * @param overrideFonts
+   *          true if we take the menuBar fonts in preference to the supplied
+   *          defaults
+   * @return the embedded menu instance to be added to the frame.
+   */
+  protected Panel makeEmbeddedPopupMenu(MenuBar menuBar, String fn,
+          int fstyle, int fsz, boolean overrideFonts)
+  {
+    return makeEmbeddedPopupMenu(menuBar, fn, fstyle, fsz, overrideFonts,
+            false);
   }
 
   /**
@@ -115,25 +134,36 @@ public class EmbmenuFrame extends Frame implements MouseListener
    * menuBar from the Frame if it is already attached.
    * 
    * @param menuBar
+   * @param fn
+   * @param fstyle
+   * @param fsz
    * @param overrideFonts
    * @param append
    *          true means existing menu will be emptied before adding new
    *          elements
    * @return
    */
-  protected Panel makeEmbeddedPopupMenu(MenuBar menuBar,
-          boolean overrideFonts, boolean append)
+  protected Panel makeEmbeddedPopupMenu(MenuBar menuBar, String fn,
+          int fstyle, int fsz, boolean overrideFonts, boolean append)
   {
     if (!append)
     {
-      embeddedPopup.clear(); // TODO: check if j1.1
+      if (embeddedPopup != null)
+      {
+        embeddedPopup.clear(); // TODO: check if j1.1
+      }
       if (embeddedMenu != null)
       {
         embeddedMenu.removeAll();
       }
     }
-    embeddedMenu = makeEmbeddedPopupMenu(menuBar, DEFAULT_MENU_FONT,
-            overrideFonts, new Panel(), this);
+    if (embeddedPopup == null)
+    {
+      embeddedPopup = new Hashtable();
+    }
+
+    embeddedMenu = makeEmbeddedPopupMenu(menuBar, fn, fstyle, fsz,
+            overrideFonts, embeddedPopup, new Panel(), this);
     return embeddedMenu;
   }
 
@@ -146,8 +176,12 @@ public class EmbmenuFrame extends Frame implements MouseListener
    * 
    * @param menuBar
    *          must be non-null
-   * @param font
+   * @param fn
+   * @param fstyle
+   * @param fsz
    * @param overrideFonts
+   * @param embeddedPopup
+   *          must be non-null
    * @param embeddedMenu
    *          if null, a new panel will be created and returned
    * @param clickHandler
@@ -155,22 +189,28 @@ public class EmbmenuFrame extends Frame implements MouseListener
    *          embeddedPopup and embeddedMenu
    * @return the panel instance for convenience.
    */
-  protected Panel makeEmbeddedPopupMenu(MenuBar menuBar, Font font,
-          boolean overrideFonts, Panel embeddedMenu,
+  protected Panel makeEmbeddedPopupMenu(MenuBar menuBar, String fn,
+          int fstyle, int fsz, boolean overrideFonts,
+          Hashtable embeddedPopup, Panel embeddedMenu,
           MouseListener clickHandler)
   {
+    if (embeddedPopup == null)
+    {
+      throw new Error(
+              "Implementation error - embeddedPopup must be non-null");
+    }
     if (overrideFonts)
     {
       Font mbf = menuBar.getFont();
       if (mbf != null)
       {
-        font = mbf;
+        fn = mbf.getName();
+        fstyle = mbf.getStyle();
+        fsz = mbf.getSize();
       }
     }
     if (embeddedMenu == null)
-    {
       embeddedMenu = new Panel();
-    }
     FlowLayout flowLayout1 = new FlowLayout();
     embeddedMenu.setBackground(Color.lightGray);
     embeddedMenu.setLayout(flowLayout1);
@@ -179,7 +219,7 @@ public class EmbmenuFrame extends Frame implements MouseListener
     {
       Menu mi = menuBar.getMenu(mbi);
       Label elab = new Label(mi.getLabel());
-      elab.setFont(font);
+      elab.setFont(new java.awt.Font(fn, fstyle, fsz));
       // add the menu entries
       PopupMenu popup = new PopupMenu();
       int m, mSize = mi.getItemCount();
@@ -220,7 +260,7 @@ public class EmbmenuFrame extends Frame implements MouseListener
    */
   PopupMenu getPopupMenu(Label source)
   {
-    return embeddedPopup.get(source);
+    return (PopupMenu) embeddedPopup.get(source);
   }
 
   public void mouseClicked(MouseEvent evt)
@@ -247,8 +287,10 @@ public class EmbmenuFrame extends Frame implements MouseListener
   {
     if (embeddedPopup != null)
     {
-      for (Label lb : embeddedPopup.keySet())
+      Enumeration e = embeddedPopup.keys();
+      while (e.hasMoreElements())
       {
+        Label lb = (Label) e.nextElement();
         lb.removeMouseListener(this);
       }
       embeddedPopup.clear();

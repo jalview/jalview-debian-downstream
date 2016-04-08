@@ -1,36 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.analysis.AAFrequency;
-import jalview.analysis.Conservation;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ResidueProperties;
+import java.util.*;
 
-import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
+import java.awt.*;
+
+import jalview.analysis.*;
+import jalview.schemes.*;
 
 /**
  * Collects a set contiguous ranges on a set of sequences
@@ -38,7 +30,7 @@ import java.util.Vector;
  * @author $author$
  * @version $Revision$
  */
-public class SequenceGroup implements AnnotatedCollectionI
+public class SequenceGroup
 {
   String groupName;
 
@@ -62,7 +54,7 @@ public class SequenceGroup implements AnnotatedCollectionI
   /**
    * group members
    */
-  private List<SequenceI> sequences = new ArrayList<SequenceI>();
+  private Vector sequences = new Vector();
 
   /**
    * representative sequence for this group (if any)
@@ -76,10 +68,8 @@ public class SequenceGroup implements AnnotatedCollectionI
    */
   public ColourSchemeI cs;
 
-  // start column (base 0)
   int startRes = 0;
 
-  // end column (base 0)
   int endRes = 0;
 
   public Color outlineColour = Color.black;
@@ -101,11 +91,6 @@ public class SequenceGroup implements AnnotatedCollectionI
    * consensus calculation property
    */
   private boolean showSequenceLogo = false;
-
-  /**
-   * flag indicating if logo should be rendered normalised
-   */
-  private boolean normaliseSequenceLogo;
 
   /**
    * @return the includeAllConsSymbols
@@ -137,7 +122,7 @@ public class SequenceGroup implements AnnotatedCollectionI
    * @param end
    *          last column of group
    */
-  public SequenceGroup(List<SequenceI> sequences, String groupName,
+  public SequenceGroup(Vector sequences, String groupName,
           ColourSchemeI scheme, boolean displayBoxes, boolean displayText,
           boolean colourText, int start, int end)
   {
@@ -161,8 +146,13 @@ public class SequenceGroup implements AnnotatedCollectionI
   {
     if (seqsel != null)
     {
-      sequences = new ArrayList<SequenceI>();
-      sequences.addAll(seqsel.sequences);
+      sequences = new Vector();
+      Enumeration sq = seqsel.sequences.elements();
+      while (sq.hasMoreElements())
+      {
+        sequences.addElement(sq.nextElement());
+      }
+      ;
       if (seqsel.groupName != null)
       {
         groupName = new String(seqsel.groupName);
@@ -174,9 +164,7 @@ public class SequenceGroup implements AnnotatedCollectionI
       endRes = seqsel.endRes;
       cs = seqsel.cs;
       if (seqsel.description != null)
-      {
         description = new String(seqsel.description);
-      }
       hidecols = seqsel.hidecols;
       hidereps = seqsel.hidereps;
       idColour = seqsel.idColour;
@@ -236,9 +224,7 @@ public class SequenceGroup implements AnnotatedCollectionI
                 }
               }
               if (!found)
-              {
                 continue;
-              }
             }
             AlignmentAnnotation newannot = new AlignmentAnnotation(
                     seq.getAnnotation()[a]);
@@ -294,35 +280,29 @@ public class SequenceGroup implements AnnotatedCollectionI
     return eres;
   }
 
-  @Override
-  public List<SequenceI> getSequences()
-  {
-    return sequences;
-  }
-
-  @Override
-  public List<SequenceI> getSequences(
-          Map<SequenceI, SequenceCollectionI> hiddenReps)
+  public Vector getSequences(Hashtable hiddenReps)
   {
     if (hiddenReps == null)
     {
-      // TODO: need a synchronizedCollection here ?
       return sequences;
     }
     else
     {
-      List<SequenceI> allSequences = new ArrayList<SequenceI>();
-      for (SequenceI seq : sequences)
+      Vector allSequences = new Vector();
+      SequenceI seq, seq2;
+      for (int i = 0; i < sequences.size(); i++)
       {
-        allSequences.add(seq);
+        seq = (SequenceI) sequences.elementAt(i);
+        allSequences.addElement(seq);
         if (hiddenReps.containsKey(seq))
         {
-          SequenceCollectionI hsg = hiddenReps.get(seq);
-          for (SequenceI seq2 : hsg.getSequences())
+          SequenceGroup hsg = (SequenceGroup) hiddenReps.get(seq);
+          for (int h = 0; h < hsg.getSize(); h++)
           {
+            seq2 = hsg.getSequenceAt(h);
             if (seq2 != seq && !allSequences.contains(seq2))
             {
-              allSequences.add(seq2);
+              allSequences.addElement(seq2);
             }
           }
         }
@@ -332,15 +312,20 @@ public class SequenceGroup implements AnnotatedCollectionI
     }
   }
 
-  public SequenceI[] getSequencesAsArray(
-          Map<SequenceI, SequenceCollectionI> map)
+  public SequenceI[] getSequencesAsArray(Hashtable hiddenReps)
   {
-    List<SequenceI> tmp = getSequences(map);
+    Vector tmp = getSequences(hiddenReps);
     if (tmp == null)
     {
       return null;
     }
-    return tmp.toArray(new SequenceI[tmp.size()]);
+    SequenceI[] result = new SequenceI[tmp.size()];
+    for (int i = 0; i < result.length; i++)
+    {
+      result[i] = (SequenceI) tmp.elementAt(i);
+    }
+
+    return result;
   }
 
   /**
@@ -466,42 +451,22 @@ public class SequenceGroup implements AnnotatedCollectionI
    */
   public void addSequence(SequenceI s, boolean recalc)
   {
-    synchronized (sequences)
+    if (s != null && !sequences.contains(s))
     {
-      if (s != null && !sequences.contains(s))
-      {
-        sequences.add(s);
-      }
+      sequences.addElement(s);
+    }
 
-      if (recalc)
-      {
-        recalcConservation();
-      }
+    if (recalc)
+    {
+      recalcConservation();
     }
   }
 
   /**
-   * Max Gaps Threshold (percent) for performing a conservation calculation
+   * Max Gaps Threshold for performing a conservation calculation TODO: make
+   * this a configurable property - or global to an alignment view
    */
   private int consPercGaps = 25;
-
-  /**
-   * @return Max Gaps Threshold for performing a conservation calculation
-   */
-  public int getConsPercGaps()
-  {
-    return consPercGaps;
-  }
-
-  /**
-   * set Max Gaps Threshold (percent) for performing a conservation calculation
-   * 
-   * @param consPercGaps
-   */
-  public void setConsPercGaps(int consPercGaps)
-  {
-    this.consPercGaps = consPercGaps;
-  }
 
   /**
    * calculate residue conservation for group - but only if necessary.
@@ -512,17 +477,23 @@ public class SequenceGroup implements AnnotatedCollectionI
     {
       return;
     }
+
     try
     {
       Hashtable cnsns[] = AAFrequency.calculate(sequences, startRes,
               endRes + 1, showSequenceLogo);
       if (consensus != null)
       {
-        _updateConsensusRow(cnsns, sequences.size());
+        _updateConsensusRow(cnsns);
       }
       if (cs != null)
       {
         cs.setConsensus(cnsns);
+
+        if (cs instanceof ClustalxColourScheme)
+        {
+          ((ClustalxColourScheme) cs).resetClustalX(sequences, getWidth());
+        }
       }
 
       if ((conservation != null)
@@ -542,12 +513,14 @@ public class SequenceGroup implements AnnotatedCollectionI
           if (cs.conservationApplied())
           {
             cs.setConservation(c);
+
+            if (cs instanceof ClustalxColourScheme)
+            {
+              ((ClustalxColourScheme) cs).resetClustalX(sequences,
+                      getWidth());
+            }
           }
         }
-      }
-      if (cs != null)
-      {
-        cs.alignmentChanged(context != null ? context : this, null);
       }
     } catch (java.lang.OutOfMemoryError err)
     {
@@ -579,7 +552,7 @@ public class SequenceGroup implements AnnotatedCollectionI
 
   public Hashtable[] consensusData = null;
 
-  private void _updateConsensusRow(Hashtable[] cnsns, long nseq)
+  private void _updateConsensusRow(Hashtable[] cnsns)
   {
     if (consensus == null)
     {
@@ -596,10 +569,9 @@ public class SequenceGroup implements AnnotatedCollectionI
     consensus.annotations = new Annotation[aWidth]; // should be alignment width
 
     AAFrequency.completeConsensus(consensus, cnsns, startRes, endRes + 1,
-            ignoreGapsInConsensus, showSequenceLogo, nseq); // TODO: setting
-                                                            // container
-    // for
-    // ignoreGapsInConsensusCalculation);
+            ignoreGapsInConsensus, showSequenceLogo); // TODO: setting container
+                                                      // for
+                                                      // ignoreGapsInConsensusCalculation);
   }
 
   /**
@@ -611,56 +583,49 @@ public class SequenceGroup implements AnnotatedCollectionI
    */
   public void addOrRemove(SequenceI s, boolean recalc)
   {
-    synchronized (sequences)
+    if (sequences.contains(s))
     {
-      if (sequences.contains(s))
-      {
-        deleteSequence(s, recalc);
-      }
-      else
-      {
-        addSequence(s, recalc);
-      }
+      deleteSequence(s, recalc);
+    }
+    else
+    {
+      addSequence(s, recalc);
     }
   }
 
   /**
-   * remove
+   * DOCUMENT ME!
    * 
    * @param s
-   *          to be removed
+   *          DOCUMENT ME!
    * @param recalc
-   *          true means recalculate conservation
+   *          DOCUMENT ME!
    */
   public void deleteSequence(SequenceI s, boolean recalc)
   {
-    synchronized (sequences)
-    {
-      sequences.remove(s);
+    sequences.removeElement(s);
 
-      if (recalc)
-      {
-        recalcConservation();
-      }
+    if (recalc)
+    {
+      recalcConservation();
     }
   }
 
   /**
+   * DOCUMENT ME!
    * 
-   * 
-   * @return the first column selected by this group. Runs from 0<=i<N_cols
+   * @return DOCUMENT ME!
    */
-  @Override
   public int getStartRes()
   {
     return startRes;
   }
 
   /**
+   * DOCUMENT ME!
    * 
-   * @return the groups last selected column. Runs from 0<=i<N_cols
+   * @return DOCUMENT ME!
    */
-  @Override
   public int getEndRes()
   {
     return endRes;
@@ -687,7 +652,9 @@ public class SequenceGroup implements AnnotatedCollectionI
   }
 
   /**
-   * @return number of sequences in group
+   * DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
    */
   public int getSize()
   {
@@ -695,17 +662,23 @@ public class SequenceGroup implements AnnotatedCollectionI
   }
 
   /**
+   * DOCUMENT ME!
+   * 
    * @param i
-   * @return the ith sequence
+   *          DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
    */
   public SequenceI getSequenceAt(int i)
   {
-    return sequences.get(i);
+    return (SequenceI) sequences.elementAt(i);
   }
 
   /**
+   * DOCUMENT ME!
+   * 
    * @param state
-   *          colourText
+   *          DOCUMENT ME!
    */
   public void setColourText(boolean state)
   {
@@ -765,27 +738,29 @@ public class SequenceGroup implements AnnotatedCollectionI
   }
 
   /**
-   * computes the width of current set of sequences and returns it
+   * DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  @Override
   public int getWidth()
   {
-    synchronized (sequences)
+    // MC This needs to get reset when characters are inserted and deleted
+    if (sequences.size() > 0)
     {
-      // MC This needs to get reset when characters are inserted and deleted
-      boolean first = true;
-      for (SequenceI seq : sequences)
-      {
-        if (first || seq.getLength() > width)
-        {
-          width = seq.getLength();
-          first = false;
-        }
-      }
-      return width;
+      width = ((SequenceI) sequences.elementAt(0)).getLength();
     }
+
+    for (int i = 1; i < sequences.size(); i++)
+    {
+      SequenceI seq = (SequenceI) sequences.elementAt(i);
+
+      if (seq.getLength() > width)
+      {
+        width = seq.getLength();
+      }
+    }
+
+    return width;
   }
 
   /**
@@ -836,42 +811,39 @@ public class SequenceGroup implements AnnotatedCollectionI
    */
   public SequenceI[] getSequencesInOrder(AlignmentI al, boolean trim)
   {
-    synchronized (sequences)
+    int sSize = sequences.size();
+    int alHeight = al.getHeight();
+
+    SequenceI[] seqs = new SequenceI[(trim) ? sSize : alHeight];
+
+    int index = 0;
+    for (int i = 0; i < alHeight && index < sSize; i++)
     {
-      int sSize = sequences.size();
-      int alHeight = al.getHeight();
-
-      SequenceI[] seqs = new SequenceI[(trim) ? sSize : alHeight];
-
-      int index = 0;
-      for (int i = 0; i < alHeight && index < sSize; i++)
+      if (sequences.contains(al.getSequenceAt(i)))
       {
-        if (sequences.contains(al.getSequenceAt(i)))
-        {
-          seqs[(trim) ? index : i] = al.getSequenceAt(i);
-          index++;
-        }
+        seqs[(trim) ? index : i] = al.getSequenceAt(i);
+        index++;
       }
-      if (index == 0)
-      {
-        return null;
-      }
-      if (!trim)
-      {
-        return seqs;
-      }
-      if (index < seqs.length)
-      {
-        SequenceI[] dummy = seqs;
-        seqs = new SequenceI[index];
-        while (--index >= 0)
-        {
-          seqs[index] = dummy[index];
-          dummy[index] = null;
-        }
-      }
+    }
+    if (index == 0)
+    {
+      return null;
+    }
+    if (!trim)
+    {
       return seqs;
     }
+    if (index < seqs.length)
+    {
+      SequenceI[] dummy = seqs;
+      seqs = new SequenceI[index];
+      while (--index >= 0)
+      {
+        seqs[index] = dummy[index];
+        dummy[index] = null;
+      }
+    }
+    return seqs;
   }
 
   /**
@@ -976,23 +948,31 @@ public class SequenceGroup implements AnnotatedCollectionI
    * 
    * @param alignment
    *          (may not be null)
-   * @param map
+   * @param hashtable
    *          (may be null)
    * @return new group containing sequences common to this group and alignment
    */
-  public SequenceGroup intersect(AlignmentI alignment,
-          Map<SequenceI, SequenceCollectionI> map)
+  public SequenceGroup intersect(AlignmentI alignment, Hashtable hashtable)
   {
     SequenceGroup sgroup = new SequenceGroup(this);
     SequenceI[] insect = getSequencesInOrder(alignment);
-    sgroup.sequences = new ArrayList<SequenceI>();
+    sgroup.sequences = new Vector();
     for (int s = 0; insect != null && s < insect.length; s++)
     {
-      if (map == null || map.containsKey(insect[s]))
+      if (hashtable == null || hashtable.containsKey(insect[s]))
       {
-        sgroup.sequences.add(insect[s]);
+        sgroup.sequences.addElement(insect[s]);
       }
     }
+    // Enumeration en =getSequences(hashtable).elements();
+    // while (en.hasMoreElements())
+    // {
+    // SequenceI elem = (SequenceI) en.nextElement();
+    // if (alignment.getSequences().contains(elem))
+    // {
+    // sgroup.addSequence(elem, false);
+    // }
+    // }
     return sgroup;
   }
 
@@ -1053,12 +1033,12 @@ public class SequenceGroup implements AnnotatedCollectionI
     {
       consensus = new AlignmentAnnotation("", "", new Annotation[1], 0f,
               100f, AlignmentAnnotation.BAR_GRAPH);
-      consensus.hasText = true;
-      consensus.autoCalculated = true;
-      consensus.groupRef = this;
-      consensus.label = "Consensus for " + getName();
-      consensus.description = "Percent Identity";
     }
+    consensus.hasText = true;
+    consensus.autoCalculated = true;
+    consensus.groupRef = this;
+    consensus.label = "Consensus for " + getName();
+    consensus.description = "Percent Identity";
     return consensus;
   }
 
@@ -1186,149 +1166,5 @@ public class SequenceGroup implements AnnotatedCollectionI
   public boolean isShowConsensusHistogram()
   {
     return showConsensusHistogram;
-  }
-
-  /**
-   * set flag indicating if logo should be normalised when rendered
-   * 
-   * @param norm
-   */
-  public void setNormaliseSequenceLogo(boolean norm)
-  {
-    normaliseSequenceLogo = norm;
-  }
-
-  public boolean isNormaliseSequenceLogo()
-  {
-    return normaliseSequenceLogo;
-  }
-
-  @Override
-  /**
-   * returns a new array with all annotation involving this group
-   */
-  public AlignmentAnnotation[] getAlignmentAnnotation()
-  {
-    // TODO add in other methods like 'getAlignmentAnnotation(String label),
-    // etc'
-    ArrayList<AlignmentAnnotation> annot = new ArrayList<AlignmentAnnotation>();
-    synchronized (sequences)
-    {
-      for (SequenceI seq : sequences)
-      {
-        AlignmentAnnotation[] aa = seq.getAnnotation();
-        if (aa != null)
-        {
-          for (AlignmentAnnotation al : aa)
-          {
-            if (al.groupRef == this)
-            {
-              annot.add(al);
-            }
-          }
-        }
-      }
-      if (consensus != null)
-      {
-        annot.add(consensus);
-      }
-      if (conservation != null)
-      {
-        annot.add(conservation);
-      }
-    }
-    return annot.toArray(new AlignmentAnnotation[0]);
-  }
-
-  @Override
-  public Iterable<AlignmentAnnotation> findAnnotation(String calcId)
-  {
-    ArrayList<AlignmentAnnotation> aa = new ArrayList<AlignmentAnnotation>();
-    for (AlignmentAnnotation a : getAlignmentAnnotation())
-    {
-      if (a.getCalcId() == calcId)
-      {
-        aa.add(a);
-      }
-    }
-    return aa;
-  }
-
-  /**
-   * Returns a list of annotations that match the specified sequenceRef, calcId
-   * and label, ignoring null values.
-   * 
-   * @return list of AlignmentAnnotation objects
-   */
-  @Override
-  public Iterable<AlignmentAnnotation> findAnnotations(SequenceI seq,
-          String calcId, String label)
-  {
-    ArrayList<AlignmentAnnotation> aa = new ArrayList<AlignmentAnnotation>();
-    for (AlignmentAnnotation ann : getAlignmentAnnotation())
-    {
-      if (ann.getCalcId() != null && ann.getCalcId().equals(calcId)
-              && ann.sequenceRef != null && ann.sequenceRef == seq
-              && ann.label != null && ann.label.equals(label))
-      {
-        aa.add(ann);
-      }
-    }
-    return aa;
-  }
-
-  /**
-   * Answer true if any annotation matches the calcId passed in (if not null).
-   * 
-   * @param calcId
-   * @return
-   */
-  public boolean hasAnnotation(String calcId)
-  {
-    if (calcId != null && !"".equals(calcId))
-    {
-      for (AlignmentAnnotation a : getAlignmentAnnotation())
-      {
-        if (a.getCalcId() == calcId)
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Remove all sequences from the group (leaving other properties unchanged).
-   */
-  public void clear()
-  {
-    synchronized (sequences)
-    {
-      sequences.clear();
-    }
-  }
-
-  private AnnotatedCollectionI context;
-
-  /**
-   * set the alignment or group context for this group
-   * 
-   * @param context
-   */
-  public void setContext(AnnotatedCollectionI context)
-  {
-    this.context = context;
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.AnnotatedCollectionI#getContext()
-   */
-  @Override
-  public AnnotatedCollectionI getContext()
-  {
-    return context;
   }
 }

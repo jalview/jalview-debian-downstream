@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /** This class represents the \G pattern element. */
 class BackG extends Pattern

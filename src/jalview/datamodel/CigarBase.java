@@ -1,28 +1,23 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.util.MessageManager;
-
-import java.util.Vector;
+import java.util.*;
 
 public abstract class CigarBase
 {
@@ -101,7 +96,8 @@ public abstract class CigarBase
       case D:
         if (!consecutive_del)
         {
-          deletions[++delcount] = new int[] { cursor, 0, alcursor };
+          deletions[++delcount] = new int[]
+          { cursor, 0, alcursor };
         }
         cursor += range[i];
         deletions[delcount][1] = cursor - 1;
@@ -145,9 +141,7 @@ public abstract class CigarBase
         endpos = alcursor;
         break;
       default:
-        throw new Error(MessageManager.formatMessage(
-                "error.unknown_seq_cigar_operation",
-                new String[] { new StringBuffer(operation[i]).toString() }));
+        throw new Error("Unknown SeqCigar operation '" + operation[i] + "'");
       }
     }
     if (++delcount > 0)
@@ -156,8 +150,9 @@ public abstract class CigarBase
       System.arraycopy(deletions, 0, trunc_deletions, 0, delcount);
     }
     deletions = null;
-    return new Object[] { ((reference != null) ? sq.toString() : null),
-        new int[] { start, startpos, end, endpos }, trunc_deletions };
+    return new Object[]
+    { ((reference != null) ? sq.toString() : null), new int[]
+    { start, startpos, end, endpos }, trunc_deletions };
   }
 
   protected void compact_operations()
@@ -225,9 +220,7 @@ public abstract class CigarBase
       } while (c >= '0' && c <= '9' && j < l);
       if (j >= l && c >= '0' && c <= '9')
       {
-        throw new Exception(
-                MessageManager
-                        .getString("exception.unterminated_cigar_string"));
+        throw new Exception("Unterminated cigar string.");
       }
       try
       {
@@ -236,9 +229,7 @@ public abstract class CigarBase
         i = j;
       } catch (Exception e)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_bug_parse_cigar_string"));
+        throw new Error("Implementation bug in parseCigarString");
       }
       if (c >= 'a' && c <= 'z')
       {
@@ -250,13 +241,13 @@ public abstract class CigarBase
       }
       else
       {
-        throw new Exception(MessageManager.formatMessage(
-                "exception.unexpected_operation_cigar_string_pos",
-                new String[] { new StringBuffer(c).toString(),
-                    Integer.valueOf(i).toString(), cigarString }));
+        throw new Exception("Unexpected operation '" + c
+                + "' in cigar string (position " + i + " in '"
+                + cigarString + "'");
       }
     }
-    return new Object[] { operation, range };
+    return new Object[]
+    { operation, range };
   }
 
   /**
@@ -275,18 +266,16 @@ public abstract class CigarBase
     }
     if (op != M && op != D && op != I)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_invalid_operation_string"));
+      throw new Error("Implementation error. Invalid operation string.");
     }
-    if (range == 0)
+    if (range==0)
     {
       return; // No Operation to add.
     }
     if (range < 0)
     {
       throw new Error(
-              MessageManager.getString("error.invalid_range_string"));
+              "Invalid range string (must be zero or positive number)");
     }
     int lngth = 0;
     if (operation == null)
@@ -399,8 +388,7 @@ public abstract class CigarBase
     if (start < 0 || start > end)
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_delete_range_out_of_bounds"));
+              "Implementation Error: deleteRange out of bounds: start must be non-negative and less than end.");
     }
     // find beginning
     int cursor = 0; // mark the position for the current operation being edited.
@@ -472,13 +460,10 @@ public abstract class CigarBase
           }
           break;
         case D:
-          throw new Error(
-                  MessageManager.getString("error.implementation_error")); // do
-                                                                           // nothing;
+          throw new Error("Implementation error."); // do nothing;
         default:
-          throw new Error(MessageManager.formatMessage(
-                  "error.implementation_error_unknown_operation",
-                  new String[] { new StringBuffer(oldops[o]).toString() }));
+          throw new Error("Implementation Error! Unknown operation '"
+                  + oldops[o] + "'");
         }
         rlength -= remain;
         remain = oldrange[++o]; // number of op characters left to edit
@@ -537,7 +522,8 @@ public abstract class CigarBase
         vcursor += range[i];
         break;
       case D:
-        dr.addElement(new int[] { vcursor, cursor, range[i] });
+        dr.addElement(new int[]
+        { vcursor, cursor, range[i] });
         cursor += range[i];
       }
     }

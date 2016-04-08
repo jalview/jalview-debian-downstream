@@ -1,34 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io.vamsas;
-
-import jalview.bin.Cache;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.io.VamsasAppDatastore;
-import jalview.util.UrlLink;
 
 import java.util.Enumeration;
 import java.util.Vector;
 
+import uk.ac.vamsas.objects.core.DataSet;
 import uk.ac.vamsas.objects.core.DataSetAnnotations;
 import uk.ac.vamsas.objects.core.Link;
 import uk.ac.vamsas.objects.core.Property;
@@ -36,7 +28,13 @@ import uk.ac.vamsas.objects.core.Provenance;
 import uk.ac.vamsas.objects.core.RangeAnnotation;
 import uk.ac.vamsas.objects.core.Score;
 import uk.ac.vamsas.objects.core.Seg;
+import uk.ac.vamsas.objects.core.Sequence;
 import uk.ac.vamsas.objects.utils.Properties;
+import jalview.bin.Cache;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.io.VamsasAppDatastore;
+import jalview.util.UrlLink;
 
 /**
  * @author JimP
@@ -200,14 +198,15 @@ public class Sequencefeature extends Rangetype
               .debug("About to destroy complex annotation in vamsas document mapped to sequence feature ("
                       + dsa.getVorbaId() + ")");
     }
-    dsa.setSeg(new Seg[] { vSeg });
+    dsa.setSeg(new Seg[]
+    { vSeg });
     dsa.setDescription(feature.getDescription());
     dsa.setStatus(feature.getStatus());
     if (feature.links != null && feature.links.size() > 0)
     {
       for (int i = 0, iSize = feature.links.size(); i < iSize; i++)
       {
-        String link = feature.links.elementAt(i);
+        String link = (String) feature.links.elementAt(i);
         UrlLink ulink = new UrlLink(link);
         if (ulink.isValid())
         {
@@ -220,10 +219,11 @@ public class Sequencefeature extends Rangetype
       }
     }
     dsa.setGroup(feature.getFeatureGroup());
-    if (!Float.isNaN(feature.getScore()))
+    if (feature.getScore() != Float.NaN)
     {
       Score fscore = new Score();
-      dsa.setScore(new Score[] { fscore });
+      dsa.setScore(new Score[]
+      { fscore });
       fscore.setContent(feature.getScore());
       fscore.setName(feature.getType());
     }

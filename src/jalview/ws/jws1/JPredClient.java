@@ -1,47 +1,33 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.jws1;
 
-import jalview.analysis.AlignSeq;
-import jalview.bin.Cache;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.SeqCigar;
-import jalview.datamodel.SequenceI;
-import jalview.gui.AlignFrame;
-import jalview.gui.Desktop;
-import jalview.gui.WebserviceInfo;
-import jalview.util.MessageManager;
-
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Hashtable;
+import java.util.*;
 
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
-import ext.vamsas.Jpred;
-import ext.vamsas.JpredServiceLocator;
-import ext.vamsas.JpredSoapBindingStub;
-import ext.vamsas.ServiceHandle;
+import ext.vamsas.*;
+import jalview.analysis.*;
+import jalview.bin.*;
+import jalview.datamodel.*;
+import jalview.gui.*;
 
 public class JPredClient extends WS1Client
 {
@@ -155,8 +141,7 @@ public class JPredClient extends WS1Client
       if (!msa && msf.length > 1)
       {
         throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_multiple_single_sequence_prediction_jobs_not_supported"));
+                "Implementation Error! Multiple single sequence prediction jobs are not yet supported.");
       }
 
       String altitle = getPredictionName(WebServiceName) + " for "
@@ -296,15 +281,14 @@ public class JPredClient extends WS1Client
   private WebserviceInfo setWebService()
   {
     WebServiceName = "JNetWS";
-    WebServiceJobTitle = MessageManager
-            .getString("label.jnet_secondary_structure_prediction");
+    WebServiceJobTitle = "JNet secondary structure prediction";
     WebServiceReference = "\"Cuff J. A and Barton G.J (2000) Application of "
             + "multiple sequence alignment profiles to improve protein secondary structure prediction, "
             + "Proteins 40:502-511\".";
     WsURL = "http://www.compbio.dundee.ac.uk/JalviewWS/services/jpred";
 
     WebserviceInfo wsInfo = new WebserviceInfo(WebServiceJobTitle,
-            WebServiceReference, true);
+            WebServiceReference);
 
     return wsInfo;
   }
@@ -323,21 +307,14 @@ public class JPredClient extends WS1Client
 
     } catch (Exception ex)
     {
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      MessageManager
-                              .formatMessage(
-                                      "label.secondary_structure_prediction_service_couldnt_be_located",
-                                      new String[] { WebServiceName, WsURL }),
-                      MessageManager
-                              .getString("label.internal_jalview_error"),
-                      JOptionPane.WARNING_MESSAGE);
-      wsInfo.setProgressText(MessageManager
-              .formatMessage(
-                      "label.secondary_structure_prediction_service_couldnt_be_located",
-                      new String[] { WebServiceName, WsURL })
-              + "\n" + ex.getMessage());
+      JOptionPane.showMessageDialog(Desktop.desktop,
+              "The Secondary Structure Prediction Service named "
+                      + WebServiceName + " at " + WsURL
+                      + " couldn't be located.", "Internal Jalview Error",
+              JOptionPane.WARNING_MESSAGE);
+      wsInfo.setProgressText("Serious! " + WebServiceName
+              + " Service location failed\nfor URL :" + WsURL + "\n"
+              + ex.getMessage());
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
 
     }

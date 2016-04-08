@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.seqfetcher;
 
@@ -33,7 +30,8 @@ import com.stevesoft.pat.Regex;
  * add/define mechanism for retrieval of Trees and distance matrices from a
  * database (unify with io)
  * 
- * @author JimP TODO: promote to API
+ * @author JimP
+ * 
  */
 public interface DbSourceProxy
 {
@@ -69,9 +67,7 @@ public interface DbSourceProxy
 
   /**
    * Regular expression for checking form of query string understood by this
-   * source. If the Regex includes parenthesis, then the first parenthesis
-   * should yield the same accession string as the one used to annotate the
-   * sequence. This is used to match query strings to returned sequences.
+   * source.
    * 
    * @return null or a validation regex
    */
@@ -106,12 +102,9 @@ public interface DbSourceProxy
    * into an alignment
    * 
    * @param queries
-   *          - one or more queries for database in expected form
    * @return null if queries were successful but result was not parsable
    * @throws Exception
-   *           - propagated from underlying transport to database (note -
-   *           exceptions are not raised if query not found in database)
-   * 
+   *           TODO
    */
   public AlignmentI getSequenceRecords(String queries) throws Exception;
 
@@ -128,20 +121,11 @@ public interface DbSourceProxy
    */
   public StringBuffer getRawRecords();
 
+  
   /**
    * Find out more info about the source.
-   * 
-   * @param dbsourceproperty
-   *          - one of the database reference source properties in
-   *          jalview.datamodel.DBRefSource
+   * @param dbsourceproperty - one of the database reference source properties in jalview.datamodel.DBRefSource
    * @return true if the source has this property
    */
   public boolean isA(Object dbsourceproperty);
-
-  /**
-   * Tier for this data source
-   * 
-   * @return 0 - primary datasource, 1 - das primary source, 2 - secondary
-   */
-  public int getTier();
 }

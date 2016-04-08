@@ -1,56 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package MCview;
 
-import jalview.analysis.AlignSeq;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SequenceI;
-import jalview.gui.AlignmentPanel;
-import jalview.gui.FeatureRenderer;
-import jalview.gui.SequenceRenderer;
-import jalview.structure.AtomSpec;
-import jalview.structure.StructureListener;
-import jalview.structure.StructureMapping;
-import jalview.structure.StructureSelectionManager;
+import java.io.*;
+import java.util.*;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Event;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 // JBPNote TODO: This class is quite noisy - needs proper log.info/log.debug
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.io.PrintStream;
-import java.util.List;
-import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
-import javax.swing.JPanel;
-import javax.swing.ToolTipManager;
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.gui.*;
+import jalview.structure.*;
 
 public class PDBCanvas extends JPanel implements MouseListener,
         MouseMotionListener, StructureListener
@@ -123,13 +101,13 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
   PDBChain mainchain;
 
-  Vector<String> highlightRes;
+  Vector highlightRes;
 
   boolean pdbAction = false;
 
   boolean seqColoursReady = false;
 
-  jalview.renderer.seqfeatures.FeatureRenderer fr;
+  jalview.gui.FeatureRenderer fr;
 
   Color backgroundColour = Color.black;
 
@@ -153,9 +131,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       pdb = ssm.setMapping(seq, chains, pdbentry.getFile(), protocol);
 
       if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
-      {
         pdbentry.setFile("INLINE" + pdb.id);
-      }
 
     } catch (Exception ex)
     {
@@ -188,15 +164,17 @@ public class PDBCanvas extends JPanel implements MouseListener,
     {
 
       mappingDetails.append("\n\nPDB Sequence is :\nSequence = "
-              + pdb.chains.elementAt(i).sequence.getSequenceAsString());
+              + ((PDBChain) pdb.chains.elementAt(i)).sequence
+                      .getSequenceAsString());
       mappingDetails.append("\nNo of residues = "
-              + pdb.chains.elementAt(i).residues.size() + "\n\n");
+              + ((PDBChain) pdb.chains.elementAt(i)).residues.size()
+              + "\n\n");
 
       // Now lets compare the sequences to get
       // the start and end points.
       // Align the sequence to the pdb
       AlignSeq as = new AlignSeq(sequence,
-              pdb.chains.elementAt(i).sequence, "pep");
+              ((PDBChain) pdb.chains.elementAt(i)).sequence, "pep");
       as.calcScoreMatrix();
       as.traceAlignment();
       PrintStream ps = new PrintStream(System.out)
@@ -229,7 +207,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       mappingDetails.append("\nSEQ start/end " + seqstart + " " + seqend);
     }
 
-    mainchain = pdb.chains.elementAt(maxchain);
+    mainchain = (PDBChain) pdb.chains.elementAt(maxchain);
 
     mainchain.pdbstart = pdbstart;
     mainchain.pdbend = pdbend;
@@ -263,21 +241,23 @@ public class PDBCanvas extends JPanel implements MouseListener,
     ToolTipManager.sharedInstance().setDismissDelay(10000);
   }
 
-  Vector<Bond> visiblebonds;
+  Vector visiblebonds;
 
   void setupBonds()
   {
     seqColoursReady = false;
     // Sort the bonds by z coord
-    visiblebonds = new Vector<Bond>();
+    visiblebonds = new Vector();
 
-    for (PDBChain chain : pdb.chains)
+    for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      if (chain.isVisible)
+      if (((PDBChain) pdb.chains.elementAt(ii)).isVisible)
       {
-        for (Bond bond : chain.bonds)
+        Vector tmp = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
+
+        for (int i = 0; i < tmp.size(); i++)
         {
-          visiblebonds.addElement(bond);
+          visiblebonds.addElement(tmp.elementAt(i));
         }
       }
     }
@@ -301,12 +281,16 @@ public class PDBCanvas extends JPanel implements MouseListener,
     min[1] = (float) 1e30;
     min[2] = (float) 1e30;
 
-    for (PDBChain chain : pdb.chains)
+    for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      if (chain.isVisible)
+      if (((PDBChain) pdb.chains.elementAt(ii)).isVisible)
       {
-        for (Bond tmp : chain.bonds)
+        Vector bonds = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
+
+        for (int i = 0; i < bonds.size(); i++)
         {
+          Bond tmp = (Bond) bonds.elementAt(i);
+
           if (tmp.start[0] >= max[0])
           {
             max[0] = tmp.start[0];
@@ -375,9 +359,9 @@ public class PDBCanvas extends JPanel implements MouseListener,
      * System.out.println("zmax " + max[2] + " min " + min[2]);
      */
 
-    width[0] = Math.abs(max[0] - min[0]);
-    width[1] = Math.abs(max[1] - min[1]);
-    width[2] = Math.abs(max[2] - min[2]);
+    width[0] = (float) Math.abs(max[0] - min[0]);
+    width[1] = (float) Math.abs(max[1] - min[1]);
+    width[2] = (float) Math.abs(max[2] - min[2]);
 
     maxwidth = width[0];
 
@@ -432,17 +416,24 @@ public class PDBCanvas extends JPanel implements MouseListener,
     int bsize = 0;
 
     // Find centre coordinate
-    for (PDBChain chain : pdb.chains)
+    for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      if (chain.isVisible)
+      if (((PDBChain) pdb.chains.elementAt(ii)).isVisible)
       {
-        bsize += chain.bonds.size();
+        Vector bonds = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
 
-        for (Bond bond : chain.bonds)
+        bsize += bonds.size();
+
+        for (int i = 0; i < bonds.size(); i++)
         {
-          xtot = xtot + bond.start[0] + bond.end[0];
-          ytot = ytot + bond.start[1] + bond.end[1];
-          ztot = ztot + bond.start[2] + bond.end[2];
+          xtot = xtot + ((Bond) bonds.elementAt(i)).start[0]
+                  + ((Bond) bonds.elementAt(i)).end[0];
+
+          ytot = ytot + ((Bond) bonds.elementAt(i)).start[1]
+                  + ((Bond) bonds.elementAt(i)).end[1];
+
+          ztot = ztot + ((Bond) bonds.elementAt(i)).start[2]
+                  + ((Bond) bonds.elementAt(i)).end[2];
         }
       }
     }
@@ -526,7 +517,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     StructureMapping[] mapping = ssm.getMapping(pdbentry.getFile());
 
     boolean showFeatures = false;
-    if (ap.av.isShowSequenceFeatures())
+    if (ap.av.getShowSequenceFeatures())
     {
       if (fr == null)
       {
@@ -543,11 +534,11 @@ public class PDBCanvas extends JPanel implements MouseListener,
     {
       for (int ii = 0; ii < pdb.chains.size(); ii++)
       {
-        chain = pdb.chains.elementAt(ii);
+        chain = (PDBChain) pdb.chains.elementAt(ii);
 
         for (int i = 0; i < chain.bonds.size(); i++)
         {
-          Bond tmp = chain.bonds.elementAt(i);
+          Bond tmp = (Bond) chain.bonds.elementAt(i);
           tmp.startCol = Color.lightGray;
           tmp.endCol = Color.lightGray;
           if (chain != mainchain)
@@ -603,13 +594,13 @@ public class PDBCanvas extends JPanel implements MouseListener,
         zsort = new Zsort();
       }
 
-      zsort.sort(visiblebonds);
+      zsort.Zsort(visiblebonds);
     }
 
     Bond tmpBond = null;
     for (int i = 0; i < visiblebonds.size(); i++)
     {
-      tmpBond = visiblebonds.elementAt(i);
+      tmpBond = (Bond) visiblebonds.elementAt(i);
 
       xstart = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getWidth() / 2));
       ystart = (int) (((centre[1] - tmpBond.start[1]) * scale) + (getHeight() / 2));
@@ -757,25 +748,23 @@ public class PDBCanvas extends JPanel implements MouseListener,
       repaint();
       if (foundchain != -1)
       {
-        PDBChain chain = pdb.chains.elementAt(foundchain);
+        PDBChain chain = (PDBChain) pdb.chains.elementAt(foundchain);
         if (chain == mainchain)
         {
           if (fatom.alignmentMapping != -1)
           {
             if (highlightRes == null)
             {
-              highlightRes = new Vector<String>();
+              highlightRes = new Vector();
             }
 
-            final String atomString = Integer
-                    .toString(fatom.alignmentMapping);
-            if (highlightRes.contains(atomString))
+            if (highlightRes.contains(fatom.alignmentMapping + ""))
             {
-              highlightRes.remove(atomString);
+              highlightRes.remove(fatom.alignmentMapping + "");
             }
             else
             {
-              highlightRes.add(atomString);
+              highlightRes.add(fatom.alignmentMapping + "");
             }
           }
         }
@@ -805,7 +794,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     PDBChain chain = null;
     if (foundchain != -1)
     {
-      chain = pdb.chains.elementAt(foundchain);
+      chain = (PDBChain) pdb.chains.elementAt(foundchain);
       if (chain == mainchain)
       {
         mouseOverStructure(fatom.resNumber, chain.id);
@@ -848,19 +837,23 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     if ((evt.getModifiers() & Event.META_MASK) != 0)
     {
-      objmat.rotatez(((mx - omx)));
+      objmat.rotatez((float) ((mx - omx)));
     }
     else
     {
-      objmat.rotatex(((my - omy)));
-      objmat.rotatey(((omx - mx)));
+      objmat.rotatex((float) ((my - omy)));
+      objmat.rotatey((float) ((omx - mx)));
     }
 
     // Alter the bonds
-    for (PDBChain chain : pdb.chains)
+    for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      for (Bond tmpBond : chain.bonds)
+      Vector bonds = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
+
+      for (int i = 0; i < bonds.size(); i++)
       {
+        Bond tmpBond = (Bond) bonds.elementAt(i);
+
         // Translate the bond so the centre is 0,0,0
         tmpBond.translate(-centre[0], -centre[1], -centre[2]);
 
@@ -894,12 +887,18 @@ public class PDBCanvas extends JPanel implements MouseListener,
   void drawLabels(Graphics g)
   {
 
-    for (PDBChain chain : pdb.chains)
+    for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
+      PDBChain chain = (PDBChain) pdb.chains.elementAt(ii);
+
       if (chain.isVisible)
       {
-        for (Bond tmpBond : chain.bonds)
+        Vector bonds = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
+
+        for (int i = 0; i < bonds.size(); i++)
         {
+          Bond tmpBond = (Bond) bonds.elementAt(i);
+
           if (tmpBond.at1.isSelected)
           {
             labelAtom(g, tmpBond, 1);
@@ -907,6 +906,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
           if (tmpBond.at2.isSelected)
           {
+
             labelAtom(g, tmpBond, 2);
           }
         }
@@ -945,15 +945,17 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      PDBChain chain = pdb.chains.elementAt(ii);
+      PDBChain chain = (PDBChain) pdb.chains.elementAt(ii);
       int truex;
       Bond tmpBond = null;
 
       if (chain.isVisible)
       {
-        for (Bond bond : chain.bonds)
+        Vector bonds = ((PDBChain) pdb.chains.elementAt(ii)).bonds;
+
+        for (int i = 0; i < bonds.size(); i++)
         {
-          tmpBond = bond;
+          tmpBond = (Bond) bonds.elementAt(i);
 
           truex = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getWidth() / 2));
 
@@ -989,8 +991,8 @@ public class PDBCanvas extends JPanel implements MouseListener,
       }
 
       if (fatom != null) // )&& chain.ds != null)
-      { // dead code? value of chain is either overwritten or discarded
-        chain = pdb.chains.elementAt(foundchain);
+      {
+        chain = (PDBChain) pdb.chains.elementAt(foundchain);
       }
     }
 
@@ -1015,7 +1017,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     Bond tmpBond;
     for (index = 0; index < mainchain.bonds.size(); index++)
     {
-      tmpBond = mainchain.bonds.elementAt(index);
+      tmpBond = (Bond) mainchain.bonds.elementAt(index);
       if (tmpBond.at1.alignmentMapping == ii - 1)
       {
         if (highlightBond1 != null)
@@ -1033,13 +1035,13 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
         if (index > 0)
         {
-          highlightBond1 = mainchain.bonds.elementAt(index - 1);
+          highlightBond1 = (Bond) mainchain.bonds.elementAt(index - 1);
           highlightBond1.at2.isSelected = true;
         }
 
         if (index != mainchain.bonds.size())
         {
-          highlightBond2 = mainchain.bonds.elementAt(index);
+          highlightBond2 = (Bond) mainchain.bonds.elementAt(index);
           highlightBond2.at1.isSelected = true;
         }
 
@@ -1055,7 +1057,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   {
     for (int ii = 0; ii < pdb.chains.size(); ii++)
     {
-      PDBChain chain = pdb.chains.elementAt(ii);
+      PDBChain chain = (PDBChain) pdb.chains.elementAt(ii);
       chain.isVisible = b;
     }
     mainchain.isVisible = true;
@@ -1067,7 +1069,8 @@ public class PDBCanvas extends JPanel implements MouseListener,
   // /StructureListener
   public String[] getPdbFile()
   {
-    return new String[] { pdbentry.getFile() };
+    return new String[]
+    { pdbentry.getFile() };
   }
 
   String lastMessage;
@@ -1075,9 +1078,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   public void mouseOverStructure(int pdbResNum, String chain)
   {
     if (lastMessage == null || !lastMessage.equals(pdbResNum + chain))
-    {
       ssm.mouseOverStructure(pdbResNum, chain, pdbentry.getFile());
-    }
 
     lastMessage = pdbResNum + chain;
   }
@@ -1086,47 +1087,24 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
   StringBuffer eval = new StringBuffer();
 
-  /**
-   * Highlight the specified atoms in the structure.
-   * 
-   * @param atoms
-   */
-  @Override
-  public void highlightAtoms(List<AtomSpec> atoms)
+  public void highlightAtom(int atomIndex, int pdbResNum, String chain,
+          String pdbfile)
   {
     if (!seqColoursReady)
     {
       return;
     }
 
-    for (AtomSpec atom : atoms)
+    if (highlightRes != null && highlightRes.contains((atomIndex - 1) + ""))
     {
-      int atomIndex = atom.getAtomIndex();
-      if (highlightRes != null
-              && highlightRes.contains((atomIndex - 1) + ""))
-      {
-        continue;
-      }
-
-      highlightAtom(atomIndex);
+      return;
     }
 
-    redrawneeded = true;
-    repaint();
-  }
-
-  /**
-   * Highlight the atom at the specified index.
-   * 
-   * @param atomIndex
-   */
-  protected void highlightAtom(int atomIndex)
-  {
     int index = -1;
     Bond tmpBond;
     for (index = 0; index < mainchain.bonds.size(); index++)
     {
-      tmpBond = mainchain.bonds.elementAt(index);
+      tmpBond = (Bond) mainchain.bonds.elementAt(index);
       if (tmpBond.at1.atomIndex == atomIndex)
       {
         if (highlightBond1 != null)
@@ -1144,19 +1122,22 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
         if (index > 0)
         {
-          highlightBond1 = mainchain.bonds.elementAt(index - 1);
+          highlightBond1 = (Bond) mainchain.bonds.elementAt(index - 1);
           highlightBond1.at2.isSelected = true;
         }
 
         if (index != mainchain.bonds.size())
         {
-          highlightBond2 = mainchain.bonds.elementAt(index);
+          highlightBond2 = (Bond) mainchain.bonds.elementAt(index);
           highlightBond2.at1.isSelected = true;
         }
 
         break;
       }
     }
+
+    redrawneeded = true;
+    repaint();
   }
 
   public Color getColour(int atomIndex, int pdbResNum, String chain,
@@ -1180,22 +1161,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   public void releaseReferences(Object svl)
   {
     // TODO Auto-generated method stub
-
+    
   }
 
-  @Override
-  public boolean isListeningFor(SequenceI seq)
-  {
-    if (sequence != null)
-    {
-      for (SequenceI s : sequence)
-      {
-        if (s == seq)
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 }

@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /** This class matches a single character. */
 class oneChar extends Pattern

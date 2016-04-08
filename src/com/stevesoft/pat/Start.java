@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /** The '^' or the '\A' Pattern, matches the start of a string. */
 class Start extends Pattern

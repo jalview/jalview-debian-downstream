@@ -1,40 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.jbgui;
 
-import jalview.util.MessageManager;
-
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JInternalFrame;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
-import javax.swing.JScrollPane;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
 
 public class GTreePanel extends JInternalFrame
 {
@@ -94,8 +80,8 @@ public class GTreePanel extends JInternalFrame
     this.setBackground(Color.white);
     this.setFont(new java.awt.Font("Verdana", 0, 12));
     scrollPane.setOpaque(false);
-    fileMenu.setText(MessageManager.getString("action.file"));
-    saveAsNewick.setText(MessageManager.getString("label.newick_format"));
+    fileMenu.setText("File");
+    saveAsNewick.setText("Newick Format");
     saveAsNewick.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -103,7 +89,7 @@ public class GTreePanel extends JInternalFrame
         saveAsNewick_actionPerformed(e);
       }
     });
-    printMenu.setText(MessageManager.getString("action.print"));
+    printMenu.setText("Print");
     printMenu.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -111,7 +97,7 @@ public class GTreePanel extends JInternalFrame
         printMenu_actionPerformed(e);
       }
     });
-    viewMenu.setText(MessageManager.getString("action.view"));
+    viewMenu.setText("View");
     viewMenu.addMenuListener(new MenuListener()
     {
       public void menuSelected(MenuEvent e)
@@ -127,16 +113,15 @@ public class GTreePanel extends JInternalFrame
       {
       }
     });
-    sortAssocViews.setText(MessageManager
-            .getString("label.sort_alignment_by_tree"));
+    sortAssocViews.setText("Sort Alignment By Tree");
     sortAssocViews.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
       {
-        sortByTree_actionPerformed();
+        sortByTree_actionPerformed(e);
       }
     });
-    font.setText(MessageManager.getString("action.font"));
+    font.setText("Font...");
     font.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -144,8 +129,7 @@ public class GTreePanel extends JInternalFrame
         font_actionPerformed(e);
       }
     });
-    bootstrapMenu.setText(MessageManager
-            .getString("label.show_bootstrap_values"));
+    bootstrapMenu.setText("Show Bootstrap Values");
     bootstrapMenu.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -153,7 +137,7 @@ public class GTreePanel extends JInternalFrame
         bootstrapMenu_actionPerformed(e);
       }
     });
-    distanceMenu.setText(MessageManager.getString("label.show_distances"));
+    distanceMenu.setText("Show Distances");
     distanceMenu.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -162,7 +146,7 @@ public class GTreePanel extends JInternalFrame
       }
     });
     fitToWindow.setSelected(true);
-    fitToWindow.setText(MessageManager.getString("label.fit_to_window"));
+    fitToWindow.setText("Fit To Window");
     fitToWindow.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -186,12 +170,10 @@ public class GTreePanel extends JInternalFrame
         pngTree_actionPerformed(e);
       }
     });
-    saveAsMenu.setText(MessageManager.getString("action.save_as"));
+    saveAsMenu.setText("Save as");
     placeholdersMenu
-            .setToolTipText(MessageManager
-                    .getString("label.marks_leaves_tree_not_associated_with_sequence"));
-    placeholdersMenu.setText(MessageManager
-            .getString("label.mark_unlinked_leaves"));
+            .setToolTipText("Marks leaves of tree not associated with a sequence");
+    placeholdersMenu.setText("Mark Unlinked Leaves");
     placeholdersMenu.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -199,7 +181,7 @@ public class GTreePanel extends JInternalFrame
         placeholdersMenu_actionPerformed(e);
       }
     });
-    textbox.setText(MessageManager.getString("label.out_to_textbox"));
+    textbox.setText("Output to Textbox...");
     textbox.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -207,7 +189,7 @@ public class GTreePanel extends JInternalFrame
         textbox_actionPerformed(e);
       }
     });
-    originalSeqData.setText(MessageManager.getString("label.input_data"));
+    originalSeqData.setText("Input Data...");
     originalSeqData.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -215,8 +197,7 @@ public class GTreePanel extends JInternalFrame
         originalSeqData_actionPerformed(e);
       }
     });
-    associateLeavesMenu.setText(MessageManager
-            .getString("label.associate_leaves_with"));
+    associateLeavesMenu.setText("Associate Leaves With");
     this.getContentPane().add(scrollPane, BorderLayout.CENTER);
     jMenuBar1.add(fileMenu);
     jMenuBar1.add(viewMenu);
@@ -289,8 +270,7 @@ public class GTreePanel extends JInternalFrame
   public void viewMenu_menuSelected()
   {
   }
-
-  public void sortByTree_actionPerformed()
+  public void sortByTree_actionPerformed(ActionEvent e)
   {
 
   }

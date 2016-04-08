@@ -1,26 +1,21 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
-
-import jalview.util.MessageManager;
 
 import java.awt.Component;
 
@@ -77,11 +72,15 @@ public class OOMWarning implements Runnable
 
   public void run()
   {
-    javax.swing.JOptionPane.showInternalMessageDialog(desktop,
-            MessageManager.formatMessage("warn.out_of_memory_when_action",
-                    new String[] { action }), MessageManager
-                    .getString("label.out_of_memory"),
-            javax.swing.JOptionPane.WARNING_MESSAGE);
+    javax.swing.JOptionPane
+            .showInternalMessageDialog(
+                    desktop,
+                    "Out of memory when "
+                            + action
+                            + "!!"
+                            + "\nSee help files for increasing Java Virtual Machine memory.",
+                    "Out of memory",
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
     // hope that there's enough memory left that no more appear.
     oomInprogress = false;
   }

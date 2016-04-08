@@ -1,47 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.analysis.NJTree;
-import jalview.api.analysis.ScoreModelI;
-import jalview.api.analysis.ViewBasedAnalysisI;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SequenceI;
-import jalview.io.NewickFile;
-import jalview.schemes.ResidueProperties;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.Hashtable;
 
-import java.awt.BorderLayout;
-import java.awt.CheckboxMenuItem;
-import java.awt.Color;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
-import java.awt.ScrollPane;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.io.*;
 
 public class TreePanel extends EmbmenuFrame implements ActionListener,
         ItemListener
@@ -59,7 +41,6 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
   TreeCanvas treeCanvas;
 
   NJTree tree;
-
   AlignmentPanel ap;
 
   AlignViewport av;
@@ -68,11 +49,10 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
   {
     return tree;
   }
-
-  public void finalize() throws Throwable
-  {
-    ap = null;
-    av = null;
+  
+  public void finalize() throws Throwable {
+    ap=null;
+    av=null;
     super.finalize();
   }
 
@@ -206,11 +186,11 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
       {
         if (odata == null)
         {
-          tree = new NJTree(av.getAlignment().getSequencesArray(), newtree);
+          tree = new NJTree(av.alignment.getSequencesArray(), newtree);
         }
         else
         {
-          tree = new NJTree(av.getAlignment().getSequencesArray(), odata,
+          tree = new NJTree(av.alignment.getSequencesArray(), odata,
                   newtree);
         }
 
@@ -219,43 +199,22 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
       {
         int start, end;
         SequenceI[] seqs;
-        boolean selview = av.getSelectionGroup() != null
-                && av.getSelectionGroup().getSize() > 1;
-        AlignmentView seqStrings = av.getAlignmentView(selview);
-        if (!selview)
+        AlignmentView seqStrings = av.getAlignmentView(av
+                .getSelectionGroup() != null);
+        if (av.getSelectionGroup() == null)
         {
           start = 0;
-          end = av.getAlignment().getWidth();
-          seqs = av.getAlignment().getSequencesArray();
+          end = av.alignment.getWidth();
+          seqs = av.alignment.getSequencesArray();
         }
         else
         {
           start = av.getSelectionGroup().getStartRes();
           end = av.getSelectionGroup().getEndRes() + 1;
-          seqs = av.getSelectionGroup().getSequencesInOrder(
-                  av.getAlignment());
+          seqs = av.getSelectionGroup().getSequencesInOrder(av.alignment);
         }
-        ScoreModelI sm = ResidueProperties.getScoreModel(pwtype);
-        if (sm instanceof ViewBasedAnalysisI)
-        {
-          try
-          {
-            sm = sm.getClass().newInstance();
-            ((ViewBasedAnalysisI) sm)
-                    .configureFromAlignmentView(treeCanvas.ap);
-          } catch (Exception q)
-          {
-            System.err.println("Couldn't create a scoremodel instance for "
-                    + sm.getName());
-            q.printStackTrace();
-          }
-          tree = new NJTree(seqs, seqStrings, type, pwtype, sm, start, end);
-        }
-        else
-        {
-          tree = new NJTree(seqs, seqStrings, type, pwtype, null, start,
-                  end);
-        }
+
+        tree = new NJTree(seqs, seqStrings, type, pwtype, start, end);
       }
 
       tree.reCount(tree.getTopNode());
@@ -389,24 +348,22 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
     setLayout(borderLayout1);
     this.setBackground(Color.white);
     this.setFont(new java.awt.Font("Verdana", 0, 12));
-    jMenu2.setLabel(MessageManager.getString("action.view"));
-    fontSize.setLabel(MessageManager.getString("action.font"));
+    jMenu2.setLabel("View");
+    fontSize.setLabel("Font...");
     fontSize.addActionListener(this);
-    bootstrapMenu.setLabel(MessageManager
-            .getString("label.show_bootstrap_values"));
+    bootstrapMenu.setLabel("Show Bootstrap Values");
     bootstrapMenu.addItemListener(this);
-    distanceMenu.setLabel(MessageManager.getString("label.show_distances"));
+    distanceMenu.setLabel("Show Distances");
     distanceMenu.addItemListener(this);
-    placeholdersMenu.setLabel(MessageManager
-            .getString("label.mark_unassociated_leaves"));
+    placeholdersMenu.setLabel("Mark Unassociated Leaves");
     placeholdersMenu.addItemListener(this);
     fitToWindow.setState(true);
-    fitToWindow.setLabel(MessageManager.getString("label.fit_to_window"));
+    fitToWindow.setLabel("Fit To Window");
     fitToWindow.addItemListener(this);
-    fileMenu.setLabel(MessageManager.getString("action.file"));
-    newickOutput.setLabel(MessageManager.getString("label.newick_format"));
+    fileMenu.setLabel("File");
+    newickOutput.setLabel("Newick Format");
     newickOutput.addActionListener(this);
-    inputData.setLabel(MessageManager.getString("label.input_data"));
+    inputData.setLabel("Input Data...");
 
     add(scrollPane, BorderLayout.CENTER);
     jMenuBar1.add(fileMenu);

@@ -1,32 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.Annotation;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
+import java.io.*;
 
-import java.io.IOException;
+import jalview.datamodel.*;
 
 /**
  * DOCUMENT ME!
@@ -82,14 +75,14 @@ public class FastaFile extends AlignFile
     StringBuffer sb = new StringBuffer();
     boolean firstLine = true;
 
-    String line, uline;
+    String line;
     Sequence seq = null;
 
     boolean annotation = false;
 
-    while ((uline = nextLine()) != null)
+    while ((line = nextLine()) != null)
     {
-      line = uline.trim();
+      line = line.trim();
       if (line.length() > 0)
       {
         if (line.charAt(0) == '>')
@@ -98,7 +91,17 @@ public class FastaFile extends AlignFile
           {
             if (annotation)
             {
-              annotations.addElement(makeAnnotation(seq, sb));
+              Annotation[] anots = new Annotation[sb.length()];
+              String anotString = sb.toString();
+              for (int i = 0; i < sb.length(); i++)
+              {
+                anots[i] = new Annotation(anotString.substring(i, i + 1),
+                        null, ' ', 0);
+              }
+              AlignmentAnnotation aa = new AlignmentAnnotation(seq
+                      .getName().substring(2), seq.getDescription(), anots);
+
+              annotations.addElement(aa);
             }
           }
           else
@@ -128,14 +131,24 @@ public class FastaFile extends AlignFile
         }
         else
         {
-          sb.append(annotation ? uline : line);
+          sb.append(line);
         }
       }
     }
 
     if (annotation)
     {
-      annotations.addElement(makeAnnotation(seq, sb));
+      Annotation[] anots = new Annotation[sb.length()];
+      String anotString = sb.toString();
+      for (int i = 0; i < sb.length(); i++)
+      {
+        anots[i] = new Annotation(anotString.substring(i, i + 1), null,
+                ' ', 0);
+      }
+      AlignmentAnnotation aa = new AlignmentAnnotation(seq.getName()
+              .substring(2), seq.getDescription(), anots);
+
+      annotations.addElement(aa);
     }
 
     else if (!firstLine)
@@ -143,23 +156,6 @@ public class FastaFile extends AlignFile
       seq.setSequence(sb.toString());
       seqs.addElement(seq);
     }
-  }
-
-  private AlignmentAnnotation makeAnnotation(SequenceI seq, StringBuffer sb)
-  {
-    Annotation[] anots = new Annotation[sb.length()];
-    char cb;
-    for (int i = 0; i < anots.length; i++)
-    {
-      char cn = sb.charAt(i);
-      if (cn != ' ')
-      {
-        anots[i] = new Annotation("" + cn, null, ' ', Float.NaN);
-      }
-    }
-    AlignmentAnnotation aa = new AlignmentAnnotation(seq.getName()
-            .substring(2), seq.getDescription(), anots);
-    return aa;
   }
 
   /**

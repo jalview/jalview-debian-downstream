@@ -1,34 +1,29 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.gui;
-
-import jalview.util.MessageManager;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.List;
 
 import javax.swing.JCheckBoxMenuItem;
@@ -126,17 +121,12 @@ public class ViewSelectionMenu extends JMenu
    * menu selection event occurred.
    */
   private boolean append = false;
-
   /**
-   * flag indicating if the itemStateChanged listener for view associated menu
-   * items is currently enabled
+   * flag indicating if the itemStateChanged listener for view associated menu items is currently enabled 
    */
   private boolean enabled = true;
-
   private JMenuItem selectAll, invertSel;
-
-  private JCheckBoxMenuItem toggleview = null;
-
+  private JCheckBoxMenuItem toggleview=null;
   private void rebuild()
   {
     removeAll();
@@ -149,13 +139,10 @@ public class ViewSelectionMenu extends JMenu
     if (allviews.length >= 2)
     {
       // ensure we update menu state to reflect external selection list state
-      append = append || _selectedviews.size() > 1;
-      toggleview = new JCheckBoxMenuItem(
-              MessageManager.getString("label.select_many_views"), append);
-      toggleview.setToolTipText(MessageManager
-              .getString("label.toggle_enabled_views"));
-      toggleview.addItemListener(new ItemListener()
-      {
+      append = append || _selectedviews.size()>1;
+      toggleview = new JCheckBoxMenuItem("Select many views",append);
+      toggleview.setToolTipText("When enabled, allows many views to be selected.");
+      toggleview.addItemListener(new ItemListener() {
 
         @Override
         public void itemStateChanged(ItemEvent arg0)
@@ -166,13 +153,12 @@ public class ViewSelectionMenu extends JMenu
             selectAll.setEnabled(append);
             invertSel.setEnabled(append);
           }
-
+          
         }
-
+        
       });
       add(toggleview);
-      add(selectAll = new JMenuItem(
-              MessageManager.getString("label.select_all_views")));
+      add(selectAll= new JMenuItem("Select all views"));
       selectAll.addActionListener(new ActionListener()
       {
 
@@ -181,118 +167,141 @@ public class ViewSelectionMenu extends JMenu
         {
           for (Component c : getMenuComponents())
           {
-            boolean t = append;
-            append = true;
+            boolean t=append;
+            append=true;
             if (c instanceof JCheckBoxMenuItem)
             {
-              if (toggleview != c && !((JCheckBoxMenuItem) c).isSelected())
+              if (toggleview!=c && !((JCheckBoxMenuItem) c).isSelected())
               {
                 ((JCheckBoxMenuItem) c).doClick();
               }
             }
-            append = t;
+            append=t;
           }
         }
       });
-      add(invertSel = new JMenuItem(
-              MessageManager.getString("label.invert_selection")));
+      add(invertSel = new JMenuItem("Invert selection"));
       invertSel.addActionListener(new ActionListener()
       {
 
         @Override
         public void actionPerformed(ActionEvent e)
         {
-          boolean t = append;
-          append = true;
+          boolean t=append;
+          append=true;
           for (Component c : getMenuComponents())
           {
-            if (toggleview != c && c instanceof JCheckBoxMenuItem)
+            if (toggleview!=c && c instanceof JCheckBoxMenuItem)
             {
               ((JCheckBoxMenuItem) c).doClick();
             }
           }
-          append = t;
+          append=t;
         }
       });
       invertSel.setEnabled(append);
       selectAll.setEnabled(append);
     }
-    for (final AlignmentPanel ap : allviews)
+    for (AlignmentPanel ap : allviews)
     {
       String nm = ((ap.getViewName() == null || ap.getViewName().length() == 0) ? ""
               : ap.getViewName() + " for ")
               + ap.alignFrame.getTitle();
-      final JCheckBoxMenuItem checkBox = new JCheckBoxMenuItem(nm,
+      final JCheckBoxMenuItem a = new JCheckBoxMenuItem(nm,
               _selectedviews.contains(ap));
-      checkBox.addItemListener(new ItemListener()
+      final AlignmentPanel p = ap;
+      a.addItemListener(new ItemListener()
       {
         @Override
         public void itemStateChanged(ItemEvent e)
         {
           if (enabled)
           {
-            if (append)
+          if (append)
+          {
+            enabled=false;
+            // toggle the inclusion state
+            if (_selectedviews.indexOf(p)==-1)
             {
-              enabled = false;
-              // toggle the inclusion state
-              if (_selectedviews.indexOf(ap) == -1)
-              {
-                _selectedviews.add(ap);
-                checkBox.setSelected(true);
-              }
-              else
-              {
-                _selectedviews.remove(ap);
-                checkBox.setSelected(false);
-              }
-              enabled = true;
-              _handler.itemStateChanged(e);
+              _selectedviews.add(p);
+              a.setSelected(true);
             }
             else
             {
-              // Deselect everything and select this item only
-              _selectedviews.clear();
-              _selectedviews.add(ap);
-              enabled = false;
-              for (Component c : getMenuComponents())
-              {
-                if (c instanceof JCheckBoxMenuItem)
-                {
-                  ((JCheckBoxMenuItem) c).setSelected(checkBox == c);
-                }
-              }
-              enabled = true;
-              // only fire event if we weren't selected before
-              _handler.itemStateChanged(e);
+              _selectedviews.remove(p);
+              a.setSelected(false);
             }
+            enabled=true;
+            _handler.itemStateChanged(e);
+          }
+          else
+          {
+            // Deselect everything and select this item only
+            _selectedviews.clear();
+            _selectedviews.add(p);
+            enabled=false;
+            for (Component c : getMenuComponents())
+            {
+              if (c instanceof JCheckBoxMenuItem)
+              {
+                ((JCheckBoxMenuItem) c).setSelected(a == c);
+              }
+            }
+            enabled=true;
+            // only fire event if we weren't selected before
+            _handler.itemStateChanged(e);
+          }
           }
         }
       });
-      checkBox.addMouseListener(new MouseAdapter()
+      a.addMouseListener(new MouseListener()
       {
+
+        @Override
+        public void mouseReleased(MouseEvent e)
+        {
+          // TODO Auto-generated method stub
+
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e)
+        {
+          // TODO Auto-generated method stub
+
+        }
+
         @Override
         public void mouseExited(MouseEvent e)
         {
           try
           {
-            ap.setSelected(false);
+            p.setSelected(false);
           } catch (Exception ex)
           {
           }
+          ;
         }
 
         @Override
         public void mouseEntered(MouseEvent e)
         {
+
           try
           {
-            ap.setSelected(true);
+            p.setSelected(true);
           } catch (Exception ex)
           {
           }
+          ;
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e)
+        {
         }
       });
-      add(checkBox);
+      add(a);
     }
   }
 

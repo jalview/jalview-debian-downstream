@@ -1,59 +1,149 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.util.MapList;
-import jalview.util.MappingUtils;
+import java.util.Enumeration;
+import java.util.Vector;
 
-import java.util.ArrayList;
-import java.util.List;
+import jalview.util.MapList;
 
 /**
  * Stores mapping between the columns of a protein alignment and a DNA alignment
  * and a list of individual codon to amino acid mappings between sequences.
  */
+
 public class AlignedCodonFrame
 {
+  /**
+   * array of nucleotide positions for aligned codons at column of aligned
+   * proteins.
+   */
+  public int[][] codons = null;
+
+  /**
+   * width of protein sequence alignement implicit assertion that codons.length
+   * >= aaWidth
+   */
+  public int aaWidth = 0;
+
+  /**
+   * initialise codon frame with a nominal alignment width
+   * 
+   * @param aWidth
+   */
+  public AlignedCodonFrame(int aWidth)
+  {
+    if (aWidth <= 0)
+    {
+      codons = null;
+      return;
+    }
+    codons = new int[aWidth][];
+    for (int res = 0; res < aWidth; res++)
+      codons[res] = null;
+  }
+
+  /**
+   * ensure that codons array is at least as wide as aslen residues
+   * 
+   * @param aslen
+   * @return (possibly newly expanded) codon array
+   */
+  public int[][] checkCodonFrameWidth(int aslen)
+  {
+    if (codons.length <= aslen + 1)
+    {
+      // probably never have to do this ?
+      int[][] c = new int[codons.length + 10][];
+      for (int i = 0; i < codons.length; i++)
+      {
+        c[i] = codons[i];
+        codons[i] = null;
+      }
+      codons = c;
+    }
+    return codons;
+  }
+
+  /**
+   * @return width of aligned translated amino acid residues
+   */
+  public int getaaWidth()
+  {
+    return aaWidth;
+  }
+
+  /**
+   * TODO: not an ideal solution - we reference the aligned amino acid sequences
+   * in order to make insertions on them Better would be dnaAlignment and
+   * aaAlignment reference....
+   */
+  Vector a_aaSeqs = new Vector();
+
+  /**
+   * increase aaWidth by one and insert a new aligned codon position space at
+   * aspos.
+   * 
+   * @param aspos
+   */
+  public void insertAAGap(int aspos, char gapCharacter)
+  {
+    // this aa appears before the aligned codons at aspos - so shift them in
+    // each pair of mapped sequences
+    aaWidth++;
+    if (a_aaSeqs != null)
+    {
+      // we actually have to modify the aligned sequences here, so use the
+      // a_aaSeqs vector
+      Enumeration sq = a_aaSeqs.elements();
+      while (sq.hasMoreElements())
+      {
+        ((SequenceI) sq.nextElement()).insertCharAt(aspos, gapCharacter);
+      }
+    }
+    checkCodonFrameWidth(aspos);
+    if (aspos < aaWidth)
+    {
+      aaWidth++;
+      System.arraycopy(codons, aspos, codons, aspos + 1, aaWidth - aspos);
+      codons[aspos] = null; // clear so new codon position can be marked.
+    }
+  }
+
+  public void setAaWidth(int aapos)
+  {
+    aaWidth = aapos;
+  }
 
   /**
    * tied array of na Sequence objects.
    */
-  private SequenceI[] dnaSeqs = null;
+  SequenceI[] dnaSeqs = null;
 
   /**
    * tied array of Mappings to protein sequence Objects and SequenceI[]
-   * aaSeqs=null; MapLists where each maps from the corresponding dnaSeqs
-   * element to corresponding aaSeqs element
+   * aaSeqs=null; MapLists where eac maps from the corresponding dnaSeqs element
+   * to corresponding aaSeqs element
    */
-  private Mapping[] dnaToProt = null;
+  Mapping[] dnaToProt = null;
 
   /**
-   * Constructor
-   */
-  public AlignedCodonFrame()
-  {
-  }
-
-  /**
-   * Adds a mapping between the dataset sequences for the associated dna and
+   * add a mapping between the dataset sequences for the associated dna and
    * protein sequence objects
    * 
    * @param dnaseq
@@ -85,6 +175,7 @@ public class AlignedCodonFrame
     // aaseq.transferAnnotation(dnaseq, new Mapping(map.getInverse()));
     mp.to = (aaseq.getDatasetSequence() == null) ? aaseq : aaseq
             .getDatasetSequence();
+    a_aaSeqs.addElement(aaseq);
     dnaToProt[nlen] = mp;
   }
 
@@ -96,9 +187,7 @@ public class AlignedCodonFrame
   public SequenceI[] getAaSeqs()
   {
     if (dnaToProt == null)
-    {
       return null;
-    }
     SequenceI[] sqs = new SequenceI[dnaToProt.length];
     for (int sz = 0; sz < dnaToProt.length; sz++)
     {
@@ -110,9 +199,7 @@ public class AlignedCodonFrame
   public MapList[] getdnaToProt()
   {
     if (dnaToProt == null)
-    {
       return null;
-    }
     MapList[] sqs = new MapList[dnaToProt.length];
     for (int sz = 0; sz < dnaToProt.length; sz++)
     {
@@ -127,37 +214,9 @@ public class AlignedCodonFrame
   }
 
   /**
-   * Returns the first mapping found which is to or from the given sequence, or
-   * null.
-   * 
-   * @param seq
-   * @return
-   */
-  public Mapping getMappingForSequence(SequenceI seq)
-  {
-    if (dnaSeqs == null)
-    {
-      return null;
-    }
-    SequenceI seqDs = seq.getDatasetSequence();
-    seqDs = seqDs != null ? seqDs : seq;
-
-    for (int ds = 0; ds < dnaSeqs.length; ds++)
-    {
-      if (dnaSeqs[ds] == seqDs || dnaToProt[ds].to == seqDs)
-      {
-        return dnaToProt[ds];
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Return the corresponding aligned or dataset aa sequence for given dna
-   * sequence, null if not found.
    * 
    * @param sequenceRef
-   * @return
+   * @return null or corresponding aaSeq entry for dnaSeq entry
    */
   public SequenceI getAaForDnaSeq(SequenceI dnaSeqRef)
   {
@@ -169,9 +228,7 @@ public class AlignedCodonFrame
     for (int ds = 0; ds < dnaSeqs.length; ds++)
     {
       if (dnaSeqs[ds] == dnaSeqRef || dnaSeqs[ds] == dnads)
-      {
         return dnaToProt[ds].to;
-      }
     }
     return null;
   }
@@ -191,9 +248,7 @@ public class AlignedCodonFrame
     for (int as = 0; as < dnaToProt.length; as++)
     {
       if (dnaToProt[as].to == aaSeqRef || dnaToProt[as].to == aads)
-      {
         return dnaSeqs[as];
-      }
     }
     return null;
   }
@@ -259,204 +314,5 @@ public class AlignedCodonFrame
         }
       }
     }
-  }
-
-  /**
-   * Returns the DNA codon positions (base 1) for the given position (base 1) in
-   * a mapped protein sequence, or null if no mapping is found.
-   * 
-   * Intended for use in aligning cDNA to match aligned protein. Only the first
-   * mapping found is returned, so not suitable for use if multiple protein
-   * sequences are mapped to the same cDNA (but aligning cDNA as protein is
-   * ill-defined for this case anyway).
-   * 
-   * @param seq
-   *          the DNA dataset sequence
-   * @param aaPos
-   *          residue position (base 1) in a protein sequence
-   * @return
-   */
-  public int[] getDnaPosition(SequenceI seq, int aaPos)
-  {
-    /*
-     * Adapted from markMappedRegion().
-     */
-    MapList ml = null;
-    for (int i = 0; i < dnaToProt.length; i++)
-    {
-      if (dnaSeqs[i] == seq)
-      {
-        ml = getdnaToProt()[i];
-        break;
-      }
-    }
-    return ml == null ? null : ml.locateInFrom(aaPos, aaPos);
-  }
-
-  /**
-   * Convenience method to return the first aligned sequence in the given
-   * alignment whose dataset has a mapping with the given dataset sequence.
-   * 
-   * @param seq
-   * 
-   * @param al
-   * @return
-   */
-  public SequenceI findAlignedSequence(SequenceI seq, AlignmentI al)
-  {
-    /*
-     * Search mapped protein ('to') sequences first.
-     */
-    if (this.dnaToProt != null)
-    {
-      for (int i = 0; i < dnaToProt.length; i++)
-      {
-        if (this.dnaSeqs[i] == seq)
-        {
-          for (SequenceI sourceAligned : al.getSequences())
-          {
-            if (this.dnaToProt[i].to == sourceAligned.getDatasetSequence())
-            {
-              return sourceAligned;
-            }
-          }
-        }
-      }
-    }
-
-    /*
-     * Then try mapped dna sequences.
-     */
-    if (this.dnaToProt != null)
-    {
-      for (int i = 0; i < dnaToProt.length; i++)
-      {
-        if (this.dnaToProt[i].to == seq)
-        {
-          for (SequenceI sourceAligned : al.getSequences())
-          {
-            if (this.dnaSeqs[i] == sourceAligned.getDatasetSequence())
-            {
-              return sourceAligned;
-            }
-          }
-        }
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Returns the region in the 'mappedFrom' sequence's dataset that is mapped to
-   * position 'pos' (base 1) in the 'mappedTo' sequence's dataset. The region is
-   * a set of start/end position pairs.
-   * 
-   * @param mappedFrom
-   * @param mappedTo
-   * @param pos
-   * @return
-   */
-  public int[] getMappedRegion(SequenceI mappedFrom, SequenceI mappedTo,
-          int pos)
-  {
-    SequenceI targetDs = mappedFrom.getDatasetSequence() == null ? mappedFrom
-            : mappedFrom.getDatasetSequence();
-    SequenceI sourceDs = mappedTo.getDatasetSequence() == null ? mappedTo
-            : mappedTo.getDatasetSequence();
-    if (targetDs == null || sourceDs == null || dnaToProt == null)
-    {
-      return null;
-    }
-    for (int mi = 0; mi < dnaToProt.length; mi++)
-    {
-      if (dnaSeqs[mi] == targetDs && dnaToProt[mi].to == sourceDs)
-      {
-        int[] codon = dnaToProt[mi].map.locateInFrom(pos, pos);
-        if (codon != null)
-        {
-          return codon;
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Returns the DNA codon for the given position (base 1) in a mapped protein
-   * sequence, or null if no mapping is found.
-   * 
-   * @param protein
-   *          the peptide dataset sequence
-   * @param aaPos
-   *          residue position (base 1) in the peptide sequence
-   * @return
-   */
-  public char[] getMappedCodon(SequenceI protein, int aaPos)
-  {
-    if (dnaToProt == null)
-    {
-      return null;
-    }
-    MapList ml = null;
-    char[] dnaSeq = null;
-    for (int i = 0; i < dnaToProt.length; i++)
-    {
-      if (dnaToProt[i].to == protein)
-      {
-        ml = getdnaToProt()[i];
-        dnaSeq = dnaSeqs[i].getSequence();
-        break;
-      }
-    }
-    if (ml == null)
-    {
-      return null;
-    }
-    int[] codonPos = ml.locateInFrom(aaPos, aaPos);
-    if (codonPos == null)
-    {
-      return null;
-    }
-
-    /*
-     * Read off the mapped nucleotides (converting to position base 0)
-     */
-    codonPos = MappingUtils.flattenRanges(codonPos);
-    return new char[] { dnaSeq[codonPos[0] - 1], dnaSeq[codonPos[1] - 1],
-        dnaSeq[codonPos[2] - 1] };
-  }
-
-  /**
-   * Returns any mappings found which are to (or from) the given sequence, and
-   * to distinct sequences.
-   * 
-   * @param seq
-   * @return
-   */
-  public List<Mapping> getMappingsForSequence(SequenceI seq)
-  {
-    List<Mapping> result = new ArrayList<Mapping>();
-    if (dnaSeqs == null)
-    {
-      return result;
-    }
-    List<SequenceI> related = new ArrayList<SequenceI>();
-    SequenceI seqDs = seq.getDatasetSequence();
-    seqDs = seqDs != null ? seqDs : seq;
-
-    for (int ds = 0; ds < dnaSeqs.length; ds++)
-    {
-      final Mapping mapping = dnaToProt[ds];
-      if (dnaSeqs[ds] == seqDs || mapping.to == seqDs)
-      {
-        if (!related.contains(mapping.to))
-        {
-          result.add(mapping);
-          related.add(mapping.to);
-        }
-      }
-    }
-    return result;
   }
 }

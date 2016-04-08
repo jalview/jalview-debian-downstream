@@ -1,37 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.bin.Cache;
-import jalview.jbgui.GFontChooser;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.event.ActionEvent;
-import java.awt.geom.Rectangle2D;
-
-import javax.swing.JInternalFrame;
-import javax.swing.JLayeredPane;
-import javax.swing.JOptionPane;
+import jalview.bin.*;
+import jalview.jbgui.*;
 
 /**
  * DOCUMENT ME!
@@ -45,23 +36,11 @@ public class FontChooser extends GFontChooser
 
   TreePanel tp;
 
-  /*
-   * The font on opening the dialog (to be restored on Cancel)
-   */
   Font oldFont;
-
-  boolean oldProteinScale;
 
   boolean init = true;
 
   JInternalFrame frame;
-
-  /*
-   * The last font settings selected in the dialog
-   */
-  private Font lastSelected = null;
-
-  private boolean lastSelMono = false;
 
   /**
    * Creates a new FontChooser object.
@@ -88,8 +67,6 @@ public class FontChooser extends GFontChooser
   public FontChooser(AlignmentPanel ap)
   {
     oldFont = ap.av.getFont();
-    oldProteinScale = ap.av.isScaleProteinAsCdna();
-
     this.ap = ap;
     init();
   }
@@ -101,29 +78,14 @@ public class FontChooser extends GFontChooser
 
     smoothFont.setSelected(ap.av.antiAlias);
 
-    /*
-     * Enable 'scale protein as cDNA' in a SplitFrame view. The selection is
-     * stored in the ViewStyle of both dna and protein Viewport
-     */
-    scaleAsCdna.setEnabled(false);
-    if (ap.av.getCodingComplement() != null)
-    {
-      scaleAsCdna.setEnabled(true);
-      scaleAsCdna.setVisible(true);
-      scaleAsCdna.setSelected(ap.av.isScaleProteinAsCdna());
-    }
-
     if (tp != null)
     {
-      Desktop.addInternalFrame(frame,
-              MessageManager.getString("action.change_font_tree_panel"),
-              400, 200, false);
+      Desktop.addInternalFrame(frame, "Change Font (Tree Panel)", 340, 170,
+              false);
     }
     else
     {
-      Desktop.addInternalFrame(frame,
-              MessageManager.getString("action.change_font"), 380, 200,
-              false);
+      Desktop.addInternalFrame(frame, "Change Font", 340, 170, false);
     }
 
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
@@ -138,7 +100,7 @@ public class FontChooser extends GFontChooser
 
     for (int i = 1; i < 51; i++)
     {
-      fontSize.addItem(i);
+      fontSize.addItem(i + "");
     }
 
     fontStyle.addItem("plain");
@@ -146,7 +108,7 @@ public class FontChooser extends GFontChooser
     fontStyle.addItem("italic");
 
     fontName.setSelectedItem(oldFont.getName());
-    fontSize.setSelectedItem(oldFont.getSize());
+    fontSize.setSelectedItem(oldFont.getSize() + "");
     fontStyle.setSelectedIndex(oldFont.getStyle());
 
     FontMetrics fm = getGraphics().getFontMetrics(oldFont);
@@ -160,7 +122,7 @@ public class FontChooser extends GFontChooser
   public void smoothFont_actionPerformed(ActionEvent e)
   {
     ap.av.antiAlias = smoothFont.isSelected();
-    ap.getAnnotationPanel().image = null;
+    ap.annotationPanel.image = null;
     ap.paintAlignment(true);
   }
 
@@ -198,21 +160,15 @@ public class FontChooser extends GFontChooser
   {
     if (ap != null)
     {
-      ap.av.setFont(oldFont, true);
-      ap.av.setScaleProteinAsCdna(oldProteinScale);
+      ap.av.setFont(oldFont);
       ap.paintAlignment(true);
-      if (scaleAsCdna.isEnabled())
-      {
-        ap.av.setScaleProteinAsCdna(oldProteinScale);
-        ap.av.getCodingComplement().setScaleProteinAsCdna(oldProteinScale);
-      }
     }
     else if (tp != null)
     {
       tp.setTreeFont(oldFont);
     }
     fontName.setSelectedItem(oldFont.getName());
-    fontSize.setSelectedItem(oldFont.getSize());
+    fontSize.setSelectedItem(oldFont.getSize() + "");
     fontStyle.setSelectedIndex(oldFont.getStyle());
 
     try
@@ -228,71 +184,25 @@ public class FontChooser extends GFontChooser
    */
   void changeFont()
   {
-    if (lastSelected == null)
-    {
-      // initialise with original font
-      lastSelected = oldFont;
-      FontMetrics fm = getGraphics().getFontMetrics(oldFont);
-      double mw = fm.getStringBounds("M", getGraphics()).getWidth();
-      double iw = fm.getStringBounds("I", getGraphics()).getWidth();
-      lastSelMono = (mw == iw); // == on double - flaky?
-    }
-
     Font newFont = new Font(fontName.getSelectedItem().toString(),
-            fontStyle.getSelectedIndex(),
-            (Integer) fontSize.getSelectedItem());
-    FontMetrics fm = getGraphics().getFontMetrics(newFont);
-    double mw = fm.getStringBounds("M", getGraphics()).getWidth();
-    final Rectangle2D iBounds = fm.getStringBounds("I", getGraphics());
-    double iw = iBounds.getWidth();
-    if (mw < 1 || iw < 1)
-    {
-      final String messageKey = iBounds.getHeight() < 1 ? "label.font_doesnt_have_letters_defined"
-              : "label.font_too_small";
-      JOptionPane.showInternalMessageDialog(this,
-              MessageManager.getString(messageKey),
-              MessageManager.getString("label.invalid_font"),
-              JOptionPane.WARNING_MESSAGE);
-      /*
-       * Restore the changed value - note this will reinvoke this method via the
-       * ActionListener, but now validation should pass
-       */
-      if (lastSelected.getSize() != (Integer) fontSize.getSelectedItem()) // autoboxing
-      {
-        fontSize.setSelectedItem(lastSelected.getSize());
-      }
-      if (!lastSelected.getName().equals(
-              fontName.getSelectedItem().toString()))
-      {
-        fontName.setSelectedItem(lastSelected.getName());
-      }
-      if (lastSelected.getStyle() != fontStyle.getSelectedIndex())
-      {
-        fontStyle.setSelectedIndex(lastSelected.getStyle());
-      }
-      if (lastSelMono != monospaced.isSelected())
-      {
-        monospaced.setSelected(lastSelMono);
-      }
-      return;
-    }
+            fontStyle.getSelectedIndex(), Integer.parseInt(fontSize
+                    .getSelectedItem().toString()));
     if (tp != null)
     {
       tp.setTreeFont(newFont);
     }
     else if (ap != null)
     {
-      ap.av.setFont(newFont, true);
+      ap.av.setFont(newFont);
       ap.fontChanged();
     }
 
-    monospaced.setSelected(mw == iw);
+    FontMetrics fm = getGraphics().getFontMetrics(newFont);
 
-    /*
-     * Remember latest valid selection, so it can be restored if followed by an
-     * invalid one
-     */
-    lastSelected = newFont;
+    monospaced.setSelected(fm.getStringBounds("M", getGraphics())
+            .getWidth() == fm.getStringBounds("|", getGraphics())
+            .getWidth());
+
   }
 
   /**
@@ -344,10 +254,10 @@ public class FontChooser extends GFontChooser
   }
 
   /**
-   * Make selected settings the defaults by storing them (via Cache class) in
-   * the .jalview_properties file (the file is only written when Jalview exits)
+   * DOCUMENT ME!
    * 
    * @param e
+   *          DOCUMENT ME!
    */
   public void defaultButton_actionPerformed(ActionEvent e)
   {
@@ -356,25 +266,5 @@ public class FontChooser extends GFontChooser
     Cache.setProperty("FONT_SIZE", fontSize.getSelectedItem().toString());
     Cache.setProperty("ANTI_ALIAS",
             Boolean.toString(smoothFont.isSelected()));
-    Cache.setProperty(Preferences.SCALE_PROTEIN_TO_CDNA,
-            Boolean.toString(scaleAsCdna.isSelected()));
-  }
-
-  /**
-   * Turn on/off scaling of protein characters to 3 times the width of cDNA
-   * characters
-   */
-  @Override
-  protected void scaleAsCdna_actionPerformed(ActionEvent e)
-  {
-    ap.av.setScaleProteinAsCdna(scaleAsCdna.isSelected());
-    ap.av.getCodingComplement().setScaleProteinAsCdna(
-            scaleAsCdna.isSelected());
-    final SplitFrame splitFrame = (SplitFrame) ap.alignFrame
-            .getSplitViewContainer();
-    splitFrame.adjustLayout();
-    splitFrame.repaint();
-    // ap.paintAlignment(true);
-    // TODO would like to repaint
   }
 }

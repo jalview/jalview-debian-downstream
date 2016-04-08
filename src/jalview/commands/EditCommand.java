@@ -1,41 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.commands;
 
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.Annotation;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.util.ReverseListIterator;
-import jalview.util.StringUtils;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
+import jalview.datamodel.*;
 
 /**
  * 
@@ -61,60 +45,17 @@ import java.util.Map;
  */
 public class EditCommand implements CommandI
 {
-  public enum Action
-  {
-    INSERT_GAP
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return DELETE_GAP;
-      }
-    },
-    DELETE_GAP
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return INSERT_GAP;
-      }
-    },
-    CUT
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return PASTE;
-      }
-    },
-    PASTE
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return CUT;
-      }
-    },
-    REPLACE
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return REPLACE;
-      }
-    },
-    INSERT_NUC
-    {
-      @Override
-      public Action getUndoAction()
-      {
-        return null;
-      }
-    };
-    public abstract Action getUndoAction();
-  };
+  public static final int INSERT_GAP = 0;
 
-  private List<Edit> edits = new ArrayList<Edit>();
+  public static final int DELETE_GAP = 1;
+
+  public static final int CUT = 2;
+
+  public static final int PASTE = 3;
+
+  public static final int REPLACE = 4;
+
+  Edit[] edits;
 
   String description;
 
@@ -127,170 +68,45 @@ public class EditCommand implements CommandI
     this.description = description;
   }
 
-  public EditCommand(String description, Action command, SequenceI[] seqs,
+  public EditCommand(String description, int command, SequenceI[] seqs,
           int position, int number, AlignmentI al)
   {
     this.description = description;
-    if (command == Action.CUT || command == Action.PASTE)
+    if (command == CUT || command == PASTE)
     {
-      setEdit(new Edit(command, seqs, position, number, al));
+      edits = new Edit[]
+      { new Edit(command, seqs, position, number, al) };
     }
 
     performEdit(0, null);
   }
 
-  public EditCommand(String description, Action command, String replace,
+  public EditCommand(String description, int command, String replace,
           SequenceI[] seqs, int position, int number, AlignmentI al)
   {
     this.description = description;
-    if (command == Action.REPLACE)
+    if (command == REPLACE)
     {
-      setEdit(new Edit(command, seqs, position, number, al, replace));
+      edits = new Edit[]
+      { new Edit(command, seqs, position, number, al, replace) };
     }
 
     performEdit(0, null);
   }
 
-  /**
-   * Set the list of edits to the specified item (only).
-   * 
-   * @param e
-   */
-  protected void setEdit(Edit e)
-  {
-    edits.clear();
-    edits.add(e);
-  }
-
-  /**
-   * Add the given edit command to the stored list of commands. If simply
-   * expanding the range of the last command added, then modify it instead of
-   * adding a new command.
-   * 
-   * @param e
-   */
-  public void addEdit(Edit e)
-  {
-    if (!expandEdit(edits, e))
-    {
-      edits.add(e);
-    }
-  }
-
-  /**
-   * Returns true if the new edit is incorporated by updating (expanding the
-   * range of) the last edit on the list, else false. We can 'expand' the last
-   * edit if the new one is the same action, on the same sequences, and acts on
-   * a contiguous range. This is the case where a mouse drag generates a series
-   * of contiguous gap insertions or deletions.
-   * 
-   * @param edits
-   * @param e
-   * @return
-   */
-  protected static boolean expandEdit(List<Edit> edits, Edit e)
-  {
-    if (edits == null || edits.isEmpty())
-    {
-      return false;
-    }
-    Edit lastEdit = edits.get(edits.size() - 1);
-    Action action = e.command;
-    if (lastEdit.command != action)
-    {
-      return false;
-    }
-
-    /*
-     * Both commands must act on the same sequences - compare the underlying
-     * dataset sequences, rather than the aligned sequences, which change as
-     * they are edited.
-     */
-    if (lastEdit.seqs.length != e.seqs.length)
-    {
-      return false;
-    }
-    for (int i = 0; i < e.seqs.length; i++)
-    {
-      if (lastEdit.seqs[i].getDatasetSequence() != e.seqs[i]
-              .getDatasetSequence())
-      {
-        return false;
-      }
-    }
-
-    /**
-     * Check a contiguous edit; either
-     * <ul>
-     * <li>a new Insert <n> positions to the right of the last <insert n>, or</li>
-     * <li>a new Delete <n> gaps which is <n> positions to the left of the last
-     * delete.</li>
-     * </ul>
-     */
-    boolean contiguous = (action == Action.INSERT_GAP && e.position == lastEdit.position
-            + lastEdit.number)
-            || (action == Action.DELETE_GAP && e.position + e.number == lastEdit.position);
-    if (contiguous)
-    {
-      /*
-       * We are just expanding the range of the last edit. For delete gap, also
-       * moving the start position left.
-       */
-      lastEdit.number += e.number;
-      lastEdit.seqs = e.seqs;
-      if (action == Action.DELETE_GAP)
-      {
-        lastEdit.position--;
-      }
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Clear the list of stored edit commands.
-   * 
-   */
-  protected void clearEdits()
-  {
-    edits.clear();
-  }
-
-  /**
-   * Returns the i'th stored Edit command.
-   * 
-   * @param i
-   * @return
-   */
-  protected Edit getEdit(int i)
-  {
-    if (i >= 0 && i < edits.size())
-    {
-      return edits.get(i);
-    }
-    return null;
-  }
-
-  @Override
   final public String getDescription()
   {
     return description;
   }
 
-  @Override
   public int getSize()
   {
-    return edits.size();
+    return edits == null ? 0 : edits.length;
   }
 
-  /**
-   * Return the alignment for the first edit (or null if no edit).
-   * 
-   * @return
-   */
   final public AlignmentI getAlignment()
   {
-    return (edits.isEmpty() ? null : edits.get(0).al);
+    return edits[0].al;
   }
 
   /**
@@ -306,8 +122,8 @@ public class EditCommand implements CommandI
    * @param al
    * @param performEdit
    */
-  final public void appendEdit(Action command, SequenceI[] seqs,
-          int position, int number, AlignmentI al, boolean performEdit)
+  final public void appendEdit(int command, SequenceI[] seqs, int position,
+          int number, AlignmentI al, boolean performEdit)
   {
     appendEdit(command, seqs, position, number, al, performEdit, null);
   }
@@ -324,9 +140,8 @@ public class EditCommand implements CommandI
    * @param performEdit
    * @param views
    */
-  final public void appendEdit(Action command, SequenceI[] seqs,
-          int position, int number, AlignmentI al, boolean performEdit,
-          AlignmentI[] views)
+  final public void appendEdit(int command, SequenceI[] seqs, int position,
+          int number, AlignmentI al, boolean performEdit, AlignmentI[] views)
   {
     Edit edit = new Edit(command, seqs, position, number,
             al.getGapCharacter());
@@ -336,171 +151,95 @@ public class EditCommand implements CommandI
       edit.fullAlignmentHeight = true;
     }
 
-    addEdit(edit);
+    if (edits != null)
+    {
+      Edit[] temp = new Edit[edits.length + 1];
+      System.arraycopy(edits, 0, temp, 0, edits.length);
+      edits = temp;
+      edits[edits.length - 1] = edit;
+    }
+    else
+    {
+      edits = new Edit[]
+      { edit };
+    }
 
     if (performEdit)
     {
-      performEdit(edit, views);
+      performEdit(edits.length - 1, views);
     }
   }
 
-  /**
-   * Overloaded method that accepts an Edit object with additional parameters.
-   * 
-   * @param edit
-   * @param al
-   * @param performEdit
-   * @param views
-   */
-  final public void appendEdit(Edit edit, AlignmentI al,
-          boolean performEdit, AlignmentI[] views)
+  final void performEdit(int commandIndex, AlignmentI[] views)
   {
-    if (al.getHeight() == edit.seqs.length)
+    int eSize = edits.length;
+    for (int e = commandIndex; e < eSize; e++)
     {
-      edit.al = al;
-      edit.fullAlignmentHeight = true;
-    }
-
-    addEdit(edit);
-
-    if (performEdit)
-    {
-      performEdit(edit, views);
-    }
-  }
-
-  /**
-   * Execute all the edit commands, starting at the given commandIndex
-   * 
-   * @param commandIndex
-   * @param views
-   */
-  public final void performEdit(int commandIndex, AlignmentI[] views)
-  {
-    ListIterator<Edit> iterator = edits.listIterator(commandIndex);
-    while (iterator.hasNext())
-    {
-      Edit edit = iterator.next();
-      performEdit(edit, views);
-    }
-  }
-
-  /**
-   * Execute one edit command in all the specified alignment views
-   * 
-   * @param edit
-   * @param views
-   */
-  protected static void performEdit(Edit edit, AlignmentI[] views)
-  {
-    switch (edit.command)
-    {
-    case INSERT_GAP:
-      insertGap(edit);
-      break;
-    case DELETE_GAP:
-      deleteGap(edit);
-      break;
-    case CUT:
-      cut(edit, views);
-      break;
-    case PASTE:
-      paste(edit, views);
-      break;
-    case REPLACE:
-      replace(edit);
-      break;
-    case INSERT_NUC:
-      // TODO:add deleteNuc for UNDO
-      // case INSERT_NUC:
-      // insertNuc(edits[e]);
-      break;
-    default:
-      break;
-    }
-  }
-
-  @Override
-  final public void doCommand(AlignmentI[] views)
-  {
-    performEdit(0, views);
-  }
-
-  /**
-   * Undo the stored list of commands, in reverse order.
-   */
-  @Override
-  final public void undoCommand(AlignmentI[] views)
-  {
-    ListIterator<Edit> iterator = edits.listIterator(edits.size());
-    while (iterator.hasPrevious())
-    {
-      Edit e = iterator.previous();
-      switch (e.command)
+      switch (edits[e].command)
       {
       case INSERT_GAP:
-        deleteGap(e);
+        insertGap(edits[e]);
         break;
       case DELETE_GAP:
-        insertGap(e);
+        deleteGap(edits[e]);
         break;
       case CUT:
-        paste(e, views);
+        cut(edits[e], views);
         break;
       case PASTE:
-        cut(e, views);
+        paste(edits[e], views);
         break;
       case REPLACE:
-        replace(e);
-        break;
-      case INSERT_NUC:
-        // not implemented
-        break;
-      default:
+        replace(edits[e]);
         break;
       }
     }
   }
 
-  /**
-   * Insert gap(s) in sequences as specified by the command, and adjust
-   * annotations.
-   * 
-   * @param command
-   */
-  final private static void insertGap(Edit command)
+  final public void doCommand(AlignmentI[] views)
+  {
+    performEdit(0, views);
+  }
+
+  final public void undoCommand(AlignmentI[] views)
+  {
+    int e = 0, eSize = edits.length;
+    for (e = eSize - 1; e > -1; e--)
+    {
+      switch (edits[e].command)
+      {
+      case INSERT_GAP:
+        deleteGap(edits[e]);
+        break;
+      case DELETE_GAP:
+        insertGap(edits[e]);
+        break;
+      case CUT:
+        paste(edits[e], views);
+        break;
+      case PASTE:
+        cut(edits[e], views);
+        break;
+      case REPLACE:
+        replace(edits[e]);
+        break;
+      }
+    }
+  }
+
+  final void insertGap(Edit command)
   {
 
     for (int s = 0; s < command.seqs.length; s++)
     {
       command.seqs[s].insertCharAt(command.position, command.number,
               command.gapChar);
-      // System.out.println("pos: "+command.position+" number: "+command.number);
     }
 
     adjustAnnotations(command, true, false, null);
   }
 
-  //
-  // final void insertNuc(Edit command)
-  // {
-  //
-  // for (int s = 0; s < command.seqs.length; s++)
-  // {
-  // System.out.println("pos: "+command.position+" number: "+command.number);
-  // command.seqs[s].insertCharAt(command.position, command.number,'A');
-  // }
-  //
-  // adjustAnnotations(command, true, false, null);
-  // }
-
-  /**
-   * Delete gap(s) in sequences as specified by the command, and adjust
-   * annotations.
-   * 
-   * @param command
-   */
-  final static private void deleteGap(Edit command)
+  final void deleteGap(Edit command)
   {
     for (int s = 0; s < command.seqs.length; s++)
     {
@@ -511,44 +250,36 @@ public class EditCommand implements CommandI
     adjustAnnotations(command, false, false, null);
   }
 
-  /**
-   * Carry out a Cut action. The cut characters are saved in case Undo is
-   * requested.
-   * 
-   * @param command
-   * @param views
-   */
-  static void cut(Edit command, AlignmentI[] views)
+  void cut(Edit command, AlignmentI[] views)
   {
     boolean seqDeleted = false;
     command.string = new char[command.seqs.length][];
 
     for (int i = 0; i < command.seqs.length; i++)
     {
-      final SequenceI sequence = command.seqs[i];
-      if (sequence.getLength() > command.position)
+      if (command.seqs[i].getLength() > command.position)
       {
-        command.string[i] = sequence.getSequence(command.position,
+        command.string[i] = command.seqs[i].getSequence(command.position,
                 command.position + command.number);
-        SequenceI oldds = sequence.getDatasetSequence();
+        SequenceI oldds = command.seqs[i].getDatasetSequence();
         if (command.oldds != null && command.oldds[i] != null)
         {
           // we are redoing an undone cut.
-          sequence.setDatasetSequence(null);
+          command.seqs[i].setDatasetSequence(null);
         }
-        sequence.deleteChars(command.position, command.position
+        command.seqs[i].deleteChars(command.position, command.position
                 + command.number);
         if (command.oldds != null && command.oldds[i] != null)
         {
           // oldds entry contains the cut dataset sequence.
-          sequence.setDatasetSequence(command.oldds[i]);
+          command.seqs[i].setDatasetSequence(command.oldds[i]);
           command.oldds[i] = oldds;
         }
         else
         {
           // modify the oldds if necessary
-          if (oldds != sequence.getDatasetSequence()
-                  || sequence.getSequenceFeatures() != null)
+          if (oldds != command.seqs[i].getDatasetSequence()
+                  || command.seqs[i].getSequenceFeatures() != null)
           {
             if (command.oldds == null)
             {
@@ -558,16 +289,16 @@ public class EditCommand implements CommandI
             adjustFeatures(
                     command,
                     i,
-                    sequence.findPosition(command.position),
-                    sequence.findPosition(command.position + command.number),
-                    false);
+                    command.seqs[i].findPosition(command.position),
+                    command.seqs[i].findPosition(command.position
+                            + command.number), false);
           }
         }
       }
 
-      if (sequence.getLength() < 1)
+      if (command.seqs[i].getLength() < 1)
       {
-        command.al.deleteSequence(sequence);
+        command.al.deleteSequence(command.seqs[i]);
         seqDeleted = true;
       }
     }
@@ -575,14 +306,7 @@ public class EditCommand implements CommandI
     adjustAnnotations(command, false, seqDeleted, views);
   }
 
-  /**
-   * Perform the given Paste command. This may be to add cut or copied sequences
-   * to an alignment, or to undo a 'Cut' action on a region of the alignment.
-   * 
-   * @param command
-   * @param views
-   */
-  static void paste(Edit command, AlignmentI[] views)
+  void paste(Edit command, AlignmentI[] views)
   {
     StringBuffer tmp;
     boolean newDSNeeded;
@@ -598,17 +322,11 @@ public class EditCommand implements CommandI
       if (command.seqs[i].getLength() < 1)
       {
         // ie this sequence was deleted, we need to
-        // readd it to the alignment
+        // read it to the alignment
         if (command.alIndex[i] < command.al.getHeight())
         {
-          List<SequenceI> sequences;
-          synchronized (sequences = command.al.getSequences())
-          {
-            if (!(command.alIndex[i] < 0))
-            {
-              sequences.add(command.alIndex[i], command.seqs[i]);
-            }
-          }
+          command.al.getSequences().insertElementAt(command.seqs[i],
+                  command.alIndex[i]);
         }
         else
         {
@@ -650,13 +368,9 @@ public class EditCommand implements CommandI
                       + command.number);
             }
             if (command.seqs[i].getStart() == start)
-            {
               newstart--;
-            }
             else
-            {
               newend++;
-            }
           }
         }
         command.string[i] = null;
@@ -700,7 +414,7 @@ public class EditCommand implements CommandI
     command.string = null;
   }
 
-  static void replace(Edit command)
+  void replace(Edit command)
   {
     StringBuffer tmp;
     String oldstring;
@@ -713,9 +427,6 @@ public class EditCommand implements CommandI
     command.number = start + command.string[0].length;
     for (int i = 0; i < command.seqs.length; i++)
     {
-      boolean newDSWasNeeded = command.oldds != null
-              && command.oldds[i] != null;
-
       /**
        * cut addHistoryItem(new EditCommand("Cut Sequences", EditCommand.CUT,
        * cut, sg.getStartRes(), sg.getEndRes()-sg.getStartRes()+1,
@@ -730,54 +441,15 @@ public class EditCommand implements CommandI
       oldstring = command.seqs[i].getSequenceAsString();
       tmp = new StringBuffer(oldstring.substring(0, start));
       tmp.append(command.string[i]);
-      String nogaprep = jalview.analysis.AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, new String(
-                      command.string[i]));
-      int ipos = command.seqs[i].findPosition(start)
-              - command.seqs[i].getStart();
       tmp.append(oldstring.substring(end));
       command.seqs[i].setSequence(tmp.toString());
       command.string[i] = oldstring.substring(start, end).toCharArray();
-      String nogapold = jalview.analysis.AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, new String(
-                      command.string[i]));
-      if (!nogaprep.toLowerCase().equals(nogapold.toLowerCase()))
-      {
-        if (newDSWasNeeded)
-        {
-          SequenceI oldds = command.seqs[i].getDatasetSequence();
-          command.seqs[i].setDatasetSequence(command.oldds[i]);
-          command.oldds[i] = oldds;
-        }
-        else
-        {
-          if (command.oldds == null)
-          {
-            command.oldds = new SequenceI[command.seqs.length];
-          }
-          command.oldds[i] = command.seqs[i].getDatasetSequence();
-          SequenceI newds = new Sequence(
-                  command.seqs[i].getDatasetSequence());
-          String fullseq, osp = newds.getSequenceAsString();
-          fullseq = osp.substring(0, ipos) + nogaprep
-                  + osp.substring(ipos + nogaprep.length());
-          newds.setSequence(fullseq.toUpperCase());
-          // TODO: JAL-1131 ensure newly created dataset sequence is added to
-          // the set of
-          // dataset sequences associated with the alignment.
-          // TODO: JAL-1131 fix up any annotation associated with new dataset
-          // sequence to ensure that original sequence/annotation relationships
-          // are preserved.
-          command.seqs[i].setDatasetSequence(newds);
-
-        }
-      }
       tmp = null;
       oldstring = null;
     }
   }
 
-  final static void adjustAnnotations(Edit command, boolean insert,
+  final void adjustAnnotations(Edit command, boolean insert,
           boolean modifyVisibility, AlignmentI[] views)
   {
     AlignmentAnnotation[] annotations = null;
@@ -785,7 +457,7 @@ public class EditCommand implements CommandI
     if (modifyVisibility && !insert)
     {
       // only occurs if a sequence was added or deleted.
-      command.deletedAnnotationRows = new Hashtable<SequenceI, AlignmentAnnotation[]>();
+      command.deletedAnnotationRows = new Hashtable();
     }
     if (command.fullAlignmentHeight)
     {
@@ -869,7 +541,7 @@ public class EditCommand implements CommandI
                     && command.deletedAnnotationRows
                             .containsKey(command.seqs[s]))
             {
-              AlignmentAnnotation[] revealed = command.deletedAnnotationRows
+              AlignmentAnnotation[] revealed = (AlignmentAnnotation[]) command.deletedAnnotationRows
                       .get(command.seqs[s]);
               command.seqs[s].setAlignmentAnnotation(revealed);
               if (revealed != null)
@@ -940,7 +612,7 @@ public class EditCommand implements CommandI
 
     if (!insert)
     {
-      command.deletedAnnotations = new Hashtable<String, Annotation[]>();
+      command.deletedAnnotations = new Hashtable();
     }
 
     int aSize;
@@ -960,12 +632,10 @@ public class EditCommand implements CommandI
       {
         temp = new Annotation[aSize + command.number];
         if (annotations[a].padGaps)
-        {
           for (int aa = 0; aa < temp.length; aa++)
           {
             temp[aa] = new Annotation(command.gapChar + "", null, ' ', 0);
           }
-        }
       }
       else
       {
@@ -1003,7 +673,7 @@ public class EditCommand implements CommandI
                   && command.deletedAnnotations
                           .containsKey(annotations[a].annotationId))
           {
-            Annotation[] restore = command.deletedAnnotations
+            Annotation[] restore = (Annotation[]) command.deletedAnnotations
                     .get(annotations[a].annotationId);
 
             System.arraycopy(restore, 0, temp, command.position,
@@ -1021,7 +691,7 @@ public class EditCommand implements CommandI
                   && command.deletedAnnotations
                           .containsKey(annotations[a].annotationId))
           {
-            Annotation[] restore = command.deletedAnnotations
+            Annotation[] restore = (Annotation[]) command.deletedAnnotations
                     .get(annotations[a].annotationId);
 
             temp = new Annotation[annotations[a].annotations.length
@@ -1044,10 +714,8 @@ public class EditCommand implements CommandI
           int copylen = Math.min(command.position,
                   annotations[a].annotations.length);
           if (copylen > 0)
-          {
             System.arraycopy(annotations[a].annotations, 0, temp, 0,
                     copylen); // command.position);
-          }
 
           Annotation[] deleted = new Annotation[command.number];
           if (copylen >= command.position)
@@ -1101,7 +769,7 @@ public class EditCommand implements CommandI
     }
   }
 
-  final static void adjustFeatures(Edit command, int index, int i, int j,
+  final void adjustFeatures(Edit command, int index, int i, int j,
           boolean insert)
   {
     SequenceI seq = command.seqs[index];
@@ -1116,7 +784,8 @@ public class EditCommand implements CommandI
       if (command.editedFeatures != null
               && command.editedFeatures.containsKey(seq))
       {
-        sequence.setSequenceFeatures(command.editedFeatures.get(seq));
+        sequence.setSequenceFeatures((SequenceFeature[]) command.editedFeatures
+                .get(seq));
       }
 
       return;
@@ -1171,132 +840,28 @@ public class EditCommand implements CommandI
 
     if (command.editedFeatures == null)
     {
-      command.editedFeatures = new Hashtable<SequenceI, SequenceFeature[]>();
+      command.editedFeatures = new Hashtable();
     }
 
     command.editedFeatures.put(seq, oldsf);
 
   }
 
-  /**
-   * Returns the list of edit commands wrapped by this object.
-   * 
-   * @return
-   */
-  public List<Edit> getEdits()
-  {
-    return this.edits;
-  }
-
-  /**
-   * Returns a map whose keys are the dataset sequences, and values their
-   * aligned sequences before the command edit list was applied. The aligned
-   * sequences are copies, which may be updated without affecting the originals.
-   * 
-   * The command holds references to the aligned sequences (after editing). If
-   * the command is an 'undo',then the prior state is simply the aligned state.
-   * Otherwise, we have to derive the prior state by working backwards through
-   * the edit list to infer the aligned sequences before editing.
-   * 
-   * Note: an alternative solution would be to cache the 'before' state of each
-   * edit, but this would be expensive in space in the common case that the
-   * original is never needed (edits are not mirrored).
-   * 
-   * @return
-   * @throws IllegalStateException
-   *           on detecting an edit command of a type that can't be unwound
-   */
-  public Map<SequenceI, SequenceI> priorState(boolean forUndo)
-  {
-    Map<SequenceI, SequenceI> result = new HashMap<SequenceI, SequenceI>();
-    if (getEdits() == null)
-    {
-      return result;
-    }
-    if (forUndo)
-    {
-      for (Edit e : getEdits())
-      {
-        for (SequenceI seq : e.getSequences())
-        {
-          SequenceI ds = seq.getDatasetSequence();
-          SequenceI preEdit = result.get(ds);
-          if (preEdit == null)
-          {
-            preEdit = new Sequence("", seq.getSequenceAsString());
-            preEdit.setDatasetSequence(ds);
-            result.put(ds, preEdit);
-          }
-        }
-      }
-      return result;
-    }
-
-    /*
-     * Work backwards through the edit list, deriving the sequences before each
-     * was applied. The final result is the sequence set before any edits.
-     */
-    Iterator<Edit> edits = new ReverseListIterator<Edit>(getEdits());
-    while (edits.hasNext())
-    {
-      Edit oldEdit = edits.next();
-      Action action = oldEdit.getAction();
-      int position = oldEdit.getPosition();
-      int number = oldEdit.getNumber();
-      final char gap = oldEdit.getGapCharacter();
-      for (SequenceI seq : oldEdit.getSequences())
-      {
-        SequenceI ds = seq.getDatasetSequence();
-        SequenceI preEdit = result.get(ds);
-        if (preEdit == null)
-        {
-          preEdit = new Sequence("", seq.getSequenceAsString());
-          preEdit.setDatasetSequence(ds);
-          result.put(ds, preEdit);
-        }
-        /*
-         * 'Undo' this edit action on the sequence (updating the value in the
-         * map).
-         */
-        if (ds != null)
-        {
-          if (action == Action.DELETE_GAP)
-          {
-            preEdit.setSequence(new String(StringUtils.insertCharAt(
-                    preEdit.getSequence(), position, number, gap)));
-          }
-          else if (action == Action.INSERT_GAP)
-          {
-            preEdit.setSequence(new String(StringUtils.deleteChars(
-                    preEdit.getSequence(), position, position + number)));
-          }
-          else
-          {
-            System.err.println("Can't undo edit action " + action);
-            // throw new IllegalStateException("Can't undo edit action " +
-            // action);
-          }
-        }
-      }
-    }
-    return result;
-  }
-
-  public class Edit
+  class Edit
   {
     public SequenceI[] oldds;
 
     boolean fullAlignmentHeight = false;
 
-    Hashtable<SequenceI, AlignmentAnnotation[]> deletedAnnotationRows;
+    Hashtable deletedAnnotationRows;
 
-    Hashtable<String, Annotation[]> deletedAnnotations;
+    Hashtable deletedAnnotations;
 
-    Hashtable<SequenceI, SequenceFeature[]> editedFeatures;
+    Hashtable editedFeatures;
 
     AlignmentI al;
 
-    Action command;
+    int command;
 
     char[][] string;
 
@@ -1308,7 +873,7 @@ public class EditCommand implements CommandI
 
     char gapChar;
 
-    public Edit(Action command, SequenceI[] seqs, int position, int number,
+    Edit(int command, SequenceI[] seqs, int position, int number,
             char gapChar)
     {
       this.command = command;
@@ -1318,7 +883,7 @@ public class EditCommand implements CommandI
       this.gapChar = gapChar;
     }
 
-    Edit(Action command, SequenceI[] seqs, int position, int number,
+    Edit(int command, SequenceI[] seqs, int position, int number,
             AlignmentI al)
     {
       this.gapChar = al.getGapCharacter();
@@ -1337,7 +902,7 @@ public class EditCommand implements CommandI
       fullAlignmentHeight = (al.getHeight() == seqs.length);
     }
 
-    Edit(Action command, SequenceI[] seqs, int position, int number,
+    Edit(int command, SequenceI[] seqs, int position, int number,
             AlignmentI al, String replace)
     {
       this.command = command;
@@ -1353,50 +918,6 @@ public class EditCommand implements CommandI
       }
 
       fullAlignmentHeight = (al.getHeight() == seqs.length);
-    }
-
-    public SequenceI[] getSequences()
-    {
-      return seqs;
-    }
-
-    public int getPosition()
-    {
-      return position;
-    }
-
-    public Action getAction()
-    {
-      return command;
-    }
-
-    public int getNumber()
-    {
-      return number;
-    }
-
-    public char getGapCharacter()
-    {
-      return gapChar;
-    }
-  }
-
-  /**
-   * Returns an iterator over the list of edit commands which traverses the list
-   * either forwards or backwards.
-   * 
-   * @param forwards
-   * @return
-   */
-  public Iterator<Edit> getEditIterator(boolean forwards)
-  {
-    if (forwards)
-    {
-      return getEdits().iterator();
-    }
-    else
-    {
-      return new ReverseListIterator<Edit>(getEdits());
     }
   }
 }

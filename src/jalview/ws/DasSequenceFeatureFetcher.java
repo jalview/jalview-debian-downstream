@@ -1,63 +1,36 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws;
 
+import java.net.*;
+import java.util.*;
+
+import javax.swing.*;
+
+import org.biojava.dasobert.das.*;
+import org.biojava.dasobert.das2.*;
+import org.biojava.dasobert.das2.io.*;
+import org.biojava.dasobert.dasregistry.*;
+import org.biojava.dasobert.eventmodel.*;
 import jalview.bin.Cache;
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.gui.AlignFrame;
-import jalview.gui.Desktop;
-import jalview.gui.FeatureSettings;
-import jalview.util.MessageManager;
+import jalview.datamodel.*;
+import jalview.gui.*;
 import jalview.util.UrlLink;
-import jalview.ws.dbsources.das.api.DasSourceRegistryI;
-import jalview.ws.dbsources.das.api.jalviewSourceI;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringTokenizer;
-import java.util.Vector;
-
-import javax.swing.JOptionPane;
-
-import org.biodas.jdas.client.FeaturesClient;
-import org.biodas.jdas.client.adapters.features.DasGFFAdapter;
-import org.biodas.jdas.client.adapters.features.DasGFFAdapter.GFFAdapter;
-import org.biodas.jdas.client.threads.FeaturesClientMultipleSources;
-import org.biodas.jdas.schema.features.ERRORSEGMENT;
-import org.biodas.jdas.schema.features.FEATURE;
-import org.biodas.jdas.schema.features.LINK;
-import org.biodas.jdas.schema.features.SEGMENT;
-import org.biodas.jdas.schema.features.TYPE;
-import org.biodas.jdas.schema.features.UNKNOWNFEATURE;
-import org.biodas.jdas.schema.features.UNKNOWNSEGMENT;
-import org.biodas.jdas.schema.sources.COORDINATES;
 
 /**
  * DOCUMENT ME!
@@ -75,7 +48,7 @@ public class DasSequenceFeatureFetcher
 
   StringBuffer sbuffer = new StringBuffer();
 
-  List<jalviewSourceI> selectedSources;
+  Vector selectedSources;
 
   boolean cancelled = false;
 
@@ -102,10 +75,6 @@ public class DasSequenceFeatureFetcher
 
   long startTime;
 
-  private DasSourceRegistryI sourceRegistry;
-
-  private boolean useJDASMultiThread = true;
-
   /**
    * Creates a new SequenceFeatureFetcher object. Uses default
    * 
@@ -117,30 +86,22 @@ public class DasSequenceFeatureFetcher
   public DasSequenceFeatureFetcher(SequenceI[] sequences,
           FeatureSettings fsettings, Vector selectedSources)
   {
-    this(sequences, fsettings, selectedSources, true, true, true);
+    this(sequences, fsettings, selectedSources, true, true);
   }
 
   public DasSequenceFeatureFetcher(SequenceI[] oursequences,
-          FeatureSettings fsettings, List<jalviewSourceI> selectedSources2,
+          FeatureSettings fsettings, Vector ourselectedSources,
           boolean checkDbrefs, boolean promptFetchDbrefs)
   {
-    this(oursequences, fsettings, selectedSources2, checkDbrefs,
-            promptFetchDbrefs, true);
-  }
-
-  public DasSequenceFeatureFetcher(SequenceI[] oursequences,
-          FeatureSettings fsettings, List<jalviewSourceI> selectedSources2,
-          boolean checkDbrefs, boolean promptFetchDbrefs,
-          boolean useJDasMultiThread)
-  {
-    this.useJDASMultiThread = useJDasMultiThread;
-    this.selectedSources = new ArrayList<jalviewSourceI>();
+    this.selectedSources = new Vector();
+    Enumeration sources = ourselectedSources.elements();
     // filter both sequences and sources to eliminate duplicates
-    for (jalviewSourceI src : selectedSources2)
+    while (sources.hasMoreElements())
     {
+      Object src = sources.nextElement();
       if (!selectedSources.contains(src))
       {
-        selectedSources.add(src);
+        selectedSources.addElement(src);
       }
       ;
     }
@@ -164,13 +125,15 @@ public class DasSequenceFeatureFetcher
       af.setShowSeqFeatures(true);
     }
     int uniprotCount = 0;
-    for (jalviewSourceI source : selectedSources)
+    for (int i = 0; i < selectedSources.size(); i++)
     {
-      for (COORDINATES coords : source.getVersion().getCOORDINATES())
+      DasSource source = (DasSource) selectedSources.elementAt(i);
+      DasCoordinateSystem[] coords = source.getCoordinateSystem();
+      for (int c = 0; c < coords.length; c++)
       {
         // TODO: match UniProt coord system canonically (?) - does
         // UniProt==uniprot==UNIPROT ?
-        if (coords.getAuthority().toLowerCase().equals("uniprot"))
+        if (coords[c].getName().indexOf("UniProt") > -1)
         {
           uniprotCount++;
           break;
@@ -205,10 +168,9 @@ public class DasSequenceFeatureFetcher
         reply = JOptionPane
                 .showInternalConfirmDialog(
                         Desktop.desktop,
-                        MessageManager
-                                .getString("info.you_want_jalview_to_find_uniprot_accessions"),
-                        MessageManager
-                                .getString("label.find_uniprot_accession_ids"),
+                        "Do you want Jalview to find\n"
+                                + "Uniprot Accession ids for given sequence names?",
+                        "Find Uniprot Accession Ids",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE);
       }
@@ -220,66 +182,45 @@ public class DasSequenceFeatureFetcher
       }
       else
       {
-        _startFetching();
+        startFetching();
       }
     }
     else
     {
-      _startFetching();
-    }
-
-  }
-
-  private void _startFetching()
-  {
-    running = true;
-    new Thread(new FetchSeqFeatures()).start();
-  }
-
-  class FetchSeqFeatures implements Runnable
-  {
-    public void run()
-    {
       startFetching();
-      setGuiFetchComplete();
     }
+
   }
 
   class FetchDBRefs implements Runnable
   {
     public void run()
     {
-      running = true;
       new DBRefFetcher(sequences, af).fetchDBRefs(true);
       startFetching();
-      setGuiFetchComplete();
     }
   }
 
   /**
-   * Spawns Fetcher threads to add features to sequences in the dataset
+   * Spawns a number of dasobert Fetcher threads to add features to sequences in
+   * the dataset
    */
   void startFetching()
   {
-    running = true;
     cancelled = false;
     startTime = System.currentTimeMillis();
     if (af != null)
     {
-      af.setProgressBar(MessageManager
-              .getString("status.fetching_das_sequence_features"),
-              startTime);
+      af.setProgressBar("Fetching DAS Sequence Features", startTime);
     }
-    if (sourceRegistry == null)
-    {
-      sourceRegistry = Cache.getDasSourceRegistry();
-    }
+
     if (selectedSources == null || selectedSources.size() == 0)
     {
       try
       {
-        jalviewSourceI[] sources = sourceRegistry.getSources().toArray(
-                new jalviewSourceI[0]);
+        DasSource[] sources = new jalview.gui.DasSourceBrowser()
+                .getDASSource();
+
         String active = jalview.bin.Cache.getDefault("DAS_ACTIVE_SOURCE",
                 "uniprot");
         StringTokenizer st = new StringTokenizer(active, "\t");
@@ -290,9 +231,9 @@ public class DasSequenceFeatureFetcher
           token = st.nextToken();
           for (int i = 0; i < sources.length; i++)
           {
-            if (sources[i].getTitle().equals(token))
+            if (sources[i].getNickname().equals(token))
             {
-              selectedSources.add(sources[i]);
+              selectedSources.addElement(sources[i]);
               break;
             }
           }
@@ -313,225 +254,14 @@ public class DasSequenceFeatureFetcher
     }
 
     sourcesRemaining = selectedSources.size();
-    FeaturesClientMultipleSources fc = new FeaturesClientMultipleSources();
-    fc.setConnProps(sourceRegistry.getSessionHandler());
     // Now sending requests one at a time to each server
-    ArrayList<jalviewSourceI> srcobj = new ArrayList<jalviewSourceI>();
-    ArrayList<String> src = new ArrayList<String>();
-    List<List<String>> ids = new ArrayList<List<String>>();
-    List<List<DBRefEntry>> idobj = new ArrayList<List<DBRefEntry>>();
-    List<Map<String, SequenceI>> sqset = new ArrayList<Map<String, SequenceI>>();
-    for (jalviewSourceI _sr : selectedSources)
+    for (int sourceIndex = 0; sourceIndex < selectedSources.size()
+            && !cancelled; sourceIndex++)
     {
+      DasSource dasSource = (DasSource) selectedSources
+              .elementAt(sourceIndex);
 
-      Map<String, SequenceI> slist = new HashMap<String, SequenceI>();
-      List<DBRefEntry> idob = new ArrayList<DBRefEntry>();
-      List<String> qset = new ArrayList<String>();
-
-      for (SequenceI seq : sequences)
-      {
-        Object[] idset = nextSequence(_sr, seq);
-        if (idset != null)
-        {
-          List<DBRefEntry> _idob = (List<DBRefEntry>) idset[0];
-          List<String> _qset = (List<String>) idset[1];
-          if (_idob.size() > 0)
-          {
-            // add sequence's ref for each id derived from it
-            // (space inefficient, but most unambiguous)
-            // could replace with hash with _qset values as keys.
-            Iterator<DBRefEntry> dbobj = _idob.iterator();
-            for (String q : _qset)
-            {
-              SequenceI osq = slist.get(q);
-              DBRefEntry dr = dbobj.next();
-              if (osq != null && osq != seq)
-              {
-                // skip - non-canonical query
-              }
-              else
-              {
-                idob.add(dr);
-                qset.add(q);
-                slist.put(q, seq);
-              }
-            }
-          }
-        }
-      }
-      if (idob.size() > 0)
-      {
-        srcobj.add(_sr);
-        src.add(_sr.getSourceURL());
-        ids.add(qset);
-        idobj.add(idob);
-        sqset.add(slist);
-      }
-    }
-    Map<String, Map<List<String>, Exception>> errors = new HashMap<String, Map<List<String>, Exception>>();
-    Map<String, Map<List<String>, DasGFFAdapter>> results = new HashMap<String, Map<List<String>, DasGFFAdapter>>();
-    if (!useJDASMultiThread)
-    {
-      Iterator<String> sources = src.iterator();
-      // iterate over each query for each source and do each one individually
-      for (List<String> idl : ids)
-      {
-        String source = sources.next();
-        FeaturesClient featuresc = new FeaturesClient(sourceRegistry
-                .getSessionHandler().getConnectionPropertyProviderFor(
-                        source));
-        for (String id : idl)
-        {
-          List<String> qid = Arrays.asList(new String[] { id });
-          try
-          {
-            DasGFFAdapter dga = featuresc.fetchData(source, qid);
-            Map<List<String>, DasGFFAdapter> ers = results.get(source);
-            if (ers == null)
-            {
-              results.put(source,
-                      ers = new HashMap<List<String>, DasGFFAdapter>());
-            }
-            ers.put(qid, dga);
-          } catch (Exception ex)
-          {
-            Map<List<String>, Exception> ers = errors.get(source);
-            if (ers == null)
-            {
-              errors.put(source,
-                      ers = new HashMap<List<String>, Exception>());
-            }
-            ers.put(qid, ex);
-          }
-        }
-      }
-    }
-    else
-    {
-      // pass them all at once
-      fc.fetchData(src, ids, false, results, errors);
-      fc.shutDown();
-      while (!fc.isTerminated())
-      {
-        try
-        {
-          Thread.sleep(200);
-        } catch (InterruptedException x)
-        {
-
-        }
-      }
-    }
-    Iterator<List<String>> idset = ids.iterator();
-    Iterator<List<DBRefEntry>> idobjset = idobj.iterator();
-    Iterator<Map<String, SequenceI>> seqset = sqset.iterator();
-    for (jalviewSourceI source : srcobj)
-    {
-      processResponse(seqset.next(), source, idset.next(), idobjset.next(),
-              results.get(source.getSourceURL()),
-              errors.get(source.getSourceURL()));
-    }
-  }
-
-  private void processResponse(Map<String, SequenceI> sequencemap,
-          jalviewSourceI jvsource, List<String> ids,
-          List<DBRefEntry> idobj, Map<List<String>, DasGFFAdapter> results,
-          Map<List<String>, Exception> errors)
-  {
-    Set<SequenceI> sequences = new HashSet<SequenceI>();
-    String source = jvsource.getSourceURL();
-    // process features
-    DasGFFAdapter result = (results == null) ? null : results.get(ids);
-    Exception error = (errors == null) ? null : errors.get(ids);
-    if (result == null)
-    {
-      debug("das source " + source + " could not be contacted. "
-              + (error == null ? "" : error.toString()));
-    }
-    else
-    {
-
-      GFFAdapter gff = result.getGFF();
-      List<SEGMENT> segments = gff.getSegments();
-      List<ERRORSEGMENT> errorsegs = gff.getErrorSegments();
-      List<UNKNOWNFEATURE> unkfeats = gff.getUnknownFeatures();
-      List<UNKNOWNSEGMENT> unksegs = gff.getUnknownSegments();
-      debug("das source " + source + " returned " + gff.getTotal()
-              + " responses. " + (errorsegs != null ? errorsegs.size() : 0)
-              + " were incorrect segment queries, "
-              + (unkfeats != null ? unkfeats.size() : 0)
-              + " were unknown features "
-              + (unksegs != null ? unksegs.size() : 0)
-              + " were unknown segments and "
-              + (segments != null ? segments.size() : 0)
-              + " were segment responses.");
-      Iterator<DBRefEntry> dbr = idobj.iterator();
-      if (segments != null)
-      {
-        for (SEGMENT seg : segments)
-        {
-          String id = seg.getId();
-          if (ids.indexOf(id) == -1)
-          {
-            id = id.toUpperCase();
-          }
-          DBRefEntry dbref = idobj.get(ids.indexOf(id));
-          SequenceI sequence = sequencemap.get(id);
-          boolean added = false;
-          sequences.add(sequence);
-
-          for (FEATURE feat : seg.getFEATURE())
-          {
-            // standard DAS feature-> jalview sequence feature transformation
-            SequenceFeature f = newSequenceFeature(feat,
-                    jvsource.getTitle());
-            if (!parseSeqFeature(sequence, f, feat, jvsource))
-            {
-              if (dbref.getMap() != null && f.getBegin() > 0
-                      && f.getEnd() > 0)
-              {
-                debug("mapping from " + f.getBegin() + " - " + f.getEnd());
-                SequenceFeature vf[] = null;
-
-                try
-                {
-                  vf = dbref.getMap().locateFeature(f);
-                } catch (Exception ex)
-                {
-                  Cache.log
-                          .warn("Error in 'experimental' mapping of features. Please try to reproduce and then report info to jalview-discuss@jalview.org.");
-                  Cache.log.warn("Mapping feature from " + f.getBegin()
-                          + " to " + f.getEnd() + " in dbref "
-                          + dbref.getAccessionId() + " in "
-                          + dbref.getSource());
-                  Cache.log.warn("using das Source " + source);
-                  Cache.log.warn("Exception", ex);
-                }
-
-                if (vf != null)
-                {
-                  for (int v = 0; v < vf.length; v++)
-                  {
-                    debug("mapping to " + v + ": " + vf[v].getBegin()
-                            + " - " + vf[v].getEnd());
-                    sequence.addSequenceFeature(vf[v]);
-                  }
-                }
-              }
-              else
-              {
-                sequence.addSequenceFeature(f);
-              }
-            }
-          }
-        }
-        featuresAdded(sequences);
-      }
-      else
-      {
-        // System.out.println("No features found for " + seq.getName()
-        // + " from: " + e.getDasSource().getNickname());
-      }
+      nextSequence(dasSource, sequences[0]);
     }
   }
 
@@ -540,9 +270,7 @@ public class DasSequenceFeatureFetcher
 
     if (af != null)
     {
-      af.setProgressBar(
-              MessageManager.getString("status.no_das_sources_active"),
-              startTime);
+      af.setProgressBar("No DAS Sources Active", startTime);
     }
     if (getFeatSettings() != null)
     {
@@ -572,30 +300,49 @@ public class DasSequenceFeatureFetcher
   {
     if (af != null)
     {
-      af.setProgressBar(MessageManager
-              .getString("status.das_feature_fetching_cancelled"),
-              startTime);
+      af.setProgressBar("DAS Feature Fetching Cancelled", startTime);
     }
     cancelled = true;
   }
 
   int sourcesRemaining = 0;
 
-  private boolean running = false;
+  void responseComplete(DasSource dasSource, SequenceI seq)
+  {
+    if (seq != null)
+    {
+      for (int seqIndex = 0; seqIndex < sequences.length - 1 && !cancelled; seqIndex++)
+      {
+        if (sequences[seqIndex] == seq)
+        {
+          nextSequence(dasSource, sequences[++seqIndex]);
+          return;
+        }
+      }
+    }
+
+    sourcesRemaining--;
+
+    if (sourcesRemaining == 0)
+    {
+      System.err.println("Fetching Complete.");
+      setGuiFetchComplete();
+    }
+
+  }
 
   private void setGuiFetchComplete()
   {
-    running = false;
+
     if (!cancelled && af != null)
     {
       // only update the progress bar if we've completed the fetch normally
-      af.setProgressBar(MessageManager
-              .getString("status.das_feature_fetching_complete"), startTime);
+      af.setProgressBar("DAS Feature Fetching Complete", startTime);
     }
 
     if (af != null && af.featureSettings != null)
     {
-      af.featureSettings.discoverAllFeatureData();
+      af.featureSettings.setTableData();
     }
 
     if (getFeatSettings() != null)
@@ -604,7 +351,7 @@ public class DasSequenceFeatureFetcher
     }
   }
 
-  void featuresAdded(Set<SequenceI> seqs)
+  void featuresAdded(SequenceI seq)
   {
     if (af == null)
     {
@@ -618,27 +365,22 @@ public class DasSequenceFeatureFetcher
     int index;
     for (index = start; index < end; index++)
     {
-      for (SequenceI seq : seqs)
+      if (seq == af.getViewport().getAlignment().getSequenceAt(index)
+              .getDatasetSequence())
       {
-        if (seq == af.getViewport().getAlignment().getSequenceAt(index)
-                .getDatasetSequence())
-        {
-          af.alignPanel.paintAlignment(true);
-          index = end;
-          break;
-        }
+        af.alignPanel.paintAlignment(true);
+        break;
       }
     }
   }
 
-  Object[] nextSequence(jalviewSourceI dasSource, SequenceI seq)
+  void nextSequence(DasSource dasSource, SequenceI seq)
   {
     if (cancelled)
-    {
-      return null;
-    }
+      return;
     DBRefEntry[] uprefs = jalview.util.DBRefUtils.selectRefs(
-            seq.getDBRef(), new String[] {
+            seq.getDBRef(), new String[]
+            {
             // jalview.datamodel.DBRefSource.PDB,
             jalview.datamodel.DBRefSource.UNIPROT,
             // jalview.datamodel.DBRefSource.EMBL - not tested on any EMBL coord
@@ -647,8 +389,6 @@ public class DasSequenceFeatureFetcher
     // TODO: minimal list of DAS queries to make by querying with untyped ID if
     // distinct from any typed IDs
 
-    List<DBRefEntry> ids = new ArrayList<DBRefEntry>();
-    List<String> qstring = new ArrayList<String>();
     boolean dasCoordSysFound = false;
 
     if (uprefs != null)
@@ -656,30 +396,29 @@ public class DasSequenceFeatureFetcher
       // do any of these ids match the source's coordinate system ?
       for (int j = 0; !dasCoordSysFound && j < uprefs.length; j++)
       {
+        DasCoordinateSystem cs[] = dasSource.getCoordinateSystem();
 
-        for (COORDINATES csys : dasSource.getVersion().getCOORDINATES())
+        for (int csIndex = 0; csIndex < cs.length && !dasCoordSysFound; csIndex++)
         {
-          if (jalview.util.DBRefUtils.isDasCoordinateSystem(
-                  csys.getAuthority(), uprefs[j]))
+          if (cs.length > 0
+                  && jalview.util.DBRefUtils.isDasCoordinateSystem(
+                          cs[csIndex].getName(), uprefs[j]))
           {
             debug("Launched fetcher for coordinate system "
-                    + csys.getAuthority());
+                    + cs[0].getName());
             // Will have to pass any mapping information to the fetcher
             // - the start/end for the DBRefEntry may not be the same as the
             // sequence's start/end
 
             System.out.println(seq.getName() + " "
                     + (seq.getDatasetSequence() == null) + " "
-                    + csys.getUri());
+                    + dasSource.getUrl());
 
             dasCoordSysFound = true; // break's out of the loop
-            ids.add(uprefs[j]);
-            qstring.add(uprefs[j].getAccessionId());
+            createFeatureFetcher(seq, dasSource, uprefs[j]);
           }
           else
-          {
-            System.out.println("IGNORE " + csys.getAuthority());
-          }
+            System.out.println("IGNORE " + cs[csIndex].getName());
         }
       }
     }
@@ -708,16 +447,204 @@ public class DasSequenceFeatureFetcher
       }
       if (id != null)
       {
-        DBRefEntry dbre = new DBRefEntry();
-        dbre.setAccessionId(id);
         // Should try to call a general feature fetcher that
         // queries many sources with name to discover applicable ID references
-        ids.add(dbre);
-        qstring.add(dbre.getAccessionId());
+        createFeatureFetcher(seq, dasSource, id);
       }
     }
 
-    return new Object[] { ids, qstring };
+  }
+
+  /**
+   * fetch and add das features to a sequence using the given source URL and
+   * compatible DbRef id. new features are mapped using the DbRef mapping to the
+   * local coordinate system.
+   * 
+   * @param seq
+   * @param SourceUrl
+   * @param dbref
+   */
+  protected void createFeatureFetcher(final SequenceI seq,
+          final DasSource dasSource, final DBRefEntry dbref)
+  {
+
+    // ////////////
+    // / fetch DAS features
+    final Das1Source source = new Das1Source();
+    source.setUrl(dasSource.getUrl());
+    source.setNickname(dasSource.getNickname());
+    if (dbref == null || dbref.getAccessionId() == null
+            || dbref.getAccessionId().length() < 1)
+    {
+      responseComplete(dasSource, seq); // reduce thread count anyhow
+      return;
+    }
+    debug("new Das Feature Fetcher for " + dbref.getSource() + ":"
+            + dbref.getAccessionId() + " querying " + dasSource.getUrl());
+    FeatureThread fetcher = new FeatureThread(dbref.getAccessionId()
+    // + ":" + start + "," + end,
+            , source);
+
+    fetcher.addFeatureListener(new FeatureListener()
+    {
+      public void comeBackLater(FeatureEvent e)
+      {
+        responseComplete(dasSource, seq);
+        debug("das source " + e.getSource().getNickname()
+                + " asked us to come back in " + e.getComeBackLater()
+                + " secs.");
+      }
+
+      public void newFeatures(FeatureEvent e)
+      {
+
+        Das1Source ds = e.getSource();
+
+        Map[] features = e.getFeatures();
+        // add features to sequence
+        debug("das source " + ds.getUrl() + " returned " + features.length
+                + " features");
+
+        if (features.length > 0)
+        {
+          for (int i = 0; i < features.length; i++)
+          {
+            // standard DAS feature-> jalview sequence feature transformation
+            SequenceFeature f = newSequenceFeature(features[i],
+                    source.getNickname());
+            if (!parseSeqFeature(seq, f, features[i], source))
+            {
+              if (dbref.getMap() != null && f.getBegin() > 0
+                      && f.getEnd() > 0)
+              {
+                debug("mapping from " + f.getBegin() + " - " + f.getEnd());
+                SequenceFeature vf[] = null;
+
+                try
+                {
+                  vf = dbref.getMap().locateFeature(f);
+                } catch (Exception ex)
+                {
+                  Cache.log
+                          .info("Error in 'experimental' mapping of features. Please try to reproduce and then report info to jalview-discuss@jalview.org.");
+                  Cache.log.info("Mapping feature from " + f.getBegin()
+                          + " to " + f.getEnd() + " in dbref "
+                          + dbref.getAccessionId() + " in "
+                          + dbref.getSource());
+                  Cache.log.info("using das Source " + ds.getUrl());
+                  Cache.log.info("Exception", ex);
+                }
+
+                if (vf != null)
+                {
+                  for (int v = 0; v < vf.length; v++)
+                  {
+                    debug("mapping to " + v + ": " + vf[v].getBegin()
+                            + " - " + vf[v].getEnd());
+                    seq.addSequenceFeature(vf[v]);
+                  }
+                }
+              }
+              else
+              {
+                seq.addSequenceFeature(f);
+              }
+            }
+          }
+          featuresAdded(seq);
+        }
+        else
+        {
+          // System.out.println("No features found for " + seq.getName()
+          // + " from: " + e.getDasSource().getNickname());
+        }
+        responseComplete(dasSource, seq);
+
+      }
+    }
+
+    );
+
+    fetcher.start();
+  }
+
+  protected void createFeatureFetcher(final SequenceI seq,
+          final DasSource dasSource, String id)
+  {
+    // ////////////
+    // / fetch DAS features
+    final Das1Source source = new Das1Source();
+    source.setUrl(dasSource.getUrl());
+    source.setNickname(dasSource.getNickname());
+
+    if (id != null)
+    {
+      id = id.trim();
+    }
+    if (id != null && id.length() > 0)
+    {
+      debug("new Das Feature Fetcher for " + id + " querying "
+              + dasSource.getUrl());
+      FeatureThread fetcher = new FeatureThread(id
+      // + ":" + start + "," + end,
+              , source);
+
+      fetcher.addFeatureListener(new FeatureListener()
+      {
+        public void comeBackLater(FeatureEvent e)
+        {
+          responseComplete(dasSource, seq);
+          debug("das source " + e.getSource().getNickname()
+                  + " asked us to come back in " + e.getComeBackLater()
+                  + " secs.");
+        }
+
+        public void newFeatures(FeatureEvent e)
+        {
+
+          Das1Source ds = e.getSource();
+
+          Map[] features = e.getFeatures();
+          // add features to sequence
+          debug("das source " + ds.getUrl() + " returned "
+                  + features.length + " features");
+
+          if (features.length > 0)
+          {
+            for (int i = 0; i < features.length; i++)
+            {
+              // standard DAS feature-> jalview sequence feature transformation
+              SequenceFeature f = newSequenceFeature(features[i],
+                      source.getNickname());
+              if (!parseSeqFeature(seq, f, features[i], source))
+              {
+                // just add as a simple sequence feature
+                seq.addSequenceFeature(f);
+              }
+            }
+
+            featuresAdded(seq);
+          }
+          else
+          {
+            // System.out.println("No features found for " + seq.getName()
+            // + " from: " + e.getDasSource().getNickname());
+          }
+          responseComplete(dasSource, seq);
+
+        }
+      }
+
+      );
+
+      fetcher.start();
+    }
+    else
+    {
+      // invalid fetch - indicate it is finished.
+      debug("Skipping empty ID for querying " + dasSource.getUrl());
+      responseComplete(dasSource, seq);
+    }
   }
 
   /**
@@ -736,7 +663,7 @@ public class DasSequenceFeatureFetcher
    * @return true if feature was consumed as another kind of annotation.
    */
   protected boolean parseSeqFeature(SequenceI seq, SequenceFeature f,
-          FEATURE feature, jalviewSourceI source)
+          Map map, Das1Source source)
   {
     SequenceI mseq = seq;
     while (seq.getDatasetSequence() != null)
@@ -771,7 +698,7 @@ public class DasSequenceFeatureFetcher
         // try to parse the accession out
 
         DBRefEntry dbr = new DBRefEntry();
-        dbr.setVersion(source.getTitle());
+        dbr.setVersion(source.getNickname());
         StringTokenizer st = new StringTokenizer(f.getDescription(), ":");
         if (st.hasMoreTokens())
         {
@@ -827,12 +754,12 @@ public class DasSequenceFeatureFetcher
   /**
    * creates a jalview sequence feature from a das feature document
    * 
-   * @param feat
+   * @param dasfeature
    * @return sequence feature object created using dasfeature information
    */
-  SequenceFeature newSequenceFeature(FEATURE feat, String nickname)
+  SequenceFeature newSequenceFeature(Map dasfeature, String nickname)
   {
-    if (feat == null)
+    if (dasfeature == null)
     {
       return null;
     }
@@ -845,12 +772,9 @@ public class DasSequenceFeatureFetcher
        * qName.equals("SCORE")
        */
       String desc = new String();
-      if (feat.getNOTE() != null)
+      if (dasfeature.containsKey("NOTE"))
       {
-        for (String note : feat.getNOTE())
-        {
-          desc += note;
-        }
+        desc += (String) dasfeature.get("NOTE");
       }
 
       int start = 0, end = 0;
@@ -858,19 +782,19 @@ public class DasSequenceFeatureFetcher
 
       try
       {
-        start = Integer.parseInt(feat.getSTART().toString());
+        start = Integer.parseInt(dasfeature.get("START").toString());
       } catch (Exception ex)
       {
       }
       try
       {
-        end = Integer.parseInt(feat.getEND().toString());
+        end = Integer.parseInt(dasfeature.get("END").toString());
       } catch (Exception ex)
       {
       }
       try
       {
-        Object scr = feat.getSCORE();
+        Object scr = dasfeature.get("SCORE");
         if (scr != null)
         {
           score = (float) Double.parseDouble(scr.toString());
@@ -881,24 +805,20 @@ public class DasSequenceFeatureFetcher
       }
 
       SequenceFeature f = new SequenceFeature(
-              getTypeString(feat.getTYPE()), desc, start, end, score,
+              (String) dasfeature.get("TYPE"), desc, start, end, score,
               nickname);
 
-      if (feat.getLINK() != null)
+      if (dasfeature.containsKey("LINK"))
       {
-        for (LINK link : feat.getLINK())
+        // Do not put feature extent in link text for non-positional features
+        if (f.begin == 0 && f.end == 0)
         {
-          // Do not put feature extent in link text for non-positional features
-          if (f.begin == 0 && f.end == 0)
-          {
-            f.addLink(f.getType() + " " + link.getContent() + "|"
-                    + link.getHref());
-          }
-          else
-          {
-            f.addLink(f.getType() + " " + f.begin + "_" + f.end + " "
-                    + link.getContent() + "|" + link.getHref());
-          }
+          f.addLink(f.getType() + "|" + dasfeature.get("LINK"));
+        }
+        else
+        {
+          f.addLink(f.getType() + " " + f.begin + "_" + f.end + "|"
+                  + dasfeature.get("LINK"));
         }
       }
 
@@ -908,19 +828,71 @@ public class DasSequenceFeatureFetcher
       System.out.println("ERRR " + e);
       e.printStackTrace();
       System.out.println("############");
-      debug("Failed to parse " + feat.toString(), e);
+      debug("Failed to parse " + dasfeature.toString(), e);
       return null;
     }
   }
 
-  private String getTypeString(TYPE type)
+  /**
+   * query the default DAS Source Registry for sources. Uses value of jalview
+   * property DAS_REGISTRY_URL and the DasSourceBrowser.DEFAULT_REGISTRY if that
+   * doesn't exist.
+   * 
+   * @return list of sources
+   */
+  public static DasSource[] getDASSources()
   {
-    return type.getContent();
+
+    String registryURL = jalview.bin.Cache.getDefault("DAS_REGISTRY_URL",
+            DasSourceBrowser.DEFAULT_REGISTRY);
+    return getDASSources(registryURL);
   }
 
-  public boolean isRunning()
+  /**
+   * query the given URL for DasSources.
+   * 
+   * @param registryURL
+   *          return sources from registryURL
+   */
+  public static DasSource[] getDASSources(String registryURL)
   {
-    return running;
+    DasSourceReaderImpl reader = new DasSourceReaderImpl();
+
+    try
+    {
+      URL url = new URL(registryURL);
+
+      DasSource[] sources = reader.readDasSource(url);
+
+      List das1sources = new ArrayList();
+      for (int i = 0; i < sources.length; i++)
+      {
+        DasSource ds = sources[i];
+        if (ds instanceof Das2Source)
+        {
+          Das2Source d2s = (Das2Source) ds;
+          if (d2s.hasDas1Capabilities())
+          {
+            Das1Source d1s = DasSourceConverter.toDas1Source(d2s);
+            das1sources.add(d1s);
+          }
+
+        }
+        else if (ds instanceof Das1Source)
+        {
+          das1sources.add((Das1Source) ds);
+        }
+      }
+
+      return (Das1Source[]) das1sources.toArray(new Das1Source[das1sources
+              .size()]);
+    } catch (Exception ex)
+    {
+      System.err.println("Failed to contact DAS1 registry at "
+              + registryURL);
+      ex.printStackTrace();
+      return null;
+    }
   }
 
 }

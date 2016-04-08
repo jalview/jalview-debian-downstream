@@ -1,42 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SearchResults;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
+import java.awt.*;
+import java.awt.image.*;
+import javax.swing.*;
 
-import java.awt.BasicStroke;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.image.BufferedImage;
-import java.util.List;
-
-import javax.swing.JComponent;
+import jalview.datamodel.*;
 
 /**
  * DOCUMENT ME!
@@ -81,7 +66,6 @@ public class SeqCanvas extends JComponent
   public SeqCanvas(AlignmentPanel ap)
   {
     this.av = ap.av;
-    updateViewport();
     fr = new FeatureRenderer(ap);
     sr = new SequenceRenderer(av);
     setLayout(new BorderLayout());
@@ -99,14 +83,6 @@ public class SeqCanvas extends JComponent
     return fr;
   }
 
-  int charHeight = 0, charWidth = 0;
-
-  private void updateViewport()
-  {
-    charHeight = av.getCharHeight();
-    charWidth = av.getCharWidth();
-  }
-
   /**
    * DOCUMENT ME!
    * 
@@ -119,27 +95,28 @@ public class SeqCanvas extends JComponent
    * @param ypos
    *          DOCUMENT ME!
    */
-  private void drawNorthScale(Graphics g, int startx, int endx, int ypos)
+  void drawNorthScale(Graphics g, int startx, int endx, int ypos)
   {
-    updateViewport();
     int scalestartx = startx - (startx % 10) + 10;
 
     g.setColor(Color.black);
+
     // NORTH SCALE
     for (int i = scalestartx; i < endx; i += 10)
     {
       int value = i;
-      if (av.hasHiddenColumns())
+      if (av.hasHiddenColumns)
       {
         value = av.getColumnSelection().adjustForHiddenColumns(value);
       }
 
-      g.drawString(String.valueOf(value), (i - startx - 1) * charWidth,
-              ypos - (charHeight / 2));
+      g.drawString(String.valueOf(value), (i - startx - 1) * av.charWidth,
+              ypos - (av.charHeight / 2));
 
-      g.drawLine(((i - startx - 1) * charWidth) + (charWidth / 2),
-              (ypos + 2) - (charHeight / 2), ((i - startx - 1) * charWidth)
-                      + (charWidth / 2), ypos - 2);
+      g.drawLine(((i - startx - 1) * av.charWidth) + (av.charWidth / 2),
+              (ypos + 2) - (av.charHeight / 2),
+              ((i - startx - 1) * av.charWidth) + (av.charWidth / 2),
+              ypos - 2);
     }
   }
 
@@ -158,24 +135,24 @@ public class SeqCanvas extends JComponent
   void drawWestScale(Graphics g, int startx, int endx, int ypos)
   {
     FontMetrics fm = getFontMetrics(av.getFont());
-    ypos += charHeight;
+    ypos += av.charHeight;
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       startx = av.getColumnSelection().adjustForHiddenColumns(startx);
       endx = av.getColumnSelection().adjustForHiddenColumns(endx);
     }
 
-    int maxwidth = av.getAlignment().getWidth();
-    if (av.hasHiddenColumns())
+    int maxwidth = av.alignment.getWidth();
+    if (av.hasHiddenColumns)
     {
       maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
     }
 
     // WEST SCALE
-    for (int i = 0; i < av.getAlignment().getHeight(); i++)
+    for (int i = 0; i < av.alignment.getHeight(); i++)
     {
-      SequenceI seq = av.getAlignment().getSequenceAt(i);
+      SequenceI seq = av.alignment.getSequenceAt(i);
       int index = startx;
       int value = -1;
 
@@ -188,7 +165,7 @@ public class SeqCanvas extends JComponent
           continue;
         }
 
-        value = av.getAlignment().getSequenceAt(i).findPosition(index);
+        value = av.alignment.getSequenceAt(i).findPosition(index);
 
         break;
       }
@@ -196,9 +173,9 @@ public class SeqCanvas extends JComponent
       if (value != -1)
       {
         int x = LABEL_WEST - fm.stringWidth(String.valueOf(value))
-                - charWidth / 2;
-        g.drawString(value + "", x, (ypos + (i * charHeight))
-                - (charHeight / 5));
+                - av.charWidth / 2;
+        g.drawString(value + "", x, (ypos + (i * av.charHeight))
+                - (av.charHeight / 5));
       }
     }
   }
@@ -217,18 +194,18 @@ public class SeqCanvas extends JComponent
    */
   void drawEastScale(Graphics g, int startx, int endx, int ypos)
   {
-    ypos += charHeight;
+    ypos += av.charHeight;
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       endx = av.getColumnSelection().adjustForHiddenColumns(endx);
     }
 
     SequenceI seq;
     // EAST SCALE
-    for (int i = 0; i < av.getAlignment().getHeight(); i++)
+    for (int i = 0; i < av.alignment.getHeight(); i++)
     {
-      seq = av.getAlignment().getSequenceAt(i);
+      seq = av.alignment.getSequenceAt(i);
       int index = endx;
       int value = -1;
 
@@ -248,8 +225,8 @@ public class SeqCanvas extends JComponent
 
       if (value != -1)
       {
-        g.drawString(String.valueOf(value), 0, (ypos + (i * charHeight))
-                - (charHeight / 5));
+        g.drawString(String.valueOf(value), 0, (ypos + (i * av.charHeight))
+                - (av.charHeight / 5));
       }
     }
   }
@@ -267,15 +244,21 @@ public class SeqCanvas extends JComponent
    */
   public void fastPaint(int horizontal, int vertical)
   {
-    if (fastpainting || gg == null)
+    if (fastpainting)
     {
       return;
     }
     fastpainting = true;
+    if (gg == null)
+    {
+      return;
+    }
+
     fastPaint = true;
-    updateViewport();
-    gg.copyArea(horizontal * charWidth, vertical * charHeight, imgWidth,
-            imgHeight, -horizontal * charWidth, -vertical * charHeight);
+
+    gg.copyArea(horizontal * av.charWidth, vertical * av.charHeight,
+            imgWidth, imgHeight, -horizontal * av.charWidth, -vertical
+                    * av.charHeight);
 
     int sr = av.startRes;
     int er = av.endRes;
@@ -287,7 +270,7 @@ public class SeqCanvas extends JComponent
     if (horizontal > 0) // scrollbar pulled right, image to the left
     {
       er++;
-      transX = (er - sr - horizontal) * charWidth;
+      transX = (er - sr - horizontal) * av.charWidth;
       sr = er - horizontal;
     }
     else if (horizontal < 0)
@@ -304,7 +287,7 @@ public class SeqCanvas extends JComponent
       }
       else
       {
-        transY = imgHeight - (vertical * charHeight);
+        transY = imgHeight - (vertical * av.charHeight);
       }
     }
     else if (vertical < 0)
@@ -337,7 +320,6 @@ public class SeqCanvas extends JComponent
   // Set this to false to force a full panel paint
   public void paintComponent(Graphics g)
   {
-    updateViewport();
     BufferedImage lcimg = img; // take reference since other threads may null
     // img and call later.
     super.paintComponent(g);
@@ -356,8 +338,8 @@ public class SeqCanvas extends JComponent
     imgWidth = getWidth();
     imgHeight = getHeight();
 
-    imgWidth -= (imgWidth % charWidth);
-    imgHeight -= (imgHeight % charHeight);
+    imgWidth -= (imgWidth % av.charWidth);
+    imgHeight -= (imgHeight % av.charHeight);
 
     if ((imgWidth < 1) || (imgHeight < 1))
     {
@@ -420,17 +402,17 @@ public class SeqCanvas extends JComponent
     LABEL_EAST = 0;
     LABEL_WEST = 0;
 
-    if (av.getScaleRightWrapped())
+    if (av.scaleRightWrapped)
     {
       LABEL_EAST = fm.stringWidth(getMask());
     }
 
-    if (av.getScaleLeftWrapped())
+    if (av.scaleLeftWrapped)
     {
       LABEL_WEST = fm.stringWidth(getMask());
     }
 
-    return (cwidth - LABEL_EAST - LABEL_WEST) / charWidth;
+    return (cwidth - LABEL_EAST - LABEL_WEST) / av.charWidth;
   }
 
   /**
@@ -443,9 +425,9 @@ public class SeqCanvas extends JComponent
     String mask = "00";
     int maxWidth = 0;
     int tmp;
-    for (int i = 0; i < av.getAlignment().getHeight(); i++)
+    for (int i = 0; i < av.alignment.getHeight(); i++)
     {
-      tmp = av.getAlignment().getSequenceAt(i).getEnd();
+      tmp = av.alignment.getSequenceAt(i).getEnd();
       if (tmp > maxWidth)
       {
         maxWidth = tmp;
@@ -474,29 +456,28 @@ public class SeqCanvas extends JComponent
   public void drawWrappedPanel(Graphics g, int canvasWidth,
           int canvasHeight, int startRes)
   {
-    updateViewport();
     AlignmentI al = av.getAlignment();
 
     FontMetrics fm = getFontMetrics(av.getFont());
 
-    if (av.getScaleRightWrapped())
+    if (av.scaleRightWrapped)
     {
       LABEL_EAST = fm.stringWidth(getMask());
     }
 
-    if (av.getScaleLeftWrapped())
+    if (av.scaleLeftWrapped)
     {
       LABEL_WEST = fm.stringWidth(getMask());
     }
 
-    int hgap = charHeight;
-    if (av.getScaleAboveWrapped())
+    int hgap = av.charHeight;
+    if (av.scaleAboveWrapped)
     {
-      hgap += charHeight;
+      hgap += av.charHeight;
     }
 
-    int cWidth = (canvasWidth - LABEL_EAST - LABEL_WEST) / charWidth;
-    int cHeight = av.getAlignment().getHeight() * charHeight;
+    int cWidth = (canvasWidth - LABEL_EAST - LABEL_WEST) / av.charWidth;
+    int cHeight = av.getAlignment().getHeight() * av.charHeight;
 
     av.setWrappedWidth(cWidth);
 
@@ -504,9 +485,9 @@ public class SeqCanvas extends JComponent
 
     int endx;
     int ypos = hgap;
-    int maxwidth = av.getAlignment().getWidth() - 1;
+    int maxwidth = av.alignment.getWidth() - 1;
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
     }
@@ -523,12 +504,12 @@ public class SeqCanvas extends JComponent
       g.setFont(av.getFont());
       g.setColor(Color.black);
 
-      if (av.getScaleLeftWrapped())
+      if (av.scaleLeftWrapped)
       {
         drawWestScale(g, startRes, endx, ypos);
       }
 
-      if (av.getScaleRightWrapped())
+      if (av.scaleRightWrapped)
       {
         g.translate(canvasWidth - LABEL_EAST, 0);
         drawEastScale(g, startRes, endx, ypos);
@@ -537,12 +518,12 @@ public class SeqCanvas extends JComponent
 
       g.translate(LABEL_WEST, 0);
 
-      if (av.getScaleAboveWrapped())
+      if (av.scaleAboveWrapped)
       {
         drawNorthScale(g, startRes, endx, ypos);
       }
 
-      if (av.hasHiddenColumns() && av.getShowHiddenMarkers())
+      if (av.hasHiddenColumns && av.showHiddenMarkers)
       {
         g.setColor(Color.blue);
         int res;
@@ -557,12 +538,12 @@ public class SeqCanvas extends JComponent
             continue;
           }
 
-          gg.fillPolygon(
-                  new int[] { res * charWidth - charHeight / 4,
-                      res * charWidth + charHeight / 4, res * charWidth },
-                  new int[] { ypos - (charHeight / 2),
-                      ypos - (charHeight / 2), ypos - (charHeight / 2) + 8 },
-                  3);
+          gg.fillPolygon(new int[]
+          { res * av.charWidth - av.charHeight / 4,
+              res * av.charWidth + av.charHeight / 4, res * av.charWidth },
+                  new int[]
+                  { ypos - (av.charHeight / 2), ypos - (av.charHeight / 2),
+                      ypos - (av.charHeight / 2) + 8 }, 3);
 
         }
       }
@@ -573,17 +554,17 @@ public class SeqCanvas extends JComponent
 
       if (clip == null)
       {
-        g.setClip(0, 0, cWidth * charWidth, canvasHeight);
+        g.setClip(0, 0, cWidth * av.charWidth, canvasHeight);
       }
       else
       {
-        g.setClip(0, (int) clip.getBounds().getY(), cWidth * charWidth,
+        g.setClip(0, (int) clip.getBounds().getY(), cWidth * av.charWidth,
                 (int) clip.getBounds().getHeight());
       }
 
       drawPanel(g, startRes, endx, 0, al.getHeight(), ypos);
 
-      if (av.isShowAnnotation())
+      if (av.showAnnotation)
       {
         g.translate(0, cHeight + ypos + 3);
         if (annotations == null)
@@ -591,8 +572,7 @@ public class SeqCanvas extends JComponent
           annotations = new AnnotationPanel(av);
         }
 
-        annotations.renderer.drawComponent(annotations, av, g, -1,
-                startRes, endx + 1);
+        annotations.drawComponent((Graphics2D) g, startRes, endx + 1);
         g.translate(0, -cHeight - ypos - 3);
       }
       g.setClip(clip);
@@ -608,7 +588,7 @@ public class SeqCanvas extends JComponent
 
   int getAnnotationHeight()
   {
-    if (!av.isShowAnnotation())
+    if (!av.showAnnotation)
     {
       return 0;
     }
@@ -637,24 +617,24 @@ public class SeqCanvas extends JComponent
    * @param offset
    *          DOCUMENT ME!
    */
-  public void drawPanel(Graphics g1, int startRes, int endRes,
-          int startSeq, int endSeq, int offset)
+  void drawPanel(Graphics g1, int startRes, int endRes, int startSeq,
+          int endSeq, int offset)
   {
-    updateViewport();
-    if (!av.hasHiddenColumns())
+    if (!av.hasHiddenColumns)
     {
       draw(g1, startRes, endRes, startSeq, endSeq, offset);
     }
     else
     {
-      List<int[]> regions = av.getColumnSelection().getHiddenColumns();
+      java.util.Vector regions = av.getColumnSelection().getHiddenColumns();
 
       int screenY = 0;
       int blockStart = startRes;
       int blockEnd = endRes;
 
-      for (int[] region : regions)
+      for (int i = 0; regions != null && i < regions.size(); i++)
       {
+        int[] region = (int[]) regions.elementAt(i);
         int hideStart = region[0];
         int hideEnd = region[1];
 
@@ -666,7 +646,7 @@ public class SeqCanvas extends JComponent
 
         blockEnd = hideStart - 1;
 
-        g1.translate(screenY * charWidth, 0);
+        g1.translate(screenY * av.charWidth, 0);
 
         draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
 
@@ -674,12 +654,12 @@ public class SeqCanvas extends JComponent
         {
           g1.setColor(Color.blue);
 
-          g1.drawLine((blockEnd - blockStart + 1) * charWidth - 1,
-                  0 + offset, (blockEnd - blockStart + 1) * charWidth - 1,
-                  (endSeq - startSeq) * charHeight + offset);
+          g1.drawLine((blockEnd - blockStart + 1) * av.charWidth - 1,
+                  0 + offset, (blockEnd - blockStart + 1) * av.charWidth
+                          - 1, (endSeq - startSeq) * av.charHeight + offset);
         }
 
-        g1.translate(-screenY * charWidth, 0);
+        g1.translate(-screenY * av.charWidth, 0);
         screenY += blockEnd - blockStart + 1;
         blockStart = hideEnd + 1;
       }
@@ -687,10 +667,10 @@ public class SeqCanvas extends JComponent
       if (screenY <= (endRes - startRes))
       {
         blockEnd = blockStart + (endRes - startRes) - screenY;
-        g1.translate(screenY * charWidth, 0);
+        g1.translate(screenY * av.charWidth, 0);
         draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
 
-        g1.translate(-screenY * charWidth, 0);
+        g1.translate(-screenY * av.charWidth, 0);
       }
     }
 
@@ -698,11 +678,11 @@ public class SeqCanvas extends JComponent
 
   // int startRes, int endRes, int startSeq, int endSeq, int x, int y,
   // int x1, int x2, int y1, int y2, int startx, int starty,
-  private void draw(Graphics g, int startRes, int endRes, int startSeq,
-          int endSeq, int offset)
+  void draw(Graphics g, int startRes, int endRes, int startSeq, int endSeq,
+          int offset)
   {
     g.setFont(av.getFont());
-    sr.prepare(g, av.isRenderGaps());
+    sr.prepare(g, av.renderGaps);
 
     SequenceI nextSeq;
 
@@ -710,20 +690,20 @@ public class SeqCanvas extends JComponent
     // ///////////////////////////
     for (int i = startSeq; i < endSeq; i++)
     {
-      nextSeq = av.getAlignment().getSequenceAt(i);
+      nextSeq = av.alignment.getSequenceAt(i);
       if (nextSeq == null)
       {
         // occasionally, a race condition occurs such that the alignment row is
         // empty
         continue;
       }
-      sr.drawSequence(nextSeq, av.getAlignment().findAllGroups(nextSeq),
-              startRes, endRes, offset + ((i - startSeq) * charHeight));
+      sr.drawSequence(nextSeq, av.alignment.findAllGroups(nextSeq),
+              startRes, endRes, offset + ((i - startSeq) * av.charHeight));
 
-      if (av.isShowSequenceFeatures())
+      if (av.showSequenceFeatures)
       {
         fr.drawSequence(g, nextSeq, startRes, endRes, offset
-                + ((i - startSeq) * charHeight));
+                + ((i - startSeq) * av.charHeight));
       }
 
       // / Highlight search Results once all sequences have been drawn
@@ -738,8 +718,8 @@ public class SeqCanvas extends JComponent
           {
             sr.drawHighlightedText(nextSeq, visibleResults[r],
                     visibleResults[r + 1], (visibleResults[r] - startRes)
-                            * charWidth, offset
-                            + ((i - startSeq) * charHeight));
+                            * av.charWidth, offset
+                            + ((i - startSeq) * av.charHeight));
           }
         }
       }
@@ -747,13 +727,14 @@ public class SeqCanvas extends JComponent
       if (av.cursorMode && cursorY == i && cursorX >= startRes
               && cursorX <= endRes)
       {
-        sr.drawCursor(nextSeq, cursorX, (cursorX - startRes) * charWidth,
-                offset + ((i - startSeq) * charHeight));
+        sr.drawCursor(nextSeq, cursorX,
+                (cursorX - startRes) * av.charWidth, offset
+                        + ((i - startSeq) * av.charHeight));
       }
     }
 
     if (av.getSelectionGroup() != null
-            || av.getAlignment().getGroups().size() > 0)
+            || av.alignment.getGroups().size() > 0)
     {
       drawGroupsBoundaries(g, startRes, endRes, startSeq, endSeq, offset);
     }
@@ -774,11 +755,11 @@ public class SeqCanvas extends JComponent
     int sy = -1;
     int ex = -1;
     int groupIndex = -1;
-    int visWidth = (endRes - startRes + 1) * charWidth;
+    int visWidth = (endRes - startRes + 1) * av.charWidth;
 
-    if ((group == null) && (av.getAlignment().getGroups().size() > 0))
+    if ((group == null) && (av.alignment.getGroups().size() > 0))
     {
-      group = av.getAlignment().getGroups().get(0);
+      group = (SequenceGroup) av.alignment.getGroups().elementAt(0);
       groupIndex = 0;
     }
 
@@ -794,31 +775,31 @@ public class SeqCanvas extends JComponent
 
         for (i = startSeq; i < endSeq; i++)
         {
-          sx = (group.getStartRes() - startRes) * charWidth;
-          sy = offset + ((i - startSeq) * charHeight);
-          ex = (((group.getEndRes() + 1) - group.getStartRes()) * charWidth) - 1;
+          sx = (group.getStartRes() - startRes) * av.charWidth;
+          sy = offset + ((i - startSeq) * av.charHeight);
+          ex = (((group.getEndRes() + 1) - group.getStartRes()) * av.charWidth) - 1;
 
           if (sx + ex < 0 || sx > visWidth)
           {
             continue;
           }
 
-          if ((sx <= (endRes - startRes) * charWidth)
+          if ((sx <= (endRes - startRes) * av.charWidth)
                   && group.getSequences(null).contains(
-                          av.getAlignment().getSequenceAt(i)))
+                          av.alignment.getSequenceAt(i)))
           {
             if ((bottom == -1)
                     && !group.getSequences(null).contains(
-                            av.getAlignment().getSequenceAt(i + 1)))
+                            av.alignment.getSequenceAt(i + 1)))
             {
-              bottom = sy + charHeight;
+              bottom = sy + av.charHeight;
             }
 
             if (!inGroup)
             {
               if (((top == -1) && (i == 0))
                       || !group.getSequences(null).contains(
-                              av.getAlignment().getSequenceAt(i - 1)))
+                              av.alignment.getSequenceAt(i - 1)))
               {
                 top = sy;
               }
@@ -829,8 +810,8 @@ public class SeqCanvas extends JComponent
               if (group == av.getSelectionGroup())
               {
                 g.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT,
-                        BasicStroke.JOIN_ROUND, 3f, new float[] { 5f, 3f },
-                        0f));
+                        BasicStroke.JOIN_ROUND, 3f, new float[]
+                        { 5f, 3f }, 0f));
                 g.setColor(Color.RED);
               }
               else
@@ -865,9 +846,9 @@ public class SeqCanvas extends JComponent
                 ex = visWidth;
               }
 
-              else if (sx + ex >= (endRes - startRes + 1) * charWidth)
+              else if (sx + ex >= (endRes - startRes + 1) * av.charWidth)
               {
-                ex = (endRes - startRes + 1) * charWidth;
+                ex = (endRes - startRes + 1) * av.charWidth;
               }
 
               if (top != -1)
@@ -889,7 +870,7 @@ public class SeqCanvas extends JComponent
 
         if (inGroup)
         {
-          sy = offset + ((i - startSeq) * charHeight);
+          sy = offset + ((i - startSeq) * av.charHeight);
           if (sx >= 0 && sx < visWidth)
           {
             g.drawLine(sx, oldY, sx, sy);
@@ -910,9 +891,9 @@ public class SeqCanvas extends JComponent
           {
             ex = visWidth;
           }
-          else if (sx + ex >= (endRes - startRes + 1) * charWidth)
+          else if (sx + ex >= (endRes - startRes + 1) * av.charWidth)
           {
-            ex = (endRes - startRes + 1) * charWidth;
+            ex = (endRes - startRes + 1) * av.charWidth;
           }
 
           if (top != -1)
@@ -934,14 +915,15 @@ public class SeqCanvas extends JComponent
 
         g.setStroke(new BasicStroke());
 
-        if (groupIndex >= av.getAlignment().getGroups().size())
+        if (groupIndex >= av.alignment.getGroups().size())
         {
           break;
         }
 
-        group = av.getAlignment().getGroups().get(groupIndex);
+        group = (SequenceGroup) av.alignment.getGroups().elementAt(
+                groupIndex);
 
-      } while (groupIndex < av.getAlignment().getGroups().size());
+      } while (groupIndex < av.alignment.getGroups().size());
 
     }
 

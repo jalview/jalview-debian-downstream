@@ -1,43 +1,31 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.jws1;
 
-import jalview.analysis.AlignSeq;
-import jalview.bin.Cache;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SequenceI;
-import jalview.gui.AlignFrame;
-import jalview.gui.Desktop;
-import jalview.gui.WebserviceInfo;
-import jalview.util.MessageManager;
+import java.util.*;
+
+import jalview.analysis.*;
+import jalview.bin.*;
+import jalview.datamodel.*;
+import jalview.gui.*;
 import jalview.ws.AWsJob;
 import jalview.ws.JobStateSummary;
 import jalview.ws.WSClientI;
-
-import java.util.Hashtable;
-import java.util.Vector;
-
 import vamsas.objects.simple.MsaResult;
 
 class MsaWSThread extends JWS1Thread implements WSClientI
@@ -72,7 +60,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
         subjobComplete = true;
         result = new MsaResult();
         result.setFinished(true);
-        result.setStatus(MessageManager.getString("label.job_never_ran"));
+        result.setStatus("Job never ran - input returned to user.");
       }
 
     }
@@ -96,8 +84,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       if (minlen < 0)
       {
         throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_minlen_must_be_greater_zero"));
+                "Implementation error: minlen must be zero or more.");
       }
       for (int i = 0; i < seqs.length; i++)
       {
@@ -135,7 +122,8 @@ class MsaWSThread extends JWS1Thread implements WSClientI
                     .extractGaps(jalview.util.Comparison.GapChars,
                             seqs[i].getSequenceAsString());
           }
-          emptySeqs.add(new String[] { newname, empty });
+          emptySeqs.add(new String[]
+          { newname, empty });
         }
       }
       this.seqs = new vamsas.objects.simple.SequenceSet();
@@ -254,7 +242,8 @@ class MsaWSThread extends JWS1Thread implements WSClientI
         jalview.analysis.AlignmentSorter.recoverOrder(alseqs);
         // account for any missing sequences
         jalview.analysis.SeqsetUtils.deuniquify(SeqNames, alseqs);
-        return new Object[] { alseqs, msaorder };
+        return new Object[]
+        { alseqs, msaorder };
       }
       return null;
     }
@@ -439,9 +428,8 @@ class MsaWSThread extends JWS1Thread implements WSClientI
   {
     if (!(job instanceof MsaWSJob))
     {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_msawbjob_called",
-              new String[] { job.getClass().toString() }));
+      throw new Error("StartJob(MsaWSJob) called on a WSJobInstance "
+              + job.getClass());
     }
     MsaWSJob j = (MsaWSJob) job;
     if (j.isSubmitted())
@@ -459,8 +447,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       j.setSubmitted(true);
       j.result = new MsaResult();
       j.result.setFinished(true);
-      j.result.setStatus(MessageManager
-              .getString("label.empty_alignment_job"));
+      j.result.setStatus("Empty Alignment Job");
       ((MsaResult) j.result).setMsa(null);
     }
     try
@@ -478,9 +465,10 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       {
         if (jobsubmit == null)
         {
-          throw new Exception(MessageManager.formatMessage(
-                  "exception.web_service_returned_null_try_later",
-                  new String[] { WsUrl }));
+          throw new Exception(
+                  "Server at "
+                          + WsUrl
+                          + " returned null object, it probably cannot be contacted. Try again later ?");
         }
 
         throw new Exception(jobsubmit.getJobId());
@@ -498,8 +486,11 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
               WebserviceInfo.STATE_STOPPED_SERVERERROR);
-      wsInfo.appendProgressText(j.getJobnum(), MessageManager
-              .getString("info.failed_to_submit_sequences_for_alignment"));
+      wsInfo.appendProgressText(
+              j.getJobnum(),
+              "Failed to submit sequences for alignment.\n"
+                      + "It is most likely that there is a problem with the server.\n"
+                      + "Just close the window\n");
 
       // e.printStackTrace(); // TODO: JBPNote DEBUG
     }
@@ -544,8 +535,8 @@ class MsaWSThread extends JWS1Thread implements WSClientI
                   .getMsa();
           if (valign != null)
           {
-            wsInfo.appendProgressText(jobs[j].getJobnum(), MessageManager
-                    .getString("info.alignment_object_method_notes"));
+            wsInfo.appendProgressText(jobs[j].getJobnum(),
+                    "\nAlignment Object Method Notes\n");
             String[] lines = valign.getMethod();
             for (int line = 0; line < lines.length; line++)
             {

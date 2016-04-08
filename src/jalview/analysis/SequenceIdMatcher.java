@@ -1,33 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.SequenceI;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Vector;
+import jalview.datamodel.*;
 
 /**
  * Routines for approximate Sequence Id resolution by name using string
@@ -37,73 +29,30 @@ import java.util.Vector;
  */
 public class SequenceIdMatcher
 {
-  private HashMap<SeqIdName, SequenceI> names;
+  private Hashtable names;
 
-  public SequenceIdMatcher(List<SequenceI> seqs)
+  public SequenceIdMatcher(SequenceI[] seqs)
   {
-    names = new HashMap<SeqIdName, SequenceI>();
-    addAll(seqs);
-  }
-
-  /**
-   * add more sequences to this matcher - also used by the constructor
-   * 
-   * @param seqs
-   */
-  public void addAll(List<SequenceI> seqs)
-  {
-    for (SequenceI seq : seqs)
+    names = new Hashtable();
+    for (int i = 0; i < seqs.length; i++)
     {
-      // TODO: deal with ID collisions - SequenceI should be appended to list
-      // associated with this key.
-      names.put(new SeqIdName(seq.getDisplayId(true)), seq);
-      SequenceI dbseq = seq;
-      while (dbseq.getDatasetSequence() != null)
-      {
-        dbseq = dbseq.getDatasetSequence();
-      }
+      // TODO: deal with ID collisions - SequenceI should be appended to list associated with this key.
+      names.put(new SeqIdName(seqs[i].getDisplayId(true)), seqs[i]);
       // add in any interesting identifiers
-      if (dbseq.getDBRef() != null)
+      if (seqs[i].getDBRef() != null)
       {
-        DBRefEntry dbr[] = dbseq.getDBRef();
+        DBRefEntry dbr[] = seqs[i].getDBRef();
         SeqIdName sid = null;
         for (int r = 0; r < dbr.length; r++)
         {
           sid = new SeqIdName(dbr[r].getAccessionId());
-          if (!names.containsKey(sid))
+          if (!names.contains(sid))
           {
-            names.put(sid, seq);
+            names.put(sid, seqs[i]);
           }
         }
       }
     }
-  }
-
-  /**
-   * convenience method to make a matcher from concrete array
-   * 
-   * @param sequences
-   */
-  public SequenceIdMatcher(SequenceI[] sequences)
-  {
-    this(Arrays.asList(sequences));
-  }
-
-  /**
-   * returns the closest SequenceI in matches to SeqIdName and returns all the
-   * matches to the names hash.
-   * 
-   * @param candName
-   *          SeqIdName
-   * @param matches
-   *          List of SequenceI objects
-   * @return SequenceI closest SequenceI to SeqIdName
-   */
-  private SequenceI pickbestMatch(SeqIdName candName,
-          List<SequenceI> matches)
-  {
-    List<SequenceI> st = pickbestMatches(candName, matches);
-    return st == null || st.size() == 0 ? null : st.get(0);
   }
 
   /**
@@ -114,18 +63,33 @@ public class SequenceIdMatcher
    *          SeqIdName
    * @param matches
    *          Vector of SequenceI objects
-   * @return Object[] { SequenceI closest SequenceI to SeqIdName, SequenceI[]
-   *         ties }
+   * @return SequenceI closest SequenceI to SeqIdName
    */
-  private List<SequenceI> pickbestMatches(SeqIdName candName,
-          List<SequenceI> matches)
+  private SequenceI pickbestMatch(SeqIdName candName, Vector matches)
   {
-    ArrayList<SequenceI> best = new ArrayList<SequenceI>();
+    SequenceI[] st= pickbestMatches(candName, matches);
+    return st==null || st.length==0 ? null : st[0];
+  }
+  /**
+   * returns the closest SequenceI in matches to SeqIdName and returns all the
+   * matches to the names hash.
+   * 
+   * @param candName
+   *          SeqIdName
+   * @param matches
+   *          Vector of SequenceI objects
+   * @return Object[] { SequenceI closest SequenceI to SeqIdName, SequenceI[] ties }
+   */
+  private SequenceI[] pickbestMatches(SeqIdName candName, Vector matches)
+  {
+    ArrayList best=new ArrayList();
+    SequenceI match = null;
     if (candName == null || matches == null || matches.size() == 0)
     {
       return null;
     }
-    SequenceI match = matches.remove(0);
+    match = (SequenceI) matches.elementAt(0);
+    matches.removeElementAt(0);
     best.add(match);
     names.put(new SeqIdName(match.getName()), match);
     int matchlen = match.getName().length();
@@ -133,12 +97,12 @@ public class SequenceIdMatcher
     while (matches.size() > 0)
     {
       // look through for a better one.
-      SequenceI cand = matches.remove(0);
+      SequenceI cand = (SequenceI) matches.elementAt(0);
+      matches.remove(0);
       names.put(new SeqIdName(cand.getName()), cand);
-      int q, w, candlen = cand.getName().length();
+      int q,w,candlen = cand.getName().length();
       // keep the one with an id 'closer' to the given seqnam string
-      if ((q = Math.abs(matchlen - namlen)) > (w = Math.abs(candlen
-              - namlen))
+      if ((q=Math.abs(matchlen - namlen)) > (w=Math.abs(candlen - namlen))
               && candlen > matchlen)
       {
         best.clear();
@@ -146,18 +110,14 @@ public class SequenceIdMatcher
         matchlen = candlen;
         best.add(match);
       }
-      if (q == w && candlen == matchlen)
+      if (q==w && candlen==matchlen)
       {
         // record any ties
         best.add(cand);
       }
     }
-    if (best.size() == 0)
-    {
-      return null;
-    }
-    ;
-    return best;
+    if (best.size()==0) { return null; };
+    return (SequenceI[]) best.toArray(new SequenceI[0]);
   }
 
   /**
@@ -180,22 +140,14 @@ public class SequenceIdMatcher
   }
 
   /**
-   * Find all matches for a given sequence name.
-   * 
-   * @param seqnam
-   *          string to query Matcher with.
-   * @return a new array or (possibly) null
+   *  Find all matches for a given sequence name.
+   *  @param seqnam string to query Matcher with.
    */
   public SequenceI[] findAllIdMatches(String seqnam)
   {
 
     SeqIdName nam = new SeqIdName(seqnam);
-    List<SequenceI> m = findAllIdMatches(nam);
-    if (m != null)
-    {
-      return m.toArray(new SequenceI[m.size()]);
-    }
-    return null;
+    return findAllIdMatches(nam);
   }
 
   /**
@@ -252,7 +204,6 @@ public class SequenceIdMatcher
     }
     return pickbestMatch(nam, matches);
   }
-
   /**
    * core findIdMatch search method for finding all equivalent matches
    * 
@@ -260,17 +211,18 @@ public class SequenceIdMatcher
    *          SeqIdName
    * @return SequenceI[]
    */
-  private List<SequenceI> findAllIdMatches(
+  private SequenceI[] findAllIdMatches(
           jalview.analysis.SequenceIdMatcher.SeqIdName nam)
   {
-    ArrayList<SequenceI> matches = new ArrayList<SequenceI>();
+    Vector matches = new Vector();
     while (names.containsKey(nam))
     {
-      matches.add(names.remove(nam));
+      matches.addElement(names.remove(nam));
     }
-    List<SequenceI> r = pickbestMatches(nam, matches);
+    SequenceI[] r=pickbestMatches(nam, matches);
     return r;
   }
+
 
   private class SeqIdName
   {
@@ -288,20 +240,14 @@ public class SequenceIdMatcher
       }
     }
 
-    @Override
     public int hashCode()
     {
       return ((id.length() >= 4) ? id.substring(0, 4).hashCode() : id
               .hashCode());
     }
 
-    @Override
     public boolean equals(Object s)
     {
-      if (s == null)
-      {
-        return false;
-      }
       if (s instanceof SeqIdName)
       {
         return this.equals((SeqIdName) s);
@@ -323,8 +269,7 @@ public class SequenceIdMatcher
      * arbritrarily extended sequence id's (like portions of an aligned set of
      * repeats from one sequence)
      */
-    private String WORD_SEP = "~. |#\\/<>!\"" + ((char) 0x00A4)
-            + "$%^*)}[@',?_";
+    private String WORD_SEP = "~. |#\\/<>!\""+((char)0x00A4)+"$%^*)}[@',?_";
 
     /**
      * matches if one ID properly contains another at a whitespace boundary.
@@ -337,8 +282,7 @@ public class SequenceIdMatcher
      */
     public boolean equals(SeqIdName s)
     {
-      // TODO: JAL-732 patch for cases when name includes a list of IDs, and the
-      // match contains one ID flanked
+      // TODO: JAL-732 patch for cases when name includes a list of IDs, and the match contains one ID flanked
       if (id.length() > s.id.length())
       {
         return id.startsWith(s.id) ? (WORD_SEP.indexOf(id.charAt(s.id

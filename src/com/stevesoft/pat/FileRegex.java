@@ -7,65 +7,61 @@
 //
 package com.stevesoft.pat;
 
-import java.io.File;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import java.io.*;
+import java.util.*;
 
 /**
  * This class is a different form of Regex designed to work more like the file
  * matching utility of a Unix shell. It is implemented by some simple string
- * transformations: <center>
- * <table border=1>
+ * transformations: <center> <table border=1>
  * <tr>
- * <td>FileRegex</td>
- * <td>Regex</td>
+ * <td> FileRegex </td>
+ * <td> Regex </td>
  * <tr>
- * <td>*</td>
- * <td>.*</td>
+ * <td> * </td>
+ * <td> .* </td>
  * <tr>
- * <td>.</td>
- * <td>\.</td>
+ * <td> . </td>
+ * <td> \. </td>
  * <tr>
- * <td>{</td>
- * <td>(?:</td>
+ * <td> { </td>
+ * <td> (?: </td>
  * <tr>
- * <td>{?!</td>
- * <td>(?!</td>
+ * <td> {?! </td>
+ * <td> (?! </td>
  * <tr>
- * <td>{?=</td>
- * <td>(?=</td>
+ * <td> {?= </td>
+ * <td> (?= </td>
  * <tr>
- * <td>{??</td>
- * <td>(??</td>
+ * <td> {?? </td>
+ * <td> (?? </td>
  * <tr>
- * <td></td>
- * <td>)</td>
+ * <td> } </td>
+ * <td> ) </td>
  * <tr>
- * <td>?</td>
- * <td>.</td>
+ * <td> ? </td>
+ * <td> . </td>
  * <tr>
- * <td>{,}</td>
- * <td>(|)</td>
- * </table>
- * </center> Note that a FileRegex pattern always ends with the Regex pattern
- * element "$". If you like to experiment, try making FileRegex's and then
- * printing them out. The toString() method does a decompile of the pattern to a
- * standard Regex. Here are some more complete examples: <center>
- * <table * border=3>
+ * <td> {,} </td>
+ * <td> (|) </td>
+ * </table> </center> Note that a FileRegex pattern always ends with the Regex
+ * pattern element "$". If you like to experiment, try making FileRegex's and
+ * then printing them out. The toString() method does a decompile of the pattern
+ * to a standard Regex. Here are some more complete examples: <center> <table
+ * border=3>
  * <tr>
- * <td>FileRegex</td>
- * <td>Regex</td>
+ * <td> FileRegex </td>
+ * <td> Regex </td>
  * <tr>
- * <td>*.java</td>
- * <td>.*\.java$</td>
+ * <td>*.java </td>
+ * <td> .*\.java$ </td>
  * <tr>
- * <td>*.{java,html}</td>
- * <td>.*\.(java|html)$</td>
+ * <td>*.{java,html} </td>
+ * <td> .*\.(java|html)$ </td>
  * <tr>
- * <td>foo.[chC]</td>
- * <td>foo.[chC]$</td>
- * </table>
- * </center>
+ * <td> foo.[chC] </td>
+ * <td> foo.[chC]$ </td>
+ * </table> </center>
  */
 public class FileRegex extends Regex
 {
@@ -86,7 +82,8 @@ public class FileRegex extends Regex
    * Compile a new pattern. Throws
    * 
    * @exception com.stevesoft.pat.RegSyntax
-   *              for nonsensical patterns like "[9-0]+" just as Regex does.
+   *                    for nonsensical patterns like "[9-0]+" just as Regex
+   *                    does.
    * @see com.stevesoft.pat#compile(java.lang.String)
    */
   public void compile(String s) throws RegSyntax

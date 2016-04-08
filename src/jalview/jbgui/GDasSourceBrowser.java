@@ -1,51 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.jbgui;
 
-import jalview.util.MessageManager;
-
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JEditorPane;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.JProgressBar;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
-import javax.swing.border.TitledBorder;
-import javax.swing.event.HyperlinkEvent;
-import javax.swing.event.HyperlinkListener;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.border.*;
+import javax.swing.event.*;
 
 public class GDasSourceBrowser extends JPanel
 {
@@ -63,8 +39,7 @@ public class GDasSourceBrowser extends JPanel
   private void jbInit() throws Exception
   {
     this.setLayout(gridBagLayout1);
-    refresh.setText(MessageManager
-            .getString("label.refresh_available_sources"));
+    refresh.setText("Refresh Available Sources");
     refresh.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -88,8 +63,8 @@ public class GDasSourceBrowser extends JPanel
     fullDetails.setEditable(false);
     registryLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     registryLabel.setHorizontalAlignment(SwingConstants.TRAILING);
-    registryLabel.setText(MessageManager.getString("label.use_registry"));
-    addLocal.setText(MessageManager.getString("label.add_local_source"));
+    registryLabel.setText("Use Registry");
+    addLocal.setText("Add Local Source");
     addLocal.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -115,7 +90,7 @@ public class GDasSourceBrowser extends JPanel
     table.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     reset.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     reset.setMargin(new Insets(2, 2, 2, 2));
-    reset.setText(MessageManager.getString("action.reset"));
+    reset.setText("Reset");
     reset.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -164,8 +139,7 @@ public class GDasSourceBrowser extends JPanel
 
   protected JEditorPane fullDetails = new JEditorPane("text/html", "");
 
-  TitledBorder titledBorder1 = new TitledBorder(
-          MessageManager.getString("label.available_das_sources"));
+  TitledBorder titledBorder1 = new TitledBorder("Available DAS Sources");
 
   protected JButton refresh = new JButton();
 
@@ -173,8 +147,7 @@ public class GDasSourceBrowser extends JPanel
 
   protected JScrollPane scrollPane = new JScrollPane();
 
-  TitledBorder titledBorder2 = new TitledBorder(
-          MessageManager.getString("label.full_details"));
+  TitledBorder titledBorder2 = new TitledBorder("Full Details");
 
   protected JScrollPane fullDetailsScrollpane = new JScrollPane();
 
@@ -202,14 +175,11 @@ public class GDasSourceBrowser extends JPanel
 
   GridBagLayout gridBagLayout1 = new GridBagLayout();
 
-  TitledBorder titledBorder3 = new TitledBorder(
-          MessageManager.getString("label.authority") + ":");
+  TitledBorder titledBorder3 = new TitledBorder("Authority:");
 
-  TitledBorder titledBorder4 = new TitledBorder(
-          MessageManager.getString("label.type") + ":");
+  TitledBorder titledBorder4 = new TitledBorder("Type:");
 
-  TitledBorder titledBorder5 = new TitledBorder(
-          MessageManager.getString("label.label") + ":");
+  TitledBorder titledBorder5 = new TitledBorder("Label:");
 
   JButton reset = new JButton();
 

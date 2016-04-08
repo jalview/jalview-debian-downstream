@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
  * A class for formatting numbers that follows printf conventions.
@@ -54,8 +51,6 @@ public class Format
 
   private char fmt; // one of cdeEfgGiosxXos
 
-  private final String formatString;
-
   /**
    * Creates a new Format object.
    * 
@@ -64,7 +59,6 @@ public class Format
    */
   public Format(String s)
   {
-    formatString = s;
     width = 0;
     precision = -1;
     pre = "";
@@ -625,7 +619,7 @@ public class Format
   /**
    * Formats a character into a string (like sprintf in C)
    * 
-   * @param debounceTrap
+   * @param x
    *          the value to format
    * @return the formatted string
    */
@@ -644,7 +638,7 @@ public class Format
   /**
    * Formats a string into a larger string (like sprintf in C)
    * 
-   * @param debounceTrap
+   * @param x
    *          the value to format
    * @return the formatted string
    */
@@ -940,11 +934,5 @@ public class Format
     }
 
     return f + p.substring(p.length() - 3, p.length());
-  }
-
-  @Override
-  public String toString()
-  {
-    return formatString;
   }
 }

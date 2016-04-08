@@ -1,35 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.Annotation;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-
 import java.awt.Color;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Vector;
+import java.util.*;
+
+import jalview.datamodel.*;
 
 /**
  * Calculates conservation values for a given set of sequences
@@ -77,8 +68,6 @@ public class Conservation
 
   int[][] cons2;
 
-  private String[] consSymbs;
-
   /**
    * Creates a new Conservation object.
    * 
@@ -96,8 +85,9 @@ public class Conservation
    *          end residue position
    */
   public Conservation(String name, Hashtable propHash, int threshold,
-          List<SequenceI> sequences, int start, int end)
+          Vector sequences, int start, int end)
   {
+
     this.name = name;
     this.propHash = propHash;
     this.threshold = threshold;
@@ -110,22 +100,20 @@ public class Conservation
     int s, sSize = sequences.size();
     SequenceI[] sarray = new SequenceI[sSize];
     this.sequences = sarray;
-    try
+    try {
+    for (s = 0; s < sSize; s++)
     {
-      for (s = 0; s < sSize; s++)
+      sarray[s] = (SequenceI) sequences.elementAt(s);
+      if (sarray[s].getLength() > maxLength)
       {
-        sarray[s] = sequences.get(s);
-        if (sarray[s].getLength() > maxLength)
-        {
-          maxLength = sarray[s].getLength();
-        }
+        maxLength = sarray[s].getLength();
       }
+    }
     } catch (ArrayIndexOutOfBoundsException ex)
     {
-      // bail - another thread has modified the sequence array, so the current
-      // calculation is probably invalid.
-      this.sequences = new SequenceI[0];
-      maxLength = 0;
+      // bail - another thread has modified the sequence array, so the current calculation is probably invalid. 
+      this.sequences=new SequenceI[0];
+      maxLength=0;
     }
   }
 
@@ -280,7 +268,8 @@ public class Conservation
                 resultHash.put(type, ht.get("-"));
               }
             }
-            else if (((Integer) resultHash.get(type)).equals(ht.get(res)) == false)
+            else if (((Integer) resultHash.get(type)).equals((Integer) ht
+                    .get(res)) == false)
             {
               resultHash.put(type, new Integer(-1));
             }
@@ -288,8 +277,7 @@ public class Conservation
         }
       }
 
-      if (total.length > 0)
-      {
+      if (total.length>0) {
         total[i - start] = resultHash;
       }
     }
@@ -373,17 +361,17 @@ public class Conservation
     {
       consString.append('-');
     }
-    consSymbs = new String[end - start + 1];
+
     for (int i = start; i <= end; i++)
     {
       gapcons = countConsNGaps(i);
       totGaps = gapcons[1];
-      pgaps = ((float) totGaps * 100) / sequences.length;
-      consSymbs[i - start] = new String();
+      pgaps = ((float) totGaps * 100) / (float) sequences.length;
 
       if (percentageGaps > pgaps)
       {
         resultHash = total[i - start];
+
         // Now find the verdict
         count = 0;
         enumeration = resultHash.keys();
@@ -392,12 +380,12 @@ public class Conservation
         {
           type = (String) enumeration.nextElement();
           result = (Integer) resultHash.get(type);
+
           // Do we want to count +ve conservation or +ve and -ve cons.?
           if (consflag)
           {
             if (result.intValue() == 1)
             {
-              consSymbs[i - start] = type + " " + consSymbs[i - start];
               count++;
             }
           }
@@ -405,17 +393,6 @@ public class Conservation
           {
             if (result.intValue() != -1)
             {
-              {
-                if (result.intValue() == 0)
-                {
-                  consSymbs[i - start] = consSymbs[i - start] + " !" + type;
-                }
-                else
-                {
-                  consSymbs[i - start] = type + " " + consSymbs[i - start];
-                }
-              }
-
               count++;
             }
           }
@@ -687,7 +664,7 @@ public class Conservation
 
       if (Character.isDigit(c))
       {
-        value = c - '0';
+        value = (int) (c - '0');
       }
       else if (c == '*')
       {
@@ -700,12 +677,10 @@ public class Conservation
 
       float vprop = value - min;
       vprop /= max;
-      int consp = i - start;
-      String conssym = (value > 0 && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
-              : "";
       conservation.annotations[i] = new Annotation(String.valueOf(c),
-              conssym, ' ', value, new Color(minR + (maxR * vprop), minG
-                      + (maxG * vprop), minB + (maxB * vprop)));
+              String.valueOf(value), ' ', value, new Color(minR
+                      + (maxR * vprop), minG + (maxG * vprop), minB
+                      + (maxB * vprop)));
 
       // Quality calc
       if (quality2 != null)
@@ -719,62 +694,5 @@ public class Conservation
                         + (maxB * vprop)));
       }
     }
-  }
-
-  /**
-   * construct and call the calculation methods on a new Conservation object
-   * 
-   * @param name
-   *          - name of conservation
-   * @param consHash
-   *          - hash table of properties for each amino acid (normally
-   *          ResidueProperties.propHash)
-   * @param threshold
-   *          - minimum number of conserved residues needed to indicate
-   *          conservation (typically 3)
-   * @param seqs
-   * @param start
-   *          first column in calculation window
-   * @param end
-   *          last column in calculation window
-   * @param posOrNeg
-   *          positive (true) or negative (false) conservation
-   * @param consPercGaps
-   *          percentage of gaps tolerated in column
-   * @param calcQuality
-   *          flag indicating if alignment quality should be calculated
-   * @return Conservation object ready for use in visualization
-   */
-  public static Conservation calculateConservation(String name,
-          Hashtable consHash, int threshold, List<SequenceI> seqs,
-          int start, int end, boolean posOrNeg, int consPercGaps,
-          boolean calcQuality)
-  {
-    Conservation cons = new Conservation(name, consHash, threshold, seqs,
-            start, end);
-    return calculateConservation(cons, posOrNeg, consPercGaps, calcQuality);
-  }
-
-  /**
-   * @param b
-   *          positive (true) or negative (false) conservation
-   * @param consPercGaps
-   *          percentage of gaps tolerated in column
-   * @param calcQuality
-   *          flag indicating if alignment quality should be calculated
-   * @return Conservation object ready for use in visualization
-   */
-  public static Conservation calculateConservation(Conservation cons,
-          boolean b, int consPercGaps, boolean calcQuality)
-  {
-    cons.calculate();
-    cons.verdict(b, consPercGaps);
-
-    if (calcQuality)
-    {
-      cons.findQuality();
-    }
-
-    return cons;
   }
 }

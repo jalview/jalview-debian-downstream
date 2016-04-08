@@ -1,145 +1,117 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.util;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
- * A simple way of bijectively mapping a non-contiguous linear range to another
- * non-contiguous linear range.
- * 
- * Use at your own risk!
- * 
- * TODO: efficient implementation of private posMap method
- * 
- * TODO: test/ensure that sense of from and to ratio start position is conserved
- * (codon start position recovery)
+ * MapList Simple way of bijectively mapping a non-contiguous linear range to
+ * another non-contiguous linear range Use at your own risk! TODO: efficient
+ * implementation of private posMap method TODO: test/ensure that sense of from
+ * and to ratio start position is conserved (codon start position recovery)
+ * TODO: optimize to use int[][] arrays rather than vectors.
  */
 public class MapList
 {
-
   /*
-   * Subregions (base 1) described as { [start1, end1], [start2, end2], ...}
+   * (non-Javadoc)
+   * 
+   * @see java.lang.Object#equals(java.lang.Object)
    */
-  private List<int[]> fromShifts = new ArrayList<int[]>();
-
-  /*
-   * Same format as fromShifts, for the 'mapped to' sequence
-   */
-  private List<int[]> toShifts = new ArrayList<int[]>();
-
-  /*
-   * number of steps in fromShifts to one toRatio unit
-   */
-  private int fromRatio;
-
-  /*
-   * number of steps in toShifts to one fromRatio
-   */
-  private int toRatio;
-
-  /*
-   * lowest and highest value in the from Map
-   */
-  private int fromLowest;
-
-  private int fromHighest;
-
-  /*
-   * lowest and highest value in the to Map
-   */
-  private int toLowest;
-
-  private int toHighest;
-
-  /**
-   * Two MapList objects are equal if they are the same object, or they both
-   * have populated shift ranges and all values are the same.
-   */
-  @Override
-  public boolean equals(Object o)
+  public boolean equals(MapList obj)
   {
-    // TODO should also override hashCode to ensure equal objects have equal
-    // hashcodes
-    if (o == null || !(o instanceof MapList))
-    {
-      return false;
-    }
-
-    MapList obj = (MapList) o;
     if (obj == this)
+      return true;
+    if (obj != null && obj.fromRatio == fromRatio && obj.toRatio == toRatio
+            && obj.fromShifts != null && obj.toShifts != null)
     {
+      int i, iSize = fromShifts.size(), j, jSize = obj.fromShifts.size();
+      if (iSize != jSize)
+        return false;
+      for (i = 0, iSize = fromShifts.size(), j = 0, jSize = obj.fromShifts
+              .size(); i < iSize;)
+      {
+        int[] mi = (int[]) fromShifts.elementAt(i++);
+        int[] mj = (int[]) obj.fromShifts.elementAt(j++);
+        if (mi[0] != mj[0] || mi[1] != mj[1])
+          return false;
+      }
+      iSize = toShifts.size();
+      jSize = obj.toShifts.size();
+      if (iSize != jSize)
+        return false;
+      for (i = 0, j = 0; i < iSize;)
+      {
+        int[] mi = (int[]) toShifts.elementAt(i++);
+        int[] mj = (int[]) obj.toShifts.elementAt(j++);
+        if (mi[0] != mj[0] || mi[1] != mj[1])
+          return false;
+      }
       return true;
     }
-    if (obj.fromRatio != fromRatio || obj.toRatio != toRatio
-            || obj.fromShifts == null || obj.toShifts == null)
-    {
-      return false;
-    }
-    return Arrays
-            .deepEquals(fromShifts.toArray(), obj.fromShifts.toArray())
-            && Arrays
-                    .deepEquals(toShifts.toArray(), obj.toShifts.toArray());
+    return false;
   }
 
+  public Vector fromShifts;
+
+  public Vector toShifts;
+
+  int fromRatio; // number of steps in fromShifts to one toRatio unit
+
+  int toRatio; // number of steps in toShifts to one fromRatio
+
   /**
-   * Returns the 'from' ranges as {[start1, end1], [start2, end2], ...}
    * 
-   * @return
+   * @return series of intervals mapped in from
    */
-  public List<int[]> getFromRanges()
+  public int[] getFromRanges()
   {
-    return fromShifts;
+    return getRanges(fromShifts);
   }
 
-  /**
-   * Returns the 'to' ranges as {[start1, end1], [start2, end2], ...}
-   * 
-   * @return
-   */
-  public List<int[]> getToRanges()
+  public int[] getToRanges()
   {
-    return toShifts;
+    return getRanges(toShifts);
   }
 
-  /**
-   * Flattens a list of [start, end] into a single [start1, end1, start2,
-   * end2,...] array.
-   * 
-   * @param shifts
-   * @return
-   */
-  protected static int[] getRanges(List<int[]> shifts)
+  private int[] getRanges(Vector shifts)
   {
     int[] rnges = new int[2 * shifts.size()];
+    Enumeration e = shifts.elements();
     int i = 0;
-    for (int[] r : shifts)
+    while (e.hasMoreElements())
     {
+      int r[] = (int[]) e.nextElement();
       rnges[i++] = r[0];
       rnges[i++] = r[1];
     }
     return rnges;
   }
+
+  /**
+   * lowest and highest value in the from Map
+   */
+  int[] fromRange = null;
+
+  /**
+   * lowest and highest value in the to Map
+   */
+  int[] toRange = null;
 
   /**
    * 
@@ -161,121 +133,89 @@ public class MapList
 
   public int getFromLowest()
   {
-    return fromLowest;
+    return fromRange[0];
   }
 
   public int getFromHighest()
   {
-    return fromHighest;
+    return fromRange[1];
   }
 
   public int getToLowest()
   {
-    return toLowest;
+    return toRange[0];
   }
 
   public int getToHighest()
   {
-    return toHighest;
+    return toRange[1];
   }
 
-  /**
-   * Constructor.
-   * 
-   * @param from
-   *          contiguous regions as [start1, end1, start2, end2, ...]
-   * @param to
-   *          same format as 'from'
-   * @param fromRatio
-   *          phrase length in 'from' (e.g. 3 for dna)
-   * @param toRatio
-   *          phrase length in 'to' (e.g. 1 for protein)
-   */
+  private void ensureRange(int[] limits, int pos)
+  {
+    if (limits[0] > pos)
+      limits[0] = pos;
+    if (limits[1] < pos)
+      limits[1] = pos;
+  }
+
   public MapList(int from[], int to[], int fromRatio, int toRatio)
   {
-    this.fromRatio = fromRatio;
-    this.toRatio = toRatio;
-    fromLowest = from[0];
-    fromHighest = from[1];
+    fromRange = new int[]
+    { from[0], from[1] };
+    toRange = new int[]
+    { to[0], to[1] };
+
+    fromShifts = new Vector();
     for (int i = 0; i < from.length; i += 2)
     {
-      fromLowest = Math.min(fromLowest, from[i]);
-      fromHighest = Math.max(fromHighest, from[i + 1]);
+      ensureRange(fromRange, from[i]);
+      ensureRange(fromRange, from[i + 1]);
 
-      fromShifts.add(new int[] { from[i], from[i + 1] });
+      fromShifts.addElement(new int[]
+      { from[i], from[i + 1] });
     }
-
-    toLowest = to[0];
-    toHighest = to[1];
+    toShifts = new Vector();
     for (int i = 0; i < to.length; i += 2)
     {
-      toLowest = Math.min(toLowest, to[i]);
-      toHighest = Math.max(toHighest, to[i + 1]);
-      toShifts.add(new int[] { to[i], to[i + 1] });
+      ensureRange(toRange, to[i]);
+      ensureRange(toRange, to[i + 1]);
+      toShifts.addElement(new int[]
+      { to[i], to[i + 1] });
     }
+    this.fromRatio = fromRatio;
+    this.toRatio = toRatio;
   }
 
-  /**
-   * Copy constructor. Creates an identical mapping.
-   * 
-   * @param map
-   */
   public MapList(MapList map)
   {
-    // TODO not used - remove?
-    this.fromLowest = map.fromLowest;
-    this.fromHighest = map.fromHighest;
-    this.toLowest = map.toLowest;
-    this.toHighest = map.toHighest;
-
+    this.fromRange = new int[]
+    { map.fromRange[0], map.fromRange[1] };
+    this.toRange = new int[]
+    { map.toRange[0], map.toRange[1] };
     this.fromRatio = map.fromRatio;
     this.toRatio = map.toRatio;
     if (map.fromShifts != null)
     {
-      for (int[] r : map.fromShifts)
+      this.fromShifts = new Vector();
+      Enumeration e = map.fromShifts.elements();
+      while (e.hasMoreElements())
       {
-        fromShifts.add(new int[] { r[0], r[1] });
+        int[] el = (int[]) e.nextElement();
+        fromShifts.addElement(new int[]
+        { el[0], el[1] });
       }
     }
     if (map.toShifts != null)
     {
-      for (int[] r : map.toShifts)
+      this.toShifts = new Vector();
+      Enumeration e = map.toShifts.elements();
+      while (e.hasMoreElements())
       {
-        toShifts.add(new int[] { r[0], r[1] });
+        int[] el = (int[]) e.nextElement();
+        toShifts.addElement(new int[]
+        { el[0], el[1] });
       }
-    }
-  }
-
-  /**
-   * Constructor given ranges as lists of [start, end] positions
-   * 
-   * @param fromRange
-   * @param toRange
-   * @param fromRatio
-   * @param toRatio
-   */
-  public MapList(List<int[]> fromRange, List<int[]> toRange, int fromRatio,
-          int toRatio)
-  {
-    this.fromShifts = fromRange;
-    this.toShifts = toRange;
-    this.fromRatio = fromRatio;
-    this.toRatio = toRatio;
-
-    fromLowest = Integer.MAX_VALUE;
-    fromHighest = 0;
-    for (int[] range : fromRange)
-    {
-      fromLowest = Math.min(fromLowest, range[0]);
-      fromHighest = Math.max(fromHighest, range[1]);
-    }
-
-    toLowest = Integer.MAX_VALUE;
-    toHighest = 0;
-    for (int[] range : toRange)
-    {
-      toLowest = Math.min(toLowest, range[0]);
-      toHighest = Math.max(toHighest, range[1]);
     }
   }
 
@@ -285,9 +225,8 @@ public class MapList
    * @return int[][] { int[] { fromStart, fromFinish, toStart, toFinish }, int
    *         [fromFinish-fromStart+2] { toStart..toFinish mappings}}
    */
-  protected int[][] makeFromMap()
+  public int[][] makeFromMap()
   {
-    // TODO not used - remove??
     return posMap(fromShifts, fromRatio, toShifts, toRatio);
   }
 
@@ -296,29 +235,27 @@ public class MapList
    * 
    * @return int[to position]=position mapped in from
    */
-  protected int[][] makeToMap()
+  public int[][] makeToMap()
   {
-    // TODO not used - remove??
     return posMap(toShifts, toRatio, fromShifts, fromRatio);
   }
 
   /**
    * construct an int map for intervals in intVals
    * 
-   * @param shiftTo
+   * @param intVals
    * @return int[] { from, to pos in range }, int[range.to-range.from+1]
    *         returning mapped position
    */
-  private int[][] posMap(List<int[]> shiftTo, int ratio,
-          List<int[]> shiftFrom, int toRatio)
+  private int[][] posMap(Vector intVals, int ratio, Vector toIntVals,
+          int toRatio)
   {
-    // TODO not used - remove??
-    int iv = 0, ivSize = shiftTo.size();
+    int iv = 0, ivSize = intVals.size();
     if (iv >= ivSize)
     {
       return null;
     }
-    int[] intv = shiftTo.get(iv++);
+    int[] intv = (int[]) intVals.elementAt(iv++);
     int from = intv[0], to = intv[1];
     if (from > to)
     {
@@ -327,7 +264,7 @@ public class MapList
     }
     while (iv < ivSize)
     {
-      intv = shiftTo.get(iv++);
+      intv = (int[]) intVals.elementAt(iv++);
       if (intv[0] < from)
       {
         from = intv[0];
@@ -349,7 +286,7 @@ public class MapList
     int mp[][] = new int[to - from + 2][];
     for (int i = 0; i < mp.length; i++)
     {
-      int[] m = shift(i + from, shiftTo, ratio, shiftFrom, toRatio);
+      int[] m = shift(i + from, intVals, ratio, toIntVals, toRatio);
       if (m != null)
       {
         if (i == 0)
@@ -370,8 +307,9 @@ public class MapList
       }
       mp[i] = m;
     }
-    int[][] map = new int[][] { new int[] { from, to, tF, tT },
-        new int[to - from + 2] };
+    int[][] map = new int[][]
+    { new int[]
+    { from, to, tF, tT }, new int[to - from + 2] };
 
     map[0][2] = tF;
     map[0][3] = tT;
@@ -404,7 +342,6 @@ public class MapList
    *          shifts.insertElementAt(new int[] { pos, shift}, sidx); else
    *          rshift[1]+=shift; }
    */
-
   /**
    * shift from pos to To(pos)
    * 
@@ -433,50 +370,51 @@ public class MapList
 
   /**
    * 
-   * @param shiftTo
+   * @param fromShifts
    * @param fromRatio
-   * @param shiftFrom
+   * @param toShifts
    * @param toRatio
    * @return
    */
-  protected static int[] shift(int pos, List<int[]> shiftTo, int fromRatio,
-          List<int[]> shiftFrom, int toRatio)
+  private int[] shift(int pos, Vector fromShifts, int fromRatio,
+          Vector toShifts, int toRatio)
   {
-    // TODO: javadoc; tests
-    int[] fromCount = countPos(shiftTo, pos);
+    int[] fromCount = countPos(fromShifts, pos);
     if (fromCount == null)
     {
       return null;
     }
     int fromRemainder = (fromCount[0] - 1) % fromRatio;
     int toCount = 1 + (((fromCount[0] - 1) / fromRatio) * toRatio);
-    int[] toPos = countToPos(shiftFrom, toCount);
+    int[] toPos = countToPos(toShifts, toCount);
     if (toPos == null)
     {
       return null; // throw new Error("Bad Mapping!");
     }
     // System.out.println(fromCount[0]+" "+fromCount[1]+" "+toCount);
-    return new int[] { toPos[0], fromRemainder, toPos[1] };
+    return new int[]
+    { toPos[0], fromRemainder, toPos[1] };
   }
 
   /**
    * count how many positions pos is along the series of intervals.
    * 
-   * @param shiftTo
+   * @param intVals
    * @param pos
    * @return number of positions or null if pos is not within intervals
    */
-  protected static int[] countPos(List<int[]> shiftTo, int pos)
+  private int[] countPos(Vector intVals, int pos)
   {
-    int count = 0, intv[], iv = 0, ivSize = shiftTo.size();
+    int count = 0, intv[], iv = 0, ivSize = intVals.size();
     while (iv < ivSize)
     {
-      intv = shiftTo.get(iv++);
+      intv = (int[]) intVals.elementAt(iv++);
       if (intv[0] <= intv[1])
       {
         if (pos >= intv[0] && pos <= intv[1])
         {
-          return new int[] { count + pos - intv[0] + 1, +1 };
+          return new int[]
+          { count + pos - intv[0] + 1, +1 };
         }
         else
         {
@@ -487,7 +425,8 @@ public class MapList
       {
         if (pos >= intv[1] && pos <= intv[0])
         {
-          return new int[] { count + intv[0] - pos + 1, -1 };
+          return new int[]
+          { count + intv[0] - pos + 1, -1 };
         }
         else
         {
@@ -501,23 +440,24 @@ public class MapList
   /**
    * count out pos positions into a series of intervals and return the position
    * 
-   * @param shiftFrom
+   * @param intVals
    * @param pos
    * @return position pos in interval set
    */
-  protected static int[] countToPos(List<int[]> shiftFrom, int pos)
+  private int[] countToPos(Vector intVals, int pos)
   {
-    int count = 0, diff = 0, iv = 0, ivSize = shiftFrom.size();
-    int[] intv = { 0, 0 };
+    int count = 0, diff = 0, iv = 0, ivSize = intVals.size(), intv[] =
+    { 0, 0 };
     while (iv < ivSize)
     {
-      intv = shiftFrom.get(iv++);
+      intv = (int[]) intVals.elementAt(iv++);
       diff = intv[1] - intv[0];
       if (diff >= 0)
       {
         if (pos <= count + 1 + diff)
         {
-          return new int[] { pos - count - 1 + intv[0], +1 };
+          return new int[]
+          { pos - count - 1 + intv[0], +1 };
         }
         else
         {
@@ -528,7 +468,8 @@ public class MapList
       {
         if (pos <= count + 1 - diff)
         {
-          return new int[] { intv[0] - (pos - count - 1), -1 };
+          return new int[]
+          { intv[0] - (pos - count - 1), -1 };
         }
         else
         {
@@ -543,67 +484,69 @@ public class MapList
    * find series of intervals mapping from start-end in the From map.
    * 
    * @param start
-   *          position mapped 'to'
+   *          position in to map
    * @param end
-   *          position mapped 'to'
-   * @return series of [start, end] ranges in sequence mapped 'from'
+   *          position in to map
+   * @return series of ranges in from map
    */
   public int[] locateInFrom(int start, int end)
   {
     // inefficient implementation
     int fromStart[] = shiftTo(start);
-    // needs to be inclusive of end of symbol position
-    int fromEnd[] = shiftTo(end);
-
-    return getIntervals(fromShifts, fromStart, fromEnd, fromRatio);
+    int fromEnd[] = shiftTo(end); // needs to be inclusive of end of symbol
+    // position
+    if (fromStart == null || fromEnd == null)
+      return null;
+    int iv[] = getIntervals(fromShifts, fromStart, fromEnd, fromRatio);
+    return iv;
   }
 
   /**
    * find series of intervals mapping from start-end in the to map.
    * 
    * @param start
-   *          position mapped 'from'
+   *          position in from map
    * @param end
-   *          position mapped 'from'
-   * @return series of [start, end] ranges in sequence mapped 'to'
+   *          position in from map
+   * @return series of ranges in to map
    */
   public int[] locateInTo(int start, int end)
   {
+    // inefficient implementation
     int toStart[] = shiftFrom(start);
     int toEnd[] = shiftFrom(end);
-    return getIntervals(toShifts, toStart, toEnd, toRatio);
+    if (toStart == null || toEnd == null)
+      return null;
+    int iv[] = getIntervals(toShifts, toStart, toEnd, toRatio);
+    return iv;
   }
 
   /**
    * like shift - except returns the intervals in the given vector of shifts
    * which were spanned in traversing fromStart to fromEnd
    * 
-   * @param shiftFrom
+   * @param fromShifts2
    * @param fromStart
    * @param fromEnd
    * @param fromRatio2
    * @return series of from,to intervals from from first position of starting
    *         region to final position of ending region inclusive
    */
-  protected static int[] getIntervals(List<int[]> shiftFrom,
-          int[] fromStart, int[] fromEnd, int fromRatio2)
+  private int[] getIntervals(Vector fromShifts2, int[] fromStart,
+          int[] fromEnd, int fromRatio2)
   {
-    if (fromStart == null || fromEnd == null)
-    {
-      return null;
-    }
     int startpos, endpos;
     startpos = fromStart[0]; // first position in fromStart
     endpos = fromEnd[0]; // last position in fromEnd
     int endindx = (fromRatio2 - 1); // additional positions to get to last
     // position from endpos
-    int intv = 0, intvSize = shiftFrom.size();
+    int intv = 0, intvSize = fromShifts2.size();
     int iv[], i = 0, fs = -1, fe_s = -1, fe = -1; // containing intervals
     // search intervals to locate ones containing startpos and count endindx
     // positions on from endpos
     while (intv < intvSize && (fs == -1 || fe == -1))
     {
-      iv = shiftFrom.get(intv++);
+      iv = (int[]) fromShifts2.elementAt(intv++);
       if (fe_s > -1)
       {
         endpos = iv[0]; // start counting from beginning of interval
@@ -666,44 +609,41 @@ public class MapList
       i++;
     }
     if (fs == fe && fe == -1)
-    {
       return null;
-    }
-    List<int[]> ranges = new ArrayList<int[]>();
+    Vector ranges = new Vector();
     if (fs <= fe)
     {
       intv = fs;
       i = fs;
       // truncate initial interval
-      iv = shiftFrom.get(intv++);
-      iv = new int[] { iv[0], iv[1] };// clone
+      iv = (int[]) fromShifts2.elementAt(intv++);
+      iv = new int[]
+      { iv[0], iv[1] };// clone
       if (i == fs)
-      {
         iv[0] = startpos;
-      }
       while (i != fe)
       {
-        ranges.add(iv); // add initial range
-        iv = shiftFrom.get(intv++); // get next interval
-        iv = new int[] { iv[0], iv[1] };// clone
+        ranges.addElement(iv); // add initial range
+        iv = (int[]) fromShifts2.elementAt(intv++); // get next interval
+        iv = new int[]
+        { iv[0], iv[1] };// clone
         i++;
       }
       if (i == fe)
-      {
         iv[1] = endpos;
-      }
-      ranges.add(iv); // add only - or final range
+      ranges.addElement(iv); // add only - or final range
     }
     else
     {
       // walk from end of interval.
-      i = shiftFrom.size() - 1;
+      i = fromShifts2.size() - 1;
       while (i > fs)
       {
         i--;
       }
-      iv = shiftFrom.get(i);
-      iv = new int[] { iv[1], iv[0] };// reverse and clone
+      iv = (int[]) fromShifts2.elementAt(i);
+      iv = new int[]
+      { iv[1], iv[0] };// reverse and clone
       // truncate initial interval
       if (i == fs)
       {
@@ -711,16 +651,17 @@ public class MapList
       }
       while (--i != fe)
       { // fix apparent logic bug when fe==-1
-        ranges.add(iv); // add (truncated) reversed interval
-        iv = shiftFrom.get(i);
-        iv = new int[] { iv[1], iv[0] }; // reverse and clone
+        ranges.addElement(iv); // add (truncated) reversed interval
+        iv = (int[]) fromShifts2.elementAt(i);
+        iv = new int[]
+        { iv[1], iv[0] }; // reverse and clone
       }
       if (i == fe)
       {
         // interval is already reversed
         iv[1] = endpos;
       }
-      ranges.add(iv); // add only - or final range
+      ranges.addElement(iv); // add only - or final range
     }
     // create array of start end intervals.
     int[] range = null;
@@ -732,10 +673,10 @@ public class MapList
       i = 0;
       while (intv < intvSize)
       {
-        iv = ranges.get(intv);
+        iv = (int[]) ranges.elementAt(intv);
         range[i++] = iv[0];
         range[i++] = iv[1];
-        ranges.set(intv++, null); // remove
+        ranges.setElementAt(null, intv++); // remove
       }
     }
     return range;
@@ -750,7 +691,6 @@ public class MapList
    */
   public int getToPosition(int mpos)
   {
-    // TODO not used - remove??
     int[] mp = shiftTo(mpos);
     if (mp != null)
     {
@@ -772,7 +712,8 @@ public class MapList
     int[] mp = shiftTo(mpos);
     if (mp != null)
     {
-      return new int[] { mp[0], mp[0] + mp[2] * (getFromRatio() - 1) };
+      return new int[]
+      { mp[0], mp[0] + mp[2] * (getFromRatio() - 1) };
     }
     return null;
   }
@@ -786,7 +727,6 @@ public class MapList
    */
   public int getMappedPosition(int pos)
   {
-    // TODO not used - remove??
     int[] mp = shiftFrom(pos);
     if (mp != null)
     {
@@ -797,13 +737,230 @@ public class MapList
 
   public int[] getMappedWord(int pos)
   {
-    // TODO not used - remove??
     int[] mp = shiftFrom(pos);
     if (mp != null)
     {
-      return new int[] { mp[0], mp[0] + mp[2] * (getToRatio() - 1) };
+      return new int[]
+      { mp[0], mp[0] + mp[2] * (getToRatio() - 1) };
     }
     return null;
+  }
+
+  /**
+   * test routine. not incremental.
+   * 
+   * @param ml
+   * @param fromS
+   * @param fromE
+   */
+  public static void testMap(MapList ml, int fromS, int fromE)
+  {
+    for (int from = 1; from <= 25; from++)
+    {
+      int[] too = ml.shiftFrom(from);
+      System.out.print("ShiftFrom(" + from + ")==");
+      if (too == null)
+      {
+        System.out.print("NaN\n");
+      }
+      else
+      {
+        System.out.print(too[0] + " % " + too[1] + " (" + too[2] + ")");
+        System.out.print("\t+--+\t");
+        int[] toofrom = ml.shiftTo(too[0]);
+        if (toofrom != null)
+        {
+          if (toofrom[0] != from)
+          {
+            System.err.println("Mapping not reflexive:" + from + " "
+                    + too[0] + "->" + toofrom[0]);
+          }
+          System.out.println("ShiftTo(" + too[0] + ")==" + toofrom[0]
+                  + " % " + toofrom[1] + " (" + toofrom[2] + ")");
+        }
+        else
+        {
+          System.out.println("ShiftTo(" + too[0] + ")=="
+                  + "NaN! - not Bijective Mapping!");
+        }
+      }
+    }
+    int mmap[][] = ml.makeFromMap();
+    System.out.println("FromMap : (" + mmap[0][0] + " " + mmap[0][1] + " "
+            + mmap[0][2] + " " + mmap[0][3] + " ");
+    for (int i = 1; i <= mmap[1].length; i++)
+    {
+      if (mmap[1][i - 1] == -1)
+      {
+        System.out.print(i + "=XXX");
+
+      }
+      else
+      {
+        System.out.print(i + "=" + (mmap[0][2] + mmap[1][i - 1]));
+      }
+      if (i % 20 == 0)
+      {
+        System.out.print("\n");
+      }
+      else
+      {
+        System.out.print(",");
+      }
+    }
+    // test range function
+    System.out.print("\nTest locateInFrom\n");
+    {
+      int f = mmap[0][2], t = mmap[0][3];
+      while (f <= t)
+      {
+        System.out.println("Range " + f + " to " + t);
+        int rng[] = ml.locateInFrom(f, t);
+        if (rng != null)
+        {
+          for (int i = 0; i < rng.length; i++)
+          {
+            System.out.print(rng[i] + ((i % 2 == 0) ? "," : ";"));
+          }
+        }
+        else
+        {
+          System.out.println("No range!");
+        }
+        System.out.print("\nReversed\n");
+        rng = ml.locateInFrom(t, f);
+        if (rng != null)
+        {
+          for (int i = 0; i < rng.length; i++)
+          {
+            System.out.print(rng[i] + ((i % 2 == 0) ? "," : ";"));
+          }
+        }
+        else
+        {
+          System.out.println("No range!");
+        }
+        System.out.print("\n");
+        f++;
+        t--;
+      }
+    }
+    System.out.print("\n");
+    mmap = ml.makeToMap();
+    System.out.println("ToMap : (" + mmap[0][0] + " " + mmap[0][1] + " "
+            + mmap[0][2] + " " + mmap[0][3] + " ");
+    for (int i = 1; i <= mmap[1].length; i++)
+    {
+      if (mmap[1][i - 1] == -1)
+      {
+        System.out.print(i + "=XXX");
+
+      }
+      else
+      {
+        System.out.print(i + "=" + (mmap[0][2] + mmap[1][i - 1]));
+      }
+      if (i % 20 == 0)
+      {
+        System.out.print("\n");
+      }
+      else
+      {
+        System.out.print(",");
+      }
+    }
+    System.out.print("\n");
+    // test range function
+    System.out.print("\nTest locateInTo\n");
+    {
+      int f = mmap[0][2], t = mmap[0][3];
+      while (f <= t)
+      {
+        System.out.println("Range " + f + " to " + t);
+        int rng[] = ml.locateInTo(f, t);
+        if (rng != null)
+        {
+          for (int i = 0; i < rng.length; i++)
+          {
+            System.out.print(rng[i] + ((i % 2 == 0) ? "," : ";"));
+          }
+        }
+        else
+        {
+          System.out.println("No range!");
+        }
+        System.out.print("\nReversed\n");
+        rng = ml.locateInTo(t, f);
+        if (rng != null)
+        {
+          for (int i = 0; i < rng.length; i++)
+          {
+            System.out.print(rng[i] + ((i % 2 == 0) ? "," : ";"));
+          }
+        }
+        else
+        {
+          System.out.println("No range!");
+        }
+        f++;
+        t--;
+        System.out.print("\n");
+      }
+    }
+
+  }
+
+  public static void main(String argv[])
+  {
+    MapList ml = new MapList(new int[]
+    { 1, 5, 10, 15, 25, 20 }, new int[]
+    { 51, 1 }, 1, 3);
+    MapList ml1 = new MapList(new int[]
+    { 1, 3, 17, 4 }, new int[]
+    { 51, 1 }, 1, 3);
+    MapList ml2 = new MapList(new int[]
+    { 1, 60 }, new int[]
+    { 1, 20 }, 3, 1);
+    // test internal consistency
+    int to[] = new int[51];
+    MapList.testMap(ml, 1, 60);
+    MapList mldna = new MapList(new int[]
+    { 2, 2, 6, 8, 12, 16 }, new int[]
+    { 1, 3 }, 3, 1);
+    int[] frm = mldna.locateInFrom(1, 1);
+    testLocateFrom(mldna, 1, 1, new int[]
+    { 2, 2, 6, 7 });
+    MapList.testMap(mldna, 1, 3);
+    /*
+     * for (int from=1; from<=51; from++) { int[] too=ml.shiftTo(from); int[]
+     * toofrom=ml.shiftFrom(too[0]);
+     * System.out.println("ShiftFrom("+from+")=="+too[0]+" %
+     * "+too[1]+"\t+-+\tShiftTo("+too[0]+")=="+toofrom[0]+" % "+toofrom[1]); }
+     */
+    System.out.print("Success?\n"); // if we get here - something must be
+    // working!
+  }
+
+  private static void testLocateFrom(MapList mldna, int i, int j, int[] ks)
+  {
+    int[] frm = mldna.locateInFrom(i, j);
+    if (frm == ks || java.util.Arrays.equals(frm, ks))
+    {
+      System.out.println("Success test locate from " + i + " to " + j);
+    }
+    else
+    {
+      System.err.println("Failed test locate from " + i + " to " + j);
+      for (int c = 0; c < frm.length; c++)
+      {
+        System.err.print(frm[c] + ((c % 2 == 0) ? "," : ";"));
+      }
+      System.err.println("Expected");
+      for (int c = 0; c < ks.length; c++)
+      {
+        System.err.print(ks[c] + ((c % 2 == 0) ? "," : ";"));
+      }
+    }
   }
 
   /**
@@ -827,7 +984,6 @@ public class MapList
    */
   public boolean containsEither(boolean local, MapList map)
   {
-    // TODO not used - remove?
     if (local)
     {
       return ((getFromLowest() >= map.getFromLowest() && getFromHighest() <= map
@@ -840,27 +996,5 @@ public class MapList
               .getToHighest()) || (getToLowest() <= map.getToLowest() && getToHighest() >= map
               .getToHighest()));
     }
-  }
-
-  /**
-   * String representation - for debugging, not guaranteed not to change
-   */
-  @Override
-  public String toString()
-  {
-    StringBuilder sb = new StringBuilder(64);
-    sb.append("From (").append(fromRatio).append(":").append(toRatio)
-            .append(") [");
-    for (int[] shift : fromShifts)
-    {
-      sb.append(" ").append(Arrays.toString(shift));
-    }
-    sb.append(" ] To [");
-    for (int[] shift : toShifts)
-    {
-      sb.append(" ").append(Arrays.toString(shift));
-    }
-    sb.append(" ]");
-    return sb.toString();
   }
 }

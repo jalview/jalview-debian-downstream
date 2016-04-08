@@ -1,23 +1,20 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.ws.rest.params;
 
 import jalview.datamodel.AlignmentI;
@@ -27,11 +24,15 @@ import jalview.ws.params.simple.Option;
 import jalview.ws.rest.InputType;
 import jalview.ws.rest.NoValidInputDataException;
 import jalview.ws.rest.RestJob;
+import jalview.ws.rest.RestServiceDescription;
+import jalview.ws.rest.InputType.molType;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.http.entity.mime.content.ContentBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -46,7 +47,8 @@ public class SeqIdVector extends InputType
 {
   public SeqIdVector()
   {
-    super(new Class[] { AlignmentI.class });
+    super(new Class[]
+    { AlignmentI.class });
   }
 
   /**
@@ -79,9 +81,9 @@ public class SeqIdVector extends InputType
     ArrayList<String> prms = new ArrayList<String>();
     super.addBaseParams(prms);
     prms.add("sep='" + sep + "'");
-    if (type != null)
+    if (type!=null)
     {
-      prms.add("type='" + type + "'");
+      prms.add("type='"+type+"'");
     }
     return prms;
   }
@@ -127,9 +129,10 @@ public class SeqIdVector extends InputType
     List<OptionI> lst = getBaseOptions();
     lst.add(new Option("sep",
             "Separator character between elements of vector", true, ",",
-            sep, Arrays.asList(new String[] { " ", ",", ";", "\t", "|" }),
+            sep, Arrays.asList(new String[]
+            { " ", ",", ";", "\t", "|" }), null));
+    lst.add(createMolTypeOption("type", "Sequence type", false, type,
             null));
-    lst.add(createMolTypeOption("type", "Sequence type", false, type, null));
     return lst;
   }
 }

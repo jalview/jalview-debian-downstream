@@ -1,34 +1,37 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.jws2.dm;
 
-import jalview.util.MessageManager;
-import jalview.ws.jws2.JabaParamStore;
-import jalview.ws.params.ArgumentI;
-import jalview.ws.params.WsParamSetI;
-
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 
+import compbio.metadata.Argument;
 import compbio.metadata.Option;
+
+import jalview.ws.jws2.JabaParamStore;
+import jalview.ws.jws2.ParameterUtils;
+import jalview.ws.params.ArgumentI;
+import jalview.ws.params.ParamDatastoreI;
+import jalview.ws.params.WsParamSetI;
 
 public class JabaWsParamSet implements WsParamSetI
 {
@@ -55,8 +58,7 @@ public class JabaWsParamSet implements WsParamSetI
         if (!allJaba(jobParams))
         {
           throw new Error(
-                  MessageManager
-                          .getString("error.cannot_create_jabaws_param_set"));
+                  "Cannot create a JabaWSParamSet from non-JabaWS parameters");
         }
         else
         {
@@ -180,8 +182,7 @@ public class JabaWsParamSet implements WsParamSetI
     if (!allJaba(args))
     {
       throw new Error(
-              MessageManager
-                      .getString("error.cannot_set_arguments_to_jabaws_param_set"));
+              "Cannot set arguments to a JabaWSParamSet that are not JabaWS arguments");
     }
     jabaArguments = new ArrayList<Option>();
     for (ArgumentI rg : args)

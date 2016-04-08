@@ -1,26 +1,21 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.jbgui;
-
-import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -41,8 +36,8 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.border.TitledBorder;
 
 /**
@@ -55,8 +50,7 @@ public class GWsPreferences extends JPanel
   protected JList sbrsList = new JList();
 
   protected TitledBorder sbrsListTitleBorder = new TitledBorder(
-          MessageManager
-                  .getString("label.simple_bioinformatics_rest_services"));
+          "Simple Bioinformatics Rest Services");
 
   protected JButton newSbrsUrl = new JButton();
 
@@ -64,11 +58,10 @@ public class GWsPreferences extends JPanel
 
   protected JButton deleteSbrsUrl = new JButton();
 
-  // Web service status and url table
-  protected JTable wsList = new JTable();
+  protected JList wsList = new JList();
 
   protected TitledBorder wsListTitleBorder = new TitledBorder(
-          MessageManager.getString("label.web_service_discovery_urls"));
+          "Web Service Discovery URLS");
 
   protected JButton newWsUrl = new JButton();
 
@@ -119,7 +112,7 @@ public class GWsPreferences extends JPanel
   BorderLayout myBorderlayout = new BorderLayout();
 
   BorderLayout wsListBorderlayout = new BorderLayout();
-
+  
   BorderLayout srbsListBorderlayout = new BorderLayout();
 
   GridBagLayout wsPrefLayout = new GridBagLayout();
@@ -143,7 +136,7 @@ public class GWsPreferences extends JPanel
   {
 
     refreshWs.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    refreshWs.setText(MessageManager.getString("action.refresh_services"));
+    refreshWs.setText("Refresh Services");
     refreshWs.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -152,7 +145,7 @@ public class GWsPreferences extends JPanel
       }
     });
     resetWs.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    resetWs.setText(MessageManager.getString("action.reset_services"));
+    resetWs.setText("Reset Services");
 
     resetWs.addActionListener(new ActionListener()
     {
@@ -162,9 +155,9 @@ public class GWsPreferences extends JPanel
       }
     });
     indexByHost.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    indexByHost.setText(MessageManager.getString("label.index_by_host"));
-    indexByHost.setToolTipText(MessageManager
-            .getString("label.index_web_services_menu_by_host_site"));
+    indexByHost.setText("Index by host");
+    indexByHost
+            .setToolTipText("Index web services in menu by the host site.");
     indexByHost.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -173,7 +166,7 @@ public class GWsPreferences extends JPanel
       }
     });
     indexByType.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    indexByType.setText(MessageManager.getString("label.index_by_type"));
+    indexByType.setText("Index by type");
     indexByType.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -181,10 +174,19 @@ public class GWsPreferences extends JPanel
         indexByType_actionPerformed(e);
       }
     });
+    enableEnfinServices
+            .setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
+    enableEnfinServices.setText("Enable Enfin Services");
+    enableEnfinServices.addActionListener(new ActionListener()
+    {
+      public void actionPerformed(ActionEvent e)
+      {
+        enableEnfinServices_actionPerformed(e);
+      }
+    });
     enableJws2Services
             .setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    enableJws2Services.setText(MessageManager
-            .getString("label.enable_jabaws_services"));
+    enableJws2Services.setText("Enable JABAWS Services");
     enableJws2Services.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -193,12 +195,9 @@ public class GWsPreferences extends JPanel
       }
     });
     displayWsWarning.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    displayWsWarning.setText(MessageManager
-            .getString("label.display_warnings"));
+    displayWsWarning.setText("Display warnings");
     displayWsWarning
-            .setToolTipText("<html>"
-                    + MessageManager
-                            .getString("label.option_want_informed_web_service_URL_cannot_be_accessed_jalview_when_starts_up"));
+            .setToolTipText("<html>Check this option if you want to be informed<br>when a web service URL cannot be accessed by Jalview<br>when it starts up");
     displayWsWarning.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -207,7 +206,7 @@ public class GWsPreferences extends JPanel
       }
     });
     newWsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    newWsUrl.setText(MessageManager.getString("label.new_service_url"));
+    newWsUrl.setText("New Service URL");
     newWsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -216,7 +215,7 @@ public class GWsPreferences extends JPanel
       }
     });
     editWsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    editWsUrl.setText(MessageManager.getString("label.edit_service_url"));
+    editWsUrl.setText("Edit Service URL");
     editWsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -226,8 +225,7 @@ public class GWsPreferences extends JPanel
     });
 
     deleteWsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    deleteWsUrl.setText(MessageManager
-            .getString("label.delete_service_url"));
+    deleteWsUrl.setText("Delete Service URL");
     deleteWsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -236,9 +234,8 @@ public class GWsPreferences extends JPanel
       }
     });
     moveWsUrlUp.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    moveWsUrlUp.setText(MessageManager.getString("action.move_up"));
-    moveWsUrlUp.setToolTipText(MessageManager
-            .getString("label.move_url_up"));
+    moveWsUrlUp.setText("Up");
+    moveWsUrlUp.setToolTipText("Move URL up");
     moveWsUrlUp.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -247,9 +244,8 @@ public class GWsPreferences extends JPanel
       }
     });
     moveWsUrlDown.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    moveWsUrlDown.setText(MessageManager.getString("action.move_down"));
-    moveWsUrlDown.setToolTipText(MessageManager
-            .getString("label.move_url_down"));
+    moveWsUrlDown.setText("Down");
+    moveWsUrlDown.setToolTipText("Move URL Down");
     moveWsUrlDown.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -258,8 +254,7 @@ public class GWsPreferences extends JPanel
       }
     });
     newSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    newSbrsUrl.setText(MessageManager
-            .getString("label.add_sbrs_definition"));
+    newSbrsUrl.setText("Add a SBRS definition");
     newSbrsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -268,8 +263,7 @@ public class GWsPreferences extends JPanel
       }
     });
     editSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    editSbrsUrl.setText(MessageManager
-            .getString("label.edit_sbrs_definition"));
+    editSbrsUrl.setText("Edit SBRS definition");
     editSbrsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -279,8 +273,7 @@ public class GWsPreferences extends JPanel
     });
 
     deleteSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    deleteSbrsUrl.setText(MessageManager
-            .getString("label.delete_sbrs_definition"));
+    deleteSbrsUrl.setText("Delete SBRS definition");
     deleteSbrsUrl.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -295,12 +288,11 @@ public class GWsPreferences extends JPanel
     progressBar.setString("");
     wsListUrlPanel.setBorder(BorderFactory.createEtchedBorder());
     wsListUrlPanel.setLayout(new BorderLayout());
+    // wsListUrlPanel.setPreferredSize(new Dimension(482,202));
     wsListPane.setBorder(BorderFactory.createEtchedBorder());
     wsListPane.getViewport().add(wsList);
-    wsList.setPreferredSize(new Dimension(482, 202));
-    wsListPane.setPreferredSize(new Dimension(380, 80));
+    // wsListPane.setPreferredSize(new Dimension(380, 80));
     wsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    wsList.setColumnSelectionAllowed(false);
     wsList.addMouseListener(new MouseListener()
     {
 
@@ -333,11 +325,13 @@ public class GWsPreferences extends JPanel
       }
 
     });
+    // wsListButtons.setPreferredSize(new Dimension(480, 60));
     wsListButtons.setLayout(new FlowLayout());
+    // wsListButtons.add(moveWsUrlUp);
+    // wsListButtons.add(moveWsUrlDown);
     wsListButtons.add(newWsUrl);
     wsListButtons.add(editWsUrl);
     wsListButtons.add(deleteWsUrl);
-    wsListButtons.setMinimumSize(new Dimension(350, 80));
     wsListNavButs.setSize(new Dimension(80, 80));
     wsListNavButs.setPreferredSize(new Dimension(80, 80));
     wsListNavButs.setLayout(new FlowLayout());
@@ -354,6 +348,7 @@ public class GWsPreferences extends JPanel
     srbsListUrlPanel.setLayout(new BorderLayout());
     srbsListPane.setBorder(BorderFactory.createEtchedBorder());
     srbsListPane.getViewport().add(sbrsList);
+    //srbsListPane.setMinimumSize(new Dimension(380, 80));
     sbrsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     sbrsList.addMouseListener(new MouseListener()
     {
@@ -401,6 +396,7 @@ public class GWsPreferences extends JPanel
     wsMenuButtons.add(indexByHost);
     wsMenuButtons.add(indexByType);
     wsMenuButtons.add(enableJws2Services);
+    wsMenuButtons.add(enableEnfinServices);
     wsMenuButtons.add(displayWsWarning);
     wsMenuRefreshButs.setLayout(new FlowLayout());
     wsMenuRefreshButs.setPreferredSize(new Dimension(480, 30));
@@ -409,16 +405,13 @@ public class GWsPreferences extends JPanel
     wsMenuRefreshButs.add(resetWs, null);
     wsMenuRefreshButs.add(progressBar, null);
     myBorderlayout.setHgap(3);
-    if (jalview.bin.Cache.getDefault("ENABLE_RSBS_EDITOR", false))
-    {
-      JTabbedPane listPanels = new JTabbedPane();
-      listPanels.addTab("JABAWS Servers", wsListPanel);
-      listPanels.addTab("RSB Services", srbsListPanel);
-      add(listPanels, BorderLayout.NORTH);
-    }
-    else
-    {
-      add(wsListPanel, BorderLayout.NORTH);
+    if (jalview.bin.Cache.getDefault("ENABLE_RSBS_EDITOR",false)) {
+    	JTabbedPane listPanels=new JTabbedPane();
+    	listPanels.addTab("JABAWS Servers",wsListPanel);
+    	listPanels.addTab("RSB Services", srbsListPanel);
+    	add(listPanels,  BorderLayout.NORTH);
+    } else {
+    	add(wsListPanel, BorderLayout.NORTH);
     }
     add(wsMenuButtons, BorderLayout.CENTER);
     add(wsMenuRefreshButs, BorderLayout.SOUTH);
@@ -427,25 +420,25 @@ public class GWsPreferences extends JPanel
   protected void deleteSbrsUrl_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
-
+    
   }
 
   protected void editSbrsUrl_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
-
+    
   }
 
   protected void newSbrsUrl_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
-
+    
   }
 
   protected void displayWsWarning_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
-
+    
   }
 
   protected void resetWs_actionPerformed(ActionEvent e)

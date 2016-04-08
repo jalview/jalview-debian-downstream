@@ -1,70 +1,68 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.jbgui.GDasSourceBrowser;
-import jalview.util.MessageManager;
-import jalview.util.TableSorter;
-import jalview.ws.dbsources.das.api.DasSourceRegistryI;
-import jalview.ws.dbsources.das.api.jalviewSourceI;
+import java.util.*;
 
-import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
+import javax.swing.table.*;
 
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingUtilities;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.table.AbstractTableModel;
-
-import org.biodas.jdas.schema.sources.CAPABILITY;
-import org.biodas.jdas.schema.sources.COORDINATES;
-import org.biodas.jdas.schema.sources.PROP;
-import org.biodas.jdas.schema.sources.VERSION;
+import org.biojava.dasobert.dasregistry.*;
+import jalview.jbgui.*;
+import jalview.util.*;
 
 public class DasSourceBrowser extends GDasSourceBrowser implements
         Runnable, ListSelectionListener
 {
-  DasSourceRegistryI sourceRegistry = null;
+  static DasSource[] dasSources = null;
 
-  Vector<String> selectedSources;
+  Hashtable localSources = null;
+
+  Vector selectedSources;
+
+  public static String DEFAULT_REGISTRY = "http://www.dasregistry.org/das1/sources/";
+
+  /**
+   * true if thread is running and we are talking to DAS registry service
+   */
+  public boolean loadingDasSources = false;
+
+  protected static String getDasRegistryURL()
+  {
+    String registry = jalview.bin.Cache.getDefault("DAS_REGISTRY_URL",
+            DEFAULT_REGISTRY);
+
+    if (registry.indexOf("/registry/das1/sources/") > -1)
+    {
+      jalview.bin.Cache.setProperty(jalview.bin.Cache.DAS_REGISTRY_URL,
+              DEFAULT_REGISTRY);
+      registry = DEFAULT_REGISTRY;
+    }
+    return registry;
+  }
 
   public DasSourceBrowser(FeatureSettings featureSettings)
   {
     fs = featureSettings;
-    // TODO DasSourceRegistryProvider API
-    sourceRegistry = jalview.bin.Cache.getDasSourceRegistry();
-    String registry = sourceRegistry.getDasRegistryURL();
+    String registry = getDasRegistryURL();
 
     registryURL.setText(registry);
 
@@ -104,15 +102,13 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
     });
 
-    if (sourceRegistry.getSources() != null)
+    if (dasSources != null)
     {
       init();
     }
   }
 
   FeatureSettings fs = null;
-
-  private boolean loadingDasSources;
 
   public DasSourceBrowser()
   {
@@ -121,7 +117,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
   public void paintComponent(java.awt.Graphics g)
   {
-    if (sourceRegistry == null)
+    if (dasSources == null && !loadingDasSources)
     {
       Thread worker = new Thread(this);
       worker.start();
@@ -130,18 +126,17 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
   void init()
   {
-    List<jalviewSourceI> sources = sourceRegistry.getSources();
-    int dSize = sources.size();
+    int dSize = dasSources.length;
     Object[][] data = new Object[dSize][2];
     for (int i = 0; i < dSize; i++)
     {
-      data[i][0] = sources.get(i).getTitle(); // what's equivalent of nickname
-      data[i][1] = new Boolean(selectedSources.contains(sources.get(i)
-              .getTitle()));
+      data[i][0] = dasSources[i].getNickname();
+      data[i][1] = new Boolean(selectedSources.contains(dasSources[i]
+              .getNickname()));
     }
 
     refreshTableData(data);
-    setCapabilities(sourceRegistry);
+    setCapabilities(dasSources);
 
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
@@ -174,79 +169,56 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     if (nickName == null)
     {
-      fullDetails.setText(text
-              + MessageManager
-                      .getString("label.select_das_service_from_table"));
+      fullDetails.setText(text + "Select a DAS service from the table"
+              + " to read a full description here.</font></html>");
       return;
     }
 
-    int dSize = sourceRegistry.getSources().size();
-    for (jalviewSourceI ds : sourceRegistry.getSources())
+    int dSize = dasSources.length;
+    for (int i = 0; i < dSize; i++)
     {
-      if (!ds.getTitle().equals(nickName))
+      if (!dasSources[i].getNickname().equals(nickName))
       {
         continue;
       }
 
-      VERSION latest = ds.getVersion();
-      text.append("<font color=\"#0000FF\">Id:</font> " + ds.getUri()
-              + "<br>");
+      DasSource ds = dasSources[i];
+
+      text.append("<font color=\"#0000FF\">Id:</font> "
+              + dasSources[i].getId() + "<br>");
       text.append("<font color=\"#0000FF\">Nickname:</font> "
-              + ds.getTitle() + "<br>");
+              + dasSources[i].getNickname() + "<br>");
+      text.append("<font color=\"#0000FF\">URL:</font> "
+              + dasSources[i].getUrl() + "<br>");
 
-      text.append("<font color=\"#0000FF\">URL:</font> <a href=\""
-              + ds.getSourceURL() + "\">" + ds.getSourceURL() + "</a>"
-              + "<br>");
-      if (!ds.isLocal())
-      {
-        if (ds.getDocHref() != null && ds.getDocHref().length() > 0)
-        {
-          text.append("<font color=\"#0000FF\">Site:</font> <a href=\""
-                  + ds.getDocHref() + "\">" + ds.getDocHref() + "</a>"
-                  + "<br>");
-        }
+      text.append("<font color=\"#0000FF\">Admin Email:</font> <a href=\"mailto:"
+              + dasSources[i].getAdminemail()
+              + "\">"
+              + dasSources[i].getAdminemail() + "</a>" + "<br>");
 
-        text.append("<font color=\"#0000FF\">Description:</font> "
-                + ds.getDescription() + "<br>");
+      text.append("<font color=\"#0000FF\">Registered at:</font> "
+              + dasSources[i].getRegisterDate() + "<br>");
 
-        text.append("<font color=\"#0000FF\">Admin Email:</font> <a href=\"mailto:"
-                + ds.getEmail() + "\">" + ds.getEmail() + "</a>" + "<br>");
+      text.append("<font color=\"#0000FF\">Last successful test:</font> "
+              + dasSources[i].getLeaseDate() + "<br>");
 
-        text.append("<font color=\"#0000FF\">Registered at:</font> "
-                + latest.getCreated() + "<br>");
-
-        // TODO: Identify last successful test date
-        // text.append("<font color=\"#0000FF\">Last successful test:</font> "
-        // + latest.dasSources[i].getLeaseDate() + "<br>");
-      }
-      else
-      {
-        text.append("Source was added manually.<br/>");
-      }
       text.append("<font color=\"#0000FF\">Labels:</font> ");
-      boolean b = false;
-      for (PROP labl : latest.getPROP())
+      for (int s = 0; s < dasSources[i].getLabels().length; s++)
       {
-        if (labl.getName().equalsIgnoreCase("LABEL"))
+        text.append(dasSources[i].getLabels()[s]);
+        if (s < dasSources[i].getLabels().length - 1)
         {
-          if (b)
-          {
-            text.append(",");
-          }
-          text.append(" ");
-
-          text.append(labl.getValue());
-          b = true;
+          text.append(",");
         }
-        ;
+        text.append(" ");
       }
       text.append("<br>");
 
       text.append("<font color=\"#0000FF\">Capabilities:</font> ");
-      CAPABILITY[] scap = latest.getCAPABILITY().toArray(new CAPABILITY[0]);
+      String[] scap = dasSources[i].getCapabilities();
       for (int j = 0; j < scap.length; j++)
       {
-        text.append(scap[j].getType());
+        text.append(scap[j]);
         if (j < scap.length - 1)
         {
           text.append(", ");
@@ -254,26 +226,35 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
       text.append("<br>");
 
-      text.append("<font color=\"#0000FF\">Coordinates:</font>");
-      int i = 1;
-      for (COORDINATES dcs : latest.getCOORDINATES())
+      text.append("<font color=\"#0000FF\">Coordinates:</font> ");
+      DasCoordinateSystem[] dcs = ds.getCoordinateSystem();
+      for (int j = 0; j < dcs.length; j++)
       {
-        text.append("<br/>" + i++ + ". ");
-        text.append(dcs.getAuthority() + " : " + dcs.getSource());
-        if (dcs.getTaxid() != null && dcs.getTaxid().trim().length() > 0)
+        text.append("(" + dcs[j].getUniqueId() + ") "
+                + dcs[j].getCategory() + ", " + dcs[j].getName());
+        if (dcs[j].getNCBITaxId() != 0)
         {
-          text.append(" [TaxId:" + dcs.getTaxid() + "]");
+          text.append(", " + dcs[j].getNCBITaxId());
         }
-        if (dcs.getVersion() != null
-                && dcs.getVersion().trim().length() > 0)
+        if (dcs[j].getOrganismName().length() > 0)
         {
-          {
-            text.append(" {v. " + dcs.getVersion() + "}");
-          }
+          text.append(", " + dcs[j].getOrganismName());
         }
-        text.append(" (<a href=\"" + dcs.getUri() + "\">" + dcs.getUri()
-                + "</a>)");
+
+        text.append("<br>");
       }
+
+      text.append("<font color=\"#0000FF\">Description:</font> "
+              + dasSources[i].getDescription() + "<br>");
+
+      if (dasSources[i].getHelperurl() != null
+              && dasSources[i].getHelperurl().length() > 0)
+      {
+        text.append("<font color=\"#0000FF\"><a href=\""
+                + dasSources[i].getHelperurl()
+                + "\">Go to site</a></font<br>");
+      }
+
       text.append("</font></html>");
 
       break;
@@ -299,7 +280,8 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     progressBar.setIndeterminate(true);
     setParentGuiEnabled(false);
     // Refresh the source list.
-    sourceRegistry.refreshSources();
+    dasSources = null;
+    getDASSource();
 
     init();
 
@@ -317,10 +299,10 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     }
   }
 
-  public Vector<jalviewSourceI> getSelectedSources()
+  public Vector getSelectedSources()
   {
     // wait around if we're still loading.
-    while (sourceRegistry == null)
+    while (dasSources == null)
     {
       if (!loadingDasSources)
       {
@@ -346,16 +328,37 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
     }
 
-    Vector<jalviewSourceI> selected = new Vector<jalviewSourceI>();
-    for (String source : selectedSources)
+    Vector selected = new Vector();
+    for (int r = 0; r < selectedSources.size(); r++)
     {
-      jalviewSourceI srce = sourceRegistry.getSource(source);
-      if (srce != null)
+      for (int i = 0; i < dasSources.length; i++)
       {
-        selected.addElement(srce);
+        if (dasSources[i].getNickname()
+                .equals(selectedSources.elementAt(r)))
+        {
+          selected.addElement(dasSources[i]);
+          break;
+        }
       }
     }
+
     return selected;
+  }
+
+  /**
+   * retrieve das sources from registry and add local source list
+   * 
+   * @return
+   */
+  public DasSource[] getDASSource()
+  {
+    if (dasSources == null)
+    {
+      dasSources = jalview.ws.DasSequenceFeatureFetcher.getDASSources();
+      appendLocalSources();
+    }
+
+    return dasSources;
   }
 
   public void refresh_actionPerformed(ActionEvent e)
@@ -366,39 +369,41 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     worker.start();
   }
 
-  private void setCapabilities(DasSourceRegistryI sourceRegistry2)
+  private void setCapabilities(DasSource[] sources)
   {
-    Vector<String> authority = new Vector<String>();
-    Vector<String> type = new Vector<String>();
-    Vector<String> label = new Vector<String>();
-    Vector<String> taxIds = new Vector<String>();
-    authority.add("Any");
-    type.add("Any");
-    label.add("Any");
+    Vector authority = new Vector();
+    Vector type = new Vector();
+    Vector label = new Vector();
 
-    for (jalviewSourceI ds : sourceRegistry2.getSources())
+    authority.addElement("Any");
+    type.addElement("Any");
+    label.addElement("Any");
+
+    for (int i = 0; i < sources.length; i++)
     {
-      VERSION latest = ds.getVersion();
+      DasSource ds = sources[i];
 
-      for (COORDINATES cs : latest.getCOORDINATES())
+      DasCoordinateSystem[] dcs = ds.getCoordinateSystem();
+
+      for (int j = 0; j < dcs.length; j++)
       {
-        if (!type.contains(cs.getSource()))
+        if (!type.contains(dcs[j].getCategory()))
         {
-          type.add(cs.getSource()); // source==category
+          type.addElement(dcs[j].getCategory());
         }
 
-        if (!authority.contains(cs.getAuthority()))
+        if (!authority.contains(dcs[j].getName()))
         {
-          authority.add(cs.getAuthority());
+          authority.addElement(dcs[j].getName());
         }
       }
 
-      for (PROP slabel : latest.getPROP())
+      String[] slabels = ds.getLabels();
+      for (int s = 0; s < slabels.length; s++)
       {
-        if (slabel.getName().equalsIgnoreCase("LABEL")
-                && !label.contains(slabel.getValue()))
+        if (!label.contains(slabels[s]))
         {
-          label.add(slabel.getValue());
+          label.addElement(slabels[s]);
         }
       }
 
@@ -407,7 +412,6 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     filter1.setListData(authority);
     filter2.setListData(type);
     filter3.setListData(label);
-    // filter4 taxIds
 
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
@@ -428,32 +432,28 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     {
       int selectedRow = table.getSelectionModel().getMinSelectionIndex();
       nickname = table.getValueAt(selectedRow, 0).toString();
-      jalviewSourceI source = sourceRegistry.getSource(nickname);
-      url = source.getUri();
-      seqsrc = source.isSequenceSource();
+      url = ((DasSource) localSources.get(nickname)).getUrl();
+      seqsrc = ((DasSource) localSources.get(nickname))
+              .hasCapability("sequence");
     }
 
     JTextField nametf = new JTextField(nickname, 40);
     JTextField urltf = new JTextField(url, 40);
-    JCheckBox seqs = new JCheckBox(
-            MessageManager.getString("label.sequence_source"));
+    JCheckBox seqs = new JCheckBox("Sequence Source");
     seqs.setSelected(seqsrc);
     JPanel panel = new JPanel(new BorderLayout());
     JPanel pane12 = new JPanel(new BorderLayout());
-    pane12.add(new JLabel(MessageManager.getString("label.name")),
-            BorderLayout.CENTER);
+    pane12.add(new JLabel("Nickname: "), BorderLayout.CENTER);
     pane12.add(nametf, BorderLayout.EAST);
     panel.add(pane12, BorderLayout.NORTH);
     pane12 = new JPanel(new BorderLayout());
-    pane12.add(new JLabel(MessageManager.getString("label.url")),
-            BorderLayout.NORTH);
+    pane12.add(new JLabel("URL: "), BorderLayout.NORTH);
     pane12.add(seqs, BorderLayout.SOUTH);
     pane12.add(urltf, BorderLayout.EAST);
     panel.add(pane12, BorderLayout.SOUTH);
 
     int reply = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-            panel,
-            MessageManager.getString("label.enter_local_das_source"),
+            panel, "Enter Nickname & URL of Local DAS Source",
             JOptionPane.OK_CANCEL_OPTION);
 
     if (reply != JOptionPane.OK_OPTION)
@@ -466,38 +466,65 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       urltf.setText(urltf.getText() + "/");
     }
 
-    jalviewSourceI local = sourceRegistry.createLocalSource(
-            urltf.getText(), nametf.getText(), seqs.isSelected(), true);
-    List sources = sourceRegistry.getSources();
-    int osize = sources.size();
-    int size = osize + (newSource ? 1 : 0);
+    Das1Source local = new Das1Source();
 
-    Object[][] data = new Object[size][2];
-    DASTableModel dtm = (table != null) ? (DASTableModel) ((TableSorter) table
-            .getModel()).getTableModel() : null;
-    for (int i = 0; i < osize; i++)
+    local.setUrl(urltf.getText());
+    local.setNickname(nametf.getText());
+    if (seqs.isSelected())
     {
-      String osrc = (dtm == null || i >= osize) ? null : (String) dtm
-              .getValueAt(i, 0);
-      if (!newSource && osrc != null
-              && dtm.getValueAt(i, 0).equals(nickname))
+      local.setCapabilities(new String[]
+      { "features", "sequence" });
+    }
+    if (localSources == null)
+    {
+      localSources = new Hashtable();
+    }
+
+    localSources.put(local.getNickname(), local);
+
+    if (!newSource && !nickname.equals(nametf.getText()))
+    {
+      localSources.remove(nickname);
+    }
+
+    int size = dasSources.length;
+    int adjust = newSource ? 1 : 0;
+
+    Object[][] data = new Object[size + adjust][2];
+    for (int i = 0; i < size; i++)
+    {
+      if (!newSource && dasSources[i].getNickname().equals(nickname))
       {
-        data[i][0] = local.getTitle();
+        ((DasSource) dasSources[i]).setNickname(local.getNickname());
+        ((DasSource) dasSources[i]).setUrl(local.getUrl());
+        data[i][0] = local.getNickname();
         data[i][1] = new Boolean(true);
       }
       else
       {
-        data[i][0] = osrc;
-        data[i][1] = new Boolean(selectedSources.contains(osrc));
+        data[i][0] = dasSources[i].getNickname();
+        data[i][1] = new Boolean(selectedSources.contains(dasSources[i]
+                .getNickname()));
       }
     }
-    // Always add a new source at the end
+
     if (newSource)
     {
-      data[osize][0] = local.getTitle();
-      data[osize][1] = new Boolean(true);
-      selectedSources.add(local.getTitle());
+      data[size][0] = local.getNickname();
+      data[size][1] = new Boolean(true);
+      selectedSources.add(local.getNickname());
     }
+
+    DasSource[] tmp = new DasSource[size + adjust];
+
+    System.arraycopy(dasSources, 0, tmp, 0, size);
+
+    if (newSource)
+    {
+      tmp[size] = local;
+    }
+
+    dasSources = tmp;
 
     refreshTableData(data);
 
@@ -510,7 +537,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
     });
 
-    displayFullDetails(local.getTitle());
+    displayFullDetails(local.getNickname());
   }
 
   public void editRemoveLocalSource(MouseEvent evt)
@@ -523,19 +550,17 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     String nickname = table.getValueAt(selectedRow, 0).toString();
 
-    if (!sourceRegistry.getSource(nickname).isLocal())
+    if (!localSources.containsKey(nickname))
     {
-      JOptionPane
-              .showInternalMessageDialog(
-                      Desktop.desktop,
-                      MessageManager
-                              .getString("label.you_can_only_edit_or_remove_local_das_sources"),
-                      MessageManager.getString("label.public_das_source"),
-                      JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showInternalMessageDialog(Desktop.desktop,
+              "You can only edit or remove local DAS Sources!",
+              "Public DAS source - not editable",
+              JOptionPane.WARNING_MESSAGE);
       return;
     }
 
-    Object[] options = { "Edit", "Remove", "Cancel" };
+    Object[] options =
+    { "Edit", "Remove", "Cancel" };
     int choice = JOptionPane.showInternalOptionDialog(Desktop.desktop,
             "Do you want to edit or remove " + nickname + "?",
             "Edit / Remove Local DAS Source",
@@ -548,26 +573,27 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       amendLocal(false);
       break;
     case 1:
-      sourceRegistry.removeLocalSource(sourceRegistry.getSource(nickname));
+      localSources.remove(nickname);
       selectedSources.remove(nickname);
-      Object[][] data = new Object[sourceRegistry.getSources().size()][2];
-      int index = 0,
-      l = table.getRowCount();
-
-      for (int i = 0; i < l; i++)
+      Object[][] data = new Object[dasSources.length - 1][2];
+      DasSource[] tmp = new DasSource[dasSources.length - 1];
+      int index = 0;
+      for (int i = 0; i < dasSources.length; i++)
       {
-        String nm;
-        if ((nm = (String) table.getValueAt(i, 0)).equals(nickname))
+        if (dasSources[i].getNickname().equals(nickname))
         {
           continue;
         }
         else
         {
-          data[index][0] = nm;
-          data[index][1] = new Boolean(selectedSources.contains(nm));
+          tmp[index] = dasSources[i];
+          data[index][0] = dasSources[i].getNickname();
+          data[index][1] = new Boolean(
+                  selectedSources.contains(dasSources[i].getNickname()));
           index++;
         }
       }
+      dasSources = tmp;
       refreshTableData(data);
       SwingUtilities.invokeLater(new Runnable()
       {
@@ -582,6 +608,50 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     }
   }
 
+  void appendLocalSources()
+  {
+    if (localSources == null)
+    {
+      return;
+    }
+    // note - we add all das sources to list so they can be filtered for the
+    // standard fetchDbRefs function
+    int size = dasSources != null ? dasSources.length : 0;
+    int lsize = localSources.size();
+
+    Object[][] data = new Object[size + lsize][2];
+    for (int i = 0; i < size; i++)
+    {
+      data[i][0] = dasSources[i].getNickname();
+      data[i][1] = new Boolean(selectedSources.contains(dasSources[i]
+              .getNickname()));
+    }
+
+    DasSource[] tmp = new DasSource[size + lsize];
+    if (dasSources != null)
+    {
+      System.arraycopy(dasSources, 0, tmp, 0, size);
+    }
+
+    Enumeration en = localSources.keys();
+    int index = size;
+    while (en.hasMoreElements())
+    {
+      String key = en.nextElement().toString();
+      data[index][0] = key;
+      data[index][1] = new Boolean(false);
+      tmp[index] = new Das1Source();
+      tmp[index].setNickname(key);
+      tmp[index].setUrl(((DasSource) localSources.get(key)).getUrl());
+
+      index++;
+    }
+
+    dasSources = tmp;
+
+    refreshTableData(data);
+  }
+
   public void valueChanged(ListSelectionEvent evt)
   {
     // Called when the MainTable selection changes
@@ -593,56 +663,59 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     displayFullDetails(null);
 
     // Filter the displayed data sources
+    int dSize = dasSources.length;
 
     ArrayList names = new ArrayList();
     ArrayList selected = new ArrayList();
+    DasSource ds;
 
     // The features filter is not visible, but we must still
     // filter the das source list here.
     // July 2006 - only 6 sources fo not serve features
-    Object[] dummyFeatureList = new Object[] { "features" };
-    List<jalviewSourceI> srcs = sourceRegistry.getSources();
-    for (jalviewSourceI ds : srcs)
-    {
+    Object[] dummyFeatureList = new Object[]
+    { "features" };
 
-      VERSION v = ds.getVersion();
-      List<COORDINATES> coords = v.getCOORDINATES();
-      if (ds.isLocal()
-              || ((coords == null || coords.size() == 0)
-                      && filter1.getSelectedIndex() == 0
-                      && filter2.getSelectedIndex() == 0 && filter3
-                      .getSelectedIndex() == 0))
+    for (int i = 0; i < dSize; i++)
+    {
+      ds = dasSources[i];
+      DasCoordinateSystem[] dcs = ds.getCoordinateSystem();
+
+      if (dcs.length == 0 && ds.getCapabilities().length == 0
+              && filter1.getSelectedIndex() == 0
+              && filter2.getSelectedIndex() == 0
+              && filter3.getSelectedIndex() == 0)
       {
         // THIS IS A FIX FOR LOCAL SOURCES WHICH DO NOT
         // HAVE COORDINATE SYSTEMS, INFO WHICH AT PRESENT
         // IS ADDED FROM THE REGISTRY
-        names.add(ds.getTitle());
-        selected.add(new Boolean(selectedSources.contains(ds.getTitle())));
+        names.add(ds.getNickname());
+        selected.add(new Boolean(selectedSources.contains(ds.getNickname())));
         continue;
       }
 
-      if (!selectedInList(dummyFeatureList, ds.getCapabilityList(v))
+      if (!selectedInList(dummyFeatureList, ds.getCapabilities())
               || !selectedInList(filter3.getSelectedValues(),
-                      ds.getLabelsFor(v)))
+                      ds.getLabels()))
       {
         continue;
       }
 
-      for (int j = 0; j < coords.size(); j++)
+      for (int j = 0; j < dcs.length; j++)
       {
-        if (selectedInList(filter1.getSelectedValues(),
-                new String[] { coords.get(j).getAuthority() })
+        if (selectedInList(filter1.getSelectedValues(), new String[]
+        { dcs[j].getName() })
                 && selectedInList(filter2.getSelectedValues(), new String[]
-                { coords.get(j).getSource() }))
+                { dcs[j].getCategory() }))
         {
-          names.add(ds.getTitle());
-          selected.add(new Boolean(selectedSources.contains(ds.getTitle())));
+          names.add(ds.getNickname());
+          selected.add(new Boolean(selectedSources.contains(ds
+                  .getNickname())));
           break;
         }
       }
     }
 
-    int dSize = names.size();
+    dSize = names.size();
     Object[][] data = new Object[dSize][2];
     for (int d = 0; d < dSize; d++)
     {
@@ -653,7 +726,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     refreshTableData(data);
   }
 
-  private boolean selectedInList(Object[] selection, String[] items)
+  boolean selectedInList(Object[] selection, String[] items)
   {
     for (int i = 0; i < selection.length; i++)
     {
@@ -661,15 +734,10 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       {
         return true;
       }
-      if (items == null || items.length == 0)
-      {
-        return false;
-      }
-      String sel = (items[0].startsWith("das1:") ? "das1:" : "")
-              + selection[i];
+
       for (int j = 0; j < items.length; j++)
       {
-        if (sel.equals(items[j]))
+        if (selection[i].equals(items[j]))
         {
           return true;
         }
@@ -689,11 +757,26 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     {
       selectedSources.addElement(st.nextToken());
     }
+
+    Vector _localSources = jalview.bin.Cache.getLocalDasSources();
+    if (_localSources != null)
+    {
+      if (localSources == null)
+      {
+        localSources = new Hashtable();
+      }
+      Enumeration sources = _localSources.elements();
+      while (sources.hasMoreElements())
+      {
+        Das1Source source = (Das1Source) sources.nextElement();
+        localSources.put(source.getNickname(), source);
+      }
+    }
   }
 
   public void reset_actionPerformed(ActionEvent e)
   {
-    registryURL.setText(sourceRegistry.getDasRegistryURL());
+    registryURL.setText(DEFAULT_REGISTRY);
   }
 
   /**
@@ -725,8 +808,24 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     properties.setProperty(jalview.bin.Cache.DAS_ACTIVE_SOURCE,
             sb.toString());
 
-    String sourceprop = sourceRegistry.getLocalSourceString();
-    properties.setProperty(jalview.bin.Cache.DAS_LOCAL_SOURCE, sourceprop);
+    if (localSources != null)
+    {
+      sb = new StringBuffer();
+      Enumeration en = localSources.keys();
+      while (en.hasMoreElements())
+      {
+        String token = en.nextElement().toString();
+        sb.append(token
+                + "|"
+                + (((DasSource) localSources.get(token))
+                        .hasCapability("sequence") ? "sequence:" : "")
+                + ((DasSource) localSources.get(token)).getUrl() + "\t");
+      }
+
+      properties.setProperty(jalview.bin.Cache.DAS_LOCAL_SOURCE,
+              sb.toString());
+    }
+
   }
 
   class DASTableModel extends AbstractTableModel
@@ -737,9 +836,8 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       this.data = data;
     }
 
-    private String[] columnNames = new String[] {
-        MessageManager.getString("label.nickname"),
-        MessageManager.getString("label.use_source") };
+    private String[] columnNames = new String[]
+    { "Nickname", "Use Source" };
 
     private Object[][] data;
 
@@ -819,7 +917,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
     });
     thr.start();
-    while (loadingDasSources || sourceRegistry == null)
+    while (loadingDasSources || dasSources == null)
     {
       try
       {
@@ -829,6 +927,26 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       }
       ;
     }
+  }
+
+  public Vector resolveSourceNicknames(Vector sources)
+  {
+
+    Vector resolved = new Vector();
+    if (sources != null)
+    {
+      for (int i = 0; i < dasSources.length; i++)
+      {
+        if (sources.contains(dasSources[i].getNickname()))
+        {
+          if (!resolved.contains(dasSources[i]))
+          {
+            resolved.addElement(dasSources[i]);
+          }
+        }
+      }
+    }
+    return resolved;
   }
 
   /**

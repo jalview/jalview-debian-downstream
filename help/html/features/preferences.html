@@ -1,335 +1,177 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- -->
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+-->
 <head>
 <title>Preferences</title>
 </head>
 
 <body>
-  <p>
-    <strong>Preferences</strong>
-  </p>
-  <p>
-    The preferences panel is opened from the Jalview Desktop&rsquo;s <strong><em>Tools</em></strong>
-    menu.
-  </p>
-  <p>There are eight tabs in the Preferences dialog box:
-  <ul>
-    <li>The <a href="#visual"><strong>&quot;Visual&quot;</strong>
-        Preferences</a> tab allows you to configure the default display for
-      a new alignment window.
-    </li>
-    <li>The <a href="#colours"><strong>&quot;Colours&quot;</strong>
-        Preferences</a> tab allows you to configure default colourschemes
-      for a new alignment window.
-    </li>
-    <li>The <a href="#structure"><strong>&quot;Structure&quot;</strong>
-        Preferences</a> tab allows you to configure options for obtaining
-      and displaying structure information.
-    </li>
-    <li>The <a href="#connections"><strong>&quot;Connections&quot;</strong>
-        Preferences</a> tab allows you to change the links made from Jalview
-      to your default web browser.
-    </li>
-    <li>The <a href="#output"><strong>&quot;Output&quot;</strong>
-        Preferences</a> tab contains settings affecting the export of
-      sequence alignments and EPS files.
-    </li>
-    <li>The <a href="#editing"><strong>&quot;Editing&quot;</strong>
-        Preferences</a> tab contains settings affecting the export of
-      sequence alignments and EPS files.
-    </li>
-    <li>The <a href="dassettings.html"><strong>&quot;DAS
-          Settings&quot;</strong> Preferences</a> tab allows you to select which DAS
-      sources to use when fetching DAS Features.
-    </li>
-    <li>The <a href="../webServices/webServicesPrefs.html"><strong>&quot;Web
-          Service&quot;</strong> Preferences</a> tab allows you to configure the <a
-      href="http://www.compbio.dundee.ac.uk/jabaws"
-    >JABAWS</a> servers that Jalview uses, and change the layout of the
-      alignment's Web Services menu.
-    </li>
-  </ul>
-  </p>
-  <p>
-    <strong><a name="visual">Visual</a> Preferences tab</strong>
-  </p>
-  <p>
-    <em>Maximise Window</em> - If this is selected, a new alignment
-    window will stretch to fit the available space.
-  </p>
-  <p>
-    <em>Open Overview Window</em> - When this is selected, the <a
-      href="overview.html"
-    >alignment overview</a> panel is opened by default for a new alignment
-    window.
-  </p>
-  <p>
-    <em>Show Annotations</em> - If this is selected the new window will
-    display an annotation panel below the sequences. This annotation
-    panel may have several rows describing the whole alignment. The 3
-    standard annotations <em>Conservation</em>, <em>Quality</em> and <em>Consensus</em>
-    for the alignment may be shown or hidden by default using the
-    checkboxes below.
-  </p>
-  <p>
-    <em>Show group: Conservation and Consensus</em> controls the display
-    of per-group automatic annotation.
-  </p>
-  <p>
-    <em>Consensus: Histogram and Logo</em> checkboxes control the
-    display of the consensus histogram and sequence logo for consensus
-    annotation rows.
-  </p>
-  <p>
-    <em>Full Sequence ID</em> - If selected the ID panel will display
-    the name of a sequence plus the start and end residues in the format
-    name/start-end. If not selected, the displayed ID will be the name
-    of the sequence.
-  </p>
-  <p>
-    <em>Right Align IDs</em> - select to align all sequence IDs to the
-    left-hand edge of the sequence alignment, rather than the left-hand
-    edge of the alignment display window.
-  </p>
-  <p>
-    <em>Font</em> - The default font name, size and style can be set for
-    a new alignment window.
-  </p>
-  <p>
-    <em>Sequence ID Tooltip</em>: Control the display of Database
-    References and Non-positional annotation in the tooltip displayed
-    when the mouse is over a sequence's ID.
-  </p>
-  <p>
-    <em>Show Unconserved</em> - When this is selected, all consensus
-    sequence symbols will be rendered as a '.', highlighting mutations
-    in highly conserved alignments.
-  </p>
-  <p>
-    <em>Sequence Name Italics</em> - select to apply the italicised
-    version of the font to sequence labels.
-  </p>
-  <p>
-    <em>Smooth Font</em> - Toggles anti-aliasing on / off for faster
-    rendering of the alignment.
-  </p>
-  <p>
-    <em>Gap Symbol</em> - The default gap symbol may be set to either
-    &quot;-&quot; or &quot;.&quot;
-  </p>
-  <p>
-    <em>Wrap Alignment</em> - Select whether to open new alignment
-    windows in wrapped mode or not.
-  </p>
-  <p>
-    <em>Sort alignment by</em> - When the alignment is loaded in, it can
-    be ordered as read (No sort), or sorted by Id or pairwise identity.
-  </p>
-  <p>
-    <em>Sort annotations by</em> - Annotations can be unsorted, sorted
-    by the order of the related sequences in the alignment, or by label.
-    Autocalculated annotations (e.g. Consensus) can be shown either last
-    (below sequence annotations) or first (above sequence annotations).
-    <em>Since Jalview 2.8.2.</em>
-  </p>
-  <p>
-    <em>Open file</em> - If this is selected then the default alignment
-    file will be opened when Jalview is started. You can change the
-    default file by clicking on file name and either typing in the file
-    path or selecting it from the file chooser window.<br />
-    <em>Note: The default example alignment is updated periodically
-      to demonstrate new features in Jalview.</em>
-  </p>
-  <p>
-    <a name="colours"><strong>&quot;Colours&quot;
-        Preferences tab</strong>
-  </p>
-  <p>
-    <em>Alignment Colour</em> - The default colour scheme for a new
-    alignment window. If the chosen option is &quot;User Defined&quot;
-    then the last User Defined Colour loaded or saved via the User
-    Defined Colours panel will be loaded.
-  </p>
-  <p>
-    <em>Annotation Shading Default</em> - set the default minimum and
-    maximum colours used when <a
-      href="../colourSchemes/annotationColouring.html"
-    >Colour by Annotation...</a> is selected from the alignment window's
-    colours menu.
-  </p>
-  <p>
-    <a name="structure"><strong>&quot;Structure&quot;
-        Preferences tab</strong></a><em> added in Jalview 2.8.2</em>
-  </p>
-  <p>
-    <em>Process secondary structure from PDB</em> - if selected, then
-    structure information read from PDB will be processed and annotation
-    added to associated sequences.
-  <p>
-    <em>Use RNAView for secondary structure</em> - if selected, the
-    pyRNA RNAView service (<a href="https://github.com/fjossinet/PyRNA">https://github.com/fjossinet/PyRNA</a>)
-    will be called to derive secondary structure information for RNA
-    chains.
-  <p>
-    <em>Add secondary structure annotation to alignment</em> - if
-    selected, <a href="http://swift.cmbi.ru.nl/gv/dssp/">Jmol's
-      implementation DSSP</a> will be used to add annotation to polypeptide
-    chains in the structure.
-  <p>
-    <em>Add Temperature Factor annotation to alignment</em> - if
-    selected, values extracted from the Temperature Factor column for
-    the backbone atoms in the PDB file will be extracted as annotation
-    lines shown on the alignment.
-  <p>
-    <em>Default structure viewer</em> - choose JMOL or CHIMERA for
-    viewing 3D structures.
-  <p>
-    <em>Path to Chimera program</em> - Optional, as Jalview will search
-    standard installation paths for Windows, Linux or MacOS. If you have
-    installed Chimera in a non-standard location, you can specify it
-    here, by entering the full path to the Chimera executable program.
-    Double-click this field to open a file chooser dialog.
-  <p>
-    <a name="connections"><strong>&quot;Connections&quot;
-        Preferences tab</strong></a>
-  </p>
-  <p>
-    <em>URL Link From Sequence ID</em><br> These definitions are
-    used to generate URLs from a sequence's ID or database cross
-    references. Read more about <a
-      href="../webServices/urllinks.html#urllinks"
-    >configuring URL links here</a>.
-  </p>
-  <p>
-    <em>Default Browser (Unix)</em><br> Its difficult in Java to
-    detect the default web browser for Unix users. If Jalview can't find
-    your default web browser, enter the name or full path to your web
-    browser application.
-  </p>
-  <p>
-    <em>Proxy Server</em><br> If you normally use a proxy server
-    for using the internet, you must tick the box &quot;Use a Proxy
-    Server&quot; and enter the address and port details as necessary.
-    Web Services will not work if you are using a proxy server and do
-    not enter the settings here.
-  </p>
-  <p>
-    <em>Usage statistics, Questionnaire and Version checks</em><br>
-    Uncheck these options to prevent Jalview from submitting usage
-    statistics to google analytics, checking for Jalview questionnaires
-    or retrieving details of the latest release version (at
-    www.jalview.org). See the <a href="../privacy.html">user privacy
-      statement</a> for more information.
-  </p>
-  <p>
-    <a name="output"><strong>Output Preferences tab</strong></a>
-  </p>
-  <p>
-    <em>EPS Rendering Style</em><br> This is a selection box which
-    allows the user to set a default rendering style for EPS export:
-  <ul>
-    <li>&quot;Prompt each time&quot;<br> Choose this to be
-      asked select between Lineart and Text each time you make an EPS
-      file.
-    </li>
-    <li>&quot;Lineart&quot;<br> EPS files will accurately
-      reproduce the alignment view in Jalview and all characters will be
-      converted into line art. Files generated in this way are large and
-      are not easily editable, but have no font table dependencies.
-    </li>
-    <li>&quot;Text&quot;<br> EPS files will be a mixture of
-      text and lineart. This produces compact files that can be edited
-      easily in programs like Microsoft Word and Adobe Illustrator, but
-      can be problematic if the fonts available to Jalview are not
-      accessible by the program reading the EPS file.
-  </ul>
-  <p>
-    <em>Automatically set ID width</em><br> When enabled, the
-    column containing sequence and annotation labels at the left hand
-    side of an exported figure will be made large enough to display each
-    sequence ID and annotation label in its own line. Enable this if you
-    have particularly long sequence IDs and need to generate EPS or PNG
-    figures or web pages.
-  </p>
-  <p>
-    <em>Figure ID column width</em><br> Manually specify the width
-    of the left hand column where sequence IDs and annotation labels
-    will be rendered in exported alignment figures. This setting will be
-    ignored if <em>&quot;Automatically set ID width&quot;</em> is set.
-  </p>
-  <p>
-    <em>Sequence//Start-End Numbering</em><br> The output tab also
-    has a group of checkboxes for each file format. If these are ticked,
-    then Jalview will write files with the start and end sequence
-    positions appended to each sequence id:
-  <pre>
+<p><strong>Preferences</strong></p>
+<p>There are six tabs in the Preferences dialog box:
+<ul>
+	<li>The <a href="#visual"><strong>&quot;Visual&quot;</strong>
+	Preferences</a> tab allows you to configure the default display for a new
+	alignment window.</li>
+	<li>The <a href="#colours"><strong>&quot;Colours&quot;</strong>
+	Preferences</a> tab allows you to configure default colourschemes for a new
+	alignment window.</li>
+	<li>The <a href="#connections"><strong>&quot;Connections&quot;</strong>
+	Preferences</a> tab allows you to change the links made from Jalview to
+	your default web browser.</li>
+	<li>The <a href="#output"><strong>&quot;Output&quot;</strong>
+	Preferences</a> tab contains settings affecting the export of sequence
+	alignments and EPS files.</li>
+	<li>The <a href="#editing"><strong>&quot;Editing&quot;</strong>
+	Preferences</a> tab contains settings affecting the export of sequence
+	alignments and EPS files.</li>
+	<li>The <a href="dassettings.html"><strong>&quot;DAS
+	Settings&quot;</strong> Preferences</a> tab allows you to select which DAS sources
+	to use when fetching DAS Features.</li>
+	<li>The <a href="../webServices/webServicesPrefs.html"><strong>&quot;Web Service&quot;</strong> Preferences</a> tab allows you to configure the <a href="http://www.compbio.dundee.ac.uk/jabaws">JABAWS</a> servers that Jalview uses, and change the layout of the alignment's Web Services menu.</li>
+</ul>
+</p>
+<p><strong><a name="visual">Visual</a> Preferences tab</strong></p>
+<p><em>Maximise Window</em> - If this is selected, a new alignment
+window will stretch to fit the available space.</p>
+<p><em>Open Overview Window</em> - When this is selected, the <a
+	href="overview.html">alignment overview</a> panel is opened by default
+for a new alignment window.</p>
+<p><em>Show Annotations</em> - If this is selected the new window
+will display an annotation panel below the sequences. This annotation
+panel may have several rows describing the whole alignment. The 3
+standard annotations <em>Conservation</em>, <em>Quality</em> and <em>Consensus</em>
+for the alignment may be shown or hidden by default using the checkboxes
+below.</p>
+<p><em>Show group: Conservation and Consensus</em> controls the
+display of per-group automatic annotation.</p>
+<p><em>Consensus: Histogram and Logo</em> checkboxes control the
+display of the consensus histogram and sequence logo for consensus
+annotation rows.</p>
+<p><em>Full Sequence ID</em> - If selected the ID panel will display
+the name of a sequence plus the start and end residues in the format
+name/start-end. If not selected, the displayed ID will be the name of
+the sequence.</p>
+<p><em>Right Align IDs</em> - select to align all sequence IDs to
+the left-hand edge of the sequence alignment, rather than the left-hand
+edge of the alignment display window.</p>
+<p><em>Font</em> - The default font name, size and style can be set
+for a new alignment window.</p>
+<p><em>Sequence ID Tooltip</em>: Control the display of Database
+References and Non-positional annotation in the tooltip displayed when
+the mouse is over a sequence's ID.</p>
+<p><em>Sequence Name Italics</em> - select to apply the italicised
+vbersion of the font to sequence labels.</p>
+<p><em>Smooth Font</em> - Toggles anti-aliasing on / off for faster
+rendering of the alignment.</p>
+<p><em>Wrap Alignment</em> - Select whether to open new alignment
+windows in wrapped mode or not.</p>
+<p><em>Gap Symbol</em> - The default gap symbol may be set to either
+&quot;-&quot; or &quot;.&quot;</p>
+<p><em>Sort by</em> - When the alignment is loaded in, it will can
+be sorted by Id or pairwise identity.</p>
+<p><em>Open file</em> - If this is selected then the default
+alignment file will be opened when Jalview is started. You can change
+the default file by clicking on file name and either typing in the file
+path or selecting it from the file chooser window.</p>
+<p><a name="colours"><strong>&quot;Colours&quot; Preferences tab</strong></p>
+<p><em>Alignment Colour</em> - The default colour scheme for a new alignment
+window. If the chosen option is &quot;User Defined&quot; then the last
+User Defined Colour loaded or saved via the User Defined Colours panel
+will be loaded.</p>
+	<p>
+		<em>Annotation Shading Default</em> - set the default minimum
+		and maximum colours used when <a
+			href="../colourSchemes/annotationColouring.html">Colour by
+			Annotation ..</a> is selected from the alignment window's colours menu.
+	</p>
+	<br>
+	</p>
+<p><a name="connections"><strong>&quot;Connections&quot;
+Preferences tab</strong></a></p>
+<p><em>URL Link From Sequence ID</em><br>
+These definitions are used to generate URLs from a sequence's ID or
+database cross references. Read more about <a
+	href="../webServices/urllinks.html#urllinks">configuring URL links
+here</a>.</p>
+<p><em>Default Browser (Unix)</em><br>
+Its difficult in Java to detect the default web browser for Unix users.
+If Jalview can't find your default web browser, enter the name or full
+path to your web browser application.</p>
+<p><em>Proxy Server</em><br>
+If you normally use a proxy server for using the internet, you must tick
+the box &quot;Use a Proxy Server&quot; and enter the address and port
+details as necessary. Web Services will not work if you are using a
+proxy server and do not enter the settings here.</p>
+<p><em>Usage statistics, Questionnaire and Version checks</em><br>
+Uncheck these options to prevent Jalview from submitting usage
+statistics to google analytics, checking for jalview questionnaires or
+retrieving details of the latest release version (at www.jalview.org).
+See the <a href="../privacy.html">user privacy statement</a> for more
+information.</p>
+<p><a name="output"><strong>Output Preferences tab</strong></a></p>
+<p><em>EPS Rendering Style</em><br>
+This is a selection box which allows the user to set a default rendering
+style for EPS export:
+<ul>
+	<li>&quot;Lineart&quot;<br>
+	EPS files will accurately reproduce the alignment view in Jalview and
+	all characters will be converted into line art. Files generated in this
+	way are large and are not easily editable, but have no font table
+	dependencies.</li>
+	<li>&quot;Text&quot;<br>
+	EPS files will be a mixture of text and lineart. This produces compact
+	files that can be edited easily in programs like Microsoft Word and
+	Adobe Illustrator, but can be problematic if the fonts available to
+	jalview are not accessible by the program reading the EPS file.
+	<li>&quot;Prompt each time&quot;<br>
+	Choose this to be asked select between Lineart and Text each time you
+	make an EPS file.</li>
+</ul>
+</p>
+<p><em>Sequence//Start-End Numbering</em><br>
+The output tab also has a group of checkboxes for each file format. If
+these are ticked, then Jalview will write files with the start and end
+sequence positions appended to each sequence id: <pre>
   >ID/1-10
   AACDEAAFEA
 </pre>
-  <p>If the boxes are left unchecked for a particular format, the
-    sequence limits will not be appended to the sequence id.</p>
-  <p>
-    <em>Embed BioJSON to HTML export</em>
-  </p>
-  <p>
-    When this option is enabled, Jalview embeds <a
-      href="bioJsonFormat.html"
-    >BioJSON</a> data within HTML files exported from Jalview at
-    generation time. This enables the exported HTML files to be
-    extracted and imported back into the Jalview desktop application at
-    a later time.
-  <p>
-    <em>Use Modeller Output</em>
-  </p>
-  <p>
-    This option only applies to PIR format output. Jalview automatically
-    reads PIR files with sequence descriptions compatible with the
-    program <a href="http://salilab.org/modeller/">Modeller</a>. If this
-    option is selected <a href="../io/modellerpir.html">Jalview will
-      write Modeller style PIR files</a> with correct start/end numbering
-    and PDB file association (if available). The Jalview id/start-end
-    option is ignored if Modeller output is selected.
-  <p>
-    <a name="editing"><strong>Editing Preferences tab</strong></a>
-  </p>
-  <p>There are currently three options available which can be
-    selected / deselected.</p>
-  <p>
-    <em>AutoCalculate Consensus</em> - For large alignments it can be
-    useful to deselect &quot;Autocalculate Consensus&quot; when editing.
-    This prevents lengthy calculations which are performed after each
-    sequence edit. New alignment windows will have their
-    &quot;Autocalculate Consensus&quot; option set according to this
-    setting.
-  </p>
-  <p>
-    <em>Pad Gaps when Editing</em> - New alignment windows will
-    &quot;Pad Gaps&quot; according to this setting.
-  </p>
-  <p>
-    <em>Sort with New Tree</em> - When selected, any trees calculated or
-    loaded onto the alignment will automatically sort the alignment.
-  </p>
-  <p>&nbsp;</p>
-  <p>&nbsp;</p>
+<p>If the boxes are left unchecked for a particular format, the
+sequence limits will not be appended to the sequence id.</p>
+</p>
+<p><em>Use Modeller Output</em></p>
+<p>This option only applies to PIR format output. Jalview
+automatically reads PIR files with sequence descriptions compatible with
+the program <a href="http://salilab.org/modeller/">Modeller</a>. If this
+option is selected <a href="../io/modellerpir.html">Jalview will
+write Modeller style PIR files</a> with correct start/end numbering and PDB
+file association (if available). The Jalview id/start-end option is
+ignored if Modeller output is selected.
+<p><a name="editing"><strong>Editing Preferences tab</strong></a></p>
+<p>There are currently 2 options available which can be selected /
+deselected.</p>
+<p><em>AutoCalculate Consensus</em> - For large alignments it can be
+useful to deselect &quot;Autocalculate Consensus&quot; when editing.
+This prevents lengthy calculations which are performed after each
+sequence edit. New alignment windows will have their &quot;Autocalculate
+Consensus&quot; option set according to this setting.</p>
+<p><em>Pad gaps when editing</em> - New alignment windows will
+&quot;Pad Gaps&quot; according to this setting.</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
 </body>
 </html>

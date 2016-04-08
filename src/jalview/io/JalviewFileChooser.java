@@ -1,55 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- *
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *
- * Jalview is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * 
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 //////////////////////////////////////////////////////////////////
 package jalview.io;
 
-import jalview.util.MessageManager;
-import jalview.util.Platform;
+import java.io.*;
+import java.util.*;
 
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.EventQueue;
-import java.awt.HeadlessException;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.File;
-import java.util.StringTokenizer;
-import java.util.Vector;
-
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.JFileChooser;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.SpringLayout;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
 /**
  * Enhanced file chooser dialog box.
- *
+ * 
  * NOTE: bug on Windows systems when filechooser opened on directory to view
  * files with colons in title.
- *
+ * 
  * @author AMW
- *
+ * 
  */
 public class JalviewFileChooser extends JFileChooser
 {
@@ -102,6 +85,7 @@ public class JalviewFileChooser extends JFileChooser
     {
       JalviewFileFilter jvf = new JalviewFileFilter(suffix[i], desc[i]);
       addChoosableFileFilter(jvf);
+
       if ((selected != null) && selected.equalsIgnoreCase(desc[i]))
       {
         chosen = jvf;
@@ -116,7 +100,6 @@ public class JalviewFileChooser extends JFileChooser
     setAccessory(new RecentlyOpened());
   }
 
-  @Override
   public void setFileFilter(javax.swing.filechooser.FileFilter filter)
   {
     super.setFileFilter(filter);
@@ -135,7 +118,6 @@ public class JalviewFileChooser extends JFileChooser
 
         EventQueue.invokeLater(new Thread()
         {
-          @Override
           public void run()
           {
             String currentName = ui.getFileName();
@@ -190,22 +172,17 @@ public class JalviewFileChooser extends JFileChooser
     {
       format = "PFAM";
     }
-    else if (format.toUpperCase().startsWith(PhylipFile.FILE_DESC))
-    {
-      format = PhylipFile.FILE_DESC;
-    }
 
     return format;
   }
 
-  @Override
   public int showSaveDialog(Component parent) throws HeadlessException
   {
     this.setAccessory(null);
 
     setDialogType(SAVE_DIALOG);
 
-    int ret = showDialog(parent, MessageManager.getString("action.save"));
+    int ret = showDialog(parent, "Save");
 
     if (getFileFilter() instanceof JalviewFileFilter)
     {
@@ -224,8 +201,7 @@ public class JalviewFileChooser extends JFileChooser
             && getSelectedFile().exists())
     {
       int confirm = JOptionPane.showConfirmDialog(parent,
-              MessageManager.getString("label.overwrite_existing_file"),
-              MessageManager.getString("label.file_already_exists"),
+              "Overwrite existing file?", "File exists",
               JOptionPane.YES_NO_OPTION);
 
       if (confirm != JOptionPane.YES_OPTION)
@@ -237,24 +213,22 @@ public class JalviewFileChooser extends JFileChooser
     return ret;
   }
 
-  void recentListSelectionChanged(Object selection)
+  void recentListSelectionChanged(String selection)
   {
     setSelectedFile(null);
-    if (selection != null)
+
+    File file = new File(selection);
+    if (getFileFilter() instanceof JalviewFileFilter)
     {
-      File file = new File((String) selection);
-      if (getFileFilter() instanceof JalviewFileFilter)
+      JalviewFileFilter jvf = (JalviewFileFilter) this.getFileFilter();
+
+      if (!jvf.accept(file))
       {
-        JalviewFileFilter jvf = (JalviewFileFilter) this.getFileFilter();
-
-        if (!jvf.accept(file))
-        {
-          setFileFilter(getChoosableFileFilters()[0]);
-        }
+        setFileFilter(getChoosableFileFilters()[0]);
       }
-
-      setSelectedFile(file);
     }
+
+    setSelectedFile(file);
   }
 
   class RecentlyOpened extends JPanel
@@ -263,7 +237,6 @@ public class JalviewFileChooser extends JFileChooser
 
     public RecentlyOpened()
     {
-
       String historyItems = jalview.bin.Cache.getProperty("RECENT_FILE");
       StringTokenizer st;
       Vector recent = new Vector();
@@ -286,38 +259,20 @@ public class JalviewFileChooser extends JFileChooser
 
       list.addMouseListener(new MouseAdapter()
       {
-        @Override
         public void mousePressed(MouseEvent evt)
         {
-          recentListSelectionChanged(list.getSelectedValue());
+          recentListSelectionChanged(list.getSelectedValue().toString());
         }
       });
 
-      this.setBorder(new javax.swing.border.TitledBorder(MessageManager
-              .getString("label.recently_opened")));
+      this.setBorder(new javax.swing.border.TitledBorder("Recently Opened"));
 
       final JScrollPane scroller = new JScrollPane(list);
-
-      SpringLayout layout = new SpringLayout();
-      layout.putConstraint(SpringLayout.WEST, scroller, 5,
-              SpringLayout.WEST, this);
-      layout.putConstraint(SpringLayout.NORTH, scroller, 5,
-              SpringLayout.NORTH, this);
-
-      if (new Platform().isAMac())
-      {
-        scroller.setPreferredSize(new Dimension(500, 100));
-      }
-      else
-      {
-        scroller.setPreferredSize(new Dimension(130, 200));
-      }
-
+      scroller.setPreferredSize(new Dimension(130, 200));
       this.add(scroller);
 
       javax.swing.SwingUtilities.invokeLater(new Runnable()
       {
-        @Override
         public void run()
         {
           scroller.getHorizontalScrollBar().setValue(

@@ -1,33 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.Vector;
 
 /**
@@ -46,135 +42,57 @@ public class Grouping
    * 
    * @param sequences
    * @param selectedChars
-   * @param list
+   * @param exgroups
    * @return
    */
   public static SequenceGroup[] makeGroupsFrom(SequenceI[] sequences,
-          String[] selectedChars, List<SequenceGroup> list)
+          String[] selectedChars, Vector exgroups)
   {
     // TODO: determine how to get/recover input data for group generation
-    Map<String, List<SequenceI>> gps = new HashMap<String, List<SequenceI>>();
+    Hashtable gps = new Hashtable();
     int width = 0, i;
-    Map<String, SequenceGroup> pgroup = new HashMap<String, SequenceGroup>();
-    if (list != null)
+    Hashtable pgroup = new Hashtable();
+    if (exgroups != null)
     {
-      for (SequenceGroup sg : list)
+      SequenceGroup sg;
+      for (Enumeration g = exgroups.elements(); g.hasMoreElements();)
       {
-        for (SequenceI sq : sg.getSequences(null))
-        {
-          pgroup.put(sq.toString(), sg);
-        }
+        sg = (SequenceGroup) g.nextElement();
+        for (Enumeration sq = sg.getSequences(null).elements(); sq
+                .hasMoreElements();)
+          pgroup.put(sq.nextElement().toString(), sg);
       }
     }
     for (i = 0; i < sequences.length; i++)
     {
       String schar = selectedChars[i];
-      SequenceGroup pgp = pgroup.get(((Object) sequences[i]).toString());
+      SequenceGroup pgp = (SequenceGroup) pgroup
+              .get(((Object) sequences[i]).toString());
       if (pgp != null)
       {
         schar = pgp.getName() + ":" + schar;
       }
-      List<SequenceI> svec = gps.get(schar);
+      Vector svec = (Vector) gps.get(schar);
       if (svec == null)
       {
-        svec = new ArrayList<SequenceI>();
+        svec = new Vector();
         gps.put(schar, svec);
       }
       if (width < sequences[i].getLength())
       {
         width = sequences[i].getLength();
       }
-      svec.add(sequences[i]);
+      svec.addElement(sequences[i]);
     }
     // make some groups
+    java.util.Enumeration sge = gps.keys();
     SequenceGroup[] groups = new SequenceGroup[gps.size()];
     i = 0;
-    for (String key : gps.keySet())
+    while (sge.hasMoreElements())
     {
-      SequenceGroup group = new SequenceGroup(gps.get(key), "Subseq: "
-              + key, null, true, true, false, 0, width - 1);
-
-      groups[i++] = group;
-    }
-    gps.clear();
-    pgroup.clear();
-    return groups;
-  }
-
-  /**
-   * Divide the given sequences based on the equivalence of characters at
-   * selected columns If exgroups is provided, existing groups will be
-   * subdivided.
-   * 
-   * @param sequences
-   * @param columnSelection
-   * @param list
-   * @return
-   */
-  public static SequenceGroup[] makeGroupsFromCols(SequenceI[] sequences,
-          ColumnSelection cs, List<SequenceGroup> list)
-  {
-    // TODO: determine how to get/recover input data for group generation
-    Map<String, List<SequenceI>> gps = new HashMap<String, List<SequenceI>>();
-    Map<String, SequenceGroup> pgroup = new HashMap<String, SequenceGroup>();
-    if (list != null)
-    {
-      for (SequenceGroup sg : list)
-      {
-        for (SequenceI sq : sg.getSequences(null))
-        {
-          pgroup.put(sq.toString(), sg);
-        }
-      }
-    }
-    int[] spos = new int[cs.getSelected().size()];
-    int width = -1;
-    int i = 0;
-    for (Integer pos : cs.getSelected())
-    {
-      spos[i++] = pos.intValue();
-    }
-    ;
-    for (i = 0; i < sequences.length; i++)
-    {
-      int slen = sequences[i].getLength();
-      if (width < slen)
-      {
-        width = slen;
-      }
-
-      SequenceGroup pgp = pgroup.get(((Object) sequences[i]).toString());
-      StringBuilder schar = new StringBuilder();
-      if (pgp != null)
-      {
-        schar.append(pgp.getName() + ":");
-      }
-      for (int p : spos)
-      {
-        if (p >= slen)
-        {
-          schar.append("~");
-        }
-        else
-        {
-          schar.append(sequences[i].getCharAt(p));
-        }
-      }
-      List<SequenceI> svec = gps.get(schar.toString());
-      if (svec == null)
-      {
-        svec = new ArrayList<SequenceI>();
-        gps.put(schar.toString(), svec);
-      }
-      svec.add(sequences[i]);
-    }
-    // make some groups
-    SequenceGroup[] groups = new SequenceGroup[gps.size()];
-    i = 0;
-    for (String key : gps.keySet())
-    {
-      SequenceGroup group = new SequenceGroup(gps.get(key), "Subseq: "
-              + key, null, true, true, false, 0, width - 1);
+      String key = (String) sge.nextElement();
+      SequenceGroup group = new SequenceGroup((Vector) gps.get(key),
+              "Subseq: " + key, null, true, true, false, 0, width - 1);
 
       groups[i++] = group;
     }

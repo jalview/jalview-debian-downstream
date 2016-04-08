@@ -1,26 +1,22 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.ws.rest.params;
 
-import jalview.util.MessageManager;
 import jalview.ws.params.OptionI;
 import jalview.ws.rest.InputType;
 import jalview.ws.rest.NoValidInputDataException;
@@ -36,21 +32,17 @@ import org.apache.http.entity.mime.content.StringBody;
 
 /**
  * defines a constant value always provided as a parameter.
- * 
  * @author JimP
- * 
+ *
  */
 public class JobConstant extends InputType
 {
 
   String value;
-
   /**
    * 
-   * @param param
-   *          name of parameter
-   * @param val
-   *          value of parameter
+   * @param param name of parameter
+   * @param val value of parameter
    */
   public JobConstant(String param, String val)
   {
@@ -64,7 +56,7 @@ public class JobConstant extends InputType
   public ContentBody formatForInput(RestJob rj)
           throws UnsupportedEncodingException, NoValidInputDataException
   {
-
+    
     return new StringBody(value);
   }
 
@@ -72,17 +64,15 @@ public class JobConstant extends InputType
   public List<String> getURLEncodedParameter()
   {
     ArrayList<String> prm = new ArrayList<String>();
-
-    if (value != null && value.length() > 0)
+    
+    if (value!=null && value.length()>0)
     {
-      try
-      {
-        prm.add(URLEncoder.encode(value, "UTF-8"));
+      try {
+        prm.add(URLEncoder.encode(value,"UTF-8"));
       } catch (UnsupportedEncodingException ex)
       {
-        throw new Error(MessageManager.formatMessage(
-                "error.couldnt_encode_as_utf8", new String[] { value }), ex);
-
+        throw new Error("Couldn't encode '"+value+"' as UTF-8.",ex);
+       
       }
     }
     return prm;
@@ -98,13 +88,11 @@ public class JobConstant extends InputType
   public boolean configureFromURLtokenString(List<String> tokenstring,
           StringBuffer warnings)
   {
-    if (tokenstring.size() > 1)
-    {
+    if (tokenstring.size()>1) {
       warnings.append("IMPLEMENTATION ERROR: Constant POST parameters cannot have more than one value.");
       return false;
     }
-    if (tokenstring.size() == 1)
-    {
+    if (tokenstring.size()==1) {
       value = tokenstring.get(0);
     }
     return true;

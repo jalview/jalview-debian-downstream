@@ -1,32 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.analysis.AlignSeq;
-import jalview.analysis.SeqsetUtils;
-import jalview.util.MessageManager;
-import jalview.util.ShiftList;
-
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Vector;
+
+import jalview.analysis.*;
+import jalview.util.*;
 
 public class SeqCigar extends CigarSimple
 {
@@ -96,8 +92,7 @@ public class SeqCigar extends CigarSimple
     if (edit_result == null)
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_unexpected_null_from_get_sequence_and_deletions"));
+              "Implementation Error - unexpected null from getSequenceAndDeletions");
     }
     int bounds[] = (int[]) edit_result[1];
     seq = new Sequence(refseq.getName(), (String) edit_result[0],
@@ -145,15 +140,11 @@ public class SeqCigar extends CigarSimple
     boolean hasgaps = false;
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_set_seq_null"));
+      throw new Error("Implementation Error - _setSeq(null,...)");
     }
     if (_s < 0)
     {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_s", new String[] { Integer
-                      .valueOf(_s).toString() }));
+      throw new Error("Implementation Error: _s=" + _s);
     }
     String seq_string = seq.getSequenceAsString();
     if (_e == 0 || _e < _s || _e > seq_string.length())
@@ -220,8 +211,7 @@ public class SeqCigar extends CigarSimple
     if (end > ds.getLength())
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_seqcigar_possible"));
+              "SeqCigar: Possible implementation error: sequence is longer than dataset sequence");
       // end = ds.getLength();
     }
 
@@ -245,14 +235,12 @@ public class SeqCigar extends CigarSimple
     super();
     if (seq == null)
     {
-      throw new Error(
-              MessageManager.getString("error.implmentation_bug_seq_null"));
+      throw new Error("Implementation Bug. Null seq !");
     }
     if (operation.length != range.length)
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_bug_cigar_operation_list_range_list"));
+              "Implementation Bug. Cigar Operation list!= range list");
     }
 
     if (operation != null)
@@ -263,21 +251,16 @@ public class SeqCigar extends CigarSimple
       if (_setSeq(seq, false, 0, 0))
       {
         throw new Error(
-                MessageManager
-                        .getString("error.not_yet_implemented_cigar_object_from_cigar_string"));
+                "NOT YET Implemented: Constructing a Cigar object from a cigar string and a gapped sequence.");
       }
       for (int i = this.length, j = 0; j < operation.length; i++, j++)
       {
         char op = operation[j];
         if (op != M && op != I && op != D)
         {
-          throw new Error(MessageManager.formatMessage(
-                  "error.implementation_bug_cigar_operation", new String[] {
-                      Integer.valueOf(j).toString(),
-                      Integer.valueOf(op).toString(),
-                      Integer.valueOf(M).toString(),
-                      Integer.valueOf(I).toString(),
-                      Integer.valueOf(D).toString() }));
+          throw new Error("Implementation Bug. Cigar Operation '" + j
+                  + "' '" + op + "' not one of '" + M + "', '" + I
+                  + "', or '" + D + "'.");
         }
         this.operation[i] = op;
         this.range[i] = range[j];
@@ -292,8 +275,7 @@ public class SeqCigar extends CigarSimple
       if (_setSeq(seq, false, 0, 0))
       {
         throw new Error(
-                MessageManager
-                        .getString("error.not_yet_implemented_cigar_object_from_cigar_string"));
+                "NOT YET Implemented: Constructing a Cigar object from a cigar string and a gapped sequence.");
       }
     }
   }
@@ -400,9 +382,7 @@ public class SeqCigar extends CigarSimple
     super();
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_for_new_cigar"));
+      throw new Error("Implementation error for new Cigar(SequenceI)");
     }
     _setSeq(seq, false, 0, 0);
     // there is still work to do
@@ -424,9 +404,7 @@ public class SeqCigar extends CigarSimple
     super();
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_for_new_cigar"));
+      throw new Error("Implementation error for new Cigar(SequenceI)");
     }
     _setSeq(seq, false, start, end + 1);
     // there is still work to do
@@ -481,9 +459,8 @@ public class SeqCigar extends CigarSimple
       // endcol}, hidden regions {{start, end, col}})
       if (gs_regions[i] == null)
       {
-        throw new Error(MessageManager.formatMessage(
-                "error.implementation_error_cigar_seq_no_operations",
-                new String[] { Integer.valueOf(i).toString() }));
+        throw new Error("Implementation error: " + i
+                + "'th sequence Cigar has no operations.");
       }
       g_seqs[i] = new StringBuffer((String) ((Object[]) gs_regions[i])[0]); // the
       // visible
@@ -564,6 +541,157 @@ public class SeqCigar extends CigarSimple
       }
     }
     return seqs;
+  }
+
+  /**
+   * non rigorous testing
+   */
+  /**
+   * 
+   * @param seq
+   *          Sequence
+   * @param ex_cs_gapped
+   *          String
+   * @return String
+   */
+  public static String testCigar_string(Sequence seq, String ex_cs_gapped)
+  {
+    SeqCigar c_sgapped = new SeqCigar(seq);
+    String cs_gapped = c_sgapped.getCigarstring();
+    if (!cs_gapped.equals(ex_cs_gapped))
+    {
+      System.err.println("Failed getCigarstring: incorect string '"
+              + cs_gapped + "' != " + ex_cs_gapped);
+    }
+    return cs_gapped;
+  }
+
+  public static boolean testSeqRecovery(SeqCigar gen_sgapped,
+          SequenceI s_gapped)
+  {
+    // this is non-rigorous - start and end recovery is not tested.
+    SequenceI gen_sgapped_s = gen_sgapped.getSeq('-');
+    if (!gen_sgapped_s.getSequence().equals(s_gapped.getSequence()))
+    {
+      System.err.println("Couldn't reconstruct sequence.\n"
+              + gen_sgapped_s.getSequenceAsString() + "\n"
+              + s_gapped.getSequenceAsString());
+      return false;
+    }
+    return true;
+  }
+
+  public static void main(String argv[]) throws Exception
+  {
+    String o_seq;
+    Sequence s = new Sequence("MySeq",
+            o_seq = "asdfktryasdtqwrtsaslldddptyipqqwaslchvhttt", 39, 80);
+    String orig_gapped;
+    Sequence s_gapped = new Sequence(
+            "MySeq",
+            orig_gapped = "----asdf------ktryas---dtqwrtsasll----dddptyipqqwa----slchvhttt",
+            39, 80);
+    String ex_cs_gapped = "4I4M6I6M3I11M4I12M4I9M";
+    s_gapped.setDatasetSequence(s);
+    String sub_gapped_s;
+    Sequence s_subsequence_gapped = new Sequence(
+            "MySeq",
+            sub_gapped_s = "------ktryas---dtqwrtsasll----dddptyipqqwa----slchvh",
+            43, 77);
+
+    s_subsequence_gapped.setDatasetSequence(s);
+    SeqCigar c_null = new SeqCigar(s);
+    String cs_null = c_null.getCigarstring();
+    if (!cs_null.equals("42M"))
+    {
+      System.err
+              .println("Failed to recover ungapped sequence cigar operations:"
+                      + ((cs_null == "") ? "empty string" : cs_null));
+    }
+    testCigar_string(s_gapped, ex_cs_gapped);
+    SeqCigar gen_sgapped = SeqCigar.parseCigar(s, ex_cs_gapped);
+    if (!gen_sgapped.getCigarstring().equals(ex_cs_gapped))
+    {
+      System.err.println("Failed parseCigar(" + ex_cs_gapped
+              + ")->getCigarString()->'" + gen_sgapped.getCigarstring()
+              + "'");
+    }
+    testSeqRecovery(gen_sgapped, s_gapped);
+    // Test dataset resolution
+    SeqCigar sub_gapped = new SeqCigar(s_subsequence_gapped);
+    if (!testSeqRecovery(sub_gapped, s_subsequence_gapped))
+    {
+      System.err
+              .println("Failed recovery for subsequence of dataset sequence");
+    }
+    // width functions
+    if (sub_gapped.getWidth() != sub_gapped_s.length())
+    {
+      System.err.println("Failed getWidth()");
+    }
+
+    sub_gapped.getFullWidth();
+    if (sub_gapped.hasDeletedRegions())
+    {
+      System.err.println("hasDeletedRegions is incorrect.");
+    }
+    // Test start-end region SeqCigar
+    SeqCigar sub_se_gp = new SeqCigar(s_subsequence_gapped, 8, 48);
+    if (sub_se_gp.getWidth() != 41)
+    {
+      System.err
+              .println("SeqCigar(seq, start, end) not properly clipped alignsequence.");
+    }
+    System.out.println("Original sequence align:\n" + sub_gapped_s
+            + "\nReconstructed window from 8 to 48\n" + "XXXXXXXX"
+            + sub_se_gp.getSequenceString('-') + "..." + "\nCigar String:"
+            + sub_se_gp.getCigarstring() + "\n");
+    SequenceI ssgp = sub_se_gp.getSeq('-');
+    System.out.println("\t " + ssgp.getSequenceAsString());
+    for (int r = 0; r < 10; r++)
+    {
+      sub_se_gp = new SeqCigar(s_subsequence_gapped, 8, 48);
+      int sl = sub_se_gp.getWidth();
+      int st = sl - 1 - r;
+      for (int rs = 0; rs < 10; rs++)
+      {
+        int e = st + rs;
+        sub_se_gp.deleteRange(st, e);
+        String ssgapedseq = sub_se_gp.getSeq('-').getSequenceAsString();
+        System.out.println(st + "," + e + "\t:" + ssgapedseq);
+        st -= 3;
+      }
+    }
+    {
+      SeqCigar[] set = new SeqCigar[]
+      { new SeqCigar(s), new SeqCigar(s_subsequence_gapped, 8, 48),
+          new SeqCigar(s_gapped) };
+      Alignment al = new Alignment(set);
+      for (int i = 0; i < al.getHeight(); i++)
+      {
+        System.out.println("" + al.getSequenceAt(i).getName() + "\t"
+                + al.getSequenceAt(i).getStart() + "\t"
+                + al.getSequenceAt(i).getEnd() + "\t"
+                + al.getSequenceAt(i).getSequenceAsString());
+      }
+    }
+    {
+      System.out.println("Gapped.");
+      SeqCigar[] set = new SeqCigar[]
+      { new SeqCigar(s), new SeqCigar(s_subsequence_gapped, 8, 48),
+          new SeqCigar(s_gapped) };
+      set[0].deleteRange(20, 25);
+      Alignment al = new Alignment(set);
+      for (int i = 0; i < al.getHeight(); i++)
+      {
+        System.out.println("" + al.getSequenceAt(i).getName() + "\t"
+                + al.getSequenceAt(i).getStart() + "\t"
+                + al.getSequenceAt(i).getEnd() + "\t"
+                + al.getSequenceAt(i).getSequenceAsString());
+      }
+    }
+    // if (!ssgapedseq.equals("ryas---dtqqwa----slchvh"))
+    // System.err.println("Subseqgaped\n------ktryas---dtqwrtsasll----dddptyipqqwa----slchvhryas---dtqwrtsasll--qwa----slchvh\n"+ssgapedseq+"\n"+sub_se_gp.getCigarstring());
   }
 
   /**

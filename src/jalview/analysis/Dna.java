@@ -1,195 +1,153 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.api.AlignViewportI;
-import jalview.datamodel.AlignedCodon;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Vector;
+
 import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.DBRefSource;
 import jalview.datamodel.FeatureProperties;
-import jalview.datamodel.GraphLine;
 import jalview.datamodel.Mapping;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ResidueProperties;
-import jalview.util.Comparison;
-import jalview.util.DBRefUtils;
 import jalview.util.MapList;
 import jalview.util.ShiftList;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-
 public class Dna
 {
-  private static final String STOP_ASTERIX = "*";
-
-  private static final Comparator<AlignedCodon> comparator = new CodonComparator();
-
-  /*
-   * 'final' variables describe the inputs to the translation, which should not
-   * be modified.
-   */
-  final private List<SequenceI> selection;
-
-  final private String[] seqstring;
-
-  final private int[] contigs;
-
-  final private char gapChar;
-
-  final private AlignmentAnnotation[] annotations;
-
-  final private int dnaWidth;
-
-  final private Alignment dataset;
-
-  /*
-   * Working variables for the translation.
-   * 
-   * The width of the translation-in-progress protein alignment.
-   */
-  private int aaWidth = 0;
-
-  /*
-   * This array will be built up so that position i holds the codon positions
-   * e.g. [7, 9, 10] that match column i (base 0) in the aligned translation.
-   * Note this implies a contract that if two codons do not align exactly, their
-   * translated products must occupy different column positions.
-   */
-  private AlignedCodon[] alignedCodons;
-
   /**
-   * Constructor given a viewport and the visible contigs.
    * 
-   * @param viewport
-   * @param visibleContigs
+   * @param cdp1
+   * @param cdp2
+   * @return -1 if cdp1 aligns before cdp2, 0 if in the same column or cdp2 is
+   *         null, +1 if after cdp2
    */
-  public Dna(AlignViewportI viewport, int[] visibleContigs)
+  private static int compare_codonpos(int[] cdp1, int[] cdp2)
   {
-    this.selection = Arrays.asList(viewport.getSequenceSelection());
-    this.seqstring = viewport.getViewAsString(true);
-    this.contigs = visibleContigs;
-    this.gapChar = viewport.getGapCharacter();
-    this.annotations = viewport.getAlignment().getAlignmentAnnotation();
-    this.dnaWidth = viewport.getAlignment().getWidth();
-    this.dataset = viewport.getAlignment().getDataset();
-  }
-
-  /**
-   * Test whether codon positions cdp1 should align before, with, or after cdp2.
-   * Returns zero if all positions match (or either argument is null). Returns
-   * -1 if any position in the first codon precedes the corresponding position
-   * in the second codon. Else returns +1 (some position in the second codon
-   * precedes the corresponding position in the first).
-   *
-   * Note this is not necessarily symmetric, for example:
-   * <ul>
-   * <li>compareCodonPos([2,5,6], [3,4,5]) returns -1</li>
-   * <li>compareCodonPos([3,4,5], [2,5,6]) also returns -1</li>
-   * </ul>
-   * 
-   * @param ac1
-   * @param ac2
-   * @return
-   */
-  public static final int compareCodonPos(AlignedCodon ac1, AlignedCodon ac2)
-  {
-    return comparator.compare(ac1, ac2);
-    // return jalview_2_8_2compare(ac1, ac2);
-  }
-
-  /**
-   * Codon comparison up to Jalview 2.8.2. This rule is sequence order dependent
-   * - see http://issues.jalview.org/browse/JAL-1635
-   * 
-   * @param ac1
-   * @param ac2
-   * @return
-   */
-  private static int jalview_2_8_2compare(AlignedCodon ac1, AlignedCodon ac2)
-  {
-    if (ac1 == null || ac2 == null || (ac1.equals(ac2)))
-    {
+    if (cdp2 == null
+            || (cdp1[0] == cdp2[0] && cdp1[1] == cdp2[1] && cdp1[2] == cdp2[2]))
       return 0;
-    }
-    if (ac1.pos1 < ac2.pos1 || ac1.pos2 < ac2.pos2 || ac1.pos3 < ac2.pos3)
-    {
-      // one base in cdp1 precedes the corresponding base in the other codon
-      return -1;
-    }
-    // one base in cdp1 appears after the corresponding base in the other codon.
-    return 1;
+    if (cdp1[0] < cdp2[0] || cdp1[1] < cdp2[1] || cdp1[2] < cdp2[2])
+      return -1; // one base in cdp1 precedes the corresponding base in the
+    // other codon
+    return 1; // one base in cdp1 appears after the corresponding base in the
+    // other codon.
+  }
+
+  /**
+   * DNA->mapped protein sequence alignment translation given set of sequences
+   * 1. id distinct coding regions within selected region for each sequence 2.
+   * generate peptides based on inframe (or given) translation or (optionally
+   * and where specified) out of frame translations (annotated appropriately) 3.
+   * align peptides based on codon alignment
+   */
+  /**
+   * id potential products from dna 1. search for distinct products within
+   * selected region for each selected sequence 2. group by associated DB type.
+   * 3. return as form for input into above function
+   */
+  /**
+   * 
+   */
+  /**
+   * create a new alignment of protein sequences by an inframe translation of
+   * the provided NA sequences
+   * 
+   * @param selection
+   * @param seqstring
+   * @param viscontigs
+   * @param gapCharacter
+   * @param annotations
+   * @param aWidth
+   * @param dataset
+   *          destination dataset for translated sequences and mappings
+   * @return
+   */
+  public static AlignmentI CdnaTranslate(SequenceI[] selection,
+          String[] seqstring, int viscontigs[], char gapCharacter,
+          AlignmentAnnotation[] annotations, int aWidth, Alignment dataset)
+  {
+    return CdnaTranslate(selection, seqstring, null, viscontigs,
+            gapCharacter, annotations, aWidth, dataset);
   }
 
   /**
    * 
+   * @param selection
+   * @param seqstring
+   * @param product
+   *          - array of DbRefEntry objects from which exon map in seqstring is
+   *          derived
+   * @param viscontigs
+   * @param gapCharacter
+   * @param annotations
+   * @param aWidth
+   * @param dataset
    * @return
    */
-  public AlignmentI translateCdna()
+  public static AlignmentI CdnaTranslate(SequenceI[] selection,
+          String[] seqstring, DBRefEntry[] product, int viscontigs[],
+          char gapCharacter, AlignmentAnnotation[] annotations, int aWidth,
+          Alignment dataset)
   {
-    AlignedCodonFrame acf = new AlignedCodonFrame();
-
-    alignedCodons = new AlignedCodon[dnaWidth];
-
-    int s;
-    int sSize = selection.size();
-    List<SequenceI> pepseqs = new ArrayList<SequenceI>();
+    AlignedCodonFrame codons = new AlignedCodonFrame(aWidth); // stores hash of
+    // subsequent
+    // positions for
+    // each codon
+    // start position
+    // in alignment
+    int s, sSize = selection.length;
+    Vector pepseqs = new Vector();
     for (s = 0; s < sSize; s++)
     {
-      SequenceI newseq = translateCodingRegion(selection.get(s),
-              seqstring[s], acf, pepseqs);
-
+      SequenceI newseq = translateCodingRegion(selection[s], seqstring[s],
+              viscontigs, codons, gapCharacter,
+              (product != null) ? product[s] : null); // possibly anonymous
+      // product
       if (newseq != null)
       {
-        pepseqs.add(newseq);
+        pepseqs.addElement(newseq);
         SequenceI ds = newseq;
-        if (dataset != null)
+        while (ds.getDatasetSequence() != null)
         {
-          while (ds.getDatasetSequence() != null)
-          {
-            ds = ds.getDatasetSequence();
-          }
-          dataset.addSequence(ds);
+          ds = ds.getDatasetSequence();
         }
+        dataset.addSequence(ds);
       }
     }
-
-    SequenceI[] newseqs = pepseqs.toArray(new SequenceI[pepseqs.size()]);
+    if (codons.aaWidth == 0)
+      return null;
+    SequenceI[] newseqs = new SequenceI[pepseqs.size()];
+    pepseqs.copyInto(newseqs);
     AlignmentI al = new Alignment(newseqs);
-    // ensure we look aligned.
-    al.padGaps();
-    // link the protein translation to the DNA dataset
+    al.padGaps(); // ensure we look aligned.
     al.setDataset(dataset);
-    translateAlignedAnnotations(al, acf);
-    al.addCodonFrame(acf);
+    translateAlignedAnnotations(annotations, al, codons);
+    al.addCodonFrame(codons);
     return al;
   }
 
@@ -208,12 +166,14 @@ public class Dna
     for (int gd = 0; gd < selection.length; gd++)
     {
       SequenceI dna = selection[gd];
-      DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRef(),
-              jalview.datamodel.DBRefSource.DNACODINGDBS);
+      jalview.datamodel.DBRefEntry[] dnarefs = jalview.util.DBRefUtils
+              .selectRefs(dna.getDBRef(),
+                      jalview.datamodel.DBRefSource.DNACODINGDBS);
       if (dnarefs != null)
       {
         // intersect with pep
-        List<DBRefEntry> mappedrefs = new ArrayList<DBRefEntry>();
+        // intersect with pep
+        Vector mappedrefs = new Vector();
         DBRefEntry[] refs = dna.getDBRef();
         for (int d = 0; d < refs.length; d++)
         {
@@ -221,10 +181,11 @@ public class Dna
                   && refs[d].getMap().getMap().getFromRatio() == 3
                   && refs[d].getMap().getMap().getToRatio() == 1)
           {
-            mappedrefs.add(refs[d]); // add translated protein maps
+            mappedrefs.addElement(refs[d]); // add translated protein maps
           }
         }
-        dnarefs = mappedrefs.toArray(new DBRefEntry[mappedrefs.size()]);
+        dnarefs = new DBRefEntry[mappedrefs.size()];
+        mappedrefs.copyInto(dnarefs);
         for (int d = 0; d < dnarefs.length; d++)
         {
           Mapping mp = dnarefs[d].getMap();
@@ -247,106 +208,176 @@ public class Dna
   }
 
   /**
-   * Translate nucleotide alignment annotations onto translated amino acid
-   * alignment using codon mapping codons
+   * generate a set of translated protein products from annotated sequenceI
    * 
-   * @param al
-   *          the translated protein alignment
+   * @param selection
+   * @param viscontigs
+   * @param gapCharacter
+   * @param dataset
+   *          destination dataset for translated sequences
+   * @param annotations
+   * @param aWidth
+   * @return
    */
-  protected void translateAlignedAnnotations(AlignmentI al,
-          AlignedCodonFrame acf)
+  public static AlignmentI CdnaTranslate(SequenceI[] selection,
+          int viscontigs[], char gapCharacter, Alignment dataset)
   {
+    int alwidth = 0;
+    Vector cdnasqs = new Vector();
+    Vector cdnasqi = new Vector();
+    Vector cdnaprod = new Vector();
+    for (int gd = 0; gd < selection.length; gd++)
+    {
+      SequenceI dna = selection[gd];
+      jalview.datamodel.DBRefEntry[] dnarefs = jalview.util.DBRefUtils
+              .selectRefs(dna.getDBRef(),
+                      jalview.datamodel.DBRefSource.DNACODINGDBS);
+      if (dnarefs != null)
+      {
+        // intersect with pep
+        Vector mappedrefs = new Vector();
+        DBRefEntry[] refs = dna.getDBRef();
+        for (int d = 0; d < refs.length; d++)
+        {
+          if (refs[d].getMap() != null && refs[d].getMap().getMap() != null
+                  && refs[d].getMap().getMap().getFromRatio() == 3
+                  && refs[d].getMap().getMap().getToRatio() == 1)
+          {
+            mappedrefs.addElement(refs[d]); // add translated protein maps
+          }
+        }
+        dnarefs = new DBRefEntry[mappedrefs.size()];
+        mappedrefs.copyInto(dnarefs);
+        for (int d = 0; d < dnarefs.length; d++)
+        {
+          Mapping mp = dnarefs[d].getMap();
+          StringBuffer sqstr = new StringBuffer();
+          if (mp != null)
+          {
+            Mapping intersect = mp.intersectVisContigs(viscontigs);
+            // generate seqstring for this sequence based on mapping
+
+            if (sqstr.length() > alwidth)
+              alwidth = sqstr.length();
+            cdnasqs.addElement(sqstr.toString());
+            cdnasqi.addElement(dna);
+            cdnaprod.addElement(intersect);
+          }
+        }
+      }
+      SequenceI[] cdna = new SequenceI[cdnasqs.size()];
+      DBRefEntry[] prods = new DBRefEntry[cdnaprod.size()];
+      String[] xons = new String[cdnasqs.size()];
+      cdnasqs.copyInto(xons);
+      cdnaprod.copyInto(prods);
+      cdnasqi.copyInto(cdna);
+      return CdnaTranslate(cdna, xons, prods, viscontigs, gapCharacter,
+              null, alwidth, dataset);
+    }
+    return null;
+  }
+
+  /**
+   * translate na alignment annotations onto translated amino acid alignment al
+   * using codon mapping codons
+   * 
+   * @param annotations
+   * @param al
+   * @param codons
+   */
+  public static void translateAlignedAnnotations(
+          AlignmentAnnotation[] annotations, AlignmentI al,
+          AlignedCodonFrame codons)
+  {
+    // //////////////////////////////
+    // Copy annotations across
+    //
     // Can only do this for columns with consecutive codons, or where
     // annotation is sequence associated.
 
+    int pos, a, aSize;
     if (annotations != null)
     {
-      for (AlignmentAnnotation annotation : annotations)
+      for (int i = 0; i < annotations.length; i++)
       {
-        /*
-         * Skip hidden or autogenerated annotation. Also (for now), RNA
-         * secondary structure annotation. If we want to show this against
-         * protein we need a smarter way to 'translate' without generating
-         * invalid (unbalanced) structure annotation.
-         */
-        if (annotation.autoCalculated || !annotation.visible
-                || annotation.isRNA())
+        // Skip any autogenerated annotation
+        if (annotations[i].autoCalculated)
         {
           continue;
         }
 
-        int aSize = aaWidth;
-        Annotation[] anots = (annotation.annotations == null) ? null
-                : new Annotation[aSize];
+        aSize = codons.getaaWidth(); // aa alignment width.
+        jalview.datamodel.Annotation[] anots = (annotations[i].annotations == null) ? null
+                : new jalview.datamodel.Annotation[aSize];
         if (anots != null)
         {
-          for (int a = 0; a < aSize; a++)
+          for (a = 0; a < aSize; a++)
           {
             // process through codon map.
-            if (a < alignedCodons.length && alignedCodons[a] != null
-                    && alignedCodons[a].pos1 == (alignedCodons[a].pos3 - 2))
+            if (codons.codons[a] != null
+                    && codons.codons[a][0] == (codons.codons[a][2] - 2))
             {
-              anots[a] = getCodonAnnotation(alignedCodons[a],
-                      annotation.annotations);
+              anots[a] = getCodonAnnotation(codons.codons[a],
+                      annotations[i].annotations);
             }
           }
         }
 
-        AlignmentAnnotation aa = new AlignmentAnnotation(annotation.label,
-                annotation.description, anots);
-        aa.graph = annotation.graph;
-        aa.graphGroup = annotation.graphGroup;
-        aa.graphHeight = annotation.graphHeight;
-        if (annotation.getThreshold() != null)
+        jalview.datamodel.AlignmentAnnotation aa = new jalview.datamodel.AlignmentAnnotation(
+                annotations[i].label, annotations[i].description, anots);
+        aa.graph = annotations[i].graph;
+        aa.graphGroup = annotations[i].graphGroup;
+        aa.graphHeight = annotations[i].graphHeight;
+        if (annotations[i].getThreshold() != null)
         {
-          aa.setThreshold(new GraphLine(annotation.getThreshold()));
+          aa.setThreshold(new jalview.datamodel.GraphLine(annotations[i]
+                  .getThreshold()));
         }
-        if (annotation.hasScore)
+        if (annotations[i].hasScore)
         {
-          aa.setScore(annotation.getScore());
+          aa.setScore(annotations[i].getScore());
         }
-
-        final SequenceI seqRef = annotation.sequenceRef;
-        if (seqRef != null)
+        if (annotations[i].sequenceRef != null)
         {
-          SequenceI aaSeq = acf.getAaForDnaSeq(seqRef);
+          SequenceI aaSeq = codons
+                  .getAaForDnaSeq(annotations[i].sequenceRef);
           if (aaSeq != null)
           {
             // aa.compactAnnotationArray(); // throw away alignment annotation
             // positioning
             aa.setSequenceRef(aaSeq);
-            // rebuild mapping
-            aa.createSequenceMapping(aaSeq, aaSeq.getStart(), true);
+            aa.createSequenceMapping(aaSeq, aaSeq.getStart(), true); // rebuild
+            // mapping
             aa.adjustForAlignment();
             aaSeq.addAlignmentAnnotation(aa);
           }
+
         }
         al.addAnnotation(aa);
       }
     }
   }
 
-  private static Annotation getCodonAnnotation(AlignedCodon is,
+  private static Annotation getCodonAnnotation(int[] is,
           Annotation[] annotations)
   {
     // Have a look at all the codon positions for annotation and put the first
     // one found into the translated annotation pos.
     int contrib = 0;
     Annotation annot = null;
-    for (int p = 1; p <= 3; p++)
+    for (int p = 0; p < 3; p++)
     {
-      int dnaCol = is.getBaseColumn(p);
-      if (annotations[dnaCol] != null)
+      if (annotations[is[p]] != null)
       {
         if (annot == null)
         {
-          annot = new Annotation(annotations[dnaCol]);
+          annot = new Annotation(annotations[is[p]]);
           contrib = 1;
         }
         else
         {
           // merge with last
-          Annotation cpy = new Annotation(annotations[dnaCol]);
+          Annotation cpy = new Annotation(annotations[is[p]]);
           if (annot.colour == null)
           {
             annot.colour = cpy.colour;
@@ -370,7 +401,7 @@ public class Dna
     }
     if (contrib > 1)
     {
-      annot.value /= contrib;
+      annot.value /= (float) contrib;
     }
     return annot;
   }
@@ -382,74 +413,66 @@ public class Dna
    *          sequence displayed under viscontigs visible columns
    * @param seqstring
    *          ORF read in some global alignment reference frame
-   * @param acf
+   * @param viscontigs
+   *          mapping from global reference frame to visible seqstring ORF read
+   * @param codons
    *          Definition of global ORF alignment reference frame
-   * @param proteinSeqs
+   * @param gapCharacter
+   * @param newSeq
    * @return sequence ready to be added to alignment.
    */
-  protected SequenceI translateCodingRegion(SequenceI selection,
-          String seqstring, AlignedCodonFrame acf,
-          List<SequenceI> proteinSeqs)
+  public static SequenceI translateCodingRegion(SequenceI selection,
+          String seqstring, int[] viscontigs, AlignedCodonFrame codons,
+          char gapCharacter, DBRefEntry product)
   {
-    List<int[]> skip = new ArrayList<int[]>();
+    Vector skip = new Vector();
     int skipint[] = null;
     ShiftList vismapping = new ShiftList(); // map from viscontigs to seqstring
     // intervals
-    int vc;
-    int[] scontigs = new int[contigs.length];
+    int vc, scontigs[] = new int[viscontigs.length];
     int npos = 0;
-    for (vc = 0; vc < contigs.length; vc += 2)
+    for (vc = 0; vc < viscontigs.length; vc += 2)
     {
       if (vc == 0)
       {
-        vismapping.addShift(npos, contigs[vc]);
+        vismapping.addShift(npos, viscontigs[vc]);
       }
       else
       {
         // hidden region
-        vismapping.addShift(npos, contigs[vc] - contigs[vc - 1] + 1);
+        vismapping.addShift(npos, viscontigs[vc] - viscontigs[vc - 1] + 1);
       }
-      scontigs[vc] = contigs[vc];
-      scontigs[vc + 1] = contigs[vc + 1];
+      scontigs[vc] = viscontigs[vc];
+      scontigs[vc + 1] = viscontigs[vc + 1];
     }
 
-    // allocate a roughly sized buffer for the protein sequence
-    StringBuilder protein = new StringBuilder(seqstring.length() / 2);
-    String seq = seqstring.replace('U', 'T').replace('u', 'T');
+    StringBuffer protein = new StringBuffer();
+    String seq = seqstring.replace('U', 'T');
     char codon[] = new char[3];
-    int cdp[] = new int[3];
-    int rf = 0;
-    int lastnpos = 0;
-    int nend;
+    int cdp[] = new int[3], rf = 0, lastnpos = 0, nend;
     int aspos = 0;
     int resSize = 0;
     for (npos = 0, nend = seq.length(); npos < nend; npos++)
     {
-      if (!Comparison.isGap(seq.charAt(npos)))
+      if (!jalview.util.Comparison.isGap(seq.charAt(npos)))
       {
         cdp[rf] = npos; // store position
         codon[rf++] = seq.charAt(npos); // store base
       }
+      // filled an RF yet ?
       if (rf == 3)
       {
-        /*
-         * Filled up a reading frame...
-         */
-        AlignedCodon alignedCodon = new AlignedCodon(cdp[0], cdp[1], cdp[2]);
         String aa = ResidueProperties.codonTranslate(new String(codon));
         rf = 0;
-        final String gapString = String.valueOf(gapChar);
         if (aa == null)
         {
-          aa = gapString;
+          aa = String.valueOf(gapCharacter);
           if (skipint == null)
           {
-            skipint = new int[] { alignedCodon.pos1, alignedCodon.pos3 /*
-                                                                        * cdp[0],
-                                                                        * cdp[2]
-                                                                        */};
+            skipint = new int[]
+            { cdp[0], cdp[2] };
           }
-          skipint[1] = alignedCodon.pos3; // cdp[2];
+          skipint[1] = cdp[2];
         }
         else
         {
@@ -458,152 +481,77 @@ public class Dna
             // edit scontigs
             skipint[0] = vismapping.shift(skipint[0]);
             skipint[1] = vismapping.shift(skipint[1]);
-            for (vc = 0; vc < scontigs.length;)
+            for (vc = 0; vc < scontigs.length; vc += 2)
             {
               if (scontigs[vc + 1] < skipint[0])
               {
-                // before skipint starts
-                vc += 2;
                 continue;
               }
-              if (scontigs[vc] > skipint[1])
-              {
-                // finished editing so
-                break;
-              }
-              // Edit the contig list to include the skipped region which did
-              // not translate
-              int[] t;
-              // from : s1 e1 s2 e2 s3 e3
-              // to s: s1 e1 s2 k0 k1 e2 s3 e3
-              // list increases by one unless one boundary (s2==k0 or e2==k1)
-              // matches, and decreases by one if skipint intersects whole
-              // visible contig
               if (scontigs[vc] <= skipint[0])
               {
                 if (skipint[0] == scontigs[vc])
                 {
-                  // skipint at start of contig
-                  // shift the start of this contig
-                  if (scontigs[vc + 1] > skipint[1])
-                  {
-                    scontigs[vc] = skipint[1];
-                    vc += 2;
-                  }
-                  else
-                  {
-                    if (scontigs[vc + 1] == skipint[1])
-                    {
-                      // remove the contig
-                      t = new int[scontigs.length - 2];
-                      if (vc > 0)
-                      {
-                        System.arraycopy(scontigs, 0, t, 0, vc - 1);
-                      }
-                      if (vc + 2 < t.length)
-                      {
-                        System.arraycopy(scontigs, vc + 2, t, vc, t.length
-                                - vc + 2);
-                      }
-                      scontigs = t;
-                    }
-                    else
-                    {
-                      // truncate contig to before the skipint region
-                      scontigs[vc + 1] = skipint[0] - 1;
-                      vc += 2;
-                    }
-                  }
+
                 }
                 else
                 {
-                  // scontig starts before start of skipint
-                  if (scontigs[vc + 1] < skipint[1])
-                  {
-                    // skipint truncates end of scontig
-                    scontigs[vc + 1] = skipint[0] - 1;
-                    vc += 2;
-                  }
-                  else
-                  {
-                    // divide region to new contigs
-                    t = new int[scontigs.length + 2];
-                    System.arraycopy(scontigs, 0, t, 0, vc + 1);
-                    t[vc + 1] = skipint[0];
-                    t[vc + 2] = skipint[1];
-                    System.arraycopy(scontigs, vc + 1, t, vc + 3,
-                            scontigs.length - (vc + 1));
-                    scontigs = t;
-                    vc += 4;
-                  }
+                  int[] t = new int[scontigs.length + 2];
+                  System.arraycopy(scontigs, 0, t, 0, vc - 1);
+                  // scontigs[vc]; //
                 }
               }
             }
-            skip.add(skipint);
+            skip.addElement(skipint);
             skipint = null;
           }
           if (aa.equals("STOP"))
           {
-            aa = STOP_ASTERIX;
+            aa = "X";
           }
           resSize++;
         }
+        // insert/delete gaps prior to this codon - if necessary
         boolean findpos = true;
         while (findpos)
         {
-          /*
-           * Compare this codon's base positions with those currently aligned to
-           * this column in the translation.
-           */
-          final int compareCodonPos = compareCodonPos(alignedCodon,
-                  alignedCodons[aspos]);
-          switch (compareCodonPos)
+          // first ensure that the codons array is long enough.
+          codons.checkCodonFrameWidth(aspos);
+          // now check to see if we place the aa at the current aspos in the
+          // protein alignment
+          switch (Dna.compare_codonpos(cdp, codons.codons[aspos]))
           {
           case -1:
-
-            /*
-             * This codon should precede the mapped positions - need to insert a
-             * gap in all prior sequences.
-             */
-            insertAAGap(aspos, proteinSeqs);
+            codons.insertAAGap(aspos, gapCharacter);
             findpos = false;
             break;
-
           case +1:
-
-            /*
-             * This codon belongs after the aligned codons at aspos. Prefix it
-             * with a gap and try the next position.
-             */
-            aa = gapString + aa;
+            // this aa appears after the aligned codons at aspos, so prefix it
+            // with a gap
+            aa = "" + gapCharacter + aa;
             aspos++;
-            break;
-
+            // if (aspos >= codons.aaWidth)
+            // codons.aaWidth = aspos + 1;
+            break; // check the next position for alignment
           case 0:
-
-            /*
-             * Exact match - codon 'belongs' at this translated position.
-             */
+            // codon aligns at aspos position.
             findpos = false;
           }
         }
+        // codon aligns with all other sequence residues found at aspos
         protein.append(aa);
         lastnpos = npos;
-        if (alignedCodons[aspos] == null)
+        if (codons.codons[aspos] == null)
         {
           // mark this column as aligning to this aligned reading frame
-          alignedCodons[aspos] = alignedCodon;
+          codons.codons[aspos] = new int[]
+          { cdp[0], cdp[1], cdp[2] };
         }
-        else if (!alignedCodons[aspos].equals(alignedCodon))
-        {
-          throw new IllegalStateException("Tried to coalign "
-                  + alignedCodons[aspos].toString() + " with "
-                  + alignedCodon.toString());
-        }
-        if (aspos >= aaWidth)
+        if (aspos >= codons.aaWidth)
         {
           // update maximum alignment width
-          aaWidth = aspos;
+          // (we can do this without calling checkCodonFrameWidth because it was
+          // already done above)
+          codons.setAaWidth(aspos);
         }
         // ready for next translated reading frame alignment position (if any)
         aspos++;
@@ -615,8 +563,8 @@ public class Dna
               protein.toString());
       if (rf != 0)
       {
-        final String errMsg = "trimming contigs for incomplete terminal codon.";
-        System.err.println(errMsg);
+        jalview.bin.Cache.log
+                .debug("trimming contigs for incomplete terminal codon.");
         // map and trim contigs to ORF region
         vc = scontigs.length - 1;
         lastnpos = vismapping.shift(lastnpos); // place npos in context of
@@ -645,9 +593,7 @@ public class Dna
           scontigs = t;
         }
         if (vc <= 0)
-        {
           scontigs = null;
-        }
       }
       if (scontigs != null)
       {
@@ -658,9 +604,7 @@ public class Dna
           scontigs[vc] = selection.findPosition(scontigs[vc]); // not from 1!
           scontigs[vc + 1] = selection.findPosition(scontigs[vc + 1]); // exclusive
           if (scontigs[vc + 1] == selection.getEnd())
-          {
             break;
-          }
         }
         // trim trailing empty intervals.
         if ((vc + 2) < scontigs.length)
@@ -683,73 +627,36 @@ public class Dna
          * range iv[0] = skipint[1]; } else { } } } else if (iv[0]<skipint[0]) {
          * iv = (int[]) narange.elementAt(vc+1); } } while (iv[0]) } }
          */
-        MapList map = new MapList(scontigs, new int[] { 1, resSize }, 3, 1);
+        MapList map = new MapList(scontigs, new int[]
+        { 1, resSize }, 3, 1);
 
+        // update newseq as if it was generated as mapping from product
+
+        if (product != null)
+        {
+          newseq.setName(product.getSource() + "|"
+                  + product.getAccessionId());
+          if (product.getMap() != null)
+          {
+            // Mapping mp = product.getMap();
+            // newseq.setStart(mp.getPosition(scontigs[0]));
+            // newseq.setEnd(mp
+            // .getPosition(scontigs[scontigs.length - 1]));
+          }
+        }
         transferCodedFeatures(selection, newseq, map, null, null);
-
-        /*
-         * Construct a dataset sequence for our new peptide.
-         */
-        SequenceI rseq = newseq.deriveSequence();
-
-        /*
-         * Store a mapping (between the dataset sequences for the two
-         * sequences).
-         */
-        // SIDE-EFFECT: acf stores the aligned sequence reseq; to remove!
-        acf.addMap(selection, rseq, map);
+        SequenceI rseq = newseq.deriveSequence(); // construct a dataset
+        // sequence for our new
+        // peptide, regardless.
+        // store a mapping (this actually stores a mapping between the dataset
+        // sequences for the two sequences
+        codons.addMap(selection, rseq, map);
         return rseq;
       }
     }
     // register the mapping somehow
     //
     return null;
-  }
-
-  /**
-   * Insert a gap into the aligned proteins and the codon mapping array.
-   * 
-   * @param pos
-   * @param proteinSeqs
-   * @return
-   */
-  protected void insertAAGap(int pos, List<SequenceI> proteinSeqs)
-  {
-    aaWidth++;
-    for (SequenceI seq : proteinSeqs)
-    {
-      seq.insertCharAt(pos, gapChar);
-    }
-
-    checkCodonFrameWidth();
-    if (pos < aaWidth)
-    {
-      aaWidth++;
-
-      /*
-       * Shift from [pos] to the end one to the right, and null out [pos]
-       */
-      System.arraycopy(alignedCodons, pos, alignedCodons, pos + 1,
-              alignedCodons.length - pos - 1);
-      alignedCodons[pos] = null;
-    }
-  }
-
-  /**
-   * Check the codons array can accommodate a single insertion, if not resize
-   * it.
-   */
-  protected void checkCodonFrameWidth()
-  {
-    if (alignedCodons[alignedCodons.length - 1] != null)
-    {
-      /*
-       * arraycopy insertion would bump a filled slot off the end, so expand.
-       */
-      AlignedCodon[] c = new AlignedCodon[alignedCodons.length + 10];
-      System.arraycopy(alignedCodons, 0, c, 0, alignedCodons.length);
-      alignedCodons = c;
-    }
   }
 
   /**
@@ -762,19 +669,19 @@ public class Dna
    * @param pep
    * @param map
    * @param featureTypes
-   *          hash whose keys are the displayed feature type strings
+   *          hash who's keys are the displayed feature type strings
    * @param featureGroups
    *          hash where keys are feature groups and values are Boolean objects
    *          indicating if they are displayed.
    */
   private static void transferCodedFeatures(SequenceI dna, SequenceI pep,
-          MapList map, Map<String, Object> featureTypes,
-          Map<String, Boolean> featureGroups)
+          MapList map, Hashtable featureTypes, Hashtable featureGroups)
   {
-    SequenceFeature[] sfs = dna.getSequenceFeatures();
+    SequenceFeature[] sf = dna.getDatasetSequence().getSequenceFeatures();
     Boolean fgstate;
-    DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRef(),
-            DBRefSource.DNACODINGDBS);
+    jalview.datamodel.DBRefEntry[] dnarefs = jalview.util.DBRefUtils
+            .selectRefs(dna.getDBRef(),
+                    jalview.datamodel.DBRefSource.DNACODINGDBS);
     if (dnarefs != null)
     {
       // intersect with pep
@@ -786,16 +693,16 @@ public class Dna
         }
       }
     }
-    if (sfs != null)
+    if (sf != null)
     {
-      for (SequenceFeature sf : sfs)
+      for (int f = 0; f < sf.length; f++)
       {
-        fgstate = (featureGroups == null) ? null : featureGroups
-                .get(sf.featureGroup);
-        if ((featureTypes == null || featureTypes.containsKey(sf.getType()))
-                && (fgstate == null || fgstate.booleanValue()))
+        fgstate = (featureGroups == null) ? null : ((Boolean) featureGroups
+                .get(sf[f].featureGroup));
+        if ((featureTypes == null || featureTypes.containsKey(sf[f]
+                .getType())) && (fgstate == null || fgstate.booleanValue()))
         {
-          if (FeatureProperties.isCodingFeature(null, sf.getType()))
+          if (FeatureProperties.isCodingFeature(null, sf[f].getType()))
           {
             // if (map.intersectsFrom(sf[f].begin, sf[f].end))
             {

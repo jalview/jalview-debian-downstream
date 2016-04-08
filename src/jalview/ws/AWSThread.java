@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws;
 
@@ -28,11 +25,7 @@ import jalview.datamodel.AlignmentView;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.WebserviceInfo;
-import jalview.util.MessageManager;
-import jalview.viewmodel.seqfeatures.FeatureRendererSettings;
-
-import java.util.LinkedHashSet;
-import java.util.Set;
+import jalview.gui.FeatureRenderer.FeatureRendererSettings;
 
 public abstract class AWSThread extends Thread
 {
@@ -60,7 +53,7 @@ public abstract class AWSThread extends Thread
   /**
    * dataset sequence relationships to be propagated onto new results
    */
-  protected Set<AlignedCodonFrame> codonframe = null;
+  protected AlignedCodonFrame[] codonframe = null;
 
   /**
    * are there jobs still running in this thread.
@@ -89,11 +82,6 @@ public abstract class AWSThread extends Thread
    * will be concatenated to the URL
    */
   protected String WsUrl = null;
-
-  /*
-   * The AlignFrame from which the service was requested.
-   */
-  private AlignFrame alignFrame;
 
   /**
    * generic web service job/subjob poll loop
@@ -132,9 +120,8 @@ public abstract class AWSThread extends Thread
           } catch (Exception ex)
           {
             // Deal with Transaction exceptions
-            wsInfo.appendProgressText(jobs[j].jobnum, MessageManager
-                    .formatMessage("info.server_exception", new Object[] {
-                        WebServiceName, ex.getMessage() }));
+            wsInfo.appendProgressText(jobs[j].jobnum, "\n" + WebServiceName
+                    + " Server exception!\n" + ex.getMessage());
             // always output the exception's stack trace to the log
             Cache.log.warn(WebServiceName + " job(" + jobs[j].jobnum
                     + ") Server exception.");
@@ -176,7 +163,30 @@ public abstract class AWSThread extends Thread
         jstate.updateJobPanelState(wsInfo, OutputHeader, jobs[j]);
       }
       // Decide on overall state based on collected jobs[] states
-      updateGlobalStatus(jstate);
+      if (jstate.running > 0)
+      {
+        wsInfo.setStatus(WebserviceInfo.STATE_RUNNING);
+      }
+      else if (jstate.queuing > 0)
+      {
+        wsInfo.setStatus(WebserviceInfo.STATE_QUEUING);
+      }
+      else
+      {
+        jobComplete = true;
+        if (jstate.finished > 0)
+        {
+          wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_OK);
+        }
+        else if (jstate.error > 0)
+        {
+          wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
+        }
+        else if (jstate.serror > 0)
+        {
+          wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
+        }
+      }
       if (!jobComplete)
       {
         try
@@ -198,38 +208,7 @@ public abstract class AWSThread extends Thread
     {
       Cache.log
               .debug("WebServiceJob poll loop finished with no jobs created.");
-      wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
-      wsInfo.appendProgressText(MessageManager
-              .getString("info.no_jobs_ran"));
       wsInfo.setFinishedNoResults();
-    }
-  }
-
-  protected void updateGlobalStatus(JobStateSummary jstate)
-  {
-    if (jstate.running > 0)
-    {
-      wsInfo.setStatus(WebserviceInfo.STATE_RUNNING);
-    }
-    else if (jstate.queuing > 0)
-    {
-      wsInfo.setStatus(WebserviceInfo.STATE_QUEUING);
-    }
-    else
-    {
-      jobComplete = true;
-      if (jstate.finished > 0)
-      {
-        wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_OK);
-      }
-      else if (jstate.error > 0)
-      {
-        wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
-      }
-      else if (jstate.serror > 0)
-      {
-        wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
-      }
     }
   }
 
@@ -305,12 +284,13 @@ public abstract class AWSThread extends Thread
       SequenceI[] alignment = al.getSequencesArray();
       for (int sq = 0; sq < alignment.length; sq++)
       {
-        for (AlignedCodonFrame acf : codonframe)
+        for (int i = 0; i < codonframe.length; i++)
         {
-          final SequenceI seq = alignment[sq];
-          if (acf != null && acf.involvesSequence(seq))
+          if (codonframe[i] != null
+                  && codonframe[i].involvesSequence(alignment[sq]))
           {
-            al.addCodonFrame(acf);
+            al.addCodonFrame(codonframe[i]);
+            codonframe[i] = null;
             break;
           }
         }
@@ -355,7 +335,6 @@ public abstract class AWSThread extends Thread
 
   /**
    * Extracts additional info from alignment view's context.
-   * 
    * @param alframe
    *          - reference for copying mappings and display styles across
    * @param wsinfo2
@@ -369,7 +348,7 @@ public abstract class AWSThread extends Thread
           AlignmentView alview, String wsurl2)
   {
     super();
-    this.alignFrame = alframe;
+    // this.alignFrame = alframe;
     currentView = alframe.getCurrentView().getAlignment();
     featureSettings = alframe.getFeatureRenderer().getSettings();
     defGapChar = alframe.getViewport().getGapCharacter();
@@ -378,18 +357,13 @@ public abstract class AWSThread extends Thread
     WsUrl = wsurl2;
     if (alframe != null)
     {
-      Set<AlignedCodonFrame> cf = alframe.getViewport().getAlignment()
+      AlignedCodonFrame[] cf = alframe.getViewport().getAlignment()
               .getCodonFrames();
       if (cf != null)
       {
-        codonframe = new LinkedHashSet<AlignedCodonFrame>();
-        codonframe.addAll(cf);
+        codonframe = new AlignedCodonFrame[cf.length];
+        System.arraycopy(cf, 0, codonframe, 0, cf.length);
       }
     }
-  }
-
-  protected AlignFrame getRequestingAlignFrame()
-  {
-    return this.alignFrame;
   }
 }

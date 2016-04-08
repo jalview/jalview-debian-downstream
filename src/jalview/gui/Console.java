@@ -1,46 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.util.MessageManager;
-
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
-import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.PrintStream;
-
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
+import java.io.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
 import org.apache.log4j.SimpleLayout;
 
@@ -111,7 +91,7 @@ public class Console extends WindowAdapter implements WindowListener,
     // textArea = cpt.getTextArea();
     textArea = new JTextArea();
     textArea.setEditable(false);
-    JButton button = new JButton(MessageManager.getString("action.clear"));
+    JButton button = new JButton("clear");
 
     // frame = cpt;
     frame.getContentPane().setLayout(new BorderLayout());
@@ -517,7 +497,7 @@ public class Console extends WindowAdapter implements WindowListener,
       {
       }
       throw new NullPointerException(
-              MessageManager.getString("exception.application_test_npe"));
+              "Application test: throwing an NullPointerException It should arrive at the console");
     }
   }
 

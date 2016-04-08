@@ -7,9 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import jalview.util.MessageManager;
-
-import java.util.Hashtable;
+import java.util.*;
 
 /**
  Shareware: package pat
@@ -261,9 +259,7 @@ public abstract class Pattern
    */
   Pattern clone1(Hashtable h)
   {
-    throw new Error(MessageManager.formatMessage(
-            "error.no_such_method_as_clone1_for", new String[] { getClass()
-                    .getName() }));
+    throw new Error("No such method as clone1 for " + getClass().getName());
   }
 
   Pattern clone(Hashtable h)
@@ -276,7 +272,7 @@ public abstract class Pattern
     p = clone1(h);
     if (p == null)
     {
-      throw new Error(MessageManager.getString("error.null_from_clone1"));
+      throw new Error("Null from clone1!");
     }
     h.put(this, p);
     h.put(p, p);

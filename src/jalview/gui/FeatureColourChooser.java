@@ -1,51 +1,33 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.datamodel.GraphLine;
-import jalview.schemes.AnnotationColourGradient;
-import jalview.schemes.GraduatedColor;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Hashtable;
-
-import javax.swing.BorderFactory;
-import javax.swing.JCheckBox;
-import javax.swing.JColorChooser;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.JTextField;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 import javax.swing.border.LineBorder;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.event.*;
+
+import jalview.datamodel.*;
+import jalview.schemes.*;
+import java.awt.Dimension;
 
 public class FeatureColourChooser extends JalviewDialog
 {
@@ -93,8 +75,7 @@ public class FeatureColourChooser extends JalviewDialog
     this.fr = frender;
     this.type = type;
     ap = fr.ap;
-    initDialogFrame(this, true, block, "Graduated Feature Colour for "
-            + type, 480, 185);
+    initDialogFrame(this,true, block,"Graduated Feature Colour for " + type, 480, 185);
     // frame.setLayer(JLayeredPane.PALETTE_LAYER);
     // Desktop.addInternalFrame(frame, "Graduated Feature Colour for "+type,
     // 480, 145);
@@ -122,10 +103,10 @@ public class FeatureColourChooser extends JalviewDialog
       }
     });
 
-    float mm[] = ((float[][]) fr.getMinMax().get(type))[0];
+    float mm[] = ((float[][]) fr.minmax.get(type))[0];
     min = mm[0];
     max = mm[1];
-    oldcs = fr.getFeatureColours().get(type);
+    oldcs = fr.featureColours.get(type);
     if (oldcs instanceof GraduatedColor)
     {
       if (((GraduatedColor) oldcs).isAutoScale())
@@ -199,7 +180,7 @@ public class FeatureColourChooser extends JalviewDialog
     minColour.setFont(JvSwingUtils.getLabelFont());
     minColour.setBorder(BorderFactory.createLineBorder(Color.black));
     minColour.setPreferredSize(new Dimension(40, 20));
-    minColour.setToolTipText(MessageManager.getString("label.min_colour"));
+    minColour.setToolTipText("Minimum Colour");
     minColour.addMouseListener(new MouseAdapter()
     {
       public void mousePressed(MouseEvent e)
@@ -213,7 +194,7 @@ public class FeatureColourChooser extends JalviewDialog
     maxColour.setFont(JvSwingUtils.getLabelFont());
     maxColour.setBorder(BorderFactory.createLineBorder(Color.black));
     maxColour.setPreferredSize(new Dimension(40, 20));
-    maxColour.setToolTipText(MessageManager.getString("label.max_colour"));
+    maxColour.setToolTipText("Maximum Colour");
     maxColour.addMouseListener(new MouseAdapter()
     {
       public void mousePressed(MouseEvent e)
@@ -225,9 +206,9 @@ public class FeatureColourChooser extends JalviewDialog
       }
     });
     maxColour.setBorder(new LineBorder(Color.black));
-    minText.setText(MessageManager.getString("label.min"));
+    minText.setText("Min:");
     minText.setFont(JvSwingUtils.getLabelFont());
-    maxText.setText(MessageManager.getString("label.max"));
+    maxText.setText("Max:");
     maxText.setFont(JvSwingUtils.getLabelFont());
     this.setLayout(borderLayout1);
     jPanel2.setLayout(flowLayout1);
@@ -240,14 +221,10 @@ public class FeatureColourChooser extends JalviewDialog
         threshold_actionPerformed(e);
       }
     });
-    threshold.setToolTipText(MessageManager
-            .getString("label.threshold_feature_display_by_score"));
-    threshold.addItem(MessageManager
-            .getString("label.threshold_feature_no_thereshold")); // index 0
-    threshold.addItem(MessageManager
-            .getString("label.threshold_feature_above_thereshold")); // index 1
-    threshold.addItem(MessageManager
-            .getString("label.threshold_feature_below_thereshold")); // index 2
+    threshold.setToolTipText("Threshold the feature display by score.");
+    threshold.addItem("No Threshold"); // index 0
+    threshold.addItem("Above Threshold"); // index 1
+    threshold.addItem("Below Threshold"); // index 2
     jPanel3.setLayout(flowLayout2);
     thresholdValue.addActionListener(new ActionListener()
     {
@@ -262,16 +239,14 @@ public class FeatureColourChooser extends JalviewDialog
     slider.setEnabled(false);
     slider.setOpaque(false);
     slider.setPreferredSize(new Dimension(100, 32));
-    slider.setToolTipText(MessageManager
-            .getString("label.adjust_thereshold"));
+    slider.setToolTipText("Adjust threshold");
     thresholdValue.setEnabled(false);
     thresholdValue.setColumns(7);
     jPanel3.setBackground(Color.white);
     thresholdIsMin.setBackground(Color.white);
-    thresholdIsMin.setText(MessageManager
-            .getString("label.threshold_minmax"));
-    thresholdIsMin.setToolTipText(MessageManager
-            .getString("label.toggle_absolute_relative_display_threshold"));
+    thresholdIsMin.setText("Threshold is Min/Max");
+    thresholdIsMin
+            .setToolTipText("Toggle between absolute and relative display threshold.");
     thresholdIsMin.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent actionEvent)
@@ -280,11 +255,9 @@ public class FeatureColourChooser extends JalviewDialog
       }
     });
     colourByLabel.setBackground(Color.white);
+    colourByLabel.setText("Colour by Label");
     colourByLabel
-            .setText(MessageManager.getString("label.colour_by_label"));
-    colourByLabel
-            .setToolTipText(MessageManager
-                    .getString("label.display_features_same_type_different_label_using_different_colour"));
+            .setToolTipText("Display features of the same type with a different label using a different colour. (e.g. domain features)");
     colourByLabel.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent actionEvent)
@@ -354,8 +327,7 @@ public class FeatureColourChooser extends JalviewDialog
   public void minColour_actionPerformed()
   {
     Color col = JColorChooser.showDialog(this,
-            MessageManager.getString("label.select_colour_minimum_value"),
-            minColour.getBackground());
+            "Select Colour for Minimum Value", minColour.getBackground());
     if (col != null)
     {
       minColour.setBackground(col);
@@ -368,8 +340,7 @@ public class FeatureColourChooser extends JalviewDialog
   public void maxColour_actionPerformed()
   {
     Color col = JColorChooser.showDialog(this,
-            MessageManager.getString("label.select_colour_maximum_value"),
-            maxColour.getBackground());
+            "Select Colour for Maximum Value", maxColour.getBackground());
     if (col != null)
     {
       maxColour.setBackground(col);
@@ -388,11 +359,11 @@ public class FeatureColourChooser extends JalviewDialog
     }
 
     int aboveThreshold = AnnotationColourGradient.NO_THRESHOLD;
-    if (threshold.getSelectedIndex() == 1)
+    if (threshold.getSelectedItem().equals("Above Threshold"))
     {
       aboveThreshold = AnnotationColourGradient.ABOVE_THRESHOLD;
     }
-    else if (threshold.getSelectedIndex() == 2)
+    else if (threshold.getSelectedItem().equals("Below Threshold"))
     {
       aboveThreshold = AnnotationColourGradient.BELOW_THRESHOLD;
     }
@@ -483,7 +454,7 @@ public class FeatureColourChooser extends JalviewDialog
       maxColour.setForeground(oldmaxColour);
       minColour.setForeground(oldminColour);
     }
-    fr.setColour(type, acg);
+    fr.featureColours.put(type, acg);
     cs = acg;
     ap.paintAlignment(false);
   }
@@ -501,6 +472,7 @@ public class FeatureColourChooser extends JalviewDialog
     changeColour();
   }
 
+
   public void cancelPressed()
   {
     reset();
@@ -508,7 +480,7 @@ public class FeatureColourChooser extends JalviewDialog
 
   void reset()
   {
-    fr.setColour(type, oldcs);
+    fr.featureColours.put(type, oldcs);
     ap.paintAlignment(false);
     cs = null;
   }

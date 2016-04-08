@@ -1,93 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.api.ViewStyleI;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.Checkbox;
-import java.awt.Choice;
-import java.awt.Color;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Frame;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-
-/**
- * This dialog allows the user to try different font settings and related
- * options. Changes are immediately visible on the alignment or tree. The user
- * can dismiss the dialog by confirming changes with 'OK', or reverting to
- * previous settings with 'Cancel'.
- */
-@SuppressWarnings("serial")
-public class FontChooser extends Panel implements ItemListener
+public class FontChooser extends Panel implements ActionListener,
+        ItemListener
 {
-  private static final Font VERDANA_11PT = new Font("Verdana", 0, 11);
+  AlignmentPanel ap;
 
-  private Choice fontSize = new Choice();
+  TreePanel tp;
 
-  private Choice fontStyle = new Choice();
+  Font oldFont;
 
-  private Choice fontName = new Choice();
+  boolean init = true;
 
-  private Checkbox scaleAsCdna = new Checkbox();
+  Frame frame;
 
-  private Button ok = new Button();
-
-  private Button cancel = new Button();
-
-  private AlignmentPanel ap;
-
-  private TreePanel tp;
-
-  private Font oldFont;
-
-  private int oldCharWidth = 0;
-
-  private boolean oldScaleProtein = false;
-
-  private Font lastSelected = null;
-
-  private int lastSelStyle = 0;
-
-  private int lastSelSize = 0;
-
-  private boolean init = true;
-
-  private Frame frame;
-
-  /**
-   * Constructor for a TreePanel font chooser
-   * 
-   * @param tp
-   */
   public FontChooser(TreePanel tp)
   {
     try
@@ -103,18 +48,8 @@ public class FontChooser extends Panel implements ItemListener
     init();
   }
 
-  /**
-   * Constructor for an AlignmentPanel font chooser
-   * 
-   * @param ap
-   */
   public FontChooser(AlignmentPanel ap)
   {
-    this.ap = ap;
-    oldFont = ap.av.getFont();
-    oldCharWidth = ap.av.getViewStyle().getCharWidth();
-    oldScaleProtein = ap.av.getViewStyle().isScaleProteinAsCdna();
-
     try
     {
       jbInit();
@@ -122,12 +57,12 @@ public class FontChooser extends Panel implements ItemListener
     {
       e.printStackTrace();
     }
+
+    this.ap = ap;
+    oldFont = ap.av.getFont();
     init();
   }
 
-  /**
-   * Populate choice lists and open this dialog
-   */
   void init()
   {
     String fonts[] = Toolkit.getDefaultToolkit().getFontList();
@@ -149,42 +84,42 @@ public class FontChooser extends Panel implements ItemListener
     fontSize.select(oldFont.getSize() + "");
     fontStyle.select(oldFont.getStyle());
 
-    this.frame = new Frame();
+    Frame frame = new Frame();
+    this.frame = frame;
     frame.add(this);
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("action.change_font"), 440, 115);
+    jalview.bin.JalviewLite.addFrame(frame, "Change Font", 440, 115);
 
     init = false;
   }
 
-  /**
-   * Actions on change of font name, size or style.
-   */
-  public void itemStateChanged(ItemEvent evt)
+  public void actionPerformed(ActionEvent evt)
   {
-    final Object source = evt.getSource();
-    if (source == fontName)
+    if (evt.getSource() == ok)
     {
-      fontName_actionPerformed();
+      ok_actionPerformed();
     }
-    else if (source == fontSize)
+    else if (evt.getSource() == cancel)
     {
-      fontSize_actionPerformed();
-    }
-    else if (source == fontStyle)
-    {
-      fontStyle_actionPerformed();
-    }
-    else if (source == scaleAsCdna)
-    {
-      scaleAsCdna_actionPerformed();
+      cancel_actionPerformed();
     }
   }
 
-  /**
-   * Close this dialog on OK to confirm any changes. Also updates the overview
-   * window if displayed.
-   */
+  public void itemStateChanged(ItemEvent evt)
+  {
+    if (evt.getSource() == fontName)
+    {
+      fontName_actionPerformed();
+    }
+    else if (evt.getSource() == fontSize)
+    {
+      fontSize_actionPerformed();
+    }
+    else if (evt.getSource() == fontStyle)
+    {
+      fontStyle_actionPerformed();
+    }
+  }
+
   protected void ok_actionPerformed()
   {
     frame.setVisible(false);
@@ -195,29 +130,14 @@ public class FontChooser extends Panel implements ItemListener
         ap.getOverviewPanel().updateOverviewImage();
       }
     }
+
   }
 
-  /**
-   * Close this dialog on Cancel, reverting to previous font settings.
-   */
   protected void cancel_actionPerformed()
   {
     if (ap != null)
     {
-      ap.av.setScaleProteinAsCdna(oldScaleProtein);
-      if (ap.av.getCodingComplement() != null)
-      {
-        ap.av.getCodingComplement().setScaleProteinAsCdna(oldScaleProtein);
-        ap.alignFrame.getSplitFrame().repaint();
-      }
-
       ap.av.setFont(oldFont);
-      ViewStyleI style = ap.av.getViewStyle();
-      if (style.getCharWidth() != oldCharWidth)
-      {
-        style.setCharWidth(oldCharWidth);
-        ap.av.setViewStyle(style);
-      }
       ap.paintAlignment(true);
     }
     else if (tp != null)
@@ -233,54 +153,20 @@ public class FontChooser extends Panel implements ItemListener
     frame.setVisible(false);
   }
 
-  /**
-   * DOCUMENT ME!
-   */
   void changeFont()
   {
-    if (lastSelected == null)
-    {
-      // initialise with original font
-      lastSelected = oldFont;
-      lastSelSize = oldFont.getSize();
-      lastSelStyle = oldFont.getStyle();
-    }
-
     Font newFont = new Font(fontName.getSelectedItem().toString(),
             fontStyle.getSelectedIndex(), Integer.parseInt(fontSize
                     .getSelectedItem().toString()));
-    FontMetrics fm = getGraphics().getFontMetrics(newFont);
-    double mw = fm.getStringBounds("M", getGraphics()).getWidth(), iw = fm
-            .getStringBounds("I", getGraphics()).getWidth();
-    if (mw < 1 || iw < 1)
-    {
-      // TODO: JAL-1100
-      fontName.select(lastSelected.getName());
-      fontStyle.select(lastSelStyle);
-      fontSize.select("" + lastSelSize);
-      JVDialog d = new JVDialog(this.frame,
-              MessageManager.getString("label.invalid_font"), true, 350,
-              200);
-      Panel mp = new Panel();
-      d.cancel.setVisible(false);
-      mp.setLayout(new FlowLayout());
-      mp.add(new Label(
-              "Font doesn't have letters defined\nso cannot be used\nwith alignment data."));
-      d.setMainPanel(mp);
-      d.setVisible(true);
-      return;
-    }
-    if (tp != null)
-    {
-      tp.setTreeFont(newFont);
-    }
-    else if (ap != null)
+    if (ap != null)
     {
       ap.av.setFont(newFont);
       ap.fontChanged();
     }
-    // remember last selected
-    lastSelected = newFont;
+    else if (tp != null)
+    {
+      tp.setTreeFont(newFont);
+    }
   }
 
   protected void fontName_actionPerformed()
@@ -310,115 +196,86 @@ public class FontChooser extends Panel implements ItemListener
     changeFont();
   }
 
-  /**
-   * Construct this panel's contents
-   * 
-   * @throws Exception
-   */
+  Label label1 = new Label();
+
+  protected Choice fontSize = new Choice();
+
+  protected Choice fontStyle = new Choice();
+
+  Label label2 = new Label();
+
+  Label label3 = new Label();
+
+  protected Choice fontName = new Choice();
+
+  Button ok = new Button();
+
+  Button cancel = new Button();
+
+  Panel panel1 = new Panel();
+
+  Panel panel2 = new Panel();
+
+  Panel panel3 = new Panel();
+
+  BorderLayout borderLayout1 = new BorderLayout();
+
+  BorderLayout borderLayout2 = new BorderLayout();
+
+  BorderLayout borderLayout3 = new BorderLayout();
+
+  Panel panel4 = new Panel();
+
+  Panel panel5 = new Panel();
+
+  BorderLayout borderLayout4 = new BorderLayout();
+
   private void jbInit() throws Exception
   {
-    this.setLayout(new BorderLayout());
-    this.setBackground(Color.white);
-
-    Label fontLabel = new Label(MessageManager.getString("label.font"));
-    fontLabel.setFont(VERDANA_11PT);
-    fontLabel.setAlignment(Label.RIGHT);
-    fontSize.setFont(VERDANA_11PT);
+    label1.setFont(new java.awt.Font("Verdana", 0, 11));
+    label1.setAlignment(Label.RIGHT);
+    label1.setText("Font: ");
+    this.setLayout(borderLayout4);
+    fontSize.setFont(new java.awt.Font("Verdana", 0, 11));
     fontSize.addItemListener(this);
-    fontStyle.setFont(VERDANA_11PT);
+    fontStyle.setFont(new java.awt.Font("Verdana", 0, 11));
     fontStyle.addItemListener(this);
-
-    Label sizeLabel = new Label(MessageManager.getString("label.size"));
-    sizeLabel.setAlignment(Label.RIGHT);
-    sizeLabel.setFont(VERDANA_11PT);
-
-    Label styleLabel = new Label(MessageManager.getString("label.style"));
-    styleLabel.setAlignment(Label.RIGHT);
-    styleLabel.setFont(VERDANA_11PT);
-
-    fontName.setFont(VERDANA_11PT);
+    label2.setAlignment(Label.RIGHT);
+    label2.setFont(new java.awt.Font("Verdana", 0, 11));
+    label2.setText("Size: ");
+    label3.setAlignment(Label.RIGHT);
+    label3.setFont(new java.awt.Font("Verdana", 0, 11));
+    label3.setText("Style: ");
+    fontName.setFont(new java.awt.Font("Verdana", 0, 11));
     fontName.addItemListener(this);
-
-    scaleAsCdna.setLabel(MessageManager.getString("label.scale_as_cdna"));
-    scaleAsCdna.setFont(VERDANA_11PT);
-    scaleAsCdna.addItemListener(this);
-    scaleAsCdna.setState(ap.av.isScaleProteinAsCdna());
-
-    ok.setFont(VERDANA_11PT);
-    ok.setLabel(MessageManager.getString("action.ok"));
-    ok.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        ok_actionPerformed();
-      }
-    });
-    cancel.setFont(VERDANA_11PT);
-    cancel.setLabel(MessageManager.getString("action.cancel"));
-    cancel.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        cancel_actionPerformed();
-      }
-    });
-
-    Panel fontPanel = new Panel();
-    fontPanel.setLayout(new BorderLayout());
-    Panel stylePanel = new Panel();
-    stylePanel.setLayout(new BorderLayout());
-    Panel sizePanel = new Panel();
-    sizePanel.setLayout(new BorderLayout());
-    Panel scalePanel = new Panel();
-    scalePanel.setLayout(new BorderLayout());
-    Panel okCancelPanel = new Panel();
-    Panel optionsPanel = new Panel();
-
-    fontPanel.setBackground(Color.white);
-    stylePanel.setBackground(Color.white);
-    sizePanel.setBackground(Color.white);
-    okCancelPanel.setBackground(Color.white);
-    optionsPanel.setBackground(Color.white);
-
-    fontPanel.add(fontLabel, BorderLayout.WEST);
-    fontPanel.add(fontName, BorderLayout.CENTER);
-    stylePanel.add(styleLabel, BorderLayout.WEST);
-    stylePanel.add(fontStyle, BorderLayout.CENTER);
-    sizePanel.add(sizeLabel, BorderLayout.WEST);
-    sizePanel.add(fontSize, BorderLayout.CENTER);
-    scalePanel.add(scaleAsCdna, BorderLayout.CENTER);
-    okCancelPanel.add(ok, null);
-    okCancelPanel.add(cancel, null);
-
-    optionsPanel.add(fontPanel, null);
-    optionsPanel.add(sizePanel, null);
-    optionsPanel.add(stylePanel, null);
-
-    /*
-     * Only show 'scale protein as cDNA' in a SplitFrame
-     */
-    this.add(optionsPanel, BorderLayout.NORTH);
-    if (ap.alignFrame.getSplitFrame() != null)
-    {
-      this.add(scalePanel, BorderLayout.CENTER);
-    }
-    this.add(okCancelPanel, BorderLayout.SOUTH);
-  }
-
-  /**
-   * Turn on/off scaling of protein characters to 3 times the width of cDNA
-   * characters
-   */
-  protected void scaleAsCdna_actionPerformed()
-  {
-    ap.av.setScaleProteinAsCdna(scaleAsCdna.getState());
-    ap.av.getCodingComplement().setScaleProteinAsCdna(
-            scaleAsCdna.getState());
-    ap.alignFrame.getSplitFrame().adjustLayout();
-    ap.paintAlignment(true);
-    ap.alignFrame.getSplitFrame().repaint();
+    ok.setFont(new java.awt.Font("Verdana", 0, 11));
+    ok.setLabel("OK");
+    ok.addActionListener(this);
+    cancel.setFont(new java.awt.Font("Verdana", 0, 11));
+    cancel.setLabel("Cancel");
+    cancel.addActionListener(this);
+    this.setBackground(Color.white);
+    panel1.setLayout(borderLayout1);
+    panel2.setLayout(borderLayout3);
+    panel3.setLayout(borderLayout2);
+    panel5.setBackground(Color.white);
+    panel4.setBackground(Color.white);
+    panel1.setBackground(Color.white);
+    panel2.setBackground(Color.white);
+    panel3.setBackground(Color.white);
+    panel1.add(label1, BorderLayout.WEST);
+    panel1.add(fontName, BorderLayout.CENTER);
+    panel5.add(panel1, null);
+    panel5.add(panel3, null);
+    panel5.add(panel2, null);
+    panel2.add(label3, BorderLayout.WEST);
+    panel2.add(fontStyle, BorderLayout.CENTER);
+    panel3.add(label2, BorderLayout.WEST);
+    panel3.add(fontSize, BorderLayout.CENTER);
+    this.add(panel4, BorderLayout.SOUTH);
+    panel4.add(ok, null);
+    panel4.add(cancel, null);
+    this.add(panel5, BorderLayout.CENTER);
   }
 
 }

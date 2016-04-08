@@ -1,35 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.analysis.AlignSeq;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-import jalview.jbgui.GPairwiseAlignPanel;
-import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
+import java.util.*;
 
-import java.awt.event.ActionEvent;
-import java.util.Vector;
+import java.awt.event.*;
+
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.jbgui.*;
 
 /**
  * DOCUMENT ME!
@@ -40,7 +34,7 @@ import java.util.Vector;
 public class PairwiseAlignPanel extends GPairwiseAlignPanel
 {
 
-  AlignmentViewport av;
+  AlignViewport av;
 
   Vector sequences;
 
@@ -50,7 +44,7 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
    * @param av
    *          DOCUMENT ME!
    */
-  public PairwiseAlignPanel(AlignmentViewport av)
+  public PairwiseAlignPanel(AlignViewport av)
   {
     super();
     this.av = av;
@@ -62,14 +56,14 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
 
     if (av.getSelectionGroup() == null)
     {
-      seqs = av.getAlignment().getSequencesArray();
+      seqs = av.alignment.getSequencesArray();
     }
     else
     {
-      seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
+      seqs = av.getSelectionGroup().getSequencesInOrder(av.alignment);
     }
 
-    String type = (av.getAlignment().isNucleotide()) ? AlignSeq.DNA
+    String type = (av.alignment.isNucleotide()) ? AlignSeq.DNA
             : AlignSeq.PEP;
 
     float[][] scores = new float[seqs.length][seqs.length];
@@ -100,8 +94,13 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
         totscore = totscore + scores[i][j];
 
         textarea.append(as.getOutput());
-        sequences.add(as.getAlignedSeq1());
-        sequences.add(as.getAlignedSeq2());
+        seq = new Sequence(as.getS1().getName(), as.getAStr1(), as.getS1()
+                .getStart(), as.getS1().getEnd());
+        sequences.add(seq);
+
+        seq = new Sequence(as.getS2().getName(), as.getAStr2(), as.getS2()
+                .getStart(), as.getS2().getEnd());
+        sequences.add(seq);
       }
     }
 
@@ -149,8 +148,7 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
     AlignFrame af = new AlignFrame(new Alignment(seq),
             AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
 
-    Desktop.addInternalFrame(af,
-            MessageManager.getString("label.pairwise_aligned_sequences"),
+    Desktop.addInternalFrame(af, "Pairwise Aligned Sequences",
             AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
   }
 }

@@ -1,49 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package MCview;
 
-import jalview.appletgui.AlignmentPanel;
-import jalview.appletgui.EmbmenuFrame;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SequenceI;
-import jalview.schemes.BuriedColourScheme;
-import jalview.schemes.HelixColourScheme;
-import jalview.schemes.HydrophobicColourScheme;
-import jalview.schemes.StrandColourScheme;
-import jalview.schemes.TaylorColourScheme;
-import jalview.schemes.TurnColourScheme;
-import jalview.schemes.ZappoColourScheme;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.BorderLayout;
-import java.awt.CheckboxGroup;
-import java.awt.CheckboxMenuItem;
-import java.awt.Frame;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
+import jalview.appletgui.*;
+import jalview.datamodel.*;
+import jalview.schemes.*;
 
 public class AppletPDBViewer extends EmbmenuFrame implements
         ActionListener, ItemListener
@@ -81,9 +60,8 @@ public class AppletPDBViewer extends EmbmenuFrame implements
               false, null);
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame,
-              MessageManager.getString("label.pdb_sequence_mapping"), 500,
-              600);
+      jalview.bin.JalviewLite.addFrame(frame, "PDB - Sequence Mapping",
+              500, 600);
       cap.setText(pdbcanvas.mappingDetails.toString());
 
     }
@@ -168,43 +146,42 @@ public class AppletPDBViewer extends EmbmenuFrame implements
   private void jbInit() throws Exception
   {
     setMenuBar(jMenuBar1);
-    fileMenu.setLabel(MessageManager.getString("action.file"));
-    coloursMenu.setLabel(MessageManager.getString("label.colours"));
-    mapping.setLabel(MessageManager.getString("label.view_mapping"));
+    fileMenu.setLabel("File");
+    coloursMenu.setLabel("Colours");
+    mapping.setLabel("View Mapping");
     mapping.addActionListener(this);
-    wire.setLabel(MessageManager.getString("label.wireframe"));
+    wire.setLabel("Wireframe");
     wire.addItemListener(this);
     depth.setState(true);
-    depth.setLabel(MessageManager.getString("label.depthcue"));
+    depth.setLabel("Depthcue");
     depth.addItemListener(this);
     zbuffer.setState(true);
-    zbuffer.setLabel(MessageManager.getString("label.z_buffering"));
+    zbuffer.setLabel("Z Buffering");
     zbuffer.addItemListener(this);
-    charge.setLabel(MessageManager.getString("label.charge_cysteine"));
+    charge.setLabel("Charge & Cysteine");
     charge.addActionListener(this);
-    hydro.setLabel(MessageManager.getString("label.hydrophobicity"));
+    hydro.setLabel("Hydrophobicity");
     hydro.addActionListener(this);
-    chain.setLabel(MessageManager.getString("action.by_chain"));
+    chain.setLabel("By Chain");
     chain.addActionListener(this);
-    seqButton.setLabel(MessageManager.getString("action.by_sequence"));
+    seqButton.setLabel("By Sequence");
     seqButton.addActionListener(this);
-    allchains
-            .setLabel(MessageManager.getString("label.all_chains_visible"));
+    allchains.setLabel("All Chains Visible");
     allchains.addItemListener(this);
-    viewMenu.setLabel(MessageManager.getString("action.view"));
-    zappo.setLabel(MessageManager.getString("label.zappo"));
+    viewMenu.setLabel("View");
+    zappo.setLabel("Zappo");
     zappo.addActionListener(this);
-    taylor.setLabel(MessageManager.getString("label.taylor"));
+    taylor.setLabel("Taylor");
     taylor.addActionListener(this);
-    helix.setLabel(MessageManager.getString("label.helix_propensity"));
+    helix.setLabel("Helix Propensity");
     helix.addActionListener(this);
-    strand.setLabel(MessageManager.getString("label.strand_propensity"));
+    strand.setLabel("Strand Propensity");
     strand.addActionListener(this);
-    turn.setLabel(MessageManager.getString("label.turn_propensity"));
+    turn.setLabel("Turn Propensity");
     turn.addActionListener(this);
-    buried.setLabel(MessageManager.getString("label.buried_index"));
+    buried.setLabel("Buried Index");
     buried.addActionListener(this);
-    user.setLabel(MessageManager.getString("action.user_defined"));
+    user.setLabel("User Defined...");
     user.addActionListener(this);
     jMenuBar1.add(fileMenu);
     jMenuBar1.add(coloursMenu);

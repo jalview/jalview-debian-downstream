@@ -1,41 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SequenceGroup;
-import jalview.util.MessageManager;
+import java.awt.*;
+import java.awt.event.*;
 
-import java.awt.Color;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.MenuItem;
-import java.awt.Panel;
-import java.awt.PopupMenu;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import jalview.datamodel.*;
 
 public class ScalePanel extends Panel implements MouseMotionListener,
         MouseListener
@@ -75,7 +60,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     int x = (evt.getX() / av.getCharWidth()) + av.getStartRes();
     final int res;
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       res = av.getColumnSelection().adjustForHiddenColumns(x);
     }
@@ -91,8 +76,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
       PopupMenu pop = new PopupMenu();
       if (reveal != null)
       {
-        MenuItem item = new MenuItem(
-                MessageManager.getString("label.reveal"));
+        MenuItem item = new MenuItem("Reveal");
         item.addActionListener(new ActionListener()
         {
           public void actionPerformed(ActionEvent e)
@@ -108,9 +92,9 @@ public class ScalePanel extends Panel implements MouseMotionListener,
         });
         pop.add(item);
 
-        if (av.getColumnSelection().hasManyHiddenColumns())
+        if (av.getColumnSelection().getHiddenColumns().size() > 1)
         {
-          item = new MenuItem(MessageManager.getString("action.reveal_all"));
+          item = new MenuItem("Reveal All");
           item.addActionListener(new ActionListener()
           {
             public void actionPerformed(ActionEvent e)
@@ -131,16 +115,15 @@ public class ScalePanel extends Panel implements MouseMotionListener,
       }
       else if (av.getColumnSelection().contains(res))
       {
-        MenuItem item = new MenuItem(
-                MessageManager.getString("label.hide_columns"));
+        MenuItem item = new MenuItem("Hide Columns");
         item.addActionListener(new ActionListener()
         {
           public void actionPerformed(ActionEvent e)
           {
             av.hideColumns(res, res);
             if (av.getSelectionGroup() != null
-                    && av.getSelectionGroup().getSize() == av
-                            .getAlignment().getHeight())
+                    && av.getSelectionGroup().getSize() == av.alignment
+                            .getHeight())
             {
               av.setSelectionGroup(null);
             }
@@ -167,9 +150,9 @@ public class ScalePanel extends Panel implements MouseMotionListener,
 
       av.getColumnSelection().addElement(res);
       SequenceGroup sg = new SequenceGroup();
-      for (int i = 0; i < av.getAlignment().getSequences().size(); i++)
+      for (int i = 0; i < av.alignment.getSequences().size(); i++)
       {
-        sg.addSequence(av.getAlignment().getSequenceAt(i), false);
+        sg.addSequence(av.alignment.getSequenceAt(i), false);
       }
 
       sg.setStartRes(res);
@@ -199,12 +182,12 @@ public class ScalePanel extends Panel implements MouseMotionListener,
 
     int res = (evt.getX() / av.getCharWidth()) + av.getStartRes();
 
-    if (res > av.getAlignment().getWidth())
+    if (res > av.alignment.getWidth())
     {
-      res = av.getAlignment().getWidth() - 1;
+      res = av.alignment.getWidth() - 1;
     }
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       res = av.getColumnSelection().adjustForHiddenColumns(res);
     }
@@ -242,14 +225,14 @@ public class ScalePanel extends Panel implements MouseMotionListener,
       res = 0;
     }
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       res = av.getColumnSelection().adjustForHiddenColumns(res);
     }
 
-    if (res > av.getAlignment().getWidth())
+    if (res > av.alignment.getWidth())
     {
-      res = av.getAlignment().getWidth() - 1;
+      res = av.alignment.getWidth() - 1;
     }
 
     if (res < min)
@@ -324,7 +307,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
 
   public void mouseMoved(MouseEvent evt)
   {
-    if (!av.hasHiddenColumns())
+    if (!av.hasHiddenColumns)
     {
       return;
     }
@@ -334,8 +317,10 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     res = av.getColumnSelection().adjustForHiddenColumns(res);
 
     reveal = null;
-    for (int[] region : av.getColumnSelection().getHiddenColumns())
+    for (int i = 0; i < av.getColumnSelection().getHiddenColumns().size(); i++)
     {
+      int[] region = (int[]) av.getColumnSelection().getHiddenColumns()
+              .elementAt(i);
       if (res + 1 == region[0] || res - 1 == region[1])
       {
         reveal = region;
@@ -362,6 +347,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
           int height)
   {
     gg.setFont(av.getFont());
+
     // Fill in the background
     gg.setColor(Color.white);
     gg.fillRect(0, 0, width, height);
@@ -370,18 +356,18 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     // Fill the selected columns
     ColumnSelection cs = av.getColumnSelection();
     gg.setColor(new Color(220, 0, 0));
-    int avcharWidth = av.getCharWidth(), avcharHeight = av.getCharHeight();
+
     for (int i = 0; i < cs.size(); i++)
     {
       int sel = cs.columnAt(i);
-      if (av.hasHiddenColumns())
+      if (av.hasHiddenColumns)
       {
         sel = av.getColumnSelection().findColumnPosition(sel);
       }
 
       if ((sel >= startx) && (sel <= endx))
       {
-        gg.fillRect((sel - startx) * avcharWidth, 0, avcharWidth,
+        gg.fillRect((sel - startx) * av.charWidth, 0, av.charWidth,
                 getSize().height);
       }
     }
@@ -392,7 +378,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     int scalestartx = (startx / 10) * 10;
 
     FontMetrics fm = gg.getFontMetrics(av.getFont());
-    int y = avcharHeight - fm.getDescent();
+    int y = av.charHeight - fm.getDescent();
 
     if ((scalestartx % 10) == 0)
     {
@@ -408,27 +394,30 @@ public class ScalePanel extends Panel implements MouseMotionListener,
       {
         string = String.valueOf(av.getColumnSelection()
                 .adjustForHiddenColumns(i));
-        if ((i - startx - 1) * avcharWidth > maxX)
+        if ((i - startx - 1) * av.charWidth > maxX)
         {
-          gg.drawString(string, (i - startx - 1) * avcharWidth, y);
-          maxX = (i - startx + 1) * avcharWidth + fm.stringWidth(string);
+          gg.drawString(string, (i - startx - 1) * av.charWidth, y);
+          maxX = (i - startx + 1) * av.charWidth + fm.stringWidth(string);
         }
 
-        gg.drawLine(((i - startx - 1) * avcharWidth) + (avcharWidth / 2),
+        gg.drawLine(
+                (int) (((i - startx - 1) * av.charWidth) + (av.charWidth / 2)),
                 y + 2,
-                ((i - startx - 1) * avcharWidth) + (avcharWidth / 2), y
-                        + (fm.getDescent() * 2));
+                (int) (((i - startx - 1) * av.charWidth) + (av.charWidth / 2)),
+                y + (fm.getDescent() * 2));
 
       }
       else
       {
-        gg.drawLine(((i - startx - 1) * avcharWidth) + (avcharWidth / 2), y
-                + fm.getDescent(), ((i - startx - 1) * avcharWidth)
-                + (avcharWidth / 2), y + (fm.getDescent() * 2));
+        gg.drawLine(
+                (int) (((i - startx - 1) * av.charWidth) + (av.charWidth / 2)),
+                y + fm.getDescent(),
+                (int) (((i - startx - 1) * av.charWidth) + (av.charWidth / 2)),
+                y + (fm.getDescent() * 2));
       }
     }
 
-    if (av.hasHiddenColumns())
+    if (av.hasHiddenColumns)
     {
       gg.setColor(Color.blue);
       int res;
@@ -446,18 +435,19 @@ public class ScalePanel extends Panel implements MouseMotionListener,
             continue;
           }
 
-          gg.fillPolygon(new int[] { res * avcharWidth - avcharHeight / 4,
-              res * avcharWidth + avcharHeight / 4, res * avcharWidth },
-                  new int[] { y - avcharHeight / 2, y - avcharHeight / 2,
-                      y + 8 }, 3);
+          gg.fillPolygon(new int[]
+          { res * av.charWidth - av.charHeight / 4,
+              res * av.charWidth + av.charHeight / 4, res * av.charWidth },
+                  new int[]
+                  { y - av.charHeight / 2, y - av.charHeight / 2, y + 8 },
+                  3);
 
         }
       }
 
       if (reveal != null && reveal[0] > startx && reveal[0] < endx)
       {
-        gg.drawString(MessageManager.getString("label.reveal_columns"),
-                reveal[0] * avcharWidth, 0);
+        gg.drawString("Reveal Columns", reveal[0] * av.charWidth, 0);
       }
     }
 

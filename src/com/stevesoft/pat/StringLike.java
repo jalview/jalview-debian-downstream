@@ -11,10 +11,10 @@ com.stevesoft.pat;
  * Package pat can search anything that implements this interface. Package pat
  * assumes the following:
  * <ul>
- * <li>The StringLike object will not change. Calls to charAt(int) will not vary
- * with time.
- * <li>The length of the object being searched is known before the search begins
- * and does not vary with time.
+ * <li>The StringLike object will not change. Calls to charAt(int) will not
+ * vary with time.
+ * <li>The length of the object being searched is known before the search
+ * begins and does not vary with time.
  * </ul>
  * Note that searching String is probably faster than searching other objects,
  * so searching String is still preferred if possible.

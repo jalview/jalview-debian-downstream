@@ -1,39 +1,31 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.datamodel.SequenceGroup;
-import jalview.jbgui.GSliderPanel;
-import jalview.schemes.ColourSchemeI;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.Iterator;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
 
-import javax.swing.JInternalFrame;
-import javax.swing.JLayeredPane;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import jalview.datamodel.*;
+import jalview.jbgui.*;
+import jalview.schemes.*;
 
 /**
  * DOCUMENT ME!
@@ -76,15 +68,13 @@ public class SliderPanel extends GSliderPanel
 
     if (forConservation)
     {
-      label.setText(MessageManager
-              .getString("label.enter_value_increase_conservation_visibility"));
+      label.setText("Enter value to increase conservation visibility");
       slider.setMinimum(0);
       slider.setMaximum(100);
     }
     else
     {
-      label.setText(MessageManager
-              .getString("label.enter_percentage_identity_above_which_colour_residues"));
+      label.setText("Enter % identity above which to colour residues");
       slider.setMinimum(0);
       slider.setMaximum(100);
     }
@@ -140,12 +130,10 @@ public class SliderPanel extends GSliderPanel
       sp.cs = cs;
     }
 
-    conservationSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.conservation_colour_increment",
-                    new String[] { source }));
+    conservationSlider.setTitle("Conservation Colour Increment  (" + source
+            + ")");
 
-    if (ap.av.getAlignment().getGroups() != null)
+    if (ap.av.alignment.getGroups() != null)
     {
       sp.setAllGroupsCheckEnabled(true);
     }
@@ -219,11 +207,9 @@ public class SliderPanel extends GSliderPanel
       pid.cs = cs;
     }
 
-    PIDSlider.setTitle(MessageManager
-            .formatMessage("label.percentage_identity_thereshold",
-                    new String[] { source }));
+    PIDSlider.setTitle("Percentage Identity Threshold (" + source + ")");
 
-    if (ap.av.getAlignment().getGroups() != null)
+    if (ap.av.alignment.getGroups() != null)
     {
       pid.setAllGroupsCheckEnabled(true);
     }
@@ -279,39 +265,50 @@ public class SliderPanel extends GSliderPanel
       return;
     }
 
-    ColourSchemeI toChange = cs;
-    Iterator<SequenceGroup> allGroups = null;
+    ColourSchemeI toChange = null;
+    Vector allGroups = null;
+    int groupIndex = 0;
 
     if (allGroupsCheck.isSelected())
     {
-      allGroups = ap.av.getAlignment().getGroups().listIterator();
+      allGroups = ap.av.alignment.getGroups();
+      groupIndex = allGroups.size() - 1;
+    }
+    else
+    {
+      toChange = cs;
     }
 
-    while (toChange != null)
+    while (groupIndex > -1)
     {
+      if (allGroups != null)
+      {
+        toChange = ((SequenceGroup) allGroups.get(groupIndex)).cs;
+
+        if (toChange == null)
+        {
+          groupIndex--;
+
+          continue;
+        }
+      }
+
       if (forConservation)
       {
-        toChange.setConservationInc(i);
-      }
-      else
-      {
-        toChange.setThreshold(i, ap.av.isIgnoreGapsConsensus());
-      }
-      if (allGroups != null && allGroups.hasNext())
-      {
-        while ((toChange = allGroups.next().cs) == null
-                && allGroups.hasNext())
+        if (toChange.conservationApplied())
         {
-          ;
+          toChange.setConservationInc(i);
         }
       }
       else
       {
-        toChange = null;
+        toChange.setThreshold(i, ap.av.getIgnoreGapsConsensus());
       }
+
+      groupIndex--;
     }
 
-    ap.getSeqPanel().seqCanvas.repaint();
+    ap.seqPanel.seqCanvas.repaint();
   }
 
   /**

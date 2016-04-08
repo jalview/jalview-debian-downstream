@@ -1,43 +1,35 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.util.ShiftList;
-import jalview.viewmodel.annotationfilter.AnnotationFilterParameter;
-import jalview.viewmodel.annotationfilter.AnnotationFilterParameter.SearchableAnnotationField;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Vector;
+import jalview.util.*;
 
 /**
  * NOTE: Columns are zero based.
  */
 public class ColumnSelection
 {
-  Vector<Integer> selected = new Vector<Integer>();
+  Vector selected = new Vector();
 
   // Vector of int [] {startCol, endCol}
-  Vector<int[]> hiddenColumns;
+  Vector hiddenColumns;
 
   /**
    * Add a column to the selection
@@ -63,7 +55,7 @@ public class ColumnSelection
   }
 
   /**
-   * Removes value 'col' from the selection (not the col'th item)
+   * removes col from selection
    * 
    * @param col
    *          index of column to be removed
@@ -74,8 +66,6 @@ public class ColumnSelection
 
     if (selected.contains(colInt))
     {
-      // if this ever changes to List.remove(), ensure Integer not int argument
-      // as List.remove(int i) removes the i'th item which is wrong
       selected.removeElement(colInt);
     }
   }
@@ -105,7 +95,7 @@ public class ColumnSelection
    * 
    * @return Vector containing selected columns as Integers
    */
-  public Vector<Integer> getSelected()
+  public Vector getSelected()
   {
     return selected;
   }
@@ -132,7 +122,7 @@ public class ColumnSelection
    */
   public int columnAt(int i)
   {
-    return selected.elementAt(i).intValue();
+    return ((Integer) selected.elementAt(i)).intValue();
   }
 
   /**
@@ -193,30 +183,29 @@ public class ColumnSelection
    * @param left
    *          shift in edit (+ve for removal, or -ve for inserts)
    */
-  public List<int[]> compensateForEdit(int start, int change)
+  public Vector compensateForEdit(int start, int change)
   {
-    List<int[]> deletedHiddenColumns = null;
+    Vector deletedHiddenColumns = null;
     for (int i = 0; i < size(); i++)
     {
       int temp = columnAt(i);
 
       if (temp >= start)
       {
-        // if this ever changes to List.set(), swap parameter order!!
         selected.setElementAt(new Integer(temp - change), i);
       }
     }
 
     if (hiddenColumns != null)
     {
-      deletedHiddenColumns = new ArrayList<int[]>();
+      deletedHiddenColumns = new Vector();
       int hSize = hiddenColumns.size();
       for (int i = 0; i < hSize; i++)
       {
-        int[] region = hiddenColumns.elementAt(i);
+        int[] region = (int[]) hiddenColumns.elementAt(i);
         if (region[0] > start && start + change > region[1])
         {
-          deletedHiddenColumns.add(region);
+          deletedHiddenColumns.addElement(hiddenColumns.elementAt(i));
 
           hiddenColumns.removeElementAt(i);
           i--;
@@ -260,7 +249,6 @@ public class ColumnSelection
 
       if (temp >= start)
       {
-        // if this ever changes to List.set(), swap parameter order!!
         selected.setElementAt(new Integer(temp - change), i);
       }
     }
@@ -269,7 +257,7 @@ public class ColumnSelection
     {
       for (int i = 0; i < hiddenColumns.size(); i++)
       {
-        int[] region = hiddenColumns.elementAt(i);
+        int[] region = (int[]) hiddenColumns.elementAt(i);
         if (region[0] >= start)
         {
           region[0] -= change;
@@ -306,13 +294,13 @@ public class ColumnSelection
   {
     if (shiftrecord != null)
     {
-      final List<int[]> shifts = shiftrecord.getShifts();
+      Vector shifts = shiftrecord.shifts;
       if (shifts != null && shifts.size() > 0)
       {
         int shifted = 0;
         for (int i = 0, j = shifts.size(); i < j; i++)
         {
-          int[] sh = shifts.get(i);
+          int[] sh = (int[]) shifts.elementAt(i);
           // compensateForEdit(shifted+sh[0], sh[1]);
           compensateForDelEdits(shifted + sh[0], sh[1]);
           shifted -= sh[1];
@@ -327,17 +315,16 @@ public class ColumnSelection
    * removes intersection of position,length ranges in deletions from the
    * start,end regions marked in intervals.
    * 
-   * @param shifts
+   * @param deletions
    * @param intervals
    * @return
    */
-  private boolean pruneIntervalVector(final List<int[]> shifts,
-          Vector<int[]> intervals)
+  private boolean pruneIntervalVector(Vector deletions, Vector intervals)
   {
     boolean pruned = false;
-    int i = 0, j = intervals.size() - 1, s = 0, t = shifts.size() - 1;
-    int hr[] = intervals.elementAt(i);
-    int sr[] = shifts.get(s);
+    int i = 0, j = intervals.size() - 1, s = 0, t = deletions.size() - 1;
+    int hr[] = (int[]) intervals.elementAt(i);
+    int sr[] = (int[]) deletions.elementAt(s);
     while (i <= j && s <= t)
     {
       boolean trailinghn = hr[1] >= sr[0];
@@ -345,7 +332,7 @@ public class ColumnSelection
       {
         if (i < j)
         {
-          hr = intervals.elementAt(++i);
+          hr = (int[]) intervals.elementAt(++i);
         }
         else
         {
@@ -358,7 +345,7 @@ public class ColumnSelection
       { // leadinghc disjoint or not a deletion
         if (s < t)
         {
-          sr = shifts.get(++s);
+          sr = (int[]) deletions.elementAt(++s);
         }
         else
         {
@@ -378,7 +365,7 @@ public class ColumnSelection
           j--;
           if (i <= j)
           {
-            hr = intervals.elementAt(i);
+            hr = (int[]) intervals.elementAt(i);
           }
           continue;
         }
@@ -404,7 +391,7 @@ public class ColumnSelection
           // sr contained in hr
           if (s < t)
           {
-            sr = shifts.get(++s);
+            sr = (int[]) deletions.elementAt(++s);
           }
           else
           {
@@ -418,16 +405,15 @@ public class ColumnSelection
     // operations.
   }
 
-  private boolean pruneColumnList(final List<int[]> shifts,
-          Vector<Integer> list)
+  private boolean pruneColumnList(Vector deletion, Vector list)
   {
-    int s = 0, t = shifts.size();
-    int[] sr = shifts.get(s++);
+    int s = 0, t = deletion.size();
+    int[] sr = (int[]) list.elementAt(s++);
     boolean pruned = false;
     int i = 0, j = list.size();
     while (i < j && s <= t)
     {
-      int c = list.elementAt(i++).intValue();
+      int c = ((Integer) list.elementAt(i++)).intValue();
       if (sr[0] <= c)
       {
         if (sr[1] + sr[0] >= c)
@@ -439,7 +425,7 @@ public class ColumnSelection
         {
           if (s < t)
           {
-            sr = shifts.get(s);
+            sr = (int[]) deletion.elementAt(s);
           }
           s++;
         }
@@ -458,7 +444,7 @@ public class ColumnSelection
   {
     if (deletions != null)
     {
-      final List<int[]> shifts = deletions.getShifts();
+      Vector shifts = deletions.shifts;
       if (shifts != null && shifts.size() > 0)
       {
         // delete any intervals intersecting.
@@ -485,14 +471,16 @@ public class ColumnSelection
   }
 
   /**
-   * This Method is used to return all the HiddenColumn regions
+   * This Method is used to return all the HiddenColumn regions less than the
+   * given index.
    * 
-   * @return empty list or List of hidden column intervals
+   * @param end
+   *          int
+   * @return Vector
    */
-  public List<int[]> getHiddenColumns()
+  public Vector getHiddenColumns()
   {
-    return hiddenColumns == null ? Collections.<int[]> emptyList()
-            : hiddenColumns;
+    return hiddenColumns;
   }
 
   /**
@@ -509,7 +497,7 @@ public class ColumnSelection
     {
       for (int i = 0; i < hiddenColumns.size(); i++)
       {
-        int[] region = hiddenColumns.elementAt(i);
+        int[] region = (int[]) hiddenColumns.elementAt(i);
         if (result >= region[0])
         {
           result += region[1] - region[0] + 1;
@@ -537,7 +525,7 @@ public class ColumnSelection
       int[] region;
       do
       {
-        region = hiddenColumns.elementAt(index++);
+        region = (int[]) hiddenColumns.elementAt(index++);
         if (hiddenColumn > region[1])
         {
           result -= region[1] + 1 - region[0];
@@ -563,7 +551,7 @@ public class ColumnSelection
       int gaps = 0;
       do
       {
-        int[] region = hiddenColumns.elementAt(index);
+        int[] region = (int[]) hiddenColumns.elementAt(index);
         if (hiddenRegion == 0)
         {
           return region[0];
@@ -594,7 +582,7 @@ public class ColumnSelection
       int index = 0;
       do
       {
-        int[] region = hiddenColumns.elementAt(index);
+        int[] region = (int[]) hiddenColumns.elementAt(index);
         if (alPos < region[0])
         {
           return region[0];
@@ -622,7 +610,7 @@ public class ColumnSelection
       int index = hiddenColumns.size() - 1;
       do
       {
-        int[] region = hiddenColumns.elementAt(index);
+        int[] region = (int[]) hiddenColumns.elementAt(index);
         if (alPos > region[1])
         {
           return region[1];
@@ -640,7 +628,7 @@ public class ColumnSelection
   {
     while (size() > 0)
     {
-      int column = getSelected().firstElement().intValue();
+      int column = ((Integer) getSelected().firstElement()).intValue();
       hideColumns(column);
     }
 
@@ -650,7 +638,7 @@ public class ColumnSelection
   {
     if (hiddenColumns == null)
     {
-      hiddenColumns = new Vector<int[]>();
+      hiddenColumns = new Vector();
     }
 
     boolean added = false;
@@ -658,7 +646,7 @@ public class ColumnSelection
 
     for (int i = 0; i < hiddenColumns.size(); i++)
     {
-      int[] region = hiddenColumns.elementAt(i);
+      int[] region = (int[]) hiddenColumns.elementAt(i);
       if (start <= region[1] && end >= region[0])
       {
         hiddenColumns.removeElementAt(i);
@@ -667,7 +655,8 @@ public class ColumnSelection
       }
       else if (end < region[0] && start < region[0])
       {
-        hiddenColumns.insertElementAt(new int[] { start, end }, i);
+        hiddenColumns.insertElementAt(new int[]
+        { start, end }, i);
         added = true;
         break;
       }
@@ -679,7 +668,8 @@ public class ColumnSelection
     }
     else if (!added)
     {
-      hiddenColumns.addElement(new int[] { start, end });
+      hiddenColumns.addElement(new int[]
+      { start, end });
     }
 
   }
@@ -723,7 +713,7 @@ public class ColumnSelection
     {
       for (int i = 0; i < hiddenColumns.size(); i++)
       {
-        int[] region = hiddenColumns.elementAt(i);
+        int[] region = (int[]) hiddenColumns.elementAt(i);
         for (int j = region[0]; j < region[1] + 1; j++)
         {
           addElement(j);
@@ -738,7 +728,7 @@ public class ColumnSelection
   {
     for (int i = 0; i < hiddenColumns.size(); i++)
     {
-      int[] region = hiddenColumns.elementAt(i);
+      int[] region = (int[]) hiddenColumns.elementAt(i);
       if (res == region[0])
       {
         for (int j = region[0]; j < region[1] + 1; j++)
@@ -759,16 +749,14 @@ public class ColumnSelection
   public boolean isVisible(int column)
   {
     if (hiddenColumns != null)
-    {
       for (int i = 0; i < hiddenColumns.size(); i++)
       {
-        int[] region = hiddenColumns.elementAt(i);
+        int[] region = (int[]) hiddenColumns.elementAt(i);
         if (column >= region[0] && column <= region[1])
         {
           return false;
         }
       }
-    }
 
     return true;
   }
@@ -784,7 +772,7 @@ public class ColumnSelection
     {
       if (copy.selected != null)
       {
-        selected = new Vector<Integer>();
+        selected = new Vector();
         for (int i = 0, j = copy.selected.size(); i < j; i++)
         {
           selected.addElement(copy.selected.elementAt(i));
@@ -792,11 +780,11 @@ public class ColumnSelection
       }
       if (copy.hiddenColumns != null)
       {
-        hiddenColumns = new Vector<int[]>(copy.hiddenColumns.size());
+        hiddenColumns = new Vector(copy.hiddenColumns.size());
         for (int i = 0, j = copy.hiddenColumns.size(); i < j; i++)
         {
           int[] rh, cp;
-          rh = copy.hiddenColumns.elementAt(i);
+          rh = (int[]) copy.hiddenColumns.elementAt(i);
           if (rh != null)
           {
             cp = new int[rh.length];
@@ -825,7 +813,7 @@ public class ColumnSelection
       for (i = 0; i < iSize; i++)
       {
         StringBuffer visibleSeq = new StringBuffer();
-        List<int[]> regions = getHiddenColumns();
+        Vector regions = getHiddenColumns();
 
         int blockStart = start, blockEnd = end;
         int[] region;
@@ -833,7 +821,7 @@ public class ColumnSelection
 
         for (int j = 0; j < regions.size(); j++)
         {
-          region = regions.get(j);
+          region = (int[]) regions.elementAt(j);
           hideStart = region[0];
           hideEnd = region[1];
 
@@ -889,8 +877,8 @@ public class ColumnSelection
   {
     if (hiddenColumns != null && hiddenColumns.size() > 0)
     {
-      List<int[]> visiblecontigs = new ArrayList<int[]>();
-      List<int[]> regions = getHiddenColumns();
+      Vector visiblecontigs = new Vector();
+      Vector regions = getHiddenColumns();
 
       int vstart = start;
       int[] region;
@@ -898,7 +886,7 @@ public class ColumnSelection
 
       for (int j = 0; vstart < end && j < regions.size(); j++)
       {
-        region = regions.get(j);
+        region = (int[]) regions.elementAt(j);
         hideStart = region[0];
         hideEnd = region[1];
 
@@ -908,29 +896,32 @@ public class ColumnSelection
         }
         if (hideStart > vstart)
         {
-          visiblecontigs.add(new int[] { vstart, hideStart - 1 });
+          visiblecontigs.addElement(new int[]
+          { vstart, hideStart - 1 });
         }
         vstart = hideEnd + 1;
       }
 
       if (vstart < end)
       {
-        visiblecontigs.add(new int[] { vstart, end - 1 });
+        visiblecontigs.addElement(new int[]
+        { vstart, end - 1 });
       }
       int[] vcontigs = new int[visiblecontigs.size() * 2];
       for (int i = 0, j = visiblecontigs.size(); i < j; i++)
       {
-        int[] vc = visiblecontigs.get(i);
-        visiblecontigs.set(i, null);
+        int[] vc = (int[]) visiblecontigs.elementAt(i);
+        visiblecontigs.setElementAt(null, i);
         vcontigs[i * 2] = vc[0];
         vcontigs[i * 2 + 1] = vc[1];
       }
-      visiblecontigs.clear();
+      visiblecontigs.removeAllElements();
       return vcontigs;
     }
     else
     {
-      return new int[] { start, end - 1 };
+      return new int[]
+      { start, end - 1 };
     }
   }
 
@@ -971,16 +962,16 @@ public class ColumnSelection
     if (hiddenColumns != null && hiddenColumns.size() > 0)
     {
       // then mangle the alignmentAnnotation annotation array
-      Vector<Annotation[]> annels = new Vector<Annotation[]>();
+      Vector annels = new Vector();
       Annotation[] els = null;
-      List<int[]> regions = getHiddenColumns();
+      Vector regions = getHiddenColumns();
       int blockStart = start, blockEnd = end;
       int[] region;
       int hideStart, hideEnd, w = 0;
 
       for (int j = 0; j < regions.size(); j++)
       {
-        region = regions.get(j);
+        region = (int[]) regions.elementAt(j);
         hideStart = region[0];
         hideEnd = region[1];
 
@@ -1024,15 +1015,13 @@ public class ColumnSelection
         w += els.length;
       }
       if (w == 0)
-      {
         return;
-      }
-
+      Enumeration e = annels.elements();
       alignmentAnnotation.annotations = new Annotation[w];
       w = 0;
-
-      for (Annotation[] chnk : annels)
+      while (e.hasMoreElements())
       {
+        Annotation[] chnk = (Annotation[]) e.nextElement();
         System.arraycopy(chnk, 0, alignmentAnnotation.annotations, w,
                 chnk.length);
         w += chnk.length;
@@ -1080,13 +1069,15 @@ public class ColumnSelection
   {
     if (colsel != null && colsel.size() > 0)
     {
-      for (Integer col : colsel.getSelected())
+      Enumeration e = colsel.getSelected().elements();
+      while (e.hasMoreElements())
       {
-        if (hiddenColumns != null && isVisible(col.intValue()))
+        Object eo = e.nextElement();
+        if (hiddenColumns != null && isVisible(((Integer) eo).intValue()))
         {
-          if (!selected.contains(col))
+          if (!selected.contains(eo))
           {
-            selected.addElement(col);
+            selected.addElement(eo);
           }
         }
       }
@@ -1101,20 +1092,22 @@ public class ColumnSelection
    */
   public void setElementsFrom(ColumnSelection colsel)
   {
-    selected = new Vector<Integer>();
+    selected = new Vector();
     if (colsel.selected != null && colsel.selected.size() > 0)
     {
       if (hiddenColumns != null && hiddenColumns.size() > 0)
       {
         // only select visible columns in this columns selection
+        selected = new Vector();
         addElementsFrom(colsel);
       }
       else
       {
         // add everything regardless
-        for (Integer col : colsel.getSelected())
+        Enumeration en = colsel.selected.elements();
+        while (en.hasMoreElements())
         {
-          addElement(col);
+          selected.addElement(en.nextElement());
         }
       }
     }
@@ -1125,45 +1118,38 @@ public class ColumnSelection
    * AlignmentView
    * 
    * @param profileseq
-   * @param al
-   *          - alignment to have gaps inserted into it
-   * @param input
-   *          - alignment view where sequence corresponding to profileseq is
-   *          first entry
-   * @return new Column selection for new alignment view, with insertions into
-   *         profileseq marked as hidden.
+   * @param al - alignment to have gaps inserted into it
+   * @param input - alignment view where sequence corresponding to profileseq is first entry
+   * @return new Column selection for new alignment view, with insertions into profileseq marked as hidden.
    */
   public static ColumnSelection propagateInsertions(SequenceI profileseq,
-          AlignmentI al, AlignmentView input)
+          Alignment al, AlignmentView input)
   {
-    int profsqpos = 0;
-
-    // return propagateInsertions(profileseq, al, )
+    int profsqpos=0;
+    
+//    return propagateInsertions(profileseq, al, )
     char gc = al.getGapCharacter();
     Object[] alandcolsel = input.getAlignmentAndColumnSelection(gc);
     ColumnSelection nview = (ColumnSelection) alandcolsel[1];
     SequenceI origseq = ((SequenceI[]) alandcolsel[0])[profsqpos];
-    nview.propagateInsertions(profileseq, al, origseq);
+    nview.propagateInsertions(profileseq,
+            al, origseq);
     return nview;
   }
-
   /**
    * 
-   * @param profileseq
-   *          - sequence in al which corresponds to origseq
-   * @param al
-   *          - alignment which is to have gaps inserted into it
-   * @param origseq
-   *          - sequence corresponding to profileseq which defines gap map for
-   *          modifying al
+   * @param profileseq - sequence in al which corresponds to origseq 
+   * @param al - alignment which is to have gaps inserted into it
+   * @param origseq - sequence corresponding to profileseq which defines gap map for modifying al
    */
-  public void propagateInsertions(SequenceI profileseq, AlignmentI al,
-          SequenceI origseq)
+  public void propagateInsertions(SequenceI profileseq, AlignmentI al, SequenceI origseq)
   {
     char gc = al.getGapCharacter();
-    // recover mapping between sequence's non-gap positions and positions
+    // recover mapping between sequence's non-gap positions and positions 
     // mapping to view.
-    pruneDeletions(ShiftList.parseMap(origseq.gapMap()));
+    pruneDeletions(ShiftList
+            .parseMap(origseq
+                    .gapMap())); 
     int[] viscontigs = getVisibleContigs(0, profileseq.getLength());
     int spos = 0;
     int offset = 0;
@@ -1195,18 +1181,15 @@ public class ColumnSelection
                 sq = sq + sb;
                 while ((diff = spos + offset - sq.length() - 1) > 0)
                 {
-                  // sq = sq
-                  // + ((diff >= sb.length()) ? sb.toString() : sb
-                  // .substring(0, diff));
-                  if (diff >= sb.length())
-                  {
-                    sq += sb.toString();
-                  }
-                  else
-                  {
+                  //sq = sq
+                  //        + ((diff >= sb.length()) ? sb.toString() : sb
+                  //                .substring(0, diff));
+                  if (diff>=sb.length()) {
+                    sq+=sb.toString();
+                  } else {
                     char[] buf = new char[diff];
                     sb.getChars(0, diff, buf, 0);
-                    sq += buf.toString();
+                    sq+=buf.toString();
                   }
                 }
               }
@@ -1235,7 +1218,7 @@ public class ColumnSelection
       for (int s = 0, ns = al.getHeight(); s < ns; s++)
       {
         SequenceI sqobj = al.getSequenceAt(s);
-        if (sqobj == profileseq)
+        if (sqobj==profileseq)
         {
           continue;
         }
@@ -1244,149 +1227,19 @@ public class ColumnSelection
         int diff = origseq.getLength() - sq.length();
         while (diff > 0)
         {
-          // sq = sq
-          // + ((diff >= sb.length()) ? sb.toString() : sb
-          // .substring(0, diff));
-          if (diff >= sb.length())
-          {
-            sq += sb.toString();
-          }
-          else
-          {
+          //sq = sq
+          //        + ((diff >= sb.length()) ? sb.toString() : sb
+          //                .substring(0, diff));
+          if (diff>=sb.length()) {
+            sq+=sb.toString();
+          } else {
             char[] buf = new char[diff];
             sb.getChars(0, diff, buf, 0);
-            sq += buf.toString();
+            sq+=buf.toString();
           }
           diff = origseq.getLength() - sq.length();
         }
       }
     }
-  }
-
-  /**
-   * 
-   * @return true if there are columns marked
-   */
-  public boolean hasSelectedColumns()
-  {
-    return (selected != null && selected.size() > 0);
-  }
-
-  /**
-   * 
-   * @return true if there are columns hidden
-   */
-  public boolean hasHiddenColumns()
-  {
-    return hiddenColumns != null && hiddenColumns.size() > 0;
-  }
-
-  /**
-   * 
-   * @return true if there are more than one set of columns hidden
-   */
-  public boolean hasManyHiddenColumns()
-  {
-    return hiddenColumns != null && hiddenColumns.size() > 1;
-  }
-
-  /**
-   * mark the columns corresponding to gap characters as hidden in the column
-   * selection
-   * 
-   * @param sr
-   */
-  public void hideInsertionsFor(SequenceI sr)
-  {
-    List<int[]> inserts = sr.getInsertions();
-    for (int[] r : inserts)
-    {
-      hideColumns(r[0], r[1]);
-    }
-  }
-
-  public boolean filterAnnotations(Annotation[] annotations,
-          AnnotationFilterParameter filterParams)
-  {
-    this.revealAllHiddenColumns();
-    this.clear();
-    int count = 0;
-    do
-    {
-      if (annotations[count] != null)
-      {
-
-        boolean itemMatched = false;
-
-        if (filterParams.getThresholdType() == AnnotationFilterParameter.ThresholdType.ABOVE_THRESHOLD
-                && annotations[count].value >= filterParams
-                        .getThresholdValue())
-        {
-          itemMatched = true;
-        }
-        if (filterParams.getThresholdType() == AnnotationFilterParameter.ThresholdType.BELOW_THRESHOLD
-                && annotations[count].value <= filterParams
-                        .getThresholdValue())
-        {
-          itemMatched = true;
-        }
-
-        if (filterParams.isFilterAlphaHelix()
-                && annotations[count].secondaryStructure == 'H')
-        {
-          itemMatched = true;
-        }
-
-        if (filterParams.isFilterBetaSheet()
-                && annotations[count].secondaryStructure == 'E')
-        {
-          itemMatched = true;
-        }
-
-        if (filterParams.isFilterTurn()
-                && annotations[count].secondaryStructure == 'S')
-        {
-          itemMatched = true;
-        }
-
-        String regexSearchString = filterParams.getRegexString();
-        if (regexSearchString != null
-                && !filterParams.getRegexSearchFields().isEmpty())
-        {
-          List<SearchableAnnotationField> fields = filterParams
-                  .getRegexSearchFields();
-          try
-          {
-            if (fields.contains(SearchableAnnotationField.DISPLAY_STRING)
-                    && annotations[count].displayCharacter
-                            .matches(regexSearchString))
-            {
-              itemMatched = true;
-            }
-          } catch (java.util.regex.PatternSyntaxException pse)
-          {
-            if (annotations[count].displayCharacter
-                    .equals(regexSearchString))
-            {
-              itemMatched = true;
-            }
-          }
-          if (fields.contains(SearchableAnnotationField.DESCRIPTION)
-                  && annotations[count].description != null
-                  && annotations[count].description
-                          .matches(regexSearchString))
-          {
-            itemMatched = true;
-          }
-        }
-
-        if (itemMatched)
-        {
-          this.addElement(count);
-        }
-      }
-      count++;
-    } while (count < annotations.length);
-    return false;
   }
 }

@@ -7,8 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
-import java.util.Vector;
+import java.util.*;
 
 /**
  * This class implements the (?: ... ) extended Pattern. It provides a base

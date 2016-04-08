@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package uk.ac.ebi.www;
 
@@ -205,8 +202,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "poll"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { jobid,
-        type });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { jobid, type });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -250,8 +247,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "runWUBlast"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { params,
-        content });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { params, content });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -295,8 +292,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "test"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { jobid,
-        type });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { jobid, type });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -336,7 +333,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "checkStatus"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { jobid });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { jobid });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -376,7 +374,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "getResults"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { jobid });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { jobid });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -420,8 +419,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "polljob"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { jobid,
-        outformat });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { jobid, outformat });
 
     if (_resp instanceof java.rmi.RemoteException)
     {
@@ -465,8 +464,8 @@ public class WSWUBlastSoapBindingStub extends org.apache.axis.client.Stub
     _call.setOperationName(new javax.xml.namespace.QName(
             "http://www.ebi.ac.uk/WSWUBlast", "doWUBlast"));
 
-    java.lang.Object _resp = _call.invoke(new java.lang.Object[] { params,
-        content });
+    java.lang.Object _resp = _call.invoke(new java.lang.Object[]
+    { params, content });
 
     if (_resp instanceof java.rmi.RemoteException)
     {

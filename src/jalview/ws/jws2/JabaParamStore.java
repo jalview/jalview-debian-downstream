@@ -1,38 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.jws2;
 
-import jalview.util.MessageManager;
-import jalview.ws.jws2.dm.JabaOption;
-import jalview.ws.jws2.dm.JabaParameter;
-import jalview.ws.jws2.dm.JabaWsParamSet;
-import jalview.ws.jws2.jabaws2.Jws2Instance;
-import jalview.ws.params.ArgumentI;
-import jalview.ws.params.ParamDatastoreI;
-import jalview.ws.params.ParamManager;
-import jalview.ws.params.WsParamSetI;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -43,6 +32,15 @@ import compbio.metadata.Parameter;
 import compbio.metadata.Preset;
 import compbio.metadata.PresetManager;
 import compbio.metadata.RunnerConfig;
+
+import jalview.ws.jws2.Jws2Discoverer.Jws2Instance;
+import jalview.ws.jws2.dm.JabaOption;
+import jalview.ws.jws2.dm.JabaParameter;
+import jalview.ws.jws2.dm.JabaWsParamSet;
+import jalview.ws.params.ArgumentI;
+import jalview.ws.params.ParamDatastoreI;
+import jalview.ws.params.ParamManager;
+import jalview.ws.params.WsParamSetI;
 
 public class JabaParamStore implements ParamDatastoreI
 {
@@ -142,56 +140,24 @@ public class JabaParamStore implements ParamDatastoreI
 
   public static List<ArgumentI> getJwsArgsfromJaba(List jabargs)
   {
-    return getJwsArgsfromJaba(jabargs, true);
-  }
-
-  public static List<ArgumentI> getJwsArgsfromJaba(List jabargs,
-          boolean sortByOpt)
-  {
     List<ArgumentI> rgs = new ArrayList<ArgumentI>();
-    List<String> rgnames = new ArrayList<String>();
     for (Object rg : jabargs)
     {
-      ArgumentI narg = null;
-      String nargstring = null;
-      if (rg instanceof Parameter)
-      {
-        narg = new JabaParameter((Parameter) rg);
-        nargstring = narg.getName(); // just sort by name for this
-      }
-      else if (rg instanceof Option)
-      {
-        narg = new JabaOption((Option) rg);
-        nargstring = (String) ((Option) rg).getOptionNames().get(0);
-      }
+      ArgumentI narg = (rg instanceof Parameter) ? new JabaParameter(
+              (Parameter) rg) : (rg instanceof Option) ? new JabaOption(
+              (Option) rg) : null;
       if (narg == null)
       {
-        throw new Error(MessageManager.formatMessage(
-                "error.implementation_error_cannot_handle_jaba_param",
-                new String[] { rg.getClass().toString() }));
+        throw new Error(
+                "Implementation Error: Cannot handle Jaba parameter object "
+                        + rg.getClass());
       }
       else
       {
         rgs.add(narg);
-        rgnames.add(nargstring);
       }
     }
-    if (!sortByOpt)
-    {
-      return rgs;
-    }
-    ArgumentI[] rgssort = rgs.toArray(new ArgumentI[rgs.size()]);
-    String[] rgssorton = rgnames.toArray(new String[rgs.size()]);
-    jalview.util.QuickSort.sort(rgssorton, rgssort);
-    ArgumentI tmp1;
-    int i = 0;
-    while (rgssort.length - i > i)
-    {
-      tmp1 = rgssort[rgssort.length - i - 1];
-      rgssort[rgssort.length - i - 1] = rgssort[i];
-      rgssort[i++] = tmp1;
-    }
-    return Arrays.asList(rgssort);
+    return rgs;
   }
 
   public static List getJabafromJwsArgs(List<ArgumentI> jwsargs)
@@ -203,9 +169,9 @@ public class JabaParamStore implements ParamDatastoreI
               .getOption() : null;
       if (narg == null)
       {
-        throw new Error(MessageManager.formatMessage(
-                "error.implementation_error_cannot_handle_jaba_param",
-                new String[] { rg.getClass().toString() }));
+        throw new Error(
+                "Implementation Error: Cannot handle Jaba parameter object "
+                        + rg.getClass());
       }
       else
       {
@@ -244,8 +210,7 @@ public class JabaParamStore implements ParamDatastoreI
     if (servicePresets.containsKey(name))
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_attempt_to_delete_service_preset"));
+              "Implementation error: Attempt to delete a service preset!");
     }
   }
 
@@ -254,7 +219,8 @@ public class JabaParamStore implements ParamDatastoreI
           List<ArgumentI> jobParams)
   {
     JabaWsParamSet jps = new JabaWsParamSet(presetName, text, jobParams);
-    jps.setApplicableUrls(new String[] { service.getUri() });
+    jps.setApplicableUrls(new String[]
+    { service.getUri() });
     editedParams.put(jps.getName(), jps);
     if (manager != null)
     {
@@ -270,16 +236,15 @@ public class JabaParamStore implements ParamDatastoreI
             : getPreset(presetName));
     if (jps == null)
     {
-      throw new Error(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_cannot_locate_oldname_presetname",
-                              new String[] { oldName, presetName }));
+      throw new Error("Implementation error: Can't locate either oldname ("
+              + oldName + ") or presetName (" + presetName
+              + "in the datastore!");
     }
     jps.setName(presetName);
     jps.setDescription(text);
     jps.setArguments(jobParams);
-    jps.setApplicableUrls(new String[] { service.getUri() });
+    jps.setApplicableUrls(new String[]
+    { service.getUri() });
     if (oldName != null && !oldName.equals(jps.getName()))
     {
       editedParams.remove(oldName);
@@ -307,8 +272,7 @@ public class JabaParamStore implements ParamDatastoreI
     boolean found = false;
     for (String url : urls)
     {
-      if (service.getServiceTypeURI().equals(url)
-              || service.getUri().equalsIgnoreCase(url))
+      if (service.getUri().equalsIgnoreCase(url))
       {
         found = true;
         break;
@@ -324,8 +288,7 @@ public class JabaParamStore implements ParamDatastoreI
     if (!involves(urls))
     {
       throw new IOException(
-              MessageManager
-                      .getString("error.implementation_error_cannot_find_service_url_in_given_set"));
+              "Implementation error: Cannot find service url in the given url set!");
 
     }
     JabaWsParamSet wsp = new JabaWsParamSet();
@@ -351,16 +314,14 @@ public class JabaParamStore implements ParamDatastoreI
     if (!involves(pset.getApplicableUrls()))
     {
       throw new IOException(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_cannot_find_service_url_in_given_set_param_store",
-                              new String[] { service.getUri() }));
+              "Implementation error: Cannot find service url in the given url set for this service parameter store ("
+                      + service.getUri() + ") !");
+
     }
     if (!(pset instanceof JabaWsParamSet))
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_jabaws_param_set_only_handled_by"));
+              "Implementation error: JabaWsParamSets can only be handled by JabaParamStore");
     }
 
     StringBuffer rslt = new StringBuffer();

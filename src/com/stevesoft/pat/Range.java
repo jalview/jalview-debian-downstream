@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /** Thrown when one encounters things like [z-a] */
 class BadRangeArgs extends RegSyntax

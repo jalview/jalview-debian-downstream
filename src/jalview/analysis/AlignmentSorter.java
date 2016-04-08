@@ -1,38 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.SequenceNode;
-import jalview.util.Comparison;
-import jalview.util.MessageManager;
-import jalview.util.QuickSort;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import jalview.datamodel.*;
+import jalview.util.*;
 
 /**
  * Routines for manipulating the order of a multiple sequence alignment TODO:
@@ -129,7 +117,7 @@ public class AlignmentSorter
       seqs[i] = align.getSequenceAt(i);
     }
 
-    QuickSort.sort(scores, seqs);
+    QuickSort.sort(scores, 0, scores.length - 1, seqs);
 
     setReverseOrder(align, seqs);
   }
@@ -158,15 +146,11 @@ public class AlignmentSorter
     }
 
     // NOTE: DO NOT USE align.setSequenceAt() here - it will NOT work
-    List<SequenceI> asq;
-    synchronized (asq = align.getSequences())
+    for (int i = 0; i < len; i++)
     {
-      for (int i = 0; i < len; i++)
-      {
-        // SequenceI tmp = seqs[i];
-        asq.set(i, seqs[nSeq - i - 1]);
-        asq.set(nSeq - i - 1, seqs[i]);
-      }
+      // SequenceI tmp = seqs[i];
+      align.getSequences().setElementAt(seqs[nSeq - i - 1], i);
+      align.getSequences().setElementAt(seqs[i], nSeq - i - 1);
     }
   }
 
@@ -178,7 +162,7 @@ public class AlignmentSorter
    * @param tmp
    *          sequences as a vector
    */
-  private static void setOrder(AlignmentI align, List<SequenceI> tmp)
+  private static void setOrder(AlignmentI align, Vector tmp)
   {
     setOrder(align, vectorSubsetToArray(tmp, align.getSequences()));
   }
@@ -194,26 +178,24 @@ public class AlignmentSorter
   public static void setOrder(AlignmentI align, SequenceI[] seqs)
   {
     // NOTE: DO NOT USE align.setSequenceAt() here - it will NOT work
-    List<SequenceI> algn;
-    synchronized (algn = align.getSequences())
+    Vector algn = align.getSequences();
+    Vector tmp = new Vector();
+
+    for (int i = 0; i < seqs.length; i++)
     {
-      List<SequenceI> tmp = new ArrayList<SequenceI>();
-
-      for (int i = 0; i < seqs.length; i++)
+      if (algn.contains(seqs[i]))
       {
-        if (algn.contains(seqs[i]))
-        {
-          tmp.add(seqs[i]);
-        }
-      }
-
-      algn.clear();
-      // User may have hidden seqs, then clicked undo or redo
-      for (int i = 0; i < tmp.size(); i++)
-      {
-        algn.add(tmp.get(i));
+        tmp.addElement(seqs[i]);
       }
     }
+
+    algn.removeAllElements();
+    // User may have hidden seqs, then clicked undo or redo
+    for (int i = 0; i < tmp.size(); i++)
+    {
+      algn.addElement(tmp.elementAt(i));
+    }
+
   }
 
   /**
@@ -265,7 +247,7 @@ public class AlignmentSorter
     for (int i = 0; i < nSeq; i++)
     {
       seqs[i] = align.getSequenceAt(i);
-      length[i] = (seqs[i].getEnd() - seqs[i].getStart());
+      length[i] = (float) (seqs[i].getEnd() - seqs[i].getStart());
     }
 
     QuickSort.sort(length, seqs);
@@ -294,7 +276,7 @@ public class AlignmentSorter
   {
     // MAINTAINS ORIGNAL SEQUENCE ORDER,
     // ORDERS BY GROUP SIZE
-    List<SequenceGroup> groups = new ArrayList<SequenceGroup>();
+    Vector groups = new Vector();
 
     if (groups.hashCode() != lastGroupHash)
     {
@@ -308,15 +290,17 @@ public class AlignmentSorter
 
     // SORTS GROUPS BY SIZE
     // ////////////////////
-    for (SequenceGroup sg : align.getGroups())
+    for (int i = 0; i < align.getGroups().size(); i++)
     {
+      SequenceGroup sg = (SequenceGroup) align.getGroups().elementAt(i);
+
       for (int j = 0; j < groups.size(); j++)
       {
-        SequenceGroup sg2 = groups.get(j);
+        SequenceGroup sg2 = (SequenceGroup) groups.elementAt(j);
 
         if (sg.getSize() > sg2.getSize())
         {
-          groups.add(j, sg);
+          groups.insertElementAt(sg, j);
 
           break;
         }
@@ -324,22 +308,22 @@ public class AlignmentSorter
 
       if (!groups.contains(sg))
       {
-        groups.add(sg);
+        groups.addElement(sg);
       }
     }
 
     // NOW ADD SEQUENCES MAINTAINING ALIGNMENT ORDER
     // /////////////////////////////////////////////
-    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    Vector seqs = new Vector();
 
     for (int i = 0; i < groups.size(); i++)
     {
-      SequenceGroup sg = groups.get(i);
+      SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
       SequenceI[] orderedseqs = sg.getSequencesInOrder(align);
 
       for (int j = 0; j < orderedseqs.length; j++)
       {
-        seqs.add(orderedseqs[j]);
+        seqs.addElement(orderedseqs[j]);
       }
     }
 
@@ -355,24 +339,38 @@ public class AlignmentSorter
   }
 
   /**
-   * Select sequences in order from tmp that is present in mask, and any
-   * remaining sequences in mask not in tmp
+   * Converts Vector to array. java 1.18 does not have Vector.toArray()
    * 
    * @param tmp
-   *          thread safe collection of sequences
-   * @param mask
-   *          thread safe collection of sequences
+   *          Vector of SequenceI objects
    * 
-   * @return intersect(tmp,mask)+intersect(complement(tmp),mask)
+   * @return array of Sequence[]
    */
-  private static SequenceI[] vectorSubsetToArray(List<SequenceI> tmp,
-          List<SequenceI> mask)
+  private static SequenceI[] vectorToArray(Vector tmp)
   {
-    // or?
-    // tmp2 = tmp.retainAll(mask);
-    // return tmp2.addAll(mask.removeAll(tmp2))
+    SequenceI[] seqs = new SequenceI[tmp.size()];
 
-    ArrayList<SequenceI> seqs = new ArrayList<SequenceI>();
+    for (int i = 0; i < tmp.size(); i++)
+    {
+      seqs[i] = (SequenceI) tmp.elementAt(i);
+    }
+
+    return seqs;
+  }
+
+  /**
+   * DOCUMENT ME!
+   * 
+   * @param tmp
+   *          DOCUMENT ME!
+   * @param mask
+   *          DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
+   */
+  private static SequenceI[] vectorSubsetToArray(Vector tmp, Vector mask)
+  {
+    Vector seqs = new Vector();
     int i, idx;
     boolean[] tmask = new boolean[mask.size()];
 
@@ -383,12 +381,12 @@ public class AlignmentSorter
 
     for (i = 0; i < tmp.size(); i++)
     {
-      SequenceI sq = tmp.get(i);
+      Object sq = tmp.elementAt(i);
       idx = mask.indexOf(sq);
       if (idx > -1 && tmask[idx])
       {
         tmask[idx] = false;
-        seqs.add(sq);
+        seqs.addElement(sq);
       }
     }
 
@@ -396,11 +394,11 @@ public class AlignmentSorter
     {
       if (tmask[i])
       {
-        seqs.add(mask.get(i));
+        seqs.addElement(mask.elementAt(i));
       }
     }
 
-    return seqs.toArray(new SequenceI[seqs.size()]);
+    return vectorToArray(seqs);
   }
 
   /**
@@ -414,7 +412,7 @@ public class AlignmentSorter
   public static void sortBy(AlignmentI align, AlignmentOrder order)
   {
     // Get an ordered vector of sequences which may also be present in align
-    List<SequenceI> tmp = order.getOrder();
+    Vector tmp = order.getOrder();
 
     if (lastOrder == order)
     {
@@ -445,12 +443,11 @@ public class AlignmentSorter
    * 
    * @return DOCUMENT ME!
    */
-  private static List<SequenceI> getOrderByTree(AlignmentI align,
-          NJTree tree)
+  private static Vector getOrderByTree(AlignmentI align, NJTree tree)
   {
     int nSeq = align.getHeight();
 
-    List<SequenceI> tmp = new ArrayList<SequenceI>();
+    Vector tmp = new Vector();
 
     tmp = _sortByTree(tree.getTopNode(), tmp, align.getSequences());
 
@@ -466,12 +463,8 @@ public class AlignmentSorter
 
       if (tmp.size() != nSeq)
       {
-        System.err
-                .println("WARNING: tmp.size()="
-                        + tmp.size()
-                        + " != nseq="
-                        + nSeq
-                        + " in getOrderByTree - tree contains sequences not in alignment");
+        System.err.println("WARNING: tmp.size()=" + tmp.size() + " != nseq="
+                + nSeq + " in getOrderByTree - tree contains sequences not in alignment");
       }
     }
 
@@ -488,7 +481,7 @@ public class AlignmentSorter
    */
   public static void sortByTree(AlignmentI align, NJTree tree)
   {
-    List<SequenceI> tmp = getOrderByTree(align, tree);
+    Vector tmp = getOrderByTree(align, tree);
 
     // tmp should properly permute align with tree.
     if (lastTree != tree)
@@ -516,22 +509,22 @@ public class AlignmentSorter
    * 
    * @param align
    *          DOCUMENT ME!
-   * @param tmp
+   * @param seqs
    *          DOCUMENT ME!
    */
-  private static void addStrays(AlignmentI align, List<SequenceI> tmp)
+  private static void addStrays(AlignmentI align, Vector seqs)
   {
     int nSeq = align.getHeight();
 
     for (int i = 0; i < nSeq; i++)
     {
-      if (!tmp.contains(align.getSequenceAt(i)))
+      if (!seqs.contains(align.getSequenceAt(i)))
       {
-        tmp.add(align.getSequenceAt(i));
+        seqs.addElement(align.getSequenceAt(i));
       }
     }
 
-    if (nSeq != tmp.size())
+    if (nSeq != seqs.size())
     {
       System.err
               .println("ERROR: Size still not right even after addStrays");
@@ -550,8 +543,8 @@ public class AlignmentSorter
    * 
    * @return DOCUMENT ME!
    */
-  private static List<SequenceI> _sortByTree(SequenceNode node,
-          List<SequenceI> tmp, List<SequenceI> seqset)
+  private static Vector _sortByTree(SequenceNode node, Vector tmp,
+          Vector seqset)
   {
     if (node == null)
     {
@@ -567,11 +560,9 @@ public class AlignmentSorter
       {
         if (node.element() instanceof SequenceI)
         {
-          if (!tmp.contains(node.element())) // && (seqset==null ||
-                                             // seqset.size()==0 ||
-                                             // seqset.contains(tmp)))
+          if (!tmp.contains(node.element())) //  && (seqset==null || seqset.size()==0 || seqset.contains(tmp)))
           {
-            tmp.add((SequenceI) node.element());
+            tmp.addElement((SequenceI) node.element());
           }
         }
       }
@@ -718,9 +709,9 @@ public class AlignmentSorter
   public static void sortByFeature(String featureLabel, String groupLabel,
           int start, int stop, AlignmentI alignment, String method)
   {
-    sortByFeature(featureLabel == null ? null
-            : new String[] { featureLabel }, groupLabel == null ? null
-            : new String[] { groupLabel }, start, stop, alignment, method);
+    sortByFeature(featureLabel == null ? null : new String[]
+    { featureLabel }, groupLabel == null ? null : new String[]
+    { groupLabel }, start, stop, alignment, method);
   }
 
   private static boolean containsIgnoreCase(final String lab,
@@ -752,8 +743,7 @@ public class AlignmentSorter
             && method != FEATURE_DENSITY)
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_sortbyfeature"));
+              "Implementation Error - sortByFeature method must be one of FEATURE_SCORE, FEATURE_LABEL or FEATURE_DENSITY.");
     }
     boolean ignoreScore = method != FEATURE_SCORE;
     StringBuffer scoreLabel = new StringBuffer();
@@ -781,6 +771,10 @@ public class AlignmentSorter
     for (int i = 0; i < seqs.length; i++)
     {
       SequenceFeature[] sf = seqs[i].getSequenceFeatures();
+      if (sf == null && seqs[i].getDatasetSequence() != null)
+      {
+        sf = seqs[i].getDatasetSequence().getSequenceFeatures();
+      }
       if (sf == null)
       {
         sf = new SequenceFeature[0];
@@ -821,7 +815,7 @@ public class AlignmentSorter
         else
         {
           // or, also take a look at the scores if necessary.
-          if (!ignoreScore && !Float.isNaN(sf[f].getScore()))
+          if (!ignoreScore && sf[f].getScore() != Float.NaN)
           {
             if (seqScores[i] == 0)
             {
@@ -929,8 +923,7 @@ public class AlignmentSorter
     {
       if (method == FEATURE_LABEL)
       {
-        throw new Error(
-                MessageManager.getString("error.not_yet_implemented"));
+        throw new Error("Not yet implemented.");
       }
     }
     if (lastSortByFeatureScore == null

@@ -1,43 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.jbgui;
 
-import jalview.util.MessageManager;
-
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.GridLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
 /**
  * DOCUMENT ME!
@@ -125,13 +107,13 @@ public class GSliderPanel extends JPanel
     label.setFont(new java.awt.Font("Verdana", 0, 11));
     label.setOpaque(false);
     label.setHorizontalAlignment(SwingConstants.CENTER);
-    label.setText(MessageManager.getString("label.set_this_label_text"));
+    label.setText("set this label text");
     southPanel.setLayout(borderLayout1);
     gridLayout1.setRows(2);
     jPanel2.setLayout(flowLayout1);
     applyButton.setFont(new java.awt.Font("Verdana", 0, 11));
     applyButton.setOpaque(false);
-    applyButton.setText(MessageManager.getString("action.apply"));
+    applyButton.setText("Apply");
     applyButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -142,7 +124,7 @@ public class GSliderPanel extends JPanel
     undoButton.setEnabled(false);
     undoButton.setFont(new java.awt.Font("Verdana", 0, 11));
     undoButton.setOpaque(false);
-    undoButton.setText(MessageManager.getString("action.undo"));
+    undoButton.setText("Undo");
     undoButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -153,8 +135,7 @@ public class GSliderPanel extends JPanel
     allGroupsCheck.setEnabled(false);
     allGroupsCheck.setFont(new java.awt.Font("Verdana", 0, 11));
     allGroupsCheck.setOpaque(false);
-    allGroupsCheck.setText(MessageManager
-            .getString("action.apply_all_groups"));
+    allGroupsCheck.setText("Apply to all Groups");
     allGroupsCheck.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)

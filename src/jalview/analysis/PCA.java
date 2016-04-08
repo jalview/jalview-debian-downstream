@@ -1,32 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.BinarySequence;
-import jalview.datamodel.BinarySequence.InvalidSequenceTypeException;
-import jalview.math.Matrix;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.ScoreMatrix;
+import java.io.*;
 
-import java.io.PrintStream;
+import jalview.datamodel.*;
+import jalview.math.*;
 
 /**
  * Performs Principal Component Analysis on given sequences
@@ -49,33 +43,12 @@ public class PCA implements Runnable
   StringBuffer details = new StringBuffer();
 
   /**
-   * Creates a new PCA object. By default, uses blosum62 matrix to generate
-   * sequence similarity matrices
-   * 
-   * @param s
-   *          Set of amino acid sequences to perform PCA on
-   */
-  public PCA(String[] s)
-  {
-    this(s, false);
-  }
-
-  /**
-   * Creates a new PCA object. By default, uses blosum62 matrix to generate
-   * sequence similarity matrices
+   * Creates a new PCA object.
    * 
    * @param s
    *          Set of sequences to perform PCA on
-   * @param nucleotides
-   *          if true, uses standard DNA/RNA matrix for sequence similarity
-   *          calculation.
    */
-  public PCA(String[] s, boolean nucleotides)
-  {
-    this(s, nucleotides, null);
-  }
-
-  public PCA(String[] s, boolean nucleotides, String s_m)
+  public PCA(String[] s)
   {
 
     BinarySequence[] bs = new BinarySequence[s.length];
@@ -83,41 +56,18 @@ public class PCA implements Runnable
 
     while ((ii < s.length) && (s[ii] != null))
     {
-      bs[ii] = new BinarySequence(s[ii], nucleotides);
+      bs[ii] = new BinarySequence(s[ii]);
       bs[ii].encode();
       ii++;
     }
 
     BinarySequence[] bs2 = new BinarySequence[s.length];
     ii = 0;
-    ScoreMatrix smtrx = null;
-    String sm = s_m;
-    if (sm != null)
-    {
-      smtrx = ResidueProperties.getScoreMatrix(sm);
-    }
-    if (smtrx == null)
-    {
-      // either we were given a non-existent score matrix or a scoremodel that
-      // isn't based on a pairwise symbol score matrix
-      smtrx = ResidueProperties.getScoreMatrix(sm = (nucleotides ? "DNA"
-              : "BLOSUM62"));
-    }
-    details.append("PCA calculation using " + sm
-            + " sequence similarity matrix\n========\n\n");
+
     while ((ii < s.length) && (s[ii] != null))
     {
-      bs2[ii] = new BinarySequence(s[ii], nucleotides);
-      if (smtrx != null)
-      {
-        try
-        {
-          bs2[ii].matrixEncode(smtrx);
-        } catch (InvalidSequenceTypeException x)
-        {
-          details.append("Unexpected mismatch of sequence type and score matrix. Calculation will not be valid!\n\n");
-        }
-      }
+      bs2[ii] = new BinarySequence(s[ii]);
+      bs2[ii].blosumEncode();
       ii++;
     }
 
@@ -254,6 +204,12 @@ public class PCA implements Runnable
    */
   public void run()
   {
+    Matrix mt = m.transpose();
+
+    details.append(" --- OrigT * Orig ---- \n");
+    // eigenvector = mt.preMultiply(m); // standard seqspace comparison matrix
+    eigenvector = mt.preMultiply(m2); // jalview variation on seqsmace method
+
     PrintStream ps = new PrintStream(System.out)
     {
       public void print(String x)
@@ -267,47 +223,22 @@ public class PCA implements Runnable
       }
     };
 
-    try
-    {
-      details.append("PCA Calculation Mode is "
-              + (jvCalcMode ? "Jalview variant" : "Original SeqSpace")
-              + "\n");
-      Matrix mt = m.transpose();
+    eigenvector.print(ps);
 
-      details.append(" --- OrigT * Orig ---- \n");
-      if (!jvCalcMode)
-      {
-        eigenvector = mt.preMultiply(m); // standard seqspace comparison matrix
-      }
-      else
-      {
-        eigenvector = mt.preMultiply(m2); // jalview variation on seqsmace
-                                          // method
-      }
+    symm = eigenvector.copy();
 
-      eigenvector.print(ps);
+    eigenvector.tred();
 
-      symm = eigenvector.copy();
+    details.append(" ---Tridiag transform matrix ---\n");
+    details.append(" --- D vector ---\n");
+    eigenvector.printD(ps);
+    ps.println();
+    details.append("--- E vector ---\n");
+    eigenvector.printE(ps);
+    ps.println();
 
-      eigenvector.tred();
-
-      details.append(" ---Tridiag transform matrix ---\n");
-      details.append(" --- D vector ---\n");
-      eigenvector.printD(ps);
-      ps.println();
-      details.append("--- E vector ---\n");
-      eigenvector.printE(ps);
-      ps.println();
-
-      // Now produce the diagonalization matrix
-      eigenvector.tqli();
-    } catch (Exception q)
-    {
-      q.printStackTrace();
-      details.append("\n*** Unexpected exception when performing PCA ***\n"
-              + q.getLocalizedMessage());
-      details.append("*** Matrices below may not be fully diagonalised. ***\n");
-    }
+    // Now produce the diagonalization matrix
+    eigenvector.tqli();
 
     details.append(" --- New diagonalization matrix ---\n");
     eigenvector.print(ps);
@@ -320,12 +251,5 @@ public class PCA implements Runnable
      * 
      * ps.print(","+component(seq, ev)); } ps.println(); }
      */
-  }
-
-  boolean jvCalcMode = true;
-
-  public void setJvCalcMode(boolean calcMode)
-  {
-    this.jvCalcMode = calcMode;
   }
 }

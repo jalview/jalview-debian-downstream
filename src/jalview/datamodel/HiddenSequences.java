@@ -1,28 +1,23 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class HiddenSequences
 {
@@ -145,34 +140,32 @@ public class HiddenSequences
     alignment.deleteSequence(sequence);
   }
 
-  public List<SequenceI> showAll(
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public Vector showAll(Hashtable hiddenReps)
   {
-    List<SequenceI> revealedSeqs = new ArrayList<SequenceI>();
+    Vector revealedSeqs = new Vector();
     for (int i = 0; i < hiddenSequences.length; i++)
     {
       if (hiddenSequences[i] != null)
       {
-        List<SequenceI> tmp = showSequence(i, hiddenRepSequences);
-        for (SequenceI seq : tmp)
+        Vector tmp = showSequence(i, hiddenReps);
+        for (int t = 0; t < tmp.size(); t++)
         {
-          revealedSeqs.add(seq);
+          revealedSeqs.addElement(tmp.elementAt(t));
         }
       }
     }
     return revealedSeqs;
   }
 
-  public List<SequenceI> showSequence(int alignmentIndex,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public Vector showSequence(int alignmentIndex, Hashtable hiddenReps)
   {
-    List<SequenceI> revealedSeqs = new ArrayList<SequenceI>();
+    Vector revealedSeqs = new Vector();
     SequenceI repSequence = alignment.getSequenceAt(alignmentIndex);
-    if (repSequence != null && hiddenRepSequences != null
-            && hiddenRepSequences.containsKey(repSequence))
+    if (repSequence != null && hiddenReps != null
+            && hiddenReps.containsKey(repSequence))
     {
-      hiddenRepSequences.remove(repSequence);
-      revealedSeqs.add(repSequence);
+      hiddenReps.remove(repSequence);
+      revealedSeqs.addElement(repSequence);
     }
 
     int start = adjustForHiddenSeqs(alignmentIndex - 1);
@@ -182,29 +175,25 @@ public class HiddenSequences
       end = hiddenSequences.length - 1;
     }
 
-    List<SequenceI> asequences;
-    synchronized (asequences = alignment.getSequences())
+    for (int index = end; index > start; index--)
     {
-      for (int index = end; index > start; index--)
+      SequenceI seq = hiddenSequences[index];
+      hiddenSequences[index] = null;
+
+      if (seq != null)
       {
-        SequenceI seq = hiddenSequences[index];
-        hiddenSequences[index] = null;
-
-        if (seq != null)
+        if (seq.getLength() > 0)
         {
-          if (seq.getLength() > 0)
-          {
-            revealedSeqs.add(seq);
-            asequences.add(alignmentIndex, seq);
-          }
-          else
-          {
-            System.out.println(seq.getName()
-                    + " has been deleted whilst hidden");
-          }
+          revealedSeqs.addElement(seq);
+          alignment.getSequences().insertElementAt(seq, alignmentIndex);
         }
-
+        else
+        {
+          System.out.println(seq.getName()
+                  + " has been deleted whilst hidden");
+        }
       }
+
     }
 
     return revealedSeqs;
@@ -272,25 +261,17 @@ public class HiddenSequences
         index++;
       }
     }
-    Alignment fAlignmt = new Alignment(seq);
-    fAlignmt.annotations = alignment.getAlignmentAnnotation();
-    fAlignmt.alignmentProperties = alignment.getProperties();
-    fAlignmt.groups = alignment.getGroups();
-    fAlignmt.hasRNAStructure = alignment.hasRNAStructure();
 
-    return fAlignmt;
+    return new Alignment(seq);
   }
 
   public boolean isHidden(SequenceI seq)
   {
-    if (hiddenSequences != null)
+    for (int i = 0; i < hiddenSequences.length; i++)
     {
-      for (int i = 0; i < hiddenSequences.length; i++)
+      if (hiddenSequences[i] != null && hiddenSequences[i] == seq)
       {
-        if (hiddenSequences[i] != null && hiddenSequences[i] == seq)
-        {
-          return true;
-        }
+        return true;
       }
     }
 

@@ -1,27 +1,23 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.util;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * ShiftList Simple way of mapping a linear series to a new linear range with
@@ -30,11 +26,11 @@ import java.util.List;
  */
 public class ShiftList
 {
-  private List<int[]> shifts;
+  public Vector shifts;
 
   public ShiftList()
   {
-    shifts = new ArrayList<int[]>();
+    shifts = new Vector();
   }
 
   /**
@@ -47,22 +43,21 @@ public class ShiftList
    */
   public void addShift(int pos, int shift)
   {
-    synchronized (shifts)
+    int sidx = 0;
+    int[] rshift = null;
+    while (sidx < shifts.size()
+            && (rshift = (int[]) shifts.elementAt(sidx))[0] < pos)
     {
-      int sidx = 0;
-      int[] rshift = null;
-      while (sidx < shifts.size() && (rshift = shifts.get(sidx))[0] < pos)
-      {
-        sidx++;
-      }
-      if (sidx == shifts.size())
-      {
-        shifts.add(sidx, new int[] { pos, shift });
-      }
-      else
-      {
-        rshift[1] += shift;
-      }
+      sidx++;
+    }
+    if (sidx == shifts.size())
+    {
+      shifts.insertElementAt(new int[]
+      { pos, shift }, sidx);
+    }
+    else
+    {
+      rshift[1] += shift;
     }
   }
 
@@ -83,7 +78,7 @@ public class ShiftList
     int sidx = 0;
     int rshift[];
     while (sidx < shifts.size()
-            && (rshift = (shifts.get(sidx++)))[0] <= pos)
+            && (rshift = ((int[]) shifts.elementAt(sidx++)))[0] <= pos)
     {
       shifted += rshift[1];
     }
@@ -93,9 +88,9 @@ public class ShiftList
   /**
    * clear all shifts
    */
-  public synchronized void clear()
+  public void clear()
   {
-    shifts.clear();
+    shifts.removeAllElements();
   }
 
   /**
@@ -106,16 +101,15 @@ public class ShiftList
   public ShiftList getInverse()
   {
     ShiftList inverse = new ShiftList();
-    synchronized (shifts)
+    if (shifts != null)
     {
-      if (shifts != null)
+      for (int i = 0, j = shifts.size(); i < j; i++)
       {
-        for (int[] sh : shifts)
+        int[] sh = (int[]) shifts.elementAt(i);
+        if (sh != null)
         {
-          if (sh != null)
-          {
-            inverse.shifts.add(new int[] { sh[0], -sh[1] });
-          }
+          inverse.shifts.addElement(new int[]
+          { sh[0], -sh[1] });
         }
       }
     }
@@ -123,8 +117,8 @@ public class ShiftList
   }
 
   /**
-   * parse a 1d map of position 1&lt;i&lt;n to L&lt;pos[i]&lt;N such as that
-   * returned from SequenceI.gapMap()
+   * parse a 1d map of position 1<i<n to L<pos[i]<N such as that returned from
+   * SequenceI.gapMap()
    * 
    * @param gapMap
    * @return shifts from map index to mapped position
@@ -145,10 +139,5 @@ public class ShiftList
       }
     }
     return shiftList;
-  }
-
-  public List<int[]> getShifts()
-  {
-    return shifts;
   }
 }

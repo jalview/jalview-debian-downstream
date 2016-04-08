@@ -7,11 +7,9 @@
 //
 package com.stevesoft.pat.wrap;
 
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
 
-import com.stevesoft.pat.BasicStringBufferLike;
-import com.stevesoft.pat.StringLike;
+import com.stevesoft.pat.*;
 
 /**
  * Allows the outcome of a replaceAll() or replaceFirst() to be directed to a

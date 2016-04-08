@@ -1,47 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.util;
 
-import jalview.datamodel.SequenceI;
-
-import java.util.ArrayList;
-import java.util.List;
+import jalview.datamodel.*;
 
 /**
- * Assorted methods for analysing or comparing sequences.
+ * DOCUMENT ME!
+ * 
+ * @author $author$
+ * @version $Revision$
  */
 public class Comparison
 {
-  private static final int EIGHTY_FIVE = 85;
-
-  private static final int TO_UPPER_CASE = 'a' - 'A';
-
-  private static final char GAP_SPACE = ' ';
-
-  private static final char GAP_DOT = '.';
-
-  private static final char GAP_DASH = '-';
-
-  public static final String GapChars = new String(new char[] { GAP_SPACE,
-      GAP_DOT, GAP_DASH });
+  /** DOCUMENT ME!! */
+  public static final String GapChars = " .-";
 
   /**
    * DOCUMENT ME!
@@ -79,12 +66,12 @@ public class Comparison
     int ilen = si.length() - 1;
     int jlen = sj.length() - 1;
 
-    while (Comparison.isGap(si.charAt(start + ilen)))
+    while (jalview.util.Comparison.isGap(si.charAt(start + ilen)))
     {
       ilen--;
     }
 
-    while (Comparison.isGap(sj.charAt(start + jlen)))
+    while (jalview.util.Comparison.isGap(sj.charAt(start + jlen)))
     {
       jlen--;
     }
@@ -146,28 +133,19 @@ public class Comparison
   // Another pid with region specification
   public final static float PID(String seq1, String seq2, int start, int end)
   {
-    return PID(seq1, seq2, start, end, true, false);
+	return PID(seq1, seq2, start, end, true,false);
   }
-
   /**
-   * Calculate percent identity for a pair of sequences over a particular range,
-   * with different options for ignoring gaps.
-   * 
+   * Calculate percent identity for a pair of sequences over a particular range, with different options for ignoring gaps.
    * @param seq1
    * @param seq2
-   * @param start
-   *          - position in seqs
-   * @param end
-   *          - position in seqs
-   * @param wcGaps
-   *          - if true - gaps match any character, if false, do not match
-   *          anything
-   * @param ungappedOnly
-   *          - if true - only count PID over ungapped columns
+   * @param start - position in seqs
+   * @param end - position in seqs
+   * @param wcGaps - if true - gaps match any character, if false, do not match anything
+   * @param ungappedOnly - if true - only count PID over ungapped columns
    * @return
    */
-  public final static float PID(String seq1, String seq2, int start,
-          int end, boolean wcGaps, boolean ungappedOnly)
+  public final static float PID(String seq1, String seq2, int start, int end, boolean wcGaps, boolean ungappedOnly)
   {
     int s1len = seq1.length();
     int s2len = seq2.length();
@@ -184,7 +162,7 @@ public class Comparison
       start = len - 1; // we just use a single residue for the difference
     }
 
-    int elen = len - start, bad = 0;
+    int elen=len-start,bad = 0;
     char chr1;
     char chr2;
     boolean agap;
@@ -206,95 +184,69 @@ public class Comparison
         // Faster than toUpperCase
         chr2 -= caseShift;
       }
-
+      
       if (chr1 != chr2)
       {
-        if (agap)
-        {
-          if (ungappedOnly)
-          {
-            elen--;
-          }
-          else if (!wcGaps)
-          {
-            bad++;
-          }
-        }
-        else
-        {
-          bad++;
-        }
+    	if (agap)
+    	{
+    		if (ungappedOnly)
+    		{
+    			elen--;
+    		} else if (!wcGaps) {
+    			bad++;
+    		}
+    	} else {
+    		bad++;
+    	}
       }
-
+      
     }
-    if (elen < 1)
-    {
-      return 0f;
-    }
+    if (elen<1) { return 0f; }
     return ((float) 100 * (elen - bad)) / elen;
   }
 
   /**
-   * Answers true if the supplied character is a recognised gap character, else
-   * false. Currently hard-coded to recognise '-', '-' or ' ' (hyphen / dot /
-   * space).
+   * DOCUMENT ME!
    * 
    * @param c
+   *          DOCUMENT ME!
    * 
-   * @return
+   * @return DOCUMENT ME!
    */
   public static final boolean isGap(char c)
   {
-    return (c == GAP_DASH || c == GAP_DOT || c == GAP_SPACE) ? true : false;
+    return (c == '-' || c == '.' || c == ' ') ? true : false;
   }
 
-  /**
-   * Answers true if more than 85% of the sequence residues (ignoring gaps) are
-   * A, G, C, T or U, else false. This is just a heuristic guess and may give a
-   * wrong answer (as AGCT are also amino acid codes).
-   * 
-   * @param seqs
-   * @return
-   */
   public static final boolean isNucleotide(SequenceI[] seqs)
   {
-    if (seqs == null)
+    int i = 0, iSize = seqs.length, j, jSize;
+    float nt = 0, aa = 0;
+    char c;
+    while (i < iSize)
     {
-      return false;
-    }
-    int ntCount = 0;
-    int aaCount = 0;
-    for (SequenceI seq : seqs)
-    {
-      if (seq == null)
+      jSize = seqs[i].getLength();
+      for (j = 0; j < jSize; j++)
       {
-        continue;
-      }
-      // TODO could possibly make an informed guess just from the first sequence
-      // to save a lengthy calculation
-      for (char c : seq.getSequence())
-      {
+        c = seqs[i].getCharAt(j);
         if ('a' <= c && c <= 'z')
         {
-          c -= TO_UPPER_CASE;
+          c -= ('a' - 'A');
         }
 
         if (c == 'A' || c == 'G' || c == 'C' || c == 'T' || c == 'U')
         {
-          ntCount++;
+          nt++;
         }
-        else if (!Comparison.isGap(c))
+        else if (!jalview.util.Comparison.isGap(seqs[i].getCharAt(j)))
         {
-          aaCount++;
+          aa++;
         }
       }
+      i++;
     }
 
-    /*
-     * Check for nucleotide count > 85% of total count (in a form that evades
-     * int / float conversion or divide by zero).
-     */
-    if (ntCount * 100 > EIGHTY_FIVE * (ntCount + aaCount))
+    if ((nt / (nt + aa)) > 0.85f)
     {
       return true;
     }
@@ -303,30 +255,5 @@ public class Comparison
       return false;
     }
 
-  }
-
-  /**
-   * Convenience overload of isNucleotide
-   * 
-   * @param seqs
-   * @return
-   */
-  public static boolean isNucleotide(SequenceI[][] seqs)
-  {
-    if (seqs == null)
-    {
-      return false;
-    }
-    List<SequenceI> flattened = new ArrayList<SequenceI>();
-    for (SequenceI[] ss : seqs)
-    {
-      for (SequenceI s : ss)
-      {
-        flattened.add(s);
-      }
-    }
-    final SequenceI[] oneDArray = flattened.toArray(new SequenceI[flattened
-            .size()]);
-    return isNucleotide(oneDArray);
   }
 }

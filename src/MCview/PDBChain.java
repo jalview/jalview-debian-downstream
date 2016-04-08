@@ -1,39 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package MCview;
 
-import jalview.analysis.AlignSeq;
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.Annotation;
-import jalview.datamodel.Mapping;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ResidueProperties;
-import jalview.structure.StructureMapping;
+import java.util.*;
 
-import java.awt.Color;
-import java.util.List;
-import java.util.Vector;
+import java.awt.*;
+
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.schemes.*;
+import jalview.structure.StructureMapping;
 
 public class PDBChain
 {
@@ -46,24 +37,15 @@ public class PDBChain
 
   public String id;
 
-  public Vector<Bond> bonds = new Vector<Bond>();
+  public Vector bonds = new Vector();
 
-  public Vector<Atom> atoms = new Vector<Atom>();
+  public Vector atoms = new Vector();
 
-  public Vector<Residue> residues = new Vector<Residue>();
+  public Vector residues = new Vector();
 
   public int offset;
 
-  /**
-   * sequence is the sequence extracted by the chain parsing code
-   */
-  public SequenceI sequence;
-
-  /**
-   * shadow is the sequence created by any other parsing processes (e.g. Jmol,
-   * RNAview)
-   */
-  public SequenceI shadow = null;
+  public Sequence sequence;
 
   public boolean isNa = false;
 
@@ -90,8 +72,6 @@ public class PDBChain
    */
   protected String newline = System.getProperty("line.separator");
 
-  public Mapping shadowMap;
-
   public void setNewlineString(String nl)
   {
     newline = nl;
@@ -104,22 +84,22 @@ public class PDBChain
 
   public String print()
   {
-    StringBuilder tmp = new StringBuilder(256);
+    String tmp = "";
 
-    for (Bond b : bonds)
+    for (int i = 0; i < bonds.size(); i++)
     {
-      tmp.append(b.at1.resName).append(" ").append(b.at1.resNumber)
-              .append(" ").append(offset).append(newline);
+      tmp = tmp + ((Bond) bonds.elementAt(i)).at1.resName + " "
+              + ((Bond) bonds.elementAt(i)).at1.resNumber + " " + offset
+              + newline;
     }
 
-    return tmp.toString();
+    return tmp;
   }
 
   /**
    * Annotate the residues with their corresponding positions in s1 using the
-   * alignment in as NOTE: This clears all atom.alignmentMapping values on the
-   * structure.
-   * 
+   * alignment in as
+   * NOTE: This clears all atom.alignmentMapping values on the structure.
    * @param as
    * @param s1
    */
@@ -128,9 +108,8 @@ public class PDBChain
     int pdbpos = as.getSeq2Start() - 2;
     int alignpos = s1.getStart() + as.getSeq1Start() - 3;
     // first clear out any old alignmentMapping values:
-    for (Atom atom : atoms)
-    {
-      atom.alignmentMapping = -1;
+    for (Atom atom: (Vector<Atom>) atoms) { 
+      atom.alignmentMapping=-1;
     }
     // and now trace the alignment onto the atom set.
     for (int i = 0; i < as.astr1.length(); i++)
@@ -147,9 +126,11 @@ public class PDBChain
 
       if (as.astr1.charAt(i) == as.astr2.charAt(i))
       {
-        Residue res = residues.elementAt(pdbpos);
-        for (Atom atom : res.atoms)
+        Residue res = (Residue) residues.elementAt(pdbpos);
+        Enumeration en = res.atoms.elements();
+        while (en.hasMoreElements())
         {
+          Atom atom = (Atom) en.nextElement();
           atom.alignmentMapping = alignpos;
         }
       }
@@ -193,35 +174,28 @@ public class PDBChain
       if (features[i].getFeatureGroup().equals(pdbid))
       {
         SequenceFeature tx = new SequenceFeature(features[i]);
-        tx.setBegin(1 + residues.elementAt(tx.getBegin() - offset).atoms
-                .elementAt(0).alignmentMapping);
-        tx.setEnd(1 + residues.elementAt(tx.getEnd() - offset).atoms
-                .elementAt(0).alignmentMapping);
+        tx.setBegin(1 + ((Atom) ((Residue) residues.elementAt(tx.getBegin()
+                - offset)).atoms.elementAt(0)).alignmentMapping);
+        tx.setEnd(1 + ((Atom) ((Residue) residues.elementAt(tx.getEnd()
+                - offset)).atoms.elementAt(0)).alignmentMapping);
         tx.setStatus(status
                 + ((tx.getStatus() == null || tx.getStatus().length() == 0) ? ""
                         : ":" + tx.getStatus()));
         if (tx.begin != 0 && tx.end != 0)
-        {
           sq.addSequenceFeature(tx);
-        }
       }
     }
     return features;
   }
 
-  /**
-   * Traverses the list of residues and constructs bonds where CA-to-CA atoms or
-   * P-to-P atoms are found. Also sets the 'isNa' flag if more than 99% of
-   * residues contain a P not a CA.
-   */
   public void makeCaBondList()
   {
     boolean na = false;
     int numNa = 0;
     for (int i = 0; i < (residues.size() - 1); i++)
     {
-      Residue tmpres = residues.elementAt(i);
-      Residue tmpres2 = residues.elementAt(i + 1);
+      Residue tmpres = (Residue) residues.elementAt(i);
+      Residue tmpres2 = (Residue) residues.elementAt(i + 1);
       Atom at1 = tmpres.findAtom("CA");
       Atom at2 = tmpres2.findAtom("CA");
       na = false;
@@ -247,57 +221,42 @@ public class PDBChain
         System.out.println("not found " + i);
       }
     }
-
-    /*
-     * If > 99% 'P', flag as nucleotide; note the count doesn't include the last
-     * residue
-     */
-    if (residues.size() > 0 && (numNa / (residues.size() - 1) > 0.99))
+    if (numNa > 0 && ((numNa / residues.size()) > 0.99))
     {
       isNa = true;
     }
   }
 
-  /**
-   * Construct a bond from atom1 to atom2 and add it to the list of bonds for
-   * this chain
-   * 
-   * @param at1
-   * @param at2
-   */
   public void makeBond(Atom at1, Atom at2)
   {
-    bonds.addElement(new Bond(at1, at2));
+    float[] start = new float[3];
+    float[] end = new float[3];
+
+    start[0] = at1.x;
+    start[1] = at1.y;
+    start[2] = at1.z;
+
+    end[0] = at2.x;
+    end[1] = at2.y;
+    end[2] = at2.z;
+
+    bonds.addElement(new Bond(start, end, at1, at2));
   }
 
-  /**
-   * Traverses the list of atoms and
-   * <ul>
-   * <li>constructs a list of Residues, each containing all the atoms that share
-   * the same residue number</li>
-   * <li>adds a RESNUM sequence feature for each position</li>
-   * <li>creates the sequence string</li>
-   * <li>determines if nucleotide</li>
-   * <li>saves the residue number of the first atom as 'offset'</li>
-   * <li>adds temp factor annotation if the flag is set to do so</li>
-   * </ul>
-   * 
-   * @param visibleChainAnnotation
-   */
-  public void makeResidueList(boolean visibleChainAnnotation)
+  public void makeResidueList()
   {
     int count = 0;
     Object symbol;
-    boolean deoxyn = false;
+    boolean deoxyn=false;
     boolean nucleotide = false;
-    StringBuilder seq = new StringBuilder(256);
-    Vector<SequenceFeature> resFeatures = new Vector<SequenceFeature>();
-    Vector<Annotation> resAnnotation = new Vector<Annotation>();
+    StringBuffer seq = new StringBuffer();
+    Vector resFeatures = new Vector();
+    Vector resAnnotation = new Vector();
     int i, iSize = atoms.size() - 1;
     int resNumber = -1;
     for (i = 0; i <= iSize; i++)
     {
-      Atom tmp = atoms.elementAt(i);
+      Atom tmp = (Atom) atoms.elementAt(i);
       resNumber = tmp.resNumber;
       int res = resNumber;
 
@@ -306,17 +265,17 @@ public class PDBChain
         offset = resNumber;
       }
 
-      Vector<Atom> resAtoms = new Vector<Atom>();
+      Vector resAtoms = new Vector();
       // Add atoms to a vector while the residue number
       // remains the same as the first atom's resNumber (res)
       while ((resNumber == res) && (i < atoms.size()))
       {
-        resAtoms.add(atoms.elementAt(i));
+        resAtoms.addElement((Atom) atoms.elementAt(i));
         i++;
 
         if (i < atoms.size())
         {
-          resNumber = atoms.elementAt(i).resNumber;
+          resNumber = ((Atom) atoms.elementAt(i)).resNumber;
         }
         else
         {
@@ -330,8 +289,8 @@ public class PDBChain
       // Make a new Residue object with the new atoms vector
       residues.addElement(new Residue(resAtoms, resNumber - 1, count));
 
-      Residue tmpres = residues.lastElement();
-      Atom tmpat = tmpres.atoms.get(0);
+      Residue tmpres = (Residue) residues.lastElement();
+      Atom tmpat = (Atom) tmpres.atoms.elementAt(0);
       // Make A new SequenceFeature for the current residue numbering
       SequenceFeature sf = new SequenceFeature("RESNUM", tmpat.resName
               + ":" + tmpat.resNumIns + " " + pdbid + id, "", offset
@@ -343,13 +302,10 @@ public class PDBChain
       if ((symbol = ResidueProperties.getAA3Hash().get(tmpat.resName)) == null)
       {
         String nucname = tmpat.resName.trim();
-        // use the aaIndex rather than call 'toLower' - which would take a bit
-        // more time.
-        deoxyn = nucname.length() == 2
-                && ResidueProperties.aaIndex[nucname.charAt(0)] == ResidueProperties.aaIndex['D'];
+        // use the aaIndex rather than call 'toLower' - which would take a bit more time.
+        deoxyn=nucname.length()==2 && ResidueProperties.aaIndex[nucname.charAt(0)]==ResidueProperties.aaIndex['D'];
         if (tmpat.name.equalsIgnoreCase("CA")
-                || ResidueProperties.nucleotideIndex[nucname
-                        .charAt((deoxyn ? 1 : 0))] == -1)
+                || ResidueProperties.nucleotideIndex[nucname.charAt((deoxyn ? 1 : 0))] == -1)
         {
           seq.append("X");
           // System.err.println("PDBReader:Null aa3Hash for " +
@@ -390,97 +346,102 @@ public class PDBChain
     // System.out.println("No of residues = " + residues.size());
     for (i = 0, iSize = resFeatures.size(); i < iSize; i++)
     {
-      sequence.addSequenceFeature(resFeatures.elementAt(i));
+      sequence.addSequenceFeature((SequenceFeature) resFeatures
+              .elementAt(i));
       resFeatures.setElementAt(null, i);
     }
-    if (visibleChainAnnotation)
+    Annotation[] annots = new Annotation[resAnnotation.size()];
+    float max = 0;
+    for (i = 0, iSize = annots.length; i < iSize; i++)
     {
-      Annotation[] annots = new Annotation[resAnnotation.size()];
-      float max = 0;
-      for (i = 0, iSize = annots.length; i < iSize; i++)
-      {
-        annots[i] = resAnnotation.elementAt(i);
-        if (annots[i].value > max)
-        {
-          max = annots[i].value;
-        }
-        resAnnotation.setElementAt(null, i);
-      }
-
-      AlignmentAnnotation tfactorann = new AlignmentAnnotation(
-              "Temperature Factor", "Temperature Factor for " + pdbid + id,
-              annots, 0, max, AlignmentAnnotation.LINE_GRAPH);
-      tfactorann.setSequenceRef(sequence);
-      sequence.addAlignmentAnnotation(tfactorann);
+      annots[i] = (Annotation) resAnnotation.elementAt(i);
+      if (annots[i].value > max)
+        max = annots[i].value;
+      resAnnotation.setElementAt(null, i);
     }
+    AlignmentAnnotation tfactorann = new AlignmentAnnotation(
+            "PDB.TempFactor", "Temperature Factor for "
+                    + sequence.getName(), annots, 0, max,
+            AlignmentAnnotation.LINE_GRAPH);
+    tfactorann.setSequenceRef(sequence);
+    sequence.addAlignmentAnnotation(tfactorann);
   }
 
-  /**
-   * Colour start/end of bonds by charge
-   * <ul>
-   * <li>ASP and GLU red</li>
-   * <li>LYS and ARG blue</li>
-   * <li>CYS yellow</li>
-   * <li>others light gray</li>
-   * </ul>
-   */
   public void setChargeColours()
   {
-    for (Bond b : bonds)
+    for (int i = 0; i < bonds.size(); i++)
     {
-      if (b.at1 != null && b.at2 != null)
+      try
       {
-        b.startCol = getChargeColour(b.at1.resName);
-        b.endCol = getChargeColour(b.at2.resName);
-      }
-      else
+        Bond b = (Bond) bonds.elementAt(i);
+
+        if (b.at1.resName.equalsIgnoreCase("ASP")
+                || b.at1.resName.equalsIgnoreCase("GLU"))
+        {
+          b.startCol = Color.red;
+        }
+        else if (b.at1.resName.equalsIgnoreCase("LYS")
+                || b.at1.resName.equalsIgnoreCase("ARG"))
+        {
+          b.startCol = Color.blue;
+        }
+        else if (b.at1.resName.equalsIgnoreCase("CYS"))
+        {
+          b.startCol = Color.yellow;
+        }
+        else
+        {
+          b.startCol = Color.lightGray;
+        }
+
+        if (b.at2.resName.equalsIgnoreCase("ASP")
+                || b.at2.resName.equalsIgnoreCase("GLU"))
+        {
+          b.endCol = Color.red;
+        }
+        else if (b.at2.resName.equalsIgnoreCase("LYS")
+                || b.at2.resName.equalsIgnoreCase("ARG"))
+        {
+          b.endCol = Color.blue;
+        }
+        else if (b.at2.resName.equalsIgnoreCase("CYS"))
+        {
+          b.endCol = Color.yellow;
+        }
+        else
+        {
+          b.endCol = Color.lightGray;
+        }
+      } catch (Exception e)
       {
+        Bond b = (Bond) bonds.elementAt(i);
         b.startCol = Color.gray;
         b.endCol = Color.gray;
       }
     }
   }
 
-  public static Color getChargeColour(String resName)
+  public void setChainColours(jalview.schemes.ColourSchemeI cs)
   {
-    Color result = Color.lightGray;
-    if ("ASP".equals(resName) || "GLU".equals(resName))
-    {
-      result = Color.red;
-    }
-    else if ("LYS".equals(resName) || "ARG".equals(resName))
-    {
-      result = Color.blue;
-    }
-    else if ("CYS".equals(resName))
-    {
-      result = Color.yellow;
-    }
-    return result;
-  }
-
-  /**
-   * Sets the start/end colours of bonds to those of the start/end atoms
-   * according to the specified colour scheme. Note: currently only works for
-   * peptide residues.
-   * 
-   * @param cs
-   */
-  public void setChainColours(ColourSchemeI cs)
-  {
+    Bond b;
     int index;
-    for (Bond b : bonds)
+    for (int i = 0; i < bonds.size(); i++)
     {
       try
       {
-        index = ResidueProperties.aa3Hash.get(b.at1.resName).intValue();
+        b = (Bond) bonds.elementAt(i);
+
+        index = ((Integer) ResidueProperties.aa3Hash.get(b.at1.resName))
+                .intValue();
         b.startCol = cs.findColour(ResidueProperties.aa[index].charAt(0));
 
-        index = ResidueProperties.aa3Hash.get(b.at2.resName).intValue();
+        index = ((Integer) ResidueProperties.aa3Hash.get(b.at2.resName))
+                .intValue();
         b.endCol = cs.findColour(ResidueProperties.aa[index].charAt(0));
 
       } catch (Exception e)
       {
+        b = (Bond) bonds.elementAt(i);
         b.startCol = Color.gray;
         b.endCol = Color.gray;
       }
@@ -489,11 +450,21 @@ public class PDBChain
 
   public void setChainColours(Color col)
   {
-    for (Bond b : bonds)
+    for (int i = 0; i < bonds.size(); i++)
     {
-      b.startCol = col;
-      b.endCol = col;
+      Bond tmp = (Bond) bonds.elementAt(i);
+      tmp.startCol = col;
+      tmp.endCol = col;
     }
+  }
+
+  public AlignmentAnnotation[] transferResidueAnnotation(SequenceI seq,
+          String status)
+  {
+    AlignmentAnnotation[] transferred = null;
+
+    return transferred;
+
   }
 
   /**
@@ -501,95 +472,43 @@ public class PDBChain
    * StructureMapping
    * 
    * @param mapping
-   *          - positional mapping between destination sequence and pdb resnum
-   * @param sqmpping
-   *          - mapping between destination sequence and local chain
    */
-  public void transferResidueAnnotation(StructureMapping mapping,
-          jalview.datamodel.Mapping sqmpping)
+  public void transferResidueAnnotation(StructureMapping mapping)
   {
     SequenceI sq = mapping.getSequence();
-    SequenceI dsq = sq;
     if (sq != null)
     {
-      while (dsq.getDatasetSequence() != null)
+      if (sequence != null && sequence.getAnnotation() != null)
       {
-        dsq = dsq.getDatasetSequence();
+
       }
-      // any annotation will be transferred onto the dataset sequence
-
-      if (shadow != null && shadow.getAnnotation() != null)
+      float min = -1, max = 0;
+      Annotation[] an = new Annotation[sq.getEnd() - sq.getStart() + 1];
+      for (int i = sq.getStart(), j = sq.getEnd(), k = 0; i <= j; i++, k++)
       {
+        int prn = mapping.getPDBResNum(k + 1);
 
-        for (AlignmentAnnotation ana : shadow.getAnnotation())
+        an[k] = new Annotation((float) prn);
+        if (min == -1)
         {
-          List<AlignmentAnnotation> transfer = sq.getAlignmentAnnotations(
-                  ana.getCalcId(), ana.label);
-          if (transfer == null || transfer.size() == 0)
-          {
-            ana = new AlignmentAnnotation(ana);
-            ana.liftOver(sequence, shadowMap);
-            ana.liftOver(dsq, sqmpping);
-            dsq.addAlignmentAnnotation(ana);
-          }
-          else
-          {
-            continue;
-          }
+          min = k;
+          max = k;
         }
-      }
-      else
-      {
-        if (sequence != null && sequence.getAnnotation() != null)
+        else
         {
-          for (AlignmentAnnotation ana : sequence.getAnnotation())
-          {
-            List<AlignmentAnnotation> transfer = sq
-                    .getAlignmentAnnotations(ana.getCalcId(), ana.label);
-            if (transfer == null || transfer.size() == 0)
-            {
-              ana = new AlignmentAnnotation(ana);
-              ana.liftOver(dsq, sqmpping);
-              // mapping.transfer(ana);
-            }
-            else
-            {
-              continue;
-            }
-          }
-        }
-      }
-      if (false)
-      {
-        // Useful for debugging mappings - adds annotation for mapped position
-        float min = -1, max = 0;
-        Annotation[] an = new Annotation[sq.getEnd() - sq.getStart() + 1];
-        for (int i = sq.getStart(), j = sq.getEnd(), k = 0; i <= j; i++, k++)
-        {
-          int prn = mapping.getPDBResNum(k + 1);
-
-          an[k] = new Annotation(prn);
-          if (min == -1)
+          if (min > k)
           {
             min = k;
+          }
+          else if (max < k)
+          {
             max = k;
           }
-          else
-          {
-            if (min > k)
-            {
-              min = k;
-            }
-            else if (max < k)
-            {
-              max = k;
-            }
-          }
         }
-        sq.addAlignmentAnnotation(new AlignmentAnnotation("PDB.RESNUM",
-                "PDB Residue Numbering for " + this.pdbid + ":" + this.id,
-                an, min, max, AlignmentAnnotation.LINE_GRAPH));
       }
+      sq.addAlignmentAnnotation(new AlignmentAnnotation("PDB.RESNUM",
+              "PDB Residue Numbering for " + this.pdbid + ":" + this.id,
+              an, (float) min, (float) max, AlignmentAnnotation.LINE_GRAPH));
     }
   }
 }

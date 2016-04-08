@@ -1,31 +1,25 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.gui;
 
 import jalview.bin.Cache;
-import jalview.util.MessageManager;
-
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Dialog.ModalExclusionType;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Rectangle;
@@ -128,12 +122,11 @@ public class BlogReader extends JPanel
     @Override
     public void actionPerformed(ActionEvent arg0)
     {
-      if (xf != null)
+      if (xf!=null)
       {
         xf.dispose();
       }
-      xf = null;
-      jd = null;
+      xf=null;jd=null;
       if (parent != null)
       {
         parent.showNews(false);
@@ -198,8 +191,8 @@ public class BlogReader extends JPanel
       {
         if (parent != null)
         {
-          Cache.log.debug("News window closed.");
-          jd = null;
+          Cache.log.info("News window closed.");
+          jd=null;
           parent.showNews(false);
         }
       }
@@ -246,7 +239,7 @@ public class BlogReader extends JPanel
 
   public BlogReader(Desktop desktop)
   {
-    Cache.log.debug("Constructing news reader.");
+    Cache.log.info("Constructing news reader.");
 
     parent = desktop;
     _channelModel = new ChannelListModel();
@@ -275,10 +268,10 @@ public class BlogReader extends JPanel
     if (setvisible)
     {
 
-      Cache.log.debug("Will show jalview news automatically");
+      Cache.log.info("Will show jalview news automatically");
       showNews();
     }
-    Cache.log.debug("Completed construction of reader.");
+    Cache.log.info("Completed construction of reader.");
 
   }
 
@@ -331,11 +324,9 @@ public class BlogReader extends JPanel
         {
           createDialog();
           bounds = new Rectangle(5, 5, 550, 350);
-          jd.initDialogFrame(me, false, false,
-                  MessageManager.getString("label.news_from_jalview"),
+          jd.initDialogFrame(me, true, false, "News from www.jalview.org",
                   bounds.width, bounds.height);
-          jd.frame.setModalExclusionType(ModalExclusionType.NO_EXCLUDE);
-          Cache.log.debug("Displaying news.");
+          Cache.log.info("Displaying news.");
           jd.waitForInput();
         }
       }
@@ -422,7 +413,7 @@ public class BlogReader extends JPanel
       {
         jalview.bin.Cache.setDateProperty("JALVIEW_NEWS_RSS_LASTMODIFIED",
                 lastDate);
-        jalview.bin.Cache.log.debug("Saved last read date as "
+        jalview.bin.Cache.log.info("Saved last read date as "
                 + jalview.bin.Cache.date_format.format(lastDate));
 
       }
@@ -441,9 +432,7 @@ public class BlogReader extends JPanel
     topBottomSplitPane.setBottomComponent(bottomPanel);
     JScrollPane spTextDescription = new JScrollPane(textDescription);
     textDescription.setText("");
-    statusBar.setText(new StringBuffer("[")
-            .append(MessageManager.getString("label.status")).append("]")
-            .toString());
+    statusBar.setText(" [Status] ");
     buttonRefresh.addActionListener(new ActionListener()
     {
 
@@ -485,7 +474,7 @@ public class BlogReader extends JPanel
             _popupChannels);
     listItems.addMouseListener(popupAdapter);
     listItems.setCellRenderer(new ItemsRenderer());
-    lblChannels.setText(MessageManager.getString("label.channels"));
+    lblChannels.setText("Channels");
   }
 
   private void postInit()
@@ -761,16 +750,16 @@ public class BlogReader extends JPanel
               + jalview.bin.Cache.date_format.format(lastread.getTime()));
       if (me.isNewsNew())
       {
-        Cache.log.debug("There is news to read.");
+        Cache.log.info("There is news to read.");
       }
       else
       {
-        Cache.log.debug("There is no new news.");
+        Cache.log.info("There is no new news.");
         me.xf.setTitle("Testing : Last read is " + me.lastDate);
         me.showNews();
         me.xf.toFront();
       }
-      Cache.log.debug("Waiting for closure.");
+      Cache.log.info("Waiting for closure.");
       do
       {
         try
@@ -784,18 +773,18 @@ public class BlogReader extends JPanel
 
       if (me.isNewsNew())
       {
-        Cache.log.debug("Still new news after reader displayed.");
+        Cache.log.info("Still new news after reader displayed.");
       }
       if (lastread.getTime().before(me.lastDate))
       {
-        Cache.log.debug("The news was read.");
+        Cache.log.info("The news was read.");
         lastread.setTime(me.lastDate);
       }
       else
       {
         lastread.add(Calendar.MONTH, 1);
       }
-
+      
     }
   }
 
@@ -819,13 +808,8 @@ class ChannelsRenderer extends DefaultListCellRenderer
     if (value instanceof Channel)
     {
       Channel channel = (Channel) value;
-      component
-              .setText(MessageManager.formatMessage(
-                      "label.channel_title_item_count",
-                      new String[] {
-                          channel.getTitle(),
-                          Integer.valueOf(channel.getUnreadItemCount())
-                                  .toString() }));
+      component.setText(channel.getTitle() + " ("
+              + channel.getUnreadItemCount() + ")");
       component.setToolTipText(channel.getURL());
     }
     return component;
@@ -848,14 +832,9 @@ class ItemsRenderer extends DefaultListCellRenderer
       Item item = (Item) value;
       if (item.getPublishDate() != null)
       {
-        component.setText(MessageManager.formatMessage(
-                "label.blog_item_published_on_date",
-                new String[] {
-                    DateFormat
-                            .getDateInstance(DateFormat.LONG,
-                                    MessageManager.getLocale())
-                            .format(item.getPublishDate()).toString(),
-                    item.getTitle() }));
+        component.setText(DateFormat.getDateInstance().format(
+                item.getPublishDate())
+                + " " + item.getTitle());
       }
       component.setToolTipText(item.getLink());
       if (!item.isRead())

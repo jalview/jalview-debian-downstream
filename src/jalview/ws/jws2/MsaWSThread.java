@@ -1,58 +1,41 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.jws2;
 
-import jalview.analysis.AlignSeq;
-import jalview.bin.Cache;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-import jalview.gui.AlignFrame;
-import jalview.gui.Desktop;
-import jalview.gui.SplitFrame;
-import jalview.gui.WebserviceInfo;
-import jalview.util.MessageManager;
-import jalview.ws.AWsJob;
-import jalview.ws.JobStateSummary;
-import jalview.ws.WSClientI;
-import jalview.ws.jws2.dm.JabaWsParamSet;
-import jalview.ws.params.WsParamSetI;
-
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
-
-import javax.swing.JInternalFrame;
+import java.util.*;
 
 import compbio.data.msa.MsaWS;
+import compbio.data.sequence.AlignmentMetadata;
+import compbio.data.sequence.Program;
 import compbio.metadata.Argument;
 import compbio.metadata.ChunkHolder;
 import compbio.metadata.JobStatus;
 import compbio.metadata.Preset;
+
+import jalview.analysis.*;
+import jalview.bin.*;
+import jalview.datamodel.*;
+import jalview.gui.*;
+import jalview.ws.AWsJob;
+import jalview.ws.WSClientI;
+import jalview.ws.JobStateSummary;
+import jalview.ws.jws2.dm.JabaWsParamSet;
+import jalview.ws.params.WsParamSetI;
 
 class MsaWSThread extends AWS2Thread implements WSClientI
 {
@@ -126,8 +109,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       if (minlen < 0)
       {
         throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_minlen_must_be_greater_zero"));
+                "Implementation error: minlen must be zero or more.");
       }
       for (int i = 0; i < seqs.length; i++)
       {
@@ -166,7 +148,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
                     .extractGaps(jalview.util.Comparison.GapChars,
                             seqs[i].getSequenceAsString());
           }
-          emptySeqs.add(new String[] { newname, empty });
+          emptySeqs.add(new String[]
+          { newname, empty });
         }
       }
       return valid;
@@ -237,7 +220,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           int ow = w, nw = w;
           for (i = 0, w = emptySeqs.size(); i < w; i++)
           {
-            String[] es = emptySeqs.get(i);
+            String[] es = (String[]) emptySeqs.get(i);
             if (es != null && es[1] != null)
             {
               int sw = es[1].length();
@@ -268,7 +251,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           }
           for (i = 0, w = emptySeqs.size(); i < w; i++)
           {
-            String[] es = emptySeqs.get(i);
+            String[] es = (String[]) emptySeqs.get(i);
             if (es[1] == null)
             {
               t_alseqs[i + alseq_l] = new jalview.datamodel.Sequence(es[0],
@@ -297,7 +280,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         jalview.analysis.AlignmentSorter.recoverOrder(alseqs);
         // account for any missing sequences
         jalview.analysis.SeqsetUtils.deuniquify(SeqNames, alseqs);
-        return new Object[] { alseqs, msaorder };
+        return new Object[]
+        { alseqs, msaorder };
       }
       return null;
     }
@@ -451,7 +435,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
    * @param presorder
    *          boolean
    */
-  private MsaWSThread(MsaWS server, String wsUrl, WebserviceInfo wsinfo,
+  MsaWSThread(MsaWS server, String wsUrl, WebserviceInfo wsinfo,
           jalview.gui.AlignFrame alFrame, AlignmentView alview,
           String wsname, boolean subgaps, boolean presorder)
   {
@@ -489,7 +473,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     SequenceI[][] conmsa = _msa.getVisibleContigs('-');
     if (conmsa != null)
     {
-      int nvalid = 0, njobs = conmsa.length;
+      int njobs = conmsa.length;
       jobs = new MsaWSJob[njobs];
       for (int j = 0; j < njobs; j++)
       {
@@ -501,10 +485,6 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         {
           jobs[j] = new MsaWSJob(0, conmsa[j]);
         }
-        if (((MsaWSJob) jobs[j]).hasValidInput())
-        {
-          nvalid++;
-        }
         ((MsaWSJob) jobs[j]).preset = preset;
         ((MsaWSJob) jobs[j]).arguments = paramset;
         ((MsaWSJob) jobs[j]).alignmentProgram = wsname;
@@ -515,19 +495,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         }
         wsinfo.setProgressText(jobs[j].getJobnum(), OutputHeader);
       }
-      validInput = nvalid > 0;
     }
-  }
-
-  boolean validInput = false;
-
-  /**
-   * 
-   * @return true if the thread will perform a calculation
-   */
-  public boolean hasValidInput()
-  {
-    return validInput;
   }
 
   public boolean isCancellable()
@@ -548,7 +516,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           try
           {
             boolean cancelledJob = server.cancelJob(jobs[job].getJobId());
-            if (true) // cancelledJob || true)
+            if (cancelledJob || true)
             {
               // CANCELLED_JOB
               // if the Jaba server indicates the job can't be cancelled, its
@@ -578,14 +546,6 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           }
           wsInfo.setProgressText(jobs[job].getJobnum(), OutputHeader
                   + cancelledMessage + "\n");
-        }
-        else
-        {
-          // if we hadn't submitted then just mark the job as cancelled.
-          jobs[job].setSubjobComplete(true);
-          wsInfo.setStatus(jobs[job].getJobnum(),
-                  WebserviceInfo.STATE_CANCELLED_OK);
-
         }
       }
       if (cancelled)
@@ -626,7 +586,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
   {
     StringBuffer response = j.jobProgress;
     long lastchunk = j.getLastChunk();
-    boolean changed = false;
+    boolean changed=false;
     do
     {
       j.setLastChunk(lastchunk);
@@ -634,16 +594,9 @@ class MsaWSThread extends AWS2Thread implements WSClientI
               .pullExecStatistics(j.getJobId(), lastchunk);
       if (chunk != null)
       {
-        changed |= chunk.getChunk().length() > 0;
+        changed=chunk.getChunk().length()>0;
         response.append(chunk.getChunk());
         lastchunk = chunk.getNextPosition();
-        try
-        {
-          Thread.sleep(50);
-        } catch (InterruptedException x)
-        {
-        }
-        ;
       }
       ;
     } while (lastchunk >= 0 && j.getLastChunk() != lastchunk);
@@ -656,9 +609,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     // boiler plate template
     if (!(job instanceof MsaWSJob))
     {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_msawbjob_called",
-              new String[] { job.getClass().toString() }));
+      throw new Error("StartJob(MsaWSJob) called on a WSJobInstance "
+              + job.getClass());
     }
     MsaWSJob j = (MsaWSJob) job;
     if (j.isSubmitted())
@@ -676,7 +628,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     {
       // special case - selection consisted entirely of empty sequences...
       j.setjobStatus(JobStatus.FINISHED);
-      j.setStatus(MessageManager.getString("label.empty_alignment_job"));
+      j.setStatus("Empty Alignment Job");
     }
     try
     {
@@ -688,7 +640,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       }
       else if (j.hasArguments())
       {
-        j.setJobId(server.customAlign(j.seqs, j.getJabaArguments()));
+        j.setJobId(server.customAlign(j.seqs,j.getJabaArguments()));
       }
       else
       {
@@ -704,39 +656,35 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       }
       else
       {
-        throw new Exception(MessageManager.formatMessage(
-                "exception.web_service_returned_null_try_later",
-                new String[] { WsUrl }));
+        throw new Exception(
+                "Server at "
+                        + WsUrl
+                        + " returned null string for job id, it probably cannot be contacted. Try again later ?");
       }
     } catch (compbio.metadata.UnsupportedRuntimeException _lex)
     {
       lex = _lex;
-      wsInfo.appendProgressText(MessageManager.formatMessage(
-              "info.job_couldnt_be_run_server_doesnt_support_program",
-              new String[] { _lex.getMessage() }));
-      wsInfo.warnUser(_lex.getMessage(),
-              MessageManager.getString("warn.service_not_supported"));
+      wsInfo.appendProgressText("Job could not be run because the server doesn't support this program.\n"
+              + _lex.getMessage());
+      wsInfo.warnUser(_lex.getMessage(), "Service not supported!");
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
               WebserviceInfo.STATE_STOPPED_SERVERERROR);
     } catch (compbio.metadata.LimitExceededException _lex)
     {
       lex = _lex;
-      wsInfo.appendProgressText(MessageManager.formatMessage(
-              "info.job_couldnt_be_run_exceeded_hard_limit",
-              new String[] { _lex.getMessage() }));
-      wsInfo.warnUser(_lex.getMessage(),
-              MessageManager.getString("warn.input_is_too_big"));
+      wsInfo.appendProgressText("Job could not be run because it exceeded a hard limit on the server.\n"
+              + _lex.getMessage());
+      wsInfo.warnUser(_lex.getMessage(), "Input is too big!");
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
       wsInfo.setStatus(j.getJobnum(), WebserviceInfo.STATE_STOPPED_ERROR);
     } catch (compbio.metadata.WrongParameterException _lex)
     {
       lex = _lex;
-      wsInfo.warnUser(_lex.getMessage(),
-              MessageManager.getString("warn.invalid_job_param_set"));
-      wsInfo.appendProgressText(MessageManager.formatMessage(
-              "info.job_couldnt_be_run_incorrect_param_setting",
-              new String[] { _lex.getMessage() }));
+      wsInfo.warnUser(_lex.getMessage(), "Invalid job parameter set!");
+      wsInfo.appendProgressText("Job could not be run because some of the parameter settings are not supported by the server.\n"
+              + _lex.getMessage()
+              + "\nPlease check to make sure you have used the correct parameter set for this service!\n");
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
       wsInfo.setStatus(j.getJobnum(), WebserviceInfo.STATE_STOPPED_ERROR);
     } catch (Error e)
@@ -769,18 +717,15 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         // TODO: JBPNote catch timeout or other fault types explicitly
 
         j.setAllowedServerExceptions(0);
-        wsInfo.appendProgressText(j.getJobnum(), MessageManager
-                .getString("info.failed_to_submit_sequences_for_alignment"));
+        wsInfo.appendProgressText(j.getJobnum(),
+                "Failed to submit sequences for alignment.\n"
+                        + "Just close the window\n");
       }
     }
   }
 
   public void parseResult()
   {
-    long progbar = System.currentTimeMillis();
-    wsInfo.setProgressBar(
-            MessageManager.getString("status.collecting_job_results"),
-            progbar);
     int results = 0; // number of result sets received
     JobStateSummary finalState = new JobStateSummary();
     try
@@ -790,45 +735,40 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         MsaWSJob msjob = ((MsaWSJob) jobs[j]);
         if (jobs[j].isFinished() && msjob.alignment == null)
         {
-          int nunchanged = 3, nexcept = 3;
-          boolean jpchanged = false, jpex = false;
-          do
-          {
+          boolean jpchanged=false,jpex=false;
+          do {
             try
             {
               jpchanged = updateJobProgress(msjob);
-              jpex = false;
-              if (jpchanged)
-              {
-                nexcept = 3;
-              }
+              jpex=false;
             } catch (Exception e)
             {
-
+              
               Cache.log
                       .warn("Exception when retrieving remaining Job progress data for job "
                               + msjob.getJobId() + " on server " + WsUrl);
               e.printStackTrace();
-              nexcept--;
-              nunchanged = 3;
+              if (jpex) {
+                // give up polling after two consecutive exceptions
+                jpchanged=false;
+              } else {
+                jpchanged=true;
+              }
               // set flag remember that we've had an exception.
-              jpex = true;
-              jpchanged = false;
+              jpex=true;
             }
-            if (!jpchanged)
+            if (jpchanged)
             {
               try
               {
-                Thread.sleep(jpex ? 2400 : 1200); // wait a bit longer if we
-                                                  // experienced an exception.
+                Thread.sleep(jpex ? 400 : 200); // wait a bit longer if we experienced an exception.
               } catch (Exception ex)
               {
               }
               ;
-              nunchanged--;
             }
-          } while (nunchanged > 0 && nexcept > 0);
-
+          } while (jpchanged);
+          
           if (Cache.log.isDebugEnabled())
           {
             System.out.println("Job Execution file for job: "
@@ -847,9 +787,6 @@ class MsaWSThread extends AWS2Thread implements WSClientI
             Cache.log
                     .debug("Results not available for finished job - marking as broken job.",
                             e);
-            msjob.jobProgress
-                    .append("\nResult not available. Probably due to invalid input or parameter settings. Server error message below:\n\n"
-                            + e.getLocalizedMessage());
             msjob.setjobStatus(JobStatus.FAILED);
           } catch (Exception e)
           {
@@ -906,22 +843,15 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     }
     else
     {
+      wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
       wsInfo.setFinishedNoResults();
     }
-    updateGlobalStatus(finalState);
-    wsInfo.setProgressBar(null, progbar);
   }
 
-  /**
-   * Display alignment results in a new frame (or - not currently supported -
-   * added to an existing alignment).
-   * 
-   * @param newFrame
-   */
   void displayResults(boolean newFrame)
   {
     // view input or result data for each block
-    List<AlignmentOrder> alorders = new ArrayList<AlignmentOrder>();
+    Vector alorders = new Vector();
     SequenceI[][] results = new SequenceI[jobs.length][];
     AlignmentOrder[] orders = new AlignmentOrder[jobs.length];
     String lastProgram = null;
@@ -933,7 +863,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         msjob = (MsaWSJob) jobs[j];
         Object[] res = msjob.getAlignment();
         lastProgram = msjob.getAlignmentProgram();
-        alorders.add((AlignmentOrder) res[1]);
+        alorders.add(res[1]);
         results[j] = (SequenceI[]) res[0];
         orders[j] = (AlignmentOrder) res[1];
 
@@ -970,134 +900,71 @@ class MsaWSThread extends AWS2Thread implements WSClientI
 
     if (newFrame)
     {
-      displayInNewFrame(al, alorders, columnselection);
+      AlignFrame af = new AlignFrame(al, columnselection,
+              AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+
+      // initialise with same renderer settings as in parent alignframe.
+      af.getFeatureRenderer().transferSettings(this.featureSettings);
+      // update orders
+      if (alorders.size() > 0)
+      {
+        if (alorders.size() == 1)
+        {
+          af.addSortByOrderMenuItem(WebServiceName + " Ordering",
+                  (AlignmentOrder) alorders.get(0));
+        }
+        else
+        {
+          // construct a non-redundant ordering set
+          Vector names = new Vector();
+          for (int i = 0, l = alorders.size(); i < l; i++)
+          {
+            String orderName = new String(" Region " + i);
+            int j = i + 1;
+
+            while (j < l)
+            {
+              if (((AlignmentOrder) alorders.get(i))
+                      .equals(((AlignmentOrder) alorders.get(j))))
+              {
+                alorders.remove(j);
+                l--;
+                orderName += "," + j;
+              }
+              else
+              {
+                j++;
+              }
+            }
+
+            if (i == 0 && j == 1)
+            {
+              names.add(new String(""));
+            }
+            else
+            {
+              names.add(orderName);
+            }
+          }
+          for (int i = 0, l = alorders.size(); i < l; i++)
+          {
+            af.addSortByOrderMenuItem(
+                    WebServiceName + ((String) names.get(i)) + " Ordering",
+                    (AlignmentOrder) alorders.get(i));
+          }
+        }
+      }
+
+      Desktop.addInternalFrame(af, alTitle, AlignFrame.DEFAULT_WIDTH,
+              AlignFrame.DEFAULT_HEIGHT);
 
     }
     else
     {
-      // TODO 2.9.x feature
       System.out.println("MERGE WITH OLD FRAME");
       // TODO: modify alignment in original frame, replacing old for new
       // alignment using the commands.EditCommand model to ensure the update can
       // be undone
-    }
-  }
-
-  /**
-   * Display the alignment result in a new frame.
-   * 
-   * @param al
-   * @param alorders
-   * @param columnselection
-   */
-  protected void displayInNewFrame(AlignmentI al,
-          List<AlignmentOrder> alorders, ColumnSelection columnselection)
-  {
-    AlignFrame af = new AlignFrame(al, columnselection,
-            AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
-
-    // initialise with same renderer settings as in parent alignframe.
-    af.getFeatureRenderer().transferSettings(this.featureSettings);
-
-    if (alorders.size() > 0)
-    {
-      addSortByMenuItems(af, alorders);
-    }
-
-    // TODO: refactor retrieve and show as new splitFrame as Desktop method
-
-    /*
-     * If alignment was requested from one half of a SplitFrame, show in a
-     * SplitFrame with the other pane similarly aligned.
-     */
-    AlignFrame requestedBy = getRequestingAlignFrame();
-    if (requestedBy != null
-            && requestedBy.getSplitViewContainer() != null
-            && requestedBy.getSplitViewContainer().getComplement(
-                    requestedBy) != null)
-    {
-      AlignmentI complement = requestedBy.getSplitViewContainer()
-              .getComplement(requestedBy);
-      String complementTitle = requestedBy.getSplitViewContainer()
-              .getComplementTitle(requestedBy);
-      // becomes null if the alignment window was closed before the alignment
-      // job finished.
-      AlignmentI copyComplement = new Alignment(complement);
-      copyComplement.alignAs(al);
-      if (copyComplement.getHeight() > 0)
-      {
-        af.setTitle(alTitle);
-        AlignFrame af2 = new AlignFrame(copyComplement,
-                AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
-        af2.setTitle(complementTitle);
-        String linkedTitle = MessageManager
-                .getString("label.linked_view_title");
-        JInternalFrame splitFrame = new SplitFrame(al.isNucleotide() ? af
-                : af2, al.isNucleotide() ? af2 : af);
-        Desktop.addInternalFrame(splitFrame, linkedTitle, -1, -1);
-        return;
-      }
-    }
-
-    /*
-     * Not from SplitFrame, or failed to created a complementary alignment
-     */
-    Desktop.addInternalFrame(af, alTitle, AlignFrame.DEFAULT_WIDTH,
-            AlignFrame.DEFAULT_HEIGHT);
-  }
-
-  /**
-   * Add sort order options to the AlignFrame menus.
-   * 
-   * @param af
-   * @param alorders
-   */
-  protected void addSortByMenuItems(AlignFrame af,
-          List<AlignmentOrder> alorders)
-  {
-    // update orders
-    if (alorders.size() == 1)
-    {
-      af.addSortByOrderMenuItem(WebServiceName + " Ordering",
-              alorders.get(0));
-    }
-    else
-    {
-      // construct a non-redundant ordering set
-      List<String> names = new ArrayList<String>();
-      for (int i = 0, l = alorders.size(); i < l; i++)
-      {
-        String orderName = " Region " + i;
-        int j = i + 1;
-
-        while (j < l)
-        {
-          if (alorders.get(i).equals(alorders.get(j)))
-          {
-            alorders.remove(j);
-            l--;
-            orderName += "," + j;
-          }
-          else
-          {
-            j++;
-          }
-        }
-
-        if (i == 0 && j == 1)
-        {
-          names.add("");
-        }
-        else
-        {
-          names.add(orderName);
-        }
-      }
-      for (int i = 0, l = alorders.size(); i < l; i++)
-      {
-        af.addSortByOrderMenuItem(WebServiceName + (names.get(i))
-                + " Ordering", alorders.get(i));
-      }
     }
   }
 

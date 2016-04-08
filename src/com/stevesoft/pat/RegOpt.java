@@ -7,9 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
+import java.util.*;
 
 /** This class is just like oneChar, but doesn't worry about case. */
 class FastChar extends oneChar

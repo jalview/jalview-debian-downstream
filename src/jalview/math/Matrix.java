@@ -1,29 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.math;
 
-import jalview.util.Format;
-import jalview.util.MessageManager;
+import java.io.*;
 
-import java.io.PrintStream;
+import jalview.util.*;
 
 /**
  * DOCUMENT ME!
@@ -49,12 +45,6 @@ public class Matrix
 
   /** DOCUMENT ME!! */
   public double[] e; // off diagonal
-
-  /**
-   * maximum number of iterations for tqli
-   * 
-   */
-  int maxIter = 45; // fudge - add 15 iterations, just in case
 
   /**
    * Creates a new Matrix object.
@@ -355,7 +345,7 @@ public class Matrix
   /**
    * DOCUMENT ME!
    */
-  public void tqli() throws Exception
+  public void tqli()
   {
     int n = rows;
 
@@ -402,11 +392,10 @@ public class Matrix
         {
           iter++;
 
-          if (iter == maxIter)
+          if (iter == 30)
           {
-            throw new Exception(MessageManager.formatMessage(
-                    "exception.matrix_too_many_iteration", new String[] {
-                        "tqli", Integer.valueOf(maxIter).toString() }));
+            System.err.print("Too many iterations in tqli");
+            System.exit(0); // JBPNote - should this really be here ???
           }
           else
           {
@@ -606,7 +595,7 @@ public class Matrix
   /**
    * DOCUMENT ME!
    */
-  public void tqli2() throws Exception
+  public void tqli2()
   {
     int n = rows;
 
@@ -653,11 +642,10 @@ public class Matrix
         {
           iter++;
 
-          if (iter == maxIter)
+          if (iter == 30)
           {
-            throw new Exception(MessageManager.formatMessage(
-                    "exception.matrix_too_many_iteration", new String[] {
-                        "tqli2", Integer.valueOf(maxIter).toString() }));
+            System.err.print("Too many iterations in tqli");
+            System.exit(0); // JBPNote - same as above - not a graceful exit!
           }
           else
           {
@@ -791,7 +779,7 @@ public class Matrix
    * @param args
    *          DOCUMENT ME!
    */
-  public static void main(String[] args) throws Exception
+  public static void main(String[] args)
   {
     int n = Integer.parseInt(args[0]);
     double[][] in = new double[n][n];

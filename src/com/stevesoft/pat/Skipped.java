@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Hashtable;
+import java.util.*;
 
 /**
  * Implements the (?&lt;number) Pattern, where number is an integer telling us
@@ -31,8 +31,8 @@ class Skipped extends Pattern
   {
     // if(pt.no_check || s.regionMatches(pt.ignoreCase,0,pt.src,pos,s.length()))
     if (pt.no_check
-            || CaseMgr.regionMatches(s, pt.ignoreCase, 0, pt.src, pos,
-                    s.length()))
+            || CaseMgr.regionMatches(s, pt.ignoreCase, 0, pt.src, pos, s
+                    .length()))
     {
       return nextMatch(pos + s.length(), pt);
     }

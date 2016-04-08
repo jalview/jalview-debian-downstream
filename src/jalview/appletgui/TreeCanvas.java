@@ -1,55 +1,31 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.analysis.Conservation;
-import jalview.analysis.NJTree;
-import jalview.api.AlignViewportI;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.SequenceNode;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.UserColourScheme;
-import jalview.util.Format;
-import jalview.util.MappingUtils;
-import jalview.viewmodel.AlignmentViewport;
+import java.util.*;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Panel;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.ScrollPane;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.schemes.*;
+import jalview.util.*;
 
 public class TreeCanvas extends Panel implements MouseListener,
         MouseMotionListener
@@ -88,8 +64,7 @@ public class TreeCanvas extends Panel implements MouseListener,
 
   SequenceNode highlightNode;
 
-  AlignmentPanel ap;
-
+  AlignmentPanel ap; 
   public TreeCanvas(AlignmentPanel ap, ScrollPane scroller)
   {
     this.ap = ap;
@@ -112,7 +87,7 @@ public class TreeCanvas extends Panel implements MouseListener,
       av.setSelectionGroup(selected);
     }
 
-    selected.setEndRes(av.getAlignment().getWidth() - 1);
+    selected.setEndRes(av.alignment.getWidth() - 1);
     selected.addOrRemove(sequence, true);
   }
 
@@ -168,7 +143,7 @@ public class TreeCanvas extends Panel implements MouseListener,
 
       if (node.element() instanceof SequenceI)
       {
-        SequenceI seq = (SequenceI) node.element();
+        SequenceI seq = (SequenceI) ((SequenceNode) node).element();
 
         if (av.getSequenceColour(seq) == Color.white)
         {
@@ -219,12 +194,13 @@ public class TreeCanvas extends Panel implements MouseListener,
       Rectangle rect = new Rectangle(xend + 10, ypos - charHeight,
               charWidth, charHeight);
 
-      nameHash.put(node.element(), rect);
+      nameHash.put((SequenceI) node.element(), rect);
 
       // Colour selected leaves differently
       SequenceGroup selected = av.getSelectionGroup();
       if (selected != null
-              && selected.getSequences(null).contains(node.element()))
+              && selected.getSequences(null).contains(
+                      (SequenceI) node.element()))
       {
         g.setColor(Color.gray);
 
@@ -248,7 +224,7 @@ public class TreeCanvas extends Panel implements MouseListener,
       int xend = (int) (height * scale) + offx;
       int ypos = (int) (node.ycount * chunk) + offy;
 
-      g.setColor(node.color.darker());
+      g.setColor(((SequenceNode) node).color.darker());
 
       // Draw horizontal line
       g.drawLine(xstart, ypos, xend, ypos);
@@ -414,13 +390,11 @@ public class TreeCanvas extends Panel implements MouseListener,
     }
   }
 
-  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
-  @Override
   public void paint(Graphics g)
   {
     if (tree == null)
@@ -466,7 +440,8 @@ public class TreeCanvas extends Panel implements MouseListener,
     // for
     // scrollbar
 
-    float wscale = (width - labelLength - offx * 2) / tree.getMaxHeight();
+    float wscale = (float) (width - labelLength - offx * 2)
+            / tree.getMaxHeight();
 
     SequenceNode top = tree.getTopNode();
 
@@ -490,29 +465,26 @@ public class TreeCanvas extends Panel implements MouseListener,
         g.setColor(Color.gray);
       }
 
-      int x = (int) (threshold * (getSize().width - labelLength - 2 * offx) + offx);
+      int x = (int) (threshold
+              * (float) (getSize().width - labelLength - 2 * offx) + offx);
 
       g.drawLine(x, 0, x, getSize().height);
     }
 
   }
 
-  @Override
   public void mouseReleased(MouseEvent e)
   {
   }
 
-  @Override
   public void mouseEntered(MouseEvent e)
   {
   }
 
-  @Override
   public void mouseExited(MouseEvent e)
   {
   }
 
-  @Override
   public void mouseClicked(MouseEvent evt)
   {
     if (highlightNode != null)
@@ -542,12 +514,10 @@ public class TreeCanvas extends Panel implements MouseListener,
     }
   }
 
-  @Override
   public void mouseDragged(MouseEvent ect)
   {
   }
 
-  @Override
   public void mouseMoved(MouseEvent evt)
   {
     av.setCurrentTree(tree);
@@ -569,7 +539,6 @@ public class TreeCanvas extends Panel implements MouseListener,
     }
   }
 
-  @Override
   public void mousePressed(MouseEvent e)
   {
     av.setCurrentTree(tree);
@@ -601,15 +570,8 @@ public class TreeCanvas extends Panel implements MouseListener,
         setColor(tree.getTopNode(), Color.black);
 
         av.setSelectionGroup(null);
-        av.getAlignment().deleteAllGroups();
-        av.clearSequenceColours();
-        final AlignViewportI codingComplement = av.getCodingComplement();
-        if (codingComplement != null)
-        {
-          codingComplement.setSelectionGroup(null);
-          codingComplement.getAlignment().deleteAllGroups();
-          codingComplement.clearSequenceColours();
-        }
+        av.alignment.deleteAllGroups();
+        av.sequenceColours = null;
 
         colourGroups();
 
@@ -646,9 +608,6 @@ public class TreeCanvas extends Panel implements MouseListener,
 
       ColourSchemeI cs = null;
 
-      SequenceGroup sg = new SequenceGroup(sequences, "", cs, true, true,
-              false, 0, av.getAlignment().getWidth() - 1);
-
       if (av.getGlobalColourScheme() != null)
       {
         if (av.getGlobalColourScheme() instanceof UserColourScheme)
@@ -660,20 +619,20 @@ public class TreeCanvas extends Panel implements MouseListener,
         }
         else
         {
-          cs = ColourSchemeProperty.getColour(sg, ColourSchemeProperty
-                  .getColourName(av.getGlobalColourScheme()));
+          cs = ColourSchemeProperty.getColour(sequences, av.alignment
+                  .getWidth(), ColourSchemeProperty.getColourName(av
+                  .getGlobalColourScheme()));
         }
         // cs is null if shading is an annotationColourGradient
-        if (cs != null)
+        if (cs!=null)
         {
           cs.setThreshold(av.getGlobalColourScheme().getThreshold(),
-                  av.isIgnoreGapsConsensus());
+                  av.getIgnoreGapsConsensus());
         }
       }
-      // TODO: cs used to be initialized with a sequence collection and
-      // recalcConservation called automatically
-      // instead we set it manually - recalc called after updateAnnotation
-      sg.cs = cs;
+
+      SequenceGroup sg = new SequenceGroup(sequences, "", cs, true, true,
+              false, 0, av.alignment.getWidth() - 1);
 
       sg.setName("JTreeGroup:" + sg.hashCode());
       sg.setIdColour(col);
@@ -685,40 +644,18 @@ public class TreeCanvas extends Panel implements MouseListener,
                 sg.getStartRes(), sg.getEndRes());
 
         c.calculate();
-        c.verdict(false, av.getConsPercGaps());
+        c.verdict(false, av.ConsPercGaps);
         cs.setConservation(c);
 
         sg.cs = cs;
 
       }
 
-      av.getAlignment().addGroup(sg);
-
-      // TODO this is duplicated with gui TreeCanvas - refactor
-      av.getAlignment().addGroup(sg);
-      final AlignViewportI codingComplement = av.getCodingComplement();
-      if (codingComplement != null)
-      {
-        SequenceGroup mappedGroup = MappingUtils.mapSequenceGroup(sg, av,
-                codingComplement);
-        if (mappedGroup.getSequences().size() > 0)
-        {
-          codingComplement.getAlignment().addGroup(mappedGroup);
-          for (SequenceI seq : mappedGroup.getSequences())
-          {
-            // TODO why does gui require col.brighter() here??
-            codingComplement.setSequenceColour(seq, col);
-          }
-        }
-      }
+      av.alignment.addGroup(sg);
 
     }
     ap.updateAnnotation();
-    if (av.getCodingComplement() != null)
-    {
-      ((AlignmentViewport) av.getCodingComplement()).firePropertyChange(
-              "alignment", null, ap.av.getAlignment().getSequences());
-    }
+    
   }
 
   public void setShowDistances(boolean state)

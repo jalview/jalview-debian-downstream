@@ -1,60 +1,44 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SeqCigar;
-import jalview.datamodel.SequenceI;
-import jalview.util.MessageManager;
-import jalview.viewmodel.PCAModel;
+import java.util.*;
 
-import java.awt.BorderLayout;
-import java.awt.Button;
-import java.awt.CheckboxMenuItem;
-import java.awt.Choice;
-import java.awt.Color;
-import java.awt.FlowLayout;
-import java.awt.Frame;
-import java.awt.Label;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
-import java.awt.Panel;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.analysis.*;
+import jalview.datamodel.*;
 
 public class PCAPanel extends EmbmenuFrame implements Runnable,
         ActionListener, ItemListener
 {
+  PCA pca;
+
+  int top;
+
   RotatableCanvas rc;
 
   AlignViewport av;
 
-  PCAModel pcaModel;
+  SequenceI[] seqs;
 
-  int top = 0;
+  AlignmentView seqstrings;
 
   public PCAPanel(AlignViewport av)
   {
@@ -74,18 +58,14 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     }
 
     this.av = av;
-    boolean selected = av.getSelectionGroup() != null
-            && av.getSelectionGroup().getSize() > 0;
-    AlignmentView seqstrings = av.getAlignmentView(selected);
-    boolean nucleotide = av.getAlignment().isNucleotide();
-    SequenceI[] seqs;
-    if (!selected)
+    seqstrings = av.getAlignmentView(av.getSelectionGroup() != null);
+    if (av.getSelectionGroup() == null)
     {
-      seqs = av.getAlignment().getSequencesArray();
+      seqs = av.alignment.getSequencesArray();
     }
     else
     {
-      seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
+      seqs = av.getSelectionGroup().getSequencesInOrder(av.alignment);
     }
     SeqCigar sq[] = seqstrings.getSequences();
     int length = sq[0].getWidth();
@@ -99,15 +79,13 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
         return;
       }
     }
-    pcaModel = new PCAModel(seqstrings, seqs, nucleotide);
 
     rc = new RotatableCanvas(av);
     embedMenuIfNeeded(rc);
     add(rc, BorderLayout.CENTER);
 
-    jalview.bin.JalviewLite.addFrame(this,
-            MessageManager.getString("label.principal_component_analysis"),
-            475, 400);
+    jalview.bin.JalviewLite.addFrame(this, "Principal component analysis",
+            400, 400);
 
     Thread worker = new Thread(this);
     worker.start();
@@ -118,32 +96,46 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
    */
   public void run()
   {
-    // TODO progress indicator
-    calcSettings.setEnabled(false);
-    rc.setEnabled(false);
-    try
-    {
-      nuclSetting.setState(pcaModel.isNucleotide());
-      protSetting.setState(!pcaModel.isNucleotide());
-      pcaModel.run();
-      // ////////////////
-      xCombobox.select(0);
-      yCombobox.select(1);
-      zCombobox.select(2);
+    pca = new PCA(seqstrings.getSequenceStrings(' '));
+    pca.run();
 
-      pcaModel.updateRc(rc);
-      // rc.invalidate();
-      top = pcaModel.getTop();
-    } catch (OutOfMemoryError x)
+    // Now find the component coordinates
+    int ii = 0;
+
+    while ((ii < seqs.length) && (seqs[ii] != null))
     {
-      System.err.println("Out of memory when calculating PCA.");
-      return;
+      ii++;
     }
-    calcSettings.setEnabled(true);
 
-    // TODO revert progress indicator
-    rc.setEnabled(true);
+    double[][] comps = new double[ii][ii];
+
+    for (int i = 0; i < ii; i++)
+    {
+      if (pca.getEigenvalue(i) > 1e-4)
+      {
+        comps[i] = pca.component(i);
+      }
+    }
+
+    // ////////////////
+    xCombobox.select(0);
+    yCombobox.select(1);
+    zCombobox.select(2);
+
+    top = pca.getM().rows - 1;
+
+    Vector points = new Vector();
+    float[][] scores = pca.getComponents(top - 1, top - 2, top - 3, 100);
+
+    for (int i = 0; i < pca.getM().rows; i++)
+    {
+      SequencePoint sp = new SequencePoint(seqs[i], scores[i]);
+      points.addElement(sp);
+    }
+
+    rc.setPoints(points, pca.getM().rows);
     rc.repaint();
+    seqs = null;
     this.repaint();
   }
 
@@ -157,7 +149,13 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     int dim1 = top - xCombobox.getSelectedIndex();
     int dim2 = top - yCombobox.getSelectedIndex();
     int dim3 = top - zCombobox.getSelectedIndex();
-    pcaModel.updateRcView(dim1, dim2, dim3);
+
+    float[][] scores = pca.getComponents(dim1, dim2, dim3, 100);
+    for (int i = 0; i < pca.getM().rows; i++)
+    {
+      ((SequencePoint) rc.points.elementAt(i)).coord = scores[i];
+    }
+
     rc.img = null;
     rc.rotmat.setIdentity();
     rc.initAxes();
@@ -170,14 +168,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     {
       showOriginalData();
     }
-    if (evt.getSource() == resetButton)
-    {
-      xCombobox.select(0);
-      yCombobox.select(1);
-      zCombobox.select(2);
-      doDimensionChange();
-    }
-    if (evt.getSource() == values)
+    else
     {
       values_actionPerformed();
     }
@@ -196,26 +187,6 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     else if (evt.getSource() == zCombobox)
     {
       zCombobox_actionPerformed();
-    }
-    else if (evt.getSource() == labels)
-    {
-      labels_itemStateChanged(evt);
-    }
-    else if (evt.getSource() == nuclSetting)
-    {
-      if (!pcaModel.isNucleotide())
-      {
-        pcaModel.setNucleotide(true);
-        new Thread(this).start();
-      }
-    }
-    else if (evt.getSource() == protSetting)
-    {
-      if (pcaModel.isNucleotide())
-      {
-        pcaModel.setNucleotide(false);
-        new Thread(this).start();
-      }
     }
   }
 
@@ -240,10 +211,9 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     CutAndPasteTransfer cap = new CutAndPasteTransfer(false, null);
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("label.pca_details"), 500, 500);
+    jalview.bin.JalviewLite.addFrame(frame, "PCA details", 500, 500);
 
-    cap.setText(pcaModel.getDetails());
+    cap.setText(pca.getDetails());
   }
 
   void showOriginalData()
@@ -264,8 +234,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     {
     }
     ;
-    Object[] alAndColsel = pcaModel.getSeqtrings()
-            .getAlignmentAndColumnSelection(gc);
+    Object[] alAndColsel = seqstrings.getAlignmentAndColumnSelection(gc);
 
     if (alAndColsel != null && alAndColsel[0] != null)
     {
@@ -296,8 +265,6 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
 
   protected Choice zCombobox = new Choice();
 
-  protected Button resetButton = new Button();
-
   FlowLayout flowLayout1 = new FlowLayout();
 
   BorderLayout borderLayout1 = new BorderLayout();
@@ -308,13 +275,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
 
   Menu menu2 = new Menu();
 
-  Menu calcSettings = new Menu();
-
   protected CheckboxMenuItem labels = new CheckboxMenuItem();
-
-  protected CheckboxMenuItem protSetting = new CheckboxMenuItem();
-
-  protected CheckboxMenuItem nuclSetting = new CheckboxMenuItem();
 
   MenuItem values = new MenuItem();
 
@@ -337,23 +298,14 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     yCombobox.addItemListener(this);
     xCombobox.setFont(new java.awt.Font("Verdana", 0, 12));
     xCombobox.addItemListener(this);
-    resetButton.setFont(new java.awt.Font("Verdana", 0, 12));
-    resetButton.setLabel(MessageManager.getString("action.reset"));
-    resetButton.addActionListener(this);
     this.setMenuBar(menuBar1);
-    menu1.setLabel(MessageManager.getString("action.file"));
-    menu2.setLabel(MessageManager.getString("action.view"));
-    calcSettings.setLabel(MessageManager.getString("action.change_params"));
-    labels.setLabel(MessageManager.getString("label.labels"));
+    menu1.setLabel("File");
+    menu2.setLabel("View");
+    labels.setLabel("Labels");
     labels.addItemListener(this);
-    values.setLabel(MessageManager.getString("label.output_values"));
+    values.setLabel("Output Values...");
     values.addActionListener(this);
-    inputData.setLabel(MessageManager.getString("label.input_data"));
-    nuclSetting.setLabel(MessageManager
-            .getString("label.nucleotide_matrix"));
-    nuclSetting.addItemListener(this);
-    protSetting.setLabel(MessageManager.getString("label.protein_matrix"));
-    protSetting.addItemListener(this);
+    inputData.setLabel("Input Data...");
     this.add(jPanel2, BorderLayout.SOUTH);
     jPanel2.add(jLabel1, null);
     jPanel2.add(xCombobox, null);
@@ -361,15 +313,11 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     jPanel2.add(yCombobox, null);
     jPanel2.add(jLabel3, null);
     jPanel2.add(zCombobox, null);
-    jPanel2.add(resetButton, null);
     menuBar1.add(menu1);
     menuBar1.add(menu2);
-    menuBar1.add(calcSettings);
     menu2.add(labels);
     menu1.add(values);
     menu1.add(inputData);
-    calcSettings.add(nuclSetting);
-    calcSettings.add(protSetting);
     inputData.addActionListener(this);
   }
 

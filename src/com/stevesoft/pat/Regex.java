@@ -7,14 +7,10 @@
 //
 package com.stevesoft.pat;
 
-import jalview.util.MessageManager;
+import java.io.*;
+import java.util.*;
 
-import java.io.File;
-import java.io.FilenameFilter;
-import java.util.BitSet;
-import java.util.Hashtable;
-
-import com.stevesoft.pat.wrap.StringWrap;
+import com.stevesoft.pat.wrap.*;
 
 /** Matches a Unicode punctuation character. */
 class UnicodePunct extends UniValidator
@@ -254,9 +250,7 @@ class UnicodeLower extends UniValidator
  * 
  * <pre>
  * \d+
- * </pre>
- * 
- * , but note that the sequence
+ * </pre>, but note that the sequence
  * 
  * <pre>
  * (?e=#)
@@ -266,8 +260,8 @@ class UnicodeLower extends UniValidator
  * small differences as well. I will either make my package conform or note them
  * as I become aware of them.
  * <p>
- * This package supports additional patterns not in perl5: <center>
- * <table * border=1>
+ * This package supports additional patterns not in perl5: <center> <table
+ * border=1>
  * <tr>
  * <td>(?@())</td>
  * <td>Group</td>
@@ -281,8 +275,8 @@ class UnicodeLower extends UniValidator
  * "look behind." It fails if it attempts to move to a position before the
  * beginning of the string. "x(?&lt1)" is equivalent to "(?=x)". The number, 1
  * in this example, is the number of characters to move backwards.</td>
- * </table>
- * </center> </dl>
+ * </table> </center>
+ * </dl>
  * 
  * @author Steven R. Brandt
  * @version package com.stevesoft.pat, release 1.5.3
@@ -631,8 +625,9 @@ public class Regex extends RegRes implements FilenameFilter
    * search or matchAt methods.
    * 
    * @exception com.stevesoft.pat.RegSyntax
-   *              is thrown if a syntax error is encountered in the pattern. For
-   *              example, "x{3,1}" or "*a" are not valid patterns.
+   *                    is thrown if a syntax error is encountered in the
+   *                    pattern. For example, "x{3,1}" or "*a" are not valid
+   *                    patterns.
    * @see com.stevesoft.pat.Regex#search
    * @see com.stevesoft.pat.Regex#matchAt
    */
@@ -780,9 +775,7 @@ public class Regex extends RegRes implements FilenameFilter
   {
     if (s == null)
     {
-      throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_given_to_regex_search"));
+      throw new NullPointerException("Null String Given to Regex.search");
     }
     return _search(s, 0, s.length());
   }
@@ -792,8 +785,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (sl == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_like_given_to_regex_search"));
+              "Null StringLike Given to Regex.search");
     }
     return _search(sl, 0, sl.length());
   }
@@ -803,8 +795,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (s == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_given_to_regex_reverse_search"));
+              "Null String Given to Regex.reverseSearch");
     }
     return _reverseSearch(s, 0, s.length());
   }
@@ -814,8 +805,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (sl == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_like_given_to_regex_reverse_search"));
+              "Null StringLike Given to Regex.reverseSearch");
     }
     return _reverseSearch(sl, 0, sl.length());
   }
@@ -833,8 +823,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (s == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_like_given_to_regex_search_from"));
+              "Null String Given to Regex.searchFrom");
     }
     return _search(s, start, s.length());
   }
@@ -844,8 +833,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (s == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_like_given_to_regex_search_from"));
+              "Null String Given to Regex.searchFrom");
     }
     return _search(s, start, s.length());
   }
@@ -858,8 +846,7 @@ public class Regex extends RegRes implements FilenameFilter
     if (s == null)
     {
       throw new NullPointerException(
-              MessageManager
-                      .getString("exception.null_string_like_given_to_regex_search_region"));
+              "Null String Given to Regex.searchRegion");
     }
     return _search(s, start, end);
   }
@@ -980,13 +967,13 @@ public class Regex extends RegRes implements FilenameFilter
    * if(skipper == null) { for(long i=start;i<=up;i++) { charsMatched_ =
    * thePattern.matchAt(s,i,pt); if(charsMatched_ >= 0) { matchFrom_ =
    * thePattern.mfrom; marks = pt.marks; gFlagto = matchFrom_+charsMatched_;
-   * return didMatch_=true; } } } else { pt.no_check = true; for(long
-   * i=start;i<=up;i++) { i = skipper.find(src,i,up); if(i<0) { charsMatched_ =
-   * matchFrom_ = -1; return didMatch_ = false; } charsMatched_ =
-   * thePattern.matchAt(s,i,pt); if(charsMatched_ >= 0) { matchFrom_ =
-   * thePattern.mfrom; marks = pt.marks; gFlagto = matchFrom_+charsMatched_;
-   * gFlags = s; return didMatch_=true; } else { i = s.adjustIndex(i); up =
-   * s.adjustEnd(i); } } } return didMatch_=false; }
+   * return didMatch_=true; } } } else { pt.no_check = true; for(long i=start;i<=up;i++) {
+   * i = skipper.find(src,i,up); if(i<0) { charsMatched_ = matchFrom_ = -1;
+   * return didMatch_ = false; } charsMatched_ = thePattern.matchAt(s,i,pt);
+   * if(charsMatched_ >= 0) { matchFrom_ = thePattern.mfrom; marks = pt.marks;
+   * gFlagto = matchFrom_+charsMatched_; gFlags = s; return didMatch_=true; }
+   * else { i = s.adjustIndex(i); up = s.adjustEnd(i); } } } return
+   * didMatch_=false; }
    */
 
   boolean _reverseSearch(String s, int start, int end)
@@ -1114,8 +1101,8 @@ public class Regex extends RegRes implements FilenameFilter
    * the Pattern.
    * 
    * @exception com.stevesoft.pat.RegSyntax
-   *              is thrown when a nonsensensical pattern is supplied. For
-   *              example, a pattern beginning with *.
+   *                    is thrown when a nonsensensical pattern is supplied. For
+   *                    example, a pattern beginning with *.
    */
   protected void compile1(StrPos sp, Rthings mk) throws RegSyntax
   {
@@ -1920,9 +1907,9 @@ public class Regex extends RegRes implements FilenameFilter
    * optimized() method.
    * <p>
    * This method will attempt to rewrite your pattern in a way that makes it
-   * faster (not all patterns execute at the same speed). In general,
-   * "(?: ... )" will be faster than "( ... )" so if you don't need the
-   * backreference, you should group using the former pattern.
+   * faster (not all patterns execute at the same speed). In general, "(?: ... )"
+   * will be faster than "( ... )" so if you don't need the backreference, you
+   * should group using the former pattern.
    * <p>
    * It will also introduce new pattern elements that you can't get to
    * otherwise, for example if you have a large table of strings, i.e. the

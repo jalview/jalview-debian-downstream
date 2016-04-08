@@ -7,8 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.Enumeration;
-import java.util.Vector;
+import java.util.*;
 
 /**
  Shareware: package pat

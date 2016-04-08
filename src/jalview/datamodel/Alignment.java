@@ -1,38 +1,25 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.datamodel;
 
-import jalview.analysis.AlignmentUtils;
-import jalview.io.FastaFile;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Vector;
+import jalview.analysis.*;
 
 /**
  * Data structure to hold and manipulate a multiple sequence alignment
@@ -45,10 +32,9 @@ public class Alignment implements AlignmentI
 {
   protected Alignment dataset;
 
-  protected List<SequenceI> sequences;
+  protected Vector sequences;
 
-  protected List<SequenceGroup> groups = java.util.Collections
-          .synchronizedList(new ArrayList<SequenceGroup>());
+  protected Vector groups = new Vector();
 
   protected char gapCharacter = '-';
 
@@ -58,16 +44,12 @@ public class Alignment implements AlignmentI
 
   public static final int NUCLEOTIDE = 1;
 
-  public boolean hasRNAStructure = false;
-
   /** DOCUMENT ME!! */
   public AlignmentAnnotation[] annotations;
 
   HiddenSequences hiddenSequences = new HiddenSequences(this);
 
   public Hashtable alignmentProperties;
-
-  private Set<AlignedCodonFrame> codonFrameList = new LinkedHashSet<AlignedCodonFrame>();
 
   private void initAlignment(SequenceI[] seqs)
   {
@@ -82,35 +64,13 @@ public class Alignment implements AlignmentI
       type = PROTEIN;
     }
 
-    sequences = java.util.Collections
-            .synchronizedList(new ArrayList<SequenceI>());
+    sequences = new Vector();
 
     for (i = 0; i < seqs.length; i++)
     {
-      sequences.add(seqs[i]);
+      sequences.addElement(seqs[i]);
     }
 
-  }
-
-  /**
-   * Make a 'copy' alignment - sequences have new copies of features and
-   * annotations, but share the original dataset sequences.
-   */
-  public Alignment(AlignmentI al)
-  {
-    SequenceI[] seqs = al.getSequencesArray();
-    for (int i = 0; i < seqs.length; i++)
-    {
-      seqs[i] = new Sequence(seqs[i]);
-    }
-
-    /*
-     * Share the same dataset sequence mappings (if any). TODO: find a better
-     * place for these to live (alignment dataset?).
-     */
-    this.codonFrameList = ((Alignment) al).codonFrameList;
-
-    initAlignment(seqs);
   }
 
   /**
@@ -147,49 +107,30 @@ public class Alignment implements AlignmentI
    */
   public static AlignmentI createAlignment(CigarArray compactAlignment)
   {
-    throw new Error(
-            MessageManager
-                    .getString("error.alignment_cigararray_not_implemented"));
+    throw new Error("Alignment(CigarArray) not yet implemented");
     // this(compactAlignment.refCigars);
   }
 
-  @Override
-  public List<SequenceI> getSequences()
+  /**
+   * DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
+   */
+  public Vector getSequences()
   {
     return sequences;
   }
 
-  @Override
-  public List<SequenceI> getSequences(
-          Map<SequenceI, SequenceCollectionI> hiddenReps)
-  {
-    // TODO: in jalview 2.8 we don't do anything with hiddenreps - fix design to
-    // work on this.
-    return sequences;
-  }
-
-  @Override
   public SequenceI[] getSequencesArray()
   {
     if (sequences == null)
-    {
       return null;
-    }
-    synchronized (sequences)
+    SequenceI[] reply = new SequenceI[sequences.size()];
+    for (int i = 0; i < sequences.size(); i++)
     {
-      return sequences.toArray(new SequenceI[sequences.size()]);
+      reply[i] = (SequenceI) sequences.elementAt(i);
     }
-  }
-
-  /**
-   * Returns a map of lists of sequences keyed by sequence name.
-   * 
-   * @return
-   */
-  @Override
-  public Map<String, List<SequenceI>> getSequencesByName()
-  {
-    return AlignmentUtils.getSequencesByName(this);
+    return reply;
   }
 
   /**
@@ -200,16 +141,13 @@ public class Alignment implements AlignmentI
    * 
    * @return DOCUMENT ME!
    */
-  @Override
   public SequenceI getSequenceAt(int i)
   {
-    synchronized (sequences)
+    if (i>-1 && i < sequences.size())
     {
-      if (i > -1 && i < sequences.size())
-      {
-        return sequences.get(i);
-      }
+      return (SequenceI) sequences.elementAt(i);
     }
+
     return null;
   }
 
@@ -218,7 +156,6 @@ public class Alignment implements AlignmentI
    * 
    * @param snew
    */
-  @Override
   public void addSequence(SequenceI snew)
   {
     if (dataset != null)
@@ -238,19 +175,15 @@ public class Alignment implements AlignmentI
     }
     if (sequences == null)
     {
-      initAlignment(new SequenceI[] { snew });
+      initAlignment(new SequenceI[]
+      { snew });
     }
     else
     {
-      synchronized (sequences)
-      {
-        sequences.add(snew);
-      }
+      sequences.addElement(snew);
     }
     if (hiddenSequences != null)
-    {
       hiddenSequences.adjustHeightSequenceAdded();
-    }
   }
 
   /**
@@ -258,14 +191,12 @@ public class Alignment implements AlignmentI
    * 
    * @param snew
    */
-  @Override
   public void setSequenceAt(int i, SequenceI snew)
   {
-    synchronized (sequences)
-    {
-      deleteSequence(i);
-      sequences.set(i, snew);
-    }
+    SequenceI oldseq = getSequenceAt(i);
+    deleteSequence(oldseq);
+
+    sequences.setElementAt(snew, i);
   }
 
   /**
@@ -273,19 +204,15 @@ public class Alignment implements AlignmentI
    * 
    * @return DOCUMENT ME!
    */
-  @Override
-  public List<SequenceGroup> getGroups()
+  public Vector getGroups()
   {
     return groups;
   }
 
-  @Override
   public void finalize()
   {
     if (getDataset() != null)
-    {
       getDataset().removeAlignmentRef();
-    }
 
     dataset = null;
     sequences = null;
@@ -312,7 +239,6 @@ public class Alignment implements AlignmentI
    * @param s
    *          DOCUMENT ME!
    */
-  @Override
   public void deleteSequence(SequenceI s)
   {
     deleteSequence(findIndex(s));
@@ -324,105 +250,95 @@ public class Alignment implements AlignmentI
    * @param i
    *          DOCUMENT ME!
    */
-  @Override
   public void deleteSequence(int i)
   {
     if (i > -1 && i < getHeight())
     {
-      synchronized (sequences)
-      {
-        sequences.remove(i);
-        hiddenSequences.adjustHeightSequenceDeleted(i);
-      }
+      sequences.removeElementAt(i);
+      hiddenSequences.adjustHeightSequenceDeleted(i);
     }
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.AlignmentI#findGroup(jalview.datamodel.SequenceI)
-   */
-  @Override
-  public SequenceGroup findGroup(SequenceI s)
-  {
-    synchronized (groups)
-    {
-      for (int i = 0; i < this.groups.size(); i++)
-      {
-        SequenceGroup sg = groups.get(i);
-
-        if (sg.getSequences(null).contains(s))
-        {
-          return sg;
-        }
-      }
-    }
-    return null;
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * jalview.datamodel.AlignmentI#findAllGroups(jalview.datamodel.SequenceI)
-   */
-  @Override
-  public SequenceGroup[] findAllGroups(SequenceI s)
-  {
-    ArrayList<SequenceGroup> temp = new ArrayList<SequenceGroup>();
-
-    synchronized (groups)
-    {
-      int gSize = groups.size();
-      for (int i = 0; i < gSize; i++)
-      {
-        SequenceGroup sg = groups.get(i);
-        if (sg == null || sg.getSequences() == null)
-        {
-          this.deleteGroup(sg);
-          gSize--;
-          continue;
-        }
-
-        if (sg.getSequences().contains(s))
-        {
-          temp.add(sg);
-        }
-      }
-    }
-    SequenceGroup[] ret = new SequenceGroup[temp.size()];
-    return temp.toArray(ret);
   }
 
   /**    */
-  @Override
+  public SequenceGroup findGroup(SequenceI s)
+  {
+    for (int i = 0; i < this.groups.size(); i++)
+    {
+      SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
+
+      if (sg.getSequences(null).contains(s))
+      {
+        return sg;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * DOCUMENT ME!
+   * 
+   * @param s
+   *          DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
+   */
+  public SequenceGroup[] findAllGroups(SequenceI s)
+  {
+    Vector temp = new Vector();
+
+    int gSize = groups.size();
+    for (int i = 0; i < gSize; i++)
+    {
+      SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
+      if (sg == null || sg.getSequences(null) == null)
+      {
+        this.deleteGroup(sg);
+        gSize--;
+        continue;
+      }
+
+      if (sg.getSequences(null).contains(s))
+      {
+        temp.addElement(sg);
+      }
+    }
+
+    SequenceGroup[] ret = new SequenceGroup[temp.size()];
+
+    for (int i = 0; i < temp.size(); i++)
+    {
+      ret[i] = (SequenceGroup) temp.elementAt(i);
+    }
+
+    return ret;
+  }
+
+  /**    */
   public void addGroup(SequenceGroup sg)
   {
-    synchronized (groups)
+    if (!groups.contains(sg))
     {
-      if (!groups.contains(sg))
+      if (hiddenSequences.getSize() > 0)
       {
-        if (hiddenSequences.getSize() > 0)
+        int i, iSize = sg.getSize();
+        for (i = 0; i < iSize; i++)
         {
-          int i, iSize = sg.getSize();
-          for (i = 0; i < iSize; i++)
+          if (!sequences.contains(sg.getSequenceAt(i)))
           {
-            if (!sequences.contains(sg.getSequenceAt(i)))
-            {
-              sg.deleteSequence(sg.getSequenceAt(i), false);
-              iSize--;
-              i--;
-            }
-          }
-
-          if (sg.getSize() < 1)
-          {
-            return;
+            sg.deleteSequence(sg.getSequenceAt(i), false);
+            iSize--;
+            i--;
           }
         }
-        sg.setContext(this);
-        groups.add(sg);
+
+        if (sg.getSize() < 1)
+        {
+          return;
+        }
       }
+
+      groups.addElement(sg);
     }
   }
 
@@ -486,40 +402,26 @@ public class Alignment implements AlignmentI
     }
   }
 
-  @Override
   public void deleteAllGroups()
   {
-    synchronized (groups)
+    if (annotations != null)
     {
-      if (annotations != null)
-      {
-        removeAnnotationForGroup(null);
-      }
-      for (SequenceGroup sg : groups)
-      {
-        sg.setContext(null);
-      }
-      groups.clear();
+      removeAnnotationForGroup(null);
     }
+    groups.removeAllElements();
   }
 
   /**    */
-  @Override
   public void deleteGroup(SequenceGroup g)
   {
-    synchronized (groups)
+    if (groups.contains(g))
     {
-      if (groups.contains(g))
-      {
-        removeAnnotationForGroup(g);
-        groups.remove(g);
-        g.setContext(null);
-      }
+      removeAnnotationForGroup(g);
+      groups.removeElement(g);
     }
   }
 
   /**    */
-  @Override
   public SequenceI findName(String name)
   {
     return findName(name, false);
@@ -530,7 +432,6 @@ public class Alignment implements AlignmentI
    * 
    * @see jalview.datamodel.AlignmentI#findName(java.lang.String, boolean)
    */
-  @Override
   public SequenceI findName(String token, boolean b)
   {
     return findName(null, token, b);
@@ -542,7 +443,6 @@ public class Alignment implements AlignmentI
    * @see jalview.datamodel.AlignmentI#findName(SequenceI, java.lang.String,
    * boolean)
    */
-  @Override
   public SequenceI findName(SequenceI startAfter, String token, boolean b)
   {
 
@@ -583,7 +483,6 @@ public class Alignment implements AlignmentI
     return null;
   }
 
-  @Override
   public SequenceI[] findSequenceMatch(String name)
   {
     Vector matches = new Vector();
@@ -613,7 +512,6 @@ public class Alignment implements AlignmentI
    * 
    * @see jalview.datamodel.AlignmentI#findIndex(jalview.datamodel.SequenceI)
    */
-  @Override
   public int findIndex(SequenceI s)
   {
     int i = 0;
@@ -637,7 +535,6 @@ public class Alignment implements AlignmentI
    * @see
    * jalview.datamodel.AlignmentI#findIndex(jalview.datamodel.SearchResults)
    */
-  @Override
   public int findIndex(SearchResults results)
   {
     int i = 0;
@@ -658,7 +555,6 @@ public class Alignment implements AlignmentI
    * 
    * @return DOCUMENT ME!
    */
-  @Override
   public int getHeight()
   {
     return sequences.size();
@@ -669,7 +565,6 @@ public class Alignment implements AlignmentI
    * 
    * @return DOCUMENT ME!
    */
-  @Override
   public int getWidth()
   {
     int maxLength = -1;
@@ -691,17 +586,15 @@ public class Alignment implements AlignmentI
    * @param gc
    *          DOCUMENT ME!
    */
-  @Override
   public void setGapCharacter(char gc)
   {
     gapCharacter = gc;
-    synchronized (sequences)
+
+    for (int i = 0; i < sequences.size(); i++)
     {
-      for (SequenceI seq : sequences)
-      {
-        seq.setSequence(seq.getSequenceAsString().replace('.', gc)
-                .replace('-', gc).replace(' ', gc));
-      }
+      Sequence seq = (Sequence) sequences.elementAt(i);
+      seq.setSequence(seq.getSequenceAsString().replace('.', gc)
+              .replace('-', gc).replace(' ', gc));
     }
   }
 
@@ -710,7 +603,6 @@ public class Alignment implements AlignmentI
    * 
    * @return DOCUMENT ME!
    */
-  @Override
   public char getGapCharacter()
   {
     return gapCharacter;
@@ -721,7 +613,6 @@ public class Alignment implements AlignmentI
    * 
    * @see jalview.datamodel.AlignmentI#isAligned()
    */
-  @Override
   public boolean isAligned()
   {
     return isAligned(false);
@@ -732,7 +623,6 @@ public class Alignment implements AlignmentI
    * 
    * @see jalview.datamodel.AlignmentI#isAligned(boolean)
    */
-  @Override
   public boolean isAligned(boolean includeHidden)
   {
     int width = getWidth();
@@ -754,41 +644,17 @@ public class Alignment implements AlignmentI
     return true;
   }
 
-  /**
-   * Delete all annotations, including auto-calculated if the flag is set true.
-   * Returns true if at least one annotation was deleted, else false.
-   * 
-   * @param includingAutoCalculated
-   * @return
-   */
-  @Override
-  public boolean deleteAllAnnotations(boolean includingAutoCalculated)
-  {
-    boolean result = false;
-    for (AlignmentAnnotation alan : getAlignmentAnnotation())
-    {
-      if (!alan.autoCalculated || includingAutoCalculated)
-      {
-        deleteAnnotation(alan);
-        result = true;
-      }
-    }
-    return result;
-  }
-
   /*
    * (non-Javadoc)
    * 
    * @seejalview.datamodel.AlignmentI#deleteAnnotation(jalview.datamodel.
    * AlignmentAnnotation)
    */
-  @Override
   public boolean deleteAnnotation(AlignmentAnnotation aa)
   {
     return deleteAnnotation(aa, true);
   }
-
-  @Override
+  
   public boolean deleteAnnotation(AlignmentAnnotation aa, boolean unhook)
   {
     int aSize = 1;
@@ -816,16 +682,13 @@ public class Alignment implements AlignmentI
         continue;
       }
       if (tIndex < temp.length)
-      {
         temp[tIndex++] = annotations[i];
-      }
     }
 
     if (swap)
     {
       annotations = temp;
-      if (unhook)
-      {
+      if (unhook) {
         unhookAnnotation(aa);
       }
     }
@@ -856,7 +719,6 @@ public class Alignment implements AlignmentI
    * @seejalview.datamodel.AlignmentI#addAnnotation(jalview.datamodel.
    * AlignmentAnnotation)
    */
-  @Override
   public void addAnnotation(AlignmentAnnotation aa)
   {
     addAnnotation(aa, -1);
@@ -868,14 +730,8 @@ public class Alignment implements AlignmentI
    * @seejalview.datamodel.AlignmentI#addAnnotation(jalview.datamodel.
    * AlignmentAnnotation, int)
    */
-  @Override
   public void addAnnotation(AlignmentAnnotation aa, int pos)
   {
-    if (aa.getRNAStruc() != null)
-    {
-      hasRNAStructure = true;
-    }
-
     int aSize = 1;
     if (annotations != null)
     {
@@ -911,7 +767,6 @@ public class Alignment implements AlignmentI
     annotations = temp;
   }
 
-  @Override
   public void setAnnotationIndex(AlignmentAnnotation aa, int index)
   {
     if (aa == null || annotations == null || annotations.length - 1 < index)
@@ -944,16 +799,16 @@ public class Alignment implements AlignmentI
     annotations = temp;
   }
 
-  @Override
   /**
-   * returns all annotation on the alignment
+   * DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
    */
   public AlignmentAnnotation[] getAlignmentAnnotation()
   {
     return annotations;
   }
 
-  @Override
   public void setNucleotide(boolean b)
   {
     if (b)
@@ -966,7 +821,6 @@ public class Alignment implements AlignmentI
     }
   }
 
-  @Override
   public boolean isNucleotide()
   {
     if (type == NUCLEOTIDE)
@@ -979,14 +833,6 @@ public class Alignment implements AlignmentI
     }
   }
 
-  @Override
-  public boolean hasRNAStructure()
-  {
-    // TODO can it happen that structure is removed from alignment?
-    return hasRNAStructure;
-  }
-
-  @Override
   public void setDataset(Alignment data)
   {
     if (dataset == null && data == null)
@@ -1001,7 +847,7 @@ public class Alignment implements AlignmentI
         currentSeq = getSequenceAt(i);
         if (currentSeq.getDatasetSequence() != null)
         {
-          seqs[i] = currentSeq.getDatasetSequence();
+          seqs[i] = (Sequence) currentSeq.getDatasetSequence();
         }
         else
         {
@@ -1014,27 +860,6 @@ public class Alignment implements AlignmentI
     else if (dataset == null && data != null)
     {
       dataset = data;
-      for (int i = 0; i < getHeight(); i++)
-      {
-        SequenceI currentSeq = getSequenceAt(i);
-        SequenceI dsq = currentSeq.getDatasetSequence();
-        if (dsq == null)
-        {
-          dsq = currentSeq.createDatasetSequence();
-          dataset.addSequence(dsq);
-        }
-        else
-        {
-          while (dsq.getDatasetSequence() != null)
-          {
-            dsq = dsq.getDatasetSequence();
-          }
-          if (dataset.findIndex(dsq) == -1)
-          {
-            dataset.addSequence(dsq);
-          }
-        }
-      }
     }
     dataset.addAlignmentRef();
   }
@@ -1052,13 +877,11 @@ public class Alignment implements AlignmentI
     alignmentRefs++;
   }
 
-  @Override
   public Alignment getDataset()
   {
     return dataset;
   }
 
-  @Override
   public boolean padGaps()
   {
     boolean modified = false;
@@ -1110,7 +933,6 @@ public class Alignment implements AlignmentI
    *          true if alignment padded to right, false to justify to left
    * @return true if alignment was changed
    */
-  @Override
   public boolean justify(boolean right)
   {
     boolean modified = false;
@@ -1208,58 +1030,45 @@ public class Alignment implements AlignmentI
     return modified;
   }
 
-  @Override
   public HiddenSequences getHiddenSequences()
   {
     return hiddenSequences;
   }
 
-  @Override
   public CigarArray getCompactAlignment()
   {
-    synchronized (sequences)
+    SeqCigar alseqs[] = new SeqCigar[sequences.size()];
+    for (int i = 0; i < sequences.size(); i++)
     {
-      SeqCigar alseqs[] = new SeqCigar[sequences.size()];
-      int i = 0;
-      for (SequenceI seq : sequences)
-      {
-        alseqs[i++] = new SeqCigar(seq);
-      }
-      CigarArray cal = new CigarArray(alseqs);
-      cal.addOperation(CigarArray.M, getWidth());
-      return cal;
+      alseqs[i] = new SeqCigar((SequenceI) sequences.elementAt(i));
     }
+    CigarArray cal = new CigarArray(alseqs);
+    cal.addOperation(CigarArray.M, getWidth());
+    return cal;
   }
 
-  @Override
   public void setProperty(Object key, Object value)
   {
     if (alignmentProperties == null)
-    {
       alignmentProperties = new Hashtable();
-    }
 
     alignmentProperties.put(key, value);
   }
 
-  @Override
   public Object getProperty(Object key)
   {
     if (alignmentProperties != null)
-    {
       return alignmentProperties.get(key);
-    }
     else
-    {
       return null;
-    }
   }
 
-  @Override
   public Hashtable getProperties()
   {
     return alignmentProperties;
   }
+
+  AlignedCodonFrame[] codonFrameList = null;
 
   /*
    * (non-Javadoc)
@@ -1268,13 +1077,30 @@ public class Alignment implements AlignmentI
    * jalview.datamodel.AlignmentI#addCodonFrame(jalview.datamodel.AlignedCodonFrame
    * )
    */
-  @Override
   public void addCodonFrame(AlignedCodonFrame codons)
   {
-    if (codons != null)
+    if (codons == null)
+      return;
+    if (codonFrameList == null)
     {
-      codonFrameList.add(codons);
+      codonFrameList = new AlignedCodonFrame[]
+      { codons };
+      return;
     }
+    AlignedCodonFrame[] t = new AlignedCodonFrame[codonFrameList.length + 1];
+    System.arraycopy(codonFrameList, 0, t, 0, codonFrameList.length);
+    t[codonFrameList.length] = codons;
+    codonFrameList = t;
+  }
+
+  /*
+   * (non-Javadoc)
+   * 
+   * @see jalview.datamodel.AlignmentI#getCodonFrame(int)
+   */
+  public AlignedCodonFrame getCodonFrame(int index)
+  {
+    return codonFrameList[index];
   }
 
   /*
@@ -1283,43 +1109,29 @@ public class Alignment implements AlignmentI
    * @see
    * jalview.datamodel.AlignmentI#getCodonFrame(jalview.datamodel.SequenceI)
    */
-  @Override
-  public List<AlignedCodonFrame> getCodonFrame(SequenceI seq)
+  public AlignedCodonFrame[] getCodonFrame(SequenceI seq)
   {
-    if (seq == null)
-    {
+    if (seq == null || codonFrameList == null)
       return null;
-    }
-    List<AlignedCodonFrame> cframes = new ArrayList<AlignedCodonFrame>();
-    for (AlignedCodonFrame acf : codonFrameList)
+    Vector cframes = new Vector();
+    for (int f = 0; f < codonFrameList.length; f++)
     {
-      if (acf.involvesSequence(seq))
-      {
-        cframes.add(acf);
-      }
+      if (codonFrameList[f].involvesSequence(seq))
+        cframes.addElement(codonFrameList[f]);
     }
-    return cframes;
+    if (cframes.size() == 0)
+      return null;
+    AlignedCodonFrame[] cfr = new AlignedCodonFrame[cframes.size()];
+    cframes.copyInto(cfr);
+    return cfr;
   }
 
-  /**
-   * Sets the codon frame mappings (replacing any existing mappings).
-   * 
-   * @see jalview.datamodel.AlignmentI#setCodonFrames()
-   */
-  @Override
-  public void setCodonFrames(Set<AlignedCodonFrame> acfs)
-  {
-    this.codonFrameList = acfs;
-  }
-
-  /**
-   * Returns the set of codon frame mappings. Any changes to the returned set
-   * will affect the alignment.
+  /*
+   * (non-Javadoc)
    * 
    * @see jalview.datamodel.AlignmentI#getCodonFrames()
    */
-  @Override
-  public Set<AlignedCodonFrame> getCodonFrames()
+  public AlignedCodonFrame[] getCodonFrames()
   {
     return codonFrameList;
   }
@@ -1330,23 +1142,34 @@ public class Alignment implements AlignmentI
    * @seejalview.datamodel.AlignmentI#removeCodonFrame(jalview.datamodel.
    * AlignedCodonFrame)
    */
-  @Override
   public boolean removeCodonFrame(AlignedCodonFrame codons)
   {
     if (codons == null || codonFrameList == null)
-    {
       return false;
+    boolean removed = false;
+    int i = 0, iSize = codonFrameList.length;
+    while (i < iSize)
+    {
+      if (codonFrameList[i] == codons)
+      {
+        removed = true;
+        if (i + 1 < iSize)
+        {
+          System.arraycopy(codonFrameList, i + 1, codonFrameList, i, iSize
+                  - i - 1);
+        }
+        iSize--;
+      }
+      else
+      {
+        i++;
+      }
     }
-    return codonFrameList.remove(codons);
+    return removed;
   }
 
-  @Override
   public void append(AlignmentI toappend)
   {
-    if (toappend == this)
-    {
-      System.err.println("Self append may cause a deadlock.");
-    }
     // TODO test this method for a future 2.5 release
     // currently tested for use in jalview.gui.SequenceFetcher
     boolean samegap = toappend.getGapCharacter() == getGapCharacter();
@@ -1354,27 +1177,26 @@ public class Alignment implements AlignmentI
     boolean hashidden = toappend.getHiddenSequences() != null
             && toappend.getHiddenSequences().hiddenSequences != null;
     // get all sequences including any hidden ones
-    List<SequenceI> sqs = (hashidden) ? toappend.getHiddenSequences()
+    Vector sqs = (hashidden) ? toappend.getHiddenSequences()
             .getFullAlignment().getSequences() : toappend.getSequences();
     if (sqs != null)
     {
-      synchronized (sqs)
+      Enumeration sq = sqs.elements();
+      while (sq.hasMoreElements())
       {
-        for (SequenceI addedsq : sqs)
+        SequenceI addedsq = (SequenceI) sq.nextElement();
+        if (!samegap)
         {
-          if (!samegap)
+          char[] oldseq = addedsq.getSequence();
+          for (int c = 0; c < oldseq.length; c++)
           {
-            char[] oldseq = addedsq.getSequence();
-            for (int c = 0; c < oldseq.length; c++)
+            if (oldseq[c] == oldc)
             {
-              if (oldseq[c] == oldc)
-              {
-                oldseq[c] = gapCharacter;
-              }
+              oldseq[c] = gapCharacter;
             }
           }
-          addSequence(addedsq);
         }
+        addSequence(addedsq);
       }
     }
     AlignmentAnnotation[] alan = toappend.getAlignmentAnnotation();
@@ -1382,15 +1204,18 @@ public class Alignment implements AlignmentI
     {
       addAnnotation(alan[a]);
     }
-
-    this.codonFrameList.addAll(toappend.getCodonFrames());
-
-    List<SequenceGroup> sg = toappend.getGroups();
+    AlignedCodonFrame[] acod = toappend.getCodonFrames();
+    for (int a = 0; acod != null && a < acod.length; a++)
+    {
+      this.addCodonFrame(acod[a]);
+    }
+    Vector sg = toappend.getGroups();
     if (sg != null)
     {
-      for (SequenceGroup _sg : sg)
+      Enumeration el = sg.elements();
+      while (el.hasMoreElements())
       {
-        addGroup(_sg);
+        addGroup((SequenceGroup) el.nextElement());
       }
     }
     if (toappend.getHiddenSequences() != null)
@@ -1457,295 +1282,4 @@ public class Alignment implements AlignmentI
     }
   }
 
-  @Override
-  public AlignmentAnnotation findOrCreateAnnotation(String name,
-          String calcId, boolean autoCalc, SequenceI seqRef,
-          SequenceGroup groupRef)
-  {
-    assert (name != null);
-    if (annotations != null)
-    {
-      for (AlignmentAnnotation annot : getAlignmentAnnotation())
-      {
-        if (annot.autoCalculated == autoCalc && (name.equals(annot.label))
-                && (calcId == null || annot.getCalcId().equals(calcId))
-                && annot.sequenceRef == seqRef
-                && annot.groupRef == groupRef)
-        {
-          return annot;
-        }
-      }
-    }
-    AlignmentAnnotation annot = new AlignmentAnnotation(name, name,
-            new Annotation[1], 0f, 0f, AlignmentAnnotation.BAR_GRAPH);
-    annot.hasText = false;
-    annot.setCalcId(new String(calcId));
-    annot.autoCalculated = autoCalc;
-    if (seqRef != null)
-    {
-      annot.setSequenceRef(seqRef);
-    }
-    annot.groupRef = groupRef;
-    addAnnotation(annot);
-
-    return annot;
-  }
-
-  @Override
-  public Iterable<AlignmentAnnotation> findAnnotation(String calcId)
-  {
-    ArrayList<AlignmentAnnotation> aa = new ArrayList<AlignmentAnnotation>();
-    for (AlignmentAnnotation a : getAlignmentAnnotation())
-    {
-      if (a.getCalcId() == calcId
-              || (a.getCalcId() != null && calcId != null && a.getCalcId()
-                      .equals(calcId)))
-      {
-        aa.add(a);
-      }
-    }
-    return aa;
-  }
-
-  /**
-   * Returns an iterable collection of any annotations that match on given
-   * sequence ref, calcId and label (ignoring null values).
-   */
-  @Override
-  public Iterable<AlignmentAnnotation> findAnnotations(SequenceI seq,
-          String calcId, String label)
-  {
-    ArrayList<AlignmentAnnotation> aa = new ArrayList<AlignmentAnnotation>();
-    for (AlignmentAnnotation ann : getAlignmentAnnotation())
-    {
-      if (ann.getCalcId() != null && ann.getCalcId().equals(calcId)
-              && ann.sequenceRef != null && ann.sequenceRef == seq
-              && ann.label != null && ann.label.equals(label))
-      {
-        aa.add(ann);
-      }
-    }
-    return aa;
-  }
-
-  @Override
-  public void moveSelectedSequencesByOne(SequenceGroup sg,
-          Map<SequenceI, SequenceCollectionI> map, boolean up)
-  {
-    synchronized (sequences)
-    {
-      if (up)
-      {
-
-        for (int i = 1, iSize = sequences.size(); i < iSize; i++)
-        {
-          SequenceI seq = sequences.get(i);
-          if (!sg.getSequences(map).contains(seq))
-          {
-            continue;
-          }
-
-          SequenceI temp = sequences.get(i - 1);
-          if (sg.getSequences(null).contains(temp))
-          {
-            continue;
-          }
-
-          sequences.set(i, temp);
-          sequences.set(i - 1, seq);
-        }
-      }
-      else
-      {
-        for (int i = sequences.size() - 2; i > -1; i--)
-        {
-          SequenceI seq = sequences.get(i);
-          if (!sg.getSequences(map).contains(seq))
-          {
-            continue;
-          }
-
-          SequenceI temp = sequences.get(i + 1);
-          if (sg.getSequences(map).contains(temp))
-          {
-            continue;
-          }
-
-          sequences.set(i, temp);
-          sequences.set(i + 1, seq);
-        }
-      }
-
-    }
-  }
-
-  @Override
-  public void validateAnnotation(AlignmentAnnotation alignmentAnnotation)
-  {
-    alignmentAnnotation.validateRangeAndDisplay();
-    if (isNucleotide() && alignmentAnnotation.isValidStruc())
-    {
-      hasRNAStructure = true;
-    }
-  }
-
-  private SequenceI seqrep = null;
-
-  /**
-   * 
-   * @return the representative sequence for this group
-   */
-  public SequenceI getSeqrep()
-  {
-    return seqrep;
-  }
-
-  /**
-   * set the representative sequence for this group. Note - this affects the
-   * interpretation of the Hidereps attribute.
-   * 
-   * @param seqrep
-   *          the seqrep to set (null means no sequence representative)
-   */
-  public void setSeqrep(SequenceI seqrep)
-  {
-    this.seqrep = seqrep;
-  }
-
-  /**
-   * 
-   * @return true if group has a sequence representative
-   */
-  public boolean hasSeqrep()
-  {
-    return seqrep != null;
-  }
-
-  @Override
-  public int getEndRes()
-  {
-    return getWidth() - 1;
-  }
-
-  @Override
-  public int getStartRes()
-  {
-    return 0;
-  }
-
-  /*
-   * In the case of AlignmentI - returns the dataset for the alignment, if set
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.AnnotatedCollectionI#getContext()
-   */
-  @Override
-  public AnnotatedCollectionI getContext()
-  {
-    return dataset;
-  }
-
-  /**
-   * Align this alignment like the given (mapped) one.
-   */
-  @Override
-  public int alignAs(AlignmentI al)
-  {
-    /*
-     * Currently retains unmapped gaps (in introns), regaps mapped regions
-     * (exons)
-     */
-    return alignAs(al, false, true);
-  }
-
-  /**
-   * Align this alignment 'the same as' the given one. Mapped sequences only are
-   * realigned. If both of the same type (nucleotide/protein) then align both
-   * identically. If this is nucleotide and the other is protein, make 3 gaps
-   * for each gap in the protein sequences. If this is protein and the other is
-   * nucleotide, insert a gap for each 3 gaps (or part thereof) between
-   * nucleotide bases. If this is protein and the other is nucleotide, gaps
-   * protein to match the relative ordering of codons in the nucleotide.
-   * 
-   * Parameters control whether gaps in exon (mapped) and intron (unmapped)
-   * regions are preserved. Gaps that connect introns to exons are treated
-   * conservatively, i.e. only preserved if both intron and exon gaps are
-   * preserved.
-   * 
-   * @param al
-   * @param preserveMappedGaps
-   *          if true, gaps within and between mapped codons are preserved
-   * @param preserveUnmappedGaps
-   *          if true, gaps within and between unmapped codons are preserved
-   */
-  // @Override
-  public int alignAs(AlignmentI al, boolean preserveMappedGaps,
-          boolean preserveUnmappedGaps)
-  {
-    // TODO should this method signature be the one in the interface?
-    int count = 0;
-    boolean thisIsNucleotide = this.isNucleotide();
-    boolean thatIsProtein = !al.isNucleotide();
-    if (!thatIsProtein && !thisIsNucleotide)
-    {
-      return AlignmentUtils.alignProteinAsDna(this, al);
-    }
-
-    char thisGapChar = this.getGapCharacter();
-    String gap = thisIsNucleotide && thatIsProtein ? String
-            .valueOf(new char[] { thisGapChar, thisGapChar, thisGapChar })
-            : String.valueOf(thisGapChar);
-
-    // TODO handle intron regions? Needs a 'holistic' alignment of dna,
-    // not just sequence by sequence. But how to 'gap' intron regions?
-
-    /*
-     * Get mappings from 'that' alignment's sequences to this.
-     */
-    for (SequenceI alignTo : getSequences())
-    {
-      count += AlignmentUtils.alignSequenceAs(alignTo, al, gap,
-              preserveMappedGaps, preserveUnmappedGaps) ? 1 : 0;
-    }
-    return count;
-  }
-
-  /**
-   * Returns the alignment in Fasta format. Behaviour of this method is not
-   * guaranteed between versions.
-   */
-  @Override
-  public String toString()
-  {
-    return new FastaFile().print(getSequencesArray());
-  }
-
-  /**
-   * Returns the set of distinct sequence names. No ordering is guaranteed.
-   */
-  @Override
-  public Set<String> getSequenceNames()
-  {
-    Set<String> names = new HashSet<String>();
-    for (SequenceI seq : getSequences())
-    {
-      names.add(seq.getName());
-    }
-    return names;
-  }
-
-  @Override
-  public boolean hasValidSequence()
-  {
-    boolean hasValidSeq = false;
-    for (SequenceI seq : getSequences())
-    {
-      if ((seq.getEnd() - seq.getStart()) > 0)
-      {
-        hasValidSeq = true;
-        break;
-      }
-    }
-    return hasValidSeq;
-  }
 }

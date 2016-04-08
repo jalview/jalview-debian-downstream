@@ -1,33 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-import jalview.util.Format;
+import java.io.*;
+import java.util.*;
 
-import java.io.IOException;
-import java.util.Hashtable;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import jalview.datamodel.*;
+import jalview.util.*;
 
 /**
  * DOCUMENT ME!
@@ -64,6 +58,10 @@ public class MSFfile extends AlignFile
   public MSFfile(FileParse source) throws IOException
   {
     super(source);
+  }
+
+  {
+    // TODO Auto-generated constructor stub
   }
 
   /**
@@ -219,7 +217,7 @@ public class MSFfile extends AlignFile
 
     StringBuffer out = new StringBuffer("!!" + (is_NA ? "NA" : "AA")
             + "_MULTIPLE_ALIGNMENT 1.0");
-    // TODO: JBPNote : Jalview doesn't remember NA or AA yet.
+     // TODO: JBPNote : Jalview doesn't remember NA or AA yet.
     out.append(newline);
     out.append(newline);
     int max = 0;
@@ -230,7 +228,7 @@ public class MSFfile extends AlignFile
     {
       // Replace all internal gaps with . and external spaces with ~
       s[i] = new Sequence(seqs[i].getName(), seqs[i].getSequenceAsString()
-              .replace('-', '.'), seqs[i].getStart(), seqs[i].getEnd());
+              .replace('-', '.'), seqs[i].getStart(),seqs[i].getEnd());
 
       StringBuffer sb = new StringBuffer();
       sb.append(s[i].getSequence());
@@ -303,7 +301,7 @@ public class MSFfile extends AlignFile
 
       idBlock[i] = new String("Len: "
               + maxLenpad.form(s[i].getSequence().length) + "  Check: "
-              + maxChkpad.form(checksums[i]) + "  Weight: 1.00" + newline);
+              + maxChkpad.form(checksums[i]) + "  Weight: 1.00"+newline);
 
       if (s[i].getName().length() > maxid)
       {
@@ -337,8 +335,7 @@ public class MSFfile extends AlignFile
 
     maxid++;
     out.append(newline);
-    out.append(newline);
-    out.append("//");
+    out.append(newline);out.append("//");
     out.append(newline);
     out.append(newline);
     int len = 50;

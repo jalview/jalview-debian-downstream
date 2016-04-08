@@ -7,15 +7,15 @@
 //
 package com.stevesoft.pat;
 
-import com.stevesoft.pat.wrap.StringWrap;
+import com.stevesoft.pat.wrap.*;
 
 /**
  * Like Skip, but implements a <a
  * href="http://www.dcc.uchile.cl/~rbaeza/handbook/algs/7/713b.srch.p.html">
- * Boyer-Moore-Horspool</a> type search method that has been modified to be more
- * like a "T-search" (see the Michael Tamm''s article in <i>C'T, magazin fuer
- * computer und technic</i>, August 97 p 292). Yet another important source of
- * information for me was the <a
+ * Boyer-Moore-Horspool</a> type search method that has been modified to be
+ * more like a "T-search" (see the Michael Tamm''s article in <i>C'T, magazin
+ * fuer computer und technic</i>, August 97 p 292). Yet another important
+ * source of information for me was the <a
  * href="http://www.go2net.com/people/paulp/deep/1997/05/14/"> Deep Magic</a>
  * article on string searching. As of this writing, I can beat String's indexOf
  * method in many cases.

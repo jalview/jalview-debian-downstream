@@ -1,40 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.api.analysis.ScoreModelI;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.BinaryNode;
-import jalview.datamodel.CigarArray;
-import jalview.datamodel.NodeTransformI;
-import jalview.datamodel.SeqCigar;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.SequenceNode;
-import jalview.io.NewickFile;
-import jalview.schemes.ResidueProperties;
+import java.util.*;
 
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Vector;
+import jalview.datamodel.*;
+import jalview.io.*;
+import jalview.schemes.*;
+import jalview.util.*;
 
 /**
  * DOCUMENT ME!
@@ -218,7 +206,7 @@ public class NJTree
    *          DOCUMENT ME!
    */
   public NJTree(SequenceI[] sequence, AlignmentView seqData, String type,
-          String pwtype, ScoreModelI sm, int start, int end)
+          String pwtype, int start, int end)
   {
     this.sequence = sequence;
     this.node = new Vector();
@@ -245,7 +233,7 @@ public class NJTree
       type = "AV";
     }
 
-    if (sm == null && !(pwtype.equals("PID")))
+    if (!(pwtype.equals("PID")))
     {
       if (ResidueProperties.getScoreMatrix(pwtype) == null)
       {
@@ -265,7 +253,8 @@ public class NJTree
 
     noseqs = i++;
 
-    distance = findDistances(sm);
+    distance = findDistances(this.seqData
+            .getSequenceStrings(Comparison.GapChars.charAt(0)));
     // System.err.println("Made distances");// dbg
     makeLeaves();
     // System.err.println("Made leaves");// dbg
@@ -286,18 +275,18 @@ public class NJTree
   {
     jalview.io.NewickFile fout = new jalview.io.NewickFile(getTopNode());
 
-    return fout.print(isHasBootstrap(), isHasDistances(),
-            isHasRootDistance()); // output all data available for tree
+    return fout.print(isHasBootstrap(),
+    isHasDistances(), isHasRootDistance()); // output all data available for tree
   }
 
   /**
    * 
    * used when the alignment associated to a tree has changed.
    * 
-   * @param list
-   *          Sequence set to be associated with tree nodes
+   * @param alignment
+   *          Vector
    */
-  public void UpdatePlaceHolders(List<SequenceI> list)
+  public void UpdatePlaceHolders(Vector alignment)
   {
     Vector leaves = new Vector();
     findLeaves(top, leaves);
@@ -310,7 +299,7 @@ public class NJTree
     {
       SequenceNode leaf = (SequenceNode) leaves.elementAt(i++);
 
-      if (list.contains(leaf.element()))
+      if (alignment.contains(leaf.element()))
       {
         leaf.setPlaceholder(false);
       }
@@ -319,11 +308,11 @@ public class NJTree
         if (seqmatcher == null)
         {
           // Only create this the first time we need it
-          SequenceI[] seqs = new SequenceI[list.size()];
+          SequenceI[] seqs = new SequenceI[alignment.size()];
 
           for (int j = 0; j < seqs.length; j++)
           {
-            seqs[j] = list.get(j);
+            seqs[j] = (SequenceI) alignment.elementAt(j);
           }
 
           seqmatcher = new SequenceIdMatcher(seqs);
@@ -357,29 +346,24 @@ public class NJTree
       }
     }
   }
-
   /**
-   * rename any nodes according to their associated sequence. This will modify
-   * the tree's metadata! (ie the original NewickFile or newly generated
-   * BinaryTree's label data)
+   * rename any nodes according to their associated sequence.
+   * This will modify the tree's metadata! (ie the original NewickFile or newly generated BinaryTree's label data) 
    */
-  public void renameAssociatedNodes()
-  {
-    applyToNodes(new NodeTransformI()
-    {
+  public void renameAssociatedNodes() {
+    applyToNodes(new NodeTransformI() {
 
       @Override
       public void transform(BinaryNode node)
       {
         Object el = node.element();
-        if (el != null && el instanceof SequenceI)
+        if (el!=null && el instanceof SequenceI)
         {
-          node.setName(((SequenceI) el).getName());
+          node.setName(((SequenceI)el).getName());
         }
       }
     });
   }
-
   /**
    * DOCUMENT ME!
    */
@@ -726,26 +710,100 @@ public class NJTree
   }
 
   /**
-   * Calculate a distance matrix given the sequence input data and score model
+   * DOCUMENT ME!
    * 
-   * @return similarity matrix used to compute tree
+   * @return DOCUMENT ME!
    */
-  public float[][] findDistances(ScoreModelI _pwmatrix)
+  public float[][] findDistances(String[] sequenceString)
   {
-
     float[][] distance = new float[noseqs][noseqs];
-    if (_pwmatrix == null)
+
+    if (pwtype.equals("PID"))
     {
-      // Resolve substitution model
-      _pwmatrix = ResidueProperties.getScoreModel(pwtype);
-      if (_pwmatrix == null)
+      for (int i = 0; i < (noseqs - 1); i++)
       {
-        _pwmatrix = ResidueProperties.getScoreMatrix("BLOSUM62");
+        for (int j = i; j < noseqs; j++)
+        {
+          if (j == i)
+          {
+            distance[i][i] = 0;
+          }
+          else
+          {
+            distance[i][j] = 100 - Comparison.PID(sequenceString[i],
+                    sequenceString[j]);
+
+            distance[j][i] = distance[i][j];
+          }
+        }
       }
     }
-    distance = _pwmatrix.findDistances(seqData);
+    else
+    {
+      // Pairwise substitution score (with no gap penalties)
+      ScoreMatrix pwmatrix = ResidueProperties.getScoreMatrix(pwtype);
+      if (pwmatrix == null)
+      {
+        pwmatrix = ResidueProperties.getScoreMatrix("BLOSUM62");
+      }
+      int maxscore = 0;
+      int end = sequenceString[0].length();
+      for (int i = 0; i < (noseqs - 1); i++)
+      {
+        for (int j = i; j < noseqs; j++)
+        {
+          int score = 0;
+
+          for (int k = 0; k < end; k++)
+          {
+            try
+            {
+              score += pwmatrix.getPairwiseScore(
+                      sequenceString[i].charAt(k),
+                      sequenceString[j].charAt(k));
+            } catch (Exception ex)
+            {
+              System.err.println("err creating BLOSUM62 tree");
+              ex.printStackTrace();
+            }
+          }
+
+          distance[i][j] = (float) score;
+
+          if (score > maxscore)
+          {
+            maxscore = score;
+          }
+        }
+      }
+
+      for (int i = 0; i < (noseqs - 1); i++)
+      {
+        for (int j = i; j < noseqs; j++)
+        {
+          distance[i][j] = (float) maxscore - distance[i][j];
+          distance[j][i] = distance[i][j];
+        }
+      }
+
+    }
     return distance;
 
+    // else
+    /*
+     * else if (pwtype.equals("SW")) { float max = -1;
+     * 
+     * for (int i = 0; i < (noseqs - 1); i++) { for (int j = i; j < noseqs; j++)
+     * { AlignSeq as = new AlignSeq(sequence[i], sequence[j], "pep");
+     * as.calcScoreMatrix(); as.traceAlignment(); as.printAlignment(System.out);
+     * distance[i][j] = (float) as.maxscore;
+     * 
+     * if (max < distance[i][j]) { max = distance[i][j]; } } }
+     * 
+     * for (int i = 0; i < (noseqs - 1); i++) { for (int j = i; j < noseqs; j++)
+     * { distance[i][j] = max - distance[i][j]; distance[j][i] = distance[i][j];
+     * } } }/
+     */
   }
 
   /**
@@ -867,12 +925,12 @@ public class NJTree
     {
       System.out
               .println("Leaf = " + ((SequenceI) node.element()).getName());
-      System.out.println("Dist " + node.dist);
+      System.out.println("Dist " + ((SequenceNode) node).dist);
       System.out.println("Boot " + node.getBootstrap());
     }
     else
     {
-      System.out.println("Dist " + node.dist);
+      System.out.println("Dist " + ((SequenceNode) node).dist);
       printNode((SequenceNode) node.left());
       printNode((SequenceNode) node.right());
     }
@@ -893,11 +951,11 @@ public class NJTree
 
     if ((node.left() == null) && (node.right() == null))
     {
-      float dist = node.dist;
+      float dist = ((SequenceNode) node).dist;
 
       if (dist > maxDistValue)
       {
-        maxdist = node;
+        maxdist = (SequenceNode) node;
         maxDistValue = dist;
       }
     }
@@ -1099,8 +1157,9 @@ public class NJTree
               + ((SequenceI) node.element()).getName());
     }
 
-    System.out.println(" dist = " + node.dist + " " + node.count + " "
-            + node.height);
+    System.out.println(" dist = " + ((SequenceNode) node).dist + " "
+            + ((SequenceNode) node).count + " "
+            + ((SequenceNode) node).height);
   }
 
   /**
@@ -1146,13 +1205,13 @@ public class NJTree
       SequenceNode l = (SequenceNode) node.left();
       SequenceNode r = (SequenceNode) node.right();
 
-      node.count = l.count + r.count;
-      node.ycount = (l.ycount + r.ycount) / 2;
+      ((SequenceNode) node).count = l.count + r.count;
+      ((SequenceNode) node).ycount = (l.ycount + r.ycount) / 2;
     }
     else
     {
-      node.count = 1;
-      node.ycount = ycount++;
+      ((SequenceNode) node).count = 1;
+      ((SequenceNode) node).ycount = ycount++;
     }
     _lycount--;
   }
@@ -1291,9 +1350,7 @@ public class NJTree
   {
     for (Enumeration nodes = node.elements(); nodes.hasMoreElements(); nodeTransformI
             .transform((BinaryNode) nodes.nextElement()))
-    {
       ;
-    }
   }
 }
 

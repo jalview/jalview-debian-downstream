@@ -1,22 +1,19 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 // NewickFile.java
 // Tree I/O
@@ -26,14 +23,10 @@
 // TODO: Extended SequenceNodeI to hold parsed NHX strings
 package jalview.io;
 
-import jalview.datamodel.SequenceNode;
-import jalview.util.MessageManager;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.StringTokenizer;
+
+import jalview.datamodel.*;
 
 /**
  * Parse a new hanpshire style tree Caveats: NHX files are NOT supported and the
@@ -299,7 +292,6 @@ public class NewickFile extends FileParse
 
     int nextcp = 0;
     int ncp = cp;
-    boolean parsednodename = false;
     while (majorsyms.searchFrom(nf, cp) && (Error == null))
     {
       int fcp = majorsyms.matchedFrom();
@@ -357,21 +349,14 @@ public class NewickFile extends FileParse
       case '\'':
 
         com.stevesoft.pat.Regex qnodename = new com.stevesoft.pat.Regex(
-                "'([^']|'')+'");
+                "([^']|'')+'");
 
         if (qnodename.searchFrom(nf, fcp))
         {
           int nl = qnodename.stringMatched().length();
-          nodename = new String(qnodename.stringMatched().substring(1,
+          nodename = new String(qnodename.stringMatched().substring(0,
                   nl - 1));
-          // unpack any escaped colons
-          com.stevesoft.pat.Regex xpandquotes = com.stevesoft.pat.Regex
-                  .perlCode("s/''/'/");
-          String widernodename = xpandquotes.replaceAll(nodename);
-          nodename = widernodename;
-          // jump to after end of quoted nodename
-          nextcp = fcp + nl + 1;
-          parsednodename = true;
+          cp = fcp + nl + 1;
         }
         else
         {
@@ -440,8 +425,7 @@ public class NewickFile extends FileParse
         com.stevesoft.pat.Regex ndist = new com.stevesoft.pat.Regex(
                 ":([-0-9Ee.+]+)");
 
-        if (!parsednodename
-                && uqnodename.search(fstring)
+        if (uqnodename.search(fstring)
                 && ((uqnodename.matchedFrom(1) == 0) || (fstring
                         .charAt(uqnodename.matchedFrom(1) - 1) != ':'))) // JBPNote
         // HACK!
@@ -600,7 +584,6 @@ public class NewickFile extends FileParse
         distance = DefDistance;
         bootstrap = DefBootstrap;
         commentString2 = null;
-        parsednodename = false;
       }
       if (nextcp == 0)
       {
@@ -615,14 +598,11 @@ public class NewickFile extends FileParse
 
     if (Error != null)
     {
-      throw (new IOException(MessageManager.formatMessage(
-              "exception.newfile", new String[] { Error.toString() })));
+      throw (new IOException("NewickFile: " + Error + "\n"));
     }
     if (root == null)
     {
-      throw (new IOException(MessageManager.formatMessage(
-              "exception.newfile", new String[] { MessageManager
-                      .getString("label.no_tree_read_in") })));
+      throw (new IOException("NewickFile: No Tree read in\n"));
     }
     // THe next line is failing for topali trees - not sure why yet. if
     // (root.right()!=null && root.isDummy())

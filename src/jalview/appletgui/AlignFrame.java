@@ -1,177 +1,54 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.analysis.AlignmentSorter;
-import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
-import jalview.api.AlignViewControllerGuiI;
-import jalview.api.AlignViewControllerI;
-import jalview.api.AlignViewportI;
-import jalview.api.FeatureRenderer;
-import jalview.api.FeatureSettingsControllerI;
+import java.net.*;
+import java.util.*;
+
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.analysis.*;
 import jalview.api.SequenceStructureBinding;
 import jalview.bin.JalviewLite;
-import jalview.commands.CommandI;
-import jalview.commands.EditCommand;
-import jalview.commands.EditCommand.Action;
-import jalview.commands.OrderCommand;
-import jalview.commands.RemoveGapColCommand;
-import jalview.commands.RemoveGapsCommand;
-import jalview.commands.SlideSequencesCommand;
-import jalview.commands.TrimRegionCommand;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.io.AnnotationFile;
-import jalview.io.AppletFormatAdapter;
-import jalview.io.FeaturesFile;
-import jalview.io.TCoffeeScoreFile;
-import jalview.schemes.Blosum62ColourScheme;
-import jalview.schemes.BuriedColourScheme;
-import jalview.schemes.ClustalxColourScheme;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.HelixColourScheme;
-import jalview.schemes.HydrophobicColourScheme;
-import jalview.schemes.NucleotideColourScheme;
-import jalview.schemes.PIDColourScheme;
-import jalview.schemes.PurinePyrimidineColourScheme;
-import jalview.schemes.RNAHelicesColourChooser;
-import jalview.schemes.StrandColourScheme;
-import jalview.schemes.TCoffeeColourScheme;
-import jalview.schemes.TaylorColourScheme;
-import jalview.schemes.TurnColourScheme;
-import jalview.schemes.ZappoColourScheme;
+import jalview.commands.*;
+import jalview.datamodel.*;
+import jalview.io.*;
+import jalview.schemes.*;
 import jalview.structure.StructureSelectionManager;
-import jalview.structures.models.AAStructureBindingModel;
-import jalview.util.MappingUtils;
-import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
-
-import java.awt.BorderLayout;
-import java.awt.Canvas;
-import java.awt.CheckboxMenuItem;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.Label;
-import java.awt.Menu;
-import java.awt.MenuBar;
-import java.awt.MenuItem;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
-import java.util.Vector;
-
-import org.jmol.viewer.Viewer;
 
 public class AlignFrame extends EmbmenuFrame implements ActionListener,
-        ItemListener, KeyListener, AlignViewControllerGuiI
+        ItemListener, KeyListener
 {
-  public AlignViewControllerI avc;
-
   public AlignmentPanel alignPanel;
 
   public AlignViewport viewport;
 
-  // width and height may be overridden by applet parameters
-  int frameWidth = 700;
+  int DEFAULT_WIDTH = 700;
 
-  int frameHeight = 500;
+  int DEFAULT_HEIGHT = 500;
 
   String jalviewServletURL;
 
-  /*
-   * Flag for showing autocalculated consensus above or below other consensus
-   * rows
-   */
-  private boolean showAutoCalculatedAbove;
-
-  private SequenceAnnotationOrder annotationSortOrder;
-
-  /**
-   * Constructor that creates the frame and adds it to the display.
-   * 
-   * @param al
-   * @param applet
-   * @param title
-   * @param embedded
-   */
-  public AlignFrame(AlignmentI al, JalviewLite applet, String title,
-          boolean embedded)
-  {
-    this(al, applet, title, embedded, true);
-  }
-
-  /**
-   * Constructor that optionally allows the frame to be displayed or only
-   * created.
-   * 
-   * @param al
-   * @param applet
-   * @param title
-   * @param embedded
-   * @param addToDisplay
-   */
-  public AlignFrame(AlignmentI al, JalviewLite applet, String title,
-          boolean embedded, boolean addToDisplay)
-  {
-    this(al, null, null, applet, title, embedded, addToDisplay);
-  }
-
-  public AlignFrame(AlignmentI al, SequenceI[] hiddenSeqs,
-          ColumnSelection columnSelection, JalviewLite applet,
+  public AlignFrame(AlignmentI al, jalview.bin.JalviewLite applet,
           String title, boolean embedded)
   {
-    this(al, hiddenSeqs, columnSelection, applet, title, embedded, true);
-  }
 
-  public AlignFrame(AlignmentI al, SequenceI[] hiddenSeqs,
-          ColumnSelection columnSelection, JalviewLite applet,
-          String title, boolean embedded, boolean addToDisplay)
-  {
     if (applet != null)
     {
       jalviewServletURL = applet.getParameter("APPLICATION_URL");
@@ -184,58 +61,22 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       ex.printStackTrace();
     }
-    // need to get window geometry before we calculate alignment layout
-    if (applet != null)
-    {
-      String param;
-      try
-      {
-        param = applet.getParameter("windowWidth");
-        if (param != null)
-        {
-          int width = Integer.parseInt(param);
-          frameWidth = width;
-        }
-        param = applet.getParameter("windowHeight");
-        if (param != null)
-        {
-          int height = Integer.parseInt(param);
-          frameHeight = height;
-        }
-      } catch (Exception ex)
-      {
-      }
-    }
+
     viewport = new AlignViewport(al, applet);
-
-    if (hiddenSeqs != null && hiddenSeqs.length > 0)
-    {
-      viewport.hideSequence(hiddenSeqs);
-    }
-    if (columnSelection != null)
-    {
-      viewport.setColumnSelection(columnSelection);
-    }
-
     alignPanel = new AlignmentPanel(this, viewport);
-    avc = new jalview.controller.AlignViewController(this, viewport,
-            alignPanel);
+
     viewport.updateConservation(alignPanel);
     viewport.updateConsensus(alignPanel);
 
-    displayNonconservedMenuItem.setState(viewport.getShowUnconserved());
-    followMouseOverFlag.setState(viewport.isFollowHighlight());
-    showGroupConsensus.setState(viewport.isShowGroupConsensus());
-    showGroupConservation.setState(viewport.isShowGroupConservation());
-    showConsensusHistogram.setState(viewport.isShowConsensusHistogram());
-    showSequenceLogo.setState(viewport.isShowSequenceLogo());
-    normSequenceLogo.setState(viewport.isNormaliseSequenceLogo());
-    applyToAllGroups.setState(viewport.getColourAppliesToAllGroups());
-    annotationPanelMenuItem.setState(viewport.isShowAnnotation());
-    showAlignmentAnnotations.setState(viewport.isShowAnnotation());
-    showSequenceAnnotations.setState(viewport.isShowAnnotation());
+    annotationPanelMenuItem.setState(viewport.showAnnotation);
+    displayNonconservedMenuItem.setState(viewport.getShowunconserved());
+    followMouseOverFlag.setState(viewport.getFollowHighlight());
+    showGroupConsensus.setState(viewport.showGroupConsensus);
+    showGroupConservation.setState(viewport.showGroupConservation);
+    showConsensusHistogram.setState(viewport.showConsensusHistogram);
+    showSequenceLogo.setState(viewport.showSequenceLogo);
 
-    seqLimits.setState(viewport.getShowJVSuffix());
+    seqLimits.setState(viewport.showJVSuffix);
 
     if (applet != null)
     {
@@ -271,25 +112,26 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         centreColumnLabelFlag.setState(true);
         centreColumnLabelFlag_stateChanged();
       }
+      try
+      {
+        param = applet.getParameter("windowWidth");
+        if (param != null)
+        {
+          int width = Integer.parseInt(param);
+          DEFAULT_WIDTH = width;
+        }
+        param = applet.getParameter("windowHeight");
+        if (param != null)
+        {
+          int height = Integer.parseInt(param);
+          DEFAULT_HEIGHT = height;
+        }
+      } catch (Exception ex)
+      {
+      }
 
     }
-    if (viewport.getAlignment().isNucleotide())
-    {
-      viewport.updateStrucConsensus(alignPanel);
-      if (viewport.getAlignment().hasRNAStructure())
-      {
-        RNAHelixColour.setEnabled(true);
-      }
-      else
-      {
-        RNAHelixColour.setEnabled(false);
-      }
-    }
-    else
-    {
-      RNAHelixColour.setEnabled(false);
-      purinePyrimidineColour.setEnabled(false);
-    }
+
     // Some JVMS send keyevents to Top frame or lowest panel,
     // Havent worked out why yet. So add to both this frame and seqCanvas for
     // now
@@ -301,19 +143,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     alignPanel.annotationPanelHolder.addKeyListener(this);
     alignPanel.annotationSpaceFillerHolder.addKeyListener(this);
     alignPanel.alabels.addKeyListener(this);
+    createAlignFrameWindow(embedded, title);
 
-    if (addToDisplay)
-    {
-      addToDisplay(embedded);
-    }
-  }
-
-  /**
-   * @param embedded
-   */
-  public void addToDisplay(boolean embedded)
-  {
-    createAlignFrameWindow(embedded);
     validate();
     alignPanel.adjustAnnotationHeight();
     alignPanel.paintAlignment(true);
@@ -330,46 +161,22 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   }
 
   /**
-   * Load a features file onto the alignment
+   * DOCUMENT ME!
    * 
-   * @param file
-   *          file URL, content, or other resolvable path
-   * @param type
-   *          is protocol for accessing data referred to by file
+   * @param String
+   *          DOCUMENT ME!
    */
 
-  public boolean parseFeaturesFile(String file, String type)
+  public void parseFeaturesFile(String file, String type)
   {
-    return parseFeaturesFile(file, type, true);
-  }
-
-  /**
-   * Load a features file onto the alignment
-   * 
-   * @param file
-   *          file URL, content, or other resolvable path
-   * @param type
-   *          is protocol for accessing data referred to by file
-   * @param autoenabledisplay
-   *          when true, display features flag will be automatically enabled if
-   *          features are loaded
-   * @return true if data parsed as a features file
-   */
-  public boolean parseFeaturesFile(String file, String type,
-          boolean autoenabledisplay)
-  {
-    // TODO: test if importing a features file onto an alignment which already
-    // has features with links overwrites the original links.
-
     Hashtable featureLinks = new Hashtable();
     boolean featuresFile = false;
     try
     {
-      featuresFile = new jalview.io.FeaturesFile(file, type).parse(viewport
-              .getAlignment(), alignPanel.seqPanel.seqCanvas
-              .getFeatureRenderer().getFeatureColours(), featureLinks,
-              true, viewport.applet.getDefaultParameter("relaxedidmatch",
-                      false));
+      featuresFile = new jalview.io.FeaturesFile(file, type)
+              .parse(viewport.alignment,
+                      alignPanel.seqPanel.seqCanvas.getFeatureRenderer().featureColours,
+                      featureLinks, true, viewport.applet.getDefaultParameter("relaxedidmatch", false));
     } catch (Exception ex)
     {
       ex.printStackTrace();
@@ -381,28 +188,17 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       {
         alignPanel.seqPanel.seqCanvas.getFeatureRenderer().featureLinks = featureLinks;
       }
-      if (autoenabledisplay)
-      {
-        viewport.setShowSequenceFeatures(true);
-        sequenceFeatures.setState(true);
-      }
-      if (alignPanel.seqPanel.seqCanvas.fr != null)
-      {
-        // update the min/max ranges where necessary
-        alignPanel.seqPanel.seqCanvas.fr.findAllFeatures(true);
-      }
+      viewport.showSequenceFeatures = true;
+      sequenceFeatures.setState(true);
       if (viewport.featureSettings != null)
       {
         viewport.featureSettings.refreshTable();
       }
       alignPanel.paintAlignment(true);
-      statusBar.setText(MessageManager
-              .getString("label.successfully_added_features_alignment"));
     }
-    return featuresFile;
+
   }
 
-  @Override
   public void keyPressed(KeyEvent evt)
   {
     if (viewport.cursorMode
@@ -410,16 +206,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
                     .getKeyCode() >= KeyEvent.VK_NUMPAD0 && evt
                     .getKeyCode() <= KeyEvent.VK_NUMPAD9))
             && Character.isDigit(evt.getKeyChar()))
-    {
       alignPanel.seqPanel.numberPressed(evt.getKeyChar());
-    }
 
     switch (evt.getKeyCode())
     {
     case 27: // escape key
       deselectAllSequenceMenuItem_actionPerformed();
-
-      alignPanel.alabels.cancelDrag();
+      
+      alignPanel.alabels.cancelDrag(); 
       break;
     case KeyEvent.VK_X:
       if (evt.isControlDown() || evt.isMetaDown())
@@ -473,24 +267,16 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     case KeyEvent.VK_LEFT:
       if (evt.isAltDown() || !viewport.cursorMode)
-      {
         slideSequences(false, alignPanel.seqPanel.getKeyboardNo1());
-      }
       else
-      {
         alignPanel.seqPanel.moveCursor(-1, 0);
-      }
       break;
 
     case KeyEvent.VK_RIGHT:
       if (evt.isAltDown() || !viewport.cursorMode)
-      {
         slideSequences(true, alignPanel.seqPanel.getKeyboardNo1());
-      }
       else
-      {
         alignPanel.seqPanel.moveCursor(1, 0);
-      }
       break;
 
     case KeyEvent.VK_SPACE:
@@ -551,9 +337,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     case KeyEvent.VK_F2:
       viewport.cursorMode = !viewport.cursorMode;
-      statusBar.setText(MessageManager.formatMessage(
-              "label.keyboard_editing_mode",
-              new String[] { (viewport.cursorMode ? "on" : "off") }));
+      statusBar.setText("Keyboard editing mode is "
+              + (viewport.cursorMode ? "on" : "off"));
       if (viewport.cursorMode)
       {
         alignPanel.seqPanel.seqCanvas.cursorX = viewport.startRes;
@@ -577,7 +362,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
 
     case KeyEvent.VK_PAGE_UP:
-      if (viewport.getWrapAlignment())
+      if (viewport.wrapAlignment)
       {
         alignPanel.scrollUp(true);
       }
@@ -589,7 +374,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       break;
 
     case KeyEvent.VK_PAGE_DOWN:
-      if (viewport.getWrapAlignment())
+      if (viewport.wrapAlignment)
       {
         alignPanel.scrollUp(false);
       }
@@ -655,20 +440,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       }
       break;
 
-    case KeyEvent.VK_G:
-      if (evt.isControlDown())
-      {
-        if (evt.isShiftDown())
-        {
-          this.unGroup_actionPerformed();
-        }
-        else
-        {
-          this.createGroup_actionPerformed();
-        }
-      }
-      break;
-
     case KeyEvent.VK_U:
       if (evt.isControlDown())
       {
@@ -702,9 +473,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       // Hide everything by the current selection - this is a hack - we do the
       // invert and then hide
       // first check that there will be visible columns after the invert.
-      if ((viewport.getColumnSelection() != null
-              && viewport.getColumnSelection().getSelected() != null && viewport
-              .getColumnSelection().getSelected().size() > 0)
+      if ((viewport.colSel != null && viewport.colSel.getSelected() != null && viewport.colSel
+              .getSelected().size() > 0)
               || (sg != null && sg.getSize() > 0 && sg.getStartRes() <= sg
                       .getEndRes()))
       {
@@ -727,13 +497,12 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     if (toggleSeqs)
     {
-      if (sg != null && sg.getSize() != viewport.getAlignment().getHeight())
+      if (sg != null && sg.getSize() != viewport.alignment.getHeight())
       {
         hide = true;
         viewport.hideAllSelectedSeqs();
       }
-      else if (!(toggleCols && viewport.getColumnSelection().getSelected()
-              .size() > 0))
+      else if (!(toggleCols && viewport.colSel.getSelected().size() > 0))
       {
         viewport.showAllHiddenSeqs();
       }
@@ -741,12 +510,12 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     if (toggleCols)
     {
-      if (viewport.getColumnSelection().getSelected().size() > 0)
+      if (viewport.colSel.getSelected().size() > 0)
       {
         viewport.hideSelectedColumns();
         if (!toggleSeqs)
         {
-          viewport.setSelectionGroup(sg);
+          viewport.selectionGroup = sg;
         }
       }
       else if (!hide)
@@ -756,206 +525,120 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
   }
 
-  @Override
   public void keyReleased(KeyEvent evt)
   {
   }
 
-  @Override
   public void keyTyped(KeyEvent evt)
   {
   }
 
-  @Override
   public void itemStateChanged(ItemEvent evt)
   {
-    final Object source = evt.getSource();
-    if (source == displayNonconservedMenuItem)
+    if (evt.getSource() == displayNonconservedMenuItem)
     {
       displayNonconservedMenuItem_actionPerformed();
     }
-    else if (source == colourTextMenuItem)
+    else if (evt.getSource() == colourTextMenuItem)
     {
       colourTextMenuItem_actionPerformed();
     }
-    else if (source == wrapMenuItem)
+    else if (evt.getSource() == wrapMenuItem)
     {
       wrapMenuItem_actionPerformed();
     }
-    else if (source == scaleAbove)
+    else if (evt.getSource() == scaleAbove)
     {
       viewport.setScaleAboveWrapped(scaleAbove.getState());
     }
-    else if (source == scaleLeft)
+    else if (evt.getSource() == scaleLeft)
     {
       viewport.setScaleLeftWrapped(scaleLeft.getState());
     }
-    else if (source == scaleRight)
+    else if (evt.getSource() == scaleRight)
     {
       viewport.setScaleRightWrapped(scaleRight.getState());
     }
-    else if (source == seqLimits)
+    else if (evt.getSource() == seqLimits)
     {
       seqLimits_itemStateChanged();
     }
-    else if (source == viewBoxesMenuItem)
+    else if (evt.getSource() == viewBoxesMenuItem)
     {
       viewport.setShowBoxes(viewBoxesMenuItem.getState());
     }
-    else if (source == viewTextMenuItem)
+    else if (evt.getSource() == viewTextMenuItem)
     {
       viewport.setShowText(viewTextMenuItem.getState());
     }
-    else if (source == renderGapsMenuItem)
+    else if (evt.getSource() == renderGapsMenuItem)
     {
       viewport.setRenderGaps(renderGapsMenuItem.getState());
     }
-    else if (source == annotationPanelMenuItem)
+    else if (evt.getSource() == annotationPanelMenuItem)
     {
       viewport.setShowAnnotation(annotationPanelMenuItem.getState());
       alignPanel.setAnnotationVisible(annotationPanelMenuItem.getState());
     }
-    else if (source == sequenceFeatures)
+    else if (evt.getSource() == sequenceFeatures)
     {
-      viewport.setShowSequenceFeatures(sequenceFeatures.getState());
+      viewport.showSequenceFeatures(sequenceFeatures.getState());
       alignPanel.seqPanel.seqCanvas.repaint();
     }
-    else if (source == showAlignmentAnnotations)
-    {
-      setAnnotationsVisibility();
-    }
-    else if (source == showSequenceAnnotations)
-    {
-      setAnnotationsVisibility();
-    }
-    else if (source == sortAnnBySequence)
-    {
-      boolean newState = sortAnnBySequence.getState();
-      sortAnnByLabel.setState(false);
-      setAnnotationSortOrder(newState ? SequenceAnnotationOrder.SEQUENCE_AND_LABEL
-              : SequenceAnnotationOrder.NONE);
-      setViewportAnnotationOrder();
-    }
-    else if (source == sortAnnByLabel)
-    {
-      boolean newState = sortAnnByLabel.getState();
-      sortAnnBySequence.setState(false);
-      setAnnotationSortOrder(newState ? SequenceAnnotationOrder.LABEL_AND_SEQUENCE
-              : SequenceAnnotationOrder.NONE);
-      setViewportAnnotationOrder();
-    }
-    else if (source == showAutoFirst)
-    {
-      showAutoLast.setState(!showAutoFirst.getState());
-      setShowAutoCalculatedAbove(showAutoFirst.getState());
-      setViewportAnnotationOrder();
-    }
-    else if (source == showAutoLast)
-    {
-      showAutoFirst.setState(!showAutoLast.getState());
-      setShowAutoCalculatedAbove(showAutoFirst.getState());
-      setViewportAnnotationOrder();
-    }
-    else if (source == conservationMenuItem)
+    else if (evt.getSource() == conservationMenuItem)
     {
       conservationMenuItem_actionPerformed();
     }
-    else if (source == abovePIDThreshold)
+    else if (evt.getSource() == abovePIDThreshold)
     {
       abovePIDThreshold_actionPerformed();
     }
-    else if (source == applyToAllGroups)
+    else if (evt.getSource() == applyToAllGroups)
     {
       viewport.setColourAppliesToAllGroups(applyToAllGroups.getState());
     }
-    else if (source == autoCalculate)
+    else if (evt.getSource() == autoCalculate)
     {
-      viewport.autoCalculateConsensus = autoCalculate.getState();
+      viewport.autocalculateConsensus = autoCalculate.getState();
     }
-    else if (source == sortByTree)
+    else if (evt.getSource() == sortByTree)
     {
       viewport.sortByTree = sortByTree.getState();
     }
-    else if (source == this.centreColumnLabelFlag)
+    else if (evt.getSource() == this.centreColumnLabelFlag)
     {
       centreColumnLabelFlag_stateChanged();
     }
-    else if (source == this.followMouseOverFlag)
+    else if (evt.getSource() == this.followMouseOverFlag)
     {
       mouseOverFlag_stateChanged();
     }
-    else if (source == showGroupConsensus)
+    else if (evt.getSource() == showGroupConsensus)
     {
       showGroupConsensus_actionPerformed();
     }
-    else if (source == showGroupConservation)
+    else if (evt.getSource() == showGroupConservation)
     {
       showGroupConservation_actionPerformed();
     }
-    else if (source == showSequenceLogo)
+    else if (evt.getSource() == showSequenceLogo)
     {
       showSequenceLogo_actionPerformed();
     }
-    else if (source == normSequenceLogo)
-    {
-      normSequenceLogo_actionPerformed();
-    }
-    else if (source == showConsensusHistogram)
+    else if (evt.getSource() == showConsensusHistogram)
     {
       showConsensusHistogram_actionPerformed();
     }
-    else if (source == applyAutoAnnotationSettings)
+    else if (evt.getSource() == applyAutoAnnotationSettings)
     {
       applyAutoAnnotationSettings_actionPerformed();
     }
     alignPanel.paintAlignment(true);
   }
 
-  /**
-   * Set the visibility state of sequence-related and/or alignment-related
-   * annotations depending on checkbox selections. Repaint after calling.
-   * 
-   * @param visible
-   */
-  private void setAnnotationsVisibility()
-  {
-    boolean showForAlignment = showAlignmentAnnotations.getState();
-    boolean showForSequences = showSequenceAnnotations.getState();
-    for (AlignmentAnnotation aa : alignPanel.getAlignment()
-            .getAlignmentAnnotation())
-    {
-      boolean visible = (aa.sequenceRef == null ? showForAlignment
-              : showForSequences);
-      aa.visible = visible;
-    }
-    alignPanel.validateAnnotationDimensions(true);
-    validate();
-    repaint();
-  }
-
-  private void setAnnotationSortOrder(SequenceAnnotationOrder order)
-  {
-    this.annotationSortOrder = order;
-  }
-
-  /**
-   * Set flags on the viewport that control annotation ordering
-   */
-  private void setViewportAnnotationOrder()
-  {
-    this.alignPanel.av.setSortAnnotationsBy(this.annotationSortOrder);
-    this.alignPanel.av
-            .setShowAutocalculatedAbove(this.showAutoCalculatedAbove);
-  }
-
-  private void setShowAutoCalculatedAbove(boolean showAbove)
-  {
-    this.showAutoCalculatedAbove = showAbove;
-  }
-
   private void mouseOverFlag_stateChanged()
   {
-    viewport.setFollowHighlight(followMouseOverFlag.getState());
+    viewport.followHighlight = followMouseOverFlag.getState();
     // TODO: could kick the scrollTo mechanism to reset view for current
     // searchresults.
   }
@@ -966,11 +649,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     this.alignPanel.annotationPanel.repaint();
   }
 
-  @Override
   public void actionPerformed(ActionEvent evt)
   {
-    viewport.applet.currentAlignFrame = this;
-
     Object source = evt.getSource();
 
     if (source == inputText)
@@ -1154,10 +834,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       showSequenceLogo_actionPerformed();
     }
-    else if (source == normSequenceLogo)
-    {
-      normSequenceLogo_actionPerformed();
-    }
     else if (source == showConsensusHistogram)
     {
       showConsensusHistogram_actionPerformed();
@@ -1173,14 +849,13 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     else if (source == alProperties)
     {
       StringBuffer contents = new jalview.io.AlignmentProperties(
-              viewport.getAlignment()).formatAsString();
+              viewport.alignment).formatAsString();
       CutAndPasteTransfer cap = new CutAndPasteTransfer(false, this);
       cap.setText(contents.toString());
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
-              "label.alignment_properties", new String[] { getTitle() }),
-              400, 250);
+      jalview.bin.JalviewLite.addFrame(frame, "Alignment Properties: "
+              + getTitle(), 400, 250);
     }
     else if (source == overviewMenuItem)
     {
@@ -1193,7 +868,9 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     else if (source == clustalColour)
     {
       abovePIDThreshold.setState(false);
-      changeColour(new ClustalxColourScheme(viewport.getAlignment(), null));
+      changeColour(new ClustalxColourScheme(
+              viewport.alignment.getSequences(),
+              viewport.alignment.getWidth()));
     }
     else if (source == zappoColour)
     {
@@ -1227,18 +904,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       changeColour(new NucleotideColourScheme());
     }
-    else if (source == purinePyrimidineColour)
-    {
-      changeColour(new PurinePyrimidineColourScheme());
-    }
-    // else if (source == RNAInteractionColour)
-    // {
-    // changeColour(new RNAInteractionColourScheme());
-    // }
-    else if (source == RNAHelixColour)
-    {
-      new RNAHelicesColourChooser(viewport, alignPanel);
-    }
     else if (source == modifyPID)
     {
       modifyPID_actionPerformed();
@@ -1259,17 +924,9 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       changeColour(new Blosum62ColourScheme());
     }
-    else if (source == tcoffeeColour)
-    {
-      changeColour(new TCoffeeColourScheme(alignPanel.getAlignment()));
-    }
     else if (source == annotationColour)
     {
       new AnnotationColourChooser(viewport, alignPanel);
-    }
-    else if (source == annotationColumnSelection)
-    {
-      new AnnotationColumnChooser(viewport, alignPanel);
     }
     else if (source == sortPairwiseMenuItem)
     {
@@ -1331,8 +988,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     CutAndPasteTransfer cap = new CutAndPasteTransfer(true, this);
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("label.input_cut_paste"), 500, 500);
+    jalview.bin.JalviewLite.addFrame(frame, "Cut & Paste Input", 500, 500);
   }
 
   protected void outputText_actionPerformed(ActionEvent e)
@@ -1340,54 +996,57 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     CutAndPasteTransfer cap = new CutAndPasteTransfer(true, this);
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
-            "label.alignment_output_command",
-            new Object[] { e.getActionCommand() }), 600, 500);
-
-    FeatureRenderer fr = this.alignPanel.cloneFeatureRenderer();
-    cap.setText(new AppletFormatAdapter(alignPanel).formatSequences(
+    jalview.bin.JalviewLite.addFrame(frame,
+            "Alignment output - " + e.getActionCommand(), 600, 500);
+    cap.setText(new AppletFormatAdapter().formatSequences(
             e.getActionCommand(), viewport.getAlignment(),
-            viewport.getShowJVSuffix()));
+            viewport.showJVSuffix));
   }
 
   public void loadAnnotations()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer(true, this);
-    cap.setText(MessageManager
-            .getString("label.paste_features_annotations_Tcoffee_here"));
+    cap.setText("Paste your features / annotations file here.");
     cap.setAnnotationImport();
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("action.paste_annotations"), 400, 300);
+    jalview.bin.JalviewLite.addFrame(frame, "Paste Annotations ", 400, 300);
 
   }
 
   public String outputAnnotations(boolean displayTextbox)
   {
-    String annotation = new AnnotationFile()
-            .printAnnotationsForView(viewport);
+    String annotation = new AnnotationFile().printAnnotations(
+            viewport.showAnnotation ? viewport.alignment
+                    .getAlignmentAnnotation() : null, viewport.alignment
+                    .getGroups(),
+            ((Alignment) viewport.alignment).alignmentProperties);
 
     if (displayTextbox)
     {
       CutAndPasteTransfer cap = new CutAndPasteTransfer(false, this);
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame,
-              MessageManager.getString("label.annotations"), 600, 500);
+      jalview.bin.JalviewLite.addFrame(frame, "Annotations", 600, 500);
       cap.setText(annotation);
     }
 
     return annotation;
   }
 
-  private Map<String, Object> getDisplayedFeatureCols()
+  private Hashtable getDisplayedFeatureCols()
   {
-    if (alignPanel.getFeatureRenderer() != null
-            && viewport.getFeaturesDisplayed() != null)
+    if (alignPanel.getFeatureRenderer() != null && viewport.featuresDisplayed!=null)
     {
-      return alignPanel.getFeatureRenderer().getDisplayedFeatureCols();
-
+      FeatureRenderer fr = alignPanel.getFeatureRenderer();
+      Hashtable fcols = new Hashtable();
+      Enumeration en = viewport.featuresDisplayed.keys();
+      while (en.hasMoreElements())
+      {
+        Object col = en.nextElement();
+        fcols.put(col, fr.featureColours.get(col));
+      }
+      return fcols;
     }
     return null;
   }
@@ -1397,25 +1056,26 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     String features;
     if (format.equalsIgnoreCase("Jalview"))
     {
-      features = new FeaturesFile().printJalviewFormat(viewport
-              .getAlignment().getSequencesArray(),
+      features = new FeaturesFile().printJalviewFormat(
+              viewport.alignment.getSequencesArray(),
               getDisplayedFeatureCols());
     }
     else
     {
-      features = new FeaturesFile().printGFFFormat(viewport.getAlignment()
-              .getSequencesArray(), getDisplayedFeatureCols());
+      features = new FeaturesFile().printGFFFormat(
+              viewport.alignment.getSequencesArray(),
+              getDisplayedFeatureCols());
     }
 
     if (displayTextbox)
     {
-      boolean frimport = false;
-      if (features == null || features.equals("No Features Visible"))
+      boolean frimport=false;
+      if (features==null || features.equals("No Features Visible"))
       {
         features = "# No features visible - paste some and import them here.";
-        frimport = true;
+        frimport=true;
       }
-
+      
       CutAndPasteTransfer cap = new CutAndPasteTransfer(frimport, this);
       if (frimport)
       {
@@ -1423,16 +1083,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       }
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame,
-              MessageManager.getString("label.features"), 600, 500);
+      jalview.bin.JalviewLite.addFrame(frame, "Features", 600, 500);
       cap.setText(features);
-    }
-    else
-    {
-      if (features == null)
-      {
+    } else {
+      if (features==null)
         features = "";
-      }
     }
 
     return features;
@@ -1442,12 +1097,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   {
     StringBuffer url = new StringBuffer(jalviewServletURL);
 
-    // allow servlet parameters to be passed in applet parameter
-    String firstSep = url.lastIndexOf("?") > url.lastIndexOf("/") ? "&"
-            : "?";
-    url.append(firstSep);
-
-    url.append("open="
+    url.append("?open="
             + appendProtocol(viewport.applet.getParameter("file")));
 
     if (viewport.applet.getParameter("features") != null)
@@ -1537,22 +1187,13 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public void closeMenuItem_actionPerformed()
   {
     PaintRefresher.RemoveComponent(alignPanel);
-    if (alignPanel.seqPanel != null
-            && alignPanel.seqPanel.seqCanvas != null)
-    {
-      PaintRefresher.RemoveComponent(alignPanel.seqPanel.seqCanvas);
-    }
-    if (alignPanel.idPanel != null && alignPanel.idPanel.idCanvas != null)
-    {
-      PaintRefresher.RemoveComponent(alignPanel.idPanel.idCanvas);
-    }
+    PaintRefresher.RemoveComponent(alignPanel.seqPanel.seqCanvas);
+    PaintRefresher.RemoveComponent(alignPanel.idPanel.idCanvas);
 
     if (PaintRefresher.components.size() == 0 && viewport.applet == null)
     {
       System.exit(0);
-    }
-    else
-    {
+    } else {
     }
     viewport = null;
     alignPanel = null;
@@ -1560,124 +1201,101 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   }
 
   /**
-   * TODO: JAL-1104
+   * DOCUMENT ME!
    */
   void updateEditMenuBar()
   {
 
-    if (viewport.getHistoryList().size() > 0)
+    if (viewport.historyList.size() > 0)
     {
       undoMenuItem.setEnabled(true);
-      CommandI command = viewport.getHistoryList().peek();
-      undoMenuItem.setLabel(MessageManager.formatMessage(
-              "label.undo_command",
-              new Object[] { command.getDescription() }));
+      CommandI command = (CommandI) viewport.historyList.peek();
+      undoMenuItem.setLabel("Undo " + command.getDescription());
     }
     else
     {
       undoMenuItem.setEnabled(false);
-      undoMenuItem.setLabel(MessageManager.getString("action.undo"));
+      undoMenuItem.setLabel("Undo");
     }
 
-    if (viewport.getRedoList().size() > 0)
+    if (viewport.redoList.size() > 0)
     {
       redoMenuItem.setEnabled(true);
 
-      CommandI command = viewport.getRedoList().peek();
-      redoMenuItem.setLabel(MessageManager.formatMessage(
-              "label.redo_command",
-              new Object[] { command.getDescription() }));
+      CommandI command = (CommandI) viewport.redoList.peek();
+      redoMenuItem.setLabel("Redo " + command.getDescription());
     }
     else
     {
       redoMenuItem.setEnabled(false);
-      redoMenuItem.setLabel(MessageManager.getString("action.redo"));
+      redoMenuItem.setLabel("Redo");
     }
   }
 
-  /**
-   * TODO: JAL-1104
-   */
-  @Override
   public void addHistoryItem(CommandI command)
   {
     if (command.getSize() > 0)
     {
-      viewport.addToHistoryList(command);
-      viewport.clearRedoList();
+      viewport.historyList.push(command);
+      viewport.redoList.removeAllElements();
       updateEditMenuBar();
-      viewport.updateHiddenColumns();
+      viewport.hasHiddenColumns = viewport.colSel.getHiddenColumns() != null;
     }
   }
 
   /**
-   * TODO: JAL-1104 DOCUMENT ME!
+   * DOCUMENT ME!
    * 
    * @param e
    *          DOCUMENT ME!
    */
   protected void undoMenuItem_actionPerformed()
   {
-    if (viewport.getHistoryList().isEmpty())
+    if (viewport.historyList.size() < 1)
     {
       return;
     }
 
-    CommandI command = viewport.getHistoryList().pop();
-    viewport.addToRedoList(command);
+    CommandI command = (CommandI) viewport.historyList.pop();
+    viewport.redoList.push(command);
     command.undoCommand(null);
 
-    AlignmentViewport originalSource = getOriginatingSource(command);
-    // JBPNote Test
-    if (originalSource != viewport)
-    {
-      System.err
-              .println("Warning: Viewport object mismatch whilst undoing");
-    }
-    originalSource.updateHiddenColumns(); // originalSource.hasHiddenColumns =
-                                          // viewport.getColumnSelection().getHiddenColumns()
-                                          // != null;
+    AlignViewport originalSource = getOriginatingSource(command);
+
+    originalSource.hasHiddenColumns = viewport.colSel.getHiddenColumns() != null;
     updateEditMenuBar();
-    originalSource.firePropertyChange("alignment", null, originalSource
-            .getAlignment().getSequences());
+    originalSource.firePropertyChange("alignment", null,
+            originalSource.alignment.getSequences());
   }
 
   /**
-   * TODO: JAL-1104 DOCUMENT ME!
+   * DOCUMENT ME!
    * 
    * @param e
    *          DOCUMENT ME!
    */
   protected void redoMenuItem_actionPerformed()
   {
-    if (viewport.getRedoList().isEmpty())
+    if (viewport.redoList.size() < 1)
     {
       return;
     }
 
-    CommandI command = viewport.getRedoList().pop();
-    viewport.addToHistoryList(command);
+    CommandI command = (CommandI) viewport.redoList.pop();
+    viewport.historyList.push(command);
     command.doCommand(null);
 
-    AlignmentViewport originalSource = getOriginatingSource(command);
-    // JBPNote Test
-    if (originalSource != viewport)
-    {
-      System.err
-              .println("Warning: Viewport object mismatch whilst re-doing");
-    }
-    originalSource.updateHiddenColumns(); // sethasHiddenColumns(); =
-                                          // viewport.getColumnSelection().getHiddenColumns()
-                                          // != null;
+    AlignViewport originalSource = getOriginatingSource(command);
+    originalSource.hasHiddenColumns = viewport.colSel.getHiddenColumns() != null;
 
     updateEditMenuBar();
-    originalSource.firePropertyChange("alignment", null, originalSource
-            .getAlignment().getSequences());
+    originalSource.firePropertyChange("alignment", null,
+            originalSource.alignment.getSequences());
   }
 
-  AlignmentViewport getOriginatingSource(CommandI command)
+  AlignViewport getOriginatingSource(CommandI command)
   {
-    AlignmentViewport originalSource = null;
+    AlignViewport originalSource = null;
     // For sequence removal and addition, we need to fire
     // the property change event FROM the viewport where the
     // original alignment was altered
@@ -1692,7 +1310,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       {
         if (comps.elementAt(i) instanceof AlignmentPanel)
         {
-          if (al == ((AlignmentPanel) comps.elementAt(i)).av.getAlignment())
+          if (al == ((AlignmentPanel) comps.elementAt(i)).av.alignment)
           {
             originalSource = ((AlignmentPanel) comps.elementAt(i)).av;
             break;
@@ -1707,7 +1325,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       // the current view against the closed view first
       if (al != null)
       {
-        PaintRefresher.validateSequences(al, viewport.getAlignment());
+        PaintRefresher.validateSequences(al, viewport.alignment);
       }
 
       originalSource = viewport;
@@ -1716,12 +1334,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     return originalSource;
   }
 
-  /**
-   * Move the currently selected sequences up or down one position in the
-   * alignment
-   * 
-   * @param up
-   */
   public void moveSelectedSequences(boolean up)
   {
     SequenceGroup sg = viewport.getSelectionGroup();
@@ -1729,40 +1341,65 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       return;
     }
-    viewport.getAlignment().moveSelectedSequencesByOne(sg,
-            up ? null : viewport.getHiddenRepSequences(), up);
-    alignPanel.paintAlignment(true);
 
-    /*
-     * Also move cDNA/protein complement sequences
-     */
-    AlignViewportI complement = viewport.getCodingComplement();
-    if (complement != null)
+    if (up)
     {
-      SequenceGroup mappedSelection = MappingUtils.mapSequenceGroup(sg,
-              viewport, complement);
-      complement.getAlignment().moveSelectedSequencesByOne(mappedSelection,
-              up ? null : complement.getHiddenRepSequences(), up);
-      // TODO need to trigger a repaint of the complementary panel - how?
-      // would prefer to handle in SplitFrame but it is not overriding key
-      // listener chiz
+      for (int i = 1; i < viewport.alignment.getHeight(); i++)
+      {
+        SequenceI seq = viewport.alignment.getSequenceAt(i);
+        if (!sg.getSequences(null).contains(seq))
+        {
+          continue;
+        }
+
+        SequenceI temp = viewport.alignment.getSequenceAt(i - 1);
+        if (sg.getSequences(null).contains(temp))
+        {
+          continue;
+        }
+
+        viewport.alignment.getSequences().setElementAt(temp, i);
+        viewport.alignment.getSequences().setElementAt(seq, i - 1);
+      }
     }
+    else
+    {
+      for (int i = viewport.alignment.getHeight() - 2; i > -1; i--)
+      {
+        SequenceI seq = viewport.alignment.getSequenceAt(i);
+        if (!sg.getSequences(viewport.hiddenRepSequences).contains(seq))
+        {
+          continue;
+        }
+
+        SequenceI temp = viewport.alignment.getSequenceAt(i + 1);
+        if (sg.getSequences(viewport.hiddenRepSequences).contains(temp))
+        {
+          continue;
+        }
+
+        viewport.alignment.getSequences().setElementAt(temp, i);
+        viewport.alignment.getSequences().setElementAt(seq, i + 1);
+      }
+    }
+
+    alignPanel.paintAlignment(true);
   }
 
   synchronized void slideSequences(boolean right, int size)
   {
-    List<SequenceI> sg = new Vector<SequenceI>();
+    Vector sg = new Vector();
     if (viewport.cursorMode)
     {
-      sg.add(viewport.getAlignment().getSequenceAt(
-              alignPanel.seqPanel.seqCanvas.cursorY));
+      sg.addElement(viewport.alignment
+              .getSequenceAt(alignPanel.seqPanel.seqCanvas.cursorY));
     }
     else if (viewport.getSelectionGroup() != null
-            && viewport.getSelectionGroup().getSize() != viewport
-                    .getAlignment().getHeight())
+            && viewport.getSelectionGroup().getSize() != viewport.alignment
+                    .getHeight())
     {
       sg = viewport.getSelectionGroup().getSequences(
-              viewport.getHiddenRepSequences());
+              viewport.hiddenRepSequences);
     }
 
     if (sg.size() < 1)
@@ -1770,59 +1407,44 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       return;
     }
 
-    Vector<SequenceI> invertGroup = new Vector();
+    Vector invertGroup = new Vector();
 
-    for (int i = 0; i < viewport.getAlignment().getHeight(); i++)
+    for (int i = 0; i < viewport.alignment.getHeight(); i++)
     {
-      if (!sg.contains(viewport.getAlignment().getSequenceAt(i)))
-      {
-        invertGroup.addElement(viewport.getAlignment().getSequenceAt(i));
-      }
+      if (!sg.contains(viewport.alignment.getSequenceAt(i)))
+        invertGroup.addElement(viewport.alignment.getSequenceAt(i));
     }
 
-    SequenceI[] seqs1 = sg.toArray(new SequenceI[sg.size()]);
+    SequenceI[] seqs1 = new SequenceI[sg.size()];
+    for (int i = 0; i < sg.size(); i++)
+      seqs1[i] = (SequenceI) sg.elementAt(i);
 
-    SequenceI[] seqs2 = invertGroup.toArray(new SequenceI[invertGroup
-            .size()]);
+    SequenceI[] seqs2 = new SequenceI[invertGroup.size()];
     for (int i = 0; i < invertGroup.size(); i++)
-    {
-      seqs2[i] = invertGroup.elementAt(i);
-    }
+      seqs2[i] = (SequenceI) invertGroup.elementAt(i);
 
     SlideSequencesCommand ssc;
     if (right)
-    {
       ssc = new SlideSequencesCommand("Slide Sequences", seqs2, seqs1,
               size, viewport.getGapCharacter());
-    }
     else
-    {
       ssc = new SlideSequencesCommand("Slide Sequences", seqs1, seqs2,
               size, viewport.getGapCharacter());
-    }
 
     int groupAdjustment = 0;
     if (ssc.getGapsInsertedBegin() && right)
     {
       if (viewport.cursorMode)
-      {
         alignPanel.seqPanel.moveCursor(size, 0);
-      }
       else
-      {
         groupAdjustment = size;
-      }
     }
     else if (!ssc.getGapsInsertedBegin() && !right)
     {
       if (viewport.cursorMode)
-      {
         alignPanel.seqPanel.moveCursor(-size, 0);
-      }
       else
-      {
         groupAdjustment = -size;
-      }
     }
 
     if (groupAdjustment != 0)
@@ -1834,19 +1456,16 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
 
     boolean appendHistoryItem = false;
-    Deque<CommandI> historyList = viewport.getHistoryList();
-    if (historyList != null && historyList.size() > 0
-            && historyList.peek() instanceof SlideSequencesCommand)
+    if (viewport.historyList != null && viewport.historyList.size() > 0
+            && viewport.historyList.peek() instanceof SlideSequencesCommand)
     {
       appendHistoryItem = ssc
-              .appendSlideCommand((SlideSequencesCommand) historyList
+              .appendSlideCommand((SlideSequencesCommand) viewport.historyList
                       .peek());
     }
 
     if (!appendHistoryItem)
-    {
       addHistoryItem(ssc);
-    }
 
     repaint();
   }
@@ -1864,25 +1483,29 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     SequenceGroup sg = viewport.getSelectionGroup();
     copiedSequences = new StringBuffer();
-    Map<Integer, SequenceI> orderedSeqs = new HashMap<Integer, SequenceI>();
+    Hashtable orderedSeqs = new Hashtable();
     for (int i = 0; i < sg.getSize(); i++)
     {
       SequenceI seq = sg.getSequenceAt(i);
-      int index = viewport.getAlignment().findIndex(seq);
-      orderedSeqs.put(index, seq);
+      int index = viewport.alignment.findIndex(seq);
+      orderedSeqs.put(index + "", seq);
     }
 
     int index = 0, startRes, endRes;
     char ch;
 
-    if (viewport.hasHiddenColumns() && viewport.getSelectionGroup() != null)
+    if (viewport.hasHiddenColumns && viewport.getSelectionGroup() != null)
     {
       copiedHiddenColumns = new Vector();
       int hiddenOffset = viewport.getSelectionGroup().getStartRes();
-      for (int[] region : viewport.getColumnSelection().getHiddenColumns())
+      for (int i = 0; i < viewport.getColumnSelection().getHiddenColumns()
+              .size(); i++)
       {
-        copiedHiddenColumns.addElement(new int[] {
-            region[0] - hiddenOffset, region[1] - hiddenOffset });
+        int[] region = (int[]) viewport.getColumnSelection()
+                .getHiddenColumns().elementAt(i);
+
+        copiedHiddenColumns.addElement(new int[]
+        { region[0] - hiddenOffset, region[1] - hiddenOffset });
       }
     }
     else
@@ -1896,10 +1519,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
       while (seq == null)
       {
-        if (orderedSeqs.containsKey(index))
+        if (orderedSeqs.containsKey(index + ""))
         {
-          seq = orderedSeqs.get(index);
+          seq = (SequenceI) orderedSeqs.get(index + "");
           index++;
+
           break;
         }
         else
@@ -1979,17 +1603,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
       if (newAlignment)
       {
-        String newtitle = MessageManager
-                .getString("label.copied_sequences");
-        if (getTitle().startsWith(
-                MessageManager.getString("label.copied_sequences")))
+        String newtitle = new String("Copied sequences");
+        if (getTitle().startsWith("Copied sequences"))
         {
           newtitle = getTitle();
         }
         else
         {
-          newtitle = newtitle.concat(MessageManager.formatMessage(
-                  "label.from_msname", new String[] { getTitle() }));
+          newtitle = newtitle.concat("- from " + getTitle());
         }
         AlignFrame af = new AlignFrame(new Alignment(newSeqs),
                 viewport.applet, newtitle, false);
@@ -2002,8 +1623,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
           }
         }
 
-        jalview.bin.JalviewLite.addFrame(af, newtitle, frameWidth,
-                frameHeight);
+        jalview.bin.JalviewLite.addFrame(af, newtitle, DEFAULT_WIDTH,
+                DEFAULT_HEIGHT);
       }
       else
       {
@@ -2020,19 +1641,17 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   {
     for (int i = 0; i < seqs.length; i++)
     {
-      viewport.getAlignment().addSequence(seqs[i]);
+      viewport.alignment.addSequence(seqs[i]);
     }
 
     // !newAlignment
-    addHistoryItem(new EditCommand(
-            MessageManager.getString("label.add_sequences"), Action.PASTE,
-            seqs, 0, viewport.getAlignment().getWidth(),
-            viewport.getAlignment()));
+    addHistoryItem(new EditCommand("Add sequences", EditCommand.PASTE,
+            seqs, 0, viewport.alignment.getWidth(), viewport.alignment));
 
-    viewport.setEndSeq(viewport.getAlignment().getHeight());
-    viewport.getAlignment().getWidth();
-    viewport.firePropertyChange("alignment", null, viewport.getAlignment()
-            .getSequences());
+    viewport.setEndSeq(viewport.alignment.getHeight());
+    viewport.alignment.getWidth();
+    viewport.firePropertyChange("alignment", null,
+            viewport.alignment.getSequences());
 
   }
 
@@ -2060,7 +1679,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
 
     // If the cut affects all sequences, remove highlighted columns
-    if (sg.getSize() == viewport.getAlignment().getHeight())
+    if (sg.getSize() == viewport.alignment.getHeight())
     {
       viewport.getColumnSelection().removeElements(sg.getStartRes(),
               sg.getEndRes() + 1);
@@ -2075,13 +1694,12 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     /*
      * //ADD HISTORY ITEM
      */
-    addHistoryItem(new EditCommand(
-            MessageManager.getString("label.cut_sequences"), Action.CUT,
-            cut, sg.getStartRes(), sg.getEndRes() - sg.getStartRes() + 1,
-            viewport.getAlignment()));
+    addHistoryItem(new EditCommand("Cut Sequences", EditCommand.CUT, cut,
+            sg.getStartRes(), sg.getEndRes() - sg.getStartRes() + 1,
+            viewport.alignment));
 
     viewport.setSelectionGroup(null);
-    viewport.getAlignment().deleteGroup(sg);
+    viewport.alignment.deleteGroup(sg);
 
     viewport.firePropertyChange("alignment", null, viewport.getAlignment()
             .getSequences());
@@ -2125,7 +1743,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     viewport.setShowConsensusHistogram(showConsensusHistogram.getState());
     alignPanel.updateAnnotation(applyAutoAnnotationSettings.getState());
   }
-
   /*
    * (non-Javadoc)
    * 
@@ -2139,14 +1756,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     alignPanel.updateAnnotation(applyAutoAnnotationSettings.getState());
   }
 
-  protected void normSequenceLogo_actionPerformed()
-  {
-    showSequenceLogo.setState(true);
-    viewport.setShowSequenceLogo(true);
-    viewport.setNormaliseSequenceLogo(normSequenceLogo.getState());
-    alignPanel.updateAnnotation(applyAutoAnnotationSettings.getState());
-  }
-
   protected void applyAutoAnnotationSettings_actionPerformed()
   {
     alignPanel.updateAnnotation(applyAutoAnnotationSettings.getState());
@@ -2154,33 +1763,43 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   protected void makeGrpsFromSelection_actionPerformed()
   {
-    if (avc.makeGroupsFromSelection())
+    if (viewport.getSelectionGroup() != null)
     {
+      SequenceGroup[] gps = jalview.analysis.Grouping.makeGroupsFrom(
+              viewport.getSequenceSelection(),
+              viewport.getAlignmentView(true).getSequenceStrings(
+                      viewport.getGapCharacter()),
+              viewport.alignment.getGroups());
+      viewport.alignment.deleteAllGroups();
+      viewport.sequenceColours = null;
+      viewport.setSelectionGroup(null);
+      // set view properties for each group
+      for (int g = 0; g < gps.length; g++)
+      {
+        // gps[g].setShowunconserved(viewport.getShowUnconserved());
+        gps[g].setshowSequenceLogo(viewport.isShowSequenceLogo());
+        viewport.alignment.addGroup(gps[g]);
+        Color col = new Color((int) (Math.random() * 255),
+                (int) (Math.random() * 255), (int) (Math.random() * 255));
+        col = col.brighter();
+        for (Enumeration sq = gps[g].getSequences(null).elements(); sq
+                .hasMoreElements(); viewport.setSequenceColour(
+                (SequenceI) sq.nextElement(), col))
+          ;
+      }
       PaintRefresher.Refresh(this, viewport.getSequenceSetId());
       alignPanel.updateAnnotation();
       alignPanel.paintAlignment(true);
     }
   }
 
-  protected void createGroup_actionPerformed()
-  {
-    avc.createGroup();
-  }
-
-  protected void unGroup_actionPerformed()
-  {
-    if (avc.unGroup())
-    {
-      alignPanel.alignmentChanged();
-    }
-  }
-
   protected void deleteGroups_actionPerformed()
   {
-    if (avc.deleteGroups())
-    {
-      alignPanel.alignmentChanged();
-    }
+    viewport.alignment.deleteAllGroups();
+    viewport.sequenceColours = null;
+    viewport.setSelectionGroup(null);
+
+    alignPanel.paintAlignment(true);
   }
 
   public void selectAllSequenceMenuItem_actionPerformed()
@@ -2190,7 +1809,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       sg.addSequence(viewport.getAlignment().getSequenceAt(i), false);
     }
-    sg.setEndRes(viewport.getAlignment().getWidth() - 1);
+    sg.setEndRes(viewport.alignment.getWidth() - 1);
     viewport.setSelectionGroup(sg);
     alignPanel.paintAlignment(true);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
@@ -2254,11 +1873,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       if (viewport.getSelectionGroup() != null)
       {
         seqs = viewport.getSelectionGroup().getSequencesAsArray(
-                viewport.getHiddenRepSequences());
+                viewport.hiddenRepSequences);
       }
       else
       {
-        seqs = viewport.getAlignment().getSequencesArray();
+        seqs = viewport.alignment.getSequencesArray();
       }
 
       TrimRegionCommand trimRegion;
@@ -2266,30 +1885,32 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       {
         trimRegion = new TrimRegionCommand("Remove Left",
                 TrimRegionCommand.TRIM_LEFT, seqs, column,
-                viewport.getAlignment(), viewport.getColumnSelection(),
-                viewport.getSelectionGroup());
+                viewport.alignment, viewport.colSel,
+                viewport.selectionGroup);
         viewport.setStartRes(0);
       }
       else
       {
         trimRegion = new TrimRegionCommand("Remove Right",
                 TrimRegionCommand.TRIM_RIGHT, seqs, column,
-                viewport.getAlignment(), viewport.getColumnSelection(),
-                viewport.getSelectionGroup());
+                viewport.alignment, viewport.colSel,
+                viewport.selectionGroup);
       }
 
-      statusBar.setText(MessageManager.formatMessage(
-              "label.removed_columns",
-              new String[] { Integer.valueOf(trimRegion.getSize())
-                      .toString() }));
+      statusBar.setText("Removed " + trimRegion.getSize() + " columns.");
+
       addHistoryItem(trimRegion);
 
-      for (SequenceGroup sg : viewport.getAlignment().getGroups())
+      Vector groups = viewport.alignment.getGroups();
+
+      for (int i = 0; i < groups.size(); i++)
       {
+        SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
+
         if ((trimLeft && !sg.adjustForRemoveLeft(column))
                 || (!trimLeft && !sg.adjustForRemoveRight(column)))
         {
-          viewport.getAlignment().deleteGroup(sg);
+          viewport.alignment.deleteGroup(sg);
         }
       }
 
@@ -2300,35 +1921,32 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   public void removeGappedColumnMenuItem_actionPerformed()
   {
-    int start = 0, end = viewport.getAlignment().getWidth() - 1;
+    int start = 0, end = viewport.alignment.getWidth() - 1;
 
     SequenceI[] seqs;
     if (viewport.getSelectionGroup() != null)
     {
       seqs = viewport.getSelectionGroup().getSequencesAsArray(
-              viewport.getHiddenRepSequences());
+              viewport.hiddenRepSequences);
       start = viewport.getSelectionGroup().getStartRes();
       end = viewport.getSelectionGroup().getEndRes();
     }
     else
     {
-      seqs = viewport.getAlignment().getSequencesArray();
+      seqs = viewport.alignment.getSequencesArray();
     }
 
     RemoveGapColCommand removeGapCols = new RemoveGapColCommand(
-            "Remove Gapped Columns", seqs, start, end,
-            viewport.getAlignment());
+            "Remove Gapped Columns", seqs, start, end, viewport.alignment);
 
     addHistoryItem(removeGapCols);
 
-    statusBar.setText(MessageManager.formatMessage(
-            "label.removed_empty_columns",
-            new String[] { Integer.valueOf(removeGapCols.getSize())
-                    .toString() }));
+    statusBar.setText("Removed " + removeGapCols.getSize()
+            + " empty columns.");
 
     // This is to maintain viewport position on first residue
     // of first sequence
-    SequenceI seq = viewport.getAlignment().getSequenceAt(0);
+    SequenceI seq = viewport.alignment.getSequenceAt(0);
     int startRes = seq.findPosition(viewport.startRes);
     // ShiftList shifts;
     // viewport.getAlignment().removeGaps(shifts=new ShiftList());
@@ -2343,28 +1961,28 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   public void removeAllGapsMenuItem_actionPerformed()
   {
-    int start = 0, end = viewport.getAlignment().getWidth() - 1;
+    int start = 0, end = viewport.alignment.getWidth() - 1;
 
     SequenceI[] seqs;
     if (viewport.getSelectionGroup() != null)
     {
       seqs = viewport.getSelectionGroup().getSequencesAsArray(
-              viewport.getHiddenRepSequences());
+              viewport.hiddenRepSequences);
       start = viewport.getSelectionGroup().getStartRes();
       end = viewport.getSelectionGroup().getEndRes();
     }
     else
     {
-      seqs = viewport.getAlignment().getSequencesArray();
+      seqs = viewport.alignment.getSequencesArray();
     }
 
     // This is to maintain viewport position on first residue
     // of first sequence
-    SequenceI seq = viewport.getAlignment().getSequenceAt(0);
+    SequenceI seq = viewport.alignment.getSequenceAt(0);
     int startRes = seq.findPosition(viewport.startRes);
 
     addHistoryItem(new RemoveGapsCommand("Remove Gaps", seqs, start, end,
-            viewport.getAlignment()));
+            viewport.alignment));
 
     viewport.setStartRes(seq.findIndex(startRes) - 1);
 
@@ -2387,31 +2005,30 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public AlignFrame newView(String viewtitle)
   {
     AlignmentI newal;
-    if (viewport.hasHiddenRows())
+    if (viewport.hasHiddenRows)
     {
       newal = new Alignment(viewport.getAlignment().getHiddenSequences()
               .getFullAlignment().getSequencesArray());
     }
     else
     {
-      newal = new Alignment(viewport.getAlignment().getSequencesArray());
+      newal = new Alignment(viewport.alignment.getSequencesArray());
     }
 
-    if (viewport.getAlignment().getAlignmentAnnotation() != null)
+    if (viewport.alignment.getAlignmentAnnotation() != null)
     {
-      for (int i = 0; i < viewport.getAlignment().getAlignmentAnnotation().length; i++)
+      for (int i = 0; i < viewport.alignment.getAlignmentAnnotation().length; i++)
       {
-        if (!viewport.getAlignment().getAlignmentAnnotation()[i].autoCalculated)
+        if (!viewport.alignment.getAlignmentAnnotation()[i].autoCalculated)
         {
-          newal.addAnnotation(viewport.getAlignment()
-                  .getAlignmentAnnotation()[i]);
+          newal.addAnnotation(viewport.alignment.getAlignmentAnnotation()[i]);
         }
       }
     }
 
     AlignFrame newaf = new AlignFrame(newal, viewport.applet, "", false);
 
-    newaf.viewport.setSequenceSetId(alignPanel.av.getSequenceSetId());
+    newaf.viewport.sequenceSetID = alignPanel.av.getSequenceSetId();
     PaintRefresher.Register(alignPanel, alignPanel.av.getSequenceSetId());
     PaintRefresher.Register(newaf.alignPanel,
             newaf.alignPanel.av.getSequenceSetId());
@@ -2448,8 +2065,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     newaf.setTitle(title.toString());
 
-    newaf.viewport.setHistoryList(viewport.getHistoryList());
-    newaf.viewport.setRedoList(viewport.getRedoList());
+    newaf.viewport.historyList = viewport.historyList;
+    newaf.viewport.redoList = viewport.redoList;
     return newaf;
   }
 
@@ -2463,9 +2080,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     if (alignPanel != null
             && (fr = alignPanel.getFeatureRenderer()) != null)
     {
-      List<String> gps = fr.getFeatureGroups();
-      String[] _gps = gps.toArray(new String[gps.size()]);
-      return _gps;
+      return fr.getGroups();
     }
     return null;
   }
@@ -2483,9 +2098,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     if (alignPanel != null
             && (fr = alignPanel.getFeatureRenderer()) != null)
     {
-      List<String> gps = fr.getGroups(visible);
-      String[] _gps = gps.toArray(new String[gps.size()]);
-      return _gps;
+      return fr.getGroups(visible);
     }
     return null;
   }
@@ -2502,12 +2115,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   {
     FeatureRenderer fr = null;
     this.sequenceFeatures.setState(true);
-    viewport.setShowSequenceFeatures(true);
+    viewport.showSequenceFeatures(true);
     if (alignPanel != null
             && (fr = alignPanel.getFeatureRenderer()) != null)
     {
-
-      fr.setGroupVisibility(Arrays.asList(groups), state);
+      fr.setGroupState(groups, state);
       alignPanel.seqPanel.seqCanvas.repaint();
       if (alignPanel.overviewPanel != null)
       {
@@ -2531,7 +2143,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   protected void displayNonconservedMenuItem_actionPerformed()
   {
-    viewport.setShowUnconserved(displayNonconservedMenuItem.getState());
+    viewport.setShowunconserved(displayNonconservedMenuItem.getState());
     alignPanel.paintAlignment(true);
   }
 
@@ -2556,22 +2168,16 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     OverviewPanel overview = new OverviewPanel(alignPanel);
     frame.add(overview);
     // +50 must allow for applet frame window
-    jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
-            "label.overview_params", new String[] { this.getTitle() }),
+    jalview.bin.JalviewLite.addFrame(frame, "Overview " + this.getTitle(),
             overview.getPreferredSize().width,
             overview.getPreferredSize().height + 50);
 
     frame.pack();
-    final AlignmentPanel ap = alignPanel;
     frame.addWindowListener(new WindowAdapter()
     {
-      @Override
       public void windowClosing(WindowEvent e)
       {
-        if (ap != null)
-        {
-          ap.setOverviewPanel(null);
-        }
+        alignPanel.setOverviewPanel(null);
       };
     });
 
@@ -2579,29 +2185,124 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   }
 
-  public void changeColour(ColourSchemeI cs)
+  void changeColour(ColourSchemeI cs)
   {
+    int threshold = 0;
 
     if (cs != null)
     {
       if (viewport.getAbovePIDThreshold())
       {
-        viewport.setThreshold(SliderPanel.setPIDSliderSource(alignPanel,
-                cs, "Background"));
+        threshold = SliderPanel.setPIDSliderSource(alignPanel, cs,
+                "Background");
+
+        cs.setThreshold(threshold, viewport.getIgnoreGapsConsensus());
+
+        viewport.setGlobalColourScheme(cs);
+      }
+      else
+      {
+        cs.setThreshold(0, viewport.getIgnoreGapsConsensus());
       }
 
       if (viewport.getConservationSelected())
       {
-        cs.setConservationApplied(true);
-        viewport.setIncrement(SliderPanel.setConservationSlider(alignPanel,
+
+        Alignment al = (Alignment) viewport.alignment;
+        Conservation c = new Conservation("All",
+                ResidueProperties.propHash, 3, al.getSequences(), 0,
+                al.getWidth() - 1);
+
+        c.calculate();
+        c.verdict(false, viewport.ConsPercGaps);
+
+        cs.setConservation(c);
+
+        cs.setConservationInc(SliderPanel.setConservationSlider(alignPanel,
                 cs, "Background"));
+
       }
       else
       {
-        cs.setConservationApplied(false);
+        cs.setConservation(null);
       }
+
+      cs.setConsensus(viewport.hconsensus);
+
     }
     viewport.setGlobalColourScheme(cs);
+
+    if (viewport.getColourAppliesToAllGroups())
+    {
+      Vector groups = viewport.alignment.getGroups();
+      for (int i = 0; i < groups.size(); i++)
+      {
+        SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
+
+        if (cs == null)
+        {
+          sg.cs = null;
+          continue;
+        }
+        if (cs instanceof ClustalxColourScheme)
+        {
+          sg.cs = new ClustalxColourScheme(
+                  sg.getSequences(viewport.hiddenRepSequences),
+                  sg.getWidth());
+        }
+        else
+        {
+          try
+          {
+            sg.cs = (ColourSchemeI) cs.getClass().newInstance();
+          } catch (Exception ex)
+          {
+            ex.printStackTrace();
+            sg.cs = cs;
+          }
+        }
+
+        if (viewport.getAbovePIDThreshold()
+                || cs instanceof PIDColourScheme
+                || cs instanceof Blosum62ColourScheme)
+        {
+          sg.cs.setThreshold(threshold, viewport.getIgnoreGapsConsensus());
+          sg.cs.setConsensus(AAFrequency.calculate(
+                  sg.getSequences(viewport.hiddenRepSequences), 0,
+                  sg.getWidth()));
+        }
+        else
+        {
+          sg.cs.setThreshold(0, viewport.getIgnoreGapsConsensus());
+        }
+
+        if (viewport.getConservationSelected())
+        {
+          Conservation c = new Conservation("Group",
+                  ResidueProperties.propHash, 3,
+                  sg.getSequences(viewport.hiddenRepSequences), 0,
+                  viewport.alignment.getWidth() - 1);
+          c.calculate();
+          c.verdict(false, viewport.ConsPercGaps);
+          sg.cs.setConservation(c);
+        }
+        else
+        {
+          sg.cs.setConservation(null);
+          sg.cs.setThreshold(0, viewport.getIgnoreGapsConsensus());
+        }
+
+      }
+    }
+
+    if (alignPanel.getOverviewPanel() != null)
+    {
+      alignPanel.getOverviewPanel().updateOverviewImage();
+    }
+
+    jalview.structure.StructureSelectionManager
+            .getStructureSelectionManager(viewport.applet).sequenceColoursChanged(
+                    alignPanel);
 
     alignPanel.paintAlignment(true);
   }
@@ -2609,7 +2310,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   protected void modifyPID_actionPerformed()
   {
     if (viewport.getAbovePIDThreshold()
-            && viewport.getGlobalColourScheme() != null)
+            && viewport.globalColourScheme != null)
     {
       SliderPanel.setPIDSliderSource(alignPanel,
               viewport.getGlobalColourScheme(), "Background");
@@ -2620,10 +2321,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   protected void modifyConservation_actionPerformed()
   {
     if (viewport.getConservationSelected()
-            && viewport.getGlobalColourScheme() != null)
+            && viewport.globalColourScheme != null)
     {
       SliderPanel.setConservationSlider(alignPanel,
-              viewport.getGlobalColourScheme(), "Background");
+              viewport.globalColourScheme, "Background");
       SliderPanel.showConservationSlider();
     }
   }
@@ -2659,7 +2360,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
             .getAlignment().getSequenceAt(0), null);
 
     addHistoryItem(new OrderCommand("Pairwise Sort", oldOrder,
-            viewport.getAlignment()));
+            viewport.alignment));
     alignPanel.paintAlignment(true);
   }
 
@@ -2667,8 +2368,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   {
     SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
     AlignmentSorter.sortByID(viewport.getAlignment());
-    addHistoryItem(new OrderCommand("ID Sort", oldOrder,
-            viewport.getAlignment()));
+    addHistoryItem(new OrderCommand("ID Sort", oldOrder, viewport.alignment));
     alignPanel.paintAlignment(true);
   }
 
@@ -2677,7 +2377,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
     AlignmentSorter.sortByLength(viewport.getAlignment());
     addHistoryItem(new OrderCommand("Length Sort", oldOrder,
-            viewport.getAlignment()));
+            viewport.alignment));
     alignPanel.paintAlignment(true);
   }
 
@@ -2686,7 +2386,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
     AlignmentSorter.sortByGroup(viewport.getAlignment());
     addHistoryItem(new OrderCommand("Group Sort", oldOrder,
-            viewport.getAlignment()));
+            viewport.alignment));
     alignPanel.paintAlignment(true);
 
   }
@@ -2703,8 +2403,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       Frame frame = new Frame();
       frame.add(new PairwiseAlignPanel(alignPanel));
-      jalview.bin.JalviewLite.addFrame(frame,
-              MessageManager.getString("action.pairwise_alignment"), 600,
+      jalview.bin.JalviewLite.addFrame(frame, "Pairwise Alignment", 600,
               500);
     }
   }
@@ -2712,7 +2411,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public void PCAMenuItem_actionPerformed()
   {
     // are the sequences aligned?
-    if (!viewport.getAlignment().isAligned(false))
+    if (!viewport.alignment.isAligned(false))
     {
       SequenceI current;
       int Width = viewport.getAlignment().getWidth();
@@ -2769,7 +2468,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   void NewTreePanel(String type, String pwType, String title)
   {
     // are the sequences aligned?
-    if (!viewport.getAlignment().isAligned(false))
+    if (!viewport.alignment.isAligned(false))
     {
       SequenceI current;
       int Width = viewport.getAlignment().getWidth();
@@ -2789,7 +2488,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     if ((viewport.getSelectionGroup() != null && viewport
             .getSelectionGroup().getSize() > 1)
-            || (viewport.getAlignment().getHeight() > 1))
+            || (viewport.getSelectionGroup() == null && viewport.alignment
+                    .getHeight() > 1))
     {
       final TreePanel tp = new TreePanel(alignPanel, type, pwType);
 
@@ -2802,18 +2502,16 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   void loadTree_actionPerformed()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer(true, this);
-    cap.setText(MessageManager.getString("label.paste_newick_tree_file"));
+    cap.setText("Paste your Newick tree file here.");
     cap.setTreeImport();
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("label.paste_newick_file"), 400, 300);
+    jalview.bin.JalviewLite.addFrame(frame, "Paste Newick file ", 400, 300);
   }
 
   public void loadTree(jalview.io.NewickFile tree, String treeFile)
   {
-    TreePanel tp = new TreePanel(alignPanel, treeFile,
-            MessageManager.getString("label.load_tree_from_file"), tree);
+    TreePanel tp = new TreePanel(alignPanel, treeFile, "From File - ", tree);
     jalview.bin.JalviewLite.addFrame(tp, treeFile, 600, 500);
     addTreeMenuItem(tp, treeFile);
   }
@@ -2833,9 +2531,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
             .sortByTree(viewport.getAlignment(), treePanel.getTree());
     // addHistoryItem(new HistoryItem("Sort", viewport.alignment,
     // HistoryItem.SORT));
-    addHistoryItem(new OrderCommand(MessageManager.formatMessage(
-            "label.order_by_params", new String[] { title }), oldOrder,
-            viewport.getAlignment()));
+    addHistoryItem(new OrderCommand("Order by " + title, oldOrder,
+            viewport.alignment));
     alignPanel.paintAlignment(true);
   }
 
@@ -2853,16 +2550,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     sortByTreeMenu.add(item);
     item.addActionListener(new java.awt.event.ActionListener()
     {
-      @Override
       public void actionPerformed(ActionEvent evt)
       {
         sortByTree(treePanel, title); // treePanel.getTitle());
       }
     });
-
+    
     treePanel.addWindowListener(new WindowAdapter()
     {
-      @Override
       public void windowOpened(WindowEvent e)
       {
         if (viewport.sortByTree)
@@ -2872,27 +2567,24 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         super.windowOpened(e);
       }
 
-      @Override
       public void windowClosing(WindowEvent e)
       {
         sortByTreeMenu.remove(item);
       };
     });
   }
-
   public boolean sortBy(AlignmentOrder alorder, String undoname)
   {
-    SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
+    SequenceI[] oldOrder = viewport.getAlignment()
+    .getSequencesArray();
     if (viewport.applet.debug)
     {
-      System.err.println("Sorting " + alorder.getOrder().size()
-              + " in alignment '" + getTitle() + "'");
+      System.err.println("Sorting "+alorder.getOrder().size()+" in alignment '"+getTitle()+"'");
     }
     AlignmentSorter.sortBy(viewport.getAlignment(), alorder);
-    if (undoname != null)
+    if (undoname!=null)
     {
-      addHistoryItem(new OrderCommand(undoname, oldOrder,
-              viewport.getAlignment()));
+      addHistoryItem(new OrderCommand(undoname, oldOrder, viewport.alignment));
     }
     alignPanel.paintAlignment(true);
     return true;
@@ -2918,7 +2610,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         this.builddate = builddate;
       }
 
-      @Override
       public void paint(Graphics g)
       {
         g.setColor(Color.white);
@@ -2931,32 +2622,28 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         // TODO: update this text for each release or centrally store it for
         // lite and application
         g.setFont(new Font("Helvetica", Font.BOLD, 14));
-        g.drawString(MessageManager.formatMessage(
-                "label.jalviewLite_release", new String[] { version }), x,
-                y += fh);
+        g.drawString("JalviewLite - Release " + version, x, y += fh);
         g.setFont(new Font("Helvetica", Font.BOLD, 12));
-        g.drawString(MessageManager.formatMessage(
-                "label.jaview_build_date", new String[] { builddate }), x,
-                y += fh);
+        g.drawString("Build date: " + builddate, x, y += fh);
         g.setFont(new Font("Helvetica", Font.PLAIN, 12));
-        g.drawString(MessageManager.getString("label.jalview_authors_1"),
+        g.drawString(
+                "Authors:  Jim Procter, Andrew Waterhouse, Michele Clamp, James Cuff, Steve Searle,",
                 x, y += fh * 1.5);
-        g.drawString(MessageManager.getString("label.jalview_authors_2"),
-                x + 50, y += fh + 8);
+        g.drawString("David Martin & Geoff Barton.", x + 50, y += fh);
         g.drawString(
-                MessageManager.getString("label.jalview_dev_managers"), x,
-                y += fh);
-        g.drawString(MessageManager
-                .getString("label.jalview_distribution_lists"), x, y += fh);
-        g.drawString(MessageManager.getString("label.jalview_please_cite"),
-                x, y += fh + 8);
-        g.drawString(
-                MessageManager.getString("label.jalview_cite_1_authors"),
+                "Development managed by The Barton Group, University of Dundee, Scotland, UK.",
                 x, y += fh);
         g.drawString(
-                MessageManager.getString("label.jalview_cite_1_title"), x,
-                y += fh);
-        g.drawString(MessageManager.getString("label.jalview_cite_1_ref"),
+                "For help, see the FAQ at www.jalview.org and/or join the jalview-discuss@jalview.org mailing list",
+                x, y += fh);
+        g.drawString("If  you use Jalview, please cite:", x, y += fh + 8);
+        g.drawString(
+                "Waterhouse, A.M., Procter, J.B., Martin, D.M.A, Clamp, M. and Barton, G. J. (2009)",
+                x, y += fh);
+        g.drawString(
+                "Jalview Version 2 - a multiple sequence alignment editor and analysis workbench",
+                x, y += fh);
+        g.drawString("Bioinformatics doi: 10.1093/bioinformatics/btp033",
                 x, y += fh);
       }
     }
@@ -2964,8 +2651,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     Frame frame = new Frame();
     frame.add(new AboutPanel(JalviewLite.getVersion(), JalviewLite
             .getBuildDate()));
-    jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("label.jalview"), 580, 220);
+    jalview.bin.JalviewLite.addFrame(frame, "Jalview", 580, 220);
 
   }
 
@@ -2986,34 +2672,33 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   MenuBar alignFrameMenuBar = new MenuBar();
 
-  Menu fileMenu = new Menu(MessageManager.getString("action.file"));
+  Menu fileMenu = new Menu("File");
 
-  MenuItem loadApplication = new MenuItem(
-          MessageManager.getString("label.view_full_application"));
+  MenuItem loadApplication = new MenuItem("View in Full Application");
 
-  MenuItem loadTree = new MenuItem(
-          MessageManager.getString("label.load_associated_tree"));
+  MenuItem loadTree = new MenuItem("Load Associated Tree ...");
 
-  MenuItem loadAnnotations = new MenuItem(
-          MessageManager.getString("label.load_features_annotations"));
+  MenuItem loadAnnotations = new MenuItem("Load Features/Annotations ...");
 
-  MenuItem outputFeatures = new MenuItem(
-          MessageManager.getString("label.export_features"));
+  MenuItem outputFeatures = new MenuItem("Export Features ...");
 
-  MenuItem outputAnnotations = new MenuItem(
-          MessageManager.getString("label.export_annotations"));
+  MenuItem outputAnnotations = new MenuItem("Export Annotations ...");
 
-  MenuItem closeMenuItem = new MenuItem(
-          MessageManager.getString("action.close"));
+  MenuItem closeMenuItem = new MenuItem("Close");
 
-  MenuItem selectAllSequenceMenuItem = new MenuItem(
-          MessageManager.getString("action.select_all"));
+  Menu editMenu = new Menu("Edit");
 
-  MenuItem deselectAllSequenceMenuItem = new MenuItem(
-          MessageManager.getString("action.deselect_all"));
+  Menu viewMenu = new Menu("View");
 
-  MenuItem invertSequenceMenuItem = new MenuItem(
-          MessageManager.getString("action.invert_selection"));
+  Menu colourMenu = new Menu("Colour");
+
+  Menu calculateMenu = new Menu("Calculate");
+
+  MenuItem selectAllSequenceMenuItem = new MenuItem("Select all");
+
+  MenuItem deselectAllSequenceMenuItem = new MenuItem("Deselect All");
+
+  MenuItem invertSequenceMenuItem = new MenuItem("Invert Selection");
 
   MenuItem remove2LeftMenuItem = new MenuItem();
 
@@ -3049,6 +2734,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   public Label statusBar = new Label();
 
+  Menu outputTextboxMenu = new Menu();
+
   MenuItem clustalColour = new MenuItem();
 
   MenuItem zappoColour = new MenuItem();
@@ -3065,19 +2752,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   MenuItem buriedColour = new MenuItem();
 
-  MenuItem purinePyrimidineColour = new MenuItem();
-
-  // MenuItem RNAInteractionColour = new MenuItem();
-
-  MenuItem RNAHelixColour = new MenuItem();
-
   MenuItem userDefinedColour = new MenuItem();
 
   MenuItem PIDColour = new MenuItem();
 
   MenuItem BLOSUM62Colour = new MenuItem();
-
-  MenuItem tcoffeeColour = new MenuItem();
 
   MenuItem njTreeBlosumMenuItem = new MenuItem();
 
@@ -3089,8 +2768,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   CheckboxMenuItem displayNonconservedMenuItem = new CheckboxMenuItem();
 
-  MenuItem alProperties = new MenuItem(
-          MessageManager.getString("label.alignment_props"));
+  MenuItem alProperties = new MenuItem("Alignment Properties...");
 
   MenuItem overviewMenuItem = new MenuItem();
 
@@ -3115,10 +2793,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   MenuItem deleteGroups = new MenuItem();
 
   MenuItem grpsFromSelection = new MenuItem();
-
-  MenuItem createGroup = new MenuItem();
-
-  MenuItem unGroup = new MenuItem();
 
   MenuItem delete = new MenuItem();
 
@@ -3146,14 +2820,21 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   MenuItem modifyConservation = new MenuItem();
 
-  CheckboxMenuItem autoCalculate = null;
+  CheckboxMenuItem autoCalculate = new CheckboxMenuItem(
+          "Autocalculate Consensus", true);
 
   CheckboxMenuItem sortByTree = new CheckboxMenuItem(
           "Sort Alignment With New Tree", true);
 
   Menu sortByTreeMenu = new Menu();
 
+  Menu sort = new Menu();
+
+  Menu calculate = new Menu();
+
   MenuItem inputText = new MenuItem();
+
+  Menu helpMenu = new Menu();
 
   MenuItem documentation = new MenuItem();
 
@@ -3162,47 +2843,31 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   CheckboxMenuItem seqLimits = new CheckboxMenuItem();
 
   CheckboxMenuItem centreColumnLabelFlag = new CheckboxMenuItem();
-
+  
   CheckboxMenuItem followMouseOverFlag = new CheckboxMenuItem();
-
-  CheckboxMenuItem showSequenceLogo = new CheckboxMenuItem();
-
+  Menu autoAnnMenu=new Menu();
+  CheckboxMenuItem showSequenceLogo= new CheckboxMenuItem();
   CheckboxMenuItem applyAutoAnnotationSettings = new CheckboxMenuItem();
-
   CheckboxMenuItem showConsensusHistogram = new CheckboxMenuItem();
-
   CheckboxMenuItem showGroupConsensus = new CheckboxMenuItem();
-
   CheckboxMenuItem showGroupConservation = new CheckboxMenuItem();
 
-  CheckboxMenuItem normSequenceLogo = new CheckboxMenuItem();
-
-  /**
-   * Initialise menus and other items
-   * 
-   * @throws Exception
-   */
   private void jbInit() throws Exception
   {
+
     setMenuBar(alignFrameMenuBar);
 
-    /*
-     * Configure File menu items and actions
-     */
-    inputText
-            .setLabel(MessageManager.getString("label.input_from_textbox"));
-    inputText.addActionListener(this);
-    Menu outputTextboxMenu = new Menu(
-            MessageManager.getString("label.out_to_textbox"));
+    MenuItem item;
+
+    // dynamically fill save as menu with available formats
     for (int i = 0; i < jalview.io.AppletFormatAdapter.WRITEABLE_FORMATS.length; i++)
     {
 
-      MenuItem item = new MenuItem(
+      item = new MenuItem(
               jalview.io.AppletFormatAdapter.WRITEABLE_FORMATS[i]);
 
       item.addActionListener(new java.awt.event.ActionListener()
       {
-        @Override
         public void actionPerformed(ActionEvent e)
         {
           outputText_actionPerformed(e);
@@ -3213,91 +2878,192 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
     closeMenuItem.addActionListener(this);
     loadApplication.addActionListener(this);
+
     loadTree.addActionListener(this);
     loadAnnotations.addActionListener(this);
     outputFeatures.addActionListener(this);
     outputAnnotations.addActionListener(this);
-
-    /*
-     * Configure Edit menu items and actions
-     */
-    undoMenuItem.setEnabled(false);
-    undoMenuItem.setLabel(MessageManager.getString("action.undo"));
-    undoMenuItem.addActionListener(this);
-    redoMenuItem.setEnabled(false);
-    redoMenuItem.setLabel(MessageManager.getString("action.redo"));
-    redoMenuItem.addActionListener(this);
-    copy.setLabel(MessageManager.getString("action.copy"));
-    copy.addActionListener(this);
-    cut.setLabel(MessageManager.getString("action.cut"));
-    cut.addActionListener(this);
-    delete.setLabel(MessageManager.getString("action.delete"));
-    delete.addActionListener(this);
-    pasteMenu.setLabel(MessageManager.getString("action.paste"));
-    pasteNew.setLabel(MessageManager.getString("label.to_new_alignment"));
-    pasteNew.addActionListener(this);
-    pasteThis.setLabel(MessageManager.getString("label.to_this_alignment"));
-    pasteThis.addActionListener(this);
-    remove2LeftMenuItem.setLabel(MessageManager
-            .getString("action.remove_left"));
-    remove2LeftMenuItem.addActionListener(this);
-    remove2RightMenuItem.setLabel(MessageManager
-            .getString("action.remove_right"));
-    remove2RightMenuItem.addActionListener(this);
-    removeGappedColumnMenuItem.setLabel(MessageManager
-            .getString("action.remove_empty_columns"));
-    removeGappedColumnMenuItem.addActionListener(this);
-    removeAllGapsMenuItem.setLabel(MessageManager
-            .getString("action.remove_all_gaps"));
-    removeAllGapsMenuItem.addActionListener(this);
-    removeRedundancyMenuItem.setLabel(MessageManager
-            .getString("action.remove_redundancy"));
-    removeRedundancyMenuItem.addActionListener(this);
-
-    /*
-     * Configure Select menu items and actions
-     */
-    findMenuItem.setLabel(MessageManager.getString("action.find"));
-    findMenuItem.addActionListener(this);
     selectAllSequenceMenuItem.addActionListener(this);
     deselectAllSequenceMenuItem.addActionListener(this);
-    invertSequenceMenuItem.setLabel(MessageManager
-            .getString("action.invert_sequence_selection"));
     invertSequenceMenuItem.addActionListener(this);
-    invertColSel.setLabel(MessageManager
-            .getString("action.invert_column_selection"));
-    invertColSel.addActionListener(this);
-    deleteGroups.setLabel(MessageManager
-            .getString("action.undefine_groups"));
-    deleteGroups.addActionListener(this);
-    grpsFromSelection.setLabel(MessageManager
-            .getString("action.make_groups_selection"));
-    grpsFromSelection.addActionListener(this);
-    createGroup.setLabel(MessageManager.getString("action.create_group"));
-    unGroup.setLabel(MessageManager.getString("action.remove_group"));
-    annotationColumnSelection.setLabel(MessageManager
-            .getString("action.select_by_annotation"));
-    annotationColumnSelection.addActionListener(this);
+    remove2LeftMenuItem.setLabel("Remove Left");
+    remove2LeftMenuItem.addActionListener(this);
+    remove2RightMenuItem.setLabel("Remove Right");
+    remove2RightMenuItem.addActionListener(this);
+    removeGappedColumnMenuItem.setLabel("Remove Empty Columns");
+    removeGappedColumnMenuItem.addActionListener(this);
+    removeAllGapsMenuItem.setLabel("Remove All Gaps");
+    removeAllGapsMenuItem.addActionListener(this);
+    viewBoxesMenuItem.setLabel("Boxes");
+    viewBoxesMenuItem.setState(true);
+    viewBoxesMenuItem.addItemListener(this);
+    viewTextMenuItem.setLabel("Text");
+    viewTextMenuItem.setState(true);
+    viewTextMenuItem.addItemListener(this);
+    sortPairwiseMenuItem.setLabel("by Pairwise Identity");
+    sortPairwiseMenuItem.addActionListener(this);
+    sortIDMenuItem.setLabel("by ID");
+    sortIDMenuItem.addActionListener(this);
+    sortLengthMenuItem.setLabel("by Length");
+    sortLengthMenuItem.addActionListener(this);
+    sortGroupMenuItem.setLabel("by Group");
+    sortGroupMenuItem.addActionListener(this);
+    removeRedundancyMenuItem.setLabel("Remove Redundancy...");
+    removeRedundancyMenuItem.addActionListener(this);
+    pairwiseAlignmentMenuItem.setLabel("Pairwise Alignments...");
+    pairwiseAlignmentMenuItem.addActionListener(this);
+    PCAMenuItem.setLabel("Principal Component Analysis");
+    PCAMenuItem.addActionListener(this);
+    averageDistanceTreeMenuItem
+            .setLabel("Average Distance Using % Identity");
+    averageDistanceTreeMenuItem.addActionListener(this);
+    neighbourTreeMenuItem.setLabel("Neighbour Joining Using % Identity");
+    neighbourTreeMenuItem.addActionListener(this);
+    statusBar.setBackground(Color.white);
+    statusBar.setFont(new java.awt.Font("Verdana", 0, 11));
+    statusBar.setText("Status bar");
+    outputTextboxMenu.setLabel("Output to Textbox");
+    clustalColour.setLabel("Clustalx");
 
-    /*
-     * Configure View menu items and actions
-     */
-    newView.setLabel(MessageManager.getString("action.new_view"));
-    newView.addActionListener(this);
-    Menu showMenu = new Menu(MessageManager.getString("action.show"));
-    showColumns.setLabel(MessageManager.getString("label.all_columns"));
-    showSeqs.setLabel(MessageManager.getString("label.all_sequences"));
-    Menu hideMenu = new Menu(MessageManager.getString("action.hide"));
-    hideColumns
-            .setLabel(MessageManager.getString("label.selected_columns"));
-    hideSequences.setLabel(MessageManager
-            .getString("label.selected_sequences"));
-    hideAllButSelection.setLabel(MessageManager
-            .getString("label.all_but_selected_region"));
-    hideAllSelection.setLabel(MessageManager
-            .getString("label.selected_region"));
-    showAllHidden.setLabel(MessageManager
-            .getString("label.all_sequences_columns"));
+    clustalColour.addActionListener(this);
+    zappoColour.setLabel("Zappo");
+    zappoColour.addActionListener(this);
+    taylorColour.setLabel("Taylor");
+    taylorColour.addActionListener(this);
+    hydrophobicityColour.setLabel("Hydrophobicity");
+    hydrophobicityColour.addActionListener(this);
+    helixColour.setLabel("Helix Propensity");
+    helixColour.addActionListener(this);
+    strandColour.setLabel("Strand Propensity");
+    strandColour.addActionListener(this);
+    turnColour.setLabel("Turn Propensity");
+    turnColour.addActionListener(this);
+    buriedColour.setLabel("Buried Index");
+    buriedColour.addActionListener(this);
+    userDefinedColour.setLabel("User Defined...");
+    userDefinedColour.addActionListener(this);
+    PIDColour.setLabel("Percentage Identity");
+    PIDColour.addActionListener(this);
+    BLOSUM62Colour.setLabel("BLOSUM62 Score");
+    BLOSUM62Colour.addActionListener(this);
+    avDistanceTreeBlosumMenuItem
+            .setLabel("Average Distance Using BLOSUM62");
+    avDistanceTreeBlosumMenuItem.addActionListener(this);
+    njTreeBlosumMenuItem.setLabel("Neighbour Joining Using BLOSUM62");
+    njTreeBlosumMenuItem.addActionListener(this);
+    annotationPanelMenuItem.setLabel("Show Annotations");
+    annotationPanelMenuItem.addItemListener(this);
+    colourTextMenuItem.setLabel("Colour Text");
+    colourTextMenuItem.addItemListener(this);
+    displayNonconservedMenuItem.setLabel("Show nonconserved");
+    displayNonconservedMenuItem.addItemListener(this);
+    alProperties.addActionListener(this);
+    overviewMenuItem.setLabel("Overview Window");
+    overviewMenuItem.addActionListener(this);
+    undoMenuItem.setEnabled(false);
+    undoMenuItem.setLabel("Undo");
+    undoMenuItem.addActionListener(this);
+    redoMenuItem.setEnabled(false);
+    redoMenuItem.setLabel("Redo");
+    redoMenuItem.addActionListener(this);
+    conservationMenuItem.setLabel("by Conservation");
+    conservationMenuItem.addItemListener(this);
+    noColourmenuItem.setLabel("None");
+    noColourmenuItem.addActionListener(this);
+    wrapMenuItem.setLabel("Wrap");
+    wrapMenuItem.addItemListener(this);
+    renderGapsMenuItem.setLabel("Show Gaps");
+    renderGapsMenuItem.setState(true);
+    renderGapsMenuItem.addItemListener(this);
+    findMenuItem.setLabel("Find...");
+    findMenuItem.addActionListener(this);
+    abovePIDThreshold.setLabel("Above Identity Threshold");
+    abovePIDThreshold.addItemListener(this);
+    nucleotideColour.setLabel("Nucleotide");
+    nucleotideColour.addActionListener(this);
+    deleteGroups.setLabel("Undefine Groups");
+    deleteGroups.addActionListener(this);
+    grpsFromSelection.setLabel("Make Groups for selection");
+    grpsFromSelection.addActionListener(this);
+    copy.setLabel("Copy");
+    copy.addActionListener(this);
+    cut.setLabel("Cut");
+    cut.addActionListener(this);
+    delete.setLabel("Delete");
+    delete.addActionListener(this);
+    pasteMenu.setLabel("Paste");
+    pasteNew.setLabel("To New Alignment");
+    pasteNew.addActionListener(this);
+    pasteThis.setLabel("Add To This Alignment");
+    pasteThis.addActionListener(this);
+    applyToAllGroups.setLabel("Apply Colour To All Groups");
+    applyToAllGroups.setState(true);
+    applyToAllGroups.addItemListener(this);
+    font.setLabel("Font...");
+    font.addActionListener(this);
+    scaleAbove.setLabel("Scale Above");
+    scaleAbove.setState(true);
+    scaleAbove.setEnabled(false);
+    scaleAbove.addItemListener(this);
+    scaleLeft.setEnabled(false);
+    scaleLeft.setState(true);
+    scaleLeft.setLabel("Scale Left");
+    scaleLeft.addItemListener(this);
+    scaleRight.setEnabled(false);
+    scaleRight.setState(true);
+    scaleRight.setLabel("Scale Right");
+    scaleRight.addItemListener(this);
+    modifyPID.setLabel("Modify Identity Threshold...");
+    modifyPID.addActionListener(this);
+    modifyConservation.setLabel("Modify Conservation Threshold...");
+    modifyConservation.addActionListener(this);
+    sortByTreeMenu.setLabel("By Tree Order");
+    sort.setLabel("Sort");
+    calculate.setLabel("Calculate Tree");
+    autoCalculate.addItemListener(this);
+    sortByTree.addItemListener(this);
+    inputText.setLabel("Input from textbox");
+    inputText.addActionListener(this);
+    centreColumnLabelFlag.setLabel("Centre column labels");
+    centreColumnLabelFlag.addItemListener(this);
+    followMouseOverFlag.setLabel("Automatic Scrolling");
+    followMouseOverFlag.addItemListener(this);
+    helpMenu.setLabel("Help");
+    documentation.setLabel("Documentation");
+    documentation.addActionListener(this);
+
+    about.setLabel("About...");
+    about.addActionListener(this);
+    seqLimits.setState(true);
+    seqLimits.setLabel("Show Sequence Limits");
+    seqLimits.addItemListener(this);
+    featureSettings.setLabel("Feature Settings...");
+    featureSettings.addActionListener(this);
+    sequenceFeatures.setLabel("Sequence Features");
+    sequenceFeatures.addItemListener(this);
+    sequenceFeatures.setState(false);
+    annotationColour.setLabel("by Annotation...");
+    annotationColour.addActionListener(this);
+    invertSequenceMenuItem.setLabel("Invert Sequence Selection");
+    invertColSel.setLabel("Invert Column Selection");
+    menu1.setLabel("Show");
+    showColumns.setLabel("All Columns ");
+    showSeqs.setLabel("All Sequences");
+    menu2.setLabel("Hide");
+    hideColumns.setLabel("Selected Columns");
+    hideSequences.setLabel("Selected Sequences");
+    hideAllButSelection.setLabel("All but Selected Region (Shift+Ctrl+H)");
+    hideAllSelection.setLabel("Selected Region");
+    showAllHidden.setLabel("All Sequences and Columns");
+    showGroupConsensus.setLabel("Group Consensus");
+    showGroupConservation.setLabel("Group Conservation");
+    showConsensusHistogram.setLabel("Show Consensus Histogram");
+    showSequenceLogo.setLabel("Show Consensus Logo");
+    applyAutoAnnotationSettings.setLabel("Apply to all groups");
+    applyAutoAnnotationSettings.setState(true);
+    autoAnnMenu.setLabel("Autocalculated Annotation");
+    
+    invertColSel.addActionListener(this);
     showColumns.addActionListener(this);
     showSeqs.addActionListener(this);
     hideColumns.addActionListener(this);
@@ -3305,277 +3071,45 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     hideAllButSelection.addActionListener(this);
     hideAllSelection.addActionListener(this);
     showAllHidden.addActionListener(this);
-    featureSettings.setLabel(MessageManager
-            .getString("action.feature_settings"));
-    featureSettings.addActionListener(this);
-    sequenceFeatures.setLabel(MessageManager
-            .getString("label.show_sequence_features"));
-    sequenceFeatures.addItemListener(this);
-    sequenceFeatures.setState(false);
-    followMouseOverFlag.setLabel(MessageManager
-            .getString("label.automatic_scrolling"));
-    followMouseOverFlag.addItemListener(this);
-    alProperties.addActionListener(this);
-    overviewMenuItem.setLabel(MessageManager
-            .getString("label.overview_window"));
-    overviewMenuItem.addActionListener(this);
-
-    /*
-     * Configure Annotations menu items and actions
-     */
-    annotationPanelMenuItem.setLabel(MessageManager
-            .getString("label.show_annotations"));
-    annotationPanelMenuItem.addItemListener(this);
-    showGroupConsensus.setLabel(MessageManager
-            .getString("label.group_consensus"));
-    showGroupConservation.setLabel(MessageManager
-            .getString("label.group_conservation"));
-    showConsensusHistogram.setLabel(MessageManager
-            .getString("label.show_consensus_histogram"));
-    showSequenceLogo.setLabel(MessageManager
-            .getString("label.show_consensus_logo"));
-    normSequenceLogo.setLabel(MessageManager
-            .getString("label.norm_consensus_logo"));
-    applyAutoAnnotationSettings.setLabel(MessageManager
-            .getString("label.apply_all_groups"));
-    applyAutoAnnotationSettings.setState(true);
-    Menu autoAnnMenu = new Menu(
-            MessageManager.getString("label.autocalculated_annotation"));
     showGroupConsensus.addItemListener(this);
     showGroupConservation.addItemListener(this);
     showConsensusHistogram.addItemListener(this);
     showSequenceLogo.addItemListener(this);
-    normSequenceLogo.addItemListener(this);
     applyAutoAnnotationSettings.addItemListener(this);
-    showAlignmentAnnotations = new CheckboxMenuItem(
-            MessageManager.getString("label.show_all_al_annotations"));
-    showSequenceAnnotations = new CheckboxMenuItem(
-            MessageManager.getString("label.show_all_seq_annotations"));
-    sortAnnBySequence = new CheckboxMenuItem(
-            MessageManager.getString("label.sort_annotations_by_sequence"));
-    sortAnnByLabel = new CheckboxMenuItem(
-            MessageManager.getString("label.sort_annotations_by_label"));
-    showAutoFirst = new CheckboxMenuItem(
-            MessageManager.getString("label.show_first"));
-    showAutoLast = new CheckboxMenuItem(
-            MessageManager.getString("label.show_last"));
-    showAlignmentAnnotations.addItemListener(this);
-    showSequenceAnnotations.addItemListener(this);
-    sortAnnBySequence.addItemListener(this);
-    sortAnnByLabel.addItemListener(this);
-    showAutoFirst.addItemListener(this);
-    showAutoLast.addItemListener(this);
-
-    /*
-     * Configure Format menu items and actions
-     */
-    font.setLabel(MessageManager.getString("action.font"));
-    font.addActionListener(this);
-    scaleAbove.setLabel(MessageManager.getString("action.scale_above"));
-    scaleAbove.setState(true);
-    scaleAbove.setEnabled(false);
-    scaleAbove.addItemListener(this);
-    scaleLeft.setEnabled(false);
-    scaleLeft.setState(true);
-    scaleLeft.setLabel(MessageManager.getString("action.scale_left"));
-    scaleLeft.addItemListener(this);
-    scaleRight.setEnabled(false);
-    scaleRight.setState(true);
-    scaleRight.setLabel(MessageManager.getString("action.scale_right"));
-    scaleRight.addItemListener(this);
-    viewBoxesMenuItem.setLabel(MessageManager.getString("action.boxes"));
-    viewBoxesMenuItem.setState(true);
-    viewBoxesMenuItem.addItemListener(this);
-    viewTextMenuItem.setLabel(MessageManager.getString("action.text"));
-    viewTextMenuItem.setState(true);
-    viewTextMenuItem.addItemListener(this);
-    colourTextMenuItem.setLabel(MessageManager
-            .getString("label.colour_text"));
-    colourTextMenuItem.addItemListener(this);
-    displayNonconservedMenuItem.setLabel(MessageManager
-            .getString("label.show_non_conversed"));
-    displayNonconservedMenuItem.addItemListener(this);
-    wrapMenuItem.setLabel(MessageManager.getString("action.wrap"));
-    wrapMenuItem.addItemListener(this);
-    renderGapsMenuItem.setLabel(MessageManager
-            .getString("action.show_gaps"));
-    renderGapsMenuItem.setState(true);
-    renderGapsMenuItem.addItemListener(this);
-    centreColumnLabelFlag.setLabel(MessageManager
-            .getString("label.centre_column_labels"));
-    centreColumnLabelFlag.addItemListener(this);
-    seqLimits.setState(true);
-    seqLimits.setLabel(MessageManager
-            .getString("label.show_sequence_limits"));
-    seqLimits.addItemListener(this);
-
-    /*
-     * Configure Colour menu items and actions
-     */
-    applyToAllGroups.setLabel(MessageManager
-            .getString("label.apply_colour_to_all_groups"));
-    applyToAllGroups.setState(true);
-    applyToAllGroups.addItemListener(this);
-    clustalColour.setLabel(MessageManager.getString("label.clustalx"));
-    clustalColour.addActionListener(this);
-    zappoColour.setLabel(MessageManager.getString("label.zappo"));
-    zappoColour.addActionListener(this);
-    taylorColour.setLabel(MessageManager.getString("label.taylor"));
-    taylorColour.addActionListener(this);
-    hydrophobicityColour.setLabel(MessageManager
-            .getString("label.hydrophobicity"));
-    hydrophobicityColour.addActionListener(this);
-    helixColour
-            .setLabel(MessageManager.getString("label.helix_propensity"));
-    helixColour.addActionListener(this);
-    strandColour.setLabel(MessageManager
-            .getString("label.strand_propensity"));
-    strandColour.addActionListener(this);
-    turnColour.setLabel(MessageManager.getString("label.turn_propensity"));
-    turnColour.addActionListener(this);
-    buriedColour.setLabel(MessageManager.getString("label.buried_index"));
-    buriedColour.addActionListener(this);
-    purinePyrimidineColour.setLabel(MessageManager
-            .getString("label.purine_pyrimidine"));
-    purinePyrimidineColour.addActionListener(this);
-    // RNAInteractionColour.setLabel(MessageManager
-    // .getString("label.rna_interaction"));
-    // RNAInteractionColour.addActionListener(this);
-    RNAHelixColour.setLabel(MessageManager
-            .getString("action.by_rna_helixes"));
-    RNAHelixColour.addActionListener(this);
-    userDefinedColour.setLabel(MessageManager
-            .getString("action.user_defined"));
-    userDefinedColour.addActionListener(this);
-    PIDColour.setLabel(MessageManager
-            .getString("label.percentage_identity"));
-    PIDColour.addActionListener(this);
-    BLOSUM62Colour.setLabel(MessageManager
-            .getString("label.blosum62_score"));
-    BLOSUM62Colour.addActionListener(this);
-    tcoffeeColour
-            .setLabel(MessageManager.getString("label.tcoffee_scores"));
-    // it will be enabled only if a score file is provided
-    tcoffeeColour.setEnabled(false);
-    tcoffeeColour.addActionListener(this);
-    conservationMenuItem.setLabel(MessageManager
-            .getString("action.by_conservation"));
-    conservationMenuItem.addItemListener(this);
-    noColourmenuItem.setLabel(MessageManager.getString("label.none"));
-    noColourmenuItem.addActionListener(this);
-    abovePIDThreshold.setLabel(MessageManager
-            .getString("label.above_identity_threshold"));
-    abovePIDThreshold.addItemListener(this);
-    nucleotideColour.setLabel(MessageManager.getString("label.nucleotide"));
-    nucleotideColour.addActionListener(this);
-    modifyPID.setLabel(MessageManager
-            .getString("label.modify_identity_thereshold"));
-    modifyPID.addActionListener(this);
-    modifyConservation.setLabel(MessageManager
-            .getString("label.modify_conservation_thereshold"));
-    modifyConservation.addActionListener(this);
-    annotationColour.setLabel(MessageManager
-            .getString("action.by_annotation"));
-    annotationColour.addActionListener(this);
-
-    /*
-     * Configure Calculate menu items and actions
-     */
-    sortPairwiseMenuItem.setLabel(MessageManager
-            .getString("action.by_pairwise_id"));
-    sortPairwiseMenuItem.addActionListener(this);
-    sortIDMenuItem.setLabel(MessageManager.getString("action.by_id"));
-    sortIDMenuItem.addActionListener(this);
-    sortLengthMenuItem.setLabel(MessageManager
-            .getString("action.by_length"));
-    sortLengthMenuItem.addActionListener(this);
-    sortGroupMenuItem.setLabel(MessageManager.getString("action.by_group"));
-    sortGroupMenuItem.addActionListener(this);
-    pairwiseAlignmentMenuItem.setLabel(MessageManager
-            .getString("action.pairwise_alignment"));
-    pairwiseAlignmentMenuItem.addActionListener(this);
-    PCAMenuItem.setLabel(MessageManager
-            .getString("label.principal_component_analysis"));
-    PCAMenuItem.addActionListener(this);
-    autoCalculate = new CheckboxMenuItem(
-            MessageManager.getString("label.autocalculate_consensus"), true);
-    averageDistanceTreeMenuItem.setLabel(MessageManager
-            .getString("label.average_distance_identity"));
-    averageDistanceTreeMenuItem.addActionListener(this);
-    neighbourTreeMenuItem.setLabel(MessageManager
-            .getString("label.neighbour_joining_identity"));
-    neighbourTreeMenuItem.addActionListener(this);
-    avDistanceTreeBlosumMenuItem.setLabel(MessageManager
-            .getString("label.average_distance_bloslum62"));
-    avDistanceTreeBlosumMenuItem.addActionListener(this);
-    njTreeBlosumMenuItem.setLabel(MessageManager
-            .getString("label.neighbour_blosum62"));
-    njTreeBlosumMenuItem.addActionListener(this);
-    sortByTreeMenu.setLabel(MessageManager
-            .getString("action.by_tree_order"));
-    Menu sortMenu = new Menu(MessageManager.getString("action.sort"));
-    Menu calculateTreeMenu = new Menu(
-            MessageManager.getString("action.calculate_tree"));
-    autoCalculate.addItemListener(this);
-    sortByTree.addItemListener(this);
-
-    /*
-     * Configure Help menu items and actions
-     */
-    Menu helpMenu = new Menu(MessageManager.getString("action.help"));
-    documentation.setLabel(MessageManager.getString("label.documentation"));
-    documentation.addActionListener(this);
-    about.setLabel(MessageManager.getString("label.about"));
-    about.addActionListener(this);
-
-    /*
-     * Add top level menus to frame
-     */
+    formatMenu.setLabel("Format");
+    selectMenu.setLabel("Select");
+    newView.setLabel("New View");
+    newView.addActionListener(this);
     alignFrameMenuBar.add(fileMenu);
-    Menu editMenu = new Menu(MessageManager.getString("action.edit"));
     alignFrameMenuBar.add(editMenu);
-    Menu selectMenu = new Menu(MessageManager.getString("action.select"));
     alignFrameMenuBar.add(selectMenu);
-    Menu viewMenu = new Menu(MessageManager.getString("action.view"));
     alignFrameMenuBar.add(viewMenu);
-    Menu annotationsMenu = new Menu(
-            MessageManager.getString("action.annotations"));
-    alignFrameMenuBar.add(annotationsMenu);
-    Menu formatMenu = new Menu(MessageManager.getString("action.format"));
     alignFrameMenuBar.add(formatMenu);
-    Menu colourMenu = new Menu(MessageManager.getString("action.colour"));
     alignFrameMenuBar.add(colourMenu);
-    Menu calculateMenu = new Menu(
-            MessageManager.getString("action.calculate"));
     alignFrameMenuBar.add(calculateMenu);
     alignFrameMenuBar.add(helpMenu);
 
-    /*
-     * File menu
-     */
     fileMenu.add(inputText);
     fileMenu.add(loadTree);
     fileMenu.add(loadAnnotations);
+
     fileMenu.addSeparator();
     fileMenu.add(outputTextboxMenu);
     fileMenu.add(outputFeatures);
     fileMenu.add(outputAnnotations);
+
     if (jalviewServletURL != null)
     {
       fileMenu.add(loadApplication);
     }
+
     fileMenu.addSeparator();
     fileMenu.add(closeMenuItem);
 
-    /*
-     * Edit menu
-     */
     editMenu.add(undoMenuItem);
     editMenu.add(redoMenuItem);
     editMenu.add(cut);
     editMenu.add(copy);
-    pasteMenu.add(pasteNew);
-    pasteMenu.add(pasteThis);
     editMenu.add(pasteMenu);
     editMenu.add(delete);
     editMenu.addSeparator();
@@ -3584,38 +3118,20 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     editMenu.add(removeGappedColumnMenuItem);
     editMenu.add(removeAllGapsMenuItem);
     editMenu.add(removeRedundancyMenuItem);
-
-    /*
-     * Select menu
-     */
-    selectMenu.add(findMenuItem);
-    selectMenu.addSeparator();
-    selectMenu.add(selectAllSequenceMenuItem);
-    selectMenu.add(deselectAllSequenceMenuItem);
-    selectMenu.add(invertSequenceMenuItem);
-    selectMenu.add(invertColSel);
-    selectMenu.add(createGroup);
-    selectMenu.add(unGroup);
-    selectMenu.add(grpsFromSelection);
-    selectMenu.add(deleteGroups);
-    selectMenu.add(annotationColumnSelection);
-
-    /*
-     * View menu
-     */
     viewMenu.add(newView);
     viewMenu.addSeparator();
-    showMenu.add(showColumns);
-    showMenu.add(showSeqs);
-    showMenu.add(showAllHidden);
-    viewMenu.add(showMenu);
-    hideMenu.add(hideColumns);
-    hideMenu.add(hideSequences);
-    hideMenu.add(hideAllSelection);
-    hideMenu.add(hideAllButSelection);
-    viewMenu.add(hideMenu);
+    viewMenu.add(menu1);
+    viewMenu.add(menu2);
     viewMenu.addSeparator();
     viewMenu.add(followMouseOverFlag);
+    viewMenu.add(annotationPanelMenuItem);
+    autoAnnMenu.add(applyAutoAnnotationSettings);
+    autoAnnMenu.add(showConsensusHistogram);
+    autoAnnMenu.add(showSequenceLogo);
+    autoAnnMenu.addSeparator();
+    autoAnnMenu.add(showGroupConservation);
+    autoAnnMenu.add(showGroupConsensus);
+    viewMenu.add(autoAnnMenu);
     viewMenu.addSeparator();
     viewMenu.add(sequenceFeatures);
     viewMenu.add(featureSettings);
@@ -3623,48 +3139,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     viewMenu.add(alProperties);
     viewMenu.addSeparator();
     viewMenu.add(overviewMenuItem);
-
-    /*
-     * Annotations menu
-     */
-    annotationsMenu.add(annotationPanelMenuItem);
-    annotationsMenu.addSeparator();
-    annotationsMenu.add(showAlignmentAnnotations);
-    annotationsMenu.add(showSequenceAnnotations);
-    annotationsMenu.add(sortAnnBySequence);
-    annotationsMenu.add(sortAnnByLabel);
-    annotationsMenu.addSeparator();
-    autoAnnMenu.add(showAutoFirst);
-    autoAnnMenu.add(showAutoLast);
-    autoAnnMenu.addSeparator();
-    autoAnnMenu.add(applyAutoAnnotationSettings);
-    autoAnnMenu.add(showConsensusHistogram);
-    autoAnnMenu.add(showSequenceLogo);
-    autoAnnMenu.add(normSequenceLogo);
-    autoAnnMenu.addSeparator();
-    autoAnnMenu.add(showGroupConservation);
-    autoAnnMenu.add(showGroupConsensus);
-    annotationsMenu.add(autoAnnMenu);
-
-    /*
-     * Format menu
-     */
-    formatMenu.add(font);
-    formatMenu.add(seqLimits);
-    formatMenu.add(wrapMenuItem);
-    formatMenu.add(scaleAbove);
-    formatMenu.add(scaleLeft);
-    formatMenu.add(scaleRight);
-    formatMenu.add(viewBoxesMenuItem);
-    formatMenu.add(viewTextMenuItem);
-    formatMenu.add(colourTextMenuItem);
-    formatMenu.add(displayNonconservedMenuItem);
-    formatMenu.add(renderGapsMenuItem);
-    formatMenu.add(centreColumnLabelFlag);
-
-    /*
-     * Colour menu
-     */
     colourMenu.add(applyToAllGroups);
     colourMenu.addSeparator();
     colourMenu.add(noColourmenuItem);
@@ -3679,9 +3153,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     colourMenu.add(turnColour);
     colourMenu.add(buriedColour);
     colourMenu.add(nucleotideColour);
-    colourMenu.add(purinePyrimidineColour);
-    // colourMenu.add(RNAInteractionColour);
-    colourMenu.add(tcoffeeColour);
     colourMenu.add(userDefinedColour);
     colourMenu.addSeparator();
     colourMenu.add(conservationMenuItem);
@@ -3689,47 +3160,56 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     colourMenu.add(abovePIDThreshold);
     colourMenu.add(modifyPID);
     colourMenu.add(annotationColour);
-    colourMenu.add(RNAHelixColour);
-
-    /*
-     * Calculate menu
-     */
-    sortMenu.add(sortIDMenuItem);
-    sortMenu.add(sortLengthMenuItem);
-    sortMenu.add(sortByTreeMenu);
-    sortMenu.add(sortGroupMenuItem);
-    sortMenu.add(sortPairwiseMenuItem);
-    calculateMenu.add(sortMenu);
-    calculateTreeMenu.add(averageDistanceTreeMenuItem);
-    calculateTreeMenu.add(neighbourTreeMenuItem);
-    calculateTreeMenu.add(avDistanceTreeBlosumMenuItem);
-    calculateTreeMenu.add(njTreeBlosumMenuItem);
-    calculateMenu.add(calculateTreeMenu);
+    calculateMenu.add(sort);
+    calculateMenu.add(calculate);
     calculateMenu.addSeparator();
     calculateMenu.add(pairwiseAlignmentMenuItem);
     calculateMenu.add(PCAMenuItem);
     calculateMenu.add(autoCalculate);
     calculateMenu.add(sortByTree);
-
-    /*
-     * Help menu
-     */
+    this.add(statusBar, BorderLayout.SOUTH);
+    pasteMenu.add(pasteNew);
+    pasteMenu.add(pasteThis);
+    sort.add(sortIDMenuItem);
+    sort.add(sortLengthMenuItem);
+    sort.add(sortByTreeMenu);
+    sort.add(sortGroupMenuItem);
+    sort.add(sortPairwiseMenuItem);
+    calculate.add(averageDistanceTreeMenuItem);
+    calculate.add(neighbourTreeMenuItem);
+    calculate.add(avDistanceTreeBlosumMenuItem);
+    calculate.add(njTreeBlosumMenuItem);
     helpMenu.add(documentation);
     helpMenu.add(about);
+    menu1.add(showColumns);
+    menu1.add(showSeqs);
+    menu1.add(showAllHidden);
+    menu2.add(hideColumns);
+    menu2.add(hideSequences);
+    menu2.add(hideAllSelection);
+    menu2.add(hideAllButSelection);
+    formatMenu.add(font);
+    formatMenu.add(seqLimits);
+    formatMenu.add(wrapMenuItem);
+    formatMenu.add(scaleAbove);
+    formatMenu.add(scaleLeft);
+    formatMenu.add(scaleRight);
+    formatMenu.add(viewBoxesMenuItem);
+    formatMenu.add(viewTextMenuItem);
+    formatMenu.add(colourTextMenuItem);
+    formatMenu.add(displayNonconservedMenuItem);
+    formatMenu.add(renderGapsMenuItem);
+    formatMenu.add(centreColumnLabelFlag);
+    selectMenu.add(findMenuItem);
+    selectMenu.addSeparator();
+    selectMenu.add(selectAllSequenceMenuItem);
+    selectMenu.add(deselectAllSequenceMenuItem);
+    selectMenu.add(invertSequenceMenuItem);
+    selectMenu.add(invertColSel);
+    selectMenu.add(grpsFromSelection);
+    selectMenu.add(deleteGroups);
 
-    /*
-     * Status bar
-     */
-    statusBar.setBackground(Color.white);
-    statusBar.setFont(new java.awt.Font("Verdana", 0, 11));
-    statusBar.setText(MessageManager.getString("label.status_bar"));
-    this.add(statusBar, BorderLayout.SOUTH);
   }
-
-  public void setStatus(String string)
-  {
-    statusBar.setText(string);
-  };
 
   MenuItem featureSettings = new MenuItem();
 
@@ -3737,13 +3217,15 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   MenuItem annotationColour = new MenuItem();
 
-  MenuItem annotationColumnSelection = new MenuItem();
-
   MenuItem invertColSel = new MenuItem();
+
+  Menu menu1 = new Menu();
 
   MenuItem showColumns = new MenuItem();
 
   MenuItem showSeqs = new MenuItem();
+
+  Menu menu2 = new Menu();
 
   MenuItem hideColumns = new MenuItem();
 
@@ -3755,21 +3237,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   MenuItem showAllHidden = new MenuItem();
 
+  Menu formatMenu = new Menu();
+
+  Menu selectMenu = new Menu();
+
   MenuItem newView = new MenuItem();
-
-  private CheckboxMenuItem showAlignmentAnnotations;
-
-  private CheckboxMenuItem showSequenceAnnotations;
-
-  private CheckboxMenuItem sortAnnBySequence;
-
-  private CheckboxMenuItem sortAnnByLabel;
-
-  private CheckboxMenuItem showAutoFirst;
-
-  private CheckboxMenuItem showAutoLast;
-
-  private SplitFrame splitFrame;
 
   /**
    * Attach the alignFrame panels after embedding menus, if necessary. This used
@@ -3780,11 +3252,44 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
    *          true to attach the view to the applet area on the page rather than
    *          in a new window
    */
-  public void createAlignFrameWindow(boolean reallyEmbedded)
+  public void createAlignFrameWindow(boolean reallyEmbedded, String title)
   {
     if (reallyEmbedded)
     {
-      embedAlignFrameInApplet(viewport.applet);
+      // ////
+      // Explicly build the embedded menu panel for the on-page applet
+      //
+      // view cannot be closed if its actually on the page
+      fileMenu.remove(closeMenuItem);
+      fileMenu.remove(3); // Remove Seperator
+      embeddedMenu = makeEmbeddedPopupMenu(alignFrameMenuBar, "Arial",
+              Font.PLAIN, 10, false); // use our own fonts.
+      // and actually add the components to the applet area
+      viewport.applet.setLayout(new BorderLayout());
+      viewport.applet.add(embeddedMenu, BorderLayout.NORTH);
+      viewport.applet.add(statusBar, BorderLayout.SOUTH);
+      alignPanel.setSize(viewport.applet.getSize().width,
+              viewport.applet.getSize().height - embeddedMenu.HEIGHT
+                      - statusBar.HEIGHT);
+      viewport.applet.add(alignPanel, BorderLayout.CENTER);
+      final AlignFrame me = this;
+      viewport.applet.addFocusListener(new FocusListener()
+      {
+        
+        @Override
+        public void focusLost(FocusEvent e)
+        {
+          if (me.viewport.applet.currentAlignFrame==me) {
+                  me.viewport.applet.currentAlignFrame = null;
+        }}
+        
+        @Override
+        public void focusGained(FocusEvent e)
+        {
+          me.viewport.applet.currentAlignFrame = me;
+        }
+      });
+      viewport.applet.validate();
     }
     else
     {
@@ -3793,65 +3298,16 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       //
       if (embedMenuIfNeeded(alignPanel))
       {
-        /*
-         * adjust for status bar height too. ? pointless as overridden by layout
-         * manager
-         */
-        alignPanel.setSize(getSize().width,
-                getSize().height - statusBar.getHeight());
+        // adjust for status bar height too
+        alignPanel.setSize(getSize().width, getSize().height
+                - statusBar.HEIGHT);
       }
       add(statusBar, BorderLayout.SOUTH);
       add(alignPanel, BorderLayout.CENTER);
       // and register with the applet so it can pass external API calls to us
-      jalview.bin.JalviewLite.addFrame(this, this.getTitle(), frameWidth,
-              frameHeight);
+      jalview.bin.JalviewLite.addFrame(this, title, DEFAULT_WIDTH,
+              DEFAULT_HEIGHT);
     }
-  }
-
-  /**
-   * Add the components of this AlignFrame to the applet container.
-   * 
-   * @param theApplet
-   */
-  public void embedAlignFrameInApplet(final JalviewLite theApplet)
-  {
-    // ////
-    // Explicitly build the embedded menu panel for the on-page applet
-    //
-    // view cannot be closed if its actually on the page
-    fileMenu.remove(closeMenuItem);
-    fileMenu.remove(3); // Remove Separator
-    // construct embedded menu, using default font
-    embeddedMenu = makeEmbeddedPopupMenu(alignFrameMenuBar, false, false);
-    // and actually add the components to the applet area
-    theApplet.setLayout(new BorderLayout());
-    theApplet.add(embeddedMenu, BorderLayout.NORTH);
-    theApplet.add(statusBar, BorderLayout.SOUTH);
-    // TODO should size be left to the layout manager?
-    alignPanel.setSize(theApplet.getSize().width,
-            theApplet.getSize().height - embeddedMenu.getHeight()
-                    - statusBar.getHeight());
-    theApplet.add(alignPanel, BorderLayout.CENTER);
-    final AlignFrame me = this;
-    theApplet.addFocusListener(new FocusListener()
-    {
-
-      @Override
-      public void focusLost(FocusEvent e)
-      {
-        if (theApplet.currentAlignFrame == me)
-        {
-          theApplet.currentAlignFrame = null;
-        }
-      }
-
-      @Override
-      public void focusGained(FocusEvent e)
-      {
-        theApplet.currentAlignFrame = me;
-      }
-    });
-    theApplet.validate();
   }
 
   /**
@@ -3870,10 +3326,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public SequenceStructureBinding addStructureViewInstance(
           Object jmolviewer, String[] sequenceIds)
   {
-    Viewer viewer = null;
+    org.jmol.api.JmolViewer viewer = null;
     try
     {
-      viewer = (Viewer) jmolviewer;
+      viewer = (org.jmol.api.JmolViewer) jmolviewer;
     } catch (ClassCastException ex)
     {
       System.err.println("Unsupported viewer object :"
@@ -3915,16 +3371,15 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         return null;
       }
     }
-    AAStructureBindingModel jmv = null;
+    ExtJmol jmv = null;
     // TODO: search for a jmv that involves viewer
     if (jmv == null)
     { // create a new viewer/jalview binding.
-      jmv = new ExtJmol(viewer, alignPanel, new SequenceI[][] { seqs });
+      jmv = new ExtJmol(viewer, alignPanel, new SequenceI[][] {seqs});
     }
     return jmv;
 
   }
-
   /**
    * bind a pdb file to a sequence in the current view
    * 
@@ -3945,7 +3400,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     boolean needtoadd = false;
     if (toaddpdb != null)
     {
-      Vector pdbe = toaddpdb.getAllPDBEntries();
+      Vector pdbe = toaddpdb.getPDBId();
       PDBEntry pdbentry = null;
       if (pdbe != null && pdbe.size() > 0)
       {
@@ -3986,8 +3441,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         }
         pdbentry.getProperty().put("protocol", protocol);
         toaddpdb.addPDBId(pdbentry);
-        alignPanel.getStructureSelectionManager()
-                .registerPDBEntry(pdbentry);
       }
     }
     return true;
@@ -4002,8 +3455,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       {
         if (seqs[i] != null)
         {
-          sequences.addElement(new Object[] { seqs[i],
-              (chains != null) ? chains[i] : null });
+          sequences.addElement(new Object[]
+          { seqs[i], (chains != null) ? chains[i] : null });
         }
       }
       seqs = new SequenceI[sequences.size()];
@@ -4016,7 +3469,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         chains[i] = (String) oj[1];
       }
     }
-    return new Object[] { seqs, chains };
+    return new Object[]
+    { seqs, chains };
 
   }
 
@@ -4046,11 +3500,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     if (applet.useXtrnalSviewer)
     {
       // register the association(s) and quit, don't create any windows.
-      if (StructureSelectionManager.getStructureSelectionManager(applet)
-              .setMapping(seqs, chains, pdb.getFile(), protocol) == null)
-      {
-        System.err.println("Failed to map " + pdb.getFile() + " ("
-                + protocol + ") to any sequences");
+      if (StructureSelectionManager.getStructureSelectionManager(applet).setMapping(seqs, chains, pdb.getFile(), protocol)==null) {
+        System.err.println("Failed to map "+pdb.getFile()+" ("+protocol+") to any sequences");
       }
       return;
     }
@@ -4102,13 +3553,9 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   }
 
   /**
-   * modify the current selection, providing the user has not made a selection
-   * already.
-   * 
-   * @param sel
-   *          - sequences from this alignment
-   * @param csel
-   *          - columns to be selected on the alignment
+   * modify the current selection, providing the user has not made a selection already.
+   * @param sel - sequences from this alignment 
+   * @param csel - columns to be selected on the alignment
    */
   public void select(SequenceGroup sel, ColumnSelection csel)
   {
@@ -4117,123 +3564,20 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   public void scrollTo(int row, int column)
   {
-    alignPanel.seqPanel.scrollTo(row, column);
+    alignPanel.seqPanel.scrollTo(row, column);    
   }
-
   public void scrollToRow(int row)
   {
-    alignPanel.seqPanel.scrollToRow(row);
+    alignPanel.seqPanel.scrollToRow(row);    
   }
-
   public void scrollToColumn(int column)
   {
-    alignPanel.seqPanel.scrollToColumn(column);
+    alignPanel.seqPanel.scrollToColumn(column);    
   }
-
   /**
    * @return the alignments unique ID.
    */
-  public String getSequenceSetId()
-  {
+  public String getSequenceSetId() {
     return viewport.getSequenceSetId();
   }
-
-  /**
-   * Load the (T-Coffee) score file from the specified url
-   * 
-   * @param source
-   *          File/URL/T-COFFEE score file contents
-   * @throws IOException
-   * @return true if alignment was annotated with data from source
-   */
-  public boolean loadScoreFile(String source) throws IOException
-  {
-
-    TCoffeeScoreFile file = new TCoffeeScoreFile(source,
-            AppletFormatAdapter.checkProtocol(source));
-    if (!file.isValid())
-    {
-      // TODO: raise dialog for gui
-      System.err.println("Problems parsing T-Coffee scores: "
-              + file.getWarningMessage());
-      System.err.println("Origin was:\n" + source);
-      return false;
-    }
-
-    /*
-     * check that the score matrix matches the alignment dimensions
-     */
-    AlignmentI aln;
-    if ((aln = viewport.getAlignment()) != null
-            && (aln.getHeight() != file.getHeight() || aln.getWidth() != file
-                    .getWidth()))
-    {
-      // TODO: raise a dialog box here rather than bomb out.
-      System.err
-              .println("The scores matrix does not match the alignment dimensions");
-
-    }
-
-    // TODO add parameter to indicate if matching should be done
-    if (file.annotateAlignment(alignPanel.getAlignment(), false))
-    {
-      alignPanel.fontChanged();
-      tcoffeeColour.setEnabled(true);
-      // switch to this color
-      changeColour(new TCoffeeColourScheme(alignPanel.getAlignment()));
-      return true;
-    }
-    else
-    {
-      System.err.println("Problems resolving T-Coffee scores:");
-      if (file.getWarningMessage() != null)
-      {
-        System.err.println(file.getWarningMessage());
-      }
-    }
-    return false;
-  }
-
-  public SplitFrame getSplitFrame()
-  {
-    return this.splitFrame;
-  }
-
-  public void setSplitFrame(SplitFrame sf)
-  {
-    this.splitFrame = sf;
-  }
-
-  // may not need this
-  @Override
-  public void setShowSeqFeatures(boolean b)
-  {
-    // showSeqFeatures.setSelected(b);
-    viewport.setShowSequenceFeatures(b);
-
-  }
-
-  @Override
-  public void setMenusForViewport()
-  {
-    // setMenusFromViewport(viewport);
-
-  }
-
-  @Override
-  public void refreshFeatureUI(boolean enableIfNecessary)
-  {
-    if (enableIfNecessary)
-    {
-      sequenceFeatures.setState(true);
-      alignPanel.av.setShowSequenceFeatures(true);
-    }
-  }
-
-  @Override
-  public FeatureSettingsControllerI getFeatureSettingsUI()
-  {
-    return alignPanel.av.featureSettings;
-  }
-
 }

@@ -1,37 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.ws.ebi;
 
-import jalview.util.MessageManager;
+import java.io.*;
+import java.util.*;
+import javax.xml.namespace.*;
+import javax.xml.rpc.*;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
+import org.apache.axis.client.Call;
+import org.apache.axis.client.Service;
+import org.apache.axis.encoding.*;
 
 /**
  * DOCUMENT ME!
@@ -41,6 +34,8 @@ import java.util.StringTokenizer;
  */
 public class EBIFetchClient
 {
+  Call call;
+
   String format = "default";
 
   String style = "raw";
@@ -50,6 +45,14 @@ public class EBIFetchClient
    */
   public EBIFetchClient()
   {
+    try
+    {
+      call = (Call) new Service().createCall();
+      call.setTargetEndpointAddress(new java.net.URL(
+              "http://www.ebi.ac.uk/ws/services/Dbfetch"));
+    } catch (Exception ex)
+    {
+    }
   }
 
   /**
@@ -59,8 +62,17 @@ public class EBIFetchClient
    */
   public String[] getSupportedDBs()
   {
-    // TODO - implement rest call for dbfetch getSupportedDBs
-    throw new Error(MessageManager.getString("error.not_yet_implemented"));
+    try
+    {
+      call.setOperationName(new QName("urn:Dbfetch", "getSupportedDBs"));
+      call.setReturnType(XMLType.SOAP_ARRAY);
+
+      return (String[]) call.invoke(new Object[]
+      {});
+    } catch (Exception ex)
+    {
+      return null;
+    }
   }
 
   /**
@@ -70,8 +82,17 @@ public class EBIFetchClient
    */
   public String[] getSupportedFormats()
   {
-    // TODO - implement rest call for dbfetch getSupportedFormats
-    throw new Error(MessageManager.getString("error.not_yet_implemented"));
+    try
+    {
+      call.setOperationName(new QName("urn:Dbfetch", "getSupportedFormats"));
+      call.setReturnType(XMLType.SOAP_ARRAY);
+
+      return (String[]) call.invoke(new Object[]
+      {});
+    } catch (Exception ex)
+    {
+      return null;
+    }
   }
 
   /**
@@ -81,36 +102,42 @@ public class EBIFetchClient
    */
   public String[] getSupportedStyles()
   {
-    // TODO - implement rest call for dbfetch getSupportedStyles
-    throw new Error(MessageManager.getString("error.not_yet_implemented"));
+    try
+    {
+      call.setOperationName(new QName("urn:Dbfetch", "getSupportedStyles"));
+      call.setReturnType(XMLType.SOAP_ARRAY);
+
+      return (String[]) call.invoke(new Object[]
+      {});
+    } catch (Exception ex)
+    {
+      return null;
+    }
   }
 
-  /**
-   * Send an HTTP fetch request to EBI and save the reply in a temporary file.
-   * 
-   * @param ids
-   *          the query formatted as db:query1;query2;query3
-   * @param f
-   *          the format wanted
-   * @param s
-   *          - unused parameter
-   * @return the file holding the response
-   * @throws OutOfMemoryError
-   */
   public File fetchDataAsFile(String ids, String f, String s)
           throws OutOfMemoryError
   {
+    String[] data = fetchData(ids, f, s);
+    // TODO: after JV 2.4 - test data==null and pass error(s) back up if
+    // possible (OutOfMemoryErrors are usual problem)
+    if (data == null)
+    {
+      return null;
+    }
     File outFile = null;
     try
     {
       outFile = File.createTempFile("jalview", ".xml");
       outFile.deleteOnExit();
-      fetchData(ids, f, s, outFile);
-      if (outFile.length() == 0)
+      PrintWriter out = new PrintWriter(new FileOutputStream(outFile));
+      int index = 0;
+      while (index < data.length)
       {
-        outFile.delete();
-        return null;
+        out.println(data[index]);
+        index++;
       }
+      out.close();
     } catch (Exception ex)
     {
     }
@@ -125,26 +152,18 @@ public class EBIFetchClient
    * @param f
    *          raw/xml
    * @param s
-   *          not used - remove?
+   *          ?
    * 
    * @return Raw string array result of query set
    */
   public String[] fetchData(String ids, String f, String s)
           throws OutOfMemoryError
   {
-    return fetchData(ids, f, s, null);
-  }
-
-  public String[] fetchData(String ids, String f, String s, File outFile)
-          throws OutOfMemoryError
-  {
     // Need to split
     // ids of the form uniprot:25KD_SARPE;ADHR_DROPS;
-    String[] rslts = new String[0];
     StringTokenizer queries = new StringTokenizer(ids, ";");
     String db = null;
     StringBuffer querystring = null;
-    int nq = 0;
     while (queries.hasMoreTokens())
     {
       String query = queries.nextToken();
@@ -157,73 +176,56 @@ public class EBIFetchClient
       if (querystring == null)
       {
         querystring = new StringBuffer(query);
-        nq++;
       }
       else
       {
         querystring.append("," + query);
-        nq++;
       }
     }
     if (db == null)
     {
       System.err.println("Invalid Query string : '" + ids
               + "'\nShould be of form 'dbname:q1;q2;q3;q4'");
-      return null;
     }
-    String[] rslt = fetchBatch(querystring.toString(), db, f, s, outFile);
-    if (rslt != null)
-    {
-      String[] nrslts = new String[rslt.length + rslts.length];
-      System.arraycopy(rslts, 0, nrslts, 0, rslts.length);
-      System.arraycopy(rslt, 0, nrslts, rslts.length, rslt.length);
-      rslts = nrslts;
-    }
-
-    return (rslts.length == 0 ? null : rslts);
+    return fetchBatch(querystring.toString(), db, f, s);
   }
 
-  public String[] fetchBatch(String ids, String db, String f, String s,
-          File outFile) throws OutOfMemoryError
+  public String[] fetchBatch(String ids, String db, String f, String s)
+          throws OutOfMemoryError
   {
-    long time = System.currentTimeMillis();
-    // max 200 ids can be added at one time
+    // max 50 ids can be added at one time
     try
     {
-      URL rcall = new URL("http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/"
-              + db.toLowerCase() + "/" + ids.toLowerCase()
-              + (f != null ? "/" + f : ""));
+      // call.setOperationName(new QName("urn:Dbfetch", "fetchData"));
+      call.setOperationName(new QName("urn:Dbfetch", "fetchBatch"));
+      call.addParameter("ids", XMLType.XSD_STRING, ParameterMode.IN);
+      call.addParameter("db", XMLType.XSD_STRING, ParameterMode.IN);
+      call.addParameter("format", XMLType.XSD_STRING, ParameterMode.IN);
+      call.addParameter("style", XMLType.XSD_STRING, ParameterMode.IN);
+      call.setReturnType(XMLType.SOAP_ARRAY);
 
-      InputStream is = new BufferedInputStream(rcall.openStream());
-      if (outFile != null)
+      if (f != null)
       {
-        FileOutputStream fio = new FileOutputStream(outFile);
-        byte[] bb = new byte[32 * 1024];
-        int l;
-        while ((l = is.read(bb)) > 0)
-        {
-          fio.write(bb, 0, l);
-        }
-        fio.close();
-        is.close();
+        format = f;
       }
-      else
-      {
-        BufferedReader br = new BufferedReader(new InputStreamReader(is));
-        String rtn;
-        List<String> arl = new ArrayList<String>();
-        while ((rtn = br.readLine()) != null)
-        {
-          arl.add(rtn);
-        }
-        return arl.toArray(new String[arl.size()]);
-      }
-    } catch (OutOfMemoryError er)
-    {
 
-      System.out.println("OUT OF MEMORY DOWNLOADING QUERY FROM " + db
-              + ":\n" + ids);
-      throw er;
+      if (s != null)
+      {
+        style = s;
+      }
+
+      try
+      {
+        return (String[]) call.invoke(new Object[]
+        { ids.toLowerCase(), db.toLowerCase(), format, style });
+      } catch (OutOfMemoryError er)
+      {
+
+        System.out.println("OUT OF MEMORY DOWNLOADING QUERY FROM " + db
+                + ":\n" + ids);
+        throw er;
+      }
+      // return null;
     } catch (Exception ex)
     {
       if (ex.getMessage().startsWith(
@@ -235,11 +237,6 @@ public class EBIFetchClient
               + "\nQuery was : '" + ids + "'");
       ex.printStackTrace(System.err);
       return null;
-    } finally
-    {
-      // System.err.println("Took " + (System.currentTimeMillis() - time)
-      // / 1000 + " secs for one call.");
     }
-    return null;
   }
 }

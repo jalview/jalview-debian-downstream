@@ -1,29 +1,25 @@
-/*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
- * 
+/*******************************************************************************
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ *
  * This file is part of Jalview.
- * 
+ *
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
- */
+ *
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ *******************************************************************************/
 package jalview.ws.rest.params;
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.util.MessageManager;
 import jalview.ws.params.OptionI;
 import jalview.ws.params.simple.IntegerParameter;
 import jalview.ws.params.simple.Option;
@@ -31,11 +27,14 @@ import jalview.ws.rest.AlignmentProcessor;
 import jalview.ws.rest.InputType;
 import jalview.ws.rest.NoValidInputDataException;
 import jalview.ws.rest.RestJob;
+import jalview.ws.rest.RestServiceDescription;
+import jalview.ws.rest.InputType.molType;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Vector;
 
 import org.apache.http.entity.mime.content.ContentBody;
 import org.apache.http.entity.mime.content.StringBody;
@@ -53,7 +52,8 @@ public class SeqGroupIndexVector extends InputType implements
 {
   public SeqGroupIndexVector()
   {
-    super(new Class[] { AlignmentI.class });
+    super(new Class[]
+    { AlignmentI.class });
   }
 
   /**
@@ -91,69 +91,82 @@ public class SeqGroupIndexVector extends InputType implements
     // assume that alignment is properly ordered so groups form consecutive
     // blocks
     ArrayList<int[]> gl = new ArrayList<int[]>();
-    int p = 0, lowest = al.getHeight(), highest = 0;
-    List<SequenceGroup> sgs;
-    synchronized (sgs = al.getGroups())
+    int p = 0;
+    for (SequenceGroup sg : (Vector<SequenceGroup>) al.getGroups())
     {
-      for (SequenceGroup sg : sgs)
+      if (sg.getSize() < minsize)
       {
-        if (sg.getSize() < minsize)
+        throw new NoValidInputDataException("Group contains less than "
+                + minsize + " sequences.");
+      }
+      // TODO: refactor to sequenceGroup for efficiency -
+      // getAlignmentRowInterval(AlignmentI al)
+      int[] se = null;
+      for (SequenceI sq : sg.getSequencesInOrder(al))
+      {
+        p = al.findIndex(sq);
+        if (se == null)
         {
-          throw new NoValidInputDataException(
-                  MessageManager
-                          .formatMessage(
-                                  "exception.notvaliddata_group_contains_less_than_min_seqs",
-                                  new String[] { Integer.valueOf(minsize)
-                                          .toString() }));
+          se = new int[]
+          { p, p };
         }
-        // TODO: refactor to sequenceGroup for efficiency -
-        // getAlignmentRowInterval(AlignmentI al)
-        int[] se = null;
-        for (SequenceI sq : sg.getSequencesInOrder(al))
+        else
         {
-          p = al.findIndex(sq);
-          if (lowest > p)
-          {
-            lowest = p;
-          }
-          if (highest < p)
-          {
-            highest = p;
-          }
-          if (se == null)
-          {
-            se = new int[] { p, p };
-          }
-          else
-          {
-            if (p < se[0])
-              se[0] = p;
-            if (p > se[1])
-              se[1] = p;
-          }
+          if (p < se[0])
+            se[0] = p;
+          if (p > se[1])
+            se[1] = p;
         }
-        if (se != null)
-        {
-          gl.add(se);
-        }
+      }
+      if (se != null)
+      {
+        gl.add(se);
       }
     }
     // are there any more sequences ungrouped that should be added as a single
     // remaining group ? - these might be at the start or the end
     if (gl.size() > 0)
     {
-      if (lowest - 1 > minsize)
+      int[] tail = gl.get(0);
+      if (tail[0] > 0)
       {
-        gl.add(0, new int[] { 0, lowest - 2 });
+        if (1 + tail[0] > minsize)
+        {
+          gl.add(0, new int[]
+          { 0, tail[0] - 1 });
+        }
+        else
+        {
+          // lets be intelligent here - if the remaining sequences aren't enough
+          // to make a final group, then don't make one.
+          // throw new
+          // NoValidInputDataException("Group from remaining ungrouped sequences in input contains less than "+minsize+" sequences.");
+        }
       }
-      if ((al.getHeight() - 1 - highest) > minsize)
+      else
       {
-        gl.add(new int[] { highest + 1, al.getHeight() - 1 });
+        tail = gl.get(gl.size() - 1);
+        if (1 + tail[1] < al.getHeight())
+        {
+          if (al.getHeight() - (1 + tail[1]) > minsize)
+          {
+            gl.add(new int[]
+            { tail[1] + 1, al.getHeight() - 1 });
+          }
+          else
+          {
+            // lets be intelligent here - if the remaining sequences aren't
+            // enough to make a final group, then don't make one.
+            // throw new
+            // NoValidInputDataException("Group from remaining ungrouped sequences in input contains less than "+minsize+" sequences.");
+          }
+        }
       }
     }
     else
     {
-      gl.add(new int[] { 0, al.getHeight() - 1 });
+      gl.add(new int[]
+      { 0, al.getHeight() - 1 });
     }
     if (min >= 0 && gl.size() < min)
     {
@@ -279,13 +292,10 @@ public class SeqGroupIndexVector extends InputType implements
     List<OptionI> lst = getBaseOptions();
     lst.add(new Option("sep",
             "Separator character between elements of vector", true, ",",
-            sep, Arrays.asList(new String[] { " ", ",", ";", "\t", "|" }),
-            null));
-    lst.add(new IntegerParameter("minsize",
-            "Minimum size of partition allowed by service", true, 1,
-            minsize, 1, 0));
-    lst.add(createMolTypeOption("type", "Sequence type", false, type,
-            molType.MIX));
+            sep, Arrays.asList(new String[]
+            { " ", ",", ";", "\t", "|" }), null));
+    lst.add(new IntegerParameter("minsize", "Minimum size of partition allowed by service", true, 1, minsize, 1,0));
+    lst.add(createMolTypeOption("type", "Sequence type", false, type, molType.MIX));
     return lst;
   }
 

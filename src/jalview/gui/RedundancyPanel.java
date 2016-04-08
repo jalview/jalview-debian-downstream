@@ -1,46 +1,32 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.gui;
 
-import jalview.analysis.AlignSeq;
-import jalview.commands.CommandI;
-import jalview.commands.EditCommand;
-import jalview.commands.EditCommand.Action;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.jbgui.GSliderPanel;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.event.ActionEvent;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
-import java.util.Vector;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
 
-import javax.swing.JInternalFrame;
-import javax.swing.JProgressBar;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import javax.swing.event.InternalFrameAdapter;
-import javax.swing.event.InternalFrameEvent;
+import jalview.commands.*;
+import jalview.datamodel.*;
+import jalview.jbgui.*;
+import jalview.util.*;
 
 /**
  * DOCUMENT ME!
@@ -54,9 +40,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
   AlignmentPanel ap;
 
-  Stack<CommandI> historyList = new Stack<CommandI>();
-
-  // simpler than synching with alignFrame.
+  Stack historyList = new Stack(); // simpler than synching with alignFrame.
 
   float[] redundancy;
 
@@ -89,7 +73,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
       }
     });
 
-    applyButton.setText(MessageManager.getString("action.remove"));
+    applyButton.setText("Remove");
     allGroupsCheck.setVisible(false);
     slider.setMinimum(0);
     slider.setMaximum(100);
@@ -100,14 +84,13 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
     frame = new JInternalFrame();
     frame.setContentPane(this);
-    Desktop.addInternalFrame(frame, MessageManager
-            .getString("label.redundancy_threshold_selection"), 400, 100,
-            false);
+    Desktop.addInternalFrame(frame, "Redundancy threshold selection", 400,
+            100, false);
     frame.addInternalFrameListener(new InternalFrameAdapter()
     {
       public void internalFrameClosing(InternalFrameEvent evt)
       {
-        ap.getIdPanel().getIdCanvas().setHighlighted(null);
+        ap.idPanel.idCanvas.setHighlighted(null);
       }
     });
 
@@ -131,7 +114,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
     progress.setIndeterminate(true);
     southPanel.add(progress, java.awt.BorderLayout.SOUTH);
 
-    label.setText(MessageManager.getString("label.calculating"));
+    label.setText("Calculating....");
 
     slider.setVisible(false);
     applyButton.setEnabled(false);
@@ -148,37 +131,79 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
     if ((sg != null) && (sg.getSize() >= 1))
     {
-      originalSequences = sg.getSequencesInOrder(ap.av.getAlignment());
+      originalSequences = sg.getSequencesInOrder(ap.av.alignment);
       start = sg.getStartRes();
       end = sg.getEndRes();
     }
     else
     {
-      originalSequences = ap.av.getAlignment().getSequencesArray();
+      originalSequences = ap.av.alignment.getSequencesArray();
       start = 0;
-      end = ap.av.getAlignment().getWidth();
+      end = ap.av.alignment.getWidth();
     }
 
     height = originalSequences.length;
-    if (ap.av.hasHiddenColumns())
+
+    redundancy = new float[height];
+    for (int i = 0; i < height; i++)
+    {
+      redundancy[i] = 0f;
+    }
+
+    if (ap.av.hasHiddenColumns)
     {
       omitHidden = ap.av.getViewAsString(sg != null);
     }
-    redundancy = AlignSeq.computeRedundancyMatrix(originalSequences,
-            omitHidden, start, end, false);
+
+    // long start = System.currentTimeMillis();
+
+    float pid;
+    String seqi, seqj;
+    for (int i = 0; i < height; i++)
+    {
+
+      for (int j = 0; j < i; j++)
+      {
+        if (i == j)
+        {
+          continue;
+        }
+
+        if (omitHidden == null)
+        {
+          seqi = originalSequences[i].getSequenceAsString(start, end);
+          seqj = originalSequences[j].getSequenceAsString(start, end);
+        }
+        else
+        {
+          seqi = omitHidden[i];
+          seqj = omitHidden[j];
+        }
+
+        pid = Comparison.PID(seqi, seqj);
+
+        if (seqj.length() < seqi.length())
+        {
+          redundancy[j] = Math.max(pid, redundancy[j]);
+        }
+        else
+        {
+          redundancy[i] = Math.max(pid, redundancy[i]);
+        }
+
+      }
+    }
 
     progress.setIndeterminate(false);
     progress.setVisible(false);
     progress = null;
 
-    label.setText(MessageManager
-            .getString("label.enter_redundancy_thereshold"));
+    label.setText("Enter the redundancy threshold");
     slider.setVisible(true);
     applyButton.setEnabled(true);
     valueField.setVisible(true);
 
     validate();
-    sliderValueChanged();
     // System.out.println((System.currentTimeMillis()-start));
   }
 
@@ -190,15 +215,21 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
     }
 
     float value = slider.getValue();
-    List<SequenceI> redundantSequences = new ArrayList<SequenceI>();
+
     for (int i = 0; i < redundancy.length; i++)
     {
-      if (value <= redundancy[i])
+      if (value > redundancy[i])
       {
-        redundantSequences.add(originalSequences[i]);
+        redundantSeqs.remove(originalSequences[i]);
       }
+      else if (!redundantSeqs.contains(originalSequences[i]))
+      {
+        redundantSeqs.add(originalSequences[i]);
+      }
+
     }
-    ap.getIdPanel().getIdCanvas().setHighlighted(redundantSequences);
+
+    ap.idPanel.idCanvas.setHighlighted(redundantSeqs);
   }
 
   /**
@@ -241,13 +272,13 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
         }
       }
 
-      EditCommand cut = new EditCommand(
-              MessageManager.getString("action.remove_redundancy"),
-              Action.CUT, deleted, 0, width, ap.av.getAlignment());
+      EditCommand cut = new EditCommand("Remove Redundancy",
+              EditCommand.CUT, deleted, 0, width, ap.av.alignment);
 
       for (int i = 0; i < del.size(); i++)
       {
-        ap.av.getAlignment().deleteSequence(deleted[i]);
+        ap.av.alignment.deleteSequence(deleted[i]);
+        PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
         if (sg != null)
         {
           sg.deleteSequence(deleted[i], false);
@@ -258,7 +289,6 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
       ap.alignFrame.addHistoryItem(cut);
 
-      PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
       ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
               .getSequences());
     }
@@ -273,19 +303,12 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
    */
   public void undoButton_actionPerformed(ActionEvent e)
   {
-    if (historyList == null || historyList.isEmpty())
-    {
-      undoButton.setEnabled(false);
-      return;
-    }
+    CommandI command = (CommandI) historyList.pop();
+    command.undoCommand(af.getViewAlignments());
 
-    CommandI command = historyList.pop();
-    if (ap.av.getHistoryList().contains(command))
+    if (ap.av.historyList.contains(command))
     {
-      command.undoCommand(af.getViewAlignments());
-      ap.av.getHistoryList().remove(command);
-      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-              .getSequences());
+      ap.av.historyList.remove(command);
       af.updateEditMenuBar();
     }
 

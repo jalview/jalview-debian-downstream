@@ -1,31 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.schemes;
 
-import jalview.datamodel.AnnotatedCollectionI;
-
-import java.awt.Color;
+import java.awt.*;
 
 /**
- * ColourSchemeProperty binds names to hardwired colourschemes and tries to deal
+ * ColourSchemeProperty Binds names to hardwired colourschemes and tries to deal
  * intelligently with mapping unknown names to user defined colourschemes (that
  * exist or can be created from the string representation of the colourscheme
  * name - either a hex RGB triplet or a named colour under java.awt.color ). The
@@ -87,18 +82,12 @@ public class ColourSchemeProperty
 
   public static final int COVARIATION = 14;
 
-  public static final int TCOFFEE = 15;
-
-  public static final int RNAHELIX = 16;
-
-  public static final int RNAINTERACTION = 17;
-
   /**
    * index of first colourscheme (includes 'None')
    */
   public static final int FIRST_COLOUR = NONE;
 
-  public static final int LAST_COLOUR = RNAINTERACTION;
+  public static final int LAST_COLOUR = NUCLEOTIDE;
 
   /**
    * DOCUMENT ME!
@@ -156,11 +145,6 @@ public class ColourSchemeProperty
     {
       ret = NUCLEOTIDE;
     }
-    else if (name.equalsIgnoreCase("T-Coffee Scores"))
-    {
-      ret = TCOFFEE;
-    }
-
     else if (name.equalsIgnoreCase("User Defined"))
     {
       ret = USER_DEFINED;
@@ -169,22 +153,6 @@ public class ColourSchemeProperty
     {
       ret = NONE;
     }
-    else if (name.equalsIgnoreCase("Purine/Pyrimidine"))
-    {
-      ret = PURINEPYRIMIDINE;
-    }
-    else if (name.equalsIgnoreCase("RNA Interaction type"))
-    {
-      ret = RNAINTERACTION;
-    }
-    else if (name.equalsIgnoreCase("RNA Helices"))
-    {
-      ret = RNAHELIX;
-    }
-    // else if (name.equalsIgnoreCase("Covariation"))
-    // {
-    // ret = COVARIATION;
-    // }
 
     return ret;
   }
@@ -246,21 +214,6 @@ public class ColourSchemeProperty
     {
       index = NUCLEOTIDE;
     }
-    else if (cs instanceof PurinePyrimidineColourScheme)
-    {
-      index = PURINEPYRIMIDINE;
-    }
-    else if (cs instanceof TCoffeeColourScheme)
-    {
-      index = TCOFFEE;
-    }
-    else if (cs instanceof RNAHelicesColour)
-    {
-      index = RNAHELIX;
-    }
-    /*
-     * else if (cs instanceof CovariationColourScheme) { index = COVARIATION; }
-     */
     else if (cs instanceof UserColourScheme)
     {
       if ((((UserColourScheme) cs).getName() != null)
@@ -343,29 +296,6 @@ public class ColourSchemeProperty
 
       break;
 
-    case PURINEPYRIMIDINE:
-      ret = "Purine/Pyrimidine";
-
-      break;
-
-    case TCOFFEE:
-      ret = "T-Coffee Scores";
-
-      break;
-
-    case RNAINTERACTION:
-      ret = "RNA Interaction type";
-
-      break;
-    case RNAHELIX:
-      ret = "RNA Helices";
-
-      break;
-    /*
-     * case COVARIATION: ret = "Covariation";
-     * 
-     * break;
-     */
     case USER_DEFINED:
       ret = "User Defined";
 
@@ -381,6 +311,22 @@ public class ColourSchemeProperty
   }
 
   /**
+   * DOCUMENT ME!
+   * 
+   * @param al
+   *          DOCUMENT ME!
+   * @param name
+   *          DOCUMENT ME!
+   * 
+   * @return DOCUMENT ME!
+   */
+  public static ColourSchemeI getColour(jalview.datamodel.AlignmentI al,
+          String name)
+  {
+    return getColour(al.getSequences(), al.getWidth(), name);
+  }
+
+  /**
    * retrieve or create colourscheme associated with name
    * 
    * @param seqs
@@ -392,7 +338,7 @@ public class ColourSchemeProperty
    *          string to parse as colour for new coloursheme
    * @return Valid Colourscheme
    */
-  public static ColourSchemeI getColour(AnnotatedCollectionI alignment,
+  public static ColourSchemeI getColour(java.util.Vector seqs, int width,
           String name)
   {
     int colindex = getColourIndexFromName(name);
@@ -425,34 +371,30 @@ public class ColourSchemeProperty
         }
       }
     }
-    return getColour(alignment, getColourIndexFromName(name));
+    return getColour(seqs, width, getColourIndexFromName(name));
   }
 
   /**
-   * Construct an instance of ColourSchemeI corresponding to the given
-   * colourscheme index
+   * DOCUMENT ME!
    * 
    * @param seqs
-   *          sequences to be coloured by colourscheme
+   *          DOCUMENT ME!
    * @param width
-   *          geometry of alignment
+   *          DOCUMENT ME!
    * @param index
-   *          colourscheme number
+   *          DOCUMENT ME!
    * 
-   * @return null or an instance of the colourscheme configured to colour given
-   *         sequence set
+   * @return DOCUMENT ME!
    */
-  public static ColourSchemeI getColour(
-          jalview.datamodel.AnnotatedCollectionI coll, int index)
+  public static ColourSchemeI getColour(java.util.Vector seqs, int width,
+          int index)
   {
-    // TODO 3.0 2.8 refactor signature to take an alignmentI like container so
-    // colourschemes based on annotation can be initialised
     ColourSchemeI cs = null;
 
     switch (index)
     {
     case CLUSTAL:
-      cs = new ClustalxColourScheme(coll, null);
+      cs = new ClustalxColourScheme(seqs, width);
 
       break;
 
@@ -504,23 +446,6 @@ public class ColourSchemeProperty
       cs = new NucleotideColourScheme();
 
       break;
-
-    case PURINEPYRIMIDINE:
-      cs = new PurinePyrimidineColourScheme();
-
-      break;
-
-    case TCOFFEE:
-      cs = new TCoffeeColourScheme(coll);
-      break;
-
-    case RNAHELIX:
-      cs = new RNAHelicesColour(coll);
-      break;
-
-    // case COVARIATION:
-    // cs = new CovariationColourScheme(annotation);
-    // break;
 
     case USER_DEFINED:
       Color[] col = new Color[24];
@@ -597,41 +522,4 @@ public class ColourSchemeProperty
 
     return col;
   }
-
-  public static Color rnaHelices[] = null;
-
-  public static void initRnaHelicesShading(int n)
-  {
-    int j = 0;
-    if (rnaHelices == null)
-    {
-      rnaHelices = new Color[n + 1];
-    }
-    else if (rnaHelices != null && rnaHelices.length <= n)
-    {
-      Color[] t = new Color[n + 1];
-      System.arraycopy(rnaHelices, 0, t, 0, rnaHelices.length);
-      j = rnaHelices.length;
-      rnaHelices = t;
-    }
-    else
-    {
-      return;
-    }
-    // Generate random colors and store
-    for (; j <= n; j++)
-    {
-      rnaHelices[j] = jalview.util.ColorUtils
-              .generateRandomColor(Color.white);
-    }
-  }
-
-  /**
-   * delete the existing cached RNA helces colours
-   */
-  public static void resetRnaHelicesShading()
-  {
-    rnaHelices = null;
-  }
-
 }

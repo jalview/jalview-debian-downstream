@@ -1,48 +1,30 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import jalview.analysis.AlignSeq;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.Sequence;
-import jalview.gui.AlignmentPanel;
-import jalview.gui.CutAndPasteTransfer;
-import jalview.gui.Desktop;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import javax.swing.*;
 
-import javax.swing.ImageIcon;
-import javax.swing.JOptionPane;
-
-import uk.ac.ebi.www.Data;
-import uk.ac.ebi.www.InputParams;
-import uk.ac.ebi.www.WSFile;
-import uk.ac.ebi.www.WSWUBlast;
-import uk.ac.ebi.www.WSWUBlastService;
-import uk.ac.ebi.www.WSWUBlastServiceLocator;
+import jalview.analysis.*;
+import jalview.datamodel.*;
+import jalview.gui.*;
+import uk.ac.ebi.www.*;
 
 /**
  * DOCUMENT ME!
@@ -74,12 +56,15 @@ public class WSWUBlastClient
   {
     this.ap = ap;
     this.al = al;
-    output.setText(MessageManager
-            .getString("label.wswublast_client_credits"));
+    output.setText("To display sequence features an exact Uniprot id with 100% sequence identity match must be entered."
+            + "\nIn order to display these features, try changing the names of your sequences to the ids suggested below."
+            + "\n\nRunning WSWUBlast at EBI."
+            + "\nPlease quote Pillai S., Silventoinen V., Kallio K., Senger M., Sobhany S., Tate J., Velankar S., Golovin A., Henrick K., Rice P., Stoehr P., Lopez R."
+            + "\nSOAP-based services provided by the European Bioinformatics Institute."
+            + "\nNucleic Acids Res. 33(1):W25-W28 (2005));");
 
-    Desktop.addInternalFrame(output, MessageManager
-            .getString("label.blasting_for_unidentified_sequence"), 800,
-            300);
+    Desktop.addInternalFrame(output,
+            "BLASTing for unidentified sequences ", 800, 300);
 
     for (int i = 0; i < ids.size(); i++)
     {
@@ -136,7 +121,8 @@ public class WSWUBlastClient
             {
               maxFound = value;
               buffer.append(" " + id2 + " " + value + "%; ");
-              suggestedIds.addElement(new Object[] { seq, id2 });
+              suggestedIds.addElement(new Object[]
+              { seq, id2 });
             }
           }
         }
@@ -221,9 +207,8 @@ public class WSWUBlastClient
           imageIndex++;
           imageIndex %= 9;
           output.setFrameIcon(imageIcon[imageIndex]);
-          output.setTitle(MessageManager.formatMessage(
-                  "label.blasting_for_unidentified_sequence_jobs_running",
-                  new String[] { Integer.valueOf(jobsRunning).toString() }));
+          output.setTitle("BLASTing for unidentified sequences - "
+                  + jobsRunning + " jobs running.");
         } catch (Exception ex)
         {
         }

@@ -1,30 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
+import java.io.*;
+import java.util.*;
 
-import java.io.IOException;
-import java.util.Vector;
+import jalview.datamodel.*;
 
 /**
  * DOCUMENT ME!
@@ -116,9 +112,7 @@ public class BLCFile extends AlignFile
       {
         line = nextLine();
         if (line == null)
-        {
           break;
-        }
         // seek end of ids
         if (line.indexOf("*") > -1)
         {
@@ -153,9 +147,7 @@ public class BLCFile extends AlignFile
         }
       } while (!idsFound);
       if (line == null)
-      {
         break; // end of file.
-      }
       int starCol = line.indexOf("*");
       seqstrings = new StringBuffer[seqs.size()];
 
@@ -203,11 +195,9 @@ public class BLCFile extends AlignFile
     }
     if (seqs.size() > 0)
     {
-      if (headerLines.length() > 1 + numHeaderLines)
-      {
+      if (headerLines.length() > 1 + numHeaderLines) // could see if buffer is
         // just whitespace or not.
         setAlignmentProperty("Comments", headerLines.toString());
-      }
       setAlignmentProperty("iteration", "" + iterationCount);
     }
   }

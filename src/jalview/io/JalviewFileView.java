@@ -1,31 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.io;
 
-import java.io.File;
-import java.util.Hashtable;
+import java.io.*;
+import java.util.*;
 
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.filechooser.FileView;
+import javax.swing.*;
+import javax.swing.filechooser.*;
 
 public class JalviewFileView extends FileView
 {
@@ -33,24 +29,15 @@ public class JalviewFileView extends FileView
 
   static
   {
-    // TODO: these names should come from the FormatAdapter lists for
-    // readable/writable extensions
-    alignSuffix.put("amsa", "AMSA file");
     alignSuffix.put("fasta", "Fasta file");
     alignSuffix.put("fa", "Fasta file");
     alignSuffix.put("fastq", "Fasta file");
-    alignSuffix.put("mfa", "Fasta file");
     alignSuffix.put("blc", "BLC file");
     alignSuffix.put("msf", "MSF file");
     alignSuffix.put("pfam", "PFAM file");
     alignSuffix.put("aln", "Clustal file");
     alignSuffix.put("pir", "PIR file");
-    alignSuffix.put("jar", "Jalview Project file (old)");
-    alignSuffix.put("jvp", "Jalview Project file");
-    alignSuffix.put("amsa", "AMSA file");
-    alignSuffix.put("sto", "Stockholm File");
-    alignSuffix.put("stk", "Stockholm File");
-    alignSuffix.put("sto", "Stockholm File");
+    alignSuffix.put("jar", "Jalview file");
   }
 
   public String getTypeDescription(File f)

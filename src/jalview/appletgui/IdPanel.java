@@ -1,40 +1,28 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.util.UrlLink;
-import jalview.viewmodel.AlignmentViewport;
-
-import java.awt.BorderLayout;
-import java.awt.Panel;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.util.List;
+import java.awt.*;
+import java.awt.event.*;
 import java.util.Vector;
+
+import jalview.datamodel.*;
+import jalview.util.UrlLink;
 
 public class IdPanel extends Panel implements MouseListener,
         MouseMotionListener
@@ -42,11 +30,15 @@ public class IdPanel extends Panel implements MouseListener,
 
   protected IdCanvas idCanvas;
 
-  protected AlignmentViewport av;
+  protected AlignViewport av;
 
   protected AlignmentPanel alignPanel;
 
   ScrollThread scrollThread = null;
+
+  int offy;
+
+  int width;
 
   int lastid = -1;
 
@@ -80,21 +72,10 @@ public class IdPanel extends Panel implements MouseListener,
 
       }
     }
-    {
-      // upgrade old SRS link
-      int srsPos = links
-              .indexOf("SRS|http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-newId+(([uniprot-all:$SEQUENCE_ID$]))+-view+SwissEntry");
-      if (srsPos > -1)
-      {
-        links.setElementAt(
-                "EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$",
-                srsPos);
-      }
-    }
     if (links.size() < 1)
     {
       links = new java.util.Vector();
-      links.addElement("EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$");
+      links.addElement("SRS|http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-newId+(([uniprot-all:$SEQUENCE_ID$]))+-view+SwissEntry");
     }
   }
 
@@ -142,7 +123,7 @@ public class IdPanel extends Panel implements MouseListener,
             nl = true;
           }
           ;
-          if (!Float.isNaN(sf[sl].getScore()) && sf[sl].getScore() != 0f)
+          if (sf[sl].getScore() != Float.NaN && sf[sl].getScore() != 0f)
           {
             tooltiptext.append(" Score = ");
             tooltiptext.append(sf[sl].getScore());
@@ -217,7 +198,7 @@ public class IdPanel extends Panel implements MouseListener,
     // DEFAULT LINK IS FIRST IN THE LINK LIST
     int seq = alignPanel.seqPanel.findSeq(e);
     SequenceI sq = av.getAlignment().getSequenceAt(seq);
-    if (sq == null)
+    if (sq==null)
     {
       return;
     }
@@ -291,7 +272,7 @@ public class IdPanel extends Panel implements MouseListener,
     }
 
     if (mouseDragging && e.getY() >= getSize().height
-            && av.getAlignment().getHeight() > av.getEndSeq())
+            && av.alignment.getHeight() > av.getEndSeq())
     {
       scrollThread = new ScrollThread(false);
     }
@@ -307,7 +288,7 @@ public class IdPanel extends Panel implements MouseListener,
     int y = e.getY();
     if (av.getWrapAlignment())
     {
-      y -= 2 * av.getCharHeight();
+      y -= 2 * av.charHeight;
     }
 
     int seq = alignPanel.seqPanel.findSeq(e);
@@ -315,7 +296,7 @@ public class IdPanel extends Panel implements MouseListener,
     if ((e.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK)
     {
       Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq);
-
+      
       // build a new links menu based on the current links + any non-positional
       // features
       Vector nlinks = new Vector();
@@ -323,7 +304,7 @@ public class IdPanel extends Panel implements MouseListener,
       {
         nlinks.addElement(links.elementAt(l));
       }
-      SequenceFeature sf[] = sq == null ? null : sq.getSequenceFeatures();
+      SequenceFeature sf[] = sq==null ? null:sq.getSequenceFeatures();
       for (int sl = 0; sf != null && sl < sf.length; sl++)
       {
         if (sf[sl].begin == sf[sl].end && sf[sl].begin == 0)
@@ -350,7 +331,7 @@ public class IdPanel extends Panel implements MouseListener,
     {
       av.setSelectionGroup(new SequenceGroup());
       av.getSelectionGroup().setStartRes(0);
-      av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
+      av.getSelectionGroup().setEndRes(av.alignment.getWidth() - 1);
     }
 
     if (e.isShiftDown() && lastid != -1)
@@ -369,7 +350,7 @@ public class IdPanel extends Panel implements MouseListener,
   {
     lastid = seq;
     SequenceI pickedSeq = av.getAlignment().getSequenceAt(seq);
-    av.getSelectionGroup().addOrRemove(pickedSeq, true);
+    av.getSelectionGroup().addOrRemove(pickedSeq, false);
   }
 
   void selectSeqs(int start, int end)
@@ -396,7 +377,7 @@ public class IdPanel extends Panel implements MouseListener,
     for (int i = start; i <= end; i++)
     {
       av.getSelectionGroup().addSequence(
-              av.getAlignment().getSequenceAt(i), i == end);
+              av.getAlignment().getSequenceAt(i), false);
     }
 
   }
@@ -419,16 +400,16 @@ public class IdPanel extends Panel implements MouseListener,
     av.sendSelection();
   }
 
-  public void highlightSearchResults(List<SequenceI> list)
+  public void highlightSearchResults(java.util.Vector found)
   {
-    idCanvas.setHighlighted(list);
+    idCanvas.setHighlighted(found);
 
-    if (list == null)
+    if (found == null)
     {
       return;
     }
 
-    int index = av.getAlignment().findIndex(list.get(0));
+    int index = av.alignment.findIndex((SequenceI) found.elementAt(0));
 
     // do we need to scroll the panel?
     if (av.getStartSeq() > index || av.getEndSeq() < index)
@@ -473,7 +454,7 @@ public class IdPanel extends Panel implements MouseListener,
           {
             selectSeqs(lastid - 1, seq);
           }
-          else if (seq > lastid && seq < av.getAlignment().getHeight())
+          else if (seq > lastid && seq < av.alignment.getHeight())
           {
             selectSeqs(lastid + 1, seq);
           }
@@ -495,4 +476,5 @@ public class IdPanel extends Panel implements MouseListener,
       }
     }
   }
+
 }

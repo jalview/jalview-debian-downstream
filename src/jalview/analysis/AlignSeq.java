@@ -1,43 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.analysis;
 
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.Mapping;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceI;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.ScoreMatrix;
-import jalview.util.Comparison;
-import jalview.util.Format;
-import jalview.util.MapList;
-import jalview.util.MessageManager;
+import java.util.*;
 
-import java.awt.Color;
-import java.awt.Graphics;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.StringTokenizer;
+import java.awt.*;
+
+import jalview.datamodel.*;
+import jalview.schemes.*;
+import jalview.util.*;
 
 /**
  * 
@@ -51,13 +37,13 @@ public class AlignSeq
 
   public static final String DNA = "dna";
 
-  private static final String NEWLINE = System.lineSeparator();
-
-  static String[] dna = { "A", "C", "G", "T", "-" };
+  static String[] dna =
+  { "A", "C", "G", "T", "-" };
 
   // "C", "T", "A", "G", "-"};
-  static String[] pep = { "A", "R", "N", "D", "C", "Q", "E", "G", "H", "I",
-      "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V", "B", "Z", "X", "-" };
+  static String[] pep =
+  { "A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F",
+      "P", "S", "T", "W", "Y", "V", "B", "Z", "X", "-" };
 
   int[][] score;
 
@@ -281,44 +267,16 @@ public class AlignSeq
   }
 
   /**
-   * 
-   * @return aligned instance of Seq 1
-   */
-  public SequenceI getAlignedSeq1()
-  {
-    SequenceI alSeq1 = new Sequence(s1.getName(), getAStr1());
-    alSeq1.setStart(s1.getStart() + getSeq1Start() - 1);
-    alSeq1.setEnd(s1.getStart() + getSeq1End() - 1);
-    alSeq1.setDatasetSequence(s1.getDatasetSequence() == null ? s1 : s1
-            .getDatasetSequence());
-    return alSeq1;
-  }
-
-  /**
-   * 
-   * @return aligned instance of Seq 2
-   */
-  public SequenceI getAlignedSeq2()
-  {
-    SequenceI alSeq2 = new Sequence(s2.getName(), getAStr2());
-    alSeq2.setStart(s2.getStart() + getSeq2Start() - 1);
-    alSeq2.setEnd(s2.getStart() + getSeq2End() - 1);
-    alSeq2.setDatasetSequence(s2.getDatasetSequence() == null ? s2 : s2
-            .getDatasetSequence());
-    return alSeq2;
-  }
-
-  /**
-   * Construct score matrix for sequences with standard DNA or PEPTIDE matrix
+   * DOCUMENT ME!
    * 
    * @param s1
-   *          - sequence 1
+   *          DOCUMENT ME!
    * @param string1
-   *          - string to use for s1
+   *          - string to align for sequence1
    * @param s2
-   *          - sequence 2
+   *          sequence 2
    * @param string2
-   *          - string to use for s2
+   *          - string to align for sequence2
    * @param type
    *          DNA or PEPTIDE
    */
@@ -331,20 +289,6 @@ public class AlignSeq
     SeqInit(string1, string2);
   }
 
-  /**
-   * Construct score matrix for sequences with custom substitution matrix
-   * 
-   * @param s1
-   *          - sequence 1
-   * @param string1
-   *          - string to use for s1
-   * @param s2
-   *          - sequence 2
-   * @param string2
-   *          - string to use for s2
-   * @param scoreMatrix
-   *          - substitution matrix to use for alignment
-   */
   public void SeqInit(SequenceI s1, String string1, SequenceI s2,
           String string2, ScoreMatrix scoreMatrix)
   {
@@ -438,19 +382,19 @@ public class AlignSeq
     {
       intToStr = pep;
       charToInt = ResidueProperties.aaIndex;
-      defInt = ResidueProperties.maxProteinIndex;
+      defInt = 23;
     }
     else if (type.equals(AlignSeq.DNA))
     {
       intToStr = dna;
       charToInt = ResidueProperties.nucleotideIndex;
-      defInt = ResidueProperties.maxNucleotideIndex;
+      defInt = 4;
     }
     else
     {
       output.append("Wrong type = dna or pep only");
-      throw new Error(MessageManager.formatMessage(
-              "error.unknown_type_dna_or_pep", new String[] { type2 }));
+      throw new Error("Unknown Type " + type2
+              + " - dna or pep are the only allowed values.");
     }
   }
 
@@ -580,28 +524,21 @@ public class AlignSeq
     int nochunks = ((aseq1.length - count) / len) + 1;
     pid = 0;
 
-    output.append("Score = ").append(score[maxi][maxj]).append(NEWLINE);
-    output.append("Length of alignment = ")
-            .append(String.valueOf(aseq1.length - count)).append(NEWLINE);
+    output.append("Score = " + score[maxi][maxj] + "\n");
+    output.append("Length of alignment = " + (aseq1.length - count) + "\n");
     output.append("Sequence ");
     output.append(new Format("%" + maxid + "s").form(s1.getName()));
-    output.append(" :  ").append(String.valueOf(s1.getStart()))
-            .append(" - ").append(String.valueOf(s1.getEnd()));
-    output.append(" (Sequence length = ")
-            .append(String.valueOf(s1str.length())).append(")")
-            .append(NEWLINE);
+    output.append(" :  " + s1.getStart() + " - " + s1.getEnd()
+            + " (Sequence length = " + s1str.length() + ")\n");
     output.append("Sequence ");
     output.append(new Format("%" + maxid + "s").form(s2.getName()));
-    output.append(" :  ").append(String.valueOf(s2.getStart()))
-            .append(" - ").append(String.valueOf(s2.getEnd()));
-    output.append(" (Sequence length = ")
-            .append(String.valueOf(s2str.length())).append(")")
-            .append(NEWLINE).append(NEWLINE);
+    output.append(" :  " + s2.getStart() + " - " + s2.getEnd()
+            + " (Sequence length = " + s2str.length() + ")\n\n");
 
     for (int j = 0; j < nochunks; j++)
     {
       // Print the first aligned sequence
-      output.append(new Format("%" + (maxid) + "s").form(s1id)).append(" ");
+      output.append(new Format("%" + (maxid) + "s").form(s1id) + " ");
 
       for (int i = 0; i < len; i++)
       {
@@ -611,8 +548,8 @@ public class AlignSeq
         }
       }
 
-      output.append(NEWLINE);
-      output.append(new Format("%" + (maxid) + "s").form(" ")).append(" ");
+      output.append("\n");
+      output.append(new Format("%" + (maxid) + "s").form(" ") + " ");
 
       // Print out the matching chars
       for (int i = 0; i < len; i++)
@@ -646,9 +583,9 @@ public class AlignSeq
       }
 
       // Now print the second aligned sequence
-      output = output.append(NEWLINE);
-      output = output.append(new Format("%" + (maxid) + "s").form(s2id))
-              .append(" ");
+      output = output.append("\n");
+      output = output.append(new Format("%" + (maxid) + "s").form(s2id)
+              + " ");
 
       for (int i = 0; i < len; i++)
       {
@@ -658,10 +595,10 @@ public class AlignSeq
         }
       }
 
-      output.append(NEWLINE).append(NEWLINE);
+      output = output.append("\n\n");
     }
 
-    pid = pid / (aseq1.length - count) * 100;
+    pid = pid / (float) (aseq1.length - count) * 100;
     output = output.append(new Format("Percentage ID = %2.2f\n\n")
             .form(pid));
 
@@ -812,23 +749,19 @@ public class AlignSeq
   }
 
   /**
-   * Returns the given sequence with all of the given gap characters removed.
+   * DOCUMENT ME!
    * 
-   * @param gapChars
-   *          a string of characters to be treated as gaps
+   * @param gapChar
+   *          DOCUMENT ME!
    * @param seq
-   *          the input sequence
+   *          DOCUMENT ME!
    * 
-   * @return
+   * @return DOCUMENT ME!
    */
-  public static String extractGaps(String gapChars, String seq)
+  public static String extractGaps(String gapChar, String seq)
   {
-    if (gapChars == null || seq == null)
-    {
-      return null;
-    }
-    StringTokenizer str = new StringTokenizer(seq, gapChars);
-    StringBuilder newString = new StringBuilder(seq.length());
+    StringTokenizer str = new StringTokenizer(seq, gapChar);
+    StringBuffer newString = new StringBuffer();
 
     while (str.hasMoreTokens())
     {
@@ -984,287 +917,5 @@ public class AlignSeq
         // System.out.println(x + " " + y + " " + score);
       }
     }
-  }
-
-  /**
-   * Compute a globally optimal needleman and wunsch alignment between two
-   * sequences
-   * 
-   * @param s1
-   * @param s2
-   * @param type
-   *          AlignSeq.DNA or AlignSeq.PEP
-   */
-  public static AlignSeq doGlobalNWAlignment(SequenceI s1, SequenceI s2,
-          String type)
-  {
-    AlignSeq as = new AlignSeq(s1, s2, type);
-
-    as.calcScoreMatrix();
-    as.traceAlignment();
-    return as;
-  }
-
-  /**
-   * 
-   * @return mapping from positions in S1 to corresponding positions in S2
-   */
-  public jalview.datamodel.Mapping getMappingFromS1(boolean allowmismatch)
-  {
-    ArrayList<Integer> as1 = new ArrayList<Integer>(), as2 = new ArrayList<Integer>();
-    int pdbpos = s2.getStart() + getSeq2Start() - 2;
-    int alignpos = s1.getStart() + getSeq1Start() - 2;
-    int lp2 = pdbpos - 3, lp1 = alignpos - 3;
-    boolean lastmatch = false;
-    // and now trace the alignment onto the atom set.
-    for (int i = 0; i < astr1.length(); i++)
-    {
-      char c1 = astr1.charAt(i), c2 = astr2.charAt(i);
-      if (c1 != '-')
-      {
-        alignpos++;
-      }
-
-      if (c2 != '-')
-      {
-        pdbpos++;
-      }
-
-      if (allowmismatch || c1 == c2)
-      {
-        // extend mapping interval
-        if (lp1 + 1 != alignpos || lp2 + 1 != pdbpos)
-        {
-          as1.add(Integer.valueOf(alignpos));
-          as2.add(Integer.valueOf(pdbpos));
-        }
-        lastmatch = true;
-        lp1 = alignpos;
-        lp2 = pdbpos;
-      }
-      else
-      {
-        // extend mapping interval
-        if (lastmatch)
-        {
-          as1.add(Integer.valueOf(lp1));
-          as2.add(Integer.valueOf(lp2));
-        }
-        lastmatch = false;
-      }
-    }
-    // construct range pairs
-
-    int[] mapseq1 = new int[as1.size() + (lastmatch ? 1 : 0)], mapseq2 = new int[as2
-            .size() + (lastmatch ? 1 : 0)];
-    int i = 0;
-    for (Integer ip : as1)
-    {
-      mapseq1[i++] = ip;
-    }
-    ;
-    i = 0;
-    for (Integer ip : as2)
-    {
-      mapseq2[i++] = ip;
-    }
-    ;
-    if (lastmatch)
-    {
-      mapseq1[mapseq1.length - 1] = alignpos;
-      mapseq2[mapseq2.length - 1] = pdbpos;
-    }
-    MapList map = new MapList(mapseq1, mapseq2, 1, 1);
-
-    jalview.datamodel.Mapping mapping = new Mapping(map);
-    mapping.setTo(s2);
-    return mapping;
-  }
-
-  /**
-   * matches ochains against al and populates seqs with the best match between
-   * each ochain and the set in al
-   * 
-   * @param ochains
-   * @param al
-   * @param dnaOrProtein
-   * @param removeOldAnnots
-   *          when true, old annotation is cleared before new annotation
-   *          transferred
-   * @return List<List<SequenceI> originals, List<SequenceI> replacement,
-   *         List<AlignSeq> alignment between each>
-   */
-  public static List<List<? extends Object>> replaceMatchingSeqsWith(
-          List<SequenceI> seqs, List<AlignmentAnnotation> annotations,
-          List<SequenceI> ochains, AlignmentI al, String dnaOrProtein,
-          boolean removeOldAnnots)
-  {
-    List<SequenceI> orig = new ArrayList<SequenceI>(), repl = new ArrayList<SequenceI>();
-    List<AlignSeq> aligs = new ArrayList<AlignSeq>();
-    if (al != null && al.getHeight() > 0)
-    {
-      ArrayList<SequenceI> matches = new ArrayList<SequenceI>();
-      ArrayList<AlignSeq> aligns = new ArrayList<AlignSeq>();
-
-      for (SequenceI sq : ochains)
-      {
-        SequenceI bestm = null;
-        AlignSeq bestaseq = null;
-        int bestscore = 0;
-        for (SequenceI msq : al.getSequences())
-        {
-          AlignSeq aseq = doGlobalNWAlignment(msq, sq, dnaOrProtein);
-          if (bestm == null || aseq.getMaxScore() > bestscore)
-          {
-            bestscore = aseq.getMaxScore();
-            bestaseq = aseq;
-            bestm = msq;
-          }
-        }
-        System.out.println("Best Score for " + (matches.size() + 1) + " :"
-                + bestscore);
-        matches.add(bestm);
-        aligns.add(bestaseq);
-        al.deleteSequence(bestm);
-      }
-      for (int p = 0, pSize = seqs.size(); p < pSize; p++)
-      {
-        SequenceI sq, sp = seqs.get(p);
-        int q;
-        if ((q = ochains.indexOf(sp)) > -1)
-        {
-          seqs.set(p, sq = matches.get(q));
-          orig.add(sp);
-          repl.add(sq);
-          sq.setName(sp.getName());
-          sq.setDescription(sp.getDescription());
-          Mapping sp2sq;
-          sq.transferAnnotation(sp,
-                  sp2sq = aligns.get(q).getMappingFromS1(false));
-          aligs.add(aligns.get(q));
-          int inspos = -1;
-          for (int ap = 0; ap < annotations.size();)
-          {
-            if (annotations.get(ap).sequenceRef == sp)
-            {
-              if (inspos == -1)
-              {
-                inspos = ap;
-              }
-              if (removeOldAnnots)
-              {
-                annotations.remove(ap);
-              }
-              else
-              {
-                AlignmentAnnotation alan = annotations.remove(ap);
-                alan.liftOver(sq, sp2sq);
-                alan.setSequenceRef(sq);
-                sq.addAlignmentAnnotation(alan);
-              }
-            }
-            else
-            {
-              ap++;
-            }
-          }
-          if (sq.getAnnotation() != null && sq.getAnnotation().length > 0)
-          {
-            annotations.addAll(inspos == -1 ? annotations.size() : inspos,
-                    Arrays.asList(sq.getAnnotation()));
-          }
-        }
-      }
-    }
-    return Arrays.asList(orig, repl, aligs);
-  }
-
-  /**
-   * compute the PID vector used by the redundancy filter.
-   * 
-   * @param originalSequences
-   *          - sequences in alignment that are to filtered
-   * @param omitHidden
-   *          - null or strings to be analysed (typically, visible portion of
-   *          each sequence in alignment)
-   * @param start
-   *          - first column in window for calculation
-   * @param end
-   *          - last column in window for calculation
-   * @param ungapped
-   *          - if true then use ungapped sequence to compute PID
-   * @return vector containing maximum PID for i-th sequence and any sequences
-   *         longer than that seuqence
-   */
-  public static float[] computeRedundancyMatrix(
-          SequenceI[] originalSequences, String[] omitHidden, int start,
-          int end, boolean ungapped)
-  {
-    int height = originalSequences.length;
-    float[] redundancy = new float[height];
-    int[] lngth = new int[height];
-    for (int i = 0; i < height; i++)
-    {
-      redundancy[i] = 0f;
-      lngth[i] = -1;
-    }
-
-    // long start = System.currentTimeMillis();
-
-    float pid;
-    String seqi, seqj;
-    for (int i = 0; i < height; i++)
-    {
-
-      for (int j = 0; j < i; j++)
-      {
-        if (i == j)
-        {
-          continue;
-        }
-
-        if (omitHidden == null)
-        {
-          seqi = originalSequences[i].getSequenceAsString(start, end);
-          seqj = originalSequences[j].getSequenceAsString(start, end);
-        }
-        else
-        {
-          seqi = omitHidden[i];
-          seqj = omitHidden[j];
-        }
-        if (lngth[i] == -1)
-        {
-          String ug = AlignSeq.extractGaps(Comparison.GapChars, seqi);
-          lngth[i] = ug.length();
-          if (ungapped)
-          {
-            seqi = ug;
-          }
-        }
-        if (lngth[j] == -1)
-        {
-          String ug = AlignSeq.extractGaps(Comparison.GapChars, seqj);
-          lngth[j] = ug.length();
-          if (ungapped)
-          {
-            seqj = ug;
-          }
-        }
-        pid = Comparison.PID(seqi, seqj);
-
-        // use real sequence length rather than string length
-        if (lngth[j] < lngth[i])
-        {
-          redundancy[j] = Math.max(pid, redundancy[j]);
-        }
-        else
-        {
-          redundancy[i] = Math.max(pid, redundancy[i]);
-        }
-
-      }
-    }
-    return redundancy;
   }
 }

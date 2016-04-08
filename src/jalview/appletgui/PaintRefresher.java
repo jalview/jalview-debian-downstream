@@ -1,33 +1,27 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SequenceI;
+import java.util.*;
 
-import java.awt.Component;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Vector;
+import java.awt.*;
+
+import jalview.datamodel.*;
 
 /**
  * DOCUMENT ME!
@@ -128,8 +122,8 @@ public class PaintRefresher
       else if (validateSequences && comp instanceof AlignmentPanel
               && source instanceof AlignmentPanel)
       {
-        validateSequences(((AlignmentPanel) source).av.getAlignment(),
-                ((AlignmentPanel) comp).av.getAlignment());
+        validateSequences(((AlignmentPanel) source).av.alignment,
+                ((AlignmentPanel) comp).av.alignment);
       }
 
       if (comp instanceof AlignmentPanel && alignmentChanged)
@@ -189,13 +183,7 @@ public class PaintRefresher
       {
         if (i < comp.getHeight())
         {
-          // TODO: the following does not trigger any recalculation of
-          // height/etc, or maintain the dataset
-          List<SequenceI> alsq;
-          synchronized (alsq = comp.getSequences())
-          {
-            alsq.add(i, a1[i]);
-          }
+          comp.getSequences().insertElementAt(a1[i], i);
         }
         else
         {
@@ -247,12 +235,11 @@ public class PaintRefresher
     {
       if (comps.elementAt(i) instanceof AlignmentPanel)
       {
-        tmp.addElement(comps.elementAt(i));
+        tmp.addElement(((AlignmentPanel) comps.elementAt(i)));
       }
     }
     AlignmentPanel[] result = new AlignmentPanel[tmp.size()];
-    for (int ix = 0; ix < result.length; ix++)
-    {
+    for (int ix=0;ix<result.length;ix++) {
       result[ix] = (AlignmentPanel) tmp.elementAt(ix);
     }
 

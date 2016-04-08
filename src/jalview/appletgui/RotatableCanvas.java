@@ -1,49 +1,33 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
+ * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3
- * of the License, or (at your option) any later version.
- *  
+ * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * 
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
- * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- * The Jalview Authors are detailed in the 'AUTHORS' file.
+ * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  */
 package jalview.appletgui;
 
-import jalview.api.RotatableCanvasI;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.SequencePoint;
-import jalview.math.RotatableMatrix;
-import jalview.util.Format;
-import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
+import java.util.*;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Image;
-import java.awt.Panel;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+
+import jalview.datamodel.*;
+import jalview.math.*;
+import jalview.util.*;
 
 public class RotatableCanvas extends Panel implements MouseListener,
-        MouseMotionListener, KeyListener, RotatableCanvasI
+        MouseMotionListener, KeyListener
 {
   RotatableMatrix idmat = new RotatableMatrix(3, 3);
 
@@ -111,11 +95,11 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
   float scalefactor = 1;
 
-  AlignmentViewport av;
+  AlignViewport av;
 
   boolean showLabels = false;
 
-  public RotatableCanvas(AlignmentViewport av)
+  public RotatableCanvas(AlignViewport av)
   {
     this.av = av;
   }
@@ -331,8 +315,7 @@ public class RotatableCanvas extends Panel implements MouseListener,
     if (points == null)
     {
       g.setFont(new Font("Verdana", Font.PLAIN, 18));
-      g.drawString(MessageManager.getString("label.calculating_pca")
-              + "....", 20, getSize().height / 2);
+      g.drawString("Calculating PCA....", 20, getSize().height / 2);
     }
     else
     {
@@ -531,18 +514,17 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
     if (found != null)
     {
-      // TODO: applet PCA is not associatable with multi-panels - only parent
-      // view
+      // TODO: applet PCA is not associatable with multi-panels - only parent view 
       if (av.getSelectionGroup() != null)
       {
         av.getSelectionGroup().addOrRemove(found, true);
-        av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
+        av.getSelectionGroup().setEndRes(av.alignment.getWidth() - 1);
       }
       else
       {
         av.setSelectionGroup(new SequenceGroup());
         av.getSelectionGroup().addOrRemove(found, true);
-        av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
+        av.getSelectionGroup().setEndRes(av.alignment.getWidth() - 1);
 
       }
       PaintRefresher.Refresh(this, av.getSequenceSetId());

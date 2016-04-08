@@ -9,8 +9,9 @@ package com.stevesoft.pat;
 
 /**
  * See the example file <a
- * href="http://javaregex.com/code/trans3.java.html">trans3.java</a> for further
- * examples of how this is used. You will probably not want to call it directly.
+ * href="http://javaregex.com/code/trans3.java.html">trans3.java</a> for
+ * further examples of how this is used. You will probably not want to call it
+ * directly.
  */
 public class PushRule extends SpecialRule
 {
