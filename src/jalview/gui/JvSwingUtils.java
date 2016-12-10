@@ -1,34 +1,43 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
+import jalview.util.MessageManager;
+
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionListener;
+import java.util.Objects;
 
+import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
+import javax.swing.JScrollBar;
 import javax.swing.SwingConstants;
 
 /**
@@ -40,25 +49,47 @@ import javax.swing.SwingConstants;
 public final class JvSwingUtils
 {
   /**
-   * wrap a bare html safe string to around 60 characters per line using a
-   * <table width=350>
-   * <tr>
-   * <td></td> field
+   * wrap a bare html safe string to around 60 characters per line using a CSS
+   * style class specifying word-wrap and break-word
    * 
+   * @param enclose
+   *          if true, add &lt;html&gt; wrapper tags
    * @param ttext
+   * 
    * @return
    */
-  public static String wrapTooltip(String ttext)
+  public static String wrapTooltip(boolean enclose, String ttext)
   {
-    if (ttext.length() < 60)
+    Objects.requireNonNull(ttext, "Tootip text to format must not be null!");
+    ttext = ttext.trim();
+    boolean maxLengthExceeded = false;
+
+    if (ttext.contains("<br>"))
     {
-      return ttext;
+      String[] htmllines = ttext.split("<br>");
+      for (String line : htmllines)
+      {
+        maxLengthExceeded = line.length() > 60;
+        if (maxLengthExceeded)
+        {
+          break;
+        }
+      }
     }
     else
     {
-      return "<table width=350 border=0><tr><td>" + ttext
-              + "</td></tr></table>";
+      maxLengthExceeded = ttext.length() > 60;
     }
+
+    if (!maxLengthExceeded)
+    {
+      return enclose ? "<html>" + ttext + "</html>" : ttext;
+    }
+
+    return (enclose ? "<html>" : "")
+            + "<style> p.ttip {width: 350; text-align: justify; word-wrap: break-word;}</style><p class=\"ttip\">"
+            + ttext + "</p>" + ((enclose ? "</html>" : ""));
+
   }
 
   public static JButton makeButton(String label, String tooltip,
@@ -100,7 +131,7 @@ public final class JvSwingUtils
       menu.add(submenuinstance);
     }
     return submenuinstance;
-  
+
   }
 
   /**
@@ -109,18 +140,18 @@ public final class JvSwingUtils
    * @param tooltip
    * @param label
    * @param valBox
-   * @return the GUI element created that was added to the layout so it's attributes can be changed.
+   * @return the GUI element created that was added to the layout so it's
+   *         attributes can be changed.
    */
-  public static JPanel addtoLayout(JPanel panel, String tooltip, JComponent label, JComponent valBox)
+  public static JPanel addtoLayout(JPanel panel, String tooltip,
+          JComponent label, JComponent valBox)
   {
-    JPanel laypanel = new JPanel(),labPanel=new JPanel(), valPanel=new JPanel();
-    // laypanel.setSize(panel.getPreferredSize());
-    // laypanel.setLayout(null);
+    JPanel laypanel = new JPanel(new GridLayout(1, 2));
+    JPanel labPanel = new JPanel(new BorderLayout());
+    JPanel valPanel = new JPanel();
     labPanel.setBounds(new Rectangle(7, 7, 158, 23));
-    valPanel.setBounds(new Rectangle(172, 7, 270,23));
-    //labPanel.setLayout(new GridLayout(1,1));
-    //valPanel.setLayout(new GridLayout(1,1));
-    labPanel.add(label);
+    valPanel.setBounds(new Rectangle(172, 7, 270, 23));
+    labPanel.add(label, BorderLayout.WEST);
     valPanel.add(valBox);
     laypanel.add(labPanel);
     laypanel.add(valPanel);
@@ -135,60 +166,139 @@ public final class JvSwingUtils
   public static void mgAddtoLayout(JPanel cpanel, String tooltip,
           JLabel jLabel, JComponent name)
   {
-    mgAddtoLayout(cpanel, tooltip, jLabel, name,null);
+    mgAddtoLayout(cpanel, tooltip, jLabel, name, null);
   }
+
   public static void mgAddtoLayout(JPanel cpanel, String tooltip,
           JLabel jLabel, JComponent name, String params)
   {
     cpanel.add(jLabel);
-    if (params==null) {
+    if (params == null)
+    {
       cpanel.add(name);
-    } else {cpanel.add(name, params);
+    }
+    else
+    {
+      cpanel.add(name, params);
     }
     name.setToolTipText(tooltip);
     jLabel.setToolTipText(tooltip);
   }
 
   /**
-   * standard font for labels and check boxes in dialog boxes 
+   * standard font for labels and check boxes in dialog boxes
+   * 
    * @return
    */
 
   public static Font getLabelFont()
   {
-    return getLabelFont(false,false);
+    return getLabelFont(false, false);
   }
+
   public static Font getLabelFont(boolean bold, boolean italic)
   {
-    return new java.awt.Font("Verdana", (!bold && !italic) ? Font.PLAIN : (bold ? Font.BOLD : 0) + (italic ? Font.ITALIC : 0), 11);
+    return new java.awt.Font("Verdana", (!bold && !italic) ? Font.PLAIN
+            : (bold ? Font.BOLD : 0) + (italic ? Font.ITALIC : 0), 11);
   }
 
   /**
    * standard font for editable text areas
+   * 
    * @return
    */
   public static Font getTextAreaFont()
   {
-    return getLabelFont(false,false);
+    return getLabelFont(false, false);
   }
 
   /**
-   * clean up a swing menu. 
-   * Removes any empty submenus without selection listeners.
+   * clean up a swing menu. Removes any empty submenus without selection
+   * listeners.
+   * 
    * @param webService
    */
   public static void cleanMenu(JMenu webService)
   {
-    for (int i=0;i<webService.getItemCount(); )
+    for (int i = 0; i < webService.getItemCount();)
     {
       JMenuItem item = webService.getItem(i);
-      if (item instanceof JMenu && ((JMenu)item).getItemCount()==0)
+      if (item instanceof JMenu && ((JMenu) item).getItemCount() == 0)
       {
         webService.remove(i);
-      } else {
+      }
+      else
+      {
         i++;
       }
     }
+  }
+
+  /**
+   * Returns the proportion of its range that a scrollbar's position represents,
+   * as a value between 0 and 1. For example if the whole range is from 0 to
+   * 200, then a position of 40 gives proportion = 0.2.
+   * 
+   * @see http://www.javalobby.org/java/forums/t33050.html#91885334
+   * 
+   * @param scroll
+   * @return
+   */
+  public static float getScrollBarProportion(JScrollBar scroll)
+  {
+    /*
+     * The extent (scroll handle width) deduction gives the true operating range
+     * of possible positions.
+     */
+    int possibleRange = scroll.getMaximum() - scroll.getMinimum()
+            - scroll.getModel().getExtent();
+    float valueInRange = scroll.getValue()
+            - (scroll.getModel().getExtent() / 2f);
+    float proportion = valueInRange / possibleRange;
+    return proportion;
+  }
+
+  /**
+   * Returns the scroll bar position in its range that would match the given
+   * proportion (between 0 and 1) of the whole. For example if the whole range
+   * is from 0 to 200, then a proportion of 0.25 gives position 50.
+   * 
+   * @param scrollbar
+   * @param proportion
+   * @return
+   */
+  public static int getScrollValueForProportion(JScrollBar scrollbar,
+          float proportion)
+  {
+    /*
+     * The extent (scroll handle width) deduction gives the true operating range
+     * of possible positions.
+     */
+    float fraction = proportion
+            * (scrollbar.getMaximum() - scrollbar.getMinimum() - scrollbar
+                    .getModel().getExtent())
+            + (scrollbar.getModel().getExtent() / 2f);
+    return Math.min(Math.round(fraction), scrollbar.getMaximum());
+  }
+
+  public static void jvInitComponent(AbstractButton comp, String i18nString)
+  {
+    setColorAndFont(comp);
+    if (i18nString != null && !i18nString.isEmpty())
+    {
+      comp.setText(MessageManager.getString(i18nString));
+    }
+  }
+
+  public static void jvInitComponent(JComponent comp)
+  {
+    setColorAndFont(comp);
+  }
+
+  private static void setColorAndFont(JComponent comp)
+  {
+    comp.setBackground(Color.white);
+    comp.setFont(JvSwingUtils.getLabelFont());
   }
 
 }

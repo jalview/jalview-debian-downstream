@@ -1,45 +1,102 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.io.*;
-import java.util.*;
+import jalview.api.FeatureColourI;
+import jalview.api.FeatureSettingsControllerI;
+import jalview.bin.Cache;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.gui.Help.HelpId;
+import jalview.io.JalviewFileChooser;
+import jalview.schemabinding.version2.JalviewUserColours;
+import jalview.schemes.FeatureColour;
+import jalview.util.Format;
+import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.util.QuickSort;
+import jalview.viewmodel.AlignmentViewport;
+import jalview.ws.dbsources.das.api.jalviewSourceI;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.GridLayout;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.table.*;
+import javax.help.HelpSetException;
+import javax.swing.AbstractCellEditor;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JColorChooser;
+import javax.swing.JDialog;
+import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
+import javax.swing.JLayeredPane;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JSlider;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 
-import jalview.analysis.AlignmentSorter;
-import jalview.bin.Cache;
-import jalview.commands.OrderCommand;
-import jalview.datamodel.*;
-import jalview.io.*;
-import jalview.schemes.AnnotationColourGradient;
-import jalview.schemes.GraduatedColor;
-
-public class FeatureSettings extends JPanel
+public class FeatureSettings extends JPanel implements
+        FeatureSettingsControllerI
 {
   DasSourceBrowser dassourceBrowser;
 
@@ -54,6 +111,8 @@ public class FeatureSettings extends JPanel
   public final AlignFrame af;
 
   Object[][] originalData;
+
+  private float originalTransparency;
 
   final JInternalFrame frame;
 
@@ -71,8 +130,9 @@ public class FeatureSettings extends JPanel
   {
     this.af = af;
     fr = af.getFeatureRenderer();
-
-    transparency.setMaximum(100 - (int) (fr.transparency * 100));
+    // allow transparency to be recovered
+    transparency.setMaximum(100 - (int) ((originalTransparency = fr
+            .getTransparency()) * 100));
 
     try
     {
@@ -82,72 +142,115 @@ public class FeatureSettings extends JPanel
       ex.printStackTrace();
     }
 
-    table = new JTable();
+    table = new JTable()
+    {
+      @Override
+      public String getToolTipText(MouseEvent e)
+      {
+        if (table.columnAtPoint(e.getPoint()) == 0)
+        {
+          /*
+           * Tooltip for feature name only
+           */
+          return JvSwingUtils.wrapTooltip(true, MessageManager
+                  .getString("label.feature_settings_click_drag"));
+        }
+        return null;
+      }
+    };
     table.getTableHeader().setFont(new Font("Verdana", Font.PLAIN, 12));
     table.setFont(new Font("Verdana", Font.PLAIN, 12));
     table.setDefaultRenderer(Color.class, new ColorRenderer());
 
     table.setDefaultEditor(Color.class, new ColorEditor(this));
 
-    table.setDefaultEditor(GraduatedColor.class, new ColorEditor(this));
-    table.setDefaultRenderer(GraduatedColor.class, new ColorRenderer());
+    table.setDefaultEditor(FeatureColour.class, new ColorEditor(this));
+    table.setDefaultRenderer(FeatureColour.class, new ColorRenderer());
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
     table.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent evt)
       {
         selectedRow = table.rowAtPoint(evt.getPoint());
-        if (javax.swing.SwingUtilities.isRightMouseButton(evt))
+        if (evt.isPopupTrigger())
         {
           popupSort(selectedRow, (String) table.getValueAt(selectedRow, 0),
-                  table.getValueAt(selectedRow, 1), fr.minmax, evt.getX(),
-                  evt.getY());
+                  table.getValueAt(selectedRow, 1), fr.getMinMax(),
+                  evt.getX(), evt.getY());
+        }
+        else if (evt.getClickCount() == 2)
+        {
+          boolean invertSelection = evt.isAltDown();
+          boolean toggleSelection = Platform.isControlDown(evt);
+          boolean extendSelection = evt.isShiftDown();
+          fr.ap.alignFrame.avc.markColumnsContainingFeatures(
+                  invertSelection, extendSelection, toggleSelection,
+                  (String) table.getValueAt(selectedRow, 0));
+        }
+      }
+
+      // isPopupTrigger fires on mouseReleased on Windows
+      @Override
+      public void mouseReleased(MouseEvent evt)
+      {
+        selectedRow = table.rowAtPoint(evt.getPoint());
+        if (evt.isPopupTrigger())
+        {
+          popupSort(selectedRow, (String) table.getValueAt(selectedRow, 0),
+                  table.getValueAt(selectedRow, 1), fr.getMinMax(),
+                  evt.getX(), evt.getY());
         }
       }
     });
 
     table.addMouseMotionListener(new MouseMotionAdapter()
     {
+      @Override
       public void mouseDragged(MouseEvent evt)
       {
         int newRow = table.rowAtPoint(evt.getPoint());
         if (newRow != selectedRow && selectedRow != -1 && newRow != -1)
         {
-          Object[] temp = new Object[3];
-          temp[0] = table.getValueAt(selectedRow, 0);
-          temp[1] = table.getValueAt(selectedRow, 1);
-          temp[2] = table.getValueAt(selectedRow, 2);
-
-          table.setValueAt(table.getValueAt(newRow, 0), selectedRow, 0);
-          table.setValueAt(table.getValueAt(newRow, 1), selectedRow, 1);
-          table.setValueAt(table.getValueAt(newRow, 2), selectedRow, 2);
-
-          table.setValueAt(temp[0], newRow, 0);
-          table.setValueAt(temp[1], newRow, 1);
-          table.setValueAt(temp[2], newRow, 2);
-
+          /*
+           * reposition 'selectedRow' to 'newRow' (the dragged to location)
+           * this could be more than one row away for a very fast drag action
+           * so just swap it with adjacent rows until we get it there
+           */
+          Object[][] data = ((FeatureTableModel) table.getModel())
+                  .getData();
+          int direction = newRow < selectedRow ? -1 : 1;
+          for (int i = selectedRow; i != newRow; i += direction)
+          {
+            Object[] temp = data[i];
+            data[i] = data[i + direction];
+            data[i + direction] = temp;
+          }
+          updateFeatureRenderer(data);
+          table.repaint();
           selectedRow = newRow;
         }
       }
     });
-
+    // table.setToolTipText(JvSwingUtils.wrapTooltip(true,
+    // MessageManager.getString("label.feature_settings_click_drag")));
     scrollPane.setViewportView(table);
 
     dassourceBrowser = new DasSourceBrowser(this);
     dasSettingsPane.add(dassourceBrowser, BorderLayout.CENTER);
 
-    if (af.getViewport().featuresDisplayed == null
-            || fr.renderOrder == null)
+    if (af.getViewport().isShowSequenceFeatures() || !fr.hasRenderOrder())
     {
       fr.findAllFeatures(true); // display everything!
     }
 
-    setTableData();
+    discoverAllFeatureData();
     final PropertyChangeListener change;
     final FeatureSettings fs = this;
     fr.addPropertyChangeListener(change = new PropertyChangeListener()
     {
+      @Override
       public void propertyChange(PropertyChangeEvent evt)
       {
         if (!fs.resettingTable && !fs.handlingUpdate)
@@ -163,17 +266,22 @@ public class FeatureSettings extends JPanel
 
     frame = new JInternalFrame();
     frame.setContentPane(this);
-    if (new jalview.util.Platform().isAMac())
+    if (Platform.isAMac())
     {
-      Desktop.addInternalFrame(frame, "Sequence Feature Settings", 475, 480);
+      Desktop.addInternalFrame(frame,
+              MessageManager.getString("label.sequence_feature_settings"),
+              475, 480);
     }
     else
     {
-      Desktop.addInternalFrame(frame, "Sequence Feature Settings", 400, 450);
+      Desktop.addInternalFrame(frame,
+              MessageManager.getString("label.sequence_feature_settings"),
+              400, 450);
     }
 
     frame.addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
     {
+      @Override
       public void internalFrameClosed(
               javax.swing.event.InternalFrameEvent evt)
       {
@@ -185,37 +293,45 @@ public class FeatureSettings extends JPanel
   }
 
   protected void popupSort(final int selectedRow, final String type,
-          final Object typeCol, final Hashtable minmax, int x, int y)
+          final Object typeCol, final Map<String, float[][]> minmax, int x,
+          int y)
   {
-    JPopupMenu men = new JPopupMenu("Settings for " + type);
-    JMenuItem scr = new JMenuItem("Sort by Score");
+    final FeatureColourI featureColour = (FeatureColourI) typeCol;
+
+    JPopupMenu men = new JPopupMenu(MessageManager.formatMessage(
+            "label.settings_for_param", new String[] { type }));
+    JMenuItem scr = new JMenuItem(
+            MessageManager.getString("label.sort_by_score"));
     men.add(scr);
     final FeatureSettings me = this;
     scr.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.sortByScore(new String[]
-        { type });
+        me.af.avc.sortAlignmentByFeatureScore(Arrays
+                .asList(new String[] { type }));
       }
 
     });
-    JMenuItem dens = new JMenuItem("Sort by Density");
+    JMenuItem dens = new JMenuItem(
+            MessageManager.getString("label.sort_by_density"));
     dens.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.sortByDens(new String[]
-        { type });
+        me.af.avc.sortAlignmentByFeatureDensity(Arrays
+                .asList(new String[] { type }));
       }
 
     });
     men.add(dens);
     if (minmax != null)
     {
-      final Object typeMinMax = minmax.get(type);
+      final float[][] typeMinMax = minmax.get(type);
       /*
        * final JCheckBoxMenuItem chb = new JCheckBoxMenuItem("Vary Height"); //
        * this is broken at the moment and isn't that useful anyway!
@@ -230,24 +346,25 @@ public class FeatureSettings extends JPanel
        * 
        * men.add(chb);
        */
-      if (typeMinMax != null && ((float[][]) typeMinMax)[0] != null)
+      if (typeMinMax != null && typeMinMax[0] != null)
       {
         // if (table.getValueAt(row, column));
         // graduated colourschemes for those where minmax exists for the
         // positional features
         final JCheckBoxMenuItem mxcol = new JCheckBoxMenuItem(
                 "Graduated Colour");
-        mxcol.setSelected(!(typeCol instanceof Color));
+        mxcol.setSelected(!featureColour.isSimpleColour());
         men.add(mxcol);
         mxcol.addActionListener(new ActionListener()
         {
           JColorChooser colorChooser;
 
+          @Override
           public void actionPerformed(ActionEvent e)
           {
             if (e.getSource() == mxcol)
             {
-              if (typeCol instanceof Color)
+              if (featureColour.isSimpleColour())
               {
                 FeatureColourChooser fc = new FeatureColourChooser(me.fr,
                         type);
@@ -261,8 +378,7 @@ public class FeatureSettings extends JPanel
                         "Select new Colour", true, // modal
                         colorChooser, this, // OK button handler
                         null); // no CANCEL button handler
-                colorChooser.setColor(((GraduatedColor) typeCol)
-                        .getMaxColor());
+                colorChooser.setColor(featureColour.getMaxColour());
                 dialog.setVisible(true);
               }
             }
@@ -278,7 +394,9 @@ public class FeatureSettings extends JPanel
               else
               {
                 // probably the color chooser!
-                table.setValueAt(colorChooser.getColor(), selectedRow, 1);
+                table.setValueAt(
+                        new FeatureColour(colorChooser.getColor()),
+                        selectedRow, 1);
                 table.validate();
                 me.updateFeatureRenderer(
                         ((FeatureTableModel) table.getModel()).getData(),
@@ -290,6 +408,52 @@ public class FeatureSettings extends JPanel
         });
       }
     }
+    JMenuItem selCols = new JMenuItem(
+            MessageManager.getString("label.select_columns_containing"));
+    selCols.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        fr.ap.alignFrame.avc.markColumnsContainingFeatures(false, false,
+                false, type);
+      }
+    });
+    JMenuItem clearCols = new JMenuItem(
+            MessageManager.getString("label.select_columns_not_containing"));
+    clearCols.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        fr.ap.alignFrame.avc.markColumnsContainingFeatures(true, false,
+                false, type);
+      }
+    });
+    JMenuItem hideCols = new JMenuItem(
+            MessageManager.getString("label.hide_columns_containing"));
+    hideCols.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        fr.ap.alignFrame.hideFeatureColumns(type, true);
+      }
+    });
+    JMenuItem hideOtherCols = new JMenuItem(
+            MessageManager.getString("label.hide_columns_not_containing"));
+    hideOtherCols.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        fr.ap.alignFrame.hideFeatureColumns(type, false);
+      }
+    });
+    men.add(selCols);
+    men.add(clearCols);
+    men.add(hideCols);
+    men.add(hideOtherCols);
     men.show(table, x, y);
   }
 
@@ -301,28 +465,23 @@ public class FeatureSettings extends JPanel
   /**
    * contains a float[3] for each feature type string. created by setTableData
    */
-  Hashtable typeWidth = null;
+  Map<String, float[]> typeWidth = null;
 
-  synchronized public void setTableData()
+  @Override
+  synchronized public void discoverAllFeatureData()
   {
-    if (fr.featureGroups == null)
-    {
-      fr.featureGroups = new Hashtable();
-    }
-    Vector allFeatures = new Vector();
-    Vector allGroups = new Vector();
+    Vector<String> allFeatures = new Vector<String>();
+    Vector<String> allGroups = new Vector<String>();
     SequenceFeature[] tmpfeatures;
     String group;
-    for (int i = 0; i < af.getViewport().alignment.getHeight(); i++)
+    for (int i = 0; i < af.getViewport().getAlignment().getHeight(); i++)
     {
-      if (af.getViewport().alignment.getSequenceAt(i).getDatasetSequence()
-              .getSequenceFeatures() == null)
+      tmpfeatures = af.getViewport().getAlignment().getSequenceAt(i)
+              .getSequenceFeatures();
+      if (tmpfeatures == null)
       {
         continue;
       }
-
-      tmpfeatures = af.getViewport().alignment.getSequenceAt(i)
-              .getDatasetSequence().getSequenceFeatures();
 
       int index = 0;
       while (index < tmpfeatures.length)
@@ -339,10 +498,7 @@ public class FeatureSettings extends JPanel
           if (!allGroups.contains(group))
           {
             allGroups.addElement(group);
-            if (group != null)
-            {
-              checkGroupState(group);
-            }
+            checkGroupState(group);
           }
         }
 
@@ -360,21 +516,14 @@ public class FeatureSettings extends JPanel
   }
 
   /**
+   * Synchronise gui group list and check visibility of group
    * 
    * @param group
-   * @return true if group has been seen before and is already added to set.
+   * @return true if group is visible
    */
   private boolean checkGroupState(String group)
   {
-    boolean visible;
-    if (fr.featureGroups.containsKey(group))
-    {
-      visible = ((Boolean) fr.featureGroups.get(group)).booleanValue();
-    }
-    else
-    {
-      visible = true; // new group is always made visible
-    }
+    boolean visible = fr.checkGroupVisibility(group, true);
 
     if (groupPanel == null)
     {
@@ -395,31 +544,28 @@ public class FeatureSettings extends JPanel
     if (alreadyAdded)
     {
 
-      return true;
+      return visible;
     }
-
-    fr.featureGroups.put(group, new Boolean(visible));
     final String grp = group;
     final JCheckBox check = new JCheckBox(group, visible);
     check.setFont(new Font("Serif", Font.BOLD, 12));
     check.addItemListener(new ItemListener()
     {
+      @Override
       public void itemStateChanged(ItemEvent evt)
       {
-        fr.featureGroups.put(check.getText(),
-                new Boolean(check.isSelected()));
-        af.alignPanel.seqPanel.seqCanvas.repaint();
+        fr.setGroupVisibility(check.getText(), check.isSelected());
+        af.alignPanel.getSeqPanel().seqCanvas.repaint();
         if (af.alignPanel.overviewPanel != null)
         {
           af.alignPanel.overviewPanel.updateOverviewImage();
         }
 
-        resetTable(new String[]
-        { grp });
+        resetTable(new String[] { grp });
       }
     });
     groupPanel.add(check);
-    return false;
+    return visible;
   }
 
   boolean resettingTable = false;
@@ -431,22 +577,22 @@ public class FeatureSettings extends JPanel
       return;
     }
     resettingTable = true;
-    typeWidth = new Hashtable();
+    typeWidth = new Hashtable<String, float[]>();
     // TODO: change avWidth calculation to 'per-sequence' average and use long
     // rather than float
     float[] avWidth = null;
     SequenceFeature[] tmpfeatures;
     String group = null, type;
-    Vector visibleChecks = new Vector();
+    Vector<String> visibleChecks = new Vector<String>();
 
     // Find out which features should be visible depending on which groups
     // are selected / deselected
     // and recompute average width ordering
-    for (int i = 0; i < af.getViewport().alignment.getHeight(); i++)
+    for (int i = 0; i < af.getViewport().getAlignment().getHeight(); i++)
     {
 
-      tmpfeatures = af.getViewport().alignment.getSequenceAt(i)
-              .getDatasetSequence().getSequenceFeatures();
+      tmpfeatures = af.getViewport().getAlignment().getSequenceAt(i)
+              .getSequenceFeatures();
       if (tmpfeatures == null)
       {
         continue;
@@ -463,11 +609,8 @@ public class FeatureSettings extends JPanel
           continue;
         }
 
-        if (group == null || fr.featureGroups.get(group) == null
-                || ((Boolean) fr.featureGroups.get(group)).booleanValue())
+        if (group == null || checkGroupState(group))
         {
-          if (group != null)
-            checkGroupState(group);
           type = tmpfeatures[index].getType();
           if (!visibleChecks.contains(type))
           {
@@ -481,7 +624,7 @@ public class FeatureSettings extends JPanel
         }
         else
         {
-          avWidth = (float[]) typeWidth.get(tmpfeatures[index].getType());
+          avWidth = typeWidth.get(tmpfeatures[index].getType());
         }
         avWidth[0]++;
         if (tmpfeatures[index].getBegin() > tmpfeatures[index].getEnd())
@@ -502,17 +645,20 @@ public class FeatureSettings extends JPanel
     Object[][] data = new Object[fSize][3];
     int dataIndex = 0;
 
-    if (fr.renderOrder != null)
+    if (fr.hasRenderOrder())
     {
       if (!handlingUpdate)
-        fr.findAllFeatures(groupChanged != null); // prod to update
-      // colourschemes. but don't
-      // affect display
-      // First add the checks in the previous render order,
-      // in case the window has been closed and reopened
-      for (int ro = fr.renderOrder.length - 1; ro > -1; ro--)
       {
-        type = fr.renderOrder[ro];
+        fr.findAllFeatures(groupChanged != null); // prod to update
+        // colourschemes. but don't
+        // affect display
+        // First add the checks in the previous render order,
+        // in case the window has been closed and reopened
+      }
+      List<String> frl = fr.getRenderOrder();
+      for (int ro = frl.size() - 1; ro > -1; ro--)
+      {
+        type = frl.get(ro);
 
         if (!visibleChecks.contains(type))
         {
@@ -521,8 +667,8 @@ public class FeatureSettings extends JPanel
 
         data[dataIndex][0] = type;
         data[dataIndex][1] = fr.getFeatureStyle(type);
-        data[dataIndex][2] = new Boolean(
-                af.getViewport().featuresDisplayed.containsKey(type));
+        data[dataIndex][2] = new Boolean(af.getViewport()
+                .getFeaturesDisplayed().isVisible(type));
         dataIndex++;
         visibleChecks.removeElement(type);
       }
@@ -540,7 +686,7 @@ public class FeatureSettings extends JPanel
       if (data[dataIndex][1] == null)
       {
         // "Colour has been updated in another view!!"
-        fr.renderOrder = null;
+        fr.clearRenderOrder();
         return;
       }
 
@@ -562,8 +708,8 @@ public class FeatureSettings extends JPanel
 
     if (groupPanel != null)
     {
-      groupPanel.setLayout(new GridLayout(fr.featureGroups.size() / 4 + 1,
-              4));
+      groupPanel.setLayout(new GridLayout(
+              fr.getFeatureGroupsSize() / 4 + 1, 4));
 
       groupPanel.validate();
       bigPanel.add(groupPanel, BorderLayout.NORTH);
@@ -586,23 +732,31 @@ public class FeatureSettings extends JPanel
     {
       order[i] = fr.getOrder(data[i][0].toString());
       if (order[i] < 0)
+      {
         order[i] = fr.setOrder(data[i][0].toString(), i / order.length);
+      }
       if (i > 1)
+      {
         sort = sort || order[i - 1] > order[i];
+      }
     }
     if (sort)
+    {
       jalview.util.QuickSort.sort(order, data);
+    }
   }
 
   void load()
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-            { "fc" }, new String[]
-            { "Sequence Feature Colours" }, "Sequence Feature Colours");
+            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
+            new String[] { "fc" },
+            new String[] { "Sequence Feature Colours" },
+            "Sequence Feature Colours");
     chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle("Load Feature Colours");
-    chooser.setToolTipText("Load");
+    chooser.setDialogTitle(MessageManager
+            .getString("label.load_feature_colours"));
+    chooser.setToolTipText(MessageManager.getString("action.load"));
 
     int value = chooser.showOpenDialog(this);
 
@@ -615,9 +769,7 @@ public class FeatureSettings extends JPanel
         InputStreamReader in = new InputStreamReader(new FileInputStream(
                 file), "UTF-8");
 
-        jalview.schemabinding.version2.JalviewUserColours jucs = new jalview.schemabinding.version2.JalviewUserColours();
-        jucs = (jalview.schemabinding.version2.JalviewUserColours) jucs
-                .unmarshal(in);
+        JalviewUserColours jucs = JalviewUserColours.unmarshal(in);
 
         for (int i = jucs.getColourCount() - 1; i >= 0; i--)
         {
@@ -636,7 +788,7 @@ public class FeatureSettings extends JPanel
               Cache.log.warn("Couldn't parse out graduated feature color.",
                       e);
             }
-            GraduatedColor gcol = new GraduatedColor(mincol, maxcol,
+            FeatureColourI gcol = new FeatureColour(mincol, maxcol,
                     newcol.getMin(), newcol.getMax());
             if (newcol.hasAutoScale())
             {
@@ -648,31 +800,28 @@ public class FeatureSettings extends JPanel
             }
             if (newcol.hasThreshold())
             {
-              gcol.setThresh(newcol.getThreshold());
-              gcol.setThreshType(AnnotationColourGradient.NO_THRESHOLD); // default
+              gcol.setThreshold(newcol.getThreshold());
             }
             if (newcol.getThreshType().length() > 0)
             {
               String ttyp = newcol.getThreshType();
-              if (ttyp.equalsIgnoreCase("NONE"))
-              {
-                gcol.setThreshType(AnnotationColourGradient.NO_THRESHOLD);
-              }
               if (ttyp.equalsIgnoreCase("ABOVE"))
               {
-                gcol.setThreshType(AnnotationColourGradient.ABOVE_THRESHOLD);
+                gcol.setAboveThreshold(true);
               }
               if (ttyp.equalsIgnoreCase("BELOW"))
               {
-                gcol.setThreshType(AnnotationColourGradient.BELOW_THRESHOLD);
+                gcol.setBelowThreshold(true);
               }
             }
             fr.setColour(name = newcol.getName(), gcol);
           }
           else
           {
-            fr.setColour(name = jucs.getColour(i).getName(), new Color(
-                    Integer.parseInt(jucs.getColour(i).getRGB(), 16)));
+            Color color = new Color(Integer.parseInt(jucs.getColour(i)
+                    .getRGB(), 16));
+            fr.setColour(name = jucs.getColour(i).getName(),
+                    new FeatureColour(color));
           }
           fr.setOrder(name, (i == 0) ? 0 : i / jucs.getColourCount());
         }
@@ -695,12 +844,13 @@ public class FeatureSettings extends JPanel
   void save()
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-            { "fc" }, new String[]
-            { "Sequence Feature Colours" }, "Sequence Feature Colours");
+            Cache.getProperty("LAST_DIRECTORY"), new String[] { "fc" },
+            new String[] { "Sequence Feature Colours" },
+            "Sequence Feature Colours");
     chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle("Save Feature Colour Scheme");
-    chooser.setToolTipText("Save");
+    chooser.setDialogTitle(MessageManager
+            .getString("label.save_feature_colours"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
 
@@ -714,49 +864,40 @@ public class FeatureSettings extends JPanel
         PrintWriter out = new PrintWriter(new OutputStreamWriter(
                 new FileOutputStream(choice), "UTF-8"));
 
-        Enumeration e = fr.featureColours.keys();
-        float[] sortOrder = new float[fr.featureColours.size()];
-        String[] sortTypes = new String[fr.featureColours.size()];
+        Set<String> fr_colours = fr.getAllFeatureColours();
+        Iterator<String> e = fr_colours.iterator();
+        float[] sortOrder = new float[fr_colours.size()];
+        String[] sortTypes = new String[fr_colours.size()];
         int i = 0;
-        while (e.hasMoreElements())
+        while (e.hasNext())
         {
-          sortTypes[i] = e.nextElement().toString();
+          sortTypes[i] = e.next();
           sortOrder[i] = fr.getOrder(sortTypes[i]);
           i++;
         }
-        jalview.util.QuickSort.sort(sortOrder, sortTypes);
+        QuickSort.sort(sortOrder, sortTypes);
         sortOrder = null;
-        Object fcol;
-        GraduatedColor gcol;
         for (i = 0; i < sortTypes.length; i++)
         {
           jalview.schemabinding.version2.Colour col = new jalview.schemabinding.version2.Colour();
           col.setName(sortTypes[i]);
-          col.setRGB(jalview.util.Format.getHexString(fr.getColour(col
-                  .getName())));
-          fcol = fr.getFeatureStyle(sortTypes[i]);
-          if (fcol instanceof GraduatedColor)
+          FeatureColourI fcol = fr.getFeatureStyle(sortTypes[i]);
+          if (fcol.isSimpleColour())
           {
-            gcol = (GraduatedColor) fcol;
-            col.setMin(gcol.getMin());
-            col.setMax(gcol.getMax());
-            col.setMinRGB(jalview.util.Format.getHexString(gcol
-                    .getMinColor()));
-            col.setAutoScale(gcol.isAutoScale());
-            col.setThreshold(gcol.getThresh());
-            col.setColourByLabel(gcol.isColourByLabel());
-            switch (gcol.getThreshType())
-            {
-            case AnnotationColourGradient.NO_THRESHOLD:
-              col.setThreshType("NONE");
-              break;
-            case AnnotationColourGradient.ABOVE_THRESHOLD:
-              col.setThreshType("ABOVE");
-              break;
-            case AnnotationColourGradient.BELOW_THRESHOLD:
-              col.setThreshType("BELOW");
-              break;
-            }
+            col.setRGB(Format.getHexString(fcol.getColour()));
+          }
+          else
+          {
+            col.setRGB(Format.getHexString(fcol.getMaxColour()));
+            col.setMin(fcol.getMin());
+            col.setMax(fcol.getMax());
+            col.setMinRGB(jalview.util.Format.getHexString(fcol
+                    .getMinColour()));
+            col.setAutoScale(fcol.isAutoScaled());
+            col.setThreshold(fcol.getThreshold());
+            col.setColourByLabel(fcol.isColourByLabel());
+            col.setThreshType(fcol.isAboveThreshold() ? "ABOVE" : (fcol
+                    .isBelowThreshold() ? "BELOW" : "NONE"));
           }
           ucs.addColour(col);
         }
@@ -782,7 +923,9 @@ public class FeatureSettings extends JPanel
   public void orderByAvWidth()
   {
     if (table == null || table.getModel() == null)
+    {
       return;
+    }
     Object[][] data = ((FeatureTableModel) table.getModel()).getData();
     float[] width = new float[data.length];
     float[] awidth;
@@ -790,7 +933,7 @@ public class FeatureSettings extends JPanel
     int num = 0;
     for (int i = 0; i < data.length; i++)
     {
-      awidth = (float[]) typeWidth.get(data[i][0]);
+      awidth = typeWidth.get(data[i][0]);
       if (awidth[0] > 0)
       {
         width[i] = awidth[1] / awidth[0];// *awidth[0]*awidth[2]; - better
@@ -804,7 +947,9 @@ public class FeatureSettings extends JPanel
         width[i] = 0;
       }
       if (max < width[i])
+      {
         max = width[i];
+      }
     }
     boolean sort = false;
     for (int i = 0; i < width.length; i++)
@@ -824,11 +969,15 @@ public class FeatureSettings extends JPanel
         fr.setOrder(data[i][0].toString(), width[i]); // store for later
       }
       if (i > 0)
+      {
         sort = sort || width[i - 1] > width[i];
+      }
     }
     if (sort)
+    {
       jalview.util.QuickSort.sort(width, data);
-    // update global priority order
+      // update global priority order
+    }
 
     updateFeatureRenderer(data, false);
     table.repaint();
@@ -850,10 +999,19 @@ public class FeatureSettings extends JPanel
     updateFeatureRenderer(data, true);
   }
 
+  /**
+   * Update the priority order of features; only repaint if this changed the
+   * order of visible features
+   * 
+   * @param data
+   * @param visibleNew
+   */
   private void updateFeatureRenderer(Object[][] data, boolean visibleNew)
   {
-    fr.setFeaturePriority(data, visibleNew);
-    af.alignPanel.paintAlignment(true);
+    if (fr.setFeaturePriority(data, visibleNew))
+    {
+      af.alignPanel.paintAlignment(true);
+    }
   }
 
   int selectedRow = -1;
@@ -896,7 +1054,9 @@ public class FeatureSettings extends JPanel
 
   JButton sortByDens = new JButton();
 
-  JPanel transbuttons = new JPanel(new GridLayout(4, 1));
+  JButton help = new JButton();
+
+  JPanel transbuttons = new JPanel(new GridLayout(5, 1));
 
   private void jbInit() throws Exception
   {
@@ -905,73 +1065,116 @@ public class FeatureSettings extends JPanel
     dasSettingsPane.setLayout(borderLayout3);
     bigPanel.setLayout(borderLayout4);
     invert.setFont(JvSwingUtils.getLabelFont());
-    invert.setText("Invert Selection");
+    invert.setText(MessageManager.getString("label.invert_selection"));
     invert.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         invertSelection();
       }
     });
     optimizeOrder.setFont(JvSwingUtils.getLabelFont());
-    optimizeOrder.setText("Optimise Order");
+    optimizeOrder.setText(MessageManager.getString("label.optimise_order"));
     optimizeOrder.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         orderByAvWidth();
       }
     });
     sortByScore.setFont(JvSwingUtils.getLabelFont());
-    sortByScore.setText("Seq sort by Score");
+    sortByScore
+            .setText(MessageManager.getString("label.seq_sort_by_score"));
     sortByScore.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        sortByScore(null);
+        af.avc.sortAlignmentByFeatureScore(null);
       }
     });
     sortByDens.setFont(JvSwingUtils.getLabelFont());
-    sortByDens.setText("Seq Sort by density");
+    sortByDens.setText(MessageManager
+            .getString("label.sequence_sort_by_density"));
     sortByDens.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        sortByDens(null);
+        af.avc.sortAlignmentByFeatureDensity(null);
+      }
+    });
+    help.setFont(JvSwingUtils.getLabelFont());
+    help.setText(MessageManager.getString("action.help"));
+    help.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        try
+        {
+          Help.showHelpWindow(HelpId.SequenceFeatureSettings);
+        } catch (HelpSetException e1)
+        {
+          e1.printStackTrace();
+        }
+      }
+    });
+    help.setFont(JvSwingUtils.getLabelFont());
+    help.setText(MessageManager.getString("action.help"));
+    help.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        try
+        {
+          Help.showHelpWindow(HelpId.SequenceFeatureSettings);
+        } catch (HelpSetException e1)
+        {
+          e1.printStackTrace();
+        }
       }
     });
     cancel.setFont(JvSwingUtils.getLabelFont());
-    cancel.setText("Cancel");
+    cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
+        fr.setTransparency(originalTransparency);
         updateFeatureRenderer(originalData);
         close();
       }
     });
     ok.setFont(JvSwingUtils.getLabelFont());
-    ok.setText("OK");
+    ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         close();
       }
     });
     loadColours.setFont(JvSwingUtils.getLabelFont());
-    loadColours.setText("Load Colours");
+    loadColours.setText(MessageManager.getString("label.load_colours"));
     loadColours.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         load();
       }
     });
     saveColours.setFont(JvSwingUtils.getLabelFont());
-    saveColours.setText("Save Colours");
+    saveColours.setText(MessageManager.getString("label.save_colours"));
     saveColours.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         save();
@@ -979,25 +1182,30 @@ public class FeatureSettings extends JPanel
     });
     transparency.addChangeListener(new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
-        fr.setTransparency((float) (100 - transparency.getValue()) / 100f);
+        fr.setTransparency((100 - transparency.getValue()) / 100f);
         af.alignPanel.paintAlignment(true);
       }
     });
 
     transparency.setMaximum(70);
-    fetchDAS.setText("Fetch DAS Features");
+    transparency.setToolTipText(MessageManager
+            .getString("label.transparency_tip"));
+    fetchDAS.setText(MessageManager.getString("label.fetch_das_features"));
     fetchDAS.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         fetchDAS_actionPerformed(e);
       }
     });
-    saveDAS.setText("Save as default");
+    saveDAS.setText(MessageManager.getString("action.save_as_default"));
     saveDAS.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         saveDAS_actionPerformed(e);
@@ -1006,22 +1214,28 @@ public class FeatureSettings extends JPanel
     dasButtonPanel.setBorder(BorderFactory.createEtchedBorder());
     dasSettingsPane.setBorder(null);
     cancelDAS.setEnabled(false);
-    cancelDAS.setText("Cancel Fetch");
+    cancelDAS.setText(MessageManager.getString("action.cancel_fetch"));
     cancelDAS.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancelDAS_actionPerformed(e);
       }
     });
     this.add(tabbedPane, java.awt.BorderLayout.CENTER);
-    tabbedPane.addTab("Feature Settings", settingsPane);
-    tabbedPane.addTab("DAS Settings", dasSettingsPane);
+    tabbedPane.addTab(MessageManager.getString("label.feature_settings"),
+            settingsPane);
+    tabbedPane.addTab(MessageManager.getString("label.das_settings"),
+            dasSettingsPane);
     bigPanel.add(transPanel, java.awt.BorderLayout.SOUTH);
     transbuttons.add(optimizeOrder);
     transbuttons.add(invert);
     transbuttons.add(sortByScore);
     transbuttons.add(sortByDens);
+    transbuttons.add(help);
+    JPanel sliderPanel = new JPanel();
+    sliderPanel.add(transparency);
     transPanel.add(transparency);
     transPanel.add(transbuttons);
     buttonPanel.add(ok);
@@ -1037,136 +1251,13 @@ public class FeatureSettings extends JPanel
     settingsPane.add(buttonPanel, java.awt.BorderLayout.SOUTH);
   }
 
-  protected void sortByDens(String[] typ)
-  {
-    sortBy(typ, "Sort by Density", AlignmentSorter.FEATURE_DENSITY);
-  }
-
-  protected void sortBy(String[] typ, String methodText, final String method)
-  {
-    if (typ == null)
-    {
-      typ = getDisplayedFeatureTypes();
-    }
-    String gps[] = null;
-    gps = getDisplayedFeatureGroups();
-    if (typ != null)
-    {
-      ArrayList types = new ArrayList();
-      for (int i = 0; i < typ.length; i++)
-      {
-        if (typ[i] != null)
-        {
-          types.add(typ[i]);
-        }
-        typ = new String[types.size()];
-        types.toArray(typ);
-      }
-    }
-    if (gps != null)
-    {
-      ArrayList grps = new ArrayList();
-
-      for (int i = 0; i < gps.length; i++)
-      {
-        if (gps[i] != null)
-        {
-          grps.add(gps[i]);
-        }
-      }
-      gps = new String[grps.size()];
-      grps.toArray(gps);
-    }
-    AlignmentPanel alignPanel = af.alignPanel;
-    AlignmentI al = alignPanel.av.getAlignment();
-
-    int start, stop;
-    SequenceGroup sg = alignPanel.av.getSelectionGroup();
-    if (sg != null)
-    {
-      start = sg.getStartRes();
-      stop = sg.getEndRes();
-    }
-    else
-    {
-      start = 0;
-      stop = al.getWidth();
-    }
-    SequenceI[] oldOrder = al.getSequencesArray();
-    AlignmentSorter.sortByFeature(typ, gps, start, stop, al, method);
-    af.addHistoryItem(new OrderCommand(methodText, oldOrder, alignPanel.av
-            .getAlignment()));
-    alignPanel.paintAlignment(true);
-
-  }
-
-  protected void sortByScore(String[] typ)
-  {
-    sortBy(typ, "Sort by Feature Score", AlignmentSorter.FEATURE_SCORE);
-  }
-
-  private String[] getDisplayedFeatureTypes()
-  {
-    String[] typ = null;
-    if (fr != null)
-    {
-      synchronized (fr.renderOrder)
-      {
-        typ = new String[fr.renderOrder.length];
-        System.arraycopy(fr.renderOrder, 0, typ, 0, typ.length);
-        for (int i = 0; i < typ.length; i++)
-        {
-          if (af.viewport.featuresDisplayed.get(typ[i]) == null)
-          {
-            typ[i] = null;
-          }
-        }
-      }
-    }
-    return typ;
-  }
-
-  private String[] getDisplayedFeatureGroups()
-  {
-    String[] gps = null;
-    if (fr != null)
-    {
-
-      if (fr.featureGroups != null)
-      {
-        Enumeration en = fr.featureGroups.keys();
-        gps = new String[fr.featureColours.size()];
-        int g = 0;
-        boolean valid = false;
-        while (en.hasMoreElements())
-        {
-          String gp = (String) en.nextElement();
-          Boolean on = (Boolean) fr.featureGroups.get(gp);
-          if (on != null && on.booleanValue())
-          {
-            valid = true;
-            gps[g++] = gp;
-          }
-        }
-        while (g < gps.length)
-        {
-          gps[g++] = null;
-        }
-        if (!valid)
-        {
-          return null;
-        }
-      }
-    }
-    return gps;
-  }
-
   public void fetchDAS_actionPerformed(ActionEvent e)
   {
     fetchDAS.setEnabled(false);
     cancelDAS.setEnabled(true);
     dassourceBrowser.setGuiEnabled(false);
-    Vector selectedSources = dassourceBrowser.getSelectedSources();
+    Vector<jalviewSourceI> selectedSources = dassourceBrowser
+            .getSelectedSources();
     doDasFeatureFetch(selectedSources, true, true);
   }
 
@@ -1177,12 +1268,12 @@ public class FeatureSettings extends JPanel
    * @param checkDbRefs
    * @param promptFetchDbRefs
    */
-  private void doDasFeatureFetch(Vector selectedSources,
+  private void doDasFeatureFetch(List<jalviewSourceI> selectedSources,
           boolean checkDbRefs, boolean promptFetchDbRefs)
   {
     SequenceI[] dataset, seqs;
     int iSize;
-    AlignViewport vp = af.getViewport();
+    AlignmentViewport vp = af.getViewport();
     if (vp.getSelectionGroup() != null
             && vp.getSelectionGroup().getSize() > 0)
     {
@@ -1225,9 +1316,9 @@ public class FeatureSettings extends JPanel
    *          Vector of Strings to resolve to DAS source nicknames.
    * @return sources that are present in source list.
    */
-  public Vector resolveSourceNicknames(Vector sources)
+  public List<jalviewSourceI> resolveSourceNicknames(Vector<String> sources)
   {
-    return dassourceBrowser.resolveSourceNicknames(sources);
+    return dassourceBrowser.sourceRegistry.resolveSourceNicknames(sources);
   }
 
   /**
@@ -1236,7 +1327,7 @@ public class FeatureSettings extends JPanel
    * 
    * @return vector of selected das source nicknames
    */
-  public Vector getSelectedSources()
+  public Vector<jalviewSourceI> getSelectedSources()
   {
     return dassourceBrowser.getSelectedSources();
   }
@@ -1250,22 +1341,24 @@ public class FeatureSettings extends JPanel
    *          if true then runs in same thread, otherwise passes to the Swing
    *          executor
    */
-  public void fetchDasFeatures(Vector sources, boolean block)
+  public void fetchDasFeatures(Vector<String> sources, boolean block)
   {
     initDasSources();
-    Vector resolved = resolveSourceNicknames(sources);
+    List<jalviewSourceI> resolved = dassourceBrowser.sourceRegistry
+            .resolveSourceNicknames(sources);
     if (resolved.size() == 0)
     {
       resolved = dassourceBrowser.getSelectedSources();
     }
     if (resolved.size() > 0)
     {
-      final Vector dassources = resolved;
+      final List<jalviewSourceI> dassources = resolved;
       fetchDAS.setEnabled(false);
       // cancelDAS.setEnabled(true); doDasFetch does this.
       Runnable fetcher = new Runnable()
       {
 
+        @Override
         public void run()
         {
           doDasFeatureFetch(dassources, true, false);
@@ -1309,11 +1402,15 @@ public class FeatureSettings extends JPanel
   public void noDasSourceActive()
   {
     complete();
-    JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-            "No das sources were selected.\n"
-                    + "Please select some sources and\n" + " try again.",
-            "No Sources Selected", JOptionPane.DEFAULT_OPTION,
-            JOptionPane.INFORMATION_MESSAGE);
+    JOptionPane
+            .showInternalConfirmDialog(
+                    Desktop.desktop,
+                    MessageManager
+                            .getString("label.no_das_sources_selected_warn"),
+                    MessageManager
+                            .getString("label.no_das_sources_selected_title"),
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE);
   }
 
   // ///////////////////////////////////////////////////////////////////////
@@ -1326,8 +1423,10 @@ public class FeatureSettings extends JPanel
       this.data = data;
     }
 
-    private String[] columnNames =
-    { "Feature Type", "Colour", "Display" };
+    private String[] columnNames = {
+        MessageManager.getString("label.feature_type"),
+        MessageManager.getString("action.colour"),
+        MessageManager.getString("label.display") };
 
     private Object[][] data;
 
@@ -1341,6 +1440,7 @@ public class FeatureSettings extends JPanel
       this.data = data;
     }
 
+    @Override
     public int getColumnCount()
     {
       return columnNames.length;
@@ -1351,31 +1451,37 @@ public class FeatureSettings extends JPanel
       return data[row];
     }
 
+    @Override
     public int getRowCount()
     {
       return data.length;
     }
 
+    @Override
     public String getColumnName(int col)
     {
       return columnNames[col];
     }
 
+    @Override
     public Object getValueAt(int row, int col)
     {
       return data[row][col];
     }
 
+    @Override
     public Class getColumnClass(int c)
     {
       return getValueAt(0, c).getClass();
     }
 
+    @Override
     public boolean isCellEditable(int row, int col)
     {
       return col == 0 ? false : true;
     }
 
+    @Override
     public void setValueAt(Object value, int row, int col)
     {
       data[row][col] = value;
@@ -1400,10 +1506,12 @@ public class FeatureSettings extends JPanel
       setVerticalTextPosition(SwingConstants.CENTER);
     }
 
-    public Component getTableCellRendererComponent(JTable table,
+    @Override
+    public Component getTableCellRendererComponent(JTable tbl,
             Object color, boolean isSelected, boolean hasFocus, int row,
             int column)
     {
+      FeatureColourI cellColour = (FeatureColourI) color;
       // JLabel comp = new JLabel();
       // comp.
       setOpaque(true);
@@ -1411,11 +1519,11 @@ public class FeatureSettings extends JPanel
       // setBounds(getBounds());
       Color newColor;
       setToolTipText(baseTT);
-      setBackground(table.getBackground());
-      if (color instanceof GraduatedColor)
+      setBackground(tbl.getBackground());
+      if (!cellColour.isSimpleColour())
       {
-        Rectangle cr = table.getCellRect(row, column, false);
-        FeatureSettings.renderGraduatedColor(this, (GraduatedColor) color,
+        Rectangle cr = tbl.getCellRect(row, column, false);
+        FeatureSettings.renderGraduatedColor(this, cellColour,
                 (int) cr.getWidth(), (int) cr.getHeight());
 
       }
@@ -1423,20 +1531,16 @@ public class FeatureSettings extends JPanel
       {
         this.setText("");
         this.setIcon(null);
-        newColor = (Color) color;
-        // comp.
+        newColor = cellColour.getColour();
         setBackground(newColor);
-        // comp.setToolTipText("RGB value: " + newColor.getRed() + ", "
-        // + newColor.getGreen() + ", " + newColor.getBlue());
       }
       if (isSelected)
       {
         if (selectedBorder == null)
         {
           selectedBorder = BorderFactory.createMatteBorder(2, 5, 2, 5,
-                  table.getSelectionBackground());
+                  tbl.getSelectionBackground());
         }
-        // comp.
         setBorder(selectedBorder);
       }
       else
@@ -1444,9 +1548,8 @@ public class FeatureSettings extends JPanel
         if (unselectedBorder == null)
         {
           unselectedBorder = BorderFactory.createMatteBorder(2, 5, 2, 5,
-                  table.getBackground());
+                  tbl.getBackground());
         }
-        // comp.
         setBorder(unselectedBorder);
       }
 
@@ -1460,7 +1563,7 @@ public class FeatureSettings extends JPanel
    * @param comp
    * @param gcol
    */
-  public static void renderGraduatedColor(JLabel comp, GraduatedColor gcol)
+  public static void renderGraduatedColor(JLabel comp, FeatureColourI gcol)
   {
     int w = comp.getWidth(), h = comp.getHeight();
     if (w < 20)
@@ -1476,23 +1579,23 @@ public class FeatureSettings extends JPanel
     renderGraduatedColor(comp, gcol, w, h);
   }
 
-  public static void renderGraduatedColor(JLabel comp, GraduatedColor gcol,
+  public static void renderGraduatedColor(JLabel comp, FeatureColourI gcol,
           int w, int h)
   {
     boolean thr = false;
     String tt = "";
     String tx = "";
-    if (gcol.getThreshType() == AnnotationColourGradient.ABOVE_THRESHOLD)
+    if (gcol.isAboveThreshold())
     {
       thr = true;
       tx += ">";
-      tt += "Thresholded (Above " + gcol.getThresh() + ") ";
+      tt += "Thresholded (Above " + gcol.getThreshold() + ") ";
     }
-    if (gcol.getThreshType() == AnnotationColourGradient.BELOW_THRESHOLD)
+    if (gcol.isBelowThreshold())
     {
       thr = true;
       tx += "<";
-      tt += "Thresholded (Below " + gcol.getThresh() + ") ";
+      tt += "Thresholded (Below " + gcol.getThreshold() + ") ";
     }
     if (gcol.isColourByLabel())
     {
@@ -1506,7 +1609,7 @@ public class FeatureSettings extends JPanel
     }
     else
     {
-      Color newColor = gcol.getMaxColor();
+      Color newColor = gcol.getMaxColour();
       comp.setBackground(newColor);
       // System.err.println("Width is " + w / 2);
       Icon ficon = new FeatureIcon(gcol, comp.getBackground(), w, h, thr);
@@ -1534,7 +1637,7 @@ public class FeatureSettings extends JPanel
 
 class FeatureIcon implements Icon
 {
-  GraduatedColor gcol;
+  FeatureColourI gcol;
 
   Color backg;
 
@@ -1546,7 +1649,7 @@ class FeatureIcon implements Icon
 
   Color mpcolour = Color.white;
 
-  FeatureIcon(GraduatedColor gfc, Color bg, int w, int h, boolean mspace)
+  FeatureIcon(FeatureColourI gfc, Color bg, int w, int h, boolean mspace)
   {
     gcol = gfc;
     backg = bg;
@@ -1565,16 +1668,19 @@ class FeatureIcon implements Icon
     }
   }
 
+  @Override
   public int getIconWidth()
   {
     return width;
   }
 
+  @Override
   public int getIconHeight()
   {
     return height;
   }
 
+  @Override
   public void paintIcon(Component c, Graphics g, int x, int y)
   {
 
@@ -1583,7 +1689,7 @@ class FeatureIcon implements Icon
       g.setColor(backg);
       g.fillRect(0, 0, width, height);
       // need an icon here.
-      g.setColor(gcol.getMaxColor());
+      g.setColor(gcol.getMaxColour());
 
       g.setFont(new Font("Verdana", Font.PLAIN, 9));
 
@@ -1592,12 +1698,12 @@ class FeatureIcon implements Icon
       // width/g.getFontMetrics().stringWidth("Label"),
       // height/g.getFontMetrics().getHeight())));
 
-      g.drawString("Label", 0, 0);
+      g.drawString(MessageManager.getString("label.label"), 0, 0);
 
     }
     else
     {
-      Color minCol = gcol.getMinColor();
+      Color minCol = gcol.getMinColour();
       g.setColor(minCol);
       g.fillRect(0, 0, s1, height);
       if (midspace)
@@ -1605,7 +1711,7 @@ class FeatureIcon implements Icon
         g.setColor(Color.white);
         g.fillRect(s1, 0, e1 - s1, height);
       }
-      g.setColor(gcol.getMaxColor());
+      g.setColor(gcol.getMaxColour());
       g.fillRect(0, e1, width - e1, height);
     }
   }
@@ -1616,13 +1722,11 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
 {
   FeatureSettings me;
 
-  GraduatedColor currentGColor;
+  FeatureColourI currentColor;
 
   FeatureColourChooser chooser;
 
   String type;
-
-  Color currentColor;
 
   JButton button;
 
@@ -1655,6 +1759,7 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
   /**
    * Handles events from the editor button and from the dialog's OK button.
    */
+  @Override
   public void actionPerformed(ActionEvent e)
   {
 
@@ -1662,11 +1767,11 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
     {
       // The user has clicked the cell, so
       // bring up the dialog.
-      if (currentColor != null)
+      if (currentColor.isSimpleColour())
       {
         // bring up simple color chooser
-        button.setBackground(currentColor);
-        colorChooser.setColor(currentColor);
+        button.setBackground(currentColor.getColour());
+        colorChooser.setColor(currentColor.getColour());
         dialog.setVisible(true);
       }
       else
@@ -1683,15 +1788,13 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
     }
     else
     { // User pressed dialog's "OK" button.
-      if (currentColor != null)
+      if (currentColor.isSimpleColour())
       {
-        currentColor = colorChooser.getColor();
+        currentColor = new FeatureColour(colorChooser.getColor());
       }
       else
       {
-        // class cast exceptions may be raised if the chooser created on a
-        // non-graduated color
-        currentGColor = (GraduatedColor) chooser.getLastColour();
+        currentColor = chooser.getLastColour();
       }
       me.table.setValueAt(getCellEditorValue(), selectedRow, 1);
       fireEditingStopped();
@@ -1700,31 +1803,27 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
   }
 
   // Implement the one CellEditor method that AbstractCellEditor doesn't.
+  @Override
   public Object getCellEditorValue()
   {
-    if (currentColor == null)
-    {
-      return currentGColor;
-    }
     return currentColor;
   }
 
   // Implement the one method defined by TableCellEditor.
+  @Override
   public Component getTableCellEditorComponent(JTable table, Object value,
           boolean isSelected, int row, int column)
   {
-    currentGColor = null;
-    currentColor = null;
+    currentColor = (FeatureColourI) value;
     this.selectedRow = row;
     type = me.table.getValueAt(row, 0).toString();
     button.setOpaque(true);
     button.setBackground(me.getBackground());
-    if (value instanceof GraduatedColor)
+    if (!currentColor.isSimpleColour())
     {
-      currentGColor = (GraduatedColor) value;
       JLabel btn = new JLabel();
       btn.setSize(button.getSize());
-      FeatureSettings.renderGraduatedColor(btn, currentGColor);
+      FeatureSettings.renderGraduatedColor(btn, currentColor);
       button.setBackground(btn.getBackground());
       button.setIcon(btn.getIcon());
       button.setText(btn.getText());
@@ -1733,8 +1832,7 @@ class ColorEditor extends AbstractCellEditor implements TableCellEditor,
     {
       button.setText("");
       button.setIcon(null);
-      currentColor = (Color) value;
-      button.setBackground(currentColor);
+      button.setBackground(currentColor.getColour());
     }
     return button;
   }

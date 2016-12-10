@@ -1,37 +1,53 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.jbgui.GWebserviceInfo;
+import jalview.util.MessageManager;
+import jalview.ws.WSClientI;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.image.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.MediaTracker;
+import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
+import java.util.Vector;
+
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JInternalFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextArea;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
-import javax.swing.event.HyperlinkEvent.EventType;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.text.html.StyleSheet;
-
-import jalview.bin.Cache;
-import jalview.jbgui.*;
-import jalview.ws.WSClientI;
 
 /**
  * Base class for web service client thread and gui TODO: create StAX parser to
@@ -41,7 +57,7 @@ import jalview.ws.WSClientI;
  * @version $Revision$
  */
 public class WebserviceInfo extends GWebserviceInfo implements
-        HyperlinkListener
+        HyperlinkListener, IProgressIndicator
 {
 
   /** Job is Queued */
@@ -75,6 +91,15 @@ public class WebserviceInfo extends GWebserviceInfo implements
   boolean serviceIsCancellable;
 
   JInternalFrame frame;
+
+  private IProgressIndicator progressBar;
+
+  @Override
+  public void setVisible(boolean aFlag)
+  {
+    super.setVisible(aFlag);
+    frame.setVisible(aFlag);
+  };
 
   JTabbedPane subjobs = null;
 
@@ -208,10 +233,13 @@ public class WebserviceInfo extends GWebserviceInfo implements
    *          short name and job type
    * @param info
    *          reference or other human readable description
+   * @param makeVisible
+   *          true to display the webservices window immediatly (otherwise need
+   *          to call setVisible(true))
    */
-  public WebserviceInfo(String title, String info)
+  public WebserviceInfo(String title, String info, boolean makeVisible)
   {
-    init(title, info, 520, 500);
+    init(title, info, 520, 500, makeVisible);
   }
 
   /**
@@ -226,9 +254,10 @@ public class WebserviceInfo extends GWebserviceInfo implements
    * @param height
    *          DOCUMENT ME!
    */
-  public WebserviceInfo(String title, String info, int width, int height)
+  public WebserviceInfo(String title, String info, int width, int height,
+          boolean makeVisible)
   {
-    init(title, info, width, height);
+    init(title, info, width, height, makeVisible);
   }
 
   /**
@@ -286,17 +315,21 @@ public class WebserviceInfo extends GWebserviceInfo implements
    * @param height
    *          DOCUMENT ME!
    */
-  void init(String title, String info, int width, int height)
+  void init(String title, String info, int width, int height,
+          boolean makeVisible)
   {
     frame = new JInternalFrame();
     frame.setContentPane(this);
-    Desktop.addInternalFrame(frame, title, width, height);
+    Desktop.addInternalFrame(frame, title, makeVisible, width, height);
     frame.setClosable(false);
+
+    progressBar = new ProgressBar(statusPanel, statusBar);
 
     this.title = title;
     setInfoText(info);
 
-    java.net.URL url = getClass().getResource("/images/logo.gif");
+    java.net.URL url = getClass().getResource(
+            "/images/Jalview_Logo_small.png");
     image = java.awt.Toolkit.getDefaultToolkit().createImage(url);
 
     MediaTracker mt = new MediaTracker(this);
@@ -353,8 +386,9 @@ public class WebserviceInfo extends GWebserviceInfo implements
   {
     if (jobpane < 0 || jobpane >= jobPanes.size())
     {
-      throw new Error("setStatus called for non-existent job pane."
-              + jobpane);
+      throw new Error(MessageManager.formatMessage(
+              "error.setstatus_called_non_existent_job_pane",
+              new String[] { Integer.valueOf(jobpane).toString() }));
     }
     switch (status)
     {
@@ -648,8 +682,10 @@ public class WebserviceInfo extends GWebserviceInfo implements
       // anyhow - it has to stop threads and clean up
       // JBPNote : TODO: Instead of a warning, we should have an optional 'Are
       // you sure?' prompt
-      warnUser("This job cannot be cancelled.\nJust close the window.",
-              "Cancel job");
+      warnUser(
+              MessageManager
+                      .getString("warn.job_cannot_be_cancelled_close_window"),
+              MessageManager.getString("action.cancel_job"));
     }
     else
     {
@@ -767,41 +803,62 @@ public class WebserviceInfo extends GWebserviceInfo implements
       switch (currentStatus)
       {
       case STATE_QUEUING:
-        g.drawString(title.concat(" - queuing"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager.getString("label.state_queueing")),
+                60, 30);
 
         break;
 
       case STATE_RUNNING:
-        g.drawString(title.concat(" - running"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager.getString("label.state_running")),
+                60, 30);
 
         break;
 
       case STATE_STOPPED_OK:
-        g.drawString(title.concat(" - complete"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager.getString("label.state_completed")),
+                60, 30);
 
         break;
 
       case STATE_CANCELLED_OK:
-        g.drawString(title.concat(" - job cancelled!"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager
+                                .getString("label.state_job_cancelled")),
+                60, 30);
 
         break;
 
       case STATE_STOPPED_ERROR:
-        g.drawString(title.concat(" - job error!"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager.getString("label.state_job_error")),
+                60, 30);
 
         break;
 
       case STATE_STOPPED_SERVERERROR:
-        g.drawString(title.concat(" - Server Error! (try later)"), 60, 30);
+        g.drawString(
+                title.concat(" - ").concat(
+                        MessageManager
+                                .getString("label.server_error_try_later")),
+                60, 30);
 
         break;
       }
 
       if (image != null)
       {
-        g.rotate(Math.toRadians(angle), 28, 28);
+        int x = image.getWidth(this) / 2, y = image.getHeight(this) / 2;
+        g.rotate(Math.toRadians(angle), 10 + x, 10 + y);
         g.drawImage(image, 10, 10, this);
-        g.rotate(-Math.toRadians(angle), 28, 28);
+        g.rotate(-Math.toRadians(angle), 10 + x, 10 + y);
       }
     }
 
@@ -822,21 +879,34 @@ public class WebserviceInfo extends GWebserviceInfo implements
 
   public void hyperlinkUpdate(HyperlinkEvent e)
   {
-    if (e.getEventType() == EventType.ACTIVATED)
-    {
-      String url=null;
-      try
-      {
-        url = e.getURL().toString();
-        Desktop.showUrl(url);
-      } catch (Exception x)
-      {
-        if (url!=null) { 
-          Cache.log.error("Couldn't handle string "+url+" as a URL.");
-        }
-        // ignore any exceptions due to dud links.
-      }
+    Desktop.hyperlinkUpdate(e);
+  }
 
-    }
+  /*
+   * (non-Javadoc)
+   * 
+   * @see jalview.gui.IProgressIndicator#setProgressBar(java.lang.String, long)
+   */
+  @Override
+  public void setProgressBar(String message, long id)
+  {
+    progressBar.setProgressBar(message, id);
+  }
+
+  @Override
+  public void registerHandler(final long id,
+          final IProgressIndicatorHandler handler)
+  {
+    progressBar.registerHandler(id, handler);
+  }
+
+  /**
+   * 
+   * @return true if any progress bars are still active
+   */
+  @Override
+  public boolean operationInProgress()
+  {
+    return progressBar.operationInProgress();
   }
 }

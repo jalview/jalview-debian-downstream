@@ -1,64 +1,246 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.structure;
 
-import java.io.*;
-import java.util.*;
-
-import MCview.*;
-import jalview.analysis.*;
-import jalview.api.AlignmentViewPanel;
+import jalview.analysis.AlignSeq;
 import jalview.api.StructureSelectionManagerProvider;
-import jalview.datamodel.*;
+import jalview.commands.CommandI;
+import jalview.commands.EditCommand;
+import jalview.commands.OrderCommand;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.Annotation;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
+import jalview.datamodel.SequenceI;
+import jalview.ext.jmol.JmolParser;
+import jalview.gui.IProgressIndicator;
+import jalview.io.AppletFormatAdapter;
+import jalview.io.StructureFile;
+import jalview.util.MappingUtils;
+import jalview.util.MessageManager;
+import jalview.ws.sifts.SiftsClient;
+import jalview.ws.sifts.SiftsException;
+import jalview.ws.sifts.SiftsSettings;
+
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Vector;
+
+import MCview.Atom;
+import MCview.PDBChain;
+import MCview.PDBfile;
 
 public class StructureSelectionManager
 {
-  static IdentityHashMap<StructureSelectionManagerProvider,StructureSelectionManager> instances;
+  public final static String NEWLINE = System.lineSeparator();
 
-  StructureMapping[] mappings;
+  static IdentityHashMap<StructureSelectionManagerProvider, StructureSelectionManager> instances;
+
+  private List<StructureMapping> mappings = new ArrayList<StructureMapping>();
+
+  private boolean processSecondaryStructure = false;
+
+  private boolean secStructServices = false;
+
+  private boolean addTempFacAnnot = false;
+
+  private IProgressIndicator progressIndicator;
+
+  private SiftsClient siftsClient = null;
+
+  private long progressSessionId;
+
+  /*
+   * Set of any registered mappings between (dataset) sequences.
+   */
+  private List<AlignedCodonFrame> seqmappings = new ArrayList<AlignedCodonFrame>();
+
+  private List<CommandListener> commandListeners = new ArrayList<CommandListener>();
+
+  private List<SelectionListener> sel_listeners = new ArrayList<SelectionListener>();
+
+  /**
+   * @return true if will try to use external services for processing secondary
+   *         structure
+   */
+  public boolean isSecStructServices()
+  {
+    return secStructServices;
+  }
+
+  /**
+   * control use of external services for processing secondary structure
+   * 
+   * @param secStructServices
+   */
+  public void setSecStructServices(boolean secStructServices)
+  {
+    this.secStructServices = secStructServices;
+  }
+
+  /**
+   * flag controlling addition of any kind of structural annotation
+   * 
+   * @return true if temperature factor annotation will be added
+   */
+  public boolean isAddTempFacAnnot()
+  {
+    return addTempFacAnnot;
+  }
+
+  /**
+   * set flag controlling addition of structural annotation
+   * 
+   * @param addTempFacAnnot
+   */
+  public void setAddTempFacAnnot(boolean addTempFacAnnot)
+  {
+    this.addTempFacAnnot = addTempFacAnnot;
+  }
+
+  /**
+   * 
+   * @return if true, the structure manager will attempt to add secondary
+   *         structure lines for unannotated sequences
+   */
+
+  public boolean isProcessSecondaryStructure()
+  {
+    return processSecondaryStructure;
+  }
+
+  /**
+   * Control whether structure manager will try to annotate mapped sequences
+   * with secondary structure from PDB data.
+   * 
+   * @param enable
+   */
+  public void setProcessSecondaryStructure(boolean enable)
+  {
+    processSecondaryStructure = enable;
+  }
 
   /**
    * debug function - write all mappings to stdout
    */
-  public void reportMapping() {
-    if (mappings==null)
+  public void reportMapping()
+  {
+    if (mappings.isEmpty())
     {
       System.err.println("reportMapping: No PDB/Sequence mappings.");
-    }else{
-      System.err.println("reportMapping: There are "+mappings.length+" mappings.");
-      for (int m=0;m<mappings.length;m++)
+    }
+    else
+    {
+      System.err.println("reportMapping: There are " + mappings.size()
+              + " mappings.");
+      int i = 0;
+      for (StructureMapping sm : mappings)
       {
-        System.err.println("mapping "+m+" : "+mappings[m].pdbfile);
+        System.err.println("mapping " + i++ + " : " + sm.pdbfile);
       }
     }
   }
-  Hashtable mappingData = new Hashtable();
 
-  public static StructureSelectionManager getStructureSelectionManager(StructureSelectionManagerProvider context)
+  /**
+   * map between the PDB IDs (or structure identifiers) used by Jalview and the
+   * absolute filenames for PDB data that corresponds to it
+   */
+  Map<String, String> pdbIdFileName = new HashMap<String, String>();
+
+  Map<String, String> pdbFileNameId = new HashMap<String, String>();
+
+  public void registerPDBFile(String idForFile, String absoluteFile)
   {
+    pdbIdFileName.put(idForFile, absoluteFile);
+    pdbFileNameId.put(absoluteFile, idForFile);
+  }
+
+  public String findIdForPDBFile(String idOrFile)
+  {
+    String id = pdbFileNameId.get(idOrFile);
+    return id;
+  }
+
+  public String findFileForPDBId(String idOrFile)
+  {
+    String id = pdbIdFileName.get(idOrFile);
+    return id;
+  }
+
+  public boolean isPDBFileRegistered(String idOrFile)
+  {
+    return pdbFileNameId.containsKey(idOrFile)
+            || pdbIdFileName.containsKey(idOrFile);
+  }
+
+  private static StructureSelectionManager nullProvider = null;
+
+  public static StructureSelectionManager getStructureSelectionManager(
+          StructureSelectionManagerProvider context)
+  {
+    if (context == null)
+    {
+      if (nullProvider == null)
+      {
+        if (instances != null)
+        {
+          throw new Error(
+                  MessageManager
+                          .getString("error.implementation_error_structure_selection_manager_null"),
+                  new NullPointerException(MessageManager
+                          .getString("exception.ssm_context_is_null")));
+        }
+        else
+        {
+          nullProvider = new StructureSelectionManager();
+        }
+        return nullProvider;
+      }
+    }
     if (instances == null)
     {
-      instances = new java.util.IdentityHashMap<StructureSelectionManagerProvider,StructureSelectionManager>();
+      instances = new java.util.IdentityHashMap<StructureSelectionManagerProvider, StructureSelectionManager>();
     }
-    StructureSelectionManager instance=instances.get(context);
-    if (instance==null)
+    StructureSelectionManager instance = instances.get(context);
+    if (instance == null)
     {
-      instances.put(context, instance=new StructureSelectionManager());
+      if (nullProvider != null)
+      {
+        instance = nullProvider;
+      }
+      else
+      {
+        instance = new StructureSelectionManager();
+      }
+      instances.put(context, instance);
     }
     return instance;
   }
@@ -96,6 +278,7 @@ public class StructureSelectionManager
 
   /**
    * register a listener for alignment sequence mouseover events
+   * 
    * @param svl
    */
   public void addStructureViewerListener(Object svl)
@@ -106,24 +289,27 @@ public class StructureSelectionManager
     }
   }
 
+  /**
+   * Returns the file name for a mapped PDB id (or null if not mapped).
+   * 
+   * @param pdbid
+   * @return
+   */
   public String alreadyMappedToFile(String pdbid)
   {
-    if (mappings != null)
+    for (StructureMapping sm : mappings)
     {
-      for (int i = 0; i < mappings.length; i++)
+      if (sm.getPdbId().equals(pdbid))
       {
-        if (mappings[i].getPdbId().equals(pdbid))
-        {
-          return mappings[i].pdbfile;
-        }
+        return sm.pdbfile;
       }
     }
     return null;
   }
 
   /**
-   * create sequence structure mappings between each sequence and the given
-   * pdbFile (retrieved via the given protocol).
+   * Import structure data and register a structure mapping for broadcasting
+   * colouring, mouseovers and selection events (convenience wrapper).
    * 
    * @param sequence
    *          - one or more sequences to be mapped to pdbFile
@@ -136,75 +322,162 @@ public class StructureSelectionManager
    *          - how to resolve data from resource
    * @return null or the structure data parsed as a pdb file
    */
-  synchronized public MCview.PDBfile setMapping(SequenceI[] sequence,
+  synchronized public StructureFile setMapping(SequenceI[] sequence,
           String[] targetChains, String pdbFile, String protocol)
+  {
+    return setMapping(true, sequence, targetChains, pdbFile, protocol);
+  }
+
+  /**
+   * create sequence structure mappings between each sequence and the given
+   * pdbFile (retrieved via the given protocol).
+   * 
+   * @param forStructureView
+   *          when true, record the mapping for use in mouseOvers
+   * 
+   * @param sequenceArray
+   *          - one or more sequences to be mapped to pdbFile
+   * @param targetChainIds
+   *          - optional chain specification for mapping each sequence to pdb
+   *          (may be nill, individual elements may be nill)
+   * @param pdbFile
+   *          - structure data resource
+   * @param protocol
+   *          - how to resolve data from resource
+   * @return null or the structure data parsed as a pdb file
+   */
+  synchronized public StructureFile setMapping(boolean forStructureView,
+          SequenceI[] sequenceArray, String[] targetChainIds,
+          String pdbFile, String protocol)
   {
     /*
      * There will be better ways of doing this in the future, for now we'll use
      * the tried and tested MCview pdb mapping
      */
-    MCview.PDBfile pdb = null;
+    boolean parseSecStr = processSecondaryStructure;
+    if (isPDBFileRegistered(pdbFile))
+    {
+      for (SequenceI sq : sequenceArray)
+      {
+        SequenceI ds = sq;
+        while (ds.getDatasetSequence() != null)
+        {
+          ds = ds.getDatasetSequence();
+        }
+        ;
+        if (ds.getAnnotation() != null)
+        {
+          for (AlignmentAnnotation ala : ds.getAnnotation())
+          {
+            // false if any annotation present from this structure
+            // JBPNote this fails for jmol/chimera view because the *file* is
+            // passed, not the structure data ID -
+            if (PDBfile.isCalcIdForFile(ala, findIdForPDBFile(pdbFile)))
+            {
+              parseSecStr = false;
+            }
+          }
+        }
+      }
+    }
+    StructureFile pdb = null;
+    boolean isMapUsingSIFTs = SiftsSettings.isMapWithSifts();
     try
     {
-      pdb = new MCview.PDBfile(pdbFile, protocol);
+      pdb = new JmolParser(pdbFile, protocol);
+
+      if (pdb.getId() != null && pdb.getId().trim().length() > 0
+              && AppletFormatAdapter.FILE.equals(protocol))
+      {
+        registerPDBFile(pdb.getId().trim(), pdbFile);
+      }
+      // if PDBId is unavailable then skip SIFTS mapping execution path
+      isMapUsingSIFTs = isMapUsingSIFTs && pdb.isPPDBIdAvailable();
+
     } catch (Exception ex)
     {
       ex.printStackTrace();
       return null;
     }
-    
-    String targetChain;
-    for (int s = 0; s < sequence.length; s++)
+
+    try
+    {
+      if (isMapUsingSIFTs)
+      {
+        siftsClient = new SiftsClient(pdb);
+      }
+    } catch (SiftsException e)
+    {
+      isMapUsingSIFTs = false;
+      e.printStackTrace();
+    }
+
+    String targetChainId;
+    for (int s = 0; s < sequenceArray.length; s++)
     {
       boolean infChain = true;
-      if (targetChains != null && targetChains[s] != null)
+      final SequenceI seq = sequenceArray[s];
+      SequenceI ds = seq;
+      while (ds.getDatasetSequence() != null)
+      {
+        ds = ds.getDatasetSequence();
+      }
+
+      if (targetChainIds != null && targetChainIds[s] != null)
       {
         infChain = false;
-        targetChain = targetChains[s];
+        targetChainId = targetChainIds[s];
       }
-      else if (sequence[s].getName().indexOf("|") > -1)
+      else if (seq.getName().indexOf("|") > -1)
       {
-        targetChain = sequence[s].getName().substring(
-                sequence[s].getName().lastIndexOf("|") + 1);
-        if (targetChain.length() > 1)
+        targetChainId = seq.getName().substring(
+                seq.getName().lastIndexOf("|") + 1);
+        if (targetChainId.length() > 1)
         {
-          if (targetChain.trim().length() == 0)
+          if (targetChainId.trim().length() == 0)
           {
-            targetChain = " ";
+            targetChainId = " ";
           }
           else
           {
             // not a valid chain identifier
-            targetChain = "";
+            targetChainId = "";
           }
         }
       }
       else
-        targetChain = "";
+      {
+        targetChainId = "";
+      }
 
+      /*
+       * Attempt pairwise alignment of the sequence with each chain in the PDB,
+       * and remember the highest scoring chain
+       */
       int max = -10;
       AlignSeq maxAlignseq = null;
       String maxChainId = " ";
       PDBChain maxChain = null;
       boolean first = true;
-      for (int i = 0; i < pdb.chains.size(); i++)
+      for (PDBChain chain : pdb.getChains())
       {
-        PDBChain chain = ((PDBChain) pdb.chains.elementAt(i));
-        if (targetChain.length() > 0 && !targetChain.equals(chain.id) && !infChain)
+        if (targetChainId.length() > 0 && !targetChainId.equals(chain.id)
+                && !infChain)
         {
           continue; // don't try to map chains don't match.
         }
         // TODO: correctly determine sequence type for mixed na/peptide
         // structures
-        AlignSeq as = new AlignSeq(sequence[s],
-                ((PDBChain) pdb.chains.elementAt(i)).sequence,
-                ((PDBChain) pdb.chains.elementAt(i)).isNa ? AlignSeq.DNA
-                        : AlignSeq.PEP);
-        as.calcScoreMatrix();
-        as.traceAlignment();
+        final String type = chain.isNa ? AlignSeq.DNA : AlignSeq.PEP;
+        AlignSeq as = AlignSeq.doGlobalNWAlignment(seq, chain.sequence,
+                type);
+        // equivalent to:
+        // AlignSeq as = new AlignSeq(sequence[s], chain.sequence, type);
+        // as.calcScoreMatrix();
+        // as.traceAlignment();
 
         if (first || as.maxscore > max
-                || (as.maxscore == max && chain.id.equals(targetChain)))
+                || (as.maxscore == max && chain.id.equals(targetChainId)))
         {
           first = false;
           maxChain = chain;
@@ -217,77 +490,223 @@ public class StructureSelectionManager
       {
         continue;
       }
-      final StringBuffer mappingDetails = new StringBuffer();
-      mappingDetails.append("\n\nPDB Sequence is :\nSequence = "
-              + maxChain.sequence.getSequenceAsString());
-      mappingDetails.append("\nNo of residues = "
-              + maxChain.residues.size() + "\n\n");
-      PrintStream ps = new PrintStream(System.out)
+
+      if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
       {
-        public void print(String x)
-        {
-          mappingDetails.append(x);
-        }
+        pdbFile = "INLINE" + pdb.getId();
+      }
 
-        public void println()
-        {
-          mappingDetails.append("\n");
-        }
-      };
-
-      maxAlignseq.printAlignment(ps);
-
-      mappingDetails.append("\nPDB start/end " + maxAlignseq.seq2start
-              + " " + maxAlignseq.seq2end);
-      mappingDetails.append("\nSEQ start/end "
-              + (maxAlignseq.seq1start + sequence[s].getStart() - 1) + " "
-              + (maxAlignseq.seq1end + sequence[s].getEnd() - 1));
-
-      maxChain.makeExactMapping(maxAlignseq, sequence[s]);
-
-      maxChain.transferRESNUMFeatures(sequence[s], null);
-
-      // allocate enough slots to store the mapping from positions in
-      // sequence[s] to the associated chain
-      int[][] mapping = new int[sequence[s].findPosition(sequence[s].getLength()) + 2][2];
-      int resNum = -10000;
-      int index = 0;
-
-      do
+      ArrayList<StructureMapping> seqToStrucMapping = new ArrayList<StructureMapping>();
+      if (isMapUsingSIFTs && seq.isProtein())
       {
-        Atom tmp = (Atom) maxChain.atoms.elementAt(index);
-        if (resNum != tmp.resNumber && tmp.alignmentMapping != -1)
+        setProgressBar(null);
+        setProgressBar(MessageManager
+                .getString("status.obtaining_mapping_with_sifts"));
+        jalview.datamodel.Mapping sqmpping = maxAlignseq
+                .getMappingFromS1(false);
+        if (targetChainId != null && !targetChainId.trim().isEmpty())
         {
-          resNum = tmp.resNumber;
-          mapping[tmp.alignmentMapping + 1][0] = tmp.resNumber;
-          mapping[tmp.alignmentMapping + 1][1] = tmp.atomIndex;
+          StructureMapping siftsMapping;
+          try
+          {
+            siftsMapping = getStructureMapping(seq, pdbFile, targetChainId,
+                    pdb, maxChain, sqmpping, maxAlignseq);
+            seqToStrucMapping.add(siftsMapping);
+            maxChain.makeExactMapping(maxAlignseq, seq);
+            maxChain.transferRESNUMFeatures(seq, null);// FIXME: is this
+                                                       // "IEA:SIFTS" ?
+            maxChain.transferResidueAnnotation(siftsMapping, sqmpping);
+            ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
+
+          } catch (SiftsException e)
+          {
+            // fall back to NW alignment
+            System.err.println(e.getMessage());
+            StructureMapping nwMapping = getNWMappings(seq, pdbFile,
+                    targetChainId, maxChain, pdb, maxAlignseq);
+            seqToStrucMapping.add(nwMapping);
+            maxChain.makeExactMapping(maxAlignseq, seq);
+            maxChain.transferRESNUMFeatures(seq, null); // FIXME: is this
+                                                        // "IEA:Jalview" ?
+            maxChain.transferResidueAnnotation(nwMapping, sqmpping);
+            ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
+          }
         }
-
-        index++;
-      } while (index < maxChain.atoms.size());
-
-      if (mappings == null)
-      {
-        mappings = new StructureMapping[1];
+        else
+        {
+          ArrayList<StructureMapping> foundSiftsMappings = new ArrayList<StructureMapping>();
+          for (PDBChain chain : pdb.getChains())
+          {
+            try
+            {
+              StructureMapping siftsMapping = getStructureMapping(seq,
+                      pdbFile, chain.id, pdb, chain, sqmpping, maxAlignseq);
+              foundSiftsMappings.add(siftsMapping);
+            } catch (SiftsException e)
+            {
+              System.err.println(e.getMessage());
+            }
+          }
+          if (!foundSiftsMappings.isEmpty())
+          {
+            seqToStrucMapping.addAll(foundSiftsMappings);
+            maxChain.makeExactMapping(maxAlignseq, seq);
+            maxChain.transferRESNUMFeatures(seq, null);// FIXME: is this
+                                                       // "IEA:SIFTS" ?
+            maxChain.transferResidueAnnotation(foundSiftsMappings.get(0),
+                    sqmpping);
+            ds.addPDBId(sqmpping.getTo().getAllPDBEntries().get(0));
+          }
+          else
+          {
+            StructureMapping nwMapping = getNWMappings(seq, pdbFile,
+                    maxChainId, maxChain, pdb, maxAlignseq);
+            seqToStrucMapping.add(nwMapping);
+            maxChain.transferRESNUMFeatures(seq, null); // FIXME: is this
+                                                        // "IEA:Jalview" ?
+            maxChain.transferResidueAnnotation(nwMapping, sqmpping);
+            ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
+          }
+        }
       }
       else
       {
-        StructureMapping[] tmp = new StructureMapping[mappings.length + 1];
-        System.arraycopy(mappings, 0, tmp, 0, mappings.length);
-        mappings = tmp;
+        setProgressBar(null);
+        setProgressBar(MessageManager
+                .getString("status.obtaining_mapping_with_nw_alignment"));
+        StructureMapping nwMapping = getNWMappings(seq, pdbFile,
+                maxChainId, maxChain, pdb, maxAlignseq);
+        seqToStrucMapping.add(nwMapping);
+        ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
+
       }
 
-      if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
-        pdbFile = "INLINE" + pdb.id;
-
-      mappings[mappings.length - 1] = new StructureMapping(sequence[s],
-              pdbFile, pdb.id, maxChainId, mapping,
-              mappingDetails.toString());
-      maxChain.transferResidueAnnotation(mappings[mappings.length - 1]);
+      if (forStructureView)
+      {
+        mappings.addAll(seqToStrucMapping);
+      }
     }
-    // ///////
-
     return pdb;
+  }
+
+  private boolean isCIFFile(String filename)
+  {
+    String fileExt = filename.substring(filename.lastIndexOf(".") + 1,
+            filename.length());
+    return "cif".equalsIgnoreCase(fileExt);
+  }
+
+  /**
+   * retrieve a mapping for seq from SIFTs using associated DBRefEntry for
+   * uniprot or PDB
+   * 
+   * @param seq
+   * @param pdbFile
+   * @param targetChainId
+   * @param pdb
+   * @param maxChain
+   * @param sqmpping
+   * @param maxAlignseq
+   * @return
+   * @throws SiftsException
+   */
+  private StructureMapping getStructureMapping(SequenceI seq,
+          String pdbFile, String targetChainId, StructureFile pdb,
+          PDBChain maxChain, jalview.datamodel.Mapping sqmpping,
+          AlignSeq maxAlignseq) throws SiftsException
+  {
+    StructureMapping curChainMapping = siftsClient
+            .getSiftsStructureMapping(seq, pdbFile, targetChainId);
+    try
+    {
+      PDBChain chain = pdb.findChain(targetChainId);
+      if (chain != null)
+      {
+        chain.transferResidueAnnotation(curChainMapping, sqmpping);
+      }
+    } catch (Exception e)
+    {
+      e.printStackTrace();
+    }
+    return curChainMapping;
+  }
+
+  private StructureMapping getNWMappings(SequenceI seq, String pdbFile,
+          String maxChainId, PDBChain maxChain, StructureFile pdb,
+          AlignSeq maxAlignseq)
+  {
+    final StringBuilder mappingDetails = new StringBuilder(128);
+    mappingDetails.append(NEWLINE).append(
+            "Sequence \u27f7 Structure mapping details");
+    mappingDetails.append(NEWLINE);
+    mappingDetails
+            .append("Method: inferred with Needleman & Wunsch alignment");
+    mappingDetails.append(NEWLINE).append("PDB Sequence is :")
+            .append(NEWLINE).append("Sequence = ")
+            .append(maxChain.sequence.getSequenceAsString());
+    mappingDetails.append(NEWLINE).append("No of residues = ")
+            .append(maxChain.residues.size()).append(NEWLINE)
+            .append(NEWLINE);
+    PrintStream ps = new PrintStream(System.out)
+    {
+      @Override
+      public void print(String x)
+      {
+        mappingDetails.append(x);
+      }
+
+      @Override
+      public void println()
+      {
+        mappingDetails.append(NEWLINE);
+      }
+    };
+
+    maxAlignseq.printAlignment(ps);
+
+    mappingDetails.append(NEWLINE).append("PDB start/end ");
+    mappingDetails.append(String.valueOf(maxAlignseq.seq2start))
+            .append(" ");
+    mappingDetails.append(String.valueOf(maxAlignseq.seq2end));
+    mappingDetails.append(NEWLINE).append("SEQ start/end ");
+    mappingDetails.append(
+            String.valueOf(maxAlignseq.seq1start + (seq.getStart() - 1)))
+            .append(" ");
+    mappingDetails.append(String.valueOf(maxAlignseq.seq1end
+            + (seq.getStart() - 1)));
+    mappingDetails.append(NEWLINE);
+    maxChain.makeExactMapping(maxAlignseq, seq);
+    jalview.datamodel.Mapping sqmpping = maxAlignseq
+            .getMappingFromS1(false);
+    maxChain.transferRESNUMFeatures(seq, null);
+
+    HashMap<Integer, int[]> mapping = new HashMap<Integer, int[]>();
+    int resNum = -10000;
+    int index = 0;
+    char insCode = ' ';
+
+    do
+    {
+      Atom tmp = maxChain.atoms.elementAt(index);
+      if ((resNum != tmp.resNumber || insCode != tmp.insCode)
+              && tmp.alignmentMapping != -1)
+      {
+        resNum = tmp.resNumber;
+        insCode = tmp.insCode;
+        if (tmp.alignmentMapping >= -1)
+        {
+          mapping.put(tmp.alignmentMapping + 1, new int[] { tmp.resNumber,
+              tmp.atomIndex });
+        }
+      }
+
+      index++;
+    } while (index < maxChain.atoms.size());
+
+    StructureMapping nwMapping = new StructureMapping(seq, pdbFile,
+            pdb.getId(), maxChainId, mapping, mappingDetails.toString());
+    maxChain.transferResidueAnnotation(nwMapping, sqmpping);
+    return nwMapping;
   }
 
   public void removeStructureViewerListener(Object svl, String[] pdbfiles)
@@ -295,222 +714,244 @@ public class StructureSelectionManager
     listeners.removeElement(svl);
     if (svl instanceof SequenceListener)
     {
-      for (int i=0;i<listeners.size();i++)
+      for (int i = 0; i < listeners.size(); i++)
       {
         if (listeners.elementAt(i) instanceof StructureListener)
         {
-          ((StructureListener)listeners.elementAt(i)).releaseReferences(svl);
+          ((StructureListener) listeners.elementAt(i))
+                  .releaseReferences(svl);
         }
       }
     }
-      
+
     if (pdbfiles == null)
     {
       return;
     }
-    boolean removeMapping = true;
-    String[] handlepdbs;
-    Vector pdbs = new Vector();
-    for (int i = 0; i < pdbfiles.length; pdbs.addElement(pdbfiles[i++]))
-      ;
+
+    /*
+     * Remove mappings to the closed listener's PDB files, but first check if
+     * another listener is still interested
+     */
+    List<String> pdbs = new ArrayList<String>(Arrays.asList(pdbfiles));
+
     StructureListener sl;
     for (int i = 0; i < listeners.size(); i++)
     {
       if (listeners.elementAt(i) instanceof StructureListener)
       {
         sl = (StructureListener) listeners.elementAt(i);
-        handlepdbs = sl.getPdbFile();
-        for (int j = 0; j < handlepdbs.length; j++)
+        for (String pdbfile : sl.getPdbFile())
         {
-          if (pdbs.contains(handlepdbs[j]))
-          {
-            pdbs.removeElement(handlepdbs[j]);
-          }
+          pdbs.remove(pdbfile);
         }
-
       }
     }
 
-    if (pdbs.size() > 0 && mappings != null)
+    /*
+     * Rebuild the mappings set, retaining only those which are for 'other' PDB
+     * files
+     */
+    if (pdbs.size() > 0)
     {
-      Vector tmp = new Vector();
-      for (int i = 0; i < mappings.length; i++)
+      List<StructureMapping> tmp = new ArrayList<StructureMapping>();
+      for (StructureMapping sm : mappings)
       {
-        if (!pdbs.contains(mappings[i].pdbfile))
+        if (!pdbs.contains(sm.pdbfile))
         {
-          tmp.addElement(mappings[i]);
+          tmp.add(sm);
         }
       }
 
-      mappings = new StructureMapping[tmp.size()];
-      tmp.copyInto(mappings);
+      mappings = tmp;
     }
   }
 
+  /**
+   * Propagate mouseover of a single position in a structure
+   * 
+   * @param pdbResNum
+   * @param chain
+   * @param pdbfile
+   */
   public void mouseOverStructure(int pdbResNum, String chain, String pdbfile)
   {
-    if (listeners==null)
+    AtomSpec atomSpec = new AtomSpec(pdbfile, chain, pdbResNum, 0);
+    List<AtomSpec> atoms = Collections.singletonList(atomSpec);
+    mouseOverStructure(atoms);
+  }
+
+  /**
+   * Propagate mouseover or selection of multiple positions in a structure
+   * 
+   * @param atoms
+   */
+  public void mouseOverStructure(List<AtomSpec> atoms)
+  {
+    if (listeners == null)
     {
       // old or prematurely sent event
       return;
     }
-    boolean hasSequenceListeners = handlingVamsasMo || seqmappings != null;
-    SearchResults results = null;
-    SequenceI lastseq = null;
-    int lastipos = -1, indexpos;
+    boolean hasSequenceListener = false;
     for (int i = 0; i < listeners.size(); i++)
     {
       if (listeners.elementAt(i) instanceof SequenceListener)
       {
-        if (results == null)
+        hasSequenceListener = true;
+      }
+    }
+    if (!hasSequenceListener)
+    {
+      return;
+    }
+
+    SearchResultsI results = new SearchResults();
+    for (AtomSpec atom : atoms)
+    {
+      SequenceI lastseq = null;
+      int lastipos = -1;
+      for (StructureMapping sm : mappings)
+      {
+        if (sm.pdbfile.equals(atom.getPdbFile())
+                && sm.pdbchain.equals(atom.getChain()))
         {
-          results = new SearchResults();
-        }
-        if (mappings != null)
-        {
-          for (int j = 0; j < mappings.length; j++)
+          int indexpos = sm.getSeqPos(atom.getPdbResNum());
+          if (lastipos != indexpos && lastseq != sm.sequence)
           {
-            if (mappings[j].pdbfile.equals(pdbfile)
-                    && mappings[j].pdbchain.equals(chain))
+            results.addResult(sm.sequence, indexpos, indexpos);
+            lastipos = indexpos;
+            lastseq = sm.sequence;
+            // construct highlighted sequence list
+            for (AlignedCodonFrame acf : seqmappings)
             {
-              indexpos = mappings[j].getSeqPos(pdbResNum);
-              if (lastipos != indexpos && lastseq != mappings[j].sequence)
-              {
-                results.addResult(mappings[j].sequence, indexpos, indexpos);
-                lastipos = indexpos;
-                lastseq = mappings[j].sequence;
-                // construct highlighted sequence list
-                if (seqmappings != null)
-                {
-
-                  Enumeration e = seqmappings.elements();
-                  while (e.hasMoreElements())
-
-                  {
-                    ((AlignedCodonFrame) e.nextElement()).markMappedRegion(
-                            mappings[j].sequence, indexpos, results);
-                  }
-                }
-              }
-
+              acf.markMappedRegion(sm.sequence, indexpos, results);
             }
           }
         }
       }
     }
-    if (results!=null)
+    for (Object li : listeners)
     {
-      for (int i = 0; i < listeners.size(); i++)
+      if (li instanceof SequenceListener)
       {
-        Object li = listeners.elementAt(i);
-        if (li instanceof SequenceListener)
-          ((SequenceListener) li).highlightSequence(results);
+        ((SequenceListener) li).highlightSequence(results);
       }
     }
   }
-
-  Vector seqmappings = null; // should be a simpler list of mapped seuqence
 
   /**
    * highlight regions associated with a position (indexpos) in seq
    * 
    * @param seq
-   *          the sequeence that the mouse over occured on
+   *          the sequence that the mouse over occurred on
    * @param indexpos
    *          the absolute position being mouseovered in seq (0 to seq.length())
-   * @param index
+   * @param seqPos
    *          the sequence position (if -1, seq.findPosition is called to
    *          resolve the residue number)
    */
-  public void mouseOverSequence(SequenceI seq, int indexpos, int index,
+  public void mouseOverSequence(SequenceI seq, int indexpos, int seqPos,
           VamsasSource source)
   {
-    boolean hasSequenceListeners = handlingVamsasMo || seqmappings != null;
-    SearchResults results = null;
-    if (index == -1)
-      index = seq.findPosition(indexpos);
-    StructureListener sl;
-    int atomNo = 0;
+    boolean hasSequenceListeners = handlingVamsasMo
+            || !seqmappings.isEmpty();
+    SearchResultsI results = null;
+    if (seqPos == -1)
+    {
+      seqPos = seq.findPosition(indexpos);
+    }
     for (int i = 0; i < listeners.size(); i++)
     {
-      if (listeners.elementAt(i) instanceof StructureListener)
+      Object listener = listeners.elementAt(i);
+      if (listener == source)
       {
-        sl = (StructureListener) listeners.elementAt(i);
-        if (mappings == null)
-        {
-          continue;
-        }
-        for (int j = 0; j < mappings.length; j++)
-        {
-          if (mappings[j].sequence == seq
-                  || mappings[j].sequence == seq.getDatasetSequence())
-          {
-            atomNo = mappings[j].getAtomNum(index);
-
-            if (atomNo > 0)
-            {
-              sl.highlightAtom(atomNo, mappings[j].getPDBResNum(index),
-                      mappings[j].pdbchain, mappings[j].pdbfile);
-            }
-          }
-        }
+        // TODO listener (e.g. SeqPanel) is never == source (AlignViewport)
+        // Temporary fudge with SequenceListener.getVamsasSource()
+        continue;
+      }
+      if (listener instanceof StructureListener)
+      {
+        highlightStructure((StructureListener) listener, seq, seqPos);
       }
       else
       {
-        if (relaySeqMappings && hasSequenceListeners
-                && listeners.elementAt(i) instanceof SequenceListener)
+        if (listener instanceof SequenceListener)
         {
-          // DEBUG
-          // System.err.println("relay Seq " + seq.getDisplayId(false) + " " +
-          // index);
-
-          if (results == null)
+          final SequenceListener seqListener = (SequenceListener) listener;
+          if (hasSequenceListeners
+                  && seqListener.getVamsasSource() != source)
           {
-            results = new SearchResults();
-            if (index >= seq.getStart() && index <= seq.getEnd())
+            if (relaySeqMappings)
             {
-              // construct highlighted sequence list
-
-              if (seqmappings != null)
+              if (results == null)
               {
-                Enumeration e = seqmappings.elements();
-                while (e.hasMoreElements())
-
-                {
-                  ((AlignedCodonFrame) e.nextElement()).markMappedRegion(
-                          seq, index, results);
-                }
+                results = MappingUtils.buildSearchResults(seq, seqPos,
+                        seqmappings);
               }
-              // hasSequenceListeners = results.getSize() > 0;
               if (handlingVamsasMo)
               {
-                // maybe have to resolve seq to a dataset seqeunce...
-                // add in additional direct sequence and/or dataset sequence
-                // highlighting
-                results.addResult(seq, index, index);
+                results.addResult(seq, seqPos, seqPos);
+
+              }
+              if (!results.isEmpty())
+              {
+                seqListener.highlightSequence(results);
               }
             }
           }
-          if (hasSequenceListeners)
-          {
-            ((SequenceListener) listeners.elementAt(i))
-                    .highlightSequence(results);
-          }
         }
-        else if (listeners.elementAt(i) instanceof VamsasListener
-                && !handlingVamsasMo)
+        else if (listener instanceof VamsasListener && !handlingVamsasMo)
         {
-          // DEBUG
-          // System.err.println("Vamsas from Seq " + seq.getDisplayId(false) + "
-          // " +
-          // index);
-          // pass the mouse over and absolute position onto the
-          // VamsasListener(s)
-          ((VamsasListener) listeners.elementAt(i)).mouseOver(seq,
-                  indexpos, source);
+          ((VamsasListener) listener).mouseOverSequence(seq, indexpos,
+                  source);
+        }
+        else if (listener instanceof SecondaryStructureListener)
+        {
+          ((SecondaryStructureListener) listener).mouseOverSequence(seq,
+                  indexpos, seqPos);
         }
       }
     }
+  }
+
+  /**
+   * Send suitable messages to a StructureListener to highlight atoms
+   * corresponding to the given sequence position(s)
+   * 
+   * @param sl
+   * @param seq
+   * @param positions
+   */
+  public void highlightStructure(StructureListener sl, SequenceI seq,
+          int... positions)
+  {
+    if (!sl.isListeningFor(seq))
+    {
+      return;
+    }
+    int atomNo;
+    List<AtomSpec> atoms = new ArrayList<AtomSpec>();
+    for (StructureMapping sm : mappings)
+    {
+      if (sm.sequence == seq
+              || sm.sequence == seq.getDatasetSequence()
+              || (sm.sequence.getDatasetSequence() != null && sm.sequence
+                      .getDatasetSequence() == seq.getDatasetSequence()))
+      {
+        for (int index : positions)
+        {
+          atomNo = sm.getAtomNum(index);
+
+          if (atomNo > 0)
+          {
+            atoms.add(new AtomSpec(sm.pdbfile, sm.pdbchain, sm
+                    .getPDBResNum(index), atomNo));
+          }
+        }
+      }
+    }
+    sl.highlightAtoms(atoms);
   }
 
   /**
@@ -599,113 +1040,141 @@ public class StructureSelectionManager
 
   public StructureMapping[] getMapping(String pdbfile)
   {
-    Vector tmp = new Vector();
-    if (mappings != null)
+    List<StructureMapping> tmp = new ArrayList<StructureMapping>();
+    for (StructureMapping sm : mappings)
     {
-      for (int i = 0; i < mappings.length; i++)
+      if (sm.pdbfile.equals(pdbfile))
       {
-        if (mappings[i].pdbfile.equals(pdbfile))
-        {
-          tmp.addElement(mappings[i]);
-        }
+        tmp.add(sm);
       }
     }
-    StructureMapping[] ret = new StructureMapping[tmp.size()];
-    for (int i = 0; i < tmp.size(); i++)
-    {
-      ret[i] = (StructureMapping) tmp.elementAt(i);
-    }
-
-    return ret;
+    return tmp.toArray(new StructureMapping[tmp.size()]);
   }
 
-  public String printMapping(String pdbfile)
+  /**
+   * Returns a readable description of all mappings for the given pdbfile to any
+   * of the given sequences
+   * 
+   * @param pdbfile
+   * @param seqs
+   * @return
+   */
+  public String printMappings(String pdbfile, List<SequenceI> seqs)
   {
-    StringBuffer sb = new StringBuffer();
-    for (int i = 0; i < mappings.length; i++)
+    if (pdbfile == null || seqs == null || seqs.isEmpty())
     {
-      if (mappings[i].pdbfile.equals(pdbfile))
+      return "";
+    }
+
+    StringBuilder sb = new StringBuilder(64);
+    for (StructureMapping sm : mappings)
+    {
+      if (sm.pdbfile.equals(pdbfile) && seqs.contains(sm.sequence))
       {
-        sb.append(mappings[i].mappingDetails);
+        sb.append(sm.mappingDetails);
+        sb.append(NEWLINE);
+        // separator makes it easier to read multiple mappings
+        sb.append("=====================");
+        sb.append(NEWLINE);
       }
     }
+    sb.append(NEWLINE);
 
     return sb.toString();
   }
 
-  private int[] seqmappingrefs = null; // refcount for seqmappings elements
-
-  private synchronized void modifySeqMappingList(boolean add,
-          AlignedCodonFrame[] codonFrames)
+  /**
+   * Remove the given mapping
+   * 
+   * @param acf
+   */
+  public void deregisterMapping(AlignedCodonFrame acf)
   {
-    if (!add && (seqmappings == null || seqmappings.size() == 0))
-      return;
-    if (seqmappings == null)
-      seqmappings = new Vector();
-    if (codonFrames != null && codonFrames.length > 0)
+    if (acf != null)
     {
-      for (int cf = 0; cf < codonFrames.length; cf++)
-      {
-        if (seqmappings.contains(codonFrames[cf]))
-        {
-          if (add)
-          {
-            seqmappingrefs[seqmappings.indexOf(codonFrames[cf])]++;
-          }
-          else
-          {
-            if (--seqmappingrefs[seqmappings.indexOf(codonFrames[cf])] <= 0)
-            {
-              int pos = seqmappings.indexOf(codonFrames[cf]);
-              int[] nr = new int[seqmappingrefs.length - 1];
-              if (pos > 0)
-              {
-                System.arraycopy(seqmappingrefs, 0, nr, 0, pos);
-              }
-              if (pos < seqmappingrefs.length - 1)
-              {
-                System.arraycopy(seqmappingrefs, pos + 1, nr, 0,
-                        seqmappingrefs.length - pos - 2);
-              }
-            }
-          }
-        }
-        else
-        {
-          if (add)
-          {
-            seqmappings.addElement(codonFrames[cf]);
-
-            int[] nsr = new int[(seqmappingrefs == null) ? 1
-                    : seqmappingrefs.length + 1];
-            if (seqmappingrefs != null && seqmappingrefs.length > 0)
-              System.arraycopy(seqmappingrefs, 0, nsr, 0,
-                      seqmappingrefs.length);
-            nsr[(seqmappingrefs == null) ? 0 : seqmappingrefs.length] = 1;
-            seqmappingrefs = nsr;
-          }
-        }
+      boolean removed = seqmappings.remove(acf);
+      if (removed && seqmappings.isEmpty())
+      { // debug
+        System.out.println("All mappings removed");
       }
     }
   }
 
-  public void removeMappings(AlignedCodonFrame[] codonFrames)
+  /**
+   * Add each of the given codonFrames to the stored set, if not aready present.
+   * 
+   * @param mappings
+   */
+  public void registerMappings(List<AlignedCodonFrame> mappings)
   {
-    modifySeqMappingList(false, codonFrames);
+    if (mappings != null)
+    {
+      for (AlignedCodonFrame acf : mappings)
+      {
+        registerMapping(acf);
+      }
+    }
   }
 
-  public void addMappings(AlignedCodonFrame[] codonFrames)
+  /**
+   * Add the given mapping to the stored set, unless already stored.
+   */
+  public void registerMapping(AlignedCodonFrame acf)
   {
-    modifySeqMappingList(true, codonFrames);
+    if (acf != null)
+    {
+      if (!seqmappings.contains(acf))
+      {
+        seqmappings.add(acf);
+      }
+    }
   }
 
-  Vector<SelectionListener> sel_listeners = new Vector<SelectionListener>();
+  /**
+   * Resets this object to its initial state by removing all registered
+   * listeners, codon mappings, PDB file mappings
+   */
+  public void resetAll()
+  {
+    if (mappings != null)
+    {
+      mappings.clear();
+    }
+    if (seqmappings != null)
+    {
+      seqmappings.clear();
+    }
+    if (sel_listeners != null)
+    {
+      sel_listeners.clear();
+    }
+    if (listeners != null)
+    {
+      listeners.clear();
+    }
+    if (commandListeners != null)
+    {
+      commandListeners.clear();
+    }
+    if (view_listeners != null)
+    {
+      view_listeners.clear();
+    }
+    if (pdbFileNameId != null)
+    {
+      pdbFileNameId.clear();
+    }
+    if (pdbIdFileName != null)
+    {
+      pdbIdFileName.clear();
+    }
+  }
 
   public void addSelectionListener(SelectionListener selecter)
   {
     if (!sel_listeners.contains(selecter))
     {
-      sel_listeners.addElement(selecter);
+      sel_listeners.add(selecter);
     }
   }
 
@@ -713,7 +1182,7 @@ public class StructureSelectionManager
   {
     if (sel_listeners.contains(toremove))
     {
-      sel_listeners.removeElement(toremove);
+      sel_listeners.remove(toremove);
     }
   }
 
@@ -721,34 +1190,29 @@ public class StructureSelectionManager
           jalview.datamodel.SequenceGroup selection,
           jalview.datamodel.ColumnSelection colsel, SelectionSource source)
   {
-    if (sel_listeners != null && sel_listeners.size() > 0)
+    for (SelectionListener slis : sel_listeners)
     {
-      Enumeration listeners = sel_listeners.elements();
-      while (listeners.hasMoreElements())
+      if (slis != source)
       {
-        SelectionListener slis = ((SelectionListener) listeners
-                .nextElement());
-        if (slis != source)
-        {
-          slis.selection(selection, colsel, source);
-        }
-        ;
+        slis.selection(selection, colsel, source);
       }
     }
   }
-  
-  Vector<AlignmentViewPanelListener> view_listeners=new Vector<AlignmentViewPanelListener>();
-  public synchronized void sendViewPosition(jalview.api.AlignmentViewPanel source, int startRes,
-          int endRes, int startSeq, int endSeq)
+
+  Vector<AlignmentViewPanelListener> view_listeners = new Vector<AlignmentViewPanelListener>();
+
+  public synchronized void sendViewPosition(
+          jalview.api.AlignmentViewPanel source, int startRes, int endRes,
+          int startSeq, int endSeq)
   {
 
     if (view_listeners != null && view_listeners.size() > 0)
     {
-      Enumeration<AlignmentViewPanelListener> listeners = view_listeners.elements();
+      Enumeration<AlignmentViewPanelListener> listeners = view_listeners
+              .elements();
       while (listeners.hasMoreElements())
       {
-        AlignmentViewPanelListener slis = listeners
-                .nextElement();
+        AlignmentViewPanelListener slis = listeners.nextElement();
         if (slis != source)
         {
           slis.viewPosition(startRes, endRes, startSeq, endSeq, source);
@@ -757,39 +1221,15 @@ public class StructureSelectionManager
       }
     }
   }
-  
-
-  public void finalize() throws Throwable {
-    if (listeners!=null) {
-      listeners.clear();
-      listeners=null;
-    }
-    if (mappingData!=null)
-    {
-      mappingData.clear();
-      mappingData=null;
-    }
-    if (sel_listeners!=null)
-    {
-      sel_listeners.clear();
-      sel_listeners=null;
-    }
-    if (view_listeners!=null)
-    {
-      view_listeners.clear();
-      view_listeners=null;
-    }
-    mappings=null;
-    seqmappingrefs=null;
-  }
 
   /**
    * release all references associated with this manager provider
+   * 
    * @param jalviewLite
    */
   public static void release(StructureSelectionManagerProvider jalviewLite)
   {
-//    synchronized (instances)
+    // synchronized (instances)
     {
       if (instances == null)
       {
@@ -805,9 +1245,115 @@ public class StructureSelectionManager
         } catch (Throwable x)
         {
         }
-        ;
       }
     }
+  }
+
+  public void registerPDBEntry(PDBEntry pdbentry)
+  {
+    if (pdbentry.getFile() != null
+            && pdbentry.getFile().trim().length() > 0)
+    {
+      registerPDBFile(pdbentry.getId(), pdbentry.getFile());
+    }
+  }
+
+  public void addCommandListener(CommandListener cl)
+  {
+    if (!commandListeners.contains(cl))
+    {
+      commandListeners.add(cl);
+    }
+  }
+
+  public boolean hasCommandListener(CommandListener cl)
+  {
+    return this.commandListeners.contains(cl);
+  }
+
+  public boolean removeCommandListener(CommandListener l)
+  {
+    return commandListeners.remove(l);
+  }
+
+  /**
+   * Forward a command to any command listeners (except for the command's
+   * source).
+   * 
+   * @param command
+   *          the command to be broadcast (in its form after being performed)
+   * @param undo
+   *          if true, the command was being 'undone'
+   * @param source
+   */
+  public void commandPerformed(CommandI command, boolean undo,
+          VamsasSource source)
+  {
+    for (CommandListener listener : commandListeners)
+    {
+      listener.mirrorCommand(command, undo, this, source);
+    }
+  }
+
+  /**
+   * Returns a new CommandI representing the given command as mapped to the
+   * given sequences. If no mapping could be made, or the command is not of a
+   * mappable kind, returns null.
+   * 
+   * @param command
+   * @param undo
+   * @param mapTo
+   * @param gapChar
+   * @return
+   */
+  public CommandI mapCommand(CommandI command, boolean undo,
+          final AlignmentI mapTo, char gapChar)
+  {
+    if (command instanceof EditCommand)
+    {
+      return MappingUtils.mapEditCommand((EditCommand) command, undo,
+              mapTo, gapChar, seqmappings);
+    }
+    else if (command instanceof OrderCommand)
+    {
+      return MappingUtils.mapOrderCommand((OrderCommand) command, undo,
+              mapTo, seqmappings);
+    }
+    return null;
+  }
+
+  public IProgressIndicator getProgressIndicator()
+  {
+    return progressIndicator;
+  }
+
+  public void setProgressIndicator(IProgressIndicator progressIndicator)
+  {
+    this.progressIndicator = progressIndicator;
+  }
+
+  public long getProgressSessionId()
+  {
+    return progressSessionId;
+  }
+
+  public void setProgressSessionId(long progressSessionId)
+  {
+    this.progressSessionId = progressSessionId;
+  }
+
+  public void setProgressBar(String message)
+  {
+    if (progressIndicator == null)
+    {
+      return;
+    }
+    progressIndicator.setProgressBar(message, progressSessionId);
+  }
+
+  public List<AlignedCodonFrame> getSequenceMappings()
+  {
+    return seqmappings;
   }
 
 }

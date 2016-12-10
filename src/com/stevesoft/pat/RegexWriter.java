@@ -7,9 +7,11 @@
 //
 package com.stevesoft.pat;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 
-import com.stevesoft.pat.wrap.*;
+import com.stevesoft.pat.wrap.WriterWrap;
 
 /**
  * A basic extension of FilterWriter that uses Transformer to make replacements
@@ -77,6 +79,7 @@ public class RegexWriter extends Writer
    * 
    * @deprecated
    */
+  @Deprecated
   public char getEOLchar()
   {
     return EOLchar;
@@ -87,6 +90,7 @@ public class RegexWriter extends Writer
    * 
    * @deprecated
    */
+  @Deprecated
   public void setEOLchar(char c)
   {
     EOLchar = c;
@@ -99,6 +103,7 @@ public class RegexWriter extends Writer
    * 
    * @deprecated
    */
+  @Deprecated
   public int getMaxLines()
   {
     return max_lines;
@@ -109,6 +114,7 @@ public class RegexWriter extends Writer
    * 
    * @deprecated
    */
+  @Deprecated
   public void setMaxLines(int ml)
   {
     max_lines = ml;

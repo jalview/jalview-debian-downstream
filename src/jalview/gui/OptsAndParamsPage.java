@@ -1,22 +1,26 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.gui;
 
+import jalview.util.MessageManager;
 import jalview.ws.params.ArgumentI;
 import jalview.ws.params.OptionI;
 import jalview.ws.params.ParameterI;
@@ -37,7 +41,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -107,32 +110,32 @@ public class OptsAndParamsPage
       {
         hasLink = true;
 
-        enabled.setToolTipText("<html>"
-                + JvSwingUtils
-                        .wrapTooltip(((desc == null) ? "see further details by right-clicking"
+        enabled.setToolTipText(JvSwingUtils
+                .wrapTooltip(
+                        true,
+                        ((desc == null || desc.trim().length() == 0) ? MessageManager
+                                .getString("label.opt_and_params_further_details")
                                 : desc)
-                                + "<br><img src=\"" + linkImageURL + "\"/>")
-                + "</html>");
+                                + "<br><img src=\"" + linkImageURL + "\"/>"));
         enabled.addMouseListener(this);
       }
       else
       {
-        if (desc != null)
+        if (desc != null && desc.trim().length() > 0)
         {
-          enabled.setToolTipText("<html>"
-                  + JvSwingUtils.wrapTooltip(opt.getDescription())
-                  + "</html>");
+          enabled.setToolTipText(JvSwingUtils.wrapTooltip(true,
+                  opt.getDescription()));
         }
       }
       add(enabled, BorderLayout.NORTH);
+      for (Object str : opt.getPossibleValues())
+      {
+        val.addItem(str);
+      }
+      val.setSelectedItem(opt.getValue());
       if (opt.getPossibleValues().size() > 1)
       {
         setLayout(new GridLayout(1, 2));
-        for (Object str : opt.getPossibleValues())
-        {
-          val.addItem((String) str);
-        }
-        val.setSelectedItem((String) opt.getValue());
         val.addActionListener(this);
         add(val, BorderLayout.SOUTH);
       }
@@ -142,6 +145,7 @@ public class OptsAndParamsPage
       setInitialValue();
     }
 
+    @Override
     public void actionPerformed(ActionEvent e)
     {
       if (e.getSource() != enabled)
@@ -169,7 +173,8 @@ public class OptsAndParamsPage
       }
       else
       {
-        notmod &= initVal == null;
+        notmod &= (initVal != null) ? initVal.equals(val.getSelectedItem())
+                : val.getSelectedItem() != initVal;
       }
       poparent.argSetModified(this, !notmod);
     }
@@ -181,50 +186,69 @@ public class OptsAndParamsPage
         return null;
       }
       OptionI opt = option.copy();
-
+      if (opt.getPossibleValues() != null
+              && opt.getPossibleValues().size() == 1)
+      {
+        // Hack to make sure the default value for an enabled option with only
+        // one value is actually returned
+        opt.setValue(opt.getPossibleValues().get(0));
+      }
       if (val.getSelectedItem() != null)
       {
         opt.setValue((String) val.getSelectedItem());
       }
+      else
+      {
+        if (option.getValue() != null)
+        {
+          opt.setValue(option.getValue());
+        }
+      }
       return opt;
     }
 
+    @Override
     public void mouseClicked(MouseEvent e)
     {
-      if (javax.swing.SwingUtilities.isRightMouseButton(e))
+      if (e.isPopupTrigger()) // for Windows
       {
         showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
       }
     }
 
+    @Override
     public void mouseEntered(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mouseExited(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mousePressed(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
+      if (e.isPopupTrigger()) // Mac
+      {
+        showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
+      }
     }
 
+    @Override
     public void mouseReleased(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
     }
 
-    public void resetToDefault()
+    public void resetToDefault(boolean setDefaultParams)
     {
       enabled.setSelected(false);
-      if (option.isRequired())
+      if (option.isRequired()
+              || (setDefaultParams && option.getValue() != null))
       {
         // Apply default value
         selectOption(option, option.getValue());
@@ -241,7 +265,7 @@ public class OptsAndParamsPage
       }
       else
       {
-        initVal = (initEnabled) ? option.getValue() : null;
+        initVal = (initEnabled) ? (String) val.getSelectedItem() : null;
       }
     }
 
@@ -301,7 +325,7 @@ public class OptsAndParamsPage
           choice = true;
         }
       }
-      
+
       if (!compact)
       {
         makeExpanderParam(parm);
@@ -315,9 +339,9 @@ public class OptsAndParamsPage
 
     private void makeCompactParam(ParameterI parm)
     {
-      setLayout(new MigLayout("","[][grow]"));
+      setLayout(new MigLayout("", "[][grow]"));
 
-      String ttipText=null;
+      String ttipText = null;
 
       controlPanel.setLayout(new BorderLayout());
 
@@ -325,15 +349,20 @@ public class OptsAndParamsPage
               && parm.getDescription().trim().length() > 0)
       {
         // Only create description boxes if there actually is a description.
-        ttipText = ("<html>"
-                  + JvSwingUtils
-                          .wrapTooltip(parm.getDescription()+(finfo!=null ?"<br><img src=\""
-                                  + linkImageURL
-                                  + "\"/> Right click for further information.":""))
-                  + "</html>");
+        ttipText = (JvSwingUtils
+                .wrapTooltip(
+                        true,
+                        parm.getDescription()
+                                + (finfo != null ? "<br><img src=\""
+                                        + linkImageURL
+                                        + "\"/>"
+                                        + MessageManager
+                                                .getString("label.opt_and_params_further_details")
+                                        : "")));
       }
-      
-      JvSwingUtils.mgAddtoLayout(this, ttipText, new JLabel(parm.getName()),controlPanel, "");
+
+      JvSwingUtils.mgAddtoLayout(this, ttipText,
+              new JLabel(parm.getName()), controlPanel, "");
       updateControls(parm);
       validate();
     }
@@ -370,24 +399,26 @@ public class OptsAndParamsPage
         // Only create description boxes if there actually is a description.
         if (finfo != null)
         {
-          showDesc.setToolTipText("<html>"
-                  + JvSwingUtils
-                          .wrapTooltip("Click to show brief description<br><img src=\""
-                                  + linkImageURL
-                                  + "\"/> Right click for further information.")
-                  + "</html>");
+          showDesc.setToolTipText(JvSwingUtils.wrapTooltip(
+                  true,
+                  MessageManager
+                          .formatMessage(
+                                  "label.opt_and_params_show_brief_desc_image_link",
+                                  new String[] { linkImageURL
+                                          .toExternalForm() })));
           showDesc.addMouseListener(this);
         }
         else
         {
-          showDesc.setToolTipText("<html>"
-                  + JvSwingUtils
-                          .wrapTooltip("Click to show brief description.")
-                  + "</html>");
+          showDesc.setToolTipText(JvSwingUtils.wrapTooltip(
+                  true,
+                  MessageManager
+                          .getString("label.opt_and_params_show_brief_desc")));
         }
         showDesc.addActionListener(new ActionListener()
         {
 
+          @Override
           public void actionPerformed(ActionEvent e)
           {
             descisvisible = !descisvisible;
@@ -427,6 +458,7 @@ public class OptsAndParamsPage
       validate();
     }
 
+    @Override
     public void actionPerformed(ActionEvent e)
     {
       if (adjusting)
@@ -502,45 +534,53 @@ public class OptsAndParamsPage
       lastVal = null;
     }
 
+    @Override
     public void mouseClicked(MouseEvent e)
     {
-      if (javax.swing.SwingUtilities.isRightMouseButton(e))
+      if (e.isPopupTrigger()) // for Windows
       {
         showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
       }
     }
 
+    @Override
     public void mouseEntered(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mouseExited(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mousePressed(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
+      if (e.isPopupTrigger()) // for Mac
+      {
+        showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
+      }
     }
 
+    @Override
     public void mouseReleased(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void stateChanged(ChangeEvent e)
     {
       if (!adjusting)
       {
         valueField.setText(""
-                + ((integ) ? ("" + (int) slider.getValue())
-                        : ("" + (float) (slider.getValue() / 1000f))));
+                + ((integ) ? ("" + slider.getValue()) : ("" + slider
+                        .getValue() / 1000f)));
         checkIfModified();
       }
 
@@ -566,21 +606,24 @@ public class OptsAndParamsPage
           valueField.addActionListener(this);
           valueField.addKeyListener(new KeyListener()
           {
-            
+
             @Override
             public void keyTyped(KeyEvent e)
             {
             }
-            
+
             @Override
             public void keyReleased(KeyEvent e)
             {
-              if (valueField.getText().trim().length()>0)
+              if (e.isActionKey())
+              {
+                if (valueField.getText().trim().length() > 0)
                 {
-                actionPerformed(null);
+                  actionPerformed(null);
                 }
+              }
             }
-            
+
             @Override
             public void keyPressed(KeyEvent e)
             {
@@ -651,24 +694,26 @@ public class OptsAndParamsPage
           {
           }
           ;
+          // update value field to reflect any bound checking we performed.
+          valueField.setText("" + iVal);
           if (validator.getMin() != null && validator.getMax() != null)
           {
             slider.getModel().setRangeProperties(iVal, 1,
                     validator.getMin().intValue(),
-                    validator.getMax().intValue(), true);
+                    validator.getMax().intValue() + 1, true);
           }
           else
           {
             slider.setVisible(false);
           }
-          return new int[]
-          { iVal };
+          return new int[] { iVal };
         }
         else
         {
           fVal = 0f;
           try
           {
+            valueField.setText(valueField.getText().trim());
             fVal = Float.valueOf(valueField.getText());
             if (validator.getMin() != null
                     && validator.getMin().floatValue() > fVal)
@@ -676,6 +721,8 @@ public class OptsAndParamsPage
               fVal = validator.getMin().floatValue();
               // TODO: provide visual indication that hard limit was reached for
               // this parameter
+              // update value field to reflect any bound checking we performed.
+              valueField.setText("" + fVal);
             }
             if (validator.getMax() != null
                     && validator.getMax().floatValue() < fVal)
@@ -683,6 +730,8 @@ public class OptsAndParamsPage
               fVal = validator.getMax().floatValue();
               // TODO: provide visual indication that hard limit was reached for
               // this parameter
+              // update value field to reflect any bound checking we performed.
+              valueField.setText("" + fVal);
             }
           } catch (Exception e)
           {
@@ -690,16 +739,16 @@ public class OptsAndParamsPage
           ;
           if (validator.getMin() != null && validator.getMax() != null)
           {
-            slider.getModel().setRangeProperties((int) fVal * 1000, 1,
-                    (int) validator.getMin().floatValue() * 1000,
-                    (int) validator.getMax().floatValue() * 1000, true);
+            slider.getModel().setRangeProperties((int) (fVal * 1000f), 1,
+                    (int) (validator.getMin().floatValue() * 1000f),
+                    1 + (int) (validator.getMax().floatValue() * 1000f),
+                    true);
           }
           else
           {
             slider.setVisible(false);
           }
-          return new float[]
-          { fVal };
+          return new float[] { fVal };
         }
       }
       else
@@ -707,13 +756,11 @@ public class OptsAndParamsPage
         if (!choice)
         {
           slider.setVisible(false);
-          return new String[]
-          { valueField.getText().trim() };
+          return new String[] { valueField.getText().trim() };
         }
         else
         {
-          return new String[]
-          { (String) choicebox.getSelectedItem() };
+          return new String[] { (String) choicebox.getSelectedItem() };
         }
       }
 
@@ -728,12 +775,14 @@ public class OptsAndParamsPage
 
   public OptsAndParamsPage(OptsParametersContainerI paramContainer)
   {
-    this(paramContainer,false);
+    this(paramContainer, false);
   }
-  public OptsAndParamsPage(OptsParametersContainerI paramContainer, boolean compact)
+
+  public OptsAndParamsPage(OptsParametersContainerI paramContainer,
+          boolean compact)
   {
     poparent = paramContainer;
-    this.compact=compact;
+    this.compact = compact;
   }
 
   public static void showUrlPopUp(JComponent invoker, final String finfo,
@@ -741,7 +790,8 @@ public class OptsAndParamsPage
   {
 
     JPopupMenu mnu = new JPopupMenu();
-    JMenuItem mitem = new JMenuItem("View " + finfo);
+    JMenuItem mitem = new JMenuItem(MessageManager.formatMessage(
+            "label.view_params", new String[] { finfo }));
     mitem.addActionListener(new ActionListener()
     {
 
@@ -758,9 +808,9 @@ public class OptsAndParamsPage
 
   URL linkImageURL = getClass().getResource("/images/link.gif");
 
-  Map<String, OptionBox> optSet = new Hashtable<String, OptionBox>();
+  Map<String, OptionBox> optSet = new java.util.LinkedHashMap<String, OptionBox>();
 
-  Map<String, ParamBox> paramSet = new Hashtable<String, ParamBox>();
+  Map<String, ParamBox> paramSet = new java.util.LinkedHashMap<String, ParamBox>();
 
   public Map<String, OptionBox> getOptSet()
   {
@@ -827,7 +877,9 @@ public class OptsAndParamsPage
       }
       else
       {
-        throw new Error("Invalid value " + string + " for option " + option);
+        throw new Error(MessageManager.formatMessage(
+                "error.invalid_value_for_option", new String[] { string,
+                    option.getName() }));
       }
 
     }

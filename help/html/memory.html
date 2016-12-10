@@ -1,118 +1,145 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
-<head><title>Memory Settings</title></head>
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
+<head>
+<title>Memory Settings</title>
+</head>
 <body>
-<h2>
-  <center>
-    <strong>Memory Usage Settings for Jalview</strong>
-  </center>
-</h2>
-<p>Jalview sometimes runs out of memory. This is because of the way that Java
-  runs on a computer - what is actually run is a program called a virtual machine
-  (the JVM) which executes the java instructions. The JVM has limits on the memory
-  that can be allocated to the java program - and you might need to increase them
-  if you are working with particularly large datasets.<br>
-  If Jalview has not explicitly told you that it has run out of memory, then a
-  common sign is that a function that normally works seems to have no effect when
-  working with a larger set of sequences (this might include open dialog boxes
-  for saving PNG files, or when interpreting the result of a web service calculation).</p>
-  <p><em>Jalview Memory Usage Monitor</em>: If you are concerned about memory, or think that things might be behaving 
-  strangely because of a shortage of memory, then you can check this by enabling the 
-  memory usage monitor. This is done by selecting the <strong>Tools&#8594;Show Memory Usage</strong>
-  option. Once enabled, the memory usage monitor displays the currently 
-  available memory, the total memory, and the percentage free at the 
-  bottom left hand side of the Jalview Desktop window's background.</p>
-<p><em>Increasing the memory available to Jalview</em><br>
-The way you increase the memory settings for the JVM depends on which installation
-  of Jalview you use:</p>
-<ul>
-  <li><em><font size="3">Web Start Version</font></em>
-    <p>JavaWS sets the JVM parameters through special tags in the JNLP file. You'll
-      need to <a href="jalviewjnlp.html">make your own jnlp file</a> and add the following parameter into the
-      &lt;resources&gt; element.
-    <pre>
-&lt;j2se version="1.5+" initial-heap-size="500M" max-heap-size="1000M"/&gt;
-</pre>
-    Save the jnlp file somewhere and then - if you start Jalview through your
-    web browser, point your browser at the file's url, othewise simply run javaws
-    with the file location as its argument. The file's url is something like :<br>
-    <pre>
+  <h2>
+    <center>
+      <strong>Memory Usage Settings for Jalview</strong>
+    </center>
+  </h2>
+  <p>
+    Jalview sometimes runs out of memory. This is because of the way
+    that Java runs on a computer - what is actually run is a program
+    called a virtual machine (the JVM) which executes the java
+    instructions. The JVM has limits on the memory that can be allocated
+    to the java program - and you might need to increase them if you are
+    working with particularly large datasets.<br> If Jalview has
+    not explicitly told you that it has run out of memory, then a common
+    sign is that a function that normally works seems to have no effect
+    when working with a larger set of sequences (this might include open
+    dialog boxes for saving PNG files, or when interpreting the result
+    of a web service calculation).
+  </p>
+  <p>
+    <em>Jalview Memory Usage Monitor</em>: If you are concerned about
+    memory, or think that things might be behaving strangely because of
+    a shortage of memory, then you can check this by enabling the memory
+    usage monitor. This is done by selecting the <strong>Tools&#8594;Show
+      Memory Usage</strong> option. Once enabled, the memory usage monitor
+    displays the currently available memory, the total memory, and the
+    percentage free at the bottom left hand side of the Jalview Desktop
+    window's background.
+  </p>
+  <p>
+    <em>Increasing the memory available to Jalview</em><br> The way
+    you increase the memory settings for the JVM depends on which
+    installation of Jalview you use:
+  </p>
+  <ul>
+    <li><em><font size="3">Web Start Version</font></em>
+      <p>
+        JavaWS sets the JVM parameters through special tags in the JNLP
+        file. You can obtain a JNLP file with modified memory settings
+        from our service with the following link (replace 2G with
+        desired memory in G or M):<br /> <a
+          href="http://www.jalview.org/services/launchApp?jvm-max-heap=2G">http://www.jalview.org/services/launchApp?jvm-max-heap=2G</a>
+      </p>
+      <p>
+        Alternatively, if you want to create your own JNLP file then
+        please download the latest JNLP file from <a
+          href="http://www.jalview.org/webstart/jalview.jnlp">http://www.jalview.org/webstart/jalview.jnlp</a>
+        and modify the max-heap-size parameter for the j2se tag in the
+        &lt;resources&gt; element. e.g.
+      <pre>
+&lt;j2se version="1.7+" initial-heap-size="500M" max-heap-size="1000M"/&gt;
+</pre> In both cases, you should save your new jnlp file somewhere and then
+      either point your web browser at the file's url, launch it from
+      your file browser, or from a terminal window run javaws (located
+      in your Java installation's bin directory) with the file location
+      as its argument. The file's url is something like :<br> <pre>
 file://&lt;full path to file&gt;
-</pre>
-    If jalview doesn't start up, see <a href="#memsetting">below</a>. You'll have
-    to edit the above settings in the JNLP file using a text editor, save it,
-    and try starting Jalview with it once more.
-    <p></li>
-  <li><em><font size="3">Install Anywhere version</font></em>
-    <p> You need to change the InstallAnywhere configuration settings for the
-      application. These are found in different places depending upon which operating
-      system you have :
-    <ul>
-      <li><em>Unix/Windows</em>
-        <p> Take a look inside the Jalview program installation directory (this
-          might be in C:\Program Files\Jalview on windows). You should find a
-          file called 'Jalview.lax' in it - make a backup, and then add the following
-          lines to the end of the original file :
-        <pre>
+</pre> If Jalview doesn't start up, see <a href="#memsetting">below</a>.
+      You'll have to edit the above settings in the JNLP file using a
+      text editor, save it, and try starting Jalview with it once more.
+      </p></li>
+    <li><em><font size="3">Install Anywhere version</font></em>
+      <p>You need to change the InstallAnywhere configuration
+        settings for the application. These are found in different
+        places depending upon which operating system you have :
+      <ul>
+        <li><em>Unix/Windows</em>
+          <p>Take a look inside the Jalview program installation
+            directory (this might be in C:\Program Files\Jalview on
+            windows). You should find a file called 'Jalview.lax' in it
+            - make a backup, and then add the following lines to the end
+            of the original file :
+          <pre>
 lax.nl.java.option.java.heap.size.max=1000m
 lax.nl.java.option.java.heap.size.initial=500m
-</pre>
-        Case and (lack of) spaces are important here! Do not add any spaces after
-        the m in each line, and do not put any spaces before 'lax'.<br>
-        Also there MUST be a carriage return after the final line.
-        <p></p>
-      </li>
-      <li><em>Mac OSX</em>
-        <p>The lines you need to change are in the <em>Info.plist</em> file inside
-          the <em>Jalview.app/Contents</em> directory (which is where the installAnywhere
-          installation was made) :
-        <pre>
+</pre> Case and (lack of) spaces are important here! Do not add any spaces
+          after the m in each line, and do not put any spaces before
+          'lax'.<br> Also there MUST be a carriage return after the
+          final line.
+          <p></p></li>
+        <li><em>Mac OSX</em>
+          <p>
+            The lines you need to change are in the <em>Info.plist</em>
+            file inside the <em>Jalview.app/Contents</em> directory
+            (which is where the installAnywhere installation was made) :
+
+          
+          <pre>
 &lt;key&ht;VMOptions&lt;/key&ht;
 &lt;array&gt;
 ! &lt;string&gt;-Xms2M&lt;/string&gt;
 ! &lt;string&gt;-Xmx64M&lt;/string&gt;
 &lt;/array&gt;
-</pre>
-        Exchange the above two string tags for :
-        <pre>
+</pre> Exchange the above two string tags for : <pre>
 &lt;string&gt;-Xms500M&lt;/string&gt;
 &lt;string&gt;-Xmx1000M&lt;/string&gt;
 </pre>
-        <p></p>
-      </li>
-    </ul>
-  <li><font size="3"><em>In all cases</em></font><br>
-    Save the file and try to start Jalview in the normal way. If it doesn't start,
-    see below... </li>
-</ul>
-<font size="3"><em>Jalview doesn't start... What do the memory settings mean ?<a name="memsetting"></a></em></font>
-<p> The 1000m value corresponds to the maximum number of megabytes of space that
-  java objects can occupy. The 500m is the initial heap size that java will run
-  in - increasing this can speed up memory allocation if you know you will need
-  500 meg of memory to begin with (ie it should speed up loading large alignments).
-</p>
-<p> If, after setting the initial and maximum heap size to some large value, you
-  cannot actually start Jalview, then the max and initial sizes are too big for
-  your machine (there seems to be a physical limit related to physical RAM - email
-  the usual address to enlighten us if you know better!). Our experiments found
-  1000m to be the biggest setting that could be used on a 1GB machine. Just try
-  reducing the sizes until Jalview starts up properly! </p>
-<p>&nbsp;</p>
+          <p></p></li>
+      </ul>
+    <li><font size="3"><em>In all cases</em></font><br> Save
+      the file and try to start Jalview in the normal way. If it doesn't
+      start, see below...</li>
+  </ul>
+  <font size="3"><em>Jalview doesn't start... What do the
+      memory settings mean ?<a name="memsetting"></a>
+  </em></font>
+  <p>The 1000m value corresponds to the maximum number of megabytes
+    of space that java objects can occupy. The 500m is the initial heap
+    size that java will run in - increasing this can speed up memory
+    allocation if you know you will need 500 meg of memory to begin with
+    (ie it should speed up loading large alignments).</p>
+  <p>If, after setting the initial and maximum heap size to some
+    large value, you cannot actually start Jalview, then the max and
+    initial sizes are too big for your machine (there seems to be a
+    physical limit related to physical RAM - email the usual address to
+    enlighten us if you know better!). Our experiments found 1000m to be
+    the biggest setting that could be used on a 1GB machine. Just try
+    reducing the sizes until Jalview starts up properly!</p>
+  <p>&nbsp;</p>
 </body>
 </html>

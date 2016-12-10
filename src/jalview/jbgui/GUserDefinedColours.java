@@ -1,27 +1,46 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.jbgui;
 
 import jalview.gui.JvSwingUtils;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JColorChooser;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.colorchooser.AbstractColorChooserPanel;
 
 /**
  * DOCUMENT ME!
@@ -113,7 +132,7 @@ public class GUserDefinedColours extends JPanel
     gridLayout.setColumns(4);
     gridLayout.setRows(5);
     okButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    okButton.setText("OK");
+    okButton.setText(MessageManager.getString("action.ok"));
     okButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -122,7 +141,7 @@ public class GUserDefinedColours extends JPanel
       }
     });
     applyButton.setFont(new java.awt.Font("Verdana", 0, 11));
-    applyButton.setText("Apply");
+    applyButton.setText(MessageManager.getString("action.apply"));
     applyButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -131,7 +150,7 @@ public class GUserDefinedColours extends JPanel
       }
     });
     loadbutton.setFont(new java.awt.Font("Verdana", 0, 11));
-    loadbutton.setText("Load scheme");
+    loadbutton.setText(MessageManager.getString("action.load_scheme"));
     loadbutton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -140,7 +159,7 @@ public class GUserDefinedColours extends JPanel
       }
     });
     savebutton.setFont(new java.awt.Font("Verdana", 0, 11));
-    savebutton.setText("Save scheme");
+    savebutton.setText(MessageManager.getString("action.save_scheme"));
     savebutton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -149,7 +168,7 @@ public class GUserDefinedColours extends JPanel
       }
     });
     cancelButton.setFont(JvSwingUtils.getLabelFont());
-    cancelButton.setText("Cancel");
+    cancelButton.setText(MessageManager.getString("action.cancel"));
     cancelButton.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -162,7 +181,7 @@ public class GUserDefinedColours extends JPanel
     lowerPanel.setLayout(borderLayout3);
     colorChooser.setOpaque(false);
     jLabel1.setFont(JvSwingUtils.getLabelFont());
-    jLabel1.setText("Name");
+    jLabel1.setText(MessageManager.getString("label.name"));
     namePanel.setMinimumSize(new Dimension(300, 31));
     namePanel.setOpaque(false);
     namePanel.setPreferredSize(new Dimension(240, 25));
@@ -179,9 +198,12 @@ public class GUserDefinedColours extends JPanel
     label.setFont(new java.awt.Font("Verdana", Font.ITALIC, 10));
     label.setOpaque(false);
     label.setPreferredSize(new Dimension(260, 34));
-    label.setText("<html>Save your colour scheme with a unique name and it will be added "
-            + "to the Colour menu.</html>");
-    caseSensitive.setText("Case Sensitive");
+    label.setText(MessageManager
+            .formatMessage(
+                    "label.html_content",
+                    new String[] { MessageManager
+                            .getString("label.save_colour_scheme_with_unique_name_added_to_colour_menu") }));
+    caseSensitive.setText(MessageManager.getString("label.case_sensitive"));
     caseSensitive.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -189,7 +211,8 @@ public class GUserDefinedColours extends JPanel
         caseSensitive_actionPerformed(e);
       }
     });
-    lcaseColour.setText("Lower Case Colour");
+    lcaseColour
+            .setText(MessageManager.getString("label.lower_case_colour"));
     lcaseColour.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -219,6 +242,17 @@ public class GUserDefinedColours extends JPanel
     jPanel4.add(panel1, java.awt.BorderLayout.CENTER);
     this.add(jPanel4, java.awt.BorderLayout.CENTER);
     this.add(colorChooser, java.awt.BorderLayout.EAST);
+
+    AbstractColorChooserPanel[] choosers = colorChooser.getChooserPanels();
+    // JAL-1360 larger JColorChooser in Java 7 overwrites AA panel; restrict to
+    // swatch picker only
+    if (choosers.length > 3)
+    {
+      // Java 7 default has 5 options rather than 3 for choosing colours; keep
+      // the first only
+      colorChooser
+              .setChooserPanels(new AbstractColorChooserPanel[] { choosers[0] });
+    }
   }
 
   /**

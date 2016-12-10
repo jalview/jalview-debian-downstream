@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * This class is needed internally to make backtracking work correctly in

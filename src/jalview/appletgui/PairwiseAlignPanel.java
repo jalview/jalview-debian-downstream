@@ -1,29 +1,39 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
+import jalview.analysis.AlignSeq;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceI;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import jalview.analysis.*;
-import jalview.datamodel.*;
+import java.awt.BorderLayout;
+import java.awt.Button;
+import java.awt.Panel;
+import java.awt.ScrollPane;
+import java.awt.TextArea;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Vector;
 
 public class PairwiseAlignPanel extends Panel implements ActionListener
 {
@@ -48,17 +58,18 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
 
     if (ap.av.getSelectionGroup() == null)
     {
-      seqs = ap.av.alignment.getSequencesArray();
+      seqs = ap.av.getAlignment().getSequencesArray();
     }
     else
     {
-      seqs = ap.av.getSelectionGroup().getSequencesInOrder(ap.av.alignment);
+      seqs = ap.av.getSelectionGroup().getSequencesInOrder(
+              ap.av.getAlignment());
     }
 
     float scores[][] = new float[seqs.length][seqs.length];
     double totscore = 0;
     int count = ap.av.getSelectionGroup().getSize();
-    String type = (ap.av.alignment.isNucleotide()) ? AlignSeq.DNA
+    String type = (ap.av.getAlignment().isNucleotide()) ? AlignSeq.DNA
             : AlignSeq.PEP;
     Sequence seq;
 
@@ -84,13 +95,8 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
         totscore = totscore + scores[i][j];
 
         textarea.append(as.getOutput());
-        seq = new Sequence(as.getS1().getName(), as.getAStr1(), as.getS1()
-                .getStart(), as.getS1().getEnd());
-        sequences.addElement(seq);
-
-        seq = new Sequence(as.getS2().getName(), as.getAStr2(), as.getS2()
-                .getStart(), as.getS2().getEnd());
-        sequences.addElement(seq);
+        sequences.add(as.getAlignedSeq1());
+        sequences.add(as.getAlignedSeq1());
       }
     }
 
@@ -159,7 +165,8 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
     textarea.setFont(new java.awt.Font("Monospaced", 0, 12));
     textarea.setText("");
     viewInEditorButton.setFont(new java.awt.Font("Verdana", 0, 12));
-    viewInEditorButton.setLabel("View in alignment editor");
+    viewInEditorButton.setLabel(MessageManager
+            .getString("label.view_alignment_editor"));
     viewInEditorButton.addActionListener(this);
     this.add(scrollPane, BorderLayout.CENTER);
     scrollPane.add(textarea);

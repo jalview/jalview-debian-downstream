@@ -1,79 +1,132 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
 <head>
 <title>Sequence Feature Settings Dialog Box</title>
 </head>
 <body>
-<p><strong>Sequence Feature Settings Dialog Box</strong></p>
-<p>Select <strong>View&#8594;Feature Settings...</strong> menu entry
-in an alignment window to open the feature settings dialog box, which
-allows you to precisely control the presence and appearance of sequence
-features for the current alignment.</p>
-<center><img src="featureSettings.gif" width="400" height="452">
-<br>
-Sequence Feature Settings for the Jalview Application</img></center>
-<p>The top section of the dialog box lists all the sequence feature
-groups, along with a tickbox for each that controls whether its features
-are displayed. The table in the middle lists all the features in the
-currently selected groups, along with their display style and whether
-they are currently being displayed (only the ticked features and groups
-are displayed). <strong><em>You can change the colour or
-shading style used for a feature in the associated alignment by clicking
-on its colour box.</em></strong></p>
-<p><strong><em>Feature settings pop-up menu</em></strong><br>
-<strong>Right-click</strong> on a feature to open a pop-up menu that
-allows you to sort the alignment or current selection using that feature
-type (see below), or toggle the type of colouring used for the feature.
-Features may be highlighted with either a single colour or a <a
-	href="featureschemes.html">feature colourscheme</a> based on either the
-scores associated with that feature or from the feature's description
-(e.g. to distinguish different names associated with a DOMAIN feature).</p>
-<p><strong>Ordering alignment by features</strong><br>
-The 'Seq Sort by Score' and 'Seq Sort by Density' buttons will sort the
-alignment based on the average score or total number of currently active
-features and groups on each sequence. To order the alignment using a
-specific feature type, use the <em>sort by ..</em> entries in the pop-up
-menu for that type.<br>
-<em>Feature sorting and graduated feature colouring was introduced
-in jalview 2.5</em></p>
+  <p>
+    <strong>Sequence Feature Settings Dialog Box</strong>
+  </p>
+  <p>
+    Select <strong>View&#8594;Feature Settings...</strong> menu entry in
+    an alignment window to open the feature settings dialog box, which
+    allows you to precisely control the presence and appearance of
+    sequence features for the current alignment.
+  </p>
+  <center>
+    <img src="featureSettings.gif" width="400" height="452"> <br>
+    Sequence Feature Settings for the Jalview Application</img>
+  </center>
+  <p>
+    The top section of the dialog box lists all the sequence feature
+    groups, along with a tickbox for each that controls whether its
+    features are displayed. The table in the middle lists all the
+    features in the currently selected groups, along with their display
+    style and whether they are currently being displayed (only the
+    ticked features and groups are displayed). <strong><em>You
+        can change the colour or shading style used for a feature in the
+        associated alignment by clicking on its colour box.</em></strong>
+  </p>
+  <p>
+    <a name="selectbyfeature"><strong><em>Selecting
+          alignment columns by feature</em></strong></a><br> <strong>Double-clicking
+      a feature type</strong> in the <strong>Feature Settings</strong> dialog
+    allows you to select columns in the alignment that contain (or do
+    not contain) features of that type. If a region of the alignment is
+    currently selected, then only features in the current selection will
+    be searched. The following keys affect the way in which selections
+    are made:
+  <ul>
+    <li>Hold down <strong>Alt</strong> to select columns not
+      containing features of a particular type.
+    </li>
+    <li>Hold down <strong>Shift</strong> to add columns to the
+      current selection.
+    </li>
+    <li>Press <strong>Command/Windows key</strong> to toggle column
+      selection state (XOR)
+    </li>
+  </ul>
+  Options are also provided in the feature's pop-up menu (see below).
+  <br />
+  <em>Select columns by feature was added in Jalview 2.8.1</em>
+  </p>
+  <p>
+    <strong><em>Feature settings pop-up menu</em></strong><br> <strong>Right-click</strong>
+    on a feature to open a pop-up menu that allows you to
+  <ul>
+    <li>Hide, show and select columns containing that feature</li>
+    <li>Sort the alignment or current selection using that feature
+      type (see below)</li>
+    <li>Toggle the type of colouring used for the feature</li>
+  </ul>
+  <p>
+    Features may be highlighted with either a single colour or a <a
+      href="featureschemes.html">feature colourscheme</a> based on
+    either the scores associated with that feature or from the feature's
+    description (e.g. to distinguish different names associated with a
+    DOMAIN feature).
+  </p>
+  <p>
+    <strong><a name="sortbyfeature">Ordering alignment by
+        features</a></strong><br> The 'Seq Sort by Score' and 'Seq Sort by
+    Density' buttons will sort the alignment based on the average score
+    or total number of currently active features and groups on each
+    sequence. To order the alignment using a specific feature type, use
+    the <em>sort by ..</em> entries in the pop-up menu for that type.<br>
+    <em>Feature sorting and graduated feature colouring were
+      introduced in Jalview 2.5</em>
+  </p>
 
-<p><strong>Transparency and Feature Ordering</strong></p>
-<p>It is important to realise that sequence features are often not
-distinct and often overlap (for example, a metal binding site feature
-may be attached to one position along a stretch of sequence marked with
-a secondary structure feature).</p>
-<p>The ordering of the sequence features in the dialog box list is
-the order used by jalview for rendering sequence features. A feature at
-the bottom of the list is rendered <em>below</em> a feature higher up in
-the list.<br>
-<em><strong>You can change the order of a feature by
-dragging it up and down the list with the mouse</strong></em>.</p>
-<p>The <strong><em>Optimise order</em></strong> button (currently
-only available in the application) will re-order the feature render
-ordering based on the average length of each feature type.</p>
-<p>The <strong><em>transparency slider setting</em></strong>
-(currently only available in the application version) controls the
-visibility of features rendered below other features. Reducing the
-transparency will mean that features at the top of the list can obscure
-features lower down, and increasing it allows the user to 'see through'
-the upper layers of a set of features.</p>
-<p><strong><em>You can save all features, with their
-current colours and visibility in a Jalview format file. </em></strong></p>
+  <p>
+    <strong>Transparency and Feature Ordering</strong>
+  </p>
+  <p>It is important to realise that sequence features are often not
+    distinct and often overlap (for example, a metal binding site
+    feature may be attached to one position along a stretch of sequence
+    marked with a secondary structure feature).</p>
+  <p>
+    The ordering of the sequence features in the dialog box list is the
+    order used by Jalview for rendering sequence features. A feature at
+    the bottom of the list is rendered <em>below</em> a feature higher
+    up in the list.<br> <em><strong>You can change
+        the order of a feature by dragging it up and down the list with
+        the mouse (not applet)</strong></em>.
+  </p>
+  <p>
+    The <strong><em>Optimise order</em></strong> button (currently only
+    available in the application) will re-order the feature render
+    ordering based on the average length of each feature type.
+  </p>
+  <p>
+    The <strong><em>transparency slider setting</em></strong> controls
+    the visibility of features rendered below other features. Reducing
+    the transparency will mean that features at the top of the list can
+    obscure features lower down, and increasing it allows the user to
+    'see through' the upper layers of a set of features.
+  </p>
+  <p>
+    <strong><em>You can save all features, with their
+        current colours and visibility in a Jalview format file. </em></strong>
+  </p>
 </body>
 </html>

@@ -1,39 +1,66 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.beans.*;
-import java.io.*;
-import java.util.*;
-import javax.imageio.*;
-
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.image.*;
-import javax.swing.*;
-
-import org.jibble.epsgraphics.*;
-import jalview.analysis.*;
+import jalview.analysis.AlignmentSorter;
+import jalview.analysis.NJTree;
+import jalview.api.analysis.ScoreModelI;
+import jalview.api.analysis.ViewBasedAnalysisI;
+import jalview.bin.Cache;
 import jalview.commands.CommandI;
 import jalview.commands.OrderCommand;
-import jalview.datamodel.*;
-import jalview.io.*;
-import jalview.jbgui.*;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.BinaryNode;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.NodeTransformI;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.datamodel.SequenceNode;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
+import jalview.io.NewickFile;
+import jalview.jbgui.GTreePanel;
+import jalview.schemes.ResidueProperties;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
+
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
+import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.imageio.ImageIO;
+import javax.swing.ButtonGroup;
+import javax.swing.JMenuItem;
+import javax.swing.JRadioButtonMenuItem;
+
+import org.jibble.epsgraphics.EpsGraphics2D;
 
 /**
  * DOCUMENT ME!
@@ -112,7 +139,7 @@ public class TreePanel extends GTreePanel
     return treeCanvas.av.getAlignment();
   }
 
-  public AlignViewport getViewPort()
+  public AlignmentViewport getViewPort()
   {
     return treeCanvas.av;
   }
@@ -134,6 +161,7 @@ public class TreePanel extends GTreePanel
 
     av.addPropertyChangeListener(new java.beans.PropertyChangeListener()
     {
+      @Override
       public void propertyChange(PropertyChangeEvent evt)
       {
         if (evt.getPropertyName().equals("alignment"))
@@ -152,7 +180,7 @@ public class TreePanel extends GTreePanel
                     .println("new alignment sequences vector value is null");
           }
 
-          tree.UpdatePlaceHolders((Vector) evt.getNewValue());
+          tree.UpdatePlaceHolders((List<SequenceI>) evt.getNewValue());
           treeCanvas.nameHash.clear(); // reset the mapping between canvas
           // rectangles and leafnodes
           repaint();
@@ -169,6 +197,7 @@ public class TreePanel extends GTreePanel
 
   }
 
+  @Override
   public void viewMenu_menuSelected()
   {
     buildAssociatedViewMenu();
@@ -204,6 +233,7 @@ public class TreePanel extends GTreePanel
       buttonGroup.add(item);
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent evt)
         {
           treeCanvas.applyToAllViews = false;
@@ -216,11 +246,13 @@ public class TreePanel extends GTreePanel
       associateLeavesMenu.add(item);
     }
 
-    final JRadioButtonMenuItem itemf = new JRadioButtonMenuItem("All Views");
+    final JRadioButtonMenuItem itemf = new JRadioButtonMenuItem(
+            MessageManager.getString("label.all_views"));
     buttonGroup.add(itemf);
     itemf.setSelected(treeCanvas.applyToAllViews);
     itemf.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent evt)
       {
         treeCanvas.applyToAllViews = itemf.isSelected();
@@ -248,6 +280,7 @@ public class TreePanel extends GTreePanel
       }
     }
 
+    @Override
     public void run()
     {
 
@@ -255,11 +288,11 @@ public class TreePanel extends GTreePanel
       {
         if (odata == null)
         {
-          tree = new NJTree(av.alignment.getSequencesArray(), newtree);
+          tree = new NJTree(av.getAlignment().getSequencesArray(), newtree);
         }
         else
         {
-          tree = new NJTree(av.alignment.getSequencesArray(), odata,
+          tree = new NJTree(av.getAlignment().getSequencesArray(), odata,
                   newtree);
         }
         if (!tree.hasOriginalSequenceData())
@@ -271,22 +304,42 @@ public class TreePanel extends GTreePanel
       {
         int start, end;
         SequenceI[] seqs;
-        AlignmentView seqStrings = av.getAlignmentView(av
-                .getSelectionGroup() != null);
-        if (av.getSelectionGroup() == null)
+        boolean selview = av.getSelectionGroup() != null
+                && av.getSelectionGroup().getSize() > 1;
+        AlignmentView seqStrings = av.getAlignmentView(selview);
+        if (!selview)
         {
           start = 0;
-          end = av.alignment.getWidth();
-          seqs = av.alignment.getSequencesArray();
+          end = av.getAlignment().getWidth();
+          seqs = av.getAlignment().getSequencesArray();
         }
         else
         {
           start = av.getSelectionGroup().getStartRes();
           end = av.getSelectionGroup().getEndRes() + 1;
-          seqs = av.getSelectionGroup().getSequencesInOrder(av.alignment);
+          seqs = av.getSelectionGroup().getSequencesInOrder(
+                  av.getAlignment());
         }
-
-        tree = new NJTree(seqs, seqStrings, type, pwtype, start, end);
+        ScoreModelI sm = ResidueProperties.getScoreModel(pwtype);
+        if (sm instanceof ViewBasedAnalysisI)
+        {
+          try
+          {
+            sm = sm.getClass().newInstance();
+            ((ViewBasedAnalysisI) sm)
+                    .configureFromAlignmentView(treeCanvas.ap);
+          } catch (Exception q)
+          {
+            Cache.log.error("Couldn't create a scoremodel instance for "
+                    + sm.getName());
+          }
+          tree = new NJTree(seqs, seqStrings, type, pwtype, sm, start, end);
+        }
+        else
+        {
+          tree = new NJTree(seqs, seqStrings, type, pwtype, null, start,
+                  end);
+        }
         showDistances(true);
       }
 
@@ -297,7 +350,7 @@ public class TreePanel extends GTreePanel
       av.setCurrentTree(tree);
       if (av.getSortByTree())
       {
-        sortByTree_actionPerformed(null);
+        sortByTree_actionPerformed();
       }
     }
   }
@@ -341,6 +394,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void textbox_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
@@ -386,13 +440,15 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void saveAsNewick_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Save tree as newick file");
-    chooser.setToolTipText("Save");
+    chooser.setDialogTitle(MessageManager
+            .getString("label.save_tree_as_newick"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(null);
 
@@ -425,12 +481,14 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void printMenu_actionPerformed(ActionEvent e)
   {
     // Putting in a thread avoids Swing painting problems
     treeCanvas.startPrinting();
   }
 
+  @Override
   public void originalSeqData_actionPerformed(ActionEvent e)
   {
     if (!tree.hasOriginalSequenceData())
@@ -462,8 +520,8 @@ public class TreePanel extends GTreePanel
     {
       // AlignmentOrder origorder = new AlignmentOrder(alAndColsel[0]);
 
-      Alignment al = new Alignment((SequenceI[]) alAndColsel[0]);
-      Alignment dataset = (av != null && av.getAlignment() != null) ? av
+      AlignmentI al = new Alignment((SequenceI[]) alAndColsel[0]);
+      AlignmentI dataset = (av != null && av.getAlignment() != null) ? av
               .getAlignment().getDataset() : null;
       if (dataset != null)
       {
@@ -484,8 +542,10 @@ public class TreePanel extends GTreePanel
         // af.addSortByOrderMenuItem(ServiceName + " Ordering",
         // msaorder);
 
-        Desktop.addInternalFrame(af, "Original Data for " + this.title,
-                AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+        Desktop.addInternalFrame(af, MessageManager.formatMessage(
+                "label.original_data_for_params",
+                new Object[] { this.title }), AlignFrame.DEFAULT_WIDTH,
+                AlignFrame.DEFAULT_HEIGHT);
       }
     }
   }
@@ -496,6 +556,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void fitToWindow_actionPerformed(ActionEvent e)
   {
     treeCanvas.fitToWindow = fitToWindow.isSelected();
@@ -507,80 +568,86 @@ public class TreePanel extends GTreePanel
    * 
    * @param e
    */
-  public void sortByTree_actionPerformed(ActionEvent e)
+  @Override
+  public void sortByTree_actionPerformed()
   {
-    
+
     if (treeCanvas.applyToAllViews)
     {
       final ArrayList<CommandI> commands = new ArrayList<CommandI>();
-      for (AlignmentPanel ap: PaintRefresher.getAssociatedPanels(av
+      for (AlignmentPanel ap : PaintRefresher.getAssociatedPanels(av
               .getSequenceSetId()))
       {
         commands.add(sortAlignmentIn(ap.av.getAlignPanel()));
       }
       av.getAlignPanel().alignFrame.addHistoryItem(new CommandI()
       {
-        
+
         @Override
         public void undoCommand(AlignmentI[] views)
         {
-          for (CommandI tsort:commands)
+          for (CommandI tsort : commands)
           {
             tsort.undoCommand(views);
-          }          
+          }
         }
-        
+
         @Override
         public int getSize()
         {
           return commands.size();
         }
-        
+
         @Override
         public String getDescription()
         {
           return "Tree Sort (many views)";
         }
-        
+
         @Override
         public void doCommand(AlignmentI[] views)
         {
 
-          for (CommandI tsort:commands)
+          for (CommandI tsort : commands)
           {
             tsort.doCommand(views);
-          }          
+          }
         }
       });
-      for (AlignmentPanel ap: PaintRefresher.getAssociatedPanels(av
+      for (AlignmentPanel ap : PaintRefresher.getAssociatedPanels(av
               .getSequenceSetId()))
       {
         // ensure all the alignFrames refresh their GI after adding an undo item
         ap.alignFrame.updateEditMenuBar();
       }
-    } else {
-      treeCanvas.ap.alignFrame.addHistoryItem(sortAlignmentIn(treeCanvas.ap));
+    }
+    else
+    {
+      treeCanvas.ap.alignFrame
+              .addHistoryItem(sortAlignmentIn(treeCanvas.ap));
     }
 
   }
+
   public CommandI sortAlignmentIn(AlignmentPanel ap)
   {
-    AlignViewport av = ap.av;
+    AlignmentViewport av = ap.av;
     SequenceI[] oldOrder = av.getAlignment().getSequencesArray();
     AlignmentSorter.sortByTree(av.getAlignment(), tree);
     CommandI undo;
-    undo=new OrderCommand("Tree Sort", oldOrder,
-          av.alignment);
+    undo = new OrderCommand("Tree Sort", oldOrder, av.getAlignment());
 
-    ap.paintAlignment(true);    
+    ap.paintAlignment(true);
     return undo;
   }
+
   /**
    * DOCUMENT ME!
    * 
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void font_actionPerformed(ActionEvent e)
   {
     if (treeCanvas == null)
@@ -610,6 +677,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void distanceMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setShowDistances(distanceMenu.isSelected());
@@ -621,6 +689,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void bootstrapMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setShowBootstrap(bootstrapMenu.isSelected());
@@ -632,6 +701,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void placeholdersMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setMarkPlaceholders(placeholdersMenu.isSelected());
@@ -643,6 +713,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void epsTree_actionPerformed(ActionEvent e)
   {
     boolean accurateText = true;
@@ -678,11 +749,12 @@ public class TreePanel extends GTreePanel
     {
       jalview.io.JalviewFileChooser chooser = new jalview.io.JalviewFileChooser(
               jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-              { "eps" }, new String[]
-              { "Encapsulated Postscript" }, "Encapsulated Postscript");
+              { "eps" }, new String[] { "Encapsulated Postscript" },
+              "Encapsulated Postscript");
       chooser.setFileView(new jalview.io.JalviewFileView());
-      chooser.setDialogTitle("Create EPS file from tree");
-      chooser.setToolTipText("Save");
+      chooser.setDialogTitle(MessageManager
+              .getString("label.create_eps_from_tree"));
+      chooser.setToolTipText(MessageManager.getString("action.save"));
 
       int value = chooser.showSaveDialog(this);
 
@@ -715,6 +787,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void pngTree_actionPerformed(ActionEvent e)
   {
     int width = treeCanvas.getWidth();
@@ -724,12 +797,13 @@ public class TreePanel extends GTreePanel
     {
       jalview.io.JalviewFileChooser chooser = new jalview.io.JalviewFileChooser(
               jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-              { "png" }, new String[]
-              { "Portable network graphics" }, "Portable network graphics");
+              { "png" }, new String[] { "Portable network graphics" },
+              "Portable network graphics");
 
       chooser.setFileView(new jalview.io.JalviewFileView());
-      chooser.setDialogTitle("Create PNG image from tree");
-      chooser.setToolTipText("Save");
+      chooser.setDialogTitle(MessageManager
+              .getString("label.create_png_from_tree"));
+      chooser.setToolTipText(MessageManager.getString("action.save"));
 
       int value = chooser.showSaveDialog(this);
 
@@ -770,6 +844,7 @@ public class TreePanel extends GTreePanel
     tree.applyToNodes(new NodeTransformI()
     {
 
+      @Override
       public void transform(BinaryNode node)
       {
         if (node instanceof SequenceNode
@@ -782,8 +857,8 @@ public class TreePanel extends GTreePanel
           {
             // search dbrefs, features and annotation
             DBRefEntry[] refs = jalview.util.DBRefUtils.selectRefs(
-                    sq.getDBRef(), new String[]
-                    { labelClass.toUpperCase() });
+                    sq.getDBRefs(),
+                    new String[] { labelClass.toUpperCase() });
             if (refs != null)
             {
               for (int i = 0; i < refs.length; i++)

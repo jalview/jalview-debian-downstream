@@ -1,21 +1,31 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
+
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentView;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.WebserviceInfo;
+import jalview.util.MessageManager;
 
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -25,11 +35,13 @@ import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
-import javax.swing.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 
-import ext.vamsas.*;
-import jalview.datamodel.*;
-import jalview.gui.*;
+import ext.vamsas.SeqSearchServiceLocator;
+import ext.vamsas.SeqSearchServiceSoapBindingStub;
+import ext.vamsas.ServiceHandle;
 
 /**
  * DOCUMENT ME!
@@ -64,7 +76,7 @@ public class SeqSearchWSClient extends WS1Client
 
   public SeqSearchWSClient(ext.vamsas.ServiceHandle sh, String altitle,
           jalview.datamodel.AlignmentView msa, String db,
-          Alignment seqdataset, AlignFrame _alignFrame)
+          AlignmentI seqdataset, AlignFrame _alignFrame)
   {
     super();
     alignFrame = _alignFrame;
@@ -72,19 +84,22 @@ public class SeqSearchWSClient extends WS1Client
     // name to service client name
     if (!sh.getAbstractName().equals(this.getServiceActionKey()))
     {
-      JOptionPane.showMessageDialog(Desktop.desktop,
-              "The Service called \n" + sh.getName()
-                      + "\nis not a \nSequence Search Service !",
-              "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage(
+                      "label.service_called_is_not_seq_search_service",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
 
     if ((wsInfo = setWebService(sh)) == null)
     {
-      JOptionPane.showMessageDialog(Desktop.desktop,
-              "The Sequence Search Service named " + sh.getName()
-                      + " is unknown", "Internal Jalview Error",
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.seq_search_service_is_unknown",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
               JOptionPane.WARNING_MESSAGE);
 
       return;
@@ -112,7 +127,7 @@ public class SeqSearchWSClient extends WS1Client
   }
 
   private void startSeqSearchClient(String altitle, AlignmentView msa,
-          String db, Alignment seqdataset)
+          String db, AlignmentI seqdataset)
   {
     if (!locateWebService())
     {
@@ -157,8 +172,7 @@ public class SeqSearchWSClient extends WS1Client
 
     try
     {
-      this.server = (SeqSearchI) loc.getSeqSearchService(new java.net.URL(
-              WsURL));
+      this.server = loc.getSeqSearchService(new java.net.URL(WsURL));
       ((SeqSearchServiceSoapBindingStub) this.server).setTimeout(60000); // One
       // minute
       // timeout
@@ -205,13 +219,14 @@ public class SeqSearchWSClient extends WS1Client
     }
     if (!locateWebService())
     {
-      throw new Exception("Cannot contact service endpoint at " + WsURL);
+      throw new Exception(MessageManager.formatMessage(
+              "exception.cannot_contact_service_endpoint_at",
+              new String[] { WsURL }));
     }
     String database = server.getDatabase();
     if (database == null)
     {
-      dbParamsForEndpoint.put(WsURL, new String[]
-      {});
+      dbParamsForEndpoint.put(WsURL, new String[] {});
       return null;
     }
     StringTokenizer en = new StringTokenizer(database.trim(), ",| ");
@@ -224,6 +239,7 @@ public class SeqSearchWSClient extends WS1Client
     return dbs;
   }
 
+  @Override
   public void attachWSMenuEntry(JMenu wsmenu, final ServiceHandle sh,
           final AlignFrame af)
   {
@@ -264,6 +280,7 @@ public class SeqSearchWSClient extends WS1Client
     method.setToolTipText(sh.getEndpointURL());
     method.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         // use same input gatherer as for secondary structure prediction
@@ -288,6 +305,7 @@ public class SeqSearchWSClient extends WS1Client
       final String searchdb = dbs[db];
       method.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = af.gatherSeqOrMsaForSecStrPrediction();

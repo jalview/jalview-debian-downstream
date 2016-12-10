@@ -1,103 +1,78 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
 <head>
 <title>What's new ?</title>
 </head>
 <body>
-	<p>
-		<strong>What's new ?</strong>
-	</p>
-	<p>
-		The Jalview 2.7 release features new web services, and important
-		improvements to the way in which Jalview handles alignments and
-		associated PDB structures, as well as numerous minor improvements and
-		bug fixes. Version 2.7 of the JalviewLite applet also features a
-		significantly enhanced Javascript API enabling it to be more easily
-		integrated with javascript based web applications. <br /> For full
-		details see the <a href="releases.html#Jalview2.7">Jalview 2.7
-			release history</a>.
-	</p>
-	<p>
-		<strong>Highlights in Jalview Desktop Version 2.7</strong>
-	</p>
-	<ul>
-		<li>New <a href="features/viewingpdbs.html">structure viewer
-				options</a>:
-			<ul>
-				<li>Colour and superimpose 3D structures of complexes and
-					multi-domain chains using several different alignments</li>
-				<li>Drag and drop to associate PDB files with sequences that
-					have the same name</li>
-				<li>Open and superimpose all associated structures for the
-					current selection</li>
-			</ul>
-		<li>New web services for <a href="webServices/shmr.html">alignment
-				analysis</a></li>
-		<li>Improved graphical user interface for <a
-			href="http://www.compbio.dundee.ac.uk/jabaws">JABAWS</a>services.
-		</li>
-		<li>Sort associated alignment views option in tree viewer</li>
-		<li>Default colours for <a
-			href="colourSchemes/annotationColouring.html">shading alignment
-				by quantitative annotation</a>.
-		</li>
-		<li><a href="webServices/newsreader.html">Jalview Desktop RSS
-				reader</a> - following important updates at <a
-			href="http://www.jalview.org/feeds/desktop/rss">http://www.jalview.org/feeds/desktop/rss</a>
-	</ul>
+  <p>
+    <strong>What's new in Jalview 2.10.1 ?</strong>
+  </p>
+  <p>
+    Jalview 2.10.1 was released on 29th November 2016. Full details are
+    in the <a href="releases.html#Jalview.2.10.1">Jalview 2.10.1
+      Release Notes</a>, but the highlights are below. This is also the
+    first release to include contributions from Kira Mour&atilde;o, who
+    joined Jalview's core development team in October 2016.
+  </p>
+  <ul>
+    <li><strong>More memory efficient</strong><br />We've slimmed
+      down the consensus analysis data structures used by Jalview so
+      even wider alignments can be worked with.</li>
+    <li><strong>Select highlighted region</strong><br />Press 'B'
+      or use the new menu option in the alignment window's Select menu
+      to mark columns containing highlighted regions generated from
+      structure selections, mouse-overs, or resulting from a Find
+      operation.</li>
+    <li><strong>New custom link mechanism for opening URLs
+        for database cross references.</strong><br /> If you have customised URL
+      links in your Jalview preferences, then you may already have seen
+      the <a href="#warning"> warning dialog (see below).</a></li>
+    <li><strong>New command line export option for BioJS
+        MSAviewer</strong><br />A number of small bugs with the HTML export
+      functions from the Jalview desktop were also fixed.</li>
+    <li><strong>Small but significant changes to the
+        physicochemical properties and consensus calculations</strong><br />Threonine
+      is no longer considered a non-hydrophobic residue in the protein
+      conservation calculation, and minor bugs addressed in PID and
+      consensus colouring.</li>
+    <li><strong>Correct display of disulphide bond
+        features</strong><br /> In linked structure views, Jalview would
+      highlight all residues between in addition to the two linked
+      cysteines. The 'select columns by feature' function in the feature
+      settings would also select all intermediate columns.
+  </ul>
 
-	<p>
-		<strong>Issues Resolved (a select list - see the <a
-			href="releases.html#Jalview2.7">release history</a> for full details)
-		</strong>
-	</p>
-	<p>
-		<strong>Issues in the Jalview Desktop</strong>
-	<ul>
-		<li>Problems viewing associated structures for sequences
-			retrieved from UNIPROT</li>
-		<li>Problems viewing Jalview projects from older versions in
-			version 2.6</li>
-		<li>Preservation of hidden annotation rows and tree bootstrap
-			values in projects</li>
-		<li>Newly added JABAWS servers not always visible in web services
-			menu</li>
-	</ul>
-	<strong>Issues specific to the JalviewLite Applet</strong>
-	<ul>
-		<li>Layout problems when lots of annotation rows are displayed</li>
-		<li>&lt;= shown as = in annotation row tooltip</li>
-		<li>export features raises exception when no features exist</li>
-		<li>relative URLs not handled properly when used in parameters
-			and annotation files</li>
-	</ul>
-	<strong>Issues affecting both applet and application</strong>
-	<ul>
-		<li>sequence numbering not preserved in MSF alignment output</li>
-		<li>sequence associated secondary structure not correctly parsed
-			in interleaved stockholm</li>
-		<li>sequences containing lowercase letters are not properly
-			associated with their pdb files</li>
-		<li>Jalview PDB file reader does not extract sequence from deoxy
-			nucleotide chains correctly</li>
-		<li>Sequence length given in alignment properties window is off
-			by 1</li>
-	</ul>
+  <p>
+    <strong><a name="warning">Warning dialog about updating
+        your configured URL links</a></strong><br /> In the desktop prior to Jalview
+    2.10.1, the only way to configure custom links for a particular
+    database cross-reference for a sequence was to give it a name that <em>exactly</em>
+    matched the database source, and a regular expression for filtering
+    out any spurious matches generated when the custom linked was tested
+    against the Sequence's ID string. Since the introduction of the
+    $DB_ACCESSION$ token, however, $SEQUENCE_ID$ will not be used for
+    database cross-reference accession strings, and if you have custom
+    links configured, Jalview will raise a warning message so let you
+    know that you may need to update your links to use $DB_ACCESSION$.
+  </p>
 </body>
 </html>

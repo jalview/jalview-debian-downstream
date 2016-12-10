@@ -1,37 +1,29 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.dbsources;
 
-import java.io.File;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.StringTokenizer;
-
-import com.stevesoft.pat.Regex;
-
-import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefSource;
-import jalview.datamodel.SequenceI;
-import jalview.datamodel.xdb.embl.EmblEntry;
-import jalview.ws.ebi.EBIFetchClient;
-import jalview.ws.seqfetcher.DbSourceProxy;
-import jalview.ws.seqfetcher.DbSourceProxyImpl;
+
+import com.stevesoft.pat.Regex;
 
 /**
  * Test class for accessing GeneDB - not yet finished.
@@ -39,13 +31,12 @@ import jalview.ws.seqfetcher.DbSourceProxyImpl;
  * @author JimP
  * 
  */
-public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
+public class GeneDbSource extends EmblXmlSource
 {
 
   public GeneDbSource()
   {
-    addDbSourceProperty(DBRefSource.DNASEQDB);
-    addDbSourceProperty(DBRefSource.CODINGSEQDB);
+    super();
   }
 
   /*
@@ -53,6 +44,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionSeparator()
    */
+  @Override
   public String getAccessionSeparator()
   {
     // TODO Auto-generated method stub
@@ -64,6 +56,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionValidator()
    */
+  @Override
   public Regex getAccessionValidator()
   {
     // TODO Auto-generated method stub
@@ -75,6 +68,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getDbSource()
    */
+  @Override
   public String getDbSource()
   {
     return DBRefSource.GENEDB;
@@ -85,6 +79,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getDbVersion()
    */
+  @Override
   public String getDbVersion()
   {
     // TODO Auto-generated method stub
@@ -96,6 +91,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getSequenceRecords(java.lang.String[])
    */
+  @Override
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
     // query of form
@@ -109,6 +105,7 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#isValidReference(java.lang.String)
    */
+  @Override
   public boolean isValidReference(String accession)
   {
     // TODO Auto-generated method stub
@@ -118,13 +115,21 @@ public class GeneDbSource extends EmblXmlSource implements DbSourceProxy
   /**
    * return T.Brucei Mannosyl-Transferase TbPIG-M
    */
+  @Override
   public String getTestQuery()
   {
     return "Tb927.6.3300";
   }
 
+  @Override
   public String getDbName()
   {
     return "GeneDB"; // getDbSource();
+  }
+
+  @Override
+  public int getTier()
+  {
+    return 0;
   }
 }

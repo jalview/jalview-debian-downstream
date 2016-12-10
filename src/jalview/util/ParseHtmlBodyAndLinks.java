@@ -1,82 +1,108 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.util;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
-
 /**
  * utility class for dealing with HTML link extraction
+ * 
  * @author jprocter
- *
+ * 
  */
 public class ParseHtmlBodyAndLinks
+{
+  private static final Pattern LEFT_ANGLE_BRACKET_PATTERN = Pattern
+          .compile("<");
+
+  String orig = null;
+
+  public String getOrig()
   {
-    String orig=null;
-    public String getOrig()
-    {
-      return orig;
-    }
-    boolean htmlContent=true;
-    /**
-     * @return true if the content looked like HTML
+    return orig;
+  }
 
-     */
-    public boolean isHtmlContent()
-    {
-      return htmlContent;
-    }
+  boolean htmlContent = true;
 
-    ArrayList<String> links=new ArrayList<String>();
-    StringBuffer sb = new StringBuffer();
-    /**
-     * result of parsing description - with or without HTML tags
-     * @return
-     */
-    public String getContent()
-    {
-      
-      return sb.toString();
-    }
-    /**
-     * list of Label|Link encoded URL links extracted from HTML 
-     * @return
-     */
-    public ArrayList<String> getLinks() {
-      return links;
-    }
+  /**
+   * @return true if the content looked like HTML
+   */
+  public boolean isHtmlContent()
+  {
+    return htmlContent;
+  }
 
-    /**
-     * 
-     * @param description - html or text content to be parsed
-     * @param removeHTML flag to indicate if HTML tags should be removed if they are present.
-     * @param newline
-     */
-    public ParseHtmlBodyAndLinks(String description,
-          boolean removeHTML, String newline)
+  List<String> links = new ArrayList<String>();
+
+  String content;
+
+  /**
+   * result of parsing description - with or without HTML tags
+   * 
+   * @return
+   */
+  public String getContent()
+  {
+
+    return content;
+  }
+
+  /**
+   * list of Label|Link encoded URL links extracted from HTML
+   * 
+   * @return
+   */
+  public List<String> getLinks()
+  {
+    return links;
+  }
+
+  /**
+   * Parses the given html and
+   * <ul>
+   * <li>extracts any 'href' links to a list of "displayName|url" strings,
+   * retrievable by #getLinks</li>
+   * <li>extracts the remaining text (with %LINK% placeholders replacing hrefs),
+   * retrievable by #getContent</li>
+   * </ul>
+   * 
+   * @param description
+   *          - html or text content to be parsed
+   * @param removeHTML
+   *          flag to indicate if HTML tags should be removed if they are
+   *          present.
+   * @param newline
+   */
+  public ParseHtmlBodyAndLinks(String description, boolean removeHTML,
+          String newline)
+  {
+    StringBuilder sb = new StringBuilder(description.length());
+    if (description == null || description.length() == 0)
     {
-      if (description==null || description.length()==0)
-      {
-        htmlContent=false;
-        return;
-      }
+      htmlContent = false;
+      return;
+    }
     if (description.toUpperCase().indexOf("<HTML>") == -1)
     {
       htmlContent = false;
@@ -88,7 +114,7 @@ public class ParseHtmlBodyAndLinks
     String tag = null;
     while (st.hasMoreElements())
     {
-      token = st.nextToken("&>");
+      token = st.nextToken(">");
       if (token.equalsIgnoreCase("html") || token.startsWith("/"))
       {
         continue;
@@ -118,18 +144,6 @@ public class ParseHtmlBodyAndLinks
       {
         sb.append(newline);
       }
-      else if (token.startsWith("lt;"))
-      {
-        sb.append("<" + token.substring(3));
-      }
-      else if (token.startsWith("gt;"))
-      {
-        sb.append(">" + token.substring(3));
-      }
-      else if (token.startsWith("amp;"))
-      {
-        sb.append("&" + token.substring(4));
-      }
       else
       {
         sb.append(token);
@@ -139,18 +153,29 @@ public class ParseHtmlBodyAndLinks
     {
       // instead of parsing the html into plaintext
       // clean the description ready for embedding in html
-      sb = new StringBuffer(Pattern.compile("<").matcher(description).replaceAll("&lt;"));        
-      
+      sb = new StringBuilder(LEFT_ANGLE_BRACKET_PATTERN
+              .matcher(description).replaceAll("&lt;"));
     }
-    
+    content = translateEntities(sb.toString());
   }
-    /**
-     * get either the parsed content or the original, depending on whether the original looked like html content or not.
-     * @return
-     */
-    public String getNonHtmlContent()
-    {
-      return isHtmlContent() ? sb.toString() : orig;
-    }
+
+  private String translateEntities(String s)
+  {
+    s = s.replaceAll("&amp;", "&");
+    s = s.replaceAll("&lt;", "<");
+    s = s.replaceAll("&gt;", ">");
+    return s;
+  }
+
+  /**
+   * get either the parsed content or the original, depending on whether the
+   * original looked like html content or not.
+   * 
+   * @return
+   */
+  public String getNonHtmlContent()
+  {
+    return isHtmlContent() ? content : orig;
+  }
 
 }

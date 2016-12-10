@@ -1,28 +1,31 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.javascript;
+
+import jalview.bin.JalviewLite;
 
 import java.net.URL;
 import java.util.Vector;
 
-import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
-import jalview.bin.JalviewLite;
 
 public class JSFunctionExec implements Runnable
 {
@@ -31,19 +34,24 @@ public class JSFunctionExec implements Runnable
   public JSFunctionExec(JalviewLite applet)
   {
     jvlite = applet;
-    
+
     jsExecQueue = jvlite.getJsExecQueue();
     jvlite.setExecutor(this);
   }
-  public void finalize() {
-    jvlite=null;
-    executor=null;
-    if (jsExecQueue!=null)
+
+  @Override
+  protected void finalize() throws Throwable
+  {
+    jvlite = null;
+    executor = null;
+    if (jsExecQueue != null)
     {
       jsExecQueue.clear();
     }
-    jsExecQueue=null;
+    jsExecQueue = null;
+    super.finalize();
   }
+
   private Vector jsExecQueue;
 
   private Thread executor = null;
@@ -52,17 +60,18 @@ public class JSFunctionExec implements Runnable
   {
     if (jsExecQueue != null)
     {
-      Vector<JSFunctionExec> q=null;
+      Vector<JSFunctionExec> q = null;
       synchronized (jsExecQueue)
       {
         q = jsExecQueue;
         jsExecQueue = null;
       }
-      if (q!=null ) {
+      if (q != null)
+      {
         for (JSFunctionExec jx : q)
         {
-          jx.jvlite=null;
-          
+          jx.jvlite = null;
+
         }
         q.removeAllElements();
         synchronized (q)
@@ -71,10 +80,11 @@ public class JSFunctionExec implements Runnable
         }
       }
     }
-    jvlite=null;
+    jvlite = null;
     executor = null;
   }
 
+  @Override
   public void run()
   {
     while (jsExecQueue != null)
@@ -157,6 +167,7 @@ public class JSFunctionExec implements Runnable
     final Exception[] jsex = new Exception[1];
     Runnable exec = new Runnable()
     {
+      @Override
       public void run()
       {
         try
@@ -186,9 +197,10 @@ public class JSFunctionExec implements Runnable
             {
               System.err.println(jex);
             }
-            if (jex instanceof netscape.javascript.JSException && jvlite.jsfallbackEnabled)
+            if (jex instanceof netscape.javascript.JSException
+                    && jvlite.jsfallbackEnabled)
             {
-              jsex[0] = (netscape.javascript.JSException) jex;
+              jsex[0] = jex;
               if (jvlite.debug)
               {
                 System.err.println("Falling back to javascript: url call");

@@ -1,27 +1,42 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.jbgui;
 
 import jalview.gui.JvSwingUtils;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 
 /**
  * DOCUMENT ME!
@@ -31,43 +46,22 @@ import javax.swing.*;
  */
 public class GFontChooser extends JPanel
 {
-  JLabel jLabel1 = new JLabel();
+  private static final Font VERDANA_11PT = new java.awt.Font("Verdana", 0,
+          11);
 
-  protected JComboBox fontSize = new JComboBox();
+  protected JComboBox<Integer> fontSize = new JComboBox<Integer>();
 
-  protected JComboBox fontStyle = new JComboBox();
+  protected JComboBox<String> fontStyle = new JComboBox<String>();
 
-  JLabel jLabel2 = new JLabel();
-
-  JLabel jLabel3 = new JLabel();
-
-  protected JComboBox fontName = new JComboBox();
-
-  JButton ok = new JButton();
-
-  JButton cancel = new JButton();
-
-  JPanel jPanel1 = new JPanel();
-
-  JPanel jPanel2 = new JPanel();
-
-  JPanel jPanel3 = new JPanel();
-
-  BorderLayout borderLayout1 = new BorderLayout();
-
-  BorderLayout borderLayout2 = new BorderLayout();
-
-  BorderLayout borderLayout3 = new BorderLayout();
+  protected JComboBox<String> fontName = new JComboBox<String>();
 
   protected JButton defaultButton = new JButton();
 
   protected JCheckBox smoothFont = new JCheckBox();
 
-  BorderLayout borderLayout4 = new BorderLayout();
-
   protected JCheckBox monospaced = new JCheckBox();
 
-  JPanel jPanel4 = new JPanel();
+  protected JCheckBox scaleAsCdna = new JCheckBox();
 
   /**
    * Creates a new GFontChooser object.
@@ -91,12 +85,15 @@ public class GFontChooser extends JPanel
    */
   private void jbInit() throws Exception
   {
-    jLabel1.setFont(new java.awt.Font("Verdana", 0, 11));
-    jLabel1.setHorizontalAlignment(SwingConstants.RIGHT);
-    jLabel1.setText("Font: ");
-    jLabel1.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
     this.setLayout(null);
-    fontSize.setFont(new java.awt.Font("Verdana", 0, 11));
+    this.setBackground(Color.white);
+
+    JLabel fontLabel = new JLabel(MessageManager.getString("label.font"));
+    fontLabel.setFont(VERDANA_11PT);
+    fontLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    fontLabel.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
+
+    fontSize.setFont(VERDANA_11PT);
     fontSize.setOpaque(false);
     fontSize.setPreferredSize(new Dimension(50, 21));
     fontSize.addActionListener(new java.awt.event.ActionListener()
@@ -106,7 +103,8 @@ public class GFontChooser extends JPanel
         fontSize_actionPerformed(e);
       }
     });
-    fontStyle.setFont(new java.awt.Font("Verdana", 0, 11));
+
+    fontStyle.setFont(VERDANA_11PT);
     fontStyle.setOpaque(false);
     fontStyle.setPreferredSize(new Dimension(90, 21));
     fontStyle.addActionListener(new java.awt.event.ActionListener()
@@ -116,15 +114,18 @@ public class GFontChooser extends JPanel
         fontStyle_actionPerformed(e);
       }
     });
-    jLabel2.setFont(new java.awt.Font("Verdana", 0, 11));
-    jLabel2.setHorizontalAlignment(SwingConstants.RIGHT);
-    jLabel2.setText("Size: ");
-    jLabel2.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
-    jLabel3.setFont(new java.awt.Font("Verdana", 0, 11));
-    jLabel3.setHorizontalAlignment(SwingConstants.RIGHT);
-    jLabel3.setText("Style: ");
-    jLabel3.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
-    fontName.setFont(new java.awt.Font("Verdana", 0, 11));
+
+    JLabel sizeLabel = new JLabel(MessageManager.getString("label.size"));
+    sizeLabel.setFont(VERDANA_11PT);
+    sizeLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    sizeLabel.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
+
+    JLabel styleLabel = new JLabel(MessageManager.getString("label.style"));
+    styleLabel.setFont(VERDANA_11PT);
+    styleLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    styleLabel.setVerticalTextPosition(javax.swing.SwingConstants.CENTER);
+
+    fontName.setFont(VERDANA_11PT);
     fontName.setMaximumSize(new Dimension(32767, 32767));
     fontName.setMinimumSize(new Dimension(300, 21));
     fontName.setOpaque(false);
@@ -136,8 +137,9 @@ public class GFontChooser extends JPanel
         fontName_actionPerformed(e);
       }
     });
-    ok.setFont(new java.awt.Font("Verdana", 0, 11));
-    ok.setText("OK");
+
+    JButton ok = new JButton(MessageManager.getString("action.ok"));
+    ok.setFont(VERDANA_11PT);
     ok.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -145,8 +147,9 @@ public class GFontChooser extends JPanel
         ok_actionPerformed(e);
       }
     });
-    cancel.setFont(new java.awt.Font("Verdana", 0, 11));
-    cancel.setText("Cancel");
+
+    JButton cancel = new JButton(MessageManager.getString("action.cancel"));
+    cancel.setFont(VERDANA_11PT);
     cancel.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -154,18 +157,9 @@ public class GFontChooser extends JPanel
         cancel_actionPerformed(e);
       }
     });
-    this.setBackground(Color.white);
-    jPanel1.setOpaque(false);
-    jPanel1.setBounds(new Rectangle(5, 6, 308, 23));
-    jPanel1.setLayout(borderLayout1);
-    jPanel2.setOpaque(false);
-    jPanel2.setBounds(new Rectangle(5, 37, 128, 21));
-    jPanel2.setLayout(borderLayout3);
-    jPanel3.setOpaque(false);
-    jPanel3.setBounds(new Rectangle(174, 38, 134, 21));
-    jPanel3.setLayout(borderLayout2);
+
     defaultButton.setFont(JvSwingUtils.getLabelFont());
-    defaultButton.setText("Set as Default");
+    defaultButton.setText(MessageManager.getString("label.set_as_default"));
     defaultButton.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -173,10 +167,11 @@ public class GFontChooser extends JPanel
         defaultButton_actionPerformed(e);
       }
     });
+
     smoothFont.setFont(JvSwingUtils.getLabelFont());
     smoothFont.setOpaque(false);
-    smoothFont.setText("Anti-alias Fonts (Slower to render)");
-    smoothFont.setBounds(new Rectangle(41, 65, 223, 23));
+    smoothFont.setText(MessageManager.getString("label.anti_alias_fonts"));
+    smoothFont.setBounds(new Rectangle(41, 65, 260, 23));
     smoothFont.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -184,28 +179,81 @@ public class GFontChooser extends JPanel
         smoothFont_actionPerformed(e);
       }
     });
+
+    /*
+     * Scale protein as cDNA is only visible in SplitFrame protein alignment
+     */
+    scaleAsCdna.setVisible(false);
+    scaleAsCdna.setFont(JvSwingUtils.getLabelFont());
+    scaleAsCdna.setOpaque(false);
+    scaleAsCdna.setText(MessageManager.getString("label.scale_as_cdna"));
+    scaleAsCdna.setBounds(new Rectangle(41, 85, 260, 23));
+    scaleAsCdna.addActionListener(new ActionListener()
+    {
+      public void actionPerformed(ActionEvent e)
+      {
+        scaleAsCdna_actionPerformed(e);
+      }
+    });
+
     monospaced.setEnabled(false);
     monospaced.setFont(JvSwingUtils.getLabelFont());
     monospaced.setOpaque(false);
-    monospaced.setToolTipText("Monospaced fonts are faster to render");
-    monospaced.setText("Monospaced");
-    jPanel4.setOpaque(false);
-    jPanel4.setBounds(new Rectangle(24, 92, 259, 35));
-    jPanel1.add(jLabel1, BorderLayout.WEST);
+    monospaced.setToolTipText(MessageManager
+            .getString("label.monospaced_fonts_faster_to_render"));
+    monospaced.setText(MessageManager.getString("label.monospaced_font"));
+
+    /*
+     * jPanel1: Font dropdown, Monospaced checkbox
+     */
+    JPanel jPanel1 = new JPanel();
+    jPanel1.setOpaque(false);
+    jPanel1.setBounds(new Rectangle(5, 6, 308, 23));
+    jPanel1.setLayout(new BorderLayout());
+    jPanel1.add(fontLabel, BorderLayout.WEST);
     jPanel1.add(fontName, BorderLayout.CENTER);
     jPanel1.add(monospaced, java.awt.BorderLayout.EAST);
-    this.add(jPanel3, null);
-    this.add(jPanel2, null);
+
+    /*
+     * jPanel2: font size dropdown
+     */
+    JPanel jPanel2 = new JPanel();
+    jPanel2.setOpaque(false);
+    jPanel2.setBounds(new Rectangle(5, 37, 128, 21));
+    jPanel2.setLayout(new BorderLayout());
     jPanel2.add(fontSize, java.awt.BorderLayout.CENTER);
-    jPanel2.add(jLabel2, java.awt.BorderLayout.WEST);
+    jPanel2.add(sizeLabel, java.awt.BorderLayout.WEST);
+
+    /*
+     * jPanel3: font style dropdown
+     */
+    JPanel jPanel3 = new JPanel();
+    jPanel3.setOpaque(false);
+    jPanel3.setBounds(new Rectangle(174, 38, 134, 21));
+    jPanel3.setLayout(new BorderLayout());
+    jPanel3.add(styleLabel, java.awt.BorderLayout.WEST);
+    jPanel3.add(fontStyle, java.awt.BorderLayout.CENTER);
+
+    /*
+     * jPanel4: Default and OK buttons
+     */
+    JPanel jPanel4 = new JPanel();
+    jPanel4.setOpaque(false);
+    jPanel4.setBounds(new Rectangle(24, 112, 300, 35));
     jPanel4.add(defaultButton);
     jPanel4.add(ok);
     jPanel4.add(cancel);
+
     this.add(smoothFont);
+    this.add(scaleAsCdna);
+    this.add(jPanel3, null);
+    this.add(jPanel2, null);
     this.add(jPanel4);
-    jPanel3.add(jLabel3, java.awt.BorderLayout.WEST);
-    jPanel3.add(fontStyle, java.awt.BorderLayout.CENTER);
     this.add(jPanel1, null);
+  }
+
+  protected void scaleAsCdna_actionPerformed(ActionEvent e)
+  {
   }
 
   /**

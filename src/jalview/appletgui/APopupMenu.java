@@ -1,33 +1,70 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
-
-import java.awt.*;
-import java.awt.event.*;
-
-import jalview.analysis.*;
-import jalview.commands.*;
-import jalview.datamodel.*;
-import jalview.schemes.*;
-import jalview.util.UrlLink;
+import jalview.analysis.AAFrequency;
+import jalview.analysis.AlignmentAnnotationUtils;
+import jalview.analysis.AlignmentUtils;
+import jalview.analysis.Conservation;
+import jalview.commands.ChangeCaseCommand;
+import jalview.commands.EditCommand;
+import jalview.commands.EditCommand.Action;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
 import jalview.io.AppletFormatAdapter;
+import jalview.io.SequenceAnnotationReport;
+import jalview.schemes.Blosum62ColourScheme;
+import jalview.schemes.BuriedColourScheme;
+import jalview.schemes.ClustalxColourScheme;
+import jalview.schemes.HelixColourScheme;
+import jalview.schemes.HydrophobicColourScheme;
+import jalview.schemes.NucleotideColourScheme;
+import jalview.schemes.PIDColourScheme;
+import jalview.schemes.StrandColourScheme;
+import jalview.schemes.TaylorColourScheme;
+import jalview.schemes.TurnColourScheme;
+import jalview.schemes.ZappoColourScheme;
+import jalview.util.MessageManager;
+import jalview.util.UrlLink;
+
+import java.awt.CheckboxMenuItem;
+import java.awt.Frame;
+import java.awt.Menu;
+import java.awt.MenuItem;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.Vector;
 
 public class APopupMenu extends java.awt.PopupMenu implements
         ActionListener, ItemListener
@@ -68,6 +105,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   MenuItem unGroupMenuItem = new MenuItem();
 
+  MenuItem createGroupMenuItem = new MenuItem();
+
   MenuItem nucleotideMenuItem = new MenuItem();
 
   Menu colourMenu = new Menu();
@@ -80,17 +119,38 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   CheckboxMenuItem displayNonconserved = new CheckboxMenuItem();
 
-  Menu editMenu = new Menu("Edit");
+  Menu seqShowAnnotationsMenu = new Menu(
+          MessageManager.getString("label.show_annotations"));
 
-  MenuItem copy = new MenuItem("Copy (Jalview Only)");
+  Menu seqHideAnnotationsMenu = new Menu(
+          MessageManager.getString("label.hide_annotations"));
 
-  MenuItem cut = new MenuItem("Cut (Jalview Only)");
+  MenuItem seqAddReferenceAnnotations = new MenuItem(
+          MessageManager.getString("label.add_reference_annotations"));
 
-  MenuItem toUpper = new MenuItem("To Upper Case");
+  Menu groupShowAnnotationsMenu = new Menu(
+          MessageManager.getString("label.show_annotations"));
 
-  MenuItem toLower = new MenuItem("To Lower Case");
+  Menu groupHideAnnotationsMenu = new Menu(
+          MessageManager.getString("label.hide_annotations"));
 
-  MenuItem toggleCase = new MenuItem("Toggle Case");
+  MenuItem groupAddReferenceAnnotations = new MenuItem(
+          MessageManager.getString("label.add_reference_annotations"));
+
+  Menu editMenu = new Menu(MessageManager.getString("action.edit"));
+
+  MenuItem copy = new MenuItem(MessageManager.getString("action.copy"));
+
+  MenuItem cut = new MenuItem(MessageManager.getString("action.cut"));
+
+  MenuItem toUpper = new MenuItem(
+          MessageManager.getString("label.to_upper_case"));
+
+  MenuItem toLower = new MenuItem(
+          MessageManager.getString("label.to_lower_case"));
+
+  MenuItem toggleCase = new MenuItem(
+          MessageManager.getString("label.toggle_case"));
 
   Menu outputmenu = new Menu();
 
@@ -102,24 +162,38 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   MenuItem repGroup = new MenuItem();
 
-  MenuItem sequenceName = new MenuItem("Edit Name/Description");
+  MenuItem sequenceName = new MenuItem(
+          MessageManager.getString("label.edit_name_description"));
 
-  MenuItem sequenceFeature = new MenuItem("Create Sequence Feature");
+  MenuItem sequenceFeature = new MenuItem(
+          MessageManager.getString("label.create_sequence_feature"));
 
-  MenuItem editSequence = new MenuItem("Edit Sequence");
+  MenuItem editSequence = new MenuItem(
+          MessageManager.getString("label.edit_sequence"));
 
-  Sequence seq;
+  MenuItem sequenceDetails = new MenuItem(
+          MessageManager.getString("label.sequence_details"));
+
+  MenuItem selSeqDetails = new MenuItem(
+          MessageManager.getString("label.sequence_details"));
+
+  MenuItem makeReferenceSeq = new MenuItem();
+
+  SequenceI seq;
 
   MenuItem revealAll = new MenuItem();
 
   MenuItem revealSeq = new MenuItem();
+
   /**
    * index of sequence to be revealed
    */
-  int revealSeq_index=-1;
+  int revealSeq_index = -1;
+
   Menu menu1 = new Menu();
 
-  public APopupMenu(AlignmentPanel apanel, final Sequence seq, Vector links)
+  public APopupMenu(AlignmentPanel apanel, final SequenceI seq,
+          Vector<String> links)
   {
     // /////////////////////////////////////////////////////////
     // If this is activated from the sequence panel, the user may want to
@@ -148,18 +222,26 @@ public class APopupMenu extends java.awt.PopupMenu implements
       outputmenu.add(item);
     }
 
-    SequenceGroup sg = ap.av.getSelectionGroup();
+    buildAnnotationSubmenus();
 
+    SequenceGroup sg = ap.av.getSelectionGroup();
     if (sg != null && sg.getSize() > 0)
     {
-      editGroupName.setLabel("Name: "+sg.getName());
+      editGroupName.setLabel(MessageManager.formatMessage(
+              "label.name_param", new Object[] { sg.getName() }));
       showText.setState(sg.getDisplayText());
       showColourText.setState(sg.getColourText());
       showBoxes.setState(sg.getDisplayBoxes());
       displayNonconserved.setState(sg.getShowNonconserved());
-      if (!ap.av.alignment.getGroups().contains(sg))
+      if (!ap.av.getAlignment().getGroups().contains(sg))
       {
+        menu1.setLabel(MessageManager.getString("action.edit_new_group"));
         groupMenu.remove(unGroupMenuItem);
+      }
+      else
+      {
+        menu1.setLabel(MessageManager.getString("action.edit_group"));
+        groupMenu.remove(createGroupMenuItem);
       }
 
     }
@@ -171,150 +253,205 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     if (links != null && links.size() > 0)
     {
-      Menu linkMenu = new Menu("Link");
-      String link;
-      for (int i = 0; i < links.size(); i++)
-      {
-        link = links.elementAt(i).toString();
-        UrlLink urlLink = new UrlLink(link);
-        if (!urlLink.isValid())
-        {
-          System.err.println(urlLink.getInvalidMessage());
-          continue;
-        }
-        final String target = urlLink.getTarget(); // link.substring(0,
-        // link.indexOf("|"));
-        final String label = urlLink.getLabel();
-        if (seq!=null && urlLink.isDynamic())
-        {
-
-          // collect matching db-refs
-          DBRefEntry[] dbr = jalview.util.DBRefUtils.selectRefs(
-                  seq.getDBRef(), new String[]
-                  { target });
-          // collect id string too
-          String id = seq.getName();
-          String descr = seq.getDescription();
-          if (descr != null && descr.length() < 1)
-          {
-            descr = null;
-          }
-          if (dbr != null)
-          {
-            for (int r = 0; r < dbr.length; r++)
-            {
-              if (id != null && dbr[r].getAccessionId().equals(id))
-              {
-                // suppress duplicate link creation for the bare sequence ID
-                // string with this link
-                id = null;
-              }
-              // create Bare ID link for this RUL
-              String[] urls = urlLink.makeUrls(dbr[r].getAccessionId(),
-                      true);
-              if (urls != null)
-              {
-                for (int u = 0; u < urls.length; u += 2)
-                {
-                  addshowLink(linkMenu, label + "|" + urls[u], urls[u + 1]);
-                }
-              }
-            }
-          }
-          if (id != null)
-          {
-            // create Bare ID link for this RUL
-            String[] urls = urlLink.makeUrls(id, true);
-            if (urls != null)
-            {
-              for (int u = 0; u < urls.length; u += 2)
-              {
-                addshowLink(linkMenu, label, urls[u + 1]);
-              }
-            }
-            // addshowLink(linkMenu, target, url_pref + id + url_suff);
-          }
-          // Now construct URLs from description but only try to do it for regex
-          // URL links
-          if (descr != null && urlLink.getRegexReplace() != null)
-          {
-            // create link for this URL from description only if regex matches
-            String[] urls = urlLink.makeUrls(descr, true);
-            if (urls != null)
-            {
-              for (int u = 0; u < urls.length; u += 2)
-              {
-                addshowLink(linkMenu, label, urls[u + 1]);
-              }
-            }
-          }
-        }
-        else
-        {
-          addshowLink(linkMenu, target, urlLink.getUrl_prefix()); // link.substring(link.lastIndexOf("|")+1));
-        }
-        /*
-         * final String url;
-         * 
-         * if (link.indexOf("$SEQUENCE_ID$") > -1) { // Substitute SEQUENCE_ID
-         * string and any matching database reference accessions String url_pref
-         * = link.substring(link.indexOf("|") + 1,
-         * link.indexOf("$SEQUENCE_ID$"));
-         * 
-         * String url_suff = link.substring(link.indexOf("$SEQUENCE_ID$") + 13);
-         * // collect matching db-refs DBRefEntry[] dbr =
-         * jalview.util.DBRefUtils.selectRefs(seq.getDBRef(), new
-         * String[]{target}); // collect id string too String id =
-         * seq.getName(); if (id.indexOf("|") > -1) { id =
-         * id.substring(id.lastIndexOf("|") + 1); } if (dbr!=null) { for (int
-         * r=0;r<dbr.length; r++) { if (dbr[r].getAccessionId().equals(id)) { //
-         * suppress duplicate link creation for the bare sequence ID string with
-         * this link id = null; } addshowLink(linkMenu,
-         * dbr[r].getSource()+"|"+dbr[r].getAccessionId(), target,
-         * url_pref+dbr[r].getAccessionId()+url_suff); } } if (id!=null) { //
-         * create Bare ID link for this RUL addshowLink(linkMenu, target,
-         * url_pref + id + url_suff); } } else { addshowLink(linkMenu, target,
-         * link.substring(link.lastIndexOf("|")+1)); }
-         */
-      }
-      if (linkMenu.getItemCount() > 0)
-      {
-        if (seq != null)
-        {
-          seqMenu.add(linkMenu);
-        }
-        else
-        {
-          add(linkMenu);
-        }
-      }
+      addFeatureLinks(seq, links);
     }
+
     // TODO: add group link menu entry here
     if (seq != null)
     {
       seqMenu.setLabel(seq.getName());
-      repGroup.setLabel("Represent Group with " + seq.getName());
+      if (seq == ap.av.getAlignment().getSeqrep())
+      {
+        makeReferenceSeq.setLabel(MessageManager
+                .getString("action.unmark_as_reference"));// Unmark
+                                                          // representative");
+      }
+      else
+      {
+        makeReferenceSeq.setLabel(MessageManager
+                .getString("action.set_as_reference")); // );
+      }
+      repGroup.setLabel(MessageManager.formatMessage(
+              "label.represent_group_with", new Object[] { seq.getName() }));
     }
     else
     {
       remove(seqMenu);
     }
 
-    if (!ap.av.hasHiddenRows)
+    if (!ap.av.hasHiddenRows())
     {
       remove(revealAll);
       remove(revealSeq);
-    } else {
-      final int index = ap.av.alignment.findIndex(seq);
+    }
+    else
+    {
+      final int index = ap.av.getAlignment().findIndex(seq);
 
       if (ap.av.adjustForHiddenSeqs(index)
               - ap.av.adjustForHiddenSeqs(index - 1) > 1)
       {
-        revealSeq_index=index;
-      } else {
+        revealSeq_index = index;
+      }
+      else
+      {
         remove(revealSeq);
       }
     }
+  }
+
+  /**
+   * Adds a 'Link' menu item with a sub-menu item for each hyperlink provided.
+   * 
+   * @param seq
+   * @param links
+   */
+  void addFeatureLinks(final SequenceI seq, List<String> links)
+  {
+    Menu linkMenu = new Menu(MessageManager.getString("action.link"));
+    Map<String, List<String>> linkset = new LinkedHashMap<String, List<String>>();
+
+    for (String link : links)
+    {
+      UrlLink urlLink = null;
+      try
+      {
+        urlLink = new UrlLink(link);
+      } catch (Exception foo)
+      {
+        System.err.println("Exception for URLLink '" + link + "': "
+                + foo.getMessage());
+        continue;
+      }
+
+      if (!urlLink.isValid())
+      {
+        System.err.println(urlLink.getInvalidMessage());
+        continue;
+      }
+
+      urlLink.createLinksFromSeq(seq, linkset);
+    }
+
+    addshowLinks(linkMenu, linkset.values());
+
+    // disable link menu if there are no valid entries
+    if (linkMenu.getItemCount() > 0)
+    {
+      linkMenu.setEnabled(true);
+    }
+    else
+    {
+      linkMenu.setEnabled(false);
+    }
+
+    if (seq != null)
+    {
+      seqMenu.add(linkMenu);
+    }
+    else
+    {
+      add(linkMenu);
+    }
+
+  }
+
+  private void addshowLinks(Menu linkMenu, Collection<List<String>> linkset)
+  {
+    for (List<String> linkstrset : linkset)
+    {
+      // split linkstr into label and url
+      addshowLink(linkMenu, linkstrset.get(1), linkstrset.get(3));
+    }
+  }
+
+  /**
+   * Build menus for annotation types that may be shown or hidden, and for
+   * 'reference annotations' that may be added to the alignment.
+   */
+  private void buildAnnotationSubmenus()
+  {
+    /*
+     * First for the currently selected sequence (if there is one):
+     */
+    final List<SequenceI> selectedSequence = (seq == null ? Collections
+            .<SequenceI> emptyList() : Arrays.asList(seq));
+    buildAnnotationTypesMenus(seqShowAnnotationsMenu,
+            seqHideAnnotationsMenu, selectedSequence);
+    configureReferenceAnnotationsMenu(seqAddReferenceAnnotations,
+            selectedSequence);
+
+    /*
+     * and repeat for the current selection group (if there is one):
+     */
+    final List<SequenceI> selectedGroup = (ap.av.getSelectionGroup() == null ? Collections
+            .<SequenceI> emptyList() : ap.av.getSelectionGroup()
+            .getSequences());
+    buildAnnotationTypesMenus(groupShowAnnotationsMenu,
+            groupHideAnnotationsMenu, selectedGroup);
+    configureReferenceAnnotationsMenu(groupAddReferenceAnnotations,
+            selectedGroup);
+  }
+
+  /**
+   * Determine whether or not to enable 'add reference annotations' menu item.
+   * It is enable if there are any annotations, on any of the selected
+   * sequences, which are not yet on the alignment (visible or not).
+   * 
+   * @param menu
+   * @param forSequences
+   */
+  private void configureReferenceAnnotationsMenu(MenuItem menuItem,
+          List<SequenceI> forSequences)
+  {
+    menuItem.setEnabled(false);
+
+    /*
+     * Temporary store to hold distinct calcId / type pairs for the tooltip.
+     * Using TreeMap means calcIds are shown in alphabetical order.
+     */
+    Map<String, String> tipEntries = new TreeMap<String, String>();
+    final Map<SequenceI, List<AlignmentAnnotation>> candidates = new LinkedHashMap<SequenceI, List<AlignmentAnnotation>>();
+    AlignmentI al = this.ap.av.getAlignment();
+    AlignmentUtils.findAddableReferenceAnnotations(forSequences,
+            tipEntries, candidates, al);
+    if (!candidates.isEmpty())
+    {
+      StringBuilder tooltip = new StringBuilder(64);
+      tooltip.append(MessageManager.getString("label.add_annotations_for"));
+
+      /*
+       * Found annotations that could be added. Enable the menu item, and
+       * configure its action.
+       */
+      menuItem.setEnabled(true);
+
+      menuItem.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          addReferenceAnnotations_actionPerformed(candidates);
+        }
+      });
+    }
+  }
+
+  /**
+   * Add annotations to the sequences and to the alignment.
+   * 
+   * @param candidates
+   *          a map whose keys are sequences on the alignment, and values a list
+   *          of annotations to add to each sequence
+   */
+  protected void addReferenceAnnotations_actionPerformed(
+          Map<SequenceI, List<AlignmentAnnotation>> candidates)
+  {
+    final SequenceGroup selectionGroup = this.ap.av.getSelectionGroup();
+    final AlignmentI alignment = this.ap.getAlignment();
+    AlignmentUtils.addReferenceAnnotations(candidates, alignment,
+            selectionGroup);
+    refresh();
   }
 
   /**
@@ -349,6 +486,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     MenuItem item = new MenuItem(label);
     item.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ap.alignFrame.showURL(url, target);
@@ -357,6 +495,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     linkMenu.add(item);
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == abovePIDColour)
@@ -381,6 +520,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     }
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     Object source = evt.getSource();
@@ -446,9 +586,26 @@ public class APopupMenu extends java.awt.PopupMenu implements
       unGroupMenuItem_actionPerformed();
     }
 
+    else if (source == createGroupMenuItem)
+    {
+      createGroupMenuItem_actionPerformed();
+    }
+
     else if (source == sequenceName)
     {
       editName();
+    }
+    else if (source == makeReferenceSeq)
+    {
+      makeReferenceSeq_actionPerformed();
+    }
+    else if (source == sequenceDetails)
+    {
+      showSequenceDetails();
+    }
+    else if (source == selSeqDetails)
+    {
+      showSequenceSelectionDetails();
     }
     else if (source == pdb)
     {
@@ -500,7 +657,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
       if (sg != null)
       {
         if (seq == null)
-          seq = (Sequence) sg.getSequenceAt(0);
+        {
+          seq = sg.getSequenceAt(0);
+        }
 
         EditNameDialog dialog = new EditNameDialog(seq.getSequenceAsString(
                 sg.getStartRes(), sg.getEndRes() + 1), null,
@@ -510,11 +669,13 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
         if (dialog.accept)
         {
-          EditCommand editCommand = new EditCommand("Edit Sequences",
-                  EditCommand.REPLACE, dialog.getName().replace(' ',
+          EditCommand editCommand = new EditCommand(
+                  MessageManager.getString("label.edit_sequences"),
+                  Action.REPLACE, dialog.getName().replace(' ',
                           ap.av.getGapCharacter()),
-                  sg.getSequencesAsArray(ap.av.hiddenRepSequences),
-                  sg.getStartRes(), sg.getEndRes() + 1, ap.av.alignment);
+                  sg.getSequencesAsArray(ap.av.getHiddenRepSequences()),
+                  sg.getStartRes(), sg.getEndRes() + 1,
+                  ap.av.getAlignment());
 
           ap.alignFrame.addHistoryItem(editCommand);
 
@@ -526,47 +687,10 @@ public class APopupMenu extends java.awt.PopupMenu implements
     else if (source == toUpper || source == toLower || source == toggleCase)
     {
       SequenceGroup sg = ap.av.getSelectionGroup();
-      Vector regions = new Vector();
       if (sg != null)
       {
-        int start = sg.getStartRes();
-        int end = sg.getEndRes() + 1;
-
-        do
-        {
-          if (ap.av.hasHiddenColumns)
-          {
-            if (start == 0)
-            {
-              start = ap.av.colSel.adjustForHiddenColumns(start);
-            }
-
-            end = ap.av.colSel.getHiddenBoundaryRight(start);
-            if (start == end)
-            {
-              end = sg.getEndRes() + 1;
-            }
-            if (end > sg.getEndRes())
-            {
-              end = sg.getEndRes() + 1;
-            }
-          }
-
-          regions.addElement(new int[]
-          { start, end });
-
-          if (ap.av.hasHiddenColumns)
-          {
-            start = ap.av.colSel.adjustForHiddenColumns(end);
-            start = ap.av.colSel.getHiddenBoundaryLeft(start) + 1;
-          }
-        } while (end < sg.getEndRes());
-
-        int[][] startEnd = new int[regions.size()][2];
-        for (int i = 0; i < regions.size(); i++)
-        {
-          startEnd[i] = (int[]) regions.elementAt(i);
-        }
+        List<int[]> startEnd = ap.av.getVisibleRegionBoundaries(
+                sg.getStartRes(), sg.getEndRes() + 1);
 
         String description;
         int caseChange;
@@ -588,8 +712,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
         }
 
         ChangeCaseCommand caseCommand = new ChangeCaseCommand(description,
-                sg.getSequencesAsArray(ap.av.hiddenRepSequences), startEnd,
-                caseChange);
+                sg.getSequencesAsArray(ap.av.getHiddenRepSequences()),
+                startEnd, caseChange);
 
         ap.alignFrame.addHistoryItem(caseCommand);
 
@@ -633,7 +757,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
               features, true, ap))
       {
         ap.alignFrame.sequenceFeatures.setState(true);
-        ap.av.showSequenceFeatures(true);
+        ap.av.setShowSequenceFeatures(true);
+        ;
         ap.highlightSearchResults(null);
       }
     }
@@ -650,14 +775,55 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame,
-            "Selection output - " + e.getActionCommand(), 600, 500);
+    jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
+            "label.selection_output_command",
+            new Object[] { e.getActionCommand() }), 600, 500);
+    // JBPNote: getSelectionAsNewSequence behaviour has changed - this method
+    // now returns a full copy of sequence data
+    // TODO consider using getSequenceSelection instead here
 
     cap.setText(new jalview.io.AppletFormatAdapter().formatSequences(
-            e.getActionCommand(),
-            new Alignment(ap.av.getSelectionAsNewSequence()),
-            ap.av.showJVSuffix));
+            e.getActionCommand(), ap.av.getShowJVSuffix(), ap, true));
 
+  }
+
+  protected void showSequenceSelectionDetails()
+  {
+    createSequenceDetailsReport(ap.av.getSequenceSelection());
+  }
+
+  protected void showSequenceDetails()
+  {
+    createSequenceDetailsReport(new SequenceI[] { seq });
+  }
+
+  public void createSequenceDetailsReport(SequenceI[] sequences)
+  {
+
+    CutAndPasteTransfer cap = new CutAndPasteTransfer(false, ap.alignFrame);
+
+    StringBuilder contents = new StringBuilder(128);
+    for (SequenceI seq : sequences)
+    {
+      contents.append(MessageManager.formatMessage(
+              "label.annotation_for_displayid",
+              new Object[] { seq.getDisplayId(true) }));
+      new SequenceAnnotationReport(null).createSequenceAnnotationReport(
+              contents,
+              seq,
+              true,
+              true,
+              (ap.seqPanel.seqCanvas.fr != null) ? ap.seqPanel.seqCanvas.fr
+                      .getMinMax() : null);
+      contents.append("</p>");
+    }
+    Frame frame = new Frame();
+    frame.add(cap);
+    jalview.bin.JalviewLite.addFrame(frame, "Sequence Details for "
+            + (sequences.length == 1 ? sequences[0].getDisplayId(true)
+                    : "Selection"), 600, 500);
+    cap.setText(MessageManager.formatMessage("label.html_content",
+            new Object[] { contents.toString() }));
   }
 
   void editName()
@@ -677,72 +843,93 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   void addPDB()
   {
-    if (seq.getPDBId() != null)
+    Vector<PDBEntry> pdbs = seq.getAllPDBEntries();
+    if (pdbs != null&& !pdbs.isEmpty())
     {
-      PDBEntry entry = (PDBEntry) seq.getPDBId().firstElement();
+      PDBEntry entry = pdbs.firstElement();
 
       if (ap.av.applet.jmolAvailable)
-        new jalview.appletgui.AppletJmol(entry, new Sequence[]
-        { seq }, null, ap, AppletFormatAdapter.URL);
+      {
+        new jalview.appletgui.AppletJmol(entry, new SequenceI[] { seq },
+                null, ap, AppletFormatAdapter.URL);
+      }
       else
-        new MCview.AppletPDBViewer(entry, new Sequence[]
-        { seq }, null, ap, AppletFormatAdapter.URL);
+      {
+        new MCview.AppletPDBViewer(entry, new SequenceI[] { seq }, null,
+                ap, AppletFormatAdapter.URL);
+      }
 
     }
     else
     {
       CutAndPasteTransfer cap = new CutAndPasteTransfer(true, ap.alignFrame);
-      cap.setText("Paste your PDB file here.");
+      cap.setText(MessageManager.getString("label.paste_pdb_file"));
       cap.setPDBImport(seq);
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame, "Paste PDB file for sequence "+seq.getName(), 400, 300);
+      jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
+              "label.paste_pdb_file_for_sequence",
+              new Object[] { seq.getName() }), 400, 300);
     }
   }
 
   private void jbInit() throws Exception
   {
-    groupMenu.setLabel("Group");
-    groupMenu.setLabel("Selection");
+    groupMenu.setLabel(MessageManager.getString("label.selection"));
     sequenceFeature.addActionListener(this);
 
     editGroupName.addActionListener(this);
-    unGroupMenuItem.setLabel("Remove Group");
+    unGroupMenuItem.setLabel(MessageManager
+            .getString("action.remove_group"));
     unGroupMenuItem.addActionListener(this);
 
-    nucleotideMenuItem.setLabel("Nucleotide");
+    createGroupMenuItem.setLabel(MessageManager
+            .getString("action.create_group"));
+    createGroupMenuItem.addActionListener(this);
+
+    nucleotideMenuItem.setLabel(MessageManager
+            .getString("label.nucleotide"));
     nucleotideMenuItem.addActionListener(this);
     conservationMenuItem.addItemListener(this);
     abovePIDColour.addItemListener(this);
-    colourMenu.setLabel("Group Colour");
-    showBoxes.setLabel("Boxes");
+    colourMenu.setLabel(MessageManager.getString("label.group_colour"));
+    showBoxes.setLabel(MessageManager.getString("action.boxes"));
     showBoxes.setState(true);
     showBoxes.addItemListener(this);
     sequenceName.addActionListener(this);
-    displayNonconserved.setLabel("Show Nonconserved");
+    sequenceDetails.addActionListener(this);
+    selSeqDetails.addActionListener(this);
+    displayNonconserved.setLabel(MessageManager
+            .getString("label.show_non_conversed"));
     displayNonconserved.setState(false);
     displayNonconserved.addItemListener(this);
-    showText.setLabel("Text");
+    showText.setLabel(MessageManager.getString("action.text"));
     showText.addItemListener(this);
-    showColourText.setLabel("Colour Text");
+    showColourText.setLabel(MessageManager.getString("label.colour_text"));
     showColourText.addItemListener(this);
-    outputmenu.setLabel("Output to Textbox...");
-    seqMenu.setLabel("Sequence");
-    pdb.setLabel("View PDB Structure");
-    hideSeqs.setLabel("Hide Sequences");
-    repGroup.setLabel("Represent Group with");
-    revealAll.setLabel("Reveal All");
-    revealSeq.setLabel("Reveal Sequences");
-    menu1.setLabel("Group");
+    outputmenu.setLabel(MessageManager.getString("label.out_to_textbox"));
+    seqMenu.setLabel(MessageManager.getString("label.sequence"));
+    pdb.setLabel(MessageManager.getString("label.view_pdb_structure"));
+    hideSeqs.setLabel(MessageManager.getString("action.hide_sequences"));
+    repGroup.setLabel(MessageManager.formatMessage(
+            "label.represent_group_with", new Object[] { "" }));
+    revealAll.setLabel(MessageManager.getString("action.reveal_all"));
+    revealSeq.setLabel(MessageManager.getString("action.reveal_sequences"));
+    menu1.setLabel(MessageManager.getString("label.group:"));
     add(groupMenu);
     this.add(seqMenu);
     this.add(hideSeqs);
     this.add(revealSeq);
     this.add(revealAll);
-    groupMenu.add(editGroupName);
+    // groupMenu.add(selSeqDetails);
+    groupMenu.add(groupShowAnnotationsMenu);
+    groupMenu.add(groupHideAnnotationsMenu);
+    groupMenu.add(groupAddReferenceAnnotations);
     groupMenu.add(editMenu);
     groupMenu.add(outputmenu);
     groupMenu.add(sequenceFeature);
+    groupMenu.add(createGroupMenuItem);
+    groupMenu.add(unGroupMenuItem);
     groupMenu.add(menu1);
 
     colourMenu.add(noColourmenuItem);
@@ -762,34 +949,42 @@ public class APopupMenu extends java.awt.PopupMenu implements
     colourMenu.add(abovePIDColour);
     colourMenu.add(conservationMenuItem);
 
-    noColourmenuItem.setLabel("None");
+    noColourmenuItem.setLabel(MessageManager.getString("label.none"));
     noColourmenuItem.addActionListener(this);
 
-    clustalColour.setLabel("Clustalx colours");
+    clustalColour.setLabel(MessageManager
+            .getString("label.clustalx_colours"));
     clustalColour.addActionListener(this);
-    zappoColour.setLabel("Zappo");
+    zappoColour.setLabel(MessageManager.getString("label.zappo"));
     zappoColour.addActionListener(this);
-    taylorColour.setLabel("Taylor");
+    taylorColour.setLabel(MessageManager.getString("label.taylor"));
     taylorColour.addActionListener(this);
-    hydrophobicityColour.setLabel("Hydrophobicity");
+    hydrophobicityColour.setLabel(MessageManager
+            .getString("label.hydrophobicity"));
     hydrophobicityColour.addActionListener(this);
-    helixColour.setLabel("Helix propensity");
+    helixColour
+            .setLabel(MessageManager.getString("label.helix_propensity"));
     helixColour.addActionListener(this);
-    strandColour.setLabel("Strand propensity");
+    strandColour.setLabel(MessageManager
+            .getString("label.strand_propensity"));
     strandColour.addActionListener(this);
-    turnColour.setLabel("Turn propensity");
+    turnColour.setLabel(MessageManager.getString("label.turn_propensity"));
     turnColour.addActionListener(this);
-    buriedColour.setLabel("Buried Index");
+    buriedColour.setLabel(MessageManager.getString("label.buried_index"));
     buriedColour.addActionListener(this);
-    abovePIDColour.setLabel("Above % Identity");
+    abovePIDColour.setLabel(MessageManager
+            .getString("label.above_identity_percentage"));
 
-    userDefinedColour.setLabel("User Defined");
+    userDefinedColour.setLabel(MessageManager
+            .getString("action.user_defined"));
     userDefinedColour.addActionListener(this);
-    PIDColour.setLabel("Percentage Identity");
+    PIDColour.setLabel(MessageManager
+            .getString("label.percentage_identity"));
     PIDColour.addActionListener(this);
     BLOSUM62Colour.setLabel("BLOSUM62");
     BLOSUM62Colour.addActionListener(this);
-    conservationMenuItem.setLabel("Conservation");
+    conservationMenuItem.setLabel(MessageManager
+            .getString("label.conservation"));
 
     editMenu.add(copy);
     copy.addActionListener(this);
@@ -804,13 +999,19 @@ public class APopupMenu extends java.awt.PopupMenu implements
     editMenu.add(toLower);
     toLower.addActionListener(this);
     editMenu.add(toggleCase);
+    seqMenu.add(seqShowAnnotationsMenu);
+    seqMenu.add(seqHideAnnotationsMenu);
+    seqMenu.add(seqAddReferenceAnnotations);
     seqMenu.add(sequenceName);
+    seqMenu.add(makeReferenceSeq);
+    // seqMenu.add(sequenceDetails);
+
     if (!ap.av.applet.useXtrnalSviewer)
     {
       seqMenu.add(pdb);
     }
     seqMenu.add(repGroup);
-    menu1.add(unGroupMenuItem);
+    menu1.add(editGroupName);
     menu1.add(colourMenu);
     menu1.add(showBoxes);
     menu1.add(showText);
@@ -822,6 +1023,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     repGroup.addActionListener(this);
     revealAll.addActionListener(this);
     revealSeq.addActionListener(this);
+    makeReferenceSeq.addActionListener(this);
   }
 
   void refresh()
@@ -832,9 +1034,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
   protected void clustalColour_actionPerformed()
   {
     SequenceGroup sg = getGroup();
-    sg.cs = new ClustalxColourScheme(
-            sg.getSequences(ap.av.hiddenRepSequences),
-            ap.av.alignment.getWidth());
+    sg.cs = new ClustalxColourScheme(sg, ap.av.getHiddenRepSequences());
     refresh();
   }
 
@@ -896,13 +1096,12 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     if (abovePIDColour.getState())
     {
-      sg.cs.setConsensus(AAFrequency.calculate(
-              sg.getSequences(ap.av.hiddenRepSequences), 0,
-              ap.av.alignment.getWidth()));
+      sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
+              .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
       int threshold = SliderPanel.setPIDSliderSource(ap, sg.cs, getGroup()
               .getName());
 
-      sg.cs.setThreshold(threshold, ap.av.getIgnoreGapsConsensus());
+      sg.cs.setThreshold(threshold, ap.av.isIgnoreGapsConsensus());
 
       SliderPanel.showPIDSlider();
 
@@ -910,7 +1109,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     else
     // remove PIDColouring
     {
-      sg.cs.setThreshold(0, ap.av.getIgnoreGapsConsensus());
+      sg.cs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
     }
 
     refresh();
@@ -926,9 +1125,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
   {
     SequenceGroup sg = getGroup();
     sg.cs = new PIDColourScheme();
-    sg.cs.setConsensus(AAFrequency.calculate(
-            sg.getSequences(ap.av.hiddenRepSequences), 0,
-            ap.av.alignment.getWidth()));
+    sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
+            .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
     refresh();
   }
 
@@ -938,9 +1136,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     sg.cs = new Blosum62ColourScheme();
 
-    sg.cs.setConsensus(AAFrequency.calculate(
-            sg.getSequences(ap.av.hiddenRepSequences), 0,
-            ap.av.alignment.getWidth()));
+    sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
+            .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
 
     refresh();
   }
@@ -961,17 +1158,10 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     if (conservationMenuItem.getState())
     {
-
-      Conservation c = new Conservation("Group",
-              ResidueProperties.propHash, 3,
-              sg.getSequences(ap.av.hiddenRepSequences), 0,
-              ap.av.alignment.getWidth());
-
-      c.calculate();
-      c.verdict(false, ap.av.ConsPercGaps);
-
-      sg.cs.setConservation(c);
-
+      sg.cs.setConservation(Conservation.calculateConservation("Group", sg
+              .getSequences(ap.av.getHiddenRepSequences()), 0, ap.av
+              .getAlignment().getWidth(), false, ap.av.getConsPercGaps(),
+              false));
       SliderPanel.setConservationSlider(ap, sg.cs, sg.getName());
       SliderPanel.showConservationSlider();
     }
@@ -991,7 +1181,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     // this method won't add a new group if it already exists
     if (sg != null)
     {
-      ap.av.alignment.addGroup(sg);
+      ap.av.getAlignment().addGroup(sg);
     }
 
     return sg;
@@ -1000,9 +1190,15 @@ public class APopupMenu extends java.awt.PopupMenu implements
   void unGroupMenuItem_actionPerformed()
   {
     SequenceGroup sg = ap.av.getSelectionGroup();
-    ap.av.alignment.deleteGroup(sg);
+    ap.av.getAlignment().deleteGroup(sg);
     ap.av.setSelectionGroup(null);
     ap.paintAlignment(true);
+  }
+
+  void createGroupMenuItem_actionPerformed()
+  {
+    getGroup(); // implicitly create group
+    refresh();
   }
 
   public void showColourText_itemStateChanged()
@@ -1014,6 +1210,29 @@ public class APopupMenu extends java.awt.PopupMenu implements
   public void showText_itemStateChanged()
   {
     getGroup().setDisplayText(showText.getState());
+    refresh();
+  }
+
+  public void makeReferenceSeq_actionPerformed()
+  {
+    if (!ap.av.getAlignment().hasSeqrep())
+    {
+      // initialise the display flags so the user sees something happen
+      ap.av.setDisplayReferenceSeq(true);
+      ap.av.setColourByReferenceSeq(true);
+      ap.av.getAlignment().setSeqrep(seq);
+    }
+    else
+    {
+      if (ap.av.getAlignment().getSeqrep() == seq)
+      {
+        ap.av.getAlignment().setSeqrep(null);
+      }
+      else
+      {
+        ap.av.getAlignment().setSeqrep(seq);
+      }
+    }
     refresh();
   }
 
@@ -1031,36 +1250,111 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   void hideSequences(boolean representGroup)
   {
-    SequenceGroup sg = ap.av.getSelectionGroup();
-    if (sg == null || sg.getSize() < 1)
+    ap.av.hideSequences(seq, representGroup);
+  }
+
+  /**
+   * Add annotation types to 'Show annotations' and/or 'Hide annotations' menus.
+   * "All" is added first, followed by a separator. Then add any annotation
+   * types associated with the current selection. Separate menus are built for
+   * the selected sequence group (if any), and the selected sequence.
+   * <p>
+   * Some annotation rows are always rendered together - these can be identified
+   * by a common graphGroup property > -1. Only one of each group will be marked
+   * as visible (to avoid duplication of the display). For such groups we add a
+   * composite type name, e.g.
+   * <p>
+   * IUPredWS (Long), IUPredWS (Short)
+   * 
+   * @param seq
+   */
+  protected void buildAnnotationTypesMenus(Menu showMenu, Menu hideMenu,
+          List<SequenceI> forSequences)
+  {
+    showMenu.removeAll();
+    hideMenu.removeAll();
+
+    final List<String> all = Arrays.asList(new String[] { MessageManager
+            .getString("label.all") });
+    addAnnotationTypeToShowHide(showMenu, forSequences, "", all, true, true);
+    addAnnotationTypeToShowHide(hideMenu, forSequences, "", all, true,
+            false);
+    showMenu.addSeparator();
+    hideMenu.addSeparator();
+
+    final AlignmentAnnotation[] annotations = ap.getAlignment()
+            .getAlignmentAnnotation();
+
+    /*
+     * Find shown/hidden annotations types, distinguished by source (calcId),
+     * and grouped by graphGroup. Using LinkedHashMap means we will retrieve in
+     * the insertion order, which is the order of the annotations on the
+     * alignment.
+     */
+    Map<String, List<List<String>>> shownTypes = new LinkedHashMap<String, List<List<String>>>();
+    Map<String, List<List<String>>> hiddenTypes = new LinkedHashMap<String, List<List<String>>>();
+    AlignmentAnnotationUtils.getShownHiddenTypes(shownTypes, hiddenTypes,
+            AlignmentAnnotationUtils.asList(annotations), forSequences);
+
+    for (String calcId : hiddenTypes.keySet())
     {
-      ap.av.hideSequence(new SequenceI[]
-      { seq });
-      return;
+      for (List<String> type : hiddenTypes.get(calcId))
+      {
+        addAnnotationTypeToShowHide(showMenu, forSequences, calcId, type,
+                false, true);
+      }
     }
+    // grey out 'show annotations' if none are hidden
+    showMenu.setEnabled(!hiddenTypes.isEmpty());
 
-    ap.av.setSelectionGroup(null);
-
-    if (representGroup)
+    for (String calcId : shownTypes.keySet())
     {
-      ap.av.hideRepSequences(seq, sg);
-
-      return;
+      for (List<String> type : shownTypes.get(calcId))
+      {
+        addAnnotationTypeToShowHide(hideMenu, forSequences, calcId, type,
+                false, false);
+      }
     }
+    // grey out 'hide annotations' if none are shown
+    hideMenu.setEnabled(!shownTypes.isEmpty());
+  }
 
-    int gsize = sg.getSize();
-    SequenceI[] hseqs;
-
-    hseqs = new SequenceI[gsize];
-
-    int index = 0;
-    for (int i = 0; i < gsize; i++)
+  /**
+   * Add one annotation type to the 'Show Annotations' or 'Hide Annotations'
+   * menus.
+   * 
+   * @param showOrHideMenu
+   *          the menu to add to
+   * @param forSequences
+   *          the sequences whose annotations may be shown or hidden
+   * @param calcId
+   * @param types
+   *          the label to add
+   * @param allTypes
+   *          if true this is a special label meaning 'All'
+   * @param actionIsShow
+   *          if true, the select menu item action is to show the annotation
+   *          type, else hide
+   */
+  protected void addAnnotationTypeToShowHide(Menu showOrHideMenu,
+          final List<SequenceI> forSequences, String calcId,
+          final List<String> types, final boolean allTypes,
+          final boolean actionIsShow)
+  {
+    String label = types.toString(); // [a, b, c]
+    label = label.substring(1, label.length() - 1);
+    final MenuItem item = new MenuItem(label);
+    item.addActionListener(new java.awt.event.ActionListener()
     {
-      hseqs[index++] = sg.getSequenceAt(i);
-    }
-
-    ap.av.hideSequence(hseqs);
-    ap.av.sendSelection();
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        AlignmentUtils.showOrHideSequenceAnnotations(ap.getAlignment(),
+                types, forSequences, allTypes, actionIsShow);
+        refresh();
+      }
+    });
+    showOrHideMenu.add(item);
   }
 
 }

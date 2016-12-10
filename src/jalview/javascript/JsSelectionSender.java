@@ -1,30 +1,30 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.javascript;
 
-import java.net.URL;
 import jalview.appletgui.AlignFrame;
-import jalview.appletgui.AlignViewport;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SequenceGroup;
 import jalview.structure.SelectionSource;
-import netscape.javascript.JSObject;
 
 public class JsSelectionSender extends JSFunctionExec implements
         jalview.structure.SelectionListener, JsCallBack
@@ -50,7 +50,6 @@ public class JsSelectionSender extends JSFunctionExec implements
     try
     {
       String setid = "";
-      String viewid = "";
       AlignFrame src = _af;
       if (source != null)
       {
@@ -62,10 +61,8 @@ public class JsSelectionSender extends JSFunctionExec implements
 
         }
       }
-      String[] seqs = new String[]
-      {};
-      String[] cols = new String[]
-      {};
+      String[] seqs = new String[] {};
+      String[] cols = new String[] {};
       int strt = 0, end = (src == null) ? -1 : src.alignPanel.av
               .getAlignment().getWidth();
       if (seqsel != null && seqsel.getSize() > 0)
@@ -79,24 +76,21 @@ public class JsSelectionSender extends JSFunctionExec implements
         {
           strt = seqsel.getStartRes();
         }
-        if (end==-1 || end > seqsel.getEndRes())
+        if (end == -1 || end > seqsel.getEndRes())
         {
           end = seqsel.getEndRes();
         }
       }
-      if (colsel != null && colsel.size() > 0)
+      if (colsel != null && !colsel.isEmpty())
       {
         if (end == -1)
         {
           end = colsel.getMax() + 1;
         }
         cols = new String[colsel.getSelected().size()];
-        int d = 0, r = -1;
         for (int i = 0; i < cols.length; i++)
         {
-          cols[i] = ""
-                  + (1 + ((Integer) colsel.getSelected().elementAt(i))
-                          .intValue());
+          cols[i] = "" + (1 + colsel.getSelected().get(i).intValue());
         }
       }
       else
@@ -111,10 +105,9 @@ public class JsSelectionSender extends JSFunctionExec implements
 
       }
       System.err.println("Relaying selection to jsfunction:" + _listener);
-      executeJavascriptFunction( _listener,
-                new Object[]
-                { src, setid, jvlite.arrayToSeparatorList(seqs),
-                    jvlite.arrayToSeparatorList(cols) });
+      executeJavascriptFunction(_listener,
+              new Object[] { src, setid, jvlite.arrayToSeparatorList(seqs),
+                  jvlite.arrayToSeparatorList(cols) });
     } catch (Exception ex)
     {
       System.err
@@ -130,7 +123,6 @@ public class JsSelectionSender extends JSFunctionExec implements
 
     }
   }
-
 
   @Override
   public AlignFrame getAlignFrame()

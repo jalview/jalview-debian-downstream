@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package vamsas.objects.simple;
 
@@ -124,15 +127,22 @@ public class SeqSearchResult extends vamsas.objects.simple.Result implements
 
   private java.lang.Object __equalsCalc = null;
 
+  @Override
   public synchronized boolean equals(java.lang.Object obj)
   {
-    if (!(obj instanceof SeqSearchResult))
-      return false;
-    SeqSearchResult other = (SeqSearchResult) obj;
     if (obj == null)
+    {
       return false;
+    }
+    if (!(obj instanceof SeqSearchResult))
+    {
+      return false;
+    }
+    SeqSearchResult other = (SeqSearchResult) obj;
     if (this == obj)
+    {
       return true;
+    }
     if (__equalsCalc != null)
     {
       return (__equalsCalc == obj);
@@ -154,6 +164,7 @@ public class SeqSearchResult extends vamsas.objects.simple.Result implements
 
   private boolean __hashCodeCalc = false;
 
+  @Override
   public synchronized int hashCode()
   {
     if (__hashCodeCalc)

@@ -7,7 +7,7 @@ package //
 //
 com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * The idea behind this class is simply to eliminate the need for testing to see

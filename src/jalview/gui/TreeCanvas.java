@@ -1,33 +1,65 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.analysis.Conservation;
+import jalview.analysis.NJTree;
+import jalview.api.AlignViewportI;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.datamodel.SequenceNode;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.UserColourScheme;
+import jalview.structure.SelectionSource;
+import jalview.util.Format;
+import jalview.util.MappingUtils;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.print.*;
-import javax.swing.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Vector;
 
-import jalview.analysis.*;
-import jalview.datamodel.*;
-import jalview.schemes.*;
-import jalview.util.*;
+import javax.swing.JColorChooser;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
+import javax.swing.ToolTipManager;
 
 /**
  * DOCUMENT ME!
@@ -36,7 +68,7 @@ import jalview.util.*;
  * @version $Revision$
  */
 public class TreeCanvas extends JPanel implements MouseListener, Runnable,
-        Printable, MouseMotionListener
+        Printable, MouseMotionListener, SelectionSource
 {
   /** DOCUMENT ME!! */
   public static final String PLACEHOLDER = " * ";
@@ -125,7 +157,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         aps[a].av.setSelectionGroup(selected);
       }
 
-      selected.setEndRes(aps[a].av.alignment.getWidth() - 1);
+      selected.setEndRes(aps[a].av.getAlignment().getWidth() - 1);
       selected.addOrRemove(sequence, true);
     }
   }
@@ -142,13 +174,13 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     tree.findHeight(tree.getTopNode());
 
     // Now have to calculate longest name based on the leaves
-    Vector leaves = tree.findLeaves(tree.getTopNode(), new Vector());
+    Vector<SequenceNode> leaves = tree.findLeaves(tree.getTopNode());
     boolean has_placeholders = false;
     longestName = "";
 
     for (int i = 0; i < leaves.size(); i++)
     {
-      SequenceNode lf = (SequenceNode) leaves.elementAt(i);
+      SequenceNode lf = leaves.elementAt(i);
 
       if (lf.isPlaceholder())
       {
@@ -205,7 +237,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
       if (node.element() instanceof SequenceI)
       {
-        SequenceI seq = (SequenceI) ((SequenceNode) node).element();
+        SequenceI seq = (SequenceI) node.element();
 
         if (av.getSequenceColour(seq) == Color.white)
         {
@@ -255,14 +287,13 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
       Rectangle rect = new Rectangle(xend + 10, ypos - charHeight / 2,
               charWidth, charHeight);
 
-      nameHash.put((SequenceI) node.element(), rect);
+      nameHash.put(node.element(), rect);
 
       // Colour selected leaves differently
       SequenceGroup selected = av.getSelectionGroup();
 
       if ((selected != null)
-              && selected.getSequences(null).contains(
-                      (SequenceI) node.element()))
+              && selected.getSequences(null).contains(node.element()))
       {
         g.setColor(Color.gray);
 
@@ -287,7 +318,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
       int xend = (int) (height * scale) + offx;
       int ypos = (int) (node.ycount * chunk) + offy;
 
-      g.setColor(((SequenceNode) node).color.darker());
+      g.setColor(node.color.darker());
 
       // Draw horizontal line
       g.drawLine(xstart, ypos, xend, ypos);
@@ -490,7 +521,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         {
           for (int a = 0; a < aps.length; a++)
           {
-            aps[a].av.setSequenceColour((SequenceI) node.element(), c);
+            final SequenceI seq = (SequenceI) node.element();
+            aps[a].av.setSequenceColour(seq, c);
           }
         }
       }
@@ -513,6 +545,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
   }
 
   // put printing in a thread to avoid painting problems
+  @Override
   public void run()
   {
     PrinterJob printJob = PrinterJob.getPrinterJob();
@@ -547,6 +580,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    * @throws PrinterException
    *           DOCUMENT ME!
    */
+  @Override
   public int print(Graphics pg, PageFormat pf, int pi)
           throws PrinterException
   {
@@ -601,6 +635,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    * @param g
    *          DOCUMENT ME!
    */
+  @Override
   public void paintComponent(Graphics g)
   {
     super.paintComponent(g);
@@ -608,7 +643,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
     if (tree == null)
     {
-      g.drawString("Calculating tree....", 20, getHeight() / 2);
+      g.drawString(MessageManager.getString("label.calculating_tree")
+              + "....", 20, getHeight() / 2);
     }
     else
     {
@@ -643,6 +679,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    * @param fontSize
    *          DOCUMENT ME!
    */
+  @Override
   public void setFont(Font font)
   {
     this.font = font;
@@ -666,17 +703,19 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
             RenderingHints.VALUE_ANTIALIAS_ON);
     g2.setColor(Color.white);
     g2.fillRect(0, 0, width, height);
-
     g2.setFont(font);
 
+    if (longestName == null || tree == null)
+    {
+      g2.drawString("Calculating tree.", 20, 20);
+    }
     offy = font.getSize() + 10;
 
     fm = g2.getFontMetrics(font);
 
     labelLength = fm.stringWidth(longestName) + 20; // 20 allows for scrollbar
 
-    float wscale = (float) (width - labelLength - (offx * 2))
-            / tree.getMaxHeight();
+    float wscale = (width - labelLength - (offx * 2)) / tree.getMaxHeight();
 
     SequenceNode top = tree.getTopNode();
 
@@ -701,86 +740,106 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         g2.setColor(Color.gray);
       }
 
-      int x = (int) ((threshold * (float) (getWidth() - labelLength - (2 * offx))) + offx);
+      int x = (int) ((threshold * (getWidth() - labelLength - (2 * offx))) + offx);
 
       g2.drawLine(x, 0, x, getHeight());
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Empty method to satisfy the MouseListener interface
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseReleased(MouseEvent e)
   {
+    /*
+     * isPopupTrigger is set on mouseReleased on Windows
+     */
+    if (e.isPopupTrigger())
+    {
+      chooseSubtreeColour();
+      e.consume(); // prevent mouseClicked happening
+    }
   }
 
   /**
-   * DOCUMENT ME!
+   * Empty method to satisfy the MouseListener interface
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseEntered(MouseEvent e)
   {
   }
 
   /**
-   * DOCUMENT ME!
+   * Empty method to satisfy the MouseListener interface
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseExited(MouseEvent e)
   {
   }
 
   /**
-   * DOCUMENT ME!
+   * Handles a mouse click on a tree node (clicks elsewhere are handled in
+   * mousePressed). Click selects the sub-tree, double-click swaps leaf nodes
+   * order, right-click opens a dialogue to choose colour for the sub-tree.
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
-    if (highlightNode != null)
+    if (highlightNode == null)
     {
-      if (SwingUtilities.isRightMouseButton(evt))
-      {
-        Color col = JColorChooser.showDialog(this,
-                "Select Sub-Tree Colour", highlightNode.color);
-        if (col != null)
-        {
-          setColor(highlightNode, col);
-        }
-      }
-      else if (evt.getClickCount() > 1)
-      {
-        tree.swapNodes(highlightNode);
-        tree.reCount(tree.getTopNode());
-        tree.findHeight(tree.getTopNode());
-      }
-      else
-      {
-        Vector leaves = new Vector();
-        tree.findLeaves(highlightNode, leaves);
+      return;
+    }
 
-        for (int i = 0; i < leaves.size(); i++)
-        {
-          SequenceI seq = (SequenceI) ((SequenceNode) leaves.elementAt(i))
-                  .element();
-          treeSelectionChanged(seq);
-        }
-        av.sendSelection();
-      }
+    if (evt.getClickCount() > 1)
+    {
+      tree.swapNodes(highlightNode);
+      tree.reCount(tree.getTopNode());
+      tree.findHeight(tree.getTopNode());
+    }
+    else
+    {
+      Vector<SequenceNode> leaves = tree.findLeaves(highlightNode);
 
-      PaintRefresher.Refresh(tp, av.getSequenceSetId());
+      for (int i = 0; i < leaves.size(); i++)
+      {
+        SequenceI seq = (SequenceI) leaves.elementAt(i).element();
+        treeSelectionChanged(seq);
+      }
+      av.sendSelection();
+    }
+
+    PaintRefresher.Refresh(tp, av.getSequenceSetId());
+    repaint();
+  }
+
+  /**
+   * Offer the user the option to choose a colour for the highlighted node and
+   * its children; this colour is also applied to the corresponding sequence ids
+   * in the alignment
+   */
+  void chooseSubtreeColour()
+  {
+    Color col = JColorChooser.showDialog(this,
+            MessageManager.getString("label.select_subtree_colour"),
+            highlightNode.color);
+    if (col != null)
+    {
+      setColor(highlightNode, col);
+      PaintRefresher.Refresh(tp, ap.av.getSequenceSetId());
       repaint();
     }
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
     av.setCurrentTree(tree);
@@ -790,9 +849,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     if (ob instanceof SequenceNode)
     {
       highlightNode = (SequenceNode) ob;
-      this.setToolTipText("<html>Left click to select leaves"
-              + "<br>Double-click to invert leaves"
-              + "<br>Right click to change colour");
+      this.setToolTipText("<html>"
+              + MessageManager.getString("label.highlightnode"));
       repaint();
 
     }
@@ -807,19 +865,47 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     }
   }
 
+  @Override
   public void mouseDragged(MouseEvent ect)
   {
   }
 
   /**
-   * DOCUMENT ME!
+   * Handles a mouse press on a sequence name or the tree background canvas
+   * (click on a node is handled in mouseClicked). The action is to create
+   * groups by partitioning the tree at the mouse position. Colours for the
+   * groups (and sequence names) are generated randomly.
    * 
    * @param e
-   *          DOCUMENT ME!
    */
+  @Override
   public void mousePressed(MouseEvent e)
   {
     av.setCurrentTree(tree);
+
+    /*
+     * isPopupTrigger is set for mousePressed (Mac)
+     * or mouseReleased (Windows)
+     */
+    if (e.isPopupTrigger())
+    {
+      if (highlightNode != null)
+      {
+        chooseSubtreeColour();
+      }
+      return;
+    }
+
+    /*
+     * defer right-click handling on Windows to
+     * mouseClicked; note isRightMouseButton
+     * also matches Cmd-click on Mac which should do
+     * nothing here
+     */
+    if (SwingUtilities.isRightMouseButton(e))
+    {
+      return;
+    }
 
     int x = e.getX();
     int y = e.getY();
@@ -848,11 +934,20 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
         AlignmentPanel[] aps = getAssociatedPanels();
 
+        // TODO push calls below into a single AlignViewportI method?
+        // see also AlignViewController.deleteGroups
         for (int a = 0; a < aps.length; a++)
         {
           aps[a].av.setSelectionGroup(null);
-          aps[a].av.alignment.deleteAllGroups();
-          aps[a].av.sequenceColours = null;
+          aps[a].av.getAlignment().deleteAllGroups();
+          aps[a].av.clearSequenceColours();
+          if (aps[a].av.getCodingComplement() != null)
+          {
+            aps[a].av.getCodingComplement().setSelectionGroup(null);
+            aps[a].av.getCodingComplement().getAlignment()
+                    .deleteAllGroups();
+            aps[a].av.getCodingComplement().clearSequenceColours();
+          }
         }
         colourGroups();
       }
@@ -870,17 +965,16 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     {
       Color col = new Color((int) (Math.random() * 255),
               (int) (Math.random() * 255), (int) (Math.random() * 255));
-      setColor((SequenceNode) tree.getGroups().elementAt(i), col.brighter());
+      setColor(tree.getGroups().elementAt(i), col.brighter());
 
-      Vector l = tree.findLeaves(
-              (SequenceNode) tree.getGroups().elementAt(i), new Vector());
+      Vector<SequenceNode> l = tree.findLeaves(tree.getGroups()
+              .elementAt(i));
 
-      Vector sequences = new Vector();
+      Vector<SequenceI> sequences = new Vector<SequenceI>();
 
       for (int j = 0; j < l.size(); j++)
       {
-        SequenceI s1 = (SequenceI) ((SequenceNode) l.elementAt(j))
-                .element();
+        SequenceI s1 = (SequenceI) l.elementAt(j).element();
 
         if (!sequences.contains(s1))
         {
@@ -889,6 +983,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
       }
 
       ColourSchemeI cs = null;
+      SequenceGroup sg = new SequenceGroup(sequences, null, cs, true, true,
+              false, 0, av.getAlignment().getWidth() - 1);
 
       if (av.getGlobalColourScheme() != null)
       {
@@ -901,47 +997,67 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         }
         else
         {
-          cs = ColourSchemeProperty.getColour(sequences, av.alignment
-                  .getWidth(), ColourSchemeProperty.getColourName(av
-                  .getGlobalColourScheme()));
+          cs = ColourSchemeProperty.getColour(sg, ColourSchemeProperty
+                  .getColourName(av.getGlobalColourScheme()));
         }
         // cs is null if shading is an annotationColourGradient
-        if (cs!=null)
+        if (cs != null)
         {
           cs.setThreshold(av.getGlobalColourScheme().getThreshold(),
-                  av.getIgnoreGapsConsensus());
+                  av.isIgnoreGapsConsensus());
         }
       }
-
-      SequenceGroup sg = new SequenceGroup(sequences, null, cs, true, true,
-              false, 0, av.alignment.getWidth() - 1);
-
+      sg.cs = cs;
+      // sg.recalcConservation();
       sg.setName("JTreeGroup:" + sg.hashCode());
       sg.setIdColour(col);
+
       for (int a = 0; a < aps.length; a++)
       {
         if (aps[a].av.getGlobalColourScheme() != null
                 && aps[a].av.getGlobalColourScheme().conservationApplied())
         {
-          Conservation c = new Conservation("Group",
-                  ResidueProperties.propHash, 3, sg.getSequences(null),
+          Conservation c = new Conservation("Group", sg.getSequences(null),
                   sg.getStartRes(), sg.getEndRes());
-
           c.calculate();
-          c.verdict(false, aps[a].av.ConsPercGaps);
+          c.verdict(false, aps[a].av.getConsPercGaps());
           sg.cs.setConservation(c);
         }
 
-        aps[a].av.alignment.addGroup(sg);
+        aps[a].av.getAlignment().addGroup(new SequenceGroup(sg));
+        // TODO can we push all of the below into AlignViewportI?
+        final AlignViewportI codingComplement = aps[a].av
+                .getCodingComplement();
+        if (codingComplement != null)
+        {
+          SequenceGroup mappedGroup = MappingUtils.mapSequenceGroup(sg, av,
+                  codingComplement);
+          if (mappedGroup.getSequences().size() > 0)
+          {
+            codingComplement.getAlignment().addGroup(mappedGroup);
+            for (SequenceI seq : mappedGroup.getSequences())
+            {
+              codingComplement.setSequenceColour(seq, col.brighter());
+            }
+          }
+        }
       }
     }
-    // notify the panel to redo any group specific stuff.
+
+    // notify the panel(s) to redo any group specific stuff.
     for (int a = 0; a < aps.length; a++)
     {
       aps[a].updateAnnotation();
-      // TODO: JAL-868 - need to ensure view colour change message is broadcast to any Jmols listening in
+      // TODO: JAL-868 - need to ensure view colour change message is broadcast
+      // to any Jmols listening in
+      final AlignViewportI codingComplement = aps[a].av
+              .getCodingComplement();
+      if (codingComplement != null)
+      {
+        ((AlignViewport) codingComplement).getAlignPanel()
+                .updateAnnotation();
+      }
     }
-
   }
 
   /**
@@ -988,8 +1104,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     }
     else
     {
-      return new AlignmentPanel[]
-      { ap };
+      return new AlignmentPanel[] { ap };
     }
   }
 }

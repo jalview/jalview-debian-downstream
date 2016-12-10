@@ -1,39 +1,297 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.Vector;
-
+import jalview.util.Comparison;
 import jalview.util.MapList;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Vector;
 
 public class Mapping
 {
   /**
+   * An iterator that serves the aligned codon positions (with their protein
+   * products).
+   * 
+   * @author gmcarstairs
+   *
+   */
+  public class AlignedCodonIterator implements Iterator<AlignedCodon>
+  {
+    /*
+     * The gap character used in the aligned sequence
+     */
+    private final char gap;
+
+    /*
+     * The characters of the aligned sequence e.g. "-cGT-ACgTG-"
+     */
+    private final char[] alignedSeq;
+
+    /*
+     * the sequence start residue
+     */
+    private int start;
+
+    /*
+     * Next position (base 0) in the aligned sequence
+     */
+    private int alignedColumn = 0;
+
+    /*
+     * Count of bases up to and including alignedColumn position
+     */
+    private int alignedBases = 0;
+
+    /*
+     * [start, end] from ranges (base 1)
+     */
+    private Iterator<int[]> fromRanges;
+
+    /*
+     * [start, end] to ranges (base 1)
+     */
+    private Iterator<int[]> toRanges;
+
+    /*
+     * The current [start, end] (base 1) from range
+     */
+    private int[] currentFromRange = null;
+
+    /*
+     * The current [start, end] (base 1) to range
+     */
+    private int[] currentToRange = null;
+
+    /*
+     * The next 'from' position (base 1) to process
+     */
+    private int fromPosition = 0;
+
+    /*
+     * The next 'to' position (base 1) to process
+     */
+    private int toPosition = 0;
+
+    /**
+     * Constructor
+     * 
+     * @param seq
+     *          the aligned sequence
+     * @param gapChar
+     */
+    public AlignedCodonIterator(SequenceI seq, char gapChar)
+    {
+      this.alignedSeq = seq.getSequence();
+      this.start = seq.getStart();
+      this.gap = gapChar;
+      fromRanges = map.getFromRanges().iterator();
+      toRanges = map.getToRanges().iterator();
+      if (fromRanges.hasNext())
+      {
+        currentFromRange = fromRanges.next();
+        fromPosition = currentFromRange[0];
+      }
+      if (toRanges.hasNext())
+      {
+        currentToRange = toRanges.next();
+        toPosition = currentToRange[0];
+      }
+    }
+
+    /**
+     * Returns true unless we have already traversed the whole mapping.
+     */
+    @Override
+    public boolean hasNext()
+    {
+      if (fromRanges.hasNext())
+      {
+        return true;
+      }
+      if (currentFromRange == null || fromPosition >= currentFromRange[1])
+      {
+        return false;
+      }
+      return true;
+    }
+
+    /**
+     * Returns the next codon's aligned positions, and translated value.
+     * 
+     * @throws NoSuchElementException
+     *           if hasNext() would have returned false
+     * @throws IncompleteCodonException
+     *           if not enough mapped bases are left to make up a codon
+     */
+    @Override
+    public AlignedCodon next() throws IncompleteCodonException
+    {
+      if (!hasNext())
+      {
+        throw new NoSuchElementException();
+      }
+
+      int[] codon = getNextCodon();
+      int[] alignedCodon = getAlignedCodon(codon);
+
+      String peptide = getPeptide();
+      int peptideCol = toPosition - 1 - Mapping.this.to.getStart();
+      return new AlignedCodon(alignedCodon[0], alignedCodon[1],
+              alignedCodon[2], peptide, peptideCol);
+    }
+
+    /**
+     * Retrieve the translation as the 'mapped to' position in the mapped to
+     * sequence.
+     * 
+     * @return
+     * @throws NoSuchElementException
+     *           if the 'toRange' is exhausted (nothing to map to)
+     */
+    private String getPeptide()
+    {
+      // TODO should ideally handle toRatio other than 1 as well...
+      // i.e. code like getNextCodon()
+      if (toPosition <= currentToRange[1])
+      {
+        SequenceI seq = Mapping.this.to;
+        char pep = seq.getSequence()[toPosition - seq.getStart()];
+        toPosition++;
+        return String.valueOf(pep);
+      }
+      if (!toRanges.hasNext())
+      {
+        throw new NoSuchElementException("Ran out of peptide at position "
+                + toPosition);
+      }
+      currentToRange = toRanges.next();
+      toPosition = currentToRange[0];
+      return getPeptide();
+    }
+
+    /**
+     * Get the (base 1) dataset positions for the next codon in the mapping.
+     * 
+     * @throws IncompleteCodonException
+     *           if less than 3 remaining bases are mapped
+     */
+    private int[] getNextCodon()
+    {
+      int[] codon = new int[3];
+      int codonbase = 0;
+
+      while (codonbase < 3)
+      {
+        if (fromPosition <= currentFromRange[1])
+        {
+          /*
+           * Add next position from the current start-end range
+           */
+          codon[codonbase++] = fromPosition++;
+        }
+        else
+        {
+          /*
+           * Move to the next range - if there is one
+           */
+          if (!fromRanges.hasNext())
+          {
+            throw new IncompleteCodonException();
+          }
+          currentFromRange = fromRanges.next();
+          fromPosition = currentFromRange[0];
+        }
+      }
+      return codon;
+    }
+
+    /**
+     * Get the aligned column positions (base 0) for the given sequence
+     * positions (base 1), by counting ungapped characters in the aligned
+     * sequence.
+     * 
+     * @param codon
+     * @return
+     */
+    private int[] getAlignedCodon(int[] codon)
+    {
+      int[] aligned = new int[codon.length];
+      for (int i = 0; i < codon.length; i++)
+      {
+        aligned[i] = getAlignedColumn(codon[i]);
+      }
+      return aligned;
+    }
+
+    /**
+     * Get the aligned column position (base 0) for the given sequence position
+     * (base 1).
+     * 
+     * @param sequencePos
+     * @return
+     */
+    private int getAlignedColumn(int sequencePos)
+    {
+      /*
+       * allow for offset e.g. treat pos 8 as 2 if sequence starts at 7
+       */
+      int truePos = sequencePos - (start - 1);
+      while (alignedBases < truePos && alignedColumn < alignedSeq.length)
+      {
+        char c = alignedSeq[alignedColumn++];
+        if (c != gap && !Comparison.isGap(c))
+        {
+          alignedBases++;
+        }
+      }
+      return alignedColumn - 1;
+    }
+
+    @Override
+    public void remove()
+    {
+      // ignore
+    }
+
+  }
+
+  /*
    * Contains the start-end pairs mapping from the associated sequence to the
-   * sequence in the database coordinate system it also takes care of step
-   * difference between coordinate systems
+   * sequence in the database coordinate system. It also takes care of step
+   * difference between coordinate systems.
    */
   MapList map = null;
 
-  /**
-   * The seuqence that map maps the associated seuqence to (if any).
+  /*
+   * The sequence that map maps the associated sequence to (if any).
    */
   SequenceI to = null;
+
+  /*
+   * optional sequence id for the 'from' ranges
+   */
+  private String mappedFromId;
 
   public Mapping(MapList map)
   {
@@ -82,6 +340,7 @@ public class Mapping
         map = new MapList(map2.map);
       }
       to = map2.to;
+      mappedFromId = map2.mappedFromId;
     }
   }
 
@@ -105,23 +364,51 @@ public class Mapping
   /**
    * Equals that compares both the to references and MapList mappings.
    * 
-   * @param other
+   * @param o
    * @return
+   * @see MapList#equals
    */
-  public boolean equals(Mapping other)
+  @Override
+  public boolean equals(Object o)
   {
-    if (other == null)
+    if (o == null || !(o instanceof Mapping))
+    {
       return false;
+    }
+    Mapping other = (Mapping) o;
     if (other == this)
+    {
       return true;
+    }
     if (other.to != to)
+    {
       return false;
+    }
     if ((map != null && other.map == null)
             || (map == null && other.map != null))
+    {
       return false;
-    if (map.equals(other.map))
+    }
+    if ((map == null && other.map == null) || map.equals(other.map))
+    {
       return true;
+    }
     return false;
+  }
+
+  /**
+   * Returns a hashCode made from the sequence and maplist
+   */
+  @Override
+  public int hashCode()
+  {
+    int hashCode = (this.to == null ? 1 : this.to.hashCode());
+    if (this.map != null)
+    {
+      hashCode = hashCode * 31 + this.map.hashCode();
+    }
+
+    return hashCode;
   }
 
   /**
@@ -215,8 +502,7 @@ public class Mapping
       int[] mp = map.shiftFrom(pos);
       if (mp != null)
       {
-        return new int[]
-        { mp[0], mp[0] + mp[2] * (map.getToRatio() - 1) };
+        return new int[] { mp[0], mp[0] + mp[2] * (map.getToRatio() - 1) };
       }
     }
     return null;
@@ -248,7 +534,9 @@ public class Mapping
           vf[v].setBegin(frange[i]);
           vf[v].setEnd(frange[i + 1]);
           if (frange.length > 2)
+          {
             vf[v].setDescription(f.getDescription() + "\nPart " + (v + 1));
+          }
         }
         return vf;
       }
@@ -275,8 +563,7 @@ public class Mapping
       }
     }
     // give up and just return the feature.
-    return new SequenceFeature[]
-    { f };
+    return new SequenceFeature[] { f };
   }
 
   /**
@@ -297,19 +584,22 @@ public class Mapping
         from = (map.getToLowest() < from) ? from : map.getToLowest();
         to = (map.getToHighest() > to) ? to : map.getToHighest();
         if (from > to)
+        {
           return null;
+        }
       }
       else
       {
         from = (map.getToHighest() > from) ? from : map.getToHighest();
         to = (map.getToLowest() < to) ? to : map.getToLowest();
         if (from < to)
+        {
           return null;
+        }
       }
       return map.locateInFrom(from, to);
     }
-    return new int[]
-    { from, to };
+    return new int[] { from, to };
   }
 
   /**
@@ -330,19 +620,22 @@ public class Mapping
         from = (map.getFromLowest() < from) ? from : map.getFromLowest();
         to = (map.getFromHighest() > to) ? to : map.getFromHighest();
         if (from > to)
+        {
           return null;
+        }
       }
       else
       {
         from = (map.getFromHighest() > from) ? from : map.getFromHighest();
         to = (map.getFromLowest() < to) ? to : map.getFromLowest();
         if (from < to)
+        {
           return null;
+        }
       }
       return map.locateInTo(from, to);
     }
-    return new int[]
-    { from, to };
+    return new int[] { from, to };
   }
 
   /**
@@ -370,13 +663,11 @@ public class Mapping
         {
           for (int m = 0; m < mpr.length; m += 2)
           {
-            toRange.addElement(new int[]
-            { mpr[m], mpr[m + 1] });
+            toRange.addElement(new int[] { mpr[m], mpr[m + 1] });
             int[] xpos = locateRange(mpr[m], mpr[m + 1]);
             for (int x = 0; x < xpos.length; x += 2)
             {
-              fromRange.addElement(new int[]
-              { xpos[x], xpos[x + 1] });
+              fromRange.addElement(new int[] { xpos[x], xpos[x + 1] });
             }
           }
         }
@@ -400,24 +691,6 @@ public class Mapping
               .getToRatio()));
     }
     return copy;
-  }
-
-  public static void main(String[] args)
-  {
-    /**
-     * trite test of the intersectVisContigs method for a simple DNA -> Protein
-     * exon map and a range of visContigs
-     */
-    MapList fk = new MapList(new int[]
-    { 1, 6, 8, 13, 15, 23 }, new int[]
-    { 1, 7 }, 3, 1);
-    Mapping m = new Mapping(fk);
-    Mapping m_1 = m.intersectVisContigs(new int[]
-    { fk.getFromLowest(), fk.getFromHighest() });
-    Mapping m_2 = m.intersectVisContigs(new int[]
-    { 1, 7, 11, 20 });
-    System.out.println("" + m_1.map.getFromRanges());
-
   }
 
   /**
@@ -445,11 +718,54 @@ public class Mapping
    * 
    * @see java.lang.Object#finalize()
    */
+  @Override
   protected void finalize() throws Throwable
   {
     map = null;
     to = null;
     super.finalize();
+  }
+
+  /**
+   * Returns an iterator which can serve up the aligned codon column positions
+   * and their corresponding peptide products
+   * 
+   * @param seq
+   *          an aligned (i.e. possibly gapped) sequence
+   * @param gapChar
+   * @return
+   */
+  public Iterator<AlignedCodon> getCodonIterator(SequenceI seq, char gapChar)
+  {
+    return new AlignedCodonIterator(seq, gapChar);
+  }
+
+  /**
+   * Readable representation for debugging only, not guaranteed not to change
+   */
+  @Override
+  public String toString()
+  {
+    return String.format("%s %s", this.map.toString(), this.to == null ? ""
+            : this.to.getName());
+  }
+
+  /**
+   * Returns the identifier for the 'from' range sequence, or null if not set
+   * 
+   * @return
+   */
+  public String getMappedFromId()
+  {
+    return mappedFromId;
+  }
+
+  /**
+   * Sets the identifier for the 'from' range sequence
+   */
+  public void setMappedFromId(String mappedFromId)
+  {
+    this.mappedFromId = mappedFromId;
   }
 
 }

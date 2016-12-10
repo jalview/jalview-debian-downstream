@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * Provides the ability to match a backreference from within a Pattern.

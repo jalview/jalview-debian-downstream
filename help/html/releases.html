@@ -1,1139 +1,2818 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
 <head>
 <title>Release History</title>
 </head>
 <body>
-<p><strong>Release History</strong></p>
-<table border="1">
-	<tr>
-		<td width="60" nowrap>
-		<div align="center"><em><strong>Release</strong></em></div>
-		</td>
-		<td>
-		<div align="center"><em><strong>New Features</strong></em></div>
-		</td>
-		<td>
-		<div align="center"><em><strong>Issues Resolved</strong></em></div>
-		</td>
-	</tr>
-		<tr>
-			<td>
-				<div align="center">
-					<strong><a name="Jalview2.7">2.7</a>
-					</strong><br> <em>27/09/2011</em>
-				</div></td>
-			<td><em>Application</em>
+  <p>
+    <strong>Release History</strong>
+  </p>
+  <table border="1">
+    <tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <em><strong>Release</strong></em>
+        </div>
+      </td>
+      <td>
+        <div align="center">
+          <em><strong>New Features</strong></em>
+        </div>
+      </td>
+      <td>
+        <div align="center">
+          <em><strong>Issues Resolved</strong></em>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <strong><a name="Jalview.2.10.1">2.10.1</a><br />
+            <em>29/11/2016</em></strong>
+        </div>
+      </td>
+      <td><div align="left">
+          <em>General</em>
+          <ul>
+            <li>
+              <!-- JAL-98 -->Improved memory usage: sparse arrays used
+              for all consensus calculations
+            </li>
+            <li>
+              <!-- JAL-2177 -->Jmol updated to version 14.6.4 (released 3rd Oct 2016)
+            </li>
+            <li>Updated Jalview's Certum code signing certificate
+              for 2016-2017</li>
+          </ul>
+          <em>Application</em>
+          <ul>
+            <li>
+              <!-- JAL-1723 -->Sequence ID tool tip presents abridged
+              set of database cross-references, sorted alphabetically
+            </li>
+            <li>
+              <!-- JAL-2282-->New replacement token for creating URLs <em>just</em>
+              from database cross references. Users with custom links
+              will receive a <a href="webServices/urllinks.html#warning">warning
+                dialog</a> asking them to update their preferences.
+            </li>
+            <li>
+              <!-- JAL-2287-->Cancel button and escape listener on
+              dialog warning user about disconnecting Jalview from a
+              Chimera session
+            </li>
+            <li>
+              <!-- JAL-2320-->Jalview's Chimera control window closes if
+              the Chimera it is connected to is shut down
+            </li>
+            <li>
+              <!-- JAL-1738-->New keystroke (B) and Select highlighted
+              columns menu item to mark columns containing
+              highlighted regions (e.g. from structure selections or results
+              of a Find operation)
+            </li>
+            <li>
+              <!-- JAL-2284-->Command line option for batch-generation
+              of HTML pages rendering alignment data with the BioJS
+              MSAviewer
+            </li>
+          </ul>
+        </div></td>
+      <td>
+        <div align="left">
+          <em>General</em>
+          <ul>
+            <li>
+              <!-- JAL-2286 -->Columns with more than one modal residue
+              are not coloured or thresholded according to percent
+              identity (first observed in Jalview 2.8.2)
+            </li>
+            <li>
+              <!-- JAL-2301 -->Threonine incorrectly reported as not
+              hydrophobic
+            </li>
+            <li>
+              <!-- JAL-2318 -->Updates to documentation pages (above PID
+              threshold, amino acid properties)
+            </li>
+            <li>
+              <!-- JAL-2292 -->Lower case residues in sequences are not
+              reported as mapped to residues in a structure file in the
+              View Mapping report
+            </li>
+            <li>
+              <!--JAL-2324 -->Identical features with non-numeric scores
+              could be added multiple times to a sequence
+            </li>
+            <li>
+              <!--JAL-2323, JAL-2333,JAL-2335,JAL-2327 -->Disulphide
+              bond features shown as two highlighted residues rather
+              than a range in linked structure views, and treated
+              correctly when selecting and computing trees from features
+            </li>
+            <li>
+              <!-- JAL-2281-->Custom URL links for database
+              cross-references are matched to database name regardless
+              of case
+            </li>
+
+          </ul>
+          <em>Application</em>
+          <ul>
+            <li>
+              <!-- JAL-2282-->Custom URL links for specific database
+              names without regular expressions also offer links from
+              Sequence ID
+            </li>
+            <li>
+              <!-- JAL-2315-->Removing a single configured link in the
+              URL links pane in Connections preferences doesn't actually
+              update Jalview configuration
+            </li>
+            <li>
+              <!-- JAL-2272-->CTRL-Click on a selected region to open
+              the alignment area popup menu doesn't work on El-Capitan
+            </li>
+            <li>
+              <!-- JAL-2280 -->Jalview doesn't offer to associate mmCIF
+              files with similarly named sequences if dropped onto the
+              alignment
+            </li>
+            <li>
+              <!-- JAL-2312 -->Additional mappings are shown for PDB
+              entries where more chains exist in the PDB accession than
+              are reported in the SIFTS file
+            </li>
+            <li>
+              <!-- JAL-2317-->Certain structures do not get mapped to
+              the structure view when displayed with Chimera
+            </li>
+            <li>
+              <!-- JAL-2317-->No chains shown in the Chimera view
+              panel's View->Show Chains submenu
+            </li>
+            <li>
+              <!--JAL-2277 -->Export as HTML with embedded SVG doesn't
+              work for wrapped alignment views
+            </li>
+            <li>
+              <!--JAL-2197 -->Rename UI components for running JPred
+              predictions from 'JNet' to 'JPred'
+            </li>
+            <li>
+              <!-- JAL-2337,JAL-2277 -->Export as PNG or SVG is
+              corrupted when annotation panel vertical scroll is not at
+              first annotation row
+            </li>
+            <li>
+              <!--JAL-2332 -->Attempting to view structure for Hen
+              lysozyme results in a PDB Client error dialog box
+            </li>
+          </ul>
+<!--           <em>New Known Issues</em>
+          <ul>
+            <li></li>
+          </ul> -->
+        </div>
+      </td>
+    </tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <strong><a name="Jalview.2.10.0b1">2.10.0b1</a><br />
+            <em>25/10/2016</em></strong>
+        </div>
+      </td>
+      <td><em>Application</em>
+        <ul>
+          <li>3D Structure chooser opens with 'Cached structures'
+            view if structures already loaded</li>
+          <li>Progress bar reports models as they are loaded to
+            structure views</li>
+        </ul></td>
+      <td>
+        <div align="left">
+          <em>General</em>
+          <ul>
+            <li>Colour by conservation always enabled and no tick
+              shown in menu when BLOSUM or PID shading applied</li>
+            <li>FER1_ARATH and FER2_ARATH labels were switched in
+              example sequences/projects/trees</li>
+          </ul>
+          <em>Application</em>
+          <ul>
+            <li>Jalview projects with views of local PDB structure
+              files saved on Windows cannot be opened on OSX</li>
+            <li>Multiple structure views can be opened and
+              superposed without timeout for structures with multiple
+              models or multiple sequences in alignment</li>
+            <li>Cannot import or associated local PDB files without
+              a PDB ID HEADER line</li>
+            <li>RMSD is not output in Jmol console when
+              superposition is performed</li>
+            <li>Drag and drop of URL from Browser fails for Linux
+              and OSX versions earlier than El Capitan</li>
+            <li>ENA client ignores invalid content from ENA server</li>
+            <li>Exceptions are not raised in console when ENA
+              client attempts to fetch non-existent IDs via Fetch DB
+              Refs UI option</li>
+            <li>Exceptions are not raised in console when a new
+              view is created on the alignment</li>
+            <li>OSX right-click fixed for group selections:
+              CMD-click to insert/remove gaps in groups and CTRL-click
+              to open group pop-up menu</li>
+          </ul>
+          <em>Build and deployment</em>
+          <ul>
+            <li>URL link checker now copes with multi-line anchor
+              tags</li>
+          </ul>
+          <em>New Known Issues</em>
+          <ul>
+            <li>Drag and drop from URL links in browsers do not
+              work on Windows</li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <strong><a name="Jalview.2.10.0">2.10.0</a><br /> <em>06/10/2016</em></strong>
+        </div>
+      </td>
+      <td><em>General</em>
+        <ul>
+          <li>
+          <!-- JAL-2124 -->Updated Spanish translations.
+          </li> 
+          <li>
+            <!-- JAL-2164,JAL-1919,JAL-2148 -->Jmol now primary parser
+            for importing structure data to Jalview. Enables mmCIF and
+            better PDB parsing.
+          </li>
+          <li>
+            <!-- JAL-192 --->Alignment ruler shows positions relative to
+            reference sequence
+          </li>
+          <li>
+            <!-- JAL-2202 -->Position/residue shown in status bar when
+            mousing over sequence associated annotation
+          </li>
+          <li>
+            <!-- JAL-2171 -->Default RNA SS symbol to 'matching bracket'
+            for manual entry
+          </li>
+          <li>
+            <!-- JAL-2214 -->RNA Structure consensus indicates wc-only
+            '()', canonical '[]' and invalid '{}' base pair populations
+            for each column
+          </li>
+          <li>
+            <!-- JAL-2092 -->Feature settings popup menu options for
+            showing or hiding columns containing a feature
+          </li>
+          <li>
+            <!-- JAL-1557 -->Edit selected group by double clicking on
+            group and sequence associated annotation labels
+          </li>
+          <li>
+            <!-- JAL-2236 -->Sequence name added to annotation label in
+            select/hide columns by annotation and colour by annotation
+            dialogs
+          </li>
+
+        </ul> <em>Application</em>
+        <ul>
+          <li>
+            <!-- JAL-2050-->Automatically hide introns when opening a
+            gene/transcript view
+          </li>
+          <li>
+            <!-- JAL-1563 -->Uniprot Sequence fetcher Free Text Search
+            dialog
+          </li>
+          <li>
+            <!--  JAL-1957, JAL-1479 JAL-1491 -->UniProt - PDB protein
+            structure mappings with the EMBL-EBI PDBe SIFTS database
+          </li>
+          <li>
+            <!-- JAL-2079 -->Updated download sites used for Rfam and
+            Pfam sources to xfam.org
+          </li>
+          <li>
+            <!-- JAL-2084 -->Disabled Rfam(Full) in the sequence fetcher
+          </li>
+          <li>
+            <!-- JAL-2123 -->Show residue labels in Chimera when mousing
+            over sequences in Jalview
+          </li>
+          <li>
+            <!-- JAL-2027-->Support for reverse-complement coding
+            regions in ENA and EMBL
+          </li>
+          <li>
+            <!-- JAL-1855, JAL-2113, JAL-2114-->Upgrade to EMBL XML 1.2
+            for record retrieval via ENA rest API
+          </li>
+          <li>
+            <!-- JAL-2027 -->Support for ENA CDS records with reverse
+            complement operator
+          </li>
+          <li>
+            <!--  JAL-1812 -->Update to groovy-2.4.6-indy - for faster
+            groovy script execution
+          </li>
+          <li>
+            <!--  JAL-1812 -->New 'execute Groovy script' option in an
+            alignment window's Calculate menu
+          </li>
+          <li>
+            <!--  JAL-1812 -->Allow groovy scripts that call
+            Jalview.getAlignFrames() to run in headless mode
+          </li>
+          <li>
+            <!--  JAL-2068 -->Support for creating new alignment
+            calculation workers from groovy scripts
+          </li>
+          <li>
+            <!-- JAL-1369 --->Store/restore reference sequence in
+            Jalview projects
+          </li>
+          <li>
+            <!-- JAL-1803 -->Chain codes for a sequence's PDB
+            associations are now saved/restored from project
+          </li>
+          <li>
+            <!-- JAL-1993 -->Database selection dialog always shown
+            before sequence fetcher is opened
+          </li>
+          <li>
+            <!-- JAL-2183 -->Double click on an entry in Jalview's
+            database chooser opens a sequence fetcher
+          </li>
+          <li>
+            <!-- JAL-1563 -->Free-text search client for UniProt using
+            the UniProt REST API
+          </li>
+          <li>
+            <!-- JAL-2168 -->-nonews command line parameter to prevent
+            the news reader opening
+          </li>
+          <li>
+            <!-- JAL-2028 -->Displayed columns for PDBe and Uniprot
+            querying stored in preferences
+          </li>
+          <li>
+            <!-- JAL-2091 -->Pagination for displaying PDBe and Uniprot
+            search results
+          </li>
+          <li>
+            <!-- JAL-1977-->Tooltips shown on database chooser
+          </li>
+          <li>
+            <!--  JAL-391 -->Reverse complement function in calculate
+            menu for nucleotide sequences
+          </li>
+          <li>
+            <!-- JAL-2005, JAL-599 -->Alignment sort by feature scores
+            and feature counts preserves alignment ordering (and
+            debugged for complex feature sets).
+          </li>
+          <li>
+            <!-- JAL-2152-->Chimera 1.11.1 minimum requirement for
+            viewing structures with Jalview 2.10
+          </li>
+          <li>
+            <!-- JAL-1705, JAL-1975, JAL-2050,JAL-2041,JAL-2105 -->Retrieve
+            genome, transcript CCDS and gene ids via the Ensembl and
+            Ensembl Genomes REST API
+          </li>
+          <li>
+            <!-- JAL-2049 -->Protein sequence variant annotation
+            computed for 'sequence_variant' annotation on CDS regions
+            (Ensembl)
+          </li>
+          <li>
+            <!-- JAL-2232 -->ENA CDS 'show cross references' for Uniprot
+            sequences
+          </li>
+          <li>
+            <!-- JAL-2213,JAL-1856 -->Improved warning messages when DB
+            Ref Fetcher fails to match, or otherwise updates sequence
+            data from external database records.
+          </li>
+          <li>
+            <!-- JAL-2154 -->Revised Jalview Project format for
+            efficient recovery of sequence coding and alignment
+            annotation relationships.
+          </li>
+        </ul> <!-- <em>Applet</em>
+        <ul>
+          <li>
+            -- JAL---
+          </li>
+        </ul> --></td>
+      <td>
+        <div align="left">
+          <em>General</em>
+          <ul>
+            <li>
+              <!-- JAL-2077 -->reinstate CTRL-click for opening pop-up
+              menu on OSX
+            </li>
+            <li>
+              <!-- JAL-2018-->Export features in Jalview format (again)
+              includes graduated colourschemes
+            </li>
+            <li>
+              <!-- JAL-2172,JAL-1722, JAL-2001-->More responsive when
+              working with big alignments and lots of hidden columns
+            </li>
+            <li>
+              <!-- JAL-2053-->Hidden column markers not always rendered
+              at right of alignment window
+            </li>
+            <li>
+              <!-- JAL-2067 -->Tidied up links in help file table of
+              contents
+            </li>
+            <li>
+              <!-- JAL-2072  -->Feature based tree calculation not shown
+              for DNA alignments
+            </li>
+            <li>
+              <!-- JAL-2075  -->Hidden columns ignored during feature
+              based tree calculation
+            </li>
+            <li>
+              <!-- JAL-2065  -->Alignment view stops updating when show
+              unconserved enabled for group on alignment
+            </li>
+            <li>
+              <!--  JAL-2086  -->Cannot insert gaps into sequence when
+              set as reference
+            </li>
+            <li>
+              <!-- JAL-2146 -->Alignment column in status incorrectly
+              shown as &quot;Sequence position&quot; when mousing over
+              annotation
+            </li>
+            <li>
+              <!--  JAL-2099 -->Incorrect column numbers in ruler when
+              hidden columns present
+            </li>
+            <li>
+              <!--  JAL-1577 -->Colour by RNA Helices not enabled when
+              user created annotation added to alignment
+            </li>
+            <li>
+              <!-- JAL-1841 -->RNA Structure consensus only computed for
+              '()' base pair annotation
+            </li>
+            <li>
+              <!-- JAL-2215, JAL-1841 -->Enabling 'Ignore Gaps' results
+              in zero scores for all base pairs in RNA Structure
+              Consensus
+            </li>
+            <li>
+              <!-- JAL-2174-->Extend selection with columns containing
+              feature not working
+            </li>
+            <li>
+              <!-- JAL-2275 -->Pfam format writer puts extra space at
+              beginning of sequence
+            </li>
+            <li>
+              <!-- JAL-1827 -->Incomplete sequence extracted from pdb
+              entry 3a6s
+            </li>
+            <li>
+              <!-- JAL-2238 -->Cannot create groups on an alignment from
+              from a tree when t-coffee scores are shown
+            </li>
+            <li>
+              <!-- JAL-1836,1967 -->Cannot import and view PDB
+              structures with chains containing negative resnums (4q4h)
+            </li>
+            <li>
+              <!--  JAL-1998 -->ArithmeticExceptions raised when parsing
+              some structures
+            </li>
+            <li>
+              <!--  JAL-1991, JAl-1952 -->'Empty' alignment blocks added
+              to Clustal, PIR and PileUp output
+            </li>
+            <li>
+              <!--  JAL-2008 -->Reordering sequence features that are
+              not visible causes alignment window to repaint
+            </li>
+            <li>
+              <!--  JAL-2006 -->Threshold sliders don't work in
+              graduated colour and colour by annotation row for e-value
+              scores associated with features and annotation rows
+            </li>
+            <li>
+              <!-- JAL-1797 -->amino acid physicochemical conservation
+              calculation should be case independent
+            </li>
+            <li>
+              <!-- JAL-2173 -->Remove annotation also updates hidden
+              columns
+            </li>
+            <li>
+              <!-- JAL-2234 -->FER1_ARATH and FER2_ARATH mislabelled in
+              example file (uniref50.fa, feredoxin.fa, unaligned.fa,
+              exampleFile_2_7.jar, exampleFile.jar, exampleFile_2_3.jar)
+            </li>
+            <li>
+              <!-- JAL-2065 -->Null pointer exceptions and redraw
+              problems when reference sequence defined and 'show
+              non-conserved' enabled
+            </li>
+            <li>
+              <!-- JAL-1306 -->Quality and Conservation are now shown on
+              load even when Consensus calculation is disabled
+            </li>
+            <li>
+              <!-- JAL-1932 -->Remove right on penultimate column of 
+              alignment does nothing
+            </li>
+          </ul>
+          <em>Application</em>
+          <ul>
+            <li>
+              <!-- JAL-1552-->URLs and links can't be imported by
+              drag'n'drop on OSX when launched via webstart (note - not
+              yet fixed for El Capitan)
+            </li>
+            <li>
+              <!-- JAL-1911-->Corrupt preferences for SVG, EPS & HTML
+              output when running on non-gb/us i18n platforms
+            </li>
+            <li>
+              <!-- JAL-1944 -->Error thrown when exporting a view with
+              hidden sequences as flat-file alignment
+            </li>
+            <li>
+              <!-- JAL-2030-->InstallAnywhere distribution fails when
+              launching Chimera
+            </li>
+            <li>
+              <!-- JAL-2080-->Jalview very slow to launch via webstart
+              (also hotfix for 2.9.0b2)
+            </li>
+            <li>
+              <!--  JAL-2085  -->Cannot save project when view has a
+              reference sequence defined
+            </li>
+            <li>
+              <!--  JAL-1011  -->Columns are suddenly selected in other
+              alignments and views when revealing hidden columns
+            </li>
+            <li>
+              <!--  JAL-1989  -->Hide columns not mirrored in complement
+              view in a cDNA/Protein splitframe
+            </li>
+            <li>
+              <!--  JAL-1369 -->Cannot save/restore representative
+              sequence from project when only one sequence is
+              represented
+            </li>
+            <li>
+              <!-- JAL-2002 -->Disabled 'Best Uniprot Coverage' option
+              in Structure Chooser
+            </li>
+            <li>
+              <!-- JAL-2215 -->Modifying 'Ignore Gaps' on consensus or
+              structure consensus didn't refresh annotation panel
+            </li>
+            <li>
+              <!-- JAL-1962 -->View mapping in structure view shows
+              mappings between sequence and all chains in a PDB file
+            </li>
+            <li>
+              <!-- JAL-2102, JAL-2101, JAL-2102, -->PDB and Uniprot FTS
+              dialogs format columns correctly, don't display array
+              data, sort columns according to type
+            </li>
+            <li>
+              <!-- JAL-1975 -->Export complete shown after destination
+              file chooser is cancelled during an image export
+            </li>
+            <li>
+              <!-- JAL-2025 -->Error when querying PDB Service with
+              sequence name containing special characters
+            </li>
+            <li>
+              <!-- JAL-2024 -->Manual PDB structure querying should be
+              case insensitive
+            </li>
+            <li>
+              <!-- JAL-2104 -->Large tooltips with broken HTML
+              formatting don't wrap
+            </li>
+            <li>
+              <!-- JAL-1128 -->Figures exported from wrapped view are
+              truncated so L looks like I in consensus annotation
+            </li>
+            <li>
+              <!-- JAL-2003 -->Export features should only export the
+              currently displayed features for the current selection or
+              view
+            </li>
+            <li>
+              <!-- JAL-2036 -->Enable 'Get Cross-References' in menu
+              after fetching cross-references, and restoring from project
+            </li>
+            <li>
+              <!-- JAL-2032 -->Mouseover of a copy of a sequence is not
+              followed in the structure viewer
+            </li>
+            <li>
+              <!-- JAL-2163 -->Titles for individual alignments in
+              splitframe not restored from project
+            </li>
+            <li>
+              <!-- JAL-2145 -->missing autocalculated annotation at
+              trailing end of protein alignment in transcript/product
+              splitview when pad-gaps not enabled by default
+            </li>
+            <li>
+              <!-- JAL-1797 -->amino acid physicochemical conservation
+              is case dependent
+            </li>
+            <li>
+              <!-- JAL-1448 -->RSS reader doesn't stay hidden after last
+              article has been read (reopened issue due to
+              internationalisation problems)
+            </li>
+            <li>
+              <!-- JAL-1960 -->Only offer PDB structures in structure
+              viewer based on sequence name, PDB and UniProt
+              cross-references
+            </li>
+
+            <li>
+              <!-- JAL-1976 -->No progress bar shown during export of
+              alignment as HTML
+            </li>
+            <li>
+              <!-- JAL-2213 -->Structures not always superimposed after
+              multiple structures are shown for one or more sequences.
+            </li>
+            <li>
+              <!-- JAL-1370 -->Reference sequence characters should not
+              be replaced with '.' when 'Show unconserved' format option
+              is enabled.
+            </li>
+            <li>
+              <!-- JAL-1823 -->Cannot specify chain code when entering
+              specific PDB id for sequence
+            </li>
+            <li>
+              <!-- JAL-1944 -->File->Export->.. as doesn't work when
+              'Export hidden sequences' is enabled, but 'export hidden
+              columns' is disabled.
+            </li>
+            <li>
+              <!--JAL-2026-->Best Quality option in structure chooser
+              selects lowest rather than highest resolution structures
+              for each sequence
+            </li>
+            <li>
+              <!-- JAL-1887 -->Incorrect start and end reported for PDB
+              to sequence mapping in 'View Mappings' report
+            </li>
+            <li>
+              <!-- JAL-2284 -->Unable to read old Jalview projects that
+              contain non-XML data added after Jalvew wrote project.
+            </li>
+            <li><!-- JAL-2118 -->Newly created annotation row reorders
+              after clicking on it to create new annotation for a
+              column.
+            </li>
+            <!--  may exclude, this is an external service stability issue  JAL-1941 
+            -- > RNA 3D structure not added via DSSR service</li> -->
+          </ul>
+          <em>Applet</em>
+          <ul>
+            <li>
+              <!-- JAL-2151 -->Incorrect columns are selected when
+              hidden columns present before start of sequence
+            </li>
+            <li>
+              <!-- JAL-1986 -->Missing dependencies on applet pages
+              (JSON jars)
+            </li>
+            <li>
+              <!-- JAL-1947 -->Overview pixel size changes when
+              sequences are hidden in applet
+            </li>
+            <li>
+              <!-- JAL-1996 -->Updated instructions for applet
+              deployment on examples pages.
+            </li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <strong><a name="Jalview.2.9.0b2">2.9.0b2</a><br />
+            <em>16/10/2015</em></strong>
+        </div>
+      </td>
+      <td><em>General</em>
+        <ul>
+          <li>Time stamps for signed Jalview application and applet
+            jars</li>
+        </ul></td>
+      <td>
+        <div align="left">
+          <em>Application</em>
+          <ul>
+            <li>Duplicate group consensus and conservation rows
+              shown when tree is partitioned</li>
+            <li>Erratic behaviour when tree partitions made with
+              multiple cDNA/Protein split views</li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td width="60" nowrap>
+        <div align="center">
+          <strong><a name="Jalview.2.9.0b1">2.9.0b1</a><br />
+            <em>8/10/2015</em></strong>
+        </div>
+      </td>
+      <td><em>General</em>
+        <ul>
+          <li>Updated Spanish translations of localized text for
+            2.9</li>
+        </ul> <em>Application</em>
+        <ul>
+          <!-- <li>cDNA/Protein splitframe window geometry preserved in Jalview projects</li>-->
+          <li>Signed OSX InstallAnywhere installer<br></li>
+          <li>Support for per-sequence based annotations in BioJSON</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Split frame example added to applet examples page</li>
+        </ul><em>Build and Deployment</em>
+        <ul>
+          <li><!--  JAL-1888 -->New ant target for running Jalview's test suite</li>
+        </ul></td>
+      <td>
+        <div align="left">
+          <em>General</em>
+          <ul>
+            <li>Mapping of cDNA to protein in split frames
+              incorrect when sequence start > 1</li>
+            <li>Broken images in filter column by annotation dialog
+              documentation</li>
+            <li>Feature colours not parsed from features file</li>
+            <li>Exceptions and incomplete link URLs recovered when
+              loading a features file containing HTML tags in feature
+              description</li>
+
+          </ul>
+          <em>Application</em>
+          <ul>
+            <li>Annotations corrupted after BioJS export and
+              reimport</li>
+            <li>Incorrect sequence limits after Fetch DB References
+              with 'trim retrieved sequences'</li>
+            <li>Incorrect warning about deleting all data when
+              deleting selected columns</li>
+            <li>Patch to build system for shipping properly signed
+              JNLP templates for webstart launch</li>
+            <li>EMBL-PDBe fetcher/viewer dialogs do not offer
+              unreleased structures for download or viewing</li>
+            <li>Tab/space/return keystroke operation of EMBL-PDBe
+              fetcher/viewer dialogs works correctly</li>
+            <li>Disabled 'minimise' button on Jalview windows
+              running on OSX to workaround redraw hang bug</li>
+            <li>Split cDNA/Protein view position and geometry not
+              recovered from jalview project</li>
+            <li>Initial enabled/disabled state of annotation menu
+              sorter 'show autocalculated first/last' corresponds to
+              alignment view</li>
+            <li>Restoring of Clustal, RNA Helices and T-Coffee
+              color schemes from BioJSON</li>
+          </ul>
+          <em>Applet</em>
+          <ul>
+            <li>Reorder sequences mirrored in cDNA/Protein split
+              frame</li>
+            <li>Applet with Jmol examples not loading correctly</li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td><div align="center">
+          <strong><a name="Jalview.2.9">2.9</a><br /> <em>10/9/2015</em></strong>
+        </div></td>
+      <td><em>General</em>
+        <ul>
+          <li>Linked visualisation and analysis of DNA and Protein
+            alignments:
+            <ul>
+              <li>Translated cDNA alignments shown as split protein
+                and DNA alignment views</li>
+              <li>Codon consensus annotation for linked protein and
+                cDNA alignment views</li>
+              <li>Link cDNA or Protein product sequences by loading
+                them onto Protein or cDNA alignments</li>
+              <li>Reconstruct linked cDNA alignment from aligned
+                protein sequences</li>
+            </ul>
+          </li>
+          <li>Jmol integration updated to Jmol v14.2.14</li>
+          <li>Import and export of Jalview alignment views as <a
+            href="features/bioJsonFormat.html">BioJSON</a></li>
+          <li>New alignment annotation file statements for
+            reference sequences and marking hidden columns</li>
+          <li>Reference sequence based alignment shading to
+            highlight variation</li>
+          <li>Select or hide columns according to alignment
+            annotation</li>
+          <li>Find option for locating sequences by description</li>
+          <li>Conserved physicochemical properties shown in amino
+            acid conservation row</li>
+          <li>Alignments can be sorted by number of RNA helices</li>
+        </ul> <em>Application</em>
+        <ul>
+          <li>New cDNA/Protein analysis capabilities
+            <ul>
+              <li>Get Cross-References should open a Split Frame
+                view with cDNA/Protein</li>
+              <li>Detect when nucleotide sequences and protein
+                sequences are placed in the same alignment</li>
+              <li>Split cDNA/Protein views are saved in Jalview
+                projects</li>
+            </ul>
+          </li>
+
+          <li>Use REST API to talk to Chimera</li>
+          <li>Selected regions in Chimera are highlighted in linked
+            Jalview windows</li>
+
+          <li>VARNA RNA viewer updated to v3.93</li>
+          <li>VARNA views are saved in Jalview Projects</li>
+          <li>Pseudoknots displayed as Jalview RNA annotation can
+            be shown in VARNA</li>
+
+          <li>Make groups for selection uses marked columns as well
+            as the active selected region</li>
+
+          <li>Calculate UPGMA and NJ trees using sequence feature
+            similarity</li>
+          <li>New Export options
+            <ul>
+              <li>New Export Settings dialog to control hidden
+                region export in flat file generation</li>
+
+              <li>Export alignment views for display with the <a
+                href="http://msa.biojs.net/">BioJS MSAViewer</a></li>
+
+              <li>Export scrollable SVG in HTML page</li>
+              <li>Optional embedding of BioJSON data when exporting
+                alignment figures to HTML</li>
+          </li>
+          <li>3D structure retrieval and display
+            <ul>
+              <li>Free text and structured queries with the PDBe
+                Search API</li>
+              <li>PDBe Search API based discovery and selection of
+                PDB structures for a sequence set</li>
+            </ul>
+          </li>
+
+          <li>JPred4 employed for protein secondary structure
+            predictions</li>
+          <li>Hide Insertions menu option to hide unaligned columns
+            for one or a group of sequences</li>
+          <li>Automatically hide insertions in alignments imported
+            from the JPred4 web server</li>
+          <li>(Nearly) Native 'Quaqua' dialogs for browsing file
+            system on OSX<br />LGPL libraries courtesy of <a
+            href="http://www.randelshofer.ch/quaqua/">http://www.randelshofer.ch/quaqua/</a>
+          </li>
+          <li>changed 'View nucleotide structure' submenu to 'View
+            VARNA 2D Structure'</li>
+          <li>change "View protein structure" menu option to "3D
+            Structure ..."</li>
+
+        </ul> <em>Applet</em>
+        <ul>
+          <li>New layout for applet example pages</li>
+          <li>New parameters to enable SplitFrame view
+            (file2,enableSplitFrame, scaleProteinAsCdna)</li>
+          <li>New example demonstrating linked viewing of cDNA and
+            Protein alignments</li>
+        </ul> <em>Development and deployment</em>
+        <ul>
+          <li>Java 1.7 minimum requirement for Jalview 2.9</li>
+          <li>Include installation type and git revision in build
+            properties and console log output</li>
+          <li>Jalview Github organisation, and new github site for
+            storing BioJsMSA Templates</li>
+          <li>Jalview's unit tests now managed with TestNG</li>
+        </ul></td>
+      <td>
+        <!-- <em>General</em>
+        <ul>
+        </ul>  --> <!--  issues resolved --> <em>Application</em>
+        <ul>
+          <li>Escape should close any open find dialogs</li>
+          <li>Typo in select-by-features status report</li>
+          <li>Consensus RNA secondary secondary structure
+            predictions are not highlighted in amber</li>
+          <li>Missing gap character in v2.7 example file means
+            alignment appears unaligned when pad-gaps is not enabled</li>
+          <li>First switch to RNA Helices colouring doesn't colour
+            associated structure views</li>
+          <li>ID width preference option is greyed out when auto
+            width checkbox not enabled</li>
+          <li>Stopped a warning dialog from being shown when
+            creating user defined colours</li>
+          <li>'View Mapping' in structure viewer shows sequence
+            mappings for just that viewer's sequences</li>
+          <li>Workaround for superposing PDB files containing
+            multiple models in Chimera</li>
+          <li>Report sequence position in status bar when hovering
+            over Jmol structure</li>
+          <li>Cannot output gaps as '.' symbols with Selection ->
+            output to text box</li>
+          <li>Flat file exports of alignments with hidden columns
+            have incorrect sequence start/end</li>
+          <li>'Aligning' a second chain to a Chimera structure from
+            Jalview fails</li>
+          <li>Colour schemes applied to structure viewers don't
+            work for nucleotide</li>
+          <li>Loading/cut'n'pasting an empty or invalid file leads
+            to a grey/invisible alignment window</li>
+          <li>Exported Jpred annotation from a sequence region
+            imports to different position</li>
+          <li>Space at beginning of sequence feature tooltips shown
+            on some platforms</li>
+          <li>Chimera viewer 'View | Show Chain' menu is not
+            populated</li>
+          <li>'New View' fails with a Null Pointer Exception in
+            console if Chimera has been opened</li>
+          <li>Mouseover to Chimera not working</li>
+          <li>Miscellaneous ENA XML feature qualifiers not
+            retrieved</li>
+          <li>NPE in annotation renderer after 'Extract Scores'</li>
+          <li>If two structures in one Chimera window, mouseover of
+            either sequence shows on first structure</li>
+          <li>'Show annotations' options should not make
+            non-positional annotations visible</li>
+          <li>Subsequence secondary structure annotation not shown
+            in right place after 'view flanking regions'</li>
+          <li>File Save As type unset when current file format is
+            unknown</li>
+          <li>Save as '.jar' option removed for saving Jalview
+            projects</li>
+          <li>Colour by Sequence colouring in Chimera more
+            responsive</li>
+          <li>Cannot 'add reference annotation' for a sequence in
+            several views on same alignment</li>
+          <li>Cannot show linked products for EMBL / ENA records</li>
+          <li>Jalview's tooltip wraps long texts containing no
+            spaces</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Jmol to JalviewLite mouseover/link not working</li>
+          <li>JalviewLite can't import sequences with ID
+            descriptions containing angle brackets</li>
+        </ul> <em>General</em>
+        <ul>
+          <li>Cannot export and reimport RNA secondary structure
+            via jalview annotation file</li>
+          <li>Random helix colour palette for colour by annotation
+            with RNA secondary structure</li>
+          <li>Mouseover to cDNA from STOP residue in protein
+            translation doesn't work.</li>
+          <li>hints when using the select by annotation dialog box</li>
+          <li>Jmol alignment incorrect if PDB file has alternate CA
+            positions</li>
+          <li>FontChooser message dialog appears to hang after
+            choosing 1pt font</li>
+          <li>Peptide secondary structure incorrectly imported from
+            annotation file when annotation display text includes 'e' or
+            'h'</li>
+          <li>Cannot set colour of new feature type whilst creating
+            new feature</li>
+          <li>cDNA translation alignment should not be sequence
+            order dependent</li>
+          <li>'Show unconserved' doesn't work for lower case
+            sequences</li>
+          <li>Nucleotide ambiguity codes involving R not recognised</li>
+        </ul> <em>Deployment and Documentation</em>
+        <ul>
+          <li>Applet example pages appear different to the rest of
+            www.jalview.org</li>
+        </ul> <em>Application Known issues</em>
+        <ul>
+          <li>Incomplete sequence extracted from PDB entry 3a6s</li>
+          <li>Misleading message appears after trying to delete
+            solid column.</li>
+          <li>Jalview icon not shown in dock after InstallAnywhere
+            version launches</li>
+          <li>Fetching EMBL reference for an RNA sequence results
+            fails with a sequence mismatch</li>
+          <li>Corrupted or unreadable alignment display when
+            scrolling alignment to right</li>
+          <li>ArrayIndexOutOfBoundsException thrown when remove
+            empty columns called on alignment with ragged gapped ends</li>
+          <li>auto calculated alignment annotation rows do not get
+            placed above or below non-autocalculated rows</li>
+          <li>Jalview dekstop becomes sluggish at full screen in
+            ultra-high resolution</li>
+          <li>Cannot disable consensus calculation independently of
+            quality and conservation</li>
+          <li>Mouseover highlighting between cDNA and protein can
+            become sluggish with more than one splitframe shown</li>
+        </ul> <em>Applet Known Issues</em>
+        <ul>
+          <li>Core PDB parsing code requires Jmol</li>
+          <li>Sequence canvas panel goes white when alignment
+            window is being resized</li>
+
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><div align="center">
+          <strong><a name="Jalview.2.8.2">2.8.2</a><br /> <em>3/12/2014</em></strong>
+        </div></td>
+      <td><em>General</em>
+        <ul>
+          <li>Updated Java code signing certificate donated by
+            Certum.PL.</li>
+          <li>Features and annotation preserved when performing
+            pairwise alignment</li>
+          <li>RNA pseudoknot annotation can be
+            imported/exported/displayed</li>
+          <li>&#39;colour by annotation&#39; can colour by RNA and
+            protein secondary structure</li>
+          <li>Warn user if 'Find' regular expression is invalid (<em>mentioned
+              post-hoc with 2.9 release</em>)
+          </li>
+
+        </ul> <em>Application</em>
+        <ul>
+          <li>Extract and display secondary structure for sequences
+            with 3D structures</li>
+          <li>Support for parsing RNAML</li>
+          <li>Annotations menu for layout
+            <ul>
+              <li>sort sequence annotation rows by alignment</li>
+              <li>place sequence annotation above/below alignment
+                annotation</li>
+            </ul>
+          <li>Output in Stockholm format</li>
+          <li>Internationalisation: improved Spanish (es)
+            translation</li>
+          <li>Structure viewer preferences tab</li>
+          <li>Disorder and Secondary Structure annotation tracks
+            shared between alignments</li>
+          <li>UCSF Chimera launch and linked highlighting from
+            Jalview</li>
+          <li>Show/hide all sequence associated annotation rows for
+            all or current selection</li>
+          <li>disorder and secondary structure predictions
+            available as dataset annotation</li>
+          <li>Per-sequence rna helices colouring</li>
+
+
+          <li>Sequence database accessions imported when fetching
+            alignments from Rfam</li>
+          <li>update VARNA version to 3.91</li>
+
+          <li>New groovy scripts for exporting aligned positions,
+            conservation values, and calculating sum of pairs scores.</li>
+          <li>Command line argument to set default JABAWS server</li>
+          <li>include installation type in build properties and
+            console log output</li>
+          <li>Updated Jalview project format to preserve dataset
+            annotation</li>
+        </ul></td>
+      <td>
+        <!--  issues resolved --> <em>Application</em>
+        <ul>
+          <li>Distinguish alignment and sequence associated RNA
+            structure in structure-&gt;view-&gt;VARNA</li>
+          <li>Raise dialog box if user deletes all sequences in an
+            alignment</li>
+          <li>Pressing F1 results in documentation opening twice</li>
+          <li>Sequence feature tooltip is wrapped</li>
+          <li>Double click on sequence associated annotation
+            selects only first column</li>
+          <li>Redundancy removal doesn&#39;t result in unlinked
+            leaves shown in tree</li>
+          <li>Undos after several redundancy removals don't undo
+            properly</li>
+          <li>Hide sequence doesn&#39;t hide associated annotation</li>
+          <li>User defined colours dialog box too big to fit on
+            screen and buttons not visible</li>
+          <li>author list isn't updated if already written to
+            Jalview properties</li>
+          <li>Popup menu won&#39;t open after retrieving sequence
+            from database</li>
+          <li>File open window for associate PDB doesn&#39;t open</li>
+          <li>Left-then-right click on a sequence id opens a
+            browser search window</li>
+          <li>Cannot open sequence feature shading/sort popup menu
+            in feature settings dialog</li>
+          <li>better tooltip placement for some areas of Jalview
+            desktop</li>
+          <li>Allow addition of JABAWS Server which doesn&#39;t
+            pass validation</li>
+          <li>Web services parameters dialog box is too large to
+            fit on screen</li>
+          <li>Muscle nucleotide alignment preset obscured by
+            tooltip</li>
+          <li>JABAWS preset submenus don&#39;t contain newly
+            defined user preset</li>
+          <li>MSA web services warns user if they were launched
+            with invalid input</li>
+          <li>Jalview cannot contact DAS Registy when running on
+            Java 8</li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1273'>JAL-1273</a>] -->
+            &#39;Superpose with&#39; submenu not shown when new view
+            created
+          </li>
+
+        </ul> <!--  <em>Applet</em>
 				<ul>
-					<li>Jalview Desktop News Reader</li>
-					<li>Tweaked default layout of web services menu</li>
-					<li>View/alignment association menu to enable user to easily
-						specify which alignment a multi-structure view takes its
-						colours/correspondences from</li>
-					<li>Allow properties file location to be specified as URL </li>
-						<li>Extend jalview project to preserve associations between
-							many alignment views and a single Jmol display</li>
-						<li>Store annotation row height in jalview project file</li>
-						<li>Annotation row column label formatting attributes stored
-							in project file</li>
-						<li>Annotation row order for auto-calculated annotation rows
-							preserved in jalview project file</li>
-						<li>Visual progress indication when Jalview state is saved
-							using Desktop window menu</li>
-						<li>Visual indication that command line arguments are still
-							being processed</li>
-						<li>Groovy script execution from URL</li>
-						<li>Colour by annotation default min and max colours in
-							preferences</li>
-						<li>Automatically associate PDB files dragged onto an
-							alignment with sequences that have high similarity and matching
-							IDs</li>
-						<li>Update JGoogleAnalytics to latest release (0.3)</li>
-						<li>&#39;view structures&#39; option to open many structures
-							in same window</li>
-						<li>Sort associated views menu option for tree panel</li>
-						<li>Group all JABA and non-JABA services for a particular
-							analysis function in its own submenu</li>
-				</ul> <em>Applet</em>
-			<ul>
-					<li>Userdefined and autogenerated annotation rows for groups</li>
-					<li>Adjustment of alignment annotation pane height</li>
-					<li>Annotation scrollbar for annotation panel</li>
-					<li>Drag to reorder annotation rows in annotation panel</li>
-					<li>&#39;automaticScrolling&#39; parameter</li>
-					<li>Allow sequences with partial ID string matches to be
-						annotated from GFF/jalview features files</li>
-					<li>Sequence logo annotation row in applet</li>
-					<li>Absolute paths relative to host server in applet
-						parameters are treated as such</li>
-					<li>New in the JalviewLite javascript API:
-						<ul>
-							<li>JalviewLite.js javascript library</li>
-							<li>Javascript callbacks for
-								<ul>
-									<li>Applet initialisation</li>
-									<li>Sequence/alignment mouse-overs and selections</li>
-								</ul>
-							</li>
-							<li>scrollTo row and column alignment scrolling functions</li>
-							<li>Select sequence/alignment regions from javascript</li>
-							<li>javascript structure viewer harness to pass messages
-								between Jmol and Jalview when running as distinct applets</li>
-							<li>sortBy method</li>
-							<li>Set of applet and application examples shipped with
-								documentation</li>
-							<li>New example to demonstrate jalviewLite and Jmol
-								javascript message exchange</li>
-						</ul>
 				</ul> <em>General</em>
-				<ul>
-					<li>Enable Jmol displays to be associated with multiple
-						multiple alignments</li>
-					<li>Option to automatically sort alignment with new tree</li>
-					<li>User configurable link to enable redirects to a
-						www.jalview.org mirror</li>
-					<li>Jmol colours option for Jmol displays</li>
-					<li>Configurable newline string when writing alignment and
-						other flat files</li>
-					<li>Allow alignment annotation description lines to contain
-						html tags</li>
-				</ul> <em>Documentation and Development</em>
-				<ul>
-					<li>Add groovy test harness for bulk load testing to examples
-					</li>
-					<li>Groovy script to load and align a set of sequences using a
-						web service before displaying the result in the Jalview desktop</li>
-					<li>Restructured javascript and applet api documentation</li>
-					<li>Ant target to publish example html files with applet archive</li>
-					<li>Netbeans project for building jalview from source</li>
-					<li>ant task to create online javadoc for jalview source</li>
-				</ul></td>
-			<td><em>Application</em>
-				<ul>
-					<li>User defined colourscheme throws exception when current
-						built in colourscheme is saved as new scheme</li>
-					<li>AlignFrame-&gt;Save in application pops up save dialog for
-						valid filename/format</li>
-					<li>Cannot view associated structure for Uniprot sequence</li>
-					<li>PDB file association breaks for Uniprot sequence P37173</li>
-					<li>Associate PDB from file dialog does not tell you which
-						sequence is to be associated with the file</li>
-					<li>Find All raises null pointer exception when query only
-						matches sequence IDs</li>
-					<li>Pre 2.6 Jalview project cannot be loaded into v2.6</li>
-					<li>Jalview project with Jmol views created with Jalview 2.4
-						cannot be loaded</li>
-					<li>Filetype associations not installed for webstart launch</li>
-					<li>Two or more chains in a single PDB file associated with
-						sequences in different alignments do not get coloured by their
-						associated sequence</li>
-					<li>Visibility status of autocalculated annotation row not
-						preserved when project is loaded</li>
-					<li>Annotation row height and visibility attributes not stored
-						in jalview project</li>
-					<li>Tree bootstraps are not preserved when saved as a jalview
-						project</li>
-					<li>Envision2 workflow tooltips are corrupted</li>
-					<li>Enabling show group conservation also enables colour by
-						conservation</li>
-					<li>Duplicate group associated conservation or consensus
-						created on new view</li>
-					<li>Annotation scrollbar not displayed after &#39;show all
-						hidden annotation rows&#39; option selected</li>
-					<li>Alignment quality not updated after alignment annotation
-						row is hidden then shown</li>
-					<li>Preserve colouring of structures coloured by sequences in pre
-						jalview 2.7 projects</li>
-					<li>Web service job parameter dialog is not laid out properly
-					</li>
-					<li>Web services menu not refreshed after &#39;reset
-						services&#39; button is pressed in preferences</li>
-					<li>Annotation off by one in jalview v2_3 example project</li>
-					<li>Structures imported from file and saved in project get
-						name like jalview_pdb1234.txt when reloaded</li>
-					<li>Jalview does not always retrieve progress of a JABAWS job
-						execution in full once it is complete</li>
-				</ul> <em>Applet</em>
-				<ul>
-					<li>Alignment height set incorrectly when lots of annotation
-						rows are displayed</li>
-					<li>Relative URLs in feature HTML text not resolved to
-						codebase</li>
-					<li>View follows highlighting does not work for positions in
-						sequences</li>
-					<li>&lt;= shown as = in tooltip</li>
-					<li>Export features raises exception when no features exist</li>
-					<li>Separator string used for serialising lists of IDs for
-						javascript api is modified when separator string provided as
-						parameter</li>
-					<li>Null pointer exception when selecting tree leaves for
-						alignment with no existing selection</li>
-					<li>Relative URLs for datasources assumed to be relative to
-						applet&#39;s codebase</li>
-					<li>Status bar not updated after finished searching and search
-						wraps around to first result</li>
-					<li>StructureSelectionManager instance shared between several
-						jalview applets causes race conditions and memory leaks</li>
-					<li>Hover tooltip and mouseover of position on structure not
-						sent from Jmol in applet</li>
-					<li>Certain sequences of javascript method calls to applet API
-						fatally hang browser</li>
-				</ul> <em>General</em>
-				<ul>
-					<li>View follows structure mouseover scrolls beyond position
-						with wrapped view and hidden regions</li>
-					<li>Find sequence position moves to wrong residue with/without
-						hidden columns</li>
-					<li>Sequence length given in alignment properties window is
-						off by 1</li>
-					<li>InvalidNumberFormat exceptions thrown when trying to
-						import PDB like structure files</li>
-					<li>Positional search results are only highlighted between
-						user-supplied sequence start/end bounds</li>
-					<li>End attribute of sequence is not validated</li>
-					<li>Find dialog only finds first sequence containing a given
-						sequence position</li>
-					<li>Sequence numbering not preserved in MSF alignment output</li>
-					<li>Jalview PDB file reader does not extract sequence from
-						nucleotide chains correctly</li>
-					<li>Structure colours not updated when tree partition changed
-						in alignment</li>
-					<li>Sequence associated secondary structure not correctly
-						parsed in interleaved stockholm</li>
-					<li>Colour by annotation dialog does not restore current state
-					</li>
-					<li>Hiding (nearly) all sequences doesn&#39;t work properly</li>
-					<li>Sequences containing lowercase letters are not properly
-						associated with their pdb files</li>
-				</ul> <em>Documentation and Development</em>
-				<ul>
-					<li>schemas/JalviewWsParamSet.xsd corrupted by ApplyCopyright
-						tool</li>
-				</ul></td>
-		</tr>
-		<tr>
-			<td>
-				<div align="center">
-					<strong><a name="Jalview2.6.1">2.6.1</a>
-					</strong><br> <em>15/11/2010</em>
-				</div></td>
-			<td><em>Application</em>
-				<ul>
-					<li>New warning dialog when the Jalview Desktop cannot contact
-						web services</li>
-					<li>JABA service parameters for a preset are shown in service
-						job window</li>
-					<li>JABA Service menu entries reworded</li>
-				</ul></td>
-			<td>
-				<ul>
-					<li>Modeller PIR IO broken - cannot correctly import a pir
-						file emitted by jalview</li>
-					<li>Existing feature settings transferred to new alignment
-						view created from cut'n'paste</li>
-					<li>Improved test for mixed amino/nucleotide chains when
-						parsing PDB files</li>
-					<li>Consensus and conservation annotation rows occasionally
-						become blank for all new windows</li>
-					<li>Exception raised when right clicking above sequences in
-						wrapped view mode</li>
-				</ul> <em>Application</em>
-				<ul>
-					<li>multiple multiply aligned structure views cause cpu usage
-						to hit 100% and computer to hang</li>
-					<li>Web Service parameter layout breaks for long user
-						parameter names</li>
-					<li>Jaba service discovery hangs desktop if Jaba server is
-						down</li>
-				</ul></td>
-		</tr>
-		<tr>
-		<td>
-		<div align="center"><strong><a name="Jalview2.6">2.6</a></strong><br>
-		<em>26/9/2010</em></div>
-		</td>
-		<td><em>Application</em>
-		<ul>
-			<li>Support for <strong>Ja</strong>va <strong>b</strong>ioinformatics
-			<strong>a</strong>nalysis <strong>w</strong>eb <strong>s</strong>ervices (JABAWS)</li>
-			<li>Web Services preference tab</li>
-			<li>Analysis parameters dialog box and user defined preferences</li>
-			<li>Improved speed and layout of Envision2 service menu</li>
-			<li>Superpose structures using associated sequence alignment</li>
-			<li>Export coordinates and projection as CSV from PCA viewer</li>
-		</ul>
-		<em>Applet</em>
-		<ul>
-			<li>enable javascript: execution by the applet via the link out
-			mechanism</li>
-		</ul>
-		<em>Other</em>
-		<ul>
-			<li>Updated the Jmol Jalview interface to work with Jmol series
-			12</li>
-			<li>The Jalview Desktop and JalviewLite applet now require Java
-			1.5</li>
-			<li>Allow Jalview feature colour specification for GFF sequence
-			annotation files</li>
-			<li>New 'colour by label' keword in jalview feature file type
-			colour specification</li>
-			<li>New Jalview Desktop Groovy API method that allows a script
-			to check if it being run in an interactive session or in a batch
-			operation from the jalview command line</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>clustalx colourscheme colours Ds preferentially when both
-			D+E are present in over 50% of the column</li>
-		</ul>
+				<ul> 
+				</ul>--> <em>Deployment and Documentation</em>
+        <ul>
+          <li>2G and 1G options in launchApp have no effect on
+            memory allocation</li>
+          <li>launchApp service doesn't automatically open
+            www.jalview.org/examples/exampleFile.jar if no file is given</li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1511'>JAL-1511</a>] -->
+            InstallAnywhere reports cannot find valid JVM when Java
+            1.7_055 is available
+          </li>
+        </ul> <em>Application Known issues</em>
+        <ul>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-830'>JAL-830</a>] -->
+            corrupted or unreadable alignment display when scrolling
+            alignment to right
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1329'>JAL-1329</a>] -->
+            retrieval fails but progress bar continues for DAS retrieval
+            with large number of ID
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1486'>JAL-1486</a>] -->
+            flatfile output of visible region has incorrect sequence
+            start/end
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1487'>JAL-1487</a>] -->
+            rna structure consensus doesn&#39;t update when secondary
+            structure tracks are rearranged
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1591'>JAL-1591</a>] -->
+            invalid rna structure positional highlighting does not
+            highlight position of invalid base pairs
+          </li>
+          <li>
+            <!-- <a href='http://issues.jalview.org/browse/JAL-1539'>JAL-1539</a>] -->
+            out of memory errors are not raised when saving Jalview
+            project from alignment window file menu
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1576'>JAL-1576</a>] -->
+            Switching to RNA Helices colouring doesn&#39;t propagate to
+            structures
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1577'>JAL-1577</a>] -->
+            colour by RNA Helices not enabled when user created
+            annotation added to alignment
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1439'>JAL-1439</a>] -->
+            Jalview icon not shown on dock in Mountain Lion/Webstart
+          </li>
+        </ul> <em>Applet Known Issues</em>
+        <ul>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1394'>JAL-1394</a>] -->
+            JalviewLite needs JmolApplet and VARNA-3.91 jar dependencies
+          </li>
+          <li>
+            <!-- [<a href='http://issues.jalview.org/browse/JAL-1510'>JAL-1510</a>] -->
+            Jalview and Jmol example not compatible with IE9
+          </li>
 
-		<em>Application</em>
-		<ul>
-			<li>typo in AlignmentFrame-&gt;View-&gt;Hide-&gt;all but
-			selected Regions menu item</li>
-			<li>sequence fetcher replaces ',' for ';' when the ',' is part
-			of a valid accession ID</li>
-			<li>fatal OOM if object retrieved by sequence fetcher runs out
-			of memory</li>
-			<li>unhandled Out of Memory Error when viewing pca analysis
-			results</li>
-			<li>InstallAnywhere builds fail to launch on OS X java 10.5
-			update 4 (due to apple Java 1.6 update)</li>
-			<li>Installanywhere Jalview silently fails to launch</li>
-		</ul>
-		<em>Applet</em>
-		<ul>
-			<li>Jalview.getFeatureGroups() raises an
-			ArrayIndexOutOfBoundsException if no feature groups are defined.</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong><a name="Jalview2.5.1">2.5.1</a></strong><br>
-		<em>14/6/2010</em></div>
-		</td>
-		<td></td>
-		<td>
-		<ul>
-			<li>Alignment prettyprinter doesn't cope with long sequence IDs
-			</li>
-			<li>clustalx colourscheme colours Ds preferentially when both
-			D+E are present in over 50% of the column</li>
-			<li>nucleic acid structures retrieved from PDB do not import
-			correctly</li>
-			<li>More columns get selected than were clicked on when a number
-			of columns are hidden</li>
-			<li>annotation label popup menu not providing correct
-			add/hide/show options when rows are hidden or none are present</li>
-			<li>Stockholm format shown in list of readable formats, and
-			parser copes better with alignments from RFAM.</li>
-			<li>CSV output of consensus only includes the percentage of all
-			symbols if sequence logo display is enabled</li>
+          <li>Sort by annotation score doesn&#39;t reverse order
+            when selected</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><div align="center">
+          <strong><a name="Jalview.2.8.1">2.8.1</a><br /> <em>4/6/2014</em></strong>
+        </div></td>
+      <td>
+        <!--  New features --> <!--  For major releases, split into sections: Application | Applet | General | Deployment and Documentation -->
+        <em>General</em>
+        <ul>
+          <li>Internationalisation of user interface (usually
+            called i18n support) and translation for Spanish locale</li>
+          <li>Define/Undefine group on current selection with
+            Ctrl-G/Shift Ctrl-G</li>
+          <li>Improved group creation/removal options in
+            alignment/sequence Popup menu</li>
+          <li>Sensible precision for symbol distribution
+            percentages shown in logo tooltip.</li>
+          <li>Annotation panel height set according to amount of
+            annotation when alignment first opened</li>
+        </ul> <em>Application</em>
+        <ul>
+          <li>Interactive consensus RNA secondary structure
+            prediction VIENNA RNAAliFold JABA 2.1 service</li>
+          <li>Select columns containing particular features from
+            Feature Settings dialog</li>
+          <li>View all 'representative' PDB structures for selected
+            sequences</li>
+          <li>Update Jalview project format:
+            <ul>
+              <li>New file extension for Jalview projects '.jvp'</li>
+              <li>Preserve sequence and annotation dataset (to
+                store secondary structure annotation,etc)</li>
+              <li>Per group and alignment annotation and RNA helix
+                colouring</li>
+            </ul>
+          </li>
+          <li>New similarity measures for PCA and Tree calculation
+            (PAM250)</li>
+          <li>Experimental support for retrieval and viewing of
+            flanking regions for an alignment</li>
+        </ul>
+      </td>
+      <td>
+        <!--  issues resolved --> <em>Application</em>
+        <ul>
+          <li>logo keeps spinning and status remains at queued or
+            running after job is cancelled</li>
+          <li>cannot export features from alignments imported from
+            Jalview/VAMSAS projects</li>
+          <li>Buggy slider for web service parameters that take
+            float values</li>
+          <li>Newly created RNA secondary structure line doesn't
+            have 'display all symbols' flag set</li>
+          <li>T-COFFEE alignment score shading scheme and other
+            annotation shading not saved in Jalview project</li>
+          <li>Local file cannot be loaded in freshly downloaded
+            Jalview</li>
+          <li>Jalview icon not shown on dock in Mountain
+            Lion/Webstart</li>
+          <li>Load file from desktop file browser fails</li>
+          <li>Occasional NPE thrown when calculating large trees</li>
+          <li>Cannot reorder or slide sequences after dragging an
+            alignment onto desktop</li>
+          <li>Colour by annotation dialog throws NPE after using
+            'extract scores' function</li>
+          <li>Loading/cut'n'pasting an empty file leads to a grey
+            alignment window</li>
+          <li>Disorder thresholds rendered incorrectly after
+            performing IUPred disorder prediction</li>
+          <li>Multiple group annotated consensus rows shown when
+            changing 'normalise logo' display setting</li>
+          <li>Find shows blank dialog after 'finished searching' if
+            nothing matches query</li>
+          <li>Null Pointer Exceptions raised when sorting by
+            feature with lots of groups<!--  possibly JAL-599 but commit 7c7a5a297e063d3892dd7e629bc317cdde837b81 associated with JAL-971 -->
+          </li>
+          <li>Errors in Jmol console when structures in alignment
+            don't overlap <!-- JAL-1476 Work in progress - don't send junk to Jmol -->
+          </li>
+          <li>Not all working JABAWS services are shown in
+            Jalview's menu</li>
+          <li>JAVAWS version of Jalview fails to launch with
+            'invalid literal/length code'</li>
+          <li>Annotation/RNA Helix colourschemes cannot be applied
+            to alignment with groups (actually fixed in 2.8.0b1)</li>
+          <li>RNA Helices and T-Coffee Scores available as default
+            colourscheme</li>
 
-		</ul>
-		<em>Applet</em>
-		<ul>
-			<li>annotation panel disappears when annotation is
-			hidden/removed</li>
-		</ul>
-		<em>Application</em>
-		<ul>
-			<li>Alignment view not redrawn properly when new alignment
-			opened where annotation panel is visible but no annotations are
-			present on alignment</li>
-			<li>pasted region containing hidden columns is incorrectly
-			displayed in new alignment window</li>
-			<li>Jalview slow to complete operations when stdout is flooded
-			(fix is to close the Jalview console)</li>
-			<li>typo in AlignmentFrame-&gt;View-&gt;Hide-&gt;all but
-			selected Rregions menu item.</li>
-			<li>inconsistent group submenu and Format submenu entry 'Un' or
-			'Non'conserved</li>
-			<li>Sequence feature settings are being shared by multiple
-			distinct alignments</li>
-			<li>group annotation not recreated when tree partition is
-			changed</li>
-			<li>double click on group annotation to select sequences does
-			not propagate to associated trees</li>
-			<li>Mac OSX specific issues:
-			<ul>
-				<li>exception raised when mouse clicked on desktop window
-				background</li>
-				<li>Desktop menu placed on menu bar and application name set
-				correctly</li>
-				<li>sequence feature settings not wide enough for the save
-				feature colourscheme button</li>
-			</ul>
-			</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Remove group option is shown even when selection is
+            not a group</li>
+          <li>Apply to all groups ticked but colourscheme changes
+            don't affect groups</li>
+          <li>Documented RNA Helices and T-Coffee Scores as valid
+            colourscheme name</li>
+          <li>Annotation labels drawn on sequence IDs when
+            Annotation panel is not displayed</li>
+          <li>Increased font size for dropdown menus on OSX and
+            embedded windows</li>
+        </ul> <em>Other</em>
+        <ul>
+          <li>Consensus sequence for alignments/groups with a
+            single sequence were not calculated</li>
+          <li>annotation files that contain only groups imported as
+            annotation and junk sequences</li>
+          <li>Fasta files with sequences containing '*' incorrectly
+            recognised as PFAM or BLC</li>
+          <li>conservation/PID slider apply all groups option
+            doesn't affect background (2.8.0b1)
+          <li></li>
+          <li>redundancy highlighting is erratic at 0% and 100%</li>
+          <li>Remove gapped columns fails for sequences with ragged
+            trailing gaps</li>
+          <li>AMSA annotation row with leading spaces is not
+            registered correctly on import</li>
+          <li>Jalview crashes when selecting PCA analysis for
+            certain alignments</li>
+          <li>Opening the colour by annotation dialog for an
+            existing annotation based 'use original colours'
+            colourscheme loses original colours setting</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><div align="center">
+          <strong><a name="Jalview.2.8.0b1">2.8.0b1</a><br />
+            <em>30/1/2014</em></strong>
+        </div></td>
+      <td>
+        <ul>
+          <li>Trusted certificates for JalviewLite applet and
+            Jalview Desktop application<br />Certificate was donated by
+            <a href="https://www.certum.eu">Certum</a> to the Jalview
+            open source project).
+          </li>
+          <li>Jalview SRS links replaced by UniProt and EBI-search
+          </li>
+          <li>Output in Stockholm format</li>
+          <li>Allow import of data from gzipped files</li>
+          <li>Export/import group and sequence associated line
+            graph thresholds</li>
+          <li>Nucleotide substitution matrix that supports RNA and
+            ambiguity codes</li>
+          <li>Allow disorder predictions to be made on the current
+            selection (or visible selection) in the same way that JPred
+            works</li>
+          <li>Groovy scripting for headless Jalview operation</li>
+        </ul> <em>Other improvements</em>
+        <ul>
+          <li>Upgrade desktop installer to InstallAnywhere 2013</li>
+          <li>COMBINE statement uses current SEQUENCE_REF and
+            GROUP_REF scope to group annotation rows</li>
+          <li>Support &#39;&#39; style escaping of quotes in Newick
+            files</li>
+          <li>Group options for JABAWS service by command line name</li>
+          <li>Empty tooltip shown for JABA service options with a
+            link but no description</li>
+          <li>Select primary source when selecting authority in
+            database fetcher GUI</li>
+          <li>Add .mfa to FASTA file extensions recognised by
+            Jalview</li>
+          <li>Annotation label tooltip text wrap</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Slow scrolling when lots of annotation rows are
+            displayed</li>
+          <li>Lots of NPE (and slowness) after creating RNA
+            secondary structure annotation line</li>
+          <li>Sequence database accessions not imported when
+            fetching alignments from Rfam</li>
+          <li>Incorrect SHMR submission for sequences with
+            identical IDs</li>
+          <li>View all structures does not always superpose
+            structures</li>
+          <li>Option widgets in service parameters not updated to
+            reflect user or preset settings</li>
+          <li>Null pointer exceptions for some services without
+            presets or adjustable parameters</li>
+          <li>Discover PDB IDs entry in structure menu doesn&#39;t
+            discover PDB xRefs</li>
+          <li>Exception encountered while trying to retrieve
+            features with DAS</li>
+          <li>Lowest value in annotation row isn&#39;t coloured
+            when colour by annotation (per sequence) is coloured</li>
+          <li>Keyboard mode P jumps to start of gapped region when
+            residue follows a gap</li>
+          <li>Jalview appears to hang importing an alignment with
+            Wrap as default or after enabling Wrap</li>
+          <li>&#39;Right click to add annotations&#39; message
+            shown in wrap mode when no annotations present</li>
+          <li>Disorder predictions fail with NPE if no automatic
+            annotation already exists on alignment</li>
+          <li>oninit javascript function should be called after
+            initialisation completes</li>
+          <li>Remove redundancy after disorder prediction corrupts
+            alignment window display</li>
+          <li>Example annotation file in documentation is invalid</li>
+          <li>Grouped line graph annotation rows are not exported
+            to annotation file</li>
+          <li>Multi-harmony analysis cannot be run when only two
+            groups created</li>
+          <li>Cannot create multiple groups of line graphs with
+            several &#39;combine&#39; statements in annotation file</li>
+          <li>Pressing return several times causes Number Format
+            exceptions in keyboard mode</li>
+          <li>Multi-harmony (SHMMR) method doesn&#39;t submit
+            correct partitions for input data</li>
+          <li>Translation from DNA to Amino Acids fails</li>
+          <li>Jalview fail to load newick tree with quoted label</li>
+          <li>--headless flag isn&#39;t understood</li>
+          <li>ClassCastException when generating EPS in headless
+            mode</li>
+          <li>Adjusting sequence-associated shading threshold only
+            changes one row&#39;s threshold</li>
+          <li>Preferences and Feature settings panel panel
+            doesn&#39;t open</li>
+          <li>hide consensus histogram also hides conservation and
+            quality histograms</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><div align="center">
+          <strong><a name="Jalview2.8">2.8</a></strong><br /> <em>12/11/2012</em>
+        </div></td>
+      <td><em>Application</em>
+        <ul>
+          <li>Support for JABAWS 2.0 Services (AACon alignment
+            conservation, protein disorder and Clustal Omega)</li>
+          <li>JABAWS server status indicator in Web Services
+            preferences</li>
+          <li>VARNA (http://varna.lri.fr) viewer for RNA structures
+            in Jalview alignment window</li>
+          <li>Updated Jalview build and deploy framework for OSX
+            mountain lion, windows 7, and 8</li>
+          <li>Nucleotide substitution matrix for PCA that supports
+            RNA and ambiguity codes</li>
 
-		<td>
-		<div align="center"><strong><a name="Jalview2.5">2.5</a></strong><br>
-		<em>30/4/2010</em></div>
-		</td>
-		<td><em>New Capabilities</em>
-		<ul>
-			<li>URL links generated from description line for
-			regular-expression based URL links (applet and application)
-			<li>Non-positional feature URL links are shown in link menu</li>
-			<li>Linked viewing of nucleic acid sequences and structures</li>
-			<li>Automatic Scrolling option in View menu to display the
-			currently highlighted region of an alignment.</li>
-			<li>Order an alignment by sequence length, or using the average
-			score or total feature count for each sequence.</li>
-			<li>Shading features by score or associated description</li>
-			<li>Subdivide alignment and groups based on identity of selected
-			subsequence (Make Groups from Selection).</li>
-			<li>New hide/show options including Shift+Control+H to hide
-			everything but the currently selected region.</li>
-			<!-- introduced but not yet documented <li>Experimental blast report parser</li> -->
-		</ul>
-		<em>Application</em>
-		<ul>
-			<li>Fetch DB References capabilities and UI expanded to support
-			retrieval from DAS sequence sources</li>
-			<li>Local DAS Sequence sources can be added via the command line
-			or via the Add local source dialog box.</li>
-			<li>DAS Dbref and DbxRef feature types are parsed as database
-			references and protein_name is parsed as description line (BioSapiens
-			terms).</li>
-			<li>Enable or disable non-positional feature and database
-			references in sequence ID tooltip from View menu in application.</li>
-			<!--			<li>New hidden columns and rows and representatives capabilities
+          <li>Improved sequence database retrieval GUI</li>
+          <li>Support fetching and database reference look up
+            against multiple DAS sources (Fetch all from in 'fetch db
+            refs')</li>
+          <li>Jalview project improvements
+            <ul>
+              <li>Store and retrieve the &#39;belowAlignment&#39;
+                flag for annotation</li>
+              <li>calcId attribute to group annotation rows on the
+                alignment</li>
+              <li>Store AACon calculation settings for a view in
+                Jalview project</li>
+
+            </ul>
+          </li>
+          <li>horizontal scrolling gesture support</li>
+          <li>Visual progress indicator when PCA calculation is
+            running</li>
+          <li>Simpler JABA web services menus</li>
+          <li>visual indication that web service results are still
+            being retrieved from server</li>
+          <li>Serialise the dialogs that are shown when Jalview
+            starts up for first time</li>
+          <li>Jalview user agent string for interacting with HTTP
+            services</li>
+          <li>DAS 1.6 and DAS 2.0 source support using new JDAS
+            client library</li>
+          <li>Examples directory and Groovy library included in
+            InstallAnywhere distribution</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>RNA alignment and secondary structure annotation
+            visualization applet example</li>
+        </ul> <em>General</em>
+        <ul>
+          <li>Normalise option for consensus sequence logo</li>
+          <li>Reset button in PCA window to return dimensions to
+            defaults</li>
+          <li>Allow seqspace or Jalview variant of alignment PCA
+            calculation</li>
+          <li>PCA with either nucleic acid and protein substitution
+            matrices
+          <li>Allow windows containing HTML reports to be exported
+            in HTML</li>
+          <li>Interactive display and editing of RNA secondary
+            structure contacts</li>
+          <li>RNA Helix Alignment Colouring</li>
+          <li>RNA base pair logo consensus</li>
+          <li>Parse sequence associated secondary structure
+            information in Stockholm files</li>
+          <li>HTML Export database accessions and annotation
+            information presented in tooltip for sequences</li>
+          <li>Import secondary structure from LOCARNA clustalw
+            style RNA alignment files</li>
+          <li>import and visualise T-COFFEE quality scores for an
+            alignment</li>
+          <li>&#39;colour by annotation&#39; per sequence option to
+            shade each sequence according to its associated alignment
+            annotation</li>
+          <li>New Jalview Logo</li>
+        </ul> <em>Documentation and Development</em>
+        <ul>
+          <li>documentation for score matrices used in Jalview</li>
+          <li>New Website!</li>
+        </ul></td>
+      <td><em>Application</em>
+        <ul>
+          <li>PDB, Unprot and EMBL (ENA) databases retrieved via
+            wsdbfetch REST service</li>
+          <li>Stop windows being moved outside desktop on OSX</li>
+          <li>Filetype associations not installed for webstart
+            launch</li>
+          <li>Jalview does not always retrieve progress of a JABAWS
+            job execution in full once it is complete</li>
+          <li>revise SHMR RSBS definition to ensure alignment is
+            uploaded via ali_file parameter</li>
+          <li>Jalview 2.7 is incompatible with Jmol-12.2.2</li>
+          <li>View all structures superposed fails with exception</li>
+          <li>Jnet job queues forever if a very short sequence is
+            submitted for prediction</li>
+          <li>Cut and paste menu not opened when mouse clicked on
+            desktop window</li>
+          <li>Putting fractional value into integer text box in
+            alignment parameter dialog causes Jalview to hang</li>
+          <li>Structure view highlighting doesn&#39;t work on
+            windows 7</li>
+          <li>View all structures fails with exception shown in
+            structure view</li>
+          <li>Characters in filename associated with PDBEntry not
+            escaped in a platform independent way</li>
+          <li>Jalview desktop fails to launch with exception when
+            using proxy</li>
+          <li>Tree calculation reports &#39;you must have 2 or more
+            sequences selected&#39; when selection is empty</li>
+          <li>Jalview desktop fails to launch with jar signature
+            failure when java web start temporary file caching is
+            disabled</li>
+          <li>DAS Sequence retrieval with range qualification
+            results in sequence xref which includes range qualification</li>
+          <li>Errors during processing of command line arguments
+            cause progress bar (JAL-898) to be removed</li>
+          <li>Replace comma for semi-colon option not disabled for
+            DAS sources in sequence fetcher</li>
+          <li>Cannot close news reader when JABAWS server warning
+            dialog is shown</li>
+          <li>Option widgets not updated to reflect user settings</li>
+          <li>Edited sequence not submitted to web service</li>
+          <li>Jalview 2.7 Webstart does not launch on mountain lion</li>
+          <li>InstallAnywhere installer doesn&#39;t unpack and run
+            on OSX Mountain Lion</li>
+          <li>Annotation panel not given a scroll bar when
+            sequences with alignment annotation are pasted into the
+            alignment</li>
+          <li>Sequence associated annotation rows not associated
+            when loaded from Jalview project</li>
+          <li>Browser launch fails with NPE on java 1.7</li>
+          <li>JABAWS alignment marked as finished when job was
+            cancelled or job failed due to invalid input</li>
+          <li>NPE with v2.7 example when clicking on Tree
+            associated with all views</li>
+          <li>Exceptions when copy/paste sequences with grouped
+            annotation rows to new window</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Sequence features are momentarily displayed before
+            they are hidden using hidefeaturegroups applet parameter</li>
+          <li>loading features via javascript API automatically
+            enables feature display</li>
+          <li>scrollToColumnIn javascript API method doesn&#39;t
+            work</li>
+        </ul> <em>General</em>
+        <ul>
+          <li>Redundancy removal fails for rna alignment</li>
+          <li>PCA calculation fails when sequence has been selected
+            and then deselected</li>
+          <li>PCA window shows grey box when first opened on OSX</li>
+          <li>Letters coloured pink in sequence logo when alignment
+            coloured with clustalx</li>
+          <li>Choosing fonts without letter symbols defined causes
+            exceptions and redraw errors</li>
+          <li>Initial PCA plot view is not same as manually
+            reconfigured view</li>
+          <li>Grouped annotation graph label has incorrect line
+            colour</li>
+          <li>Grouped annotation graph label display is corrupted
+            for lots of labels</li>
+        </ul>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong><a name="Jalview2.7">2.7</a> </strong><br> <em>27/09/2011</em>
+        </div>
+      </td>
+      <td><em>Application</em>
+        <ul>
+          <li>Jalview Desktop News Reader</li>
+          <li>Tweaked default layout of web services menu</li>
+          <li>View/alignment association menu to enable user to
+            easily specify which alignment a multi-structure view takes
+            its colours/correspondences from</li>
+          <li>Allow properties file location to be specified as URL</li>
+          <li>Extend Jalview project to preserve associations
+            between many alignment views and a single Jmol display</li>
+          <li>Store annotation row height in Jalview project file</li>
+          <li>Annotation row column label formatting attributes
+            stored in project file</li>
+          <li>Annotation row order for auto-calculated annotation
+            rows preserved in Jalview project file</li>
+          <li>Visual progress indication when Jalview state is
+            saved using Desktop window menu</li>
+          <li>Visual indication that command line arguments are
+            still being processed</li>
+          <li>Groovy script execution from URL</li>
+          <li>Colour by annotation default min and max colours in
+            preferences</li>
+          <li>Automatically associate PDB files dragged onto an
+            alignment with sequences that have high similarity and
+            matching IDs</li>
+          <li>Update JGoogleAnalytics to latest release (0.3)</li>
+          <li>&#39;view structures&#39; option to open many
+            structures in same window</li>
+          <li>Sort associated views menu option for tree panel</li>
+          <li>Group all JABA and non-JABA services for a particular
+            analysis function in its own submenu</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Userdefined and autogenerated annotation rows for
+            groups</li>
+          <li>Adjustment of alignment annotation pane height</li>
+          <li>Annotation scrollbar for annotation panel</li>
+          <li>Drag to reorder annotation rows in annotation panel</li>
+          <li>&#39;automaticScrolling&#39; parameter</li>
+          <li>Allow sequences with partial ID string matches to be
+            annotated from GFF/Jalview features files</li>
+          <li>Sequence logo annotation row in applet</li>
+          <li>Absolute paths relative to host server in applet
+            parameters are treated as such</li>
+          <li>New in the JalviewLite javascript API:
+            <ul>
+              <li>JalviewLite.js javascript library</li>
+              <li>Javascript callbacks for
+                <ul>
+                  <li>Applet initialisation</li>
+                  <li>Sequence/alignment mouse-overs and selections</li>
+                </ul>
+              </li>
+              <li>scrollTo row and column alignment scrolling
+                functions</li>
+              <li>Select sequence/alignment regions from javascript</li>
+              <li>javascript structure viewer harness to pass
+                messages between Jmol and Jalview when running as
+                distinct applets</li>
+              <li>sortBy method</li>
+              <li>Set of applet and application examples shipped
+                with documentation</li>
+              <li>New example to demonstrate JalviewLite and Jmol
+                javascript message exchange</li>
+            </ul>
+        </ul> <em>General</em>
+        <ul>
+          <li>Enable Jmol displays to be associated with multiple
+            multiple alignments</li>
+          <li>Option to automatically sort alignment with new tree</li>
+          <li>User configurable link to enable redirects to a
+            www.Jalview.org mirror</li>
+          <li>Jmol colours option for Jmol displays</li>
+          <li>Configurable newline string when writing alignment
+            and other flat files</li>
+          <li>Allow alignment annotation description lines to
+            contain html tags</li>
+        </ul> <em>Documentation and Development</em>
+        <ul>
+          <li>Add groovy test harness for bulk load testing to
+            examples</li>
+          <li>Groovy script to load and align a set of sequences
+            using a web service before displaying the result in the
+            Jalview desktop</li>
+          <li>Restructured javascript and applet api documentation</li>
+          <li>Ant target to publish example html files with applet
+            archive</li>
+          <li>Netbeans project for building Jalview from source</li>
+          <li>ant task to create online javadoc for Jalview source</li>
+        </ul></td>
+      <td><em>Application</em>
+        <ul>
+          <li>User defined colourscheme throws exception when
+            current built in colourscheme is saved as new scheme</li>
+          <li>AlignFrame-&gt;Save in application pops up save
+            dialog for valid filename/format</li>
+          <li>Cannot view associated structure for UniProt sequence</li>
+          <li>PDB file association breaks for UniProt sequence
+            P37173</li>
+          <li>Associate PDB from file dialog does not tell you
+            which sequence is to be associated with the file</li>
+          <li>Find All raises null pointer exception when query
+            only matches sequence IDs</li>
+          <li>Pre 2.6 Jalview project cannot be loaded into v2.6</li>
+          <li>Jalview project with Jmol views created with Jalview
+            2.4 cannot be loaded</li>
+          <li>Filetype associations not installed for webstart
+            launch</li>
+          <li>Two or more chains in a single PDB file associated
+            with sequences in different alignments do not get coloured
+            by their associated sequence</li>
+          <li>Visibility status of autocalculated annotation row
+            not preserved when project is loaded</li>
+          <li>Annotation row height and visibility attributes not
+            stored in Jalview project</li>
+          <li>Tree bootstraps are not preserved when saved as a
+            Jalview project</li>
+          <li>Envision2 workflow tooltips are corrupted</li>
+          <li>Enabling show group conservation also enables colour
+            by conservation</li>
+          <li>Duplicate group associated conservation or consensus
+            created on new view</li>
+          <li>Annotation scrollbar not displayed after &#39;show
+            all hidden annotation rows&#39; option selected</li>
+          <li>Alignment quality not updated after alignment
+            annotation row is hidden then shown</li>
+          <li>Preserve colouring of structures coloured by
+            sequences in pre Jalview 2.7 projects</li>
+          <li>Web service job parameter dialog is not laid out
+            properly</li>
+          <li>Web services menu not refreshed after &#39;reset
+            services&#39; button is pressed in preferences</li>
+          <li>Annotation off by one in Jalview v2_3 example project</li>
+          <li>Structures imported from file and saved in project
+            get name like jalview_pdb1234.txt when reloaded</li>
+          <li>Jalview does not always retrieve progress of a JABAWS
+            job execution in full once it is complete</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Alignment height set incorrectly when lots of
+            annotation rows are displayed</li>
+          <li>Relative URLs in feature HTML text not resolved to
+            codebase</li>
+          <li>View follows highlighting does not work for positions
+            in sequences</li>
+          <li>&lt;= shown as = in tooltip</li>
+          <li>Export features raises exception when no features
+            exist</li>
+          <li>Separator string used for serialising lists of IDs
+            for javascript api is modified when separator string
+            provided as parameter</li>
+          <li>Null pointer exception when selecting tree leaves for
+            alignment with no existing selection</li>
+          <li>Relative URLs for datasources assumed to be relative
+            to applet&#39;s codebase</li>
+          <li>Status bar not updated after finished searching and
+            search wraps around to first result</li>
+          <li>StructureSelectionManager instance shared between
+            several Jalview applets causes race conditions and memory
+            leaks</li>
+          <li>Hover tooltip and mouseover of position on structure
+            not sent from Jmol in applet</li>
+          <li>Certain sequences of javascript method calls to
+            applet API fatally hang browser</li>
+        </ul> <em>General</em>
+        <ul>
+          <li>View follows structure mouseover scrolls beyond
+            position with wrapped view and hidden regions</li>
+          <li>Find sequence position moves to wrong residue
+            with/without hidden columns</li>
+          <li>Sequence length given in alignment properties window
+            is off by 1</li>
+          <li>InvalidNumberFormat exceptions thrown when trying to
+            import PDB like structure files</li>
+          <li>Positional search results are only highlighted
+            between user-supplied sequence start/end bounds</li>
+          <li>End attribute of sequence is not validated</li>
+          <li>Find dialog only finds first sequence containing a
+            given sequence position</li>
+          <li>Sequence numbering not preserved in MSF alignment
+            output</li>
+          <li>Jalview PDB file reader does not extract sequence
+            from nucleotide chains correctly</li>
+          <li>Structure colours not updated when tree partition
+            changed in alignment</li>
+          <li>Sequence associated secondary structure not correctly
+            parsed in interleaved stockholm</li>
+          <li>Colour by annotation dialog does not restore current
+            state</li>
+          <li>Hiding (nearly) all sequences doesn&#39;t work
+            properly</li>
+          <li>Sequences containing lowercase letters are not
+            properly associated with their pdb files</li>
+        </ul> <em>Documentation and Development</em>
+        <ul>
+          <li>schemas/JalviewWsParamSet.xsd corrupted by
+            ApplyCopyright tool</li>
+        </ul></td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong><a name="Jalview2.6.1">2.6.1</a> </strong><br> <em>15/11/2010</em>
+        </div>
+      </td>
+      <td><em>Application</em>
+        <ul>
+          <li>New warning dialog when the Jalview Desktop cannot
+            contact web services</li>
+          <li>JABA service parameters for a preset are shown in
+            service job window</li>
+          <li>JABA Service menu entries reworded</li>
+        </ul></td>
+      <td>
+        <ul>
+          <li>Modeller PIR IO broken - cannot correctly import a
+            pir file emitted by Jalview</li>
+          <li>Existing feature settings transferred to new
+            alignment view created from cut'n'paste</li>
+          <li>Improved test for mixed amino/nucleotide chains when
+            parsing PDB files</li>
+          <li>Consensus and conservation annotation rows
+            occasionally become blank for all new windows</li>
+          <li>Exception raised when right clicking above sequences
+            in wrapped view mode</li>
+        </ul> <em>Application</em>
+        <ul>
+          <li>multiple multiply aligned structure views cause cpu
+            usage to hit 100% and computer to hang</li>
+          <li>Web Service parameter layout breaks for long user
+            parameter names</li>
+          <li>Jaba service discovery hangs desktop if Jaba server
+            is down</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong><a name="Jalview2.6">2.6</a></strong><br> <em>26/9/2010</em>
+        </div>
+      </td>
+      <td><em>Application</em>
+        <ul>
+          <li>Support for <strong>Ja</strong>va <strong>b</strong>ioinformatics
+            <strong>a</strong>nalysis <strong>w</strong>eb <strong>s</strong>ervices
+            (JABAWS)
+          </li>
+          <li>Web Services preference tab</li>
+          <li>Analysis parameters dialog box and user defined
+            preferences</li>
+          <li>Improved speed and layout of Envision2 service menu</li>
+          <li>Superpose structures using associated sequence
+            alignment</li>
+          <li>Export coordinates and projection as CSV from PCA
+            viewer</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>enable javascript: execution by the applet via the
+            link out mechanism</li>
+        </ul> <em>Other</em>
+        <ul>
+          <li>Updated the Jmol Jalview interface to work with Jmol
+            series 12</li>
+          <li>The Jalview Desktop and JalviewLite applet now
+            require Java 1.5</li>
+          <li>Allow Jalview feature colour specification for GFF
+            sequence annotation files</li>
+          <li>New 'colour by label' keword in Jalview feature file
+            type colour specification</li>
+          <li>New Jalview Desktop Groovy API method that allows a
+            script to check if it being run in an interactive session or
+            in a batch operation from the Jalview command line</li>
+        </ul></td>
+      <td>
+        <ul>
+          <li>clustalx colourscheme colours Ds preferentially when
+            both D+E are present in over 50% of the column</li>
+        </ul> <em>Application</em>
+        <ul>
+          <li>typo in AlignmentFrame-&gt;View-&gt;Hide-&gt;all but
+            selected Regions menu item</li>
+          <li>sequence fetcher replaces ',' for ';' when the ',' is
+            part of a valid accession ID</li>
+          <li>fatal OOM if object retrieved by sequence fetcher
+            runs out of memory</li>
+          <li>unhandled Out of Memory Error when viewing pca
+            analysis results</li>
+          <li>InstallAnywhere builds fail to launch on OS X java
+            10.5 update 4 (due to apple Java 1.6 update)</li>
+          <li>Installanywhere Jalview silently fails to launch</li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Jalview.getFeatureGroups() raises an
+            ArrayIndexOutOfBoundsException if no feature groups are
+            defined.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong><a name="Jalview2.5.1">2.5.1</a></strong><br> <em>14/6/2010</em>
+        </div>
+      </td>
+      <td></td>
+      <td>
+        <ul>
+          <li>Alignment prettyprinter doesn't cope with long
+            sequence IDs</li>
+          <li>clustalx colourscheme colours Ds preferentially when
+            both D+E are present in over 50% of the column</li>
+          <li>nucleic acid structures retrieved from PDB do not
+            import correctly</li>
+          <li>More columns get selected than were clicked on when a
+            number of columns are hidden</li>
+          <li>annotation label popup menu not providing correct
+            add/hide/show options when rows are hidden or none are
+            present</li>
+          <li>Stockholm format shown in list of readable formats,
+            and parser copes better with alignments from RFAM.</li>
+          <li>CSV output of consensus only includes the percentage
+            of all symbols if sequence logo display is enabled</li>
+
+        </ul> <em>Applet</em>
+        <ul>
+          <li>annotation panel disappears when annotation is
+            hidden/removed</li>
+        </ul> <em>Application</em>
+        <ul>
+          <li>Alignment view not redrawn properly when new
+            alignment opened where annotation panel is visible but no
+            annotations are present on alignment</li>
+          <li>pasted region containing hidden columns is
+            incorrectly displayed in new alignment window</li>
+          <li>Jalview slow to complete operations when stdout is
+            flooded (fix is to close the Jalview console)</li>
+          <li>typo in AlignmentFrame-&gt;View-&gt;Hide-&gt;all but
+            selected Rregions menu item.</li>
+          <li>inconsistent group submenu and Format submenu entry
+            'Un' or 'Non'conserved</li>
+          <li>Sequence feature settings are being shared by
+            multiple distinct alignments</li>
+          <li>group annotation not recreated when tree partition is
+            changed</li>
+          <li>double click on group annotation to select sequences
+            does not propagate to associated trees</li>
+          <li>Mac OSX specific issues:
+            <ul>
+              <li>exception raised when mouse clicked on desktop
+                window background</li>
+              <li>Desktop menu placed on menu bar and application
+                name set correctly</li>
+              <li>sequence feature settings not wide enough for the
+                save feature colourscheme button</li>
+            </ul>
+          </li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+
+      <td>
+        <div align="center">
+          <strong><a name="Jalview2.5">2.5</a></strong><br> <em>30/4/2010</em>
+        </div>
+      </td>
+      <td><em>New Capabilities</em>
+        <ul>
+          <li>URL links generated from description line for
+            regular-expression based URL links (applet and application)
+
+
+
+
+
+          
+          <li>Non-positional feature URL links are shown in link
+            menu</li>
+          <li>Linked viewing of nucleic acid sequences and
+            structures</li>
+          <li>Automatic Scrolling option in View menu to display
+            the currently highlighted region of an alignment.</li>
+          <li>Order an alignment by sequence length, or using the
+            average score or total feature count for each sequence.</li>
+          <li>Shading features by score or associated description</li>
+          <li>Subdivide alignment and groups based on identity of
+            selected subsequence (Make Groups from Selection).</li>
+          <li>New hide/show options including Shift+Control+H to
+            hide everything but the currently selected region.</li>
+          <!-- introduced but not yet documented <li>Experimental blast report parser</li> -->
+        </ul> <em>Application</em>
+        <ul>
+          <li>Fetch DB References capabilities and UI expanded to
+            support retrieval from DAS sequence sources</li>
+          <li>Local DAS Sequence sources can be added via the
+            command line or via the Add local source dialog box.</li>
+          <li>DAS Dbref and DbxRef feature types are parsed as
+            database references and protein_name is parsed as
+            description line (BioSapiens terms).</li>
+          <li>Enable or disable non-positional feature and database
+            references in sequence ID tooltip from View menu in
+            application.</li>
+          <!--			<li>New hidden columns and rows and representatives capabilities
 			in annotations file (in progress - not yet fully implemented)</li> -->
-			<li>Group-associated consensus, sequence logos and conservation
-			plots</li>
-			<li>Symbol distributions for each column can be exported and
-			visualized as sequence logos</li>
-			<li>Optionally scale multi-character column labels to fit within
-			each column of annotation row<!-- todo for applet --></li>
-			<li>Optional automatic sort of associated alignment view when a
-			new tree is opened.</li>
-			<li>Jalview Java Console</li>
-			<li>Better placement of desktop window when moving between
-			different screens.</li>
-			<li>New preference items for sequence ID tooltip and consensus
-			annotation</li>
-			<li>Client to submit sequences and IDs to <a
-				href="webServices/index.html#envision2">Envision2</a> Workflows</li>
-			<li><em>Vamsas Capabilities</em>
-			<ul>
-				<li>Improved VAMSAS synchronization (jalview archive used to
-				preserve views, structures, and tree display settings)</li>
-				<li>Import of vamsas documents from disk or URL via command
-				line</li>
-				<li>Sharing of selected regions between views and with other
-				VAMSAS applications (Experimental feature!)</li>
-				<li>Updated API to VAMSAS version 0.2</li>
-			</ul>
-			</li>
-		</ul>
-		<em>Applet</em>
-		<ul>
-			<li>Middle button resizes annotation row height</li>
-			<li>New Parameters
-			<ul>
-				<li>sortByTree (true/false) - automatically sort the associated
-				alignment view by the tree when a new tree is opened.</li>
-				<li>showTreeBootstraps (true/false) - show or hide branch
-				bootstraps (default is to show them if available)</li>
-				<li>showTreeDistances (true/false) - show or hide branch
-				lengths (default is to show them if available)</li>
-				<li>showUnlinkedTreeNodes (true/false) - indicate if
-				unassociated nodes should be highlighted in the tree view</li>
-				<li>heightScale and widthScale (1.0 or more) - increase the
-				height or width of a cell in the alignment grid relative to the
-				current font size.</li>
-			</ul>
-			</li>
-			<li>Non-positional features displayed in sequence ID tooltip</li>
-		</ul>
-		<em>Other</em>
-		<ul>
-			<li>Features format: graduated colour definitions and
-			specification of feature scores</li>
-			<li>Alignment Annotations format: new keywords for group
-			associated annotation (GROUP_REF) and annotation row display
-			properties (ROW_PROPERTIES)</li>
-			<li>XML formats extended to support graduated feature
-			colourschemes, group associated annotation, and profile visualization
-			settings.</li>
-		</td>
-		<td>
-		<ul>
-			<li>Source field in GFF files parsed as feature source rather
-			than description</li>
-			<li>Non-positional features are now included in sequence feature
-			and gff files (controlled via non-positional feature visibility in
-			tooltip).</li>
-			<li>URL links generated for all feature links (bugfix)</li>
-			<li>Added URL embedding instructions to features file
-			documentation.</li>
-			<li>Codons containing ambiguous nucleotides translated as 'X' in
-			peptide product</li>
-			<li>Match case switch in find dialog box works for both sequence
-			ID and sequence string and query strings do not have to be in upper
-			case to match case-insensitively.</li>
-			<li>AMSA files only contain first column of multi-character
-			column annotation labels</li>
-			<li>Jalview Annotation File generation/parsing consistent with
-			documentation (e.g. Stockholm annotation can be exported and
-			re-imported)</li>
-			<li>PDB files without embedded PDB IDs given a friendly name</li>
-			<li>Find incrementally searches ID string matches as well as
-			subsequence matches, and correctly reports total number of both.</li>
-			<li>Application:
-			<ul>
-				<li>Better handling of exceptions during sequence retrieval</li>
-				<li>Dasobert generated non-positional feature URL link text
-				excludes the start_end suffix</li>
-				<li>DAS feature and source retrieval buttons disabled when
-				fetch or registry operations in progress.</li>
-				<li>PDB files retrieved from URLs are cached properly</li>
-				<li>Sequence description lines properly shared via VAMSAS</li>
-				<li>Sequence fetcher fetches multiple records for all data
-				sources</li>
-				<li>Ensured that command line das feature retrieval completes
-				before alignment figures are generated.</li>
-				<li>Reduced time taken when opening file browser for first
-				time.</li>
-				<li>isAligned check prior to calculating tree, PCA or
-				submitting an MSA to JNet now excludes hidden sequences.</li>
-				<li>User defined group colours properly recovered from Jalview
-				projects.</li>
-			</ul>
-			</li>
-		</ul>
-		</td>
+          <li>Group-associated consensus, sequence logos and
+            conservation plots</li>
+          <li>Symbol distributions for each column can be exported
+            and visualized as sequence logos</li>
+          <li>Optionally scale multi-character column labels to fit
+            within each column of annotation row<!-- todo for applet -->
+          </li>
+          <li>Optional automatic sort of associated alignment view
+            when a new tree is opened.</li>
+          <li>Jalview Java Console</li>
+          <li>Better placement of desktop window when moving
+            between different screens.</li>
+          <li>New preference items for sequence ID tooltip and
+            consensus annotation</li>
+          <li>Client to submit sequences and IDs to Envision2
+            Workflows</li>
+          <li><em>Vamsas Capabilities</em>
+            <ul>
+              <li>Improved VAMSAS synchronization (Jalview archive
+                used to preserve views, structures, and tree display
+                settings)</li>
+              <li>Import of vamsas documents from disk or URL via
+                command line</li>
+              <li>Sharing of selected regions between views and
+                with other VAMSAS applications (Experimental feature!)</li>
+              <li>Updated API to VAMSAS version 0.2</li>
+            </ul></li>
+        </ul> <em>Applet</em>
+        <ul>
+          <li>Middle button resizes annotation row height</li>
+          <li>New Parameters
+            <ul>
+              <li>sortByTree (true/false) - automatically sort the
+                associated alignment view by the tree when a new tree is
+                opened.</li>
+              <li>showTreeBootstraps (true/false) - show or hide
+                branch bootstraps (default is to show them if available)</li>
+              <li>showTreeDistances (true/false) - show or hide
+                branch lengths (default is to show them if available)</li>
+              <li>showUnlinkedTreeNodes (true/false) - indicate if
+                unassociated nodes should be highlighted in the tree
+                view</li>
+              <li>heightScale and widthScale (1.0 or more) -
+                increase the height or width of a cell in the alignment
+                grid relative to the current font size.</li>
+            </ul>
+          </li>
+          <li>Non-positional features displayed in sequence ID
+            tooltip</li>
+        </ul> <em>Other</em>
+        <ul>
+          <li>Features format: graduated colour definitions and
+            specification of feature scores</li>
+          <li>Alignment Annotations format: new keywords for group
+            associated annotation (GROUP_REF) and annotation row display
+            properties (ROW_PROPERTIES)</li>
+          <li>XML formats extended to support graduated feature
+            colourschemes, group associated annotation, and profile
+            visualization settings.</li></td>
+      <td>
+        <ul>
+          <li>Source field in GFF files parsed as feature source
+            rather than description</li>
+          <li>Non-positional features are now included in sequence
+            feature and gff files (controlled via non-positional feature
+            visibility in tooltip).</li>
+          <li>URL links generated for all feature links (bugfix)</li>
+          <li>Added URL embedding instructions to features file
+            documentation.</li>
+          <li>Codons containing ambiguous nucleotides translated as
+            'X' in peptide product</li>
+          <li>Match case switch in find dialog box works for both
+            sequence ID and sequence string and query strings do not
+            have to be in upper case to match case-insensitively.</li>
+          <li>AMSA files only contain first column of
+            multi-character column annotation labels</li>
+          <li>Jalview Annotation File generation/parsing consistent
+            with documentation (e.g. Stockholm annotation can be
+            exported and re-imported)</li>
+          <li>PDB files without embedded PDB IDs given a friendly
+            name</li>
+          <li>Find incrementally searches ID string matches as well
+            as subsequence matches, and correctly reports total number
+            of both.</li>
+          <li>Application:
+            <ul>
+              <li>Better handling of exceptions during sequence
+                retrieval</li>
+              <li>Dasobert generated non-positional feature URL
+                link text excludes the start_end suffix</li>
+              <li>DAS feature and source retrieval buttons disabled
+                when fetch or registry operations in progress.</li>
+              <li>PDB files retrieved from URLs are cached properly</li>
+              <li>Sequence description lines properly shared via
+                VAMSAS</li>
+              <li>Sequence fetcher fetches multiple records for all
+                data sources</li>
+              <li>Ensured that command line das feature retrieval
+                completes before alignment figures are generated.</li>
+              <li>Reduced time taken when opening file browser for
+                first time.</li>
+              <li>isAligned check prior to calculating tree, PCA or
+                submitting an MSA to JNet now excludes hidden sequences.</li>
+              <li>User defined group colours properly recovered
+                from Jalview projects.</li>
+            </ul>
+          </li>
+        </ul>
+      </td>
 
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.4.0.b2</strong><br>
-		28/10/2009</div>
-		</td>
-		<td>
-		<ul>
-			<li>Experimental support for google analytics usage tracking.</li>
-			<li>Jalview privacy settings (user preferences and docs).</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Race condition in applet preventing startup in jre1.6.0u12+.</li>
-			<li>Exception when feature created from selection beyond length
-			of sequence.</li>
-			<li>Allow synthetic PDB files to be imported gracefully</li>
-			<li>Sequence associated annotation rows associate with all
-			sequences with a given id</li>
-			<li>Find function matches case-insensitively for sequence ID
-			string searches</li>
-			<li>Non-standard characters do not cause pairwise alignment to
-			fail with exception</li>
-		</ul>
-		<em>Application Issues</em>
-		<ul>
-			<li>Sequences are now validated against EMBL database</li>
-			<li>Sequence fetcher fetches multiple records for all data
-			sources</li>
-		</ul>
-		<em>InstallAnywhere Issues</em>
-		<ul>
-			<li>Dock icon works for Mac OS X java (Mac 1.6 update issue with
-			installAnywhere mechanism)</li>
-			<li>Command line launching of JARs from InstallAnywhere version
-			(java class versioning error fixed)</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.4.0.b2</strong><br> 28/10/2009
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Experimental support for google analytics usage
+            tracking.</li>
+          <li>Jalview privacy settings (user preferences and docs).</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Race condition in applet preventing startup in
+            jre1.6.0u12+.</li>
+          <li>Exception when feature created from selection beyond
+            length of sequence.</li>
+          <li>Allow synthetic PDB files to be imported gracefully</li>
+          <li>Sequence associated annotation rows associate with
+            all sequences with a given id</li>
+          <li>Find function matches case-insensitively for sequence
+            ID string searches</li>
+          <li>Non-standard characters do not cause pairwise
+            alignment to fail with exception</li>
+        </ul> <em>Application Issues</em>
+        <ul>
+          <li>Sequences are now validated against EMBL database</li>
+          <li>Sequence fetcher fetches multiple records for all
+            data sources</li>
+        </ul> <em>InstallAnywhere Issues</em>
+        <ul>
+          <li>Dock icon works for Mac OS X java (Mac 1.6 update
+            issue with installAnywhere mechanism)</li>
+          <li>Command line launching of JARs from InstallAnywhere
+            version (java class versioning error fixed)</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
 
-		<div align="center"><strong>2.4</strong><br>
-		27/8/2008</div>
-		</td>
-		<td><em>User Interface</em>
-		<ul>
-			<li>Linked highlighting of codon and amino acid from translation
-			and protein products</li>
-			<li>Linked highlighting of structure associated with residue
-			mapping to codon position</li>
-			<li>Sequence Fetcher provides example accession numbers and
-			'clear' button</li>
-			<li>MemoryMonitor added as an option under Desktop's Tools menu</li>
-			<li>Extract score function to parse whitespace separated numeric
-			data in description line</li>
-			<li>Column labels in alignment annotation can be centred.</li>
-			<li>Tooltip for sequence associated annotation give name of
-			sequence</li>
-		</ul>
-		<em>Web Services and URL fetching</em>
-		<ul>
-			<li>JPred3 web service</li>
-			<li>Prototype sequence search client (no public services
-			available yet)</li>
-			<li>Fetch either seed alignment or full alignment from PFAM</li>
-			<li>URL Links created for matching database cross references as
-			well as sequence ID</li>
-			<li>URL Links can be created using regular-expressions</li>
-		</ul>
-		<em>Sequence Database Connectivity</em>
-		<ul>
-			<li>Retrieval of cross-referenced sequences from other databases
-			</li>
-			<li>Generalised database reference retrieval and validation to
-			all fetchable databases</li>
-			<li>Fetch sequences from DAS sources supporting the sequence
-			command</li>
-		</ul>
-		<em>Import and Export</em>
-		<li>export annotation rows as CSV for spreadsheet import</li>
-		<li>Jalview projects record alignment dataset associations, EMBL
-		products, and cDNA sequence mappings</li>
-		<li>Sequence Group colour can be specified in Annotation File</li>
-		<li>Ad-hoc colouring of group in Annotation File using RGB
-		triplet as name of colourscheme</li>
-		</ul>
-		<em>VAMSAS Client capabilities (Experimental)</em>
-		<ul>
-			<li>treenode binding for VAMSAS tree exchange</li>
-			<li>local editing and update of sequences in VAMSAS alignments
-			(experimental)</li>
-			<li>Create new or select existing session to join</li>
-			<li>load and save of vamsas documents</li>
-		</ul>
-		<em>Application command line</em>
-		<ul>
-			<li>-tree parameter to open trees (introduced for passing from
-			applet)</li>
-			<li>-fetchfrom command line argument to specify nicknames of DAS
-			servers to query for alignment features</li>
-			<li>-dasserver command line argument to add new servers that are
-			also automatically queried for features</li>
-			<li>-groovy command line argument executes a given groovy script
-			after all input data has been loaded and parsed</li>
-		</ul>
-		<em>Applet-Application data exchange</em>
-		<ul>
-			<li>Trees passed as applet parameters can be passed to
-			application (when using &quot;View in full application&quot;)</li>
-		</ul>
-		<em>Applet Parameters</em>
-		<ul>
-			<li>feature group display control parameter</li>
-			<li>debug parameter</li>
-			<li>showbutton parameter</li>
-		</ul>
-		<em>Applet API methods</em>
-		<ul>
-			<li>newView public method</li>
-			<li>Window (current view) specific get/set public methods</li>
-			<li>Feature display control methods</li>
-			<li>get list of currently selected sequences</li>
-		</ul>
-		<em>New Jalview distribution features</em>
-		<ul>
-			<li>InstallAnywhere Installer upgraded to IA 2008 VP1</li>
-			<li>RELEASE file gives build properties for the latest Jalview
-			release.</li>
-			<li>Java 1.1 Applet build made easier and donotobfuscate
-			property controls execution of obfuscator</li>
-			<li>Build target for generating source distribution</li>
-			<li>Debug flag for javacc</li>
-			<li>.jalview_properties file is documented (slightly) in
-			jalview.bin.Cache</li>
-			<li>Continuous Build Integration for stable and development
-			version of Application, Applet and source distribution</li>
-		</ul>
+        <div align="center">
+          <strong>2.4</strong><br> 27/8/2008
+        </div>
+      </td>
+      <td><em>User Interface</em>
+        <ul>
+          <li>Linked highlighting of codon and amino acid from
+            translation and protein products</li>
+          <li>Linked highlighting of structure associated with
+            residue mapping to codon position</li>
+          <li>Sequence Fetcher provides example accession numbers
+            and 'clear' button</li>
+          <li>MemoryMonitor added as an option under Desktop's
+            Tools menu</li>
+          <li>Extract score function to parse whitespace separated
+            numeric data in description line</li>
+          <li>Column labels in alignment annotation can be centred.</li>
+          <li>Tooltip for sequence associated annotation give name
+            of sequence</li>
+        </ul> <em>Web Services and URL fetching</em>
+        <ul>
+          <li>JPred3 web service</li>
+          <li>Prototype sequence search client (no public services
+            available yet)</li>
+          <li>Fetch either seed alignment or full alignment from
+            PFAM</li>
+          <li>URL Links created for matching database cross
+            references as well as sequence ID</li>
+          <li>URL Links can be created using regular-expressions</li>
+        </ul> <em>Sequence Database Connectivity</em>
+        <ul>
+          <li>Retrieval of cross-referenced sequences from other
+            databases</li>
+          <li>Generalised database reference retrieval and
+            validation to all fetchable databases</li>
+          <li>Fetch sequences from DAS sources supporting the
+            sequence command</li>
+        </ul> <em>Import and Export</em>
+        <li>export annotation rows as CSV for spreadsheet import</li>
+        <li>Jalview projects record alignment dataset associations,
+          EMBL products, and cDNA sequence mappings</li>
+        <li>Sequence Group colour can be specified in Annotation
+          File</li>
+        <li>Ad-hoc colouring of group in Annotation File using RGB
+          triplet as name of colourscheme</li>
+        </ul> <em>VAMSAS Client capabilities (Experimental)</em>
+        <ul>
+          <li>treenode binding for VAMSAS tree exchange</li>
+          <li>local editing and update of sequences in VAMSAS
+            alignments (experimental)</li>
+          <li>Create new or select existing session to join</li>
+          <li>load and save of vamsas documents</li>
+        </ul> <em>Application command line</em>
+        <ul>
+          <li>-tree parameter to open trees (introduced for passing
+            from applet)</li>
+          <li>-fetchfrom command line argument to specify nicknames
+            of DAS servers to query for alignment features</li>
+          <li>-dasserver command line argument to add new servers
+            that are also automatically queried for features</li>
+          <li>-groovy command line argument executes a given groovy
+            script after all input data has been loaded and parsed</li>
+        </ul> <em>Applet-Application data exchange</em>
+        <ul>
+          <li>Trees passed as applet parameters can be passed to
+            application (when using &quot;View in full
+            application&quot;)</li>
+        </ul> <em>Applet Parameters</em>
+        <ul>
+          <li>feature group display control parameter</li>
+          <li>debug parameter</li>
+          <li>showbutton parameter</li>
+        </ul> <em>Applet API methods</em>
+        <ul>
+          <li>newView public method</li>
+          <li>Window (current view) specific get/set public methods</li>
+          <li>Feature display control methods</li>
+          <li>get list of currently selected sequences</li>
+        </ul> <em>New Jalview distribution features</em>
+        <ul>
+          <li>InstallAnywhere Installer upgraded to IA 2008 VP1</li>
+          <li>RELEASE file gives build properties for the latest
+            Jalview release.</li>
+          <li>Java 1.1 Applet build made easier and donotobfuscate
+            property controls execution of obfuscator</li>
+          <li>Build target for generating source distribution</li>
+          <li>Debug flag for javacc</li>
+          <li>.jalview_properties file is documented (slightly) in
+            jalview.bin.Cache</li>
+          <li>Continuous Build Integration for stable and
+            development version of Application, Applet and source
+            distribution</li>
+        </ul></td>
+      <td>
+        <ul>
+          <li>selected region output includes visible annotations
+            (for certain formats)</li>
+          <li>edit label/displaychar contains existing label/char
+            for editing</li>
+          <li>update PDBEntries when DBRefEntries change (vamsas)</li>
+          <li>shorter peptide product names from EMBL records</li>
+          <li>Newick string generator makes compact representations</li>
+          <li>bootstrap values parsed correctly for tree files with
+            comments</li>
+          <li>pathological filechooser bug avoided by not allowing
+            filenames containing a ':'</li>
+          <li>Fixed exception when parsing GFF files containing
+            global sequence features</li>
+          <li>Alignment datasets are finalized only when number of
+            references from alignment sequences goes to zero</li>
+          <li>Close of tree branch colour box without colour
+            selection causes cascading exceptions</li>
+          <li>occasional negative imgwidth exceptions</li>
+          <li>better reporting of non-fatal warnings to user when
+            file parsing fails.</li>
+          <li>Save works when Jalview project is default format</li>
+          <li>Save as dialog opened if current alignment format is
+            not a valid output format</li>
+          <li>UniProt canonical names introduced for both das and
+            vamsas</li>
+          <li>Histidine should be midblue (not pink!) in Zappo</li>
+          <li>error messages passed up and output when data read
+            fails</li>
+          <li>edit undo recovers previous dataset sequence when
+            sequence is edited</li>
+          <li>allow PDB files without pdb ID HEADER lines (like
+            those generated by MODELLER) to be read in properly</li>
+          <li>allow reading of JPred concise files as a normal
+            filetype</li>
+          <li>Stockholm annotation parsing and alignment properties
+            import fixed for PFAM records</li>
+          <li>Structure view windows have correct name in Desktop
+            window list</li>
+          <li>annotation consisting of sequence associated scores
+            can be read and written correctly to annotation file</li>
+          <li>Aligned cDNA translation to aligned peptide works
+            correctly</li>
+          <li>Fixed display of hidden sequence markers and
+            non-italic font for representatives in Applet</li>
+          <li>Applet Menus are always embedded in applet window on
+            Macs.</li>
+          <li>Newly shown features appear at top of stack (in
+            Applet)</li>
+          <li>Annotations added via parameter not drawn properly
+            due to null pointer exceptions</li>
+          <li>Secondary structure lines are drawn starting from
+            first column of alignment</li>
+          <li>UniProt XML import updated for new schema release in
+            July 2008</li>
+          <li>Sequence feature to sequence ID match for Features
+            file is case-insensitive</li>
+          <li>Sequence features read from Features file appended to
+            all sequences with matching IDs</li>
+          <li>PDB structure coloured correctly for associated views
+            containing a sub-sequence</li>
+          <li>PDB files can be retrieved by applet from Jar files</li>
+          <li>feature and annotation file applet parameters
+            referring to different directories are retrieved correctly</li>
+          <!--<li>DAS Histogram Features display ( (Prlic et al) </li>-->
+          <li>Fixed application hang whilst waiting for
+            splash-screen version check to complete</li>
+          <li>Applet properly URLencodes input parameter values
+            when passing them to the launchApp service</li>
+          <li>display name and local features preserved in results
+            retrieved from web service</li>
+          <li>Visual delay indication for sequence retrieval and
+            sequence fetcher initialisation</li>
+          <li>updated Application to use DAS 1.53e version of
+            dasobert DAS client</li>
+          <li>Re-instated Full AMSA support and .amsa file
+            association</li>
+          <li>Fixed parsing of JNet Concise annotation <em>sans</em>
+            sequences
+          </li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.3</strong><br> 9/5/07
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Jmol 11.0.2 integration</li>
+          <li>PDB views stored in Jalview XML files</li>
+          <li>Slide sequences</li>
+          <li>Edit sequence in place</li>
+          <li>EMBL CDS features</li>
+          <li>DAS Feature mapping</li>
+          <li>Feature ordering</li>
+          <li>Alignment Properties</li>
+          <li>Annotation Scores</li>
+          <li>Sort by scores</li>
+          <li>Feature/annotation editing in applet</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Headless state operation in 2.2.1</li>
+          <li>Incorrect and unstable DNA pairwise alignment</li>
+          <li>Cut and paste of sequences with annotation</li>
+          <li>Feature group display state in XML</li>
+          <li>Feature ordering in XML</li>
+          <li>blc file iteration selection using filename # suffix</li>
+          <li>Stockholm alignment properties</li>
+          <li>Stockhom alignment secondary structure annotation</li>
+          <li>2.2.1 applet had no feature transparency</li>
+          <li>Number pad keys can be used in cursor mode</li>
+          <li>Structure Viewer mirror image resolved</li>
+        </ul>
+      </td>
 
-		</td>
-		<td>
-		<ul>
-			<li>selected region output includes visible annotations (for
-			certain formats)</li>
-			<li>edit label/displaychar contains existing label/char for
-			editing</li>
-			<li>update PDBEntries when DBRefEntries change (vamsas)</li>
-			<li>shorter peptide product names from EMBL records</li>
-			<li>Newick string generator makes compact representations</li>
-			<li>bootstrap values parsed correctly for tree files with
-			comments</li>
-			<li>pathological filechooser bug avoided by not allowing
-			filenames containing a ':'</li>
-			<li>Fixed exception when parsing GFF files containing global
-			sequence features</li>
-			<li>Alignment datasets are finalized only when number of
-			references from alignment sequences goes to zero</li>
-			<li>Close of tree branch colour box without colour selection
-			causes cascading exceptions</li>
-			<li>occasional negative imgwidth exceptions</li>
-			<li>better reporting of non-fatal warnings to user when file
-			parsing fails.</li>
-			<li>Save works when Jalview project is default format</li>
-			<li>Save as dialog opened if current alignment format is not a
-			valid output format</li>
-			<li>Uniprot canonical names introduced for both das and vamsas</li>
-			<li>Histidine should be midblue (not pink!) in Zappo</li>
-			<li>error messages passed up and output when data read fails</li>
-			<li>edit undo recovers previous dataset sequence when sequence
-			is edited</li>
-			<li>allow PDB files without pdb ID HEADER lines (like those
-			generated by MODELLER) to be read in properly</li>
-			<li>allow reading of JPred concise files as a normal filetype</li>
-			<li>Stockholm annotation parsing and alignment properties import
-			fixed for PFAM records</li>
-			<li>Structure view windows have correct name in Desktop window
-			list</li>
-			<li>annotation consisting of sequence associated scores can be
-			read and written correctly to annotation file</li>
-			<li>Aligned cDNA translation to aligned peptide works correctly</li>
-			<li>Fixed display of hidden sequence markers and non-italic font
-			for representatives in Applet</li>
-			<li>Applet Menus are always embedded in applet window on Macs.</li>
-			<li>Newly shown features appear at top of stack (in Applet)</li>
-			<li>Annotations added via parameter not drawn properly due to
-			null pointer exceptions</li>
-			<li>Secondary structure lines are drawn starting from first
-			column of alignment</li>
-			<li>Uniprot XML import updated for new schema release in July
-			2008</li>
-			<li>Sequence feature to sequence ID match for Features file is
-			case-insensitive</li>
-			<li>Sequence features read from Features file appended to all
-			sequences with matching IDs</li>
-			<li>PDB structure coloured correctly for associated views
-			containing a sub-sequence</li>
-			<li>PDB files can be retrieved by applet from Jar files</li>
-			<li>feature and annotation file applet parameters referring to
-			different directories are retrieved correctly</li>
-			<!--<li>DAS Histogram Features display ( (Prlic et al) </li>-->
-			<li>Fixed application hang whilst waiting for splash-screen
-			version check to complete</li>
-			<li>Applet properly URLencodes input parameter values when
-			passing them to the launchApp service</li>
-			<li>display name and local features preserved in results
-			retrieved from web service</li>
-			<li>Visual delay indication for sequence retrieval and sequence
-			fetcher initialisation</li>
-			<li>updated Application to use DAS 1.53e version of dasobert DAS
-			client</li>
-			<li>Re-instated Full AMSA support and .amsa file association</li>
-			<li>Fixed parsing of JNet Concise annotation <em>sans</em>
-			sequences</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.3</strong><br>
-		9/5/07</div>
-		</td>
-		<td>
-		<ul>
-			<li>Jmol 11.0.2 integration</li>
-			<li>PDB views stored in Jalview XML files</li>
-			<li>Slide sequences</li>
-			<li>Edit sequence in place</li>
-			<li>EMBL CDS features</li>
-			<li>DAS Feature mapping</li>
-			<li>Feature ordering</li>
-			<li>Alignment Properties</li>
-			<li>Annotation Scores</li>
-			<li>Sort by scores</li>
-			<li>Feature/annotation editing in applet</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Headless state operation in 2.2.1</li>
-			<li>Incorrect and unstable DNA pairwise alignment</li>
-			<li>Cut and paste of sequences with annotation</li>
-			<li>Feature group display state in XML</li>
-			<li>Feature ordering in XML</li>
-			<li>blc file iteration selection using filename # suffix</li>
-			<li>Stockholm alignment properties</li>
-			<li>Stockhom alignment secondary structure annotation</li>
-			<li>2.2.1 applet had no feature transparency</li>
-			<li>Number pad keys can be used in cursor mode</li>
-			<li>Structure Viewer mirror image resolved</li>
-		</ul>
-		</td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.2.1</strong><br> 12/2/07
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Non standard characters can be read and displayed
+          <li>Annotations/Features can be imported/exported to the
+            applet via textbox
+          <li>Applet allows editing of sequence/annotation/group
+            name &amp; description
+          <li>Preference setting to display sequence name in
+            italics
+          <li>Annotation file format extended to allow
+            Sequence_groups to be defined
+          <li>Default opening of alignment overview panel can be
+            specified in preferences
+          <li>PDB residue numbering annotation added to associated
+            sequences
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Applet crash under certain Linux OS with Java 1.6
+            installed
+          <li>Annotation file export / import bugs fixed
+          <li>PNG / EPS image output bugs fixed
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.2</strong><br> 27/11/06
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Multiple views on alignment
+          <li>Sequence feature editing
+          <li>&quot;Reload&quot; alignment
+          <li>&quot;Save&quot; to current filename
+          <li>Background dependent text colour
+          <li>Right align sequence ids
+          <li>User-defined lower case residue colours
+          <li>Format Menu
+          <li>Select Menu
+          <li>Menu item accelerator keys
+          <li>Control-V pastes to current alignment
+          <li>Cancel button for DAS Feature Fetching
+          <li>PCA and PDB Viewers zoom via mouse roller
+          <li>User-defined sub-tree colours and sub-tree selection
 
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.2.1</strong><br>
-		12/2/07</div>
-		</td>
-		<td>
-		<ul>
-			<li>Non standard characters can be read and displayed
-			<li>Annotations/Features can be imported/exported to the applet
-			via textbox
-			<li>Applet allows editing of sequence/annotation/group name
-			&amp; description
-			<li>Preference setting to display sequence name in italics
-			<li>Annotation file format extended to allow Sequence_groups to
-			be defined
-			<li>Default opening of alignment overview panel can be specified
-			in preferences
-			<li>PDB residue numbering annotation added to associated
-			sequences
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Applet crash under certain Linux OS with Java 1.6 installed
-			<li>Annotation file export / import bugs fixed
-			<li>PNG / EPS image output bugs fixed
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.2</strong><br>
-		27/11/06</div>
-		</td>
-		<td>
-		<ul>
-			<li>Multiple views on alignment
-			<li>Sequence feature editing
-			<li>&quot;Reload&quot; alignment
-			<li>&quot;Save&quot; to current filename
-			<li>Background dependent text colour
-			<li>Right align sequence ids
-			<li>User-defined lower case residue colours
-			<li>Format Menu
-			<li>Select Menu
-			<li>Menu item accelerator keys
-			<li>Control-V pastes to current alignment
-			<li>Cancel button for DAS Feature Fetching
-			<li>PCA and PDB Viewers zoom via mouse roller
-			<li>User-defined sub-tree colours and sub-tree selection
-			<li>'New Window' button on the 'Output to Text box'
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>New memory efficient Undo/Redo System
-			<li>Optimised symbol lookups and conservation/consensus
-			calculations
-			<li>Region Conservation/Consensus recalculated after edits
-			<li>Fixed Remove Empty Columns Bug (empty columns at end of
-			alignment)
-			<li>Slowed DAS Feature Fetching for increased robustness.
-			<li>Made angle brackets in ASCII feature descriptions display
-			correctly
-			<li>Re-instated Zoom function for PCA
-			<li>Sequence descriptions conserved in web service analysis
-			results
-			<li>Uniprot ID discoverer uses any word separated by &#8739;
-			<li>WsDbFetch query/result association resolved
-			<li>Tree leaf to sequence mapping improved
-			<li>Smooth fonts switch moved to FontChooser dialog box.
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.1.1</strong><br>
-		12/9/06</div>
-		</td>
-		<td>
-		<ul>
-			<li>Copy consensus sequence to clipboard</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Image output - rightmost residues are rendered if sequence
-			id panel has been resized</li>
-			<li>Image output - all offscreen group boundaries are rendered</li>
-			<li>Annotation files with sequence references - all elements in
-			file are relative to sequence position</li>
-			<li>Mac Applet users can use Alt key for group editing</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.1</strong><br>
-		22/8/06</div>
-		</td>
-		<td>
-		<ul>
-			<li>MAFFT Multiple Alignment in default Web Service list</li>
-			<li>DAS Feature fetching</li>
-			<li>Hide sequences and columns</li>
-			<li>Export Annotations and Features</li>
-			<li>GFF file reading / writing</li>
-			<li>Associate structures with sequences from local PDB files</li>
-			<li>Add sequences to exisiting alignment</li>
-			<li>Recently opened files / URL lists</li>
-			<li>Applet can launch the full application</li>
-			<li>Applet has transparency for features (Java 1.2 required)</li>
-			<li>Applet has user defined colours parameter</li>
-			<li>Applet can load sequences from parameter &quot;sequence<em>x</em>&quot;</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Redundancy Panel reinstalled in the Applet</li>
-			<li>Monospaced font - EPS / rescaling bug fixed</li>
-			<li>Annotation files with sequence references bug fixed</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.08.1</strong><br>
-		2/5/06</div>
-		</td>
-		<td>
-		<ul>
-			<li>Change case of selected region from Popup menu</li>
-			<li>Choose to match case when searching</li>
-			<li>Middle mouse button and mouse movement can compress / expand
-			the visible width and height of the alignment</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Annotation Panel displays complete JNet results</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.08b</strong><br>
-		18/4/06</div>
-		</td>
-		<td>&nbsp;</td>
-		<td>
-		<ul>
-			<li>Java 1.5 bug - InternalMessageDialog fix for threads</li>
-			<li>Righthand label on wrapped alignments shows correct value</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.08</strong><br>
-		10/4/06</div>
-		</td>
-		<td>
-		<ul>
-			<li>Editing can be locked to the selection area</li>
-			<li>Keyboard editing</li>
-			<li>Create sequence features from searches</li>
-			<li>Precalculated annotations can be loaded onto alignments</li>
-			<li>Features file allows grouping of features</li>
-			<li>Annotation Colouring scheme added</li>
-			<li>Smooth fonts off by default - Faster rendering</li>
-			<li>Choose to toggle Autocalculate Consensus On/Off</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Drag &amp; Drop fixed on Linux</li>
-			<li>Jalview Archive file faster to load/save, sequence
-			descriptions saved.</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.07</strong><br>
-		12/12/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>PDB Structure Viewer enhanced</li>
-			<li>Sequence Feature retrieval and display enhanced</li>
-			<li>Choose to output sequence start-end after sequence name for
-			file output</li>
-			<li>Sequence Fetcher WSDBFetch@EBI</li>
-			<li>Applet can read feature files, PDB files and can be used for
-			HTML form input</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>HTML output writes groups and features</li>
-			<li>Group editing is Control and mouse click</li>
-			<li>File IO bugs</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.06</strong><br>
-		28/9/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>View annotations in wrapped mode</li>
-			<li>More options for PCA viewer</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>GUI bugs resolved</li>
-			<li>Runs with -nodisplay from command line</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td height="63">
-		<div align="center"><strong>2.05b</strong><br>
-		15/9/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>Choose EPS export as lineart or text</li>
-			<li>Jar files are executable</li>
-			<li>Can read in Uracil - maps to unknown residue</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Known OutOfMemory errors give warning message</li>
-			<li>Overview window calculated more efficiently</li>
-			<li>Several GUI bugs resolved</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.05</strong><br>
-		30/8/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>Edit and annotate in &quot;Wrapped&quot; view</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Several GUI bugs resolved</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.04</strong><br>
-		24/8/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>Hold down mouse wheel &amp; scroll to change font size</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Improved JPred client reliability</li>
-			<li>Improved loading of Jalview files</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.03</strong><br>
-		18/8/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>Set Proxy server name and port in preferences</li>
-			<li>Multiple URL links from sequence ids</li>
-			<li>User Defined Colours can have a scheme name and added to
-			Colour Menu</li>
-			<li>Choose to ignore gaps in consensus calculation</li>
-			<li>Unix users can set default web browser</li>
-			<li>Runs without GUI for batch processing</li>
-			<li>Dynamically generated Web Service Menus</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>InstallAnywhere download for Sparc Solaris</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.02</strong><br>
-		18/7/05</div>
-		</td>
-		<td>&nbsp;</td>
-		<td>
-		<ul>
-			<li>Copy &amp; Paste order of sequences maintains alignment
-			order.</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.01</strong><br>
-		12/7/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>Use delete key for deleting selection.</li>
-			<li>Use Mouse wheel to scroll sequences.</li>
-			<li>Help file updated to describe how to add alignment
-			annotations.</li>
-			<li>Version and build date written to build properties file.</li>
-			<li>InstallAnywhere installation will check for updates at
-			launch of Jalview.</li>
-		</ul>
-		</td>
-		<td>
-		<ul>
-			<li>Delete gaps bug fixed.</li>
-			<li>FileChooser sorts columns.</li>
-			<li>Can remove groups one by one.</li>
-			<li>Filechooser icons installed.</li>
-			<li>Finder ignores return character when searching. Return key
-			will initiate a search.<br>
-			</li>
-		</ul>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<div align="center"><strong>2.0</strong><br>
-		20/6/05</div>
-		</td>
-		<td>
-		<ul>
-			<li>New codebase</li>
-		</ul>
-		</td>
-		<td>&nbsp;</td>
-	</tr>
-</table>
-<p>&nbsp;</p>
+
+
+
+
+          
+          <li>'New Window' button on the 'Output to Text box'
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>New memory efficient Undo/Redo System
+          <li>Optimised symbol lookups and conservation/consensus
+            calculations
+          <li>Region Conservation/Consensus recalculated after
+            edits
+          <li>Fixed Remove Empty Columns Bug (empty columns at end
+            of alignment)
+          <li>Slowed DAS Feature Fetching for increased robustness.
+
+
+
+
+
+          
+          <li>Made angle brackets in ASCII feature descriptions
+            display correctly
+          <li>Re-instated Zoom function for PCA
+          <li>Sequence descriptions conserved in web service
+            analysis results
+          <li>UniProt ID discoverer uses any word separated by
+            &#8739;
+          <li>WsDbFetch query/result association resolved
+          <li>Tree leaf to sequence mapping improved
+          <li>Smooth fonts switch moved to FontChooser dialog box.
+
+
+
+
+
+          
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.1.1</strong><br> 12/9/06
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Copy consensus sequence to clipboard</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Image output - rightmost residues are rendered if
+            sequence id panel has been resized</li>
+          <li>Image output - all offscreen group boundaries are
+            rendered</li>
+          <li>Annotation files with sequence references - all
+            elements in file are relative to sequence position</li>
+          <li>Mac Applet users can use Alt key for group editing</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.1</strong><br> 22/8/06
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>MAFFT Multiple Alignment in default Web Service list</li>
+          <li>DAS Feature fetching</li>
+          <li>Hide sequences and columns</li>
+          <li>Export Annotations and Features</li>
+          <li>GFF file reading / writing</li>
+          <li>Associate structures with sequences from local PDB
+            files</li>
+          <li>Add sequences to exisiting alignment</li>
+          <li>Recently opened files / URL lists</li>
+          <li>Applet can launch the full application</li>
+          <li>Applet has transparency for features (Java 1.2
+            required)</li>
+          <li>Applet has user defined colours parameter</li>
+          <li>Applet can load sequences from parameter
+            &quot;sequence<em>x</em>&quot;
+          </li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Redundancy Panel reinstalled in the Applet</li>
+          <li>Monospaced font - EPS / rescaling bug fixed</li>
+          <li>Annotation files with sequence references bug fixed</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.08.1</strong><br> 2/5/06
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Change case of selected region from Popup menu</li>
+          <li>Choose to match case when searching</li>
+          <li>Middle mouse button and mouse movement can compress /
+            expand the visible width and height of the alignment</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Annotation Panel displays complete JNet results</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.08b</strong><br> 18/4/06
+        </div>
+      </td>
+      <td>&nbsp;</td>
+      <td>
+        <ul>
+          <li>Java 1.5 bug - InternalMessageDialog fix for threads</li>
+          <li>Righthand label on wrapped alignments shows correct
+            value</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.08</strong><br> 10/4/06
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Editing can be locked to the selection area</li>
+          <li>Keyboard editing</li>
+          <li>Create sequence features from searches</li>
+          <li>Precalculated annotations can be loaded onto
+            alignments</li>
+          <li>Features file allows grouping of features</li>
+          <li>Annotation Colouring scheme added</li>
+          <li>Smooth fonts off by default - Faster rendering</li>
+          <li>Choose to toggle Autocalculate Consensus On/Off</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Drag &amp; Drop fixed on Linux</li>
+          <li>Jalview Archive file faster to load/save, sequence
+            descriptions saved.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.07</strong><br> 12/12/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>PDB Structure Viewer enhanced</li>
+          <li>Sequence Feature retrieval and display enhanced</li>
+          <li>Choose to output sequence start-end after sequence
+            name for file output</li>
+          <li>Sequence Fetcher WSDBFetch@EBI</li>
+          <li>Applet can read feature files, PDB files and can be
+            used for HTML form input</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>HTML output writes groups and features</li>
+          <li>Group editing is Control and mouse click</li>
+          <li>File IO bugs</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.06</strong><br> 28/9/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>View annotations in wrapped mode</li>
+          <li>More options for PCA viewer</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>GUI bugs resolved</li>
+          <li>Runs with -nodisplay from command line</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td height="63">
+        <div align="center">
+          <strong>2.05b</strong><br> 15/9/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Choose EPS export as lineart or text</li>
+          <li>Jar files are executable</li>
+          <li>Can read in Uracil - maps to unknown residue</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Known OutOfMemory errors give warning message</li>
+          <li>Overview window calculated more efficiently</li>
+          <li>Several GUI bugs resolved</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.05</strong><br> 30/8/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Edit and annotate in &quot;Wrapped&quot; view</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Several GUI bugs resolved</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.04</strong><br> 24/8/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Hold down mouse wheel &amp; scroll to change font
+            size</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Improved JPred client reliability</li>
+          <li>Improved loading of Jalview files</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.03</strong><br> 18/8/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Set Proxy server name and port in preferences</li>
+          <li>Multiple URL links from sequence ids</li>
+          <li>User Defined Colours can have a scheme name and added
+            to Colour Menu</li>
+          <li>Choose to ignore gaps in consensus calculation</li>
+          <li>Unix users can set default web browser</li>
+          <li>Runs without GUI for batch processing</li>
+          <li>Dynamically generated Web Service Menus</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>InstallAnywhere download for Sparc Solaris</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.02</strong><br> 18/7/05
+        </div>
+      </td>
+      <td>&nbsp;</td>
+      <td>
+        <ul>
+          <li>Copy &amp; Paste order of sequences maintains
+            alignment order.</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.01</strong><br> 12/7/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>Use delete key for deleting selection.</li>
+          <li>Use Mouse wheel to scroll sequences.</li>
+          <li>Help file updated to describe how to add alignment
+            annotations.</li>
+          <li>Version and build date written to build properties
+            file.</li>
+          <li>InstallAnywhere installation will check for updates
+            at launch of Jalview.</li>
+        </ul>
+      </td>
+      <td>
+        <ul>
+          <li>Delete gaps bug fixed.</li>
+          <li>FileChooser sorts columns.</li>
+          <li>Can remove groups one by one.</li>
+          <li>Filechooser icons installed.</li>
+          <li>Finder ignores return character when searching.
+            Return key will initiate a search.<br>
+          </li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div align="center">
+          <strong>2.0</strong><br> 20/6/05
+        </div>
+      </td>
+      <td>
+        <ul>
+          <li>New codebase</li>
+        </ul>
+      </td>
+      <td>&nbsp;</td>
+    </tr>
+  </table>
+  <p>&nbsp;</p>
 </body>
 </html>

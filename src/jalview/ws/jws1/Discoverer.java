@@ -1,27 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
 
-import java.util.*;
+import jalview.util.MessageManager;
 
-import javax.swing.*;
+import java.util.Hashtable;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
-import ext.vamsas.*;
+import javax.swing.JOptionPane;
+
+import ext.vamsas.IRegistry;
+import ext.vamsas.IRegistryServiceLocator;
+import ext.vamsas.RegistryServiceSoapBindingStub;
+import ext.vamsas.ServiceHandle;
+import ext.vamsas.ServiceHandles;
 
 public class Discoverer implements Runnable
 {
@@ -182,33 +193,35 @@ public class Discoverer implements Runnable
         jalview.bin.Cache.log.debug("Setting default services");
         services = new Hashtable();
         // Muscle, Clustal and JPred.
-        ServiceHandle[] defServices =
-        {
+        ServiceHandle[] defServices = {
             new ServiceHandle(
                     "MsaWS",
                     "Edgar, Robert C. (2004), MUSCLE: multiple sequence alignment "
                             + "with high accuracy and high throughput, Nucleic Acids Research 32(5), 1792-97.",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/MuscleWS",
-                    "Muscle Multiple Protein Sequence Alignment"),
+                    MessageManager
+                            .getString("label.muscle_multiple_protein_sequence_alignment")),
             new ServiceHandle(
                     "MsaWS",
                     "Katoh, K., K. Kuma, K., Toh, H.,  and Miyata, T. (2005) "
                             + "\"MAFFT version 5: improvement in accuracy of multiple sequence alignment.\""
                             + " Nucleic Acids Research, 33 511-518",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/MafftWS",
-                    "MAFFT Multiple Sequence Alignment"),
+                    MessageManager
+                            .getString("label.mafft_multiple_sequence_alignment")),
             new ServiceHandle(
                     "MsaWS",
                     "Thompson, J.D., Higgins, D.G. and Gibson, T.J. (1994) CLUSTAL W: improving the sensitivity of progressive multiple"
                             + " sequence alignment through sequence weighting, position specific gap penalties and weight matrix choice."
                             + " Nucleic Acids Research, 22 4673-4680",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/ClustalWS",
-                    "ClustalW Multiple Sequence Alignment"),
+                    MessageManager
+                            .getString("label.clustalw_multiple_sequence_alignment")),
             new ServiceHandle(
                     "SecStrPred",
-                    "Cole C., Barber J. D., Barton G.J (2008) "
-                            + "The Jpred 3 secondary structure prediction server "
-                            + "Nucleic Acids Research, 36 W197-W201",
+                    "Drozdetskiy A, Cole C, Procter J & Barton GJ. (2015)\nJPred4: a protein secondary structure prediction server"
+                            + "\nNucleic Acids Research, Web Server issue (first published 15th April 2015)"
+                            + "\ndoi://10.1093/nar/gkv332",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/jpred",
                     "JNet Secondary Structure Prediction") };
         services = new Hashtable();
@@ -242,12 +255,11 @@ public class Discoverer implements Runnable
       {
         if (jalview.gui.Desktop.desktop != null)
         {
-          JOptionPane
-                  .showMessageDialog(
-                          jalview.gui.Desktop.desktop,
-                          "Please set up your proxy settings in the 'Connections' tab of the Preferences window",
-                          "Proxy Authorization Failed",
-                          JOptionPane.WARNING_MESSAGE);
+          JOptionPane.showMessageDialog(jalview.gui.Desktop.desktop,
+                  MessageManager.getString("label.set_proxy_settings"),
+                  MessageManager
+                          .getString("label.proxy_authorization_failed"),
+                  JOptionPane.WARNING_MESSAGE);
         }
       }
       else
@@ -351,7 +363,7 @@ public class Discoverer implements Runnable
       {
         jalview.bin.Cache.log
                 .warn("No services at "
-                        + ((java.net.URL) ServiceURLList.get(s_url))
+                        + (ServiceURLList.get(s_url))
                         + " - check DISCOVERY_URLS property in .jalview_properties");
       }
       s_url++;

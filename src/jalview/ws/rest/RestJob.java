@@ -1,47 +1,41 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.ws.rest;
-
-import java.io.IOException;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.Vector;
 
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.AlignmentView;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.io.packed.DataProvider;
 import jalview.io.packed.JalviewDataset;
-import jalview.io.packed.ParsePackedSet;
-import jalview.io.packed.SimpleDataProvider;
-import jalview.io.packed.DataProvider.JvDataType;
 import jalview.ws.AWsJob;
 import jalview.ws.rest.params.Alignment;
 import jalview.ws.rest.params.SeqGroupIndexVector;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
 public class RestJob extends AWsJob
 {
@@ -72,7 +66,7 @@ public class RestJob extends AWsJob
    */
   int[] origviscontig;
 
-  private AlignmentI contextAl=null;
+  private AlignmentI contextAl = null;
 
   /**
    * create a rest job using data bounded by the given start/end column.
@@ -96,12 +90,15 @@ public class RestJob extends AWsJob
     // get sequences for the alignmentI
     // get groups trimmed to alignment columns
     // get any annotation trimmed to start/end columns, too.
-
+    squniq = jalview.analysis.SeqsetUtils.uniquify(
+            _input.getSequencesArray(), true);
     // prepare input
     // form alignment+groups+annotation,preprocess and then record references
     // for formatters
     ArrayList<InputType> alinp = new ArrayList<InputType>();
     int paramsWithData = 0;
+    // TODO: JAL-715 - generalise the following validation logic for all
+    // parameter types
     // we cheat for moment - since we know a-priori what data is available and
     // what inputs we have implemented so far
     for (Map.Entry<String, InputType> prm : rsd.inputParams.entrySet())
@@ -114,14 +111,19 @@ public class RestJob extends AWsJob
         }
         else
         {
-          // TODO: move validation of input data to SeqGroupIndexVector
-          if ((prm.getValue() instanceof SeqGroupIndexVector)
-                  && (_input.getGroups() != null && _input.getGroups()
-                          .size() >= prm.getValue().min))
+          if (prm.getValue() instanceof SeqGroupIndexVector
+                  && _input.getGroups() != null
+                  && _input.getGroups().size() >= -1 + prm.getValue().min)
           {
+            // the test above is not rigorous but fixes JAL-1298, since
+            // submission will fail if the partition set doesn't contain at
+            // least one partition
             alinp.add(prm.getValue());
-          } else {
-            statMessage=("Not enough groups defined on the alignment - need at least "+prm.getValue().min);
+          }
+          else
+          {
+            statMessage = ("Not enough groups defined on the alignment - need at least " + prm
+                    .getValue().min);
           }
         }
       }
@@ -138,7 +140,7 @@ public class RestJob extends AWsJob
         _input.setDataset(null);
       }
       dsForIO = _input.getDataset();
-      if (contextAl==null)
+      if (contextAl == null)
       {
         contextAl = _input;
       }
@@ -151,7 +153,7 @@ public class RestJob extends AWsJob
       validInput = false;
     }
   }
-  
+
   boolean validInput = false;
 
   @Override
@@ -275,24 +277,29 @@ public class RestJob extends AWsJob
     if (context == null)
     {
       context = new JalviewDataset(dsForIO, null, squniq, null);
-      if (contextAl!=null)
+      if (contextAl != null)
       {
-        // TODO devise way of merging new annotation onto (identical) existing annotation that was used as input
-        // delete all input annotation 
-        if (contextAl.getAlignmentAnnotation()!=null) {
-          for (AlignmentAnnotation alan: contextAl.getAlignmentAnnotation()) {
+        // TODO devise way of merging new annotation onto (identical) existing
+        // annotation that was used as input
+        // delete all input annotation
+        if (contextAl.getAlignmentAnnotation() != null)
+        {
+          for (AlignmentAnnotation alan : contextAl
+                  .getAlignmentAnnotation())
+          {
             contextAl.deleteAnnotation(alan);
           }
         }
-        // TODO devise way of merging new groups onto (identical) existing groups when they were used as input to service
-        // delete all existing groups 
-        if (contextAl.getGroups()!=null)
+        // TODO devise way of merging new groups onto (identical) existing
+        // groups when they were used as input to service
+        // delete all existing groups
+        if (contextAl.getGroups() != null)
         {
           contextAl.deleteAllGroups();
         }
         context.addAlignment(contextAl);
       }
-      
+
     }
     return context;
   }
@@ -419,17 +426,23 @@ public class RestJob extends AWsJob
    * context used to parse results from service
    */
   JalviewDataset context = null;
+
   protected boolean parsedResults = false;
-  protected boolean validJvresults=false;
+
+  protected boolean validJvresults = false;
+
   Object[] jvresultobj = null;
+
   /**
    * process the results obtained from the server into jalview datamodel objects
-   * ready to be merged/added to the users' view. Use hasResults to test if results were added to context. 
+   * ready to be merged/added to the users' view. Use hasResults to test if
+   * results were added to context.
    */
   public void parseResultSet() throws Exception, Error
   {
-    if (!parsedResults) {
-      parsedResults=true;
+    if (!parsedResults)
+    {
+      parsedResults = true;
       jvresultobj = resSet.parseResultSet();
       validJvresults = true;
     }
@@ -437,16 +450,19 @@ public class RestJob extends AWsJob
 
   /**
    * 
-   * @return true if job has an input alignment and it was annotated when results were parsed
+   * @return true if job has an input alignment and it was annotated when
+   *         results were parsed
    */
   public boolean isInputContextModified()
   {
-    return contextAl!=null && validJvresults && context.getAl().get(0).isModified();
+    return contextAl != null && validJvresults
+            && context.getAl().get(0).isModified();
   }
 
   /**
    * 
-   * @return true if the ID/metadata for the input sequences were saved and sequence IDs renamed.
+   * @return true if the ID/metadata for the input sequences were saved and
+   *         sequence IDs renamed.
    */
   public boolean isInputUniquified()
   {
@@ -455,16 +471,19 @@ public class RestJob extends AWsJob
   }
 
   /**
-   * Return map between ordering of alignment submitted as input, and ordering of alignment as provided by user
+   * Return map between ordering of alignment submitted as input, and ordering
+   * of alignment as provided by user
+   * 
    * @return int[sequence index in submitted data]==sequence index in input.
    */
   public int[] getOrderMap()
   {
     SequenceI[] contseq = contextAl.getSequencesArray();
     int map[] = new int[contseq.length];
-    for (int i=0;i<contseq.length;i++)
+    for (int i = 0; i < contseq.length; i++)
     {
-      // TODO: optimise for large N - build a lookup hash for IDs returning order, and then lookup each sequ's original order
+      // TODO: optimise for large N - build a lookup hash for IDs returning
+      // order, and then lookup each sequ's original order
       map[i] = inputOrder.getOrder().indexOf(contseq[i]);
     }
     return map;

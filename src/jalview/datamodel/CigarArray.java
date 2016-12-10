@@ -1,23 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.Vector;
+import java.util.List;
 
 public class CigarArray extends CigarBase
 {
@@ -74,24 +77,33 @@ public class CigarArray extends CigarBase
   }
 
   /**
-   * construct a cigar array from the current alignment, or just the subset of the current alignment specified by selectionGroup. Any columns marked as hidden in columnSelection will be marked as deleted in the array.
+   * construct a cigar array from the current alignment, or just the subset of
+   * the current alignment specified by selectionGroup. Any columns marked as
+   * hidden in columnSelection will be marked as deleted in the array.
+   * 
    * @param alignment
-   * @param columnSelection 
+   * @param columnSelection
    * @param selectionGroup
    */
-  public CigarArray(AlignmentI alignment, ColumnSelection columnSelection, SequenceGroup selectionGroup)
+  public CigarArray(AlignmentI alignment, ColumnSelection columnSelection,
+          SequenceGroup selectionGroup)
   {
     this(constructSeqCigarArray(alignment, selectionGroup));
-    constructFromAlignment(alignment, columnSelection!=null ? columnSelection.getHiddenColumns() : null, selectionGroup);
+    constructFromAlignment(alignment,
+            columnSelection != null ? columnSelection.getHiddenColumns()
+                    : null, selectionGroup);
   }
-  private static int[] _calcStartEndBounds(AlignmentI alignment, SequenceGroup selectionGroup)
+
+  private static int[] _calcStartEndBounds(AlignmentI alignment,
+          SequenceGroup selectionGroup)
   {
-    int[] startend = new int[] { 0,0,0};
+    int[] startend = new int[] { 0, 0, 0 };
     if (selectionGroup != null)
     {
       startend[0] = selectionGroup.getSize();
       startend[1] = selectionGroup.getStartRes();
-      startend[2] = selectionGroup.getEndRes(); // inclusive for start and end in
+      startend[2] = selectionGroup.getEndRes(); // inclusive for start and end
+                                                // in
       // SeqCigar constructor
     }
     else
@@ -101,12 +113,14 @@ public class CigarArray extends CigarBase
     }
     return startend;
   }
-  public static SeqCigar[] constructSeqCigarArray(AlignmentI alignment, SequenceGroup selectionGroup)
+
+  public static SeqCigar[] constructSeqCigarArray(AlignmentI alignment,
+          SequenceGroup selectionGroup)
   {
     SequenceI[] seqs = null;
     int i, iSize;
     int _startend[] = _calcStartEndBounds(alignment, selectionGroup);
-    int start = _startend[1],end=_startend[2];
+    int start = _startend[1], end = _startend[2];
     if (selectionGroup != null)
     {
       iSize = selectionGroup.getSize();
@@ -128,25 +142,30 @@ public class CigarArray extends CigarBase
     }
     return selseqs;
   }
+
   /**
    * internal constructor function - called by CigarArray(AlignmentI, ...);
+   * 
    * @param alignment
-   * @param columnSelection - vector of visible regions as returned from columnSelection.getHiddenColumns() 
+   * @param list
+   *          - vector of visible regions as returned from
+   *          columnSelection.getHiddenColumns()
    * @param selectionGroup
    */
-  private void constructFromAlignment(AlignmentI alignment, Vector columnSelection, SequenceGroup selectionGroup)
+  private void constructFromAlignment(AlignmentI alignment,
+          List<int[]> list, SequenceGroup selectionGroup)
   {
     int[] _startend = _calcStartEndBounds(alignment, selectionGroup);
-    int start = _startend[1],end=_startend[2];
+    int start = _startend[1], end = _startend[2];
     // now construct the CigarArray operations
-    if (columnSelection!=null)
+    if (list != null)
     {
       int[] region;
       int hideStart, hideEnd;
       int last = start;
-      for (int j = 0; last < end & j < columnSelection.size(); j++)
+      for (int j = 0; last < end & j < list.size(); j++)
       {
-        region = (int[]) columnSelection.elementAt(j);
+        region = list.get(j);
         hideStart = region[0];
         hideEnd = region[1];
         // edit hidden regions to selection range
@@ -323,8 +342,11 @@ public class CigarArray extends CigarBase
           delpos = new java.util.Vector();
         }
         int delstart = cursor, delend = cursor + range[i] - 1; // inclusive
-        delpos.addElement(new int[]
-        { vcursor + offset, range[i] }); // index of right hand column after
+        delpos.addElement(new int[] { vcursor + offset, range[i] }); // index of
+                                                                     // right
+                                                                     // hand
+                                                                     // column
+                                                                     // after
         // hidden region boundary
         offset += range[i] - 1; // shift in visible column coordinates
         System.arraycopy(operation, i + 1, operation, i, length - i);

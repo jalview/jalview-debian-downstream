@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * This class implements the (?@<>) syntax that matches a balanced parenthesis.

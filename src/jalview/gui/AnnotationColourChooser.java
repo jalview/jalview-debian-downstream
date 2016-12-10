@@ -1,152 +1,150 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.bin.Cache;
+import jalview.datamodel.SequenceGroup;
+import jalview.schemes.AnnotationColourGradient;
+import jalview.schemes.ColourSchemeI;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Hashtable;
 
-import javax.swing.*;
-import javax.swing.event.*;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JColorChooser;
+import javax.swing.JComboBox;
+import javax.swing.JInternalFrame;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
 
 import net.miginfocom.swing.MigLayout;
 
-import jalview.bin.Cache;
-import jalview.datamodel.*;
-import jalview.schemes.*;
-import java.awt.Dimension;
-
-public class AnnotationColourChooser extends JPanel
+@SuppressWarnings("serial")
+public class AnnotationColourChooser extends AnnotationRowFilter
 {
-  JInternalFrame frame;
-
-  AlignViewport av;
-
-  AlignmentPanel ap;
 
   ColourSchemeI oldcs;
 
-  Hashtable oldgroupColours;
+  Hashtable<SequenceGroup, ColourSchemeI> oldgroupColours;
 
-  jalview.datamodel.AlignmentAnnotation currentAnnotation;
+  /**
+   * enabled if the user is dragging the slider - try to keep updates to a
+   * minimun
+   */
 
-  boolean adjusting = false;
+  JComboBox<String> annotations;
+
+  JButton defColours = new JButton();
+
+  JPanel jPanel1 = new JPanel();
+
+  JPanel jPanel2 = new JPanel();
+
+  BorderLayout borderLayout1 = new BorderLayout();
+
+  private JComboBox<String> threshold = new JComboBox<String>();
 
   public AnnotationColourChooser(AlignViewport av, final AlignmentPanel ap)
   {
+    super(av, ap);
     oldcs = av.getGlobalColourScheme();
-    if (av.alignment.getGroups() != null)
+    if (av.getAlignment().getGroups() != null)
     {
-      oldgroupColours = new Hashtable();
-      Vector allGroups = ap.av.alignment.getGroups();
-      SequenceGroup sg;
-      for (int g = 0; g < allGroups.size(); g++)
+      oldgroupColours = new Hashtable<SequenceGroup, ColourSchemeI>();
+      for (SequenceGroup sg : ap.av.getAlignment().getGroups())
       {
-        sg = (SequenceGroup) allGroups.get(g);
         if (sg.cs != null)
         {
           oldgroupColours.put(sg, sg.cs);
         }
       }
     }
-    this.av = av;
-    this.ap = ap;
     frame = new JInternalFrame();
     frame.setContentPane(this);
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
-    Desktop.addInternalFrame(frame, "Colour by Annotation", 520, 215);
+    Desktop.addInternalFrame(frame,
+            MessageManager.getString("label.colour_by_annotation"), 520,
+            215);
 
-    slider.addChangeListener(new ChangeListener()
-    {
-      public void stateChanged(ChangeEvent evt)
-      {
-        if (!adjusting)
-        {
-          thresholdValue.setText(((float) slider.getValue() / 1000f) + "");
-          valueChanged();
-        }
-      }
-    });
-    slider.addMouseListener(new MouseAdapter()
-    {
-      public void mouseReleased(MouseEvent evt)
-      {
-        ap.paintAlignment(true);
-      }
-    });
+    addSliderChangeListener();
+    addSliderMouseListeners();
 
-    if (av.alignment.getAlignmentAnnotation() == null)
+    if (av.getAlignment().getAlignmentAnnotation() == null)
     {
       return;
     }
 
     // Always get default shading from preferences.
     setDefaultMinMax();
-    
+
+    adjusting = true;
     if (oldcs instanceof AnnotationColourGradient)
     {
       AnnotationColourGradient acg = (AnnotationColourGradient) oldcs;
-      currentColours.setSelected(acg.predefinedColours);
-      if (!acg.predefinedColours)
+      currentColours.setSelected(acg.isPredefinedColours()
+              || acg.getBaseColour() != null);
+      if (!acg.isPredefinedColours() && acg.getBaseColour() == null)
       {
-    	minColour.setBackground(acg.getMinColour());
+        minColour.setBackground(acg.getMinColour());
         maxColour.setBackground(acg.getMaxColour());
       }
+      seqAssociated.setSelected(acg.isSeqAssociated());
+
     }
+    annotations = new JComboBox<String>(
+            getAnnotationItems(seqAssociated.isSelected()));
 
-    adjusting = true;
-    Vector list = new Vector();
-    int index = 1;
-    for (int i = 0; i < av.alignment.getAlignmentAnnotation().length; i++)
-    {
-      String label = av.alignment.getAlignmentAnnotation()[i].label;
-      if (!list.contains(label))
-        list.addElement(label);
-      else
-        list.addElement(label + "_" + (index++));
-    }
-
-    annotations = new JComboBox(list);
-
-    threshold.addItem("No Threshold");
-    threshold.addItem("Above Threshold");
-    threshold.addItem("Below Threshold");
+    populateThresholdComboBox(threshold);
 
     if (oldcs instanceof AnnotationColourGradient)
     {
       AnnotationColourGradient acg = (AnnotationColourGradient) oldcs;
       annotations.setSelectedItem(acg.getAnnotation());
-      switch (acg.getAboveThreshold()) {
+      switch (acg.getAboveThreshold())
+      {
       case AnnotationColourGradient.NO_THRESHOLD:
-          threshold.setSelectedItem("No Threshold");
+        getThreshold().setSelectedIndex(0);
         break;
       case AnnotationColourGradient.ABOVE_THRESHOLD:
-          threshold.setSelectedItem("Above Threshold");
+        getThreshold().setSelectedIndex(1);
         break;
       case AnnotationColourGradient.BELOW_THRESHOLD:
-        threshold.setSelectedItem("Below Threshold");
+        getThreshold().setSelectedIndex(2);
         break;
-        default:
-          throw new Error("Implementation error: don't know about threshold setting for current AnnotationColourGradient.");
+      default:
+        throw new Error(
+                MessageManager
+                        .getString("error.implementation_error_dont_know_about_threshold_setting"));
       }
       thresholdIsMin.setSelected(acg.thresholdIsMinMax);
-      thresholdValue.setText(""+acg.getAnnotationThreshold());
+      thresholdValue.setText("" + acg.getAnnotationThreshold());
     }
 
     try
@@ -155,18 +153,11 @@ public class AnnotationColourChooser extends JPanel
     } catch (Exception ex)
     {
     }
-
     adjusting = false;
 
-    changeColour();
-    validate();
-
-  }
-
-  private void setDefaultMinMax()
-  {
-    minColour.setBackground(Cache.getDefaultColour("ANNOTATIONCOLOUR_MIN", Color.orange));
-    maxColour.setBackground(Cache.getDefaultColour("ANNOTATIONCOLOUR_MAX", Color.red));
+    updateView();
+    frame.invalidate();
+    frame.pack();
   }
 
   public AnnotationColourChooser()
@@ -185,9 +176,10 @@ public class AnnotationColourChooser extends JPanel
     minColour.setFont(JvSwingUtils.getLabelFont());
     minColour.setBorder(BorderFactory.createEtchedBorder());
     minColour.setPreferredSize(new Dimension(40, 20));
-    minColour.setToolTipText("Minimum Colour");
+    minColour.setToolTipText(MessageManager.getString("label.min_colour"));
     minColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         if (minColour.isEnabled())
@@ -199,9 +191,10 @@ public class AnnotationColourChooser extends JPanel
     maxColour.setFont(JvSwingUtils.getLabelFont());
     maxColour.setBorder(BorderFactory.createEtchedBorder());
     maxColour.setPreferredSize(new Dimension(40, 20));
-    maxColour.setToolTipText("Maximum Colour");
+    maxColour.setToolTipText(MessageManager.getString("label.max_colour"));
     maxColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         if (maxColour.isEnabled())
@@ -211,55 +204,61 @@ public class AnnotationColourChooser extends JPanel
       }
     });
     ok.setOpaque(false);
-    ok.setText("OK");
+    ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        ok_actionPerformed(e);
+        ok_actionPerformed();
       }
     });
     cancel.setOpaque(false);
-    cancel.setText("Cancel");
+    cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        cancel_actionPerformed(e);
+        cancel_actionPerformed();
       }
     });
     defColours.setOpaque(false);
-    defColours.setText("Defaults");
-    defColours.setToolTipText("Reset min and max colours to defaults from user preferences.");
+    defColours.setText(MessageManager.getString("action.set_defaults"));
+    defColours.setToolTipText(MessageManager
+            .getString("label.reset_min_max_colours_to_defaults"));
     defColours.addActionListener(new ActionListener()
     {
-      
+
       @Override
       public void actionPerformed(ActionEvent arg0)
       {
-        resetColours_actionPerformed(arg0);
+        resetColours_actionPerformed();
       }
     });
-    
+
     annotations.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        annotations_actionPerformed(e);
+        annotations_actionPerformed();
       }
     });
-    threshold.addActionListener(new ActionListener()
+    getThreshold().addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        threshold_actionPerformed(e);
+        threshold_actionPerformed();
       }
     });
     thresholdValue.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        thresholdValue_actionPerformed(e);
+        thresholdValue_actionPerformed();
       }
     });
     slider.setPaintLabels(false);
@@ -272,105 +271,161 @@ public class AnnotationColourChooser extends JPanel
     thresholdValue.setColumns(7);
     currentColours.setFont(JvSwingUtils.getLabelFont());
     currentColours.setOpaque(false);
-    currentColours.setText("Use Original Colours");
+    currentColours.setText(MessageManager
+            .getString("label.use_original_colours"));
     currentColours.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        currentColours_actionPerformed(e);
+        currentColours_actionPerformed();
       }
     });
     thresholdIsMin.setBackground(Color.white);
     thresholdIsMin.setFont(JvSwingUtils.getLabelFont());
-    thresholdIsMin.setText("Threshold is Min/Max");
+    thresholdIsMin.setText(MessageManager
+            .getString("label.threshold_minmax"));
     thresholdIsMin.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
-        thresholdIsMin_actionPerformed(actionEvent);
+        thresholdIsMin_actionPerformed();
       }
     });
+    seqAssociated.setBackground(Color.white);
+    seqAssociated.setFont(JvSwingUtils.getLabelFont());
+    seqAssociated.setText(MessageManager
+            .getString("label.per_sequence_only"));
+    seqAssociated.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        seqAssociated_actionPerformed(annotations);
+      }
+    });
+
     this.setLayout(borderLayout1);
-    jPanel2.setLayout(new MigLayout("","[left][center][right]","[][][]"));
+    jPanel2.setLayout(new MigLayout("", "[left][center][right]", "[][][]"));
     jPanel1.setBackground(Color.white);
     jPanel2.setBackground(Color.white);
 
     jPanel1.add(ok);
     jPanel1.add(cancel);
-    jPanel2.add(annotations);
+    jPanel2.add(annotations, "grow, wrap");
+    jPanel2.add(seqAssociated);
     jPanel2.add(currentColours);
     JPanel colpanel = new JPanel(new FlowLayout());
     colpanel.setBackground(Color.white);
     colpanel.add(minColour);
     colpanel.add(maxColour);
     jPanel2.add(colpanel, "wrap");
-    
-    jPanel2.add(threshold);
-    jPanel2.add(defColours,"skip 1, wrap");
+    jPanel2.add(getThreshold());
+    jPanel2.add(defColours, "skip 1, wrap");
     jPanel2.add(thresholdIsMin);
     jPanel2.add(slider, "grow");
     jPanel2.add(thresholdValue, "grow");
     this.add(jPanel1, java.awt.BorderLayout.SOUTH);
     this.add(jPanel2, java.awt.BorderLayout.CENTER);
+    this.validate();
   }
 
-  protected void resetColours_actionPerformed(ActionEvent arg0)
+  protected void resetColours_actionPerformed()
   {
     setDefaultMinMax();
-    changeColour();
+    updateView();
   }
 
-  JComboBox annotations;
-
-  JPanel minColour = new JPanel();
-
-  JPanel maxColour = new JPanel();
-  JButton defColours = new JButton();
-  JButton ok = new JButton();
-
-  JButton cancel = new JButton();
-
-  JPanel jPanel1 = new JPanel();
-  JPanel jPanel2 = new JPanel();
-  
-  BorderLayout borderLayout1 = new BorderLayout();
-
-  JComboBox threshold = new JComboBox();
-
-
-  JSlider slider = new JSlider();
-
-  JTextField thresholdValue = new JTextField(20);
-
-  JCheckBox currentColours = new JCheckBox();
-
-  JCheckBox thresholdIsMin = new JCheckBox();
+  private void setDefaultMinMax()
+  {
+    minColour.setBackground(Cache.getDefaultColour("ANNOTATIONCOLOUR_MIN",
+            Color.orange));
+    maxColour.setBackground(Cache.getDefaultColour("ANNOTATIONCOLOUR_MAX",
+            Color.red));
+  }
 
   public void minColour_actionPerformed()
   {
     Color col = JColorChooser.showDialog(this,
-            "Select Colour for Minimum Value", minColour.getBackground());
+            MessageManager.getString("label.select_colour_minimum_value"),
+            minColour.getBackground());
     if (col != null)
     {
       minColour.setBackground(col);
     }
     minColour.repaint();
-    changeColour();
+    updateView();
   }
 
   public void maxColour_actionPerformed()
   {
     Color col = JColorChooser.showDialog(this,
-            "Select Colour for Maximum Value", maxColour.getBackground());
+            MessageManager.getString("label.select_colour_maximum_value"),
+            maxColour.getBackground());
     if (col != null)
     {
       maxColour.setBackground(col);
     }
     maxColour.repaint();
-    changeColour();
+    updateView();
   }
 
-  void changeColour()
+  @Override
+  public void reset()
+  {
+    av.setGlobalColourScheme(oldcs);
+    if (av.getAlignment().getGroups() != null)
+    {
+
+      for (SequenceGroup sg : ap.av.getAlignment().getGroups())
+      {
+        sg.cs = oldgroupColours.get(sg);
+      }
+    }
+  }
+
+  @Override
+  public void valueChanged(boolean updateAllAnnotation)
+  {
+    if (slider.isEnabled())
+    {
+      if (currentColours.isSelected()
+              && !(av.getGlobalColourScheme() instanceof AnnotationColourGradient))
+      {
+        updateView();
+      }
+      getCurrentAnnotation().threshold.value = slider.getValue() / 1000f;
+      propagateSeqAssociatedThreshold(updateAllAnnotation,
+              getCurrentAnnotation());
+      ap.paintAlignment(false);
+    }
+  }
+
+  public JComboBox<String> getThreshold()
+  {
+    return threshold;
+  }
+
+  public void setThreshold(JComboBox<String> threshold)
+  {
+    this.threshold = threshold;
+  }
+
+  public void currentColours_actionPerformed()
+  {
+    if (currentColours.isSelected())
+    {
+      reset();
+    }
+    maxColour.setEnabled(!currentColours.isSelected());
+    minColour.setEnabled(!currentColours.isSelected());
+    updateView();
+  }
+
+  @Override
+  public void updateView()
   {
     // Check if combobox is still adjusting
     if (adjusting)
@@ -378,202 +433,54 @@ public class AnnotationColourChooser extends JPanel
       return;
     }
 
-    currentAnnotation = av.alignment.getAlignmentAnnotation()[annotations
-            .getSelectedIndex()];
+    setCurrentAnnotation(av.getAlignment().getAlignmentAnnotation()[annmap[annotations
+            .getSelectedIndex()]]);
 
-    int aboveThreshold = -1;
-    if (threshold.getSelectedItem().equals("Above Threshold"))
-    {
-      aboveThreshold = AnnotationColourGradient.ABOVE_THRESHOLD;
-    }
-    else if (threshold.getSelectedItem().equals("Below Threshold"))
-    {
-      aboveThreshold = AnnotationColourGradient.BELOW_THRESHOLD;
-    }
+    int selectedThresholdItem = getSelectedThresholdItem(getThreshold()
+            .getSelectedIndex());
 
     slider.setEnabled(true);
     thresholdValue.setEnabled(true);
     thresholdIsMin.setEnabled(true);
 
-    if (aboveThreshold == AnnotationColourGradient.NO_THRESHOLD)
+    if (selectedThresholdItem == AnnotationColourGradient.NO_THRESHOLD)
     {
       slider.setEnabled(false);
       thresholdValue.setEnabled(false);
       thresholdValue.setText("");
       thresholdIsMin.setEnabled(false);
     }
-    else if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD
-            && currentAnnotation.threshold == null)
+    else if (selectedThresholdItem != AnnotationColourGradient.NO_THRESHOLD
+            && getCurrentAnnotation().threshold == null)
     {
-      currentAnnotation
-              .setThreshold(new jalview.datamodel.GraphLine(
-                      (currentAnnotation.graphMax - currentAnnotation.graphMin) / 2f,
-                      "Threshold", Color.black));
+      getCurrentAnnotation()
+              .setThreshold(
+                      new jalview.datamodel.GraphLine(
+                              (getCurrentAnnotation().graphMax - getCurrentAnnotation().graphMin) / 2f,
+                              "Threshold", Color.black));
     }
 
-    if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD)
+    if (selectedThresholdItem != AnnotationColourGradient.NO_THRESHOLD)
     {
       adjusting = true;
-      float range = currentAnnotation.graphMax * 1000
-              - currentAnnotation.graphMin * 1000;
+      float range = getCurrentAnnotation().graphMax * 1000
+              - getCurrentAnnotation().graphMin * 1000;
 
-      slider.setMinimum((int) (currentAnnotation.graphMin * 1000));
-      slider.setMaximum((int) (currentAnnotation.graphMax * 1000));
-      slider.setValue((int) (currentAnnotation.threshold.value * 1000));
-      thresholdValue.setText(currentAnnotation.threshold.value + "");
+      slider.setMinimum((int) (getCurrentAnnotation().graphMin * 1000));
+      slider.setMaximum((int) (getCurrentAnnotation().graphMax * 1000));
+      slider.setValue((int) (getCurrentAnnotation().threshold.value * 1000));
+      thresholdValue.setText(getCurrentAnnotation().threshold.value + "");
       slider.setMajorTickSpacing((int) (range / 10f));
       slider.setEnabled(true);
       thresholdValue.setEnabled(true);
       adjusting = false;
     }
+    colorAlignmContaining(getCurrentAnnotation(), selectedThresholdItem);
 
-    AnnotationColourGradient acg = null;
-    if (currentColours.isSelected())
-    {
-      acg = new AnnotationColourGradient(currentAnnotation,
-              av.getGlobalColourScheme(), aboveThreshold);
-    }
-    else
-    {
-      acg = new AnnotationColourGradient(currentAnnotation,
-              minColour.getBackground(), maxColour.getBackground(),
-              aboveThreshold);
-    }
-
-    if (currentAnnotation.graphMin == 0f
-            && currentAnnotation.graphMax == 0f)
-    {
-      acg.predefinedColours = true;
-    }
-
-    acg.thresholdIsMinMax = thresholdIsMin.isSelected();
-
-    av.setGlobalColourScheme(acg);
-
-    if (av.alignment.getGroups() != null)
-    {
-      Vector allGroups = ap.av.alignment.getGroups();
-      SequenceGroup sg;
-      for (int g = 0; g < allGroups.size(); g++)
-      {
-        sg = (SequenceGroup) allGroups.get(g);
-
-        if (sg.cs == null)
-        {
-          continue;
-        }
-
-        if (currentColours.isSelected())
-        {
-          sg.cs = new AnnotationColourGradient(currentAnnotation, sg.cs,
-                  aboveThreshold);
-        }
-        else
-        {
-          sg.cs = new AnnotationColourGradient(currentAnnotation,
-                  minColour.getBackground(), maxColour.getBackground(),
-                  aboveThreshold);
-        }
-
-      }
-    }
-    // ensure all associated views (overviews, structures, etc) are notified of updated colours.
+    ap.alignmentChanged();
+    // ensure all associated views (overviews, structures, etc) are notified of
+    // updated colours.
     ap.paintAlignment(true);
-  }
-
-  public void ok_actionPerformed(ActionEvent e)
-  {
-    changeColour();
-    try
-    {
-      frame.setClosed(true);
-    } catch (Exception ex)
-    {
-    }
-  }
-
-  public void cancel_actionPerformed(ActionEvent e)
-  {
-    reset();
-    // ensure all original colouring is propagated to listeners. 
-    ap.paintAlignment(true);
-    try
-    {
-      frame.setClosed(true);
-    } catch (Exception ex)
-    {
-    }
-  }
-
-  void reset()
-  {
-    av.setGlobalColourScheme(oldcs);
-    if (av.alignment.getGroups() != null)
-    {
-      Vector allGroups = ap.av.alignment.getGroups();
-      SequenceGroup sg;
-      for (int g = 0; g < allGroups.size(); g++)
-      {
-        sg = (SequenceGroup) allGroups.get(g);
-        sg.cs = (ColourSchemeI) oldgroupColours.get(sg);
-      }
-    }
-  }
-
-  public void thresholdCheck_actionPerformed(ActionEvent e)
-  {
-    changeColour();
-  }
-
-  public void annotations_actionPerformed(ActionEvent e)
-  {
-    changeColour();
-  }
-
-  public void threshold_actionPerformed(ActionEvent e)
-  {
-    changeColour();
-  }
-
-  public void thresholdValue_actionPerformed(ActionEvent e)
-  {
-    try
-    {
-      float f = Float.parseFloat(thresholdValue.getText());
-      slider.setValue((int) (f * 1000));
-    } catch (NumberFormatException ex)
-    {
-    }
-  }
-
-  public void valueChanged()
-  {
-    if (currentColours.isSelected()
-            && !(av.getGlobalColourScheme() instanceof AnnotationColourGradient))
-    {
-      changeColour();
-    }
-
-    currentAnnotation.threshold.value = (float) slider.getValue() / 1000f;
-    ap.paintAlignment(false);
-  }
-
-  public void currentColours_actionPerformed(ActionEvent e)
-  {
-    if (currentColours.isSelected())
-    {
-      reset();
-    }
-
-    maxColour.setEnabled(!currentColours.isSelected());
-    minColour.setEnabled(!currentColours.isSelected());
-
-    changeColour();
-  }
-
-  public void thresholdIsMin_actionPerformed(ActionEvent actionEvent)
-  {
-    changeColour();
   }
 
 }

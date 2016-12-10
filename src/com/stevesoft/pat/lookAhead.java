@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /** Implements "(?= )" and "(?! )" */
 class lookAhead extends Or

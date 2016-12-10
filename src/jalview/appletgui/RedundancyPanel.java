@@ -1,35 +1,48 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
 
-import java.util.*;
+import jalview.analysis.AlignSeq;
+import jalview.commands.CommandI;
+import jalview.commands.EditCommand;
+import jalview.commands.EditCommand.Action;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.util.MessageManager;
 
-import java.awt.*;
-import java.awt.event.*;
-
-import jalview.commands.*;
-import jalview.datamodel.*;
+import java.awt.Frame;
+import java.awt.event.ActionEvent;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+import java.util.Vector;
 
 public class RedundancyPanel extends SliderPanel implements Runnable,
         WindowListener
 {
-  AlignmentPanel ap;
-
   Stack historyList = new Stack(); // simpler than synching with alignFrame.
 
   float[] redundancy;
@@ -50,7 +63,8 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
     applyButton.setVisible(true);
     allGroupsCheck.setVisible(false);
 
-    label.setText("Enter the redundancy threshold");
+    label.setText(MessageManager
+            .getString("label.enter_redundancy_threshold"));
     valueField.setText("100");
 
     slider.setVisibleAmount(1);
@@ -69,8 +83,8 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     frame = new Frame();
     frame.add(this);
-    jalview.bin.JalviewLite.addFrame(frame,
-            "Redundancy threshold selection", 400, 100);
+    jalview.bin.JalviewLite.addFrame(frame, MessageManager
+            .getString("label.redundancy_threshold_selection"), 400, 100);
 
     frame.addWindowListener(this);
 
@@ -92,7 +106,7 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
    */
   public void run()
   {
-    label.setText("Calculating....");
+    label.setText(MessageManager.getString("label.calculating"));
 
     slider.setVisible(false);
     applyButton.setEnabled(false);
@@ -109,74 +123,29 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     if ((sg != null) && (sg.getSize() >= 1))
     {
-      originalSequences = sg.getSequencesInOrder(ap.av.alignment);
+      originalSequences = sg.getSequencesInOrder(ap.av.getAlignment());
       start = sg.getStartRes();
       end = sg.getEndRes();
     }
     else
     {
-      originalSequences = ap.av.alignment.getSequencesArray();
+      originalSequences = ap.av.getAlignment().getSequencesArray();
       start = 0;
-      end = ap.av.alignment.getWidth();
+      end = ap.av.getAlignment().getWidth();
     }
 
     height = originalSequences.length;
 
-    redundancy = new float[height];
-    for (int i = 0; i < height; i++)
-    {
-      redundancy[i] = 0f;
-    }
-
-    // if (ap.av.hasHiddenColumns)
-    {
-      // omitHidden = ap.av.getSelectionAsString();
-    }
-
-    // long start = System.currentTimeMillis();
-
-    float pid;
-    String seqi, seqj;
-    for (int i = 0; i < height; i++)
-    {
-      for (int j = 0; j < i; j++)
-      {
-        if (i == j)
-        {
-          continue;
-        }
-
-        if (omitHidden == null)
-        {
-          seqi = originalSequences[i].getSequenceAsString(start, end);
-          seqj = originalSequences[j].getSequenceAsString(start, end);
-        }
-        else
-        {
-          seqi = omitHidden[i];
-          seqj = omitHidden[j];
-        }
-
-        pid = jalview.util.Comparison.PID(seqi, seqj);
-
-        if (seqj.length() < seqi.length())
-        {
-          redundancy[j] = Math.max(pid, redundancy[j]);
-        }
-        else
-        {
-          redundancy[i] = Math.max(pid, redundancy[i]);
-        }
-
-      }
-    }
-
-    label.setText("Enter the redundancy threshold");
+    redundancy = AlignSeq.computeRedundancyMatrix(originalSequences,
+            omitHidden, start, end, false);
+    label.setText(MessageManager
+            .getString("label.enter_redundancy_threshold"));
     slider.setVisible(true);
     applyButton.setEnabled(true);
     valueField.setVisible(true);
 
     validate();
+    sliderValueChanged();
     // System.out.println("blob done "+ (System.currentTimeMillis()-start));
   }
 
@@ -189,19 +158,16 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     float value = slider.getValue();
 
+    List<SequenceI> redundantSequences = new ArrayList<SequenceI>();
     for (int i = 0; i < redundancy.length; i++)
     {
-      if (value > redundancy[i])
+      if (value <= redundancy[i])
       {
-        redundantSeqs.removeElement(originalSequences[i]);
-      }
-      else if (!redundantSeqs.contains(originalSequences[i]))
-      {
-        redundantSeqs.addElement(originalSequences[i]);
+        redundantSequences.add(originalSequences[i]);
       }
     }
 
-    ap.idPanel.idCanvas.setHighlighted(redundantSeqs);
+    ap.idPanel.idCanvas.setHighlighted(redundantSequences);
     PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
 
   }
@@ -240,13 +206,13 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
         }
       }
 
-      EditCommand cut = new EditCommand("Remove Redundancy",
-              EditCommand.CUT, deleted, 0, width, ap.av.alignment);
-
+      EditCommand cut = new EditCommand(
+              MessageManager.getString("action.remove_redundancy"),
+              Action.CUT, deleted, 0, width, ap.av.getAlignment());
+      AlignmentI alignment = ap.av.getAlignment();
       for (int i = 0; i < del.size(); i++)
       {
-        ap.av.alignment.deleteSequence(deleted[i]);
-        PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
+        alignment.deleteSequence(deleted[i]);
         if (sg != null)
         {
           sg.deleteSequence(deleted[i], false);
@@ -257,6 +223,7 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
       ap.alignFrame.addHistoryItem(cut);
 
+      PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
       ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
               .getSequences());
     }
@@ -268,10 +235,12 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
     CommandI command = (CommandI) historyList.pop();
     command.undoCommand(null);
 
-    if (ap.av.historyList.contains(command))
+    if (ap.av.getHistoryList().contains(command))
     {
-      ap.av.historyList.removeElement(command);
+      ap.av.getHistoryList().remove(command);
       ap.alignFrame.updateEditMenuBar();
+      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
+              .getSequences());
     }
 
     ap.paintAlignment(true);

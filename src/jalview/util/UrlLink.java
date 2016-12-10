@@ -1,22 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.util;
 
+import static jalview.util.UrlConstants.DB_ACCESSION;
+import static jalview.util.UrlConstants.SEQUENCE_ID;
+
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.SequenceI;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 public class UrlLink
@@ -27,17 +39,33 @@ public class UrlLink
    * Jalview 2.4 extension allows regular expressions to be used to parse ID
    * strings and replace the result in the URL. Regex's operate on the whole ID
    * string given to the matchURL method, if no regex is supplied, then only
-   * text following the first pipe symbol will be susbstituted. Usage
+   * text following the first pipe symbol will be substituted. Usage
    * documentation todo.
    */
-  private String url_suffix, url_prefix, target, label, regexReplace;
+
+  // Internal constants
+  private static final String SEP = "|";
+
+  private static final String DELIM = "$";
+
+  private String urlSuffix;
+
+  private String urlPrefix;
+
+  private String target;
+
+  private String label;
+
+  private String regexReplace;
 
   private boolean dynamic = false;
+
+  private boolean usesDBaccession = false;
 
   private String invalidMessage = null;
 
   /**
-   * parse the given linkString of the form '<label>|<url>' into parts url may
+   * parse the given linkString of the form '<label>SEP<url>' into parts url may
    * contain a string $SEQUENCE_ID<=optional regex=>$ where <=optional regex=>
    * must be of the form =/<perl style regex>/=$
    * 
@@ -45,81 +73,37 @@ public class UrlLink
    */
   public UrlLink(String link)
   {
-    int sep = link.indexOf("|"), psqid = link.indexOf("$SEQUENCE_ID");
+    int sep = link.indexOf(SEP);
+    int psqid = link.indexOf(DELIM + DB_ACCESSION);
+    int nsqid = link.indexOf(DELIM + SEQUENCE_ID);
     if (psqid > -1)
     {
       dynamic = true;
-      int p = sep;
-      do
-      {
-        sep = p;
-        p = link.indexOf("|", sep + 1);
-      } while (p > sep && p < psqid);
-      // Assuming that the URL itself does not contain any '|' symbols
-      // sep now contains last pipe symbol position prior to any regex symbols
-      label = link.substring(0, sep);
-      if (label.indexOf("|") > -1)
-      {
-        // | terminated database name / www target at start of Label
-        target = label.substring(0, label.indexOf("|"));
-      }
-      else if (label.indexOf(" ") > 2)
-      {
-        // space separated Label - matches database name
-        target = label.substring(0, label.indexOf(" "));
-      }
-      else
-      {
-        target = label;
-      }
-      // Parse URL : Whole URL string first
-      url_prefix = link.substring(sep + 1, psqid);
-      if (link.indexOf("$SEQUENCE_ID=/") == psqid
-              && (p = link.indexOf("/=$", psqid + 14)) > psqid + 14)
-      {
-        // Extract Regex and suffix
-        url_suffix = link.substring(p + 3);
-        regexReplace = link.substring(psqid + 14, p);
-        try
-        {
-          com.stevesoft.pat.Regex rg = com.stevesoft.pat.Regex.perlCode("/"
-                  + regexReplace + "/");
-          if (rg == null)
-          {
-            invalidMessage = "Invalid Regular Expression : '"
-                    + regexReplace + "'\n";
-          }
-        } catch (Exception e)
-        {
-          invalidMessage = "Invalid Regular Expression : '" + regexReplace
-                  + "'\n";
-        }
-      }
-      else
-      {
-        regexReplace = null;
-        // verify format is really correct.
-        if (link.indexOf("$SEQUENCE_ID$") == psqid)
-        {
-          url_suffix = link.substring(psqid + 13);
-          regexReplace = null;
-        }
-        else
-        {
-          invalidMessage = "Warning: invalid regex structure for URL link : "
-                  + link;
-        }
-      }
+      usesDBaccession = true;
+
+      sep = parseTargetAndLabel(sep, psqid, link);
+
+      parseUrl(link, DB_ACCESSION, psqid, sep);
+    }
+    else if (nsqid > -1)
+    {
+      dynamic = true;
+      sep = parseTargetAndLabel(sep, nsqid, link);
+
+      parseUrl(link, SEQUENCE_ID, nsqid, sep);
     }
     else
     {
       target = link.substring(0, sep);
-      label = link.substring(0, sep = link.lastIndexOf("|"));
-      url_prefix = link.substring(sep + 1);
+      sep = link.lastIndexOf(SEP);
+      label = link.substring(0, sep);
+      urlPrefix = link.substring(sep + 1).trim();
       regexReplace = null; // implies we trim any prefix if necessary //
-      // regexReplace=".*\\|?(.*)";
-      url_suffix = null;
+      urlSuffix = null;
     }
+
+    label = label.trim();
+    target = target.trim();
   }
 
   /**
@@ -127,7 +111,7 @@ public class UrlLink
    */
   public String getUrl_suffix()
   {
-    return url_suffix;
+    return urlSuffix;
   }
 
   /**
@@ -135,7 +119,7 @@ public class UrlLink
    */
   public String getUrl_prefix()
   {
-    return url_prefix;
+    return urlPrefix;
   }
 
   /**
@@ -182,6 +166,34 @@ public class UrlLink
   }
 
   /**
+   * 
+   * @return whether link is dynamic
+   */
+  public boolean isDynamic()
+  {
+    return dynamic;
+  }
+
+  /**
+   * 
+   * @return whether link uses DB Accession id
+   */
+  public boolean usesDBAccession()
+  {
+    return usesDBaccession;
+  }
+
+  /**
+   * Set the label
+   * 
+   * @param newlabel
+   */
+  public void setLabel(String newlabel)
+  {
+    this.label = newlabel;
+  }
+
+  /**
    * return one or more URL strings by applying regex to the given idstring
    * 
    * @param idstring
@@ -205,9 +217,8 @@ public class UrlLink
           if (ns == 0)
           {
             // take whole regex
-            return new String[]
-            { rg.stringMatched(),
-                url_prefix + rg.stringMatched() + url_suffix };
+            return new String[] { rg.stringMatched(),
+                urlPrefix + rg.stringMatched() + urlSuffix };
           } /*
              * else if (ns==1) { // take only subgroup match return new String[]
              * { rg.stringMatched(1), url_prefix+rg.stringMatched(1)+url_suffix
@@ -248,7 +259,7 @@ public class UrlLink
                 if (mtch.length() > 0)
                 {
                   subs.addElement(mtch);
-                  subs.addElement(url_prefix + mtch + url_suffix);
+                  subs.addElement(urlPrefix + mtch + urlSuffix);
                 }
                 s = r;
               }
@@ -257,8 +268,8 @@ public class UrlLink
                 if (rg.matchedFrom(s) > -1)
                 {
                   subs.addElement(rg.stringMatched(s));
-                  subs.addElement(url_prefix + rg.stringMatched(s)
-                          + url_suffix);
+                  subs.addElement(urlPrefix + rg.stringMatched(s)
+                          + urlSuffix);
                 }
                 s++;
               }
@@ -279,31 +290,254 @@ public class UrlLink
         }
       }
       /* Otherwise - trim off any 'prefix' - pre 2.4 Jalview behaviour */
-      if (idstring.indexOf("|") > -1)
+      if (idstring.indexOf(SEP) > -1)
       {
-        idstring = idstring.substring(idstring.lastIndexOf("|") + 1);
+        idstring = idstring.substring(idstring.lastIndexOf(SEP) + 1);
       }
 
       // just return simple url substitution.
-      return new String[]
-      { idstring, url_prefix + idstring + url_suffix };
+      return new String[] { idstring, urlPrefix + idstring + urlSuffix };
     }
     else
     {
-      return new String[]
-      { "", url_prefix };
+      return new String[] { "", urlPrefix };
     }
   }
 
+  @Override
   public String toString()
   {
-    return label
-            + "|"
-            + url_prefix
-            + (dynamic ? ("$SEQUENCE_ID" + ((regexReplace != null) ? "="
-                    + regexReplace + "=$" : "$")) : "")
-            + ((url_suffix == null) ? "" : url_suffix);
+    String var = (usesDBaccession ? DB_ACCESSION : SEQUENCE_ID);
 
+    return label
+            + SEP
+            + urlPrefix
+            + (dynamic ? (DELIM + var + ((regexReplace != null) ? "="
+                    + regexReplace + "=" + DELIM : DELIM)) : "")
+            + ((urlSuffix == null) ? "" : urlSuffix);
+  }
+
+  /**
+   * 
+   * @param firstSep
+   *          Location of first occurrence of separator in link string
+   * @param psqid
+   *          Position of sequence id or name in link string
+   * @param link
+   *          Link string containing database name and url
+   * @return Position of last separator symbol prior to any regex symbols
+   */
+  protected int parseTargetAndLabel(int firstSep, int psqid, String link)
+  {
+    int p = firstSep;
+    int sep = firstSep;
+    do
+    {
+      sep = p;
+      p = link.indexOf(SEP, sep + 1);
+    } while (p > sep && p < psqid);
+    // Assuming that the URL itself does not contain any SEP symbols
+    // sep now contains last pipe symbol position prior to any regex symbols
+    label = link.substring(0, sep);
+    if (label.indexOf(SEP) > -1)
+    {
+      // SEP terminated database name / www target at start of Label
+      target = label.substring(0, label.indexOf(SEP));
+    }
+    else if (label.indexOf(" ") > 2)
+    {
+      // space separated Label - matches database name
+      target = label.substring(0, label.indexOf(" "));
+    }
+    else
+    {
+      target = label;
+    }
+    return sep;
+  }
+
+  /**
+   * Parse the URL part of the link string
+   * 
+   * @param link
+   *          Link string containing database name and url
+   * @param varName
+   *          Name of variable in url string (e.g. SEQUENCE_ID, SEQUENCE_NAME)
+   * @param sqidPos
+   *          Position of id or name in link string
+   * @param sep
+   *          Position of separator in link string
+   */
+  protected void parseUrl(String link, String varName, int sqidPos, int sep)
+  {
+    urlPrefix = link.substring(sep + 1, sqidPos).trim();
+
+    // delimiter at start of regex: e.g. $SEQUENCE_ID=/
+    String startDelimiter = DELIM + varName + "=/";
+
+    // delimiter at end of regex: /=$
+    String endDelimiter = "/=" + DELIM;
+
+    int startLength = startDelimiter.length();
+
+    // Parse URL : Whole URL string first
+    int p = link.indexOf(endDelimiter, sqidPos + startLength);
+
+    if (link.indexOf(startDelimiter) == sqidPos
+            && (p > sqidPos + startLength))
+    {
+      // Extract Regex and suffix
+      urlSuffix = link.substring(p + endDelimiter.length());
+      regexReplace = link.substring(sqidPos + startLength, p);
+      try
+      {
+        com.stevesoft.pat.Regex rg = com.stevesoft.pat.Regex.perlCode("/"
+                + regexReplace + "/");
+        if (rg == null)
+        {
+          invalidMessage = "Invalid Regular Expression : '" + regexReplace
+                  + "'\n";
+        }
+      } catch (Exception e)
+      {
+        invalidMessage = "Invalid Regular Expression : '" + regexReplace
+                + "'\n";
+      }
+    }
+    else
+    {
+      // no regex
+      regexReplace = null;
+      // verify format is really correct.
+      if (link.indexOf(DELIM + varName + DELIM) == sqidPos)
+      {
+        urlSuffix = link.substring(sqidPos + startLength - 1);
+        regexReplace = null;
+      }
+      else
+      {
+        invalidMessage = "Warning: invalid regex structure for URL link : "
+                + link;
+      }
+    }
+  }
+
+  /**
+   * Create a set of URL links for a sequence
+   * 
+   * @param seq
+   *          The sequence to create links for
+   * @param linkset
+   *          Map of links: key = id + SEP + link, value = [target, label, id,
+   *          link]
+   */
+  public void createLinksFromSeq(final SequenceI seq,
+          Map<String, List<String>> linkset)
+  {
+    if (seq != null && dynamic)
+    {
+      createDynamicLinks(seq, linkset);
+    }
+    else
+    {
+      createStaticLink(linkset);
+    }
+  }
+
+  /**
+   * Create a static URL link
+   * 
+   * @param linkset
+   *          Map of links: key = id + SEP + link, value = [target, label, id,
+   *          link]
+   */
+  protected void createStaticLink(Map<String, List<String>> linkset)
+  {
+    if (!linkset.containsKey(label + SEP + getUrl_prefix()))
+    {
+      // Add a non-dynamic link
+      linkset.put(label + SEP + getUrl_prefix(),
+              Arrays.asList(target, label, null, getUrl_prefix()));
+    }
+  }
+
+  /**
+   * Create dynamic URL links
+   * 
+   * @param seq
+   *          The sequence to create links for
+   * @param linkset
+   *          Map of links: key = id + SEP + link, value = [target, label, id,
+   *          link]
+   */
+  protected void createDynamicLinks(final SequenceI seq,
+          Map<String, List<String>> linkset)
+  {
+    // collect id string too
+    String id = seq.getName();
+    String descr = seq.getDescription();
+    if (descr != null && descr.length() < 1)
+    {
+      descr = null;
+    }
+
+    if (usesDBAccession()) // link is ID
+    {
+      // collect matching db-refs
+      DBRefEntry[] dbr = DBRefUtils.selectRefs(seq.getDBRefs(),
+              new String[] { target });
+
+      // if there are any dbrefs which match up with the link
+      if (dbr != null)
+      {
+        for (int r = 0; r < dbr.length; r++)
+        {
+          // create Bare ID link for this URL
+          createBareURLLink(dbr[r].getAccessionId(), true, linkset);
+        }
+      }
+    }
+    else if (!usesDBAccession() && id != null) // link is name
+    {
+      // create Bare ID link for this URL
+      createBareURLLink(id, false, linkset);
+    }
+
+    // Create urls from description but only for URL links which are regex
+    // links
+    if (descr != null && getRegexReplace() != null)
+    {
+      // create link for this URL from description where regex matches
+      createBareURLLink(descr, false, linkset);
+    }
+  }
+
+  /*
+   * Create a bare URL Link
+   * Returns map where key = id + SEP + link, and value = [target, label, id, link]
+   */
+  protected void createBareURLLink(String id, Boolean combineLabel,
+          Map<String, List<String>> linkset)
+  {
+    String[] urls = makeUrls(id, true);
+    if (urls != null)
+    {
+      for (int u = 0; u < urls.length; u += 2)
+      {
+        if (!linkset.containsKey(urls[u] + SEP + urls[u + 1]))
+        {
+          String thisLabel = label;
+          if (combineLabel)
+          {
+            // incorporate label with idstring
+            thisLabel = label + SEP + urls[u];
+          }
+
+          linkset.put(urls[u] + SEP + urls[u + 1],
+                  Arrays.asList(target, thisLabel, urls[u], urls[u + 1]));
+        }
+      }
+    }
   }
 
   private static void testUrls(UrlLink ul, String idstring, String[] urls)
@@ -326,8 +560,7 @@ public class UrlLink
 
   public static void main(String argv[])
   {
-    String[] links = new String[]
-    {
+    String[] links = new String[] {
     /*
      * "AlinkT|Target|http://foo.foo.soo/",
      * "myUrl1|http://$SEQUENCE_ID=/[0-9]+/=$.someserver.org/foo",
@@ -342,9 +575,9 @@ public class UrlLink
      * "PF3|http://us.expasy.org/cgi-bin/niceprot.pl?$SEQUENCE_ID=/PFAM:(.+)/=$"
      * , "NOTFER|http://notfer.org/$SEQUENCE_ID=/(?<!\\s)(.+)/=$",
      */
-    "NESTED|http://nested/$SEQUENCE_ID=/^(?:Label:)?(?:(?:gi\\|(\\d+))|([^:]+))/=$/nested" };
-    String[] idstrings = new String[]
-    {
+    "NESTED|http://nested/$" + DB_ACCESSION
+            + "=/^(?:Label:)?(?:(?:gi\\|(\\d+))|([^:]+))/=$/nested" };
+    String[] idstrings = new String[] {
     /*
      * //"LGUL_human", //"QWIQW_123123", "uniprot|why_do+_12313_foo",
      * //"123123312", "123123 ABCDE foo", "PFAM:PF23943",
@@ -383,16 +616,5 @@ public class UrlLink
                 + ul.getInvalidMessage());
       }
     }
-  }
-
-  public boolean isDynamic()
-  {
-    // TODO Auto-generated method stub
-    return dynamic;
-  }
-
-  public void setLabel(String newlabel)
-  {
-    this.label = newlabel;
   }
 }

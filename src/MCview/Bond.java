@@ -1,23 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package MCview;
 
-import java.awt.*;
+import java.awt.Color;
 
 public class Bond
 {
@@ -33,10 +36,10 @@ public class Bond
 
   public Atom at2;
 
-  public Bond(float[] start, float[] end, Atom at1, Atom at2)
+  public Bond(Atom at1, Atom at2)
   {
-    this.start = start;
-    this.end = end;
+    this.start = new float[] { at1.x, at1.y, at1.z };
+    this.end = new float[] { at2.x, at2.y, at2.z };
     this.startCol = at1.color;
     this.endCol = at2.color;
     this.at1 = at1;
@@ -67,13 +70,13 @@ public class Bond
 
   public void translate(float x, float y, float z)
   {
-    start[0] = (start[0] + x);
-    end[0] = (end[0] + x);
+    start[0] = start[0] + x;
+    end[0] = end[0] + x;
 
-    start[1] = (start[1] + y);
-    end[1] = (end[1] + y);
+    start[1] = start[1] + y;
+    end[1] = end[1] + y;
 
-    start[2] = (start[2] + z);
-    end[2] = (end[2] + z);
+    start[2] = start[2] + z;
+    end[2] = end[2] + z;
   }
 }

@@ -1,32 +1,53 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SeqCigar;
+import jalview.datamodel.SequenceI;
+import jalview.jbgui.GPCAPanel;
+import jalview.schemes.ResidueProperties;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
+import jalview.viewmodel.PCAModel;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.print.*;
-import javax.swing.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.print.PageFormat;
+import java.awt.print.Printable;
+import java.awt.print.PrinterException;
+import java.awt.print.PrinterJob;
 
-import jalview.analysis.*;
-import jalview.datamodel.*;
-import jalview.jbgui.*;
+import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JColorChooser;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButtonMenuItem;
 
 /**
  * DOCUMENT ME!
@@ -34,22 +55,21 @@ import jalview.jbgui.*;
  * @author $author$
  * @version $Revision$
  */
-public class PCAPanel extends GPCAPanel implements Runnable
+public class PCAPanel extends GPCAPanel implements Runnable,
+        IProgressIndicator
 {
 
-  PCA pca;
-
-  int top;
+  private IProgressIndicator progressBar;
 
   RotatableCanvas rc;
 
   AlignmentPanel ap;
 
-  AlignViewport av;
+  AlignmentViewport av;
 
-  AlignmentView seqstrings;
+  PCAModel pcaModel;
 
-  SequenceI[] seqs;
+  int top = 0;
 
   /**
    * Creates a new PCAPanel object.
@@ -64,16 +84,21 @@ public class PCAPanel extends GPCAPanel implements Runnable
     this.av = ap.av;
     this.ap = ap;
 
-    boolean sameLength = true;
+    progressBar = new ProgressBar(statusPanel, statusBar);
 
-    seqstrings = av.getAlignmentView(av.getSelectionGroup() != null);
-    if (av.getSelectionGroup() == null)
+    boolean sameLength = true;
+    boolean selected = av.getSelectionGroup() != null
+            && av.getSelectionGroup().getSize() > 0;
+    AlignmentView seqstrings = av.getAlignmentView(selected);
+    boolean nucleotide = av.getAlignment().isNucleotide();
+    SequenceI[] seqs;
+    if (!selected)
     {
-      seqs = av.alignment.getSequencesArray();
+      seqs = av.getAlignment().getSequencesArray();
     }
     else
     {
-      seqs = av.getSelectionGroup().getSequencesInOrder(av.alignment);
+      seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
     }
     SeqCigar sq[] = seqstrings.getSequences();
     int length = sq[0].getWidth();
@@ -89,19 +114,14 @@ public class PCAPanel extends GPCAPanel implements Runnable
 
     if (!sameLength)
     {
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      "The sequences must be aligned before calculating PCA.\n"
-                              + "Try using the Pad function in the edit menu,\n"
-                              + "or one of the multiple sequence alignment web services.",
-                      "Sequences not aligned", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.getString("label.pca_sequences_not_aligned"),
+              MessageManager.getString("label.sequences_not_aligned"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
-
-    Desktop.addInternalFrame(this, "Principal component analysis", 400, 400);
-
+    pcaModel = new PCAModel(seqstrings, seqs, nucleotide);
     PaintRefresher.Register(this, av.getSequenceSetId());
 
     rc = new RotatableCanvas(ap);
@@ -110,9 +130,49 @@ public class PCAPanel extends GPCAPanel implements Runnable
     worker.start();
   }
 
+  @Override
+  protected void scoreMatrix_menuSelected()
+  {
+    scoreMatrixMenu.removeAll();
+    for (final String sm : ResidueProperties.scoreMatrices.keySet())
+    {
+      if (ResidueProperties.getScoreMatrix(sm) != null)
+      {
+        // create an entry for this score matrix for use in PCA
+        JCheckBoxMenuItem jm = new JCheckBoxMenuItem();
+        jm.setText(MessageManager.getStringOrReturn("label.score_model_",
+                sm));
+        jm.setSelected(pcaModel.getScore_matrix().equals(sm));
+        if ((ResidueProperties.scoreMatrices.get(sm).isDNA() && ResidueProperties.scoreMatrices
+                .get(sm).isProtein())
+                || pcaModel.isNucleotide() == ResidueProperties.scoreMatrices
+                        .get(sm).isDNA())
+        {
+          final PCAPanel us = this;
+          jm.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              if (!pcaModel.getScore_matrix().equals(sm))
+              {
+                pcaModel.setScore_matrix(sm);
+                Thread worker = new Thread(us);
+                worker.start();
+              }
+            }
+          });
+          scoreMatrixMenu.add(jm);
+        }
+      }
+    }
+  }
+
+  @Override
   public void bgcolour_actionPerformed(ActionEvent e)
   {
-    Color col = JColorChooser.showDialog(this, "Select Background Colour",
+    Color col = JColorChooser.showDialog(this,
+            MessageManager.getString("label.select_backgroud_colour"),
             rc.bgColour);
 
     if (col != null)
@@ -125,58 +185,84 @@ public class PCAPanel extends GPCAPanel implements Runnable
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void run()
   {
+    long progId = System.currentTimeMillis();
+    IProgressIndicator progress = this;
+    String message = MessageManager.getString("label.pca_recalculating");
+    if (getParent() == null)
+    {
+      progress = ap.alignFrame;
+      message = MessageManager.getString("label.pca_calculating");
+    }
+    progress.setProgressBar(message, progId);
     try
     {
-      pca = new PCA(seqstrings.getSequenceStrings(' '));
-      pca.run();
-
-      // Now find the component coordinates
-      int ii = 0;
-
-      while ((ii < seqs.length) && (seqs[ii] != null))
-      {
-        ii++;
-      }
-
-      double[][] comps = new double[ii][ii];
-
-      for (int i = 0; i < ii; i++)
-      {
-        if (pca.getEigenvalue(i) > 1e-4)
-        {
-          comps[i] = pca.component(i);
-        }
-      }
-
+      calcSettings.setEnabled(false);
+      pcaModel.run();
       // ////////////////
       xCombobox.setSelectedIndex(0);
       yCombobox.setSelectedIndex(1);
       zCombobox.setSelectedIndex(2);
 
-      top = pca.getM().rows - 1;
-
-      Vector points = new Vector();
-      float[][] scores = pca.getComponents(top - 1, top - 2, top - 3, 100);
-
-      for (int i = 0; i < pca.getM().rows; i++)
-      {
-        SequencePoint sp = new SequencePoint(seqs[i], scores[i]);
-        points.addElement(sp);
-      }
-
-      rc.setPoints(points, pca.getM().rows);
-      rc.repaint();
-
-      addKeyListener(rc);
+      pcaModel.updateRc(rc);
+      // rc.invalidate();
+      nuclSetting.setSelected(pcaModel.isNucleotide());
+      protSetting.setSelected(!pcaModel.isNucleotide());
+      jvVersionSetting.setSelected(pcaModel.isJvCalcMode());
+      top = pcaModel.getTop();
 
     } catch (OutOfMemoryError er)
     {
       new OOMWarning("calculating PCA", er);
+      return;
+    } finally
+    {
+      progress.setProgressBar("", progId);
+    }
+    calcSettings.setEnabled(true);
+    repaint();
+    if (getParent() == null)
+    {
+      addKeyListener(rc);
+      Desktop.addInternalFrame(this, MessageManager
+              .getString("label.principal_component_analysis"), 475, 450);
+    }
+  }
 
+  @Override
+  protected void nuclSetting_actionPerfomed(ActionEvent arg0)
+  {
+    if (!pcaModel.isNucleotide())
+    {
+      pcaModel.setNucleotide(true);
+      pcaModel.setScore_matrix("DNA");
+      Thread worker = new Thread(this);
+      worker.start();
     }
 
+  }
+
+  @Override
+  protected void protSetting_actionPerfomed(ActionEvent arg0)
+  {
+
+    if (pcaModel.isNucleotide())
+    {
+      pcaModel.setNucleotide(false);
+      pcaModel.setScore_matrix("BLOSUM62");
+      Thread worker = new Thread(this);
+      worker.start();
+    }
+  }
+
+  @Override
+  protected void jvVersionSetting_actionPerfomed(ActionEvent arg0)
+  {
+    pcaModel.setJvCalcMode(jvVersionSetting.isSelected());
+    Thread worker = new Thread(this);
+    worker.start();
   }
 
   /**
@@ -192,14 +278,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
     int dim1 = top - xCombobox.getSelectedIndex();
     int dim2 = top - yCombobox.getSelectedIndex();
     int dim3 = top - zCombobox.getSelectedIndex();
-
-    float[][] scores = pca.getComponents(dim1, dim2, dim3, 100);
-
-    for (int i = 0; i < pca.getM().rows; i++)
-    {
-      ((SequencePoint) rc.points.elementAt(i)).coord = scores[i];
-    }
-
+    pcaModel.updateRcView(dim1, dim2, dim3);
     rc.img = null;
     rc.rotmat.setIdentity();
     rc.initAxes();
@@ -212,6 +291,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void xCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
@@ -223,6 +303,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void yCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
@@ -234,18 +315,21 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void zCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
   }
 
+  @Override
   public void outputValues_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(pca.getDetails());
-      Desktop.addInternalFrame(cap, "PCA details", 500, 500);
+      cap.setText(pcaModel.getDetails());
+      Desktop.addInternalFrame(cap,
+              MessageManager.getString("label.pca_details"), 500, 500);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("opening PCA details", oom);
@@ -253,22 +337,25 @@ public class PCAPanel extends GPCAPanel implements Runnable
     }
   }
 
+  @Override
   public void showLabels_actionPerformed(ActionEvent e)
   {
     rc.showLabels(showLabels.getState());
   }
 
+  @Override
   public void print_actionPerformed(ActionEvent e)
   {
     PCAPrinter printer = new PCAPrinter();
     printer.start();
   }
 
+  @Override
   public void originalSeqData_actionPerformed(ActionEvent e)
   {
     // this was cut'n'pasted from the equivalent TreePanel method - we should
     // make this an abstract function of all jalview analysis windows
-    if (seqstrings == null)
+    if (pcaModel.getSeqtrings() == null)
     {
       jalview.bin.Cache.log
               .info("Unexpected call to originalSeqData_actionPerformed - should have hidden this menu action.");
@@ -290,14 +377,15 @@ public class PCAPanel extends GPCAPanel implements Runnable
     {
     }
     ;
-    Object[] alAndColsel = seqstrings.getAlignmentAndColumnSelection(gc);
+    Object[] alAndColsel = pcaModel.getSeqtrings()
+            .getAlignmentAndColumnSelection(gc);
 
     if (alAndColsel != null && alAndColsel[0] != null)
     {
       // AlignmentOrder origorder = new AlignmentOrder(alAndColsel[0]);
 
-      Alignment al = new Alignment((SequenceI[]) alAndColsel[0]);
-      Alignment dataset = (av != null && av.getAlignment() != null) ? av
+      AlignmentI al = new Alignment((SequenceI[]) alAndColsel[0]);
+      AlignmentI dataset = (av != null && av.getAlignment() != null) ? av
               .getAlignment().getDataset() : null;
       if (dataset != null)
       {
@@ -318,8 +406,10 @@ public class PCAPanel extends GPCAPanel implements Runnable
         // af.addSortByOrderMenuItem(ServiceName + " Ordering",
         // msaorder);
 
-        Desktop.addInternalFrame(af, "Original Data for " + this.title,
-                AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+        Desktop.addInternalFrame(af, MessageManager.formatMessage(
+                "label.original_data_for_params",
+                new String[] { this.title }), AlignFrame.DEFAULT_WIDTH,
+                AlignFrame.DEFAULT_HEIGHT);
       }
     }
     /*
@@ -334,6 +424,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
 
   class PCAPrinter extends Thread implements Printable
   {
+    @Override
     public void run()
     {
       PrinterJob printJob = PrinterJob.getPrinterJob();
@@ -353,6 +444,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
       }
     }
 
+    @Override
     public int print(Graphics pg, PageFormat pf, int pi)
             throws PrinterException
     {
@@ -382,9 +474,10 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void eps_actionPerformed(ActionEvent e)
   {
-    makePCAImage(jalview.util.ImageMaker.EPS);
+    makePCAImage(jalview.util.ImageMaker.TYPE.EPS);
   }
 
   /**
@@ -393,28 +486,37 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void png_actionPerformed(ActionEvent e)
   {
-    makePCAImage(jalview.util.ImageMaker.PNG);
+    makePCAImage(jalview.util.ImageMaker.TYPE.PNG);
   }
 
-  void makePCAImage(int type)
+  void makePCAImage(jalview.util.ImageMaker.TYPE type)
   {
     int width = rc.getWidth();
     int height = rc.getHeight();
 
     jalview.util.ImageMaker im;
 
-    if (type == jalview.util.ImageMaker.PNG)
+    if (type == jalview.util.ImageMaker.TYPE.PNG)
     {
-      im = new jalview.util.ImageMaker(this, jalview.util.ImageMaker.PNG,
-              "Make PNG image from PCA", width, height, null, null);
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from PCA",
+              width, height, null, null, null, 0, false);
+    }
+    else if (type == jalview.util.ImageMaker.TYPE.EPS)
+    {
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from PCA",
+              width, height, null, this.getTitle(), null, 0, false);
     }
     else
     {
-      im = new jalview.util.ImageMaker(this, jalview.util.ImageMaker.EPS,
-              "Make EPS file from PCA", width, height, null,
-              this.getTitle());
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
+              width, height, null, this.getTitle(), null, 0, false);
+
     }
 
     if (im.getGraphics() != null)
@@ -429,6 +531,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
     }
   }
 
+  @Override
   public void viewMenu_menuSelected()
   {
     buildAssociatedViewMenu();
@@ -464,6 +567,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
       buttonGroup.add(item);
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent evt)
         {
           rc.applyToAllViews = false;
@@ -483,6 +587,7 @@ public class PCAPanel extends GPCAPanel implements Runnable
     itemf.setSelected(rc.applyToAllViews);
     itemf.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent evt)
       {
         rc.applyToAllViews = itemf.isSelected();
@@ -499,68 +604,23 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * jalview.jbgui.GPCAPanel#outputPoints_actionPerformed(java.awt.event.ActionEvent
    * )
    */
+  @Override
   protected void outputPoints_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(getPointsasCsv(false));
-      Desktop.addInternalFrame(cap, "Points for " + getTitle(), 500, 500);
+      cap.setText(pcaModel.getPointsasCsv(false,
+              xCombobox.getSelectedIndex(), yCombobox.getSelectedIndex(),
+              zCombobox.getSelectedIndex()));
+      Desktop.addInternalFrame(cap, MessageManager.formatMessage(
+              "label.points_for_params", new String[] { this.getTitle() }),
+              500, 500);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("exporting PCA points", oom);
       cap.dispose();
     }
-  }
-
-  private String getPointsasCsv(boolean transformed)
-  {
-    StringBuffer csv = new StringBuffer();
-    csv.append("\"Sequence\"");
-    if (transformed)
-    {
-      csv.append(",");
-      csv.append(xCombobox.getSelectedIndex());
-      csv.append(",");
-      csv.append(yCombobox.getSelectedIndex());
-      csv.append(",");
-      csv.append(zCombobox.getSelectedIndex());
-    }
-    else
-    {
-      for (int d = 1, dmax = pca.component(1).length; d <= dmax; d++)
-      {
-        csv.append("," + d);
-      }
-    }
-    csv.append("\n");
-    for (int s = 0; s < seqs.length; s++)
-    {
-      csv.append("\"" + seqs[s].getName() + "\"");
-      double fl[];
-      if (!transformed)
-      {
-        // output pca in correct order
-        fl = pca.component(s);
-        for (int d = fl.length - 1; d >= 0; d--)
-        {
-          csv.append(",");
-          csv.append(fl[d]);
-        }
-      }
-      else
-      {
-        // output current x,y,z coords for points
-        fl = rc.getPointPosition(s);
-        for (int d = 0; d < fl.length; d++)
-        {
-          csv.append(",");
-          csv.append(fl[d]);
-        }
-      }
-      csv.append("\n");
-    }
-    return csv.toString();
   }
 
   /*
@@ -570,14 +630,18 @@ public class PCAPanel extends GPCAPanel implements Runnable
    * jalview.jbgui.GPCAPanel#outputProjPoints_actionPerformed(java.awt.event
    * .ActionEvent)
    */
+  @Override
   protected void outputProjPoints_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(getPointsasCsv(true));
-      Desktop.addInternalFrame(cap, "Transformed points for " + getTitle(),
-              500, 500);
+      cap.setText(pcaModel.getPointsasCsv(true,
+              xCombobox.getSelectedIndex(), yCombobox.getSelectedIndex(),
+              zCombobox.getSelectedIndex()));
+      Desktop.addInternalFrame(cap, MessageManager.formatMessage(
+              "label.transformed_points_for_params",
+              new String[] { this.getTitle() }), 500, 500);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("exporting transformed PCA points", oom);
@@ -585,4 +649,110 @@ public class PCAPanel extends GPCAPanel implements Runnable
     }
   }
 
+  /*
+   * (non-Javadoc)
+   * 
+   * @see jalview.gui.IProgressIndicator#setProgressBar(java.lang.String, long)
+   */
+  @Override
+  public void setProgressBar(String message, long id)
+  {
+    progressBar.setProgressBar(message, id);
+    // if (progressBars == null)
+    // {
+    // progressBars = new Hashtable();
+    // progressBarHandlers = new Hashtable();
+    // }
+    //
+    // JPanel progressPanel;
+    // Long lId = new Long(id);
+    // GridLayout layout = (GridLayout) statusPanel.getLayout();
+    // if (progressBars.get(lId) != null)
+    // {
+    // progressPanel = (JPanel) progressBars.get(new Long(id));
+    // statusPanel.remove(progressPanel);
+    // progressBars.remove(lId);
+    // progressPanel = null;
+    // if (message != null)
+    // {
+    // statusBar.setText(message);
+    // }
+    // if (progressBarHandlers.contains(lId))
+    // {
+    // progressBarHandlers.remove(lId);
+    // }
+    // layout.setRows(layout.getRows() - 1);
+    // }
+    // else
+    // {
+    // progressPanel = new JPanel(new BorderLayout(10, 5));
+    //
+    // JProgressBar progressBar = new JProgressBar();
+    // progressBar.setIndeterminate(true);
+    //
+    // progressPanel.add(new JLabel(message), BorderLayout.WEST);
+    // progressPanel.add(progressBar, BorderLayout.CENTER);
+    //
+    // layout.setRows(layout.getRows() + 1);
+    // statusPanel.add(progressPanel);
+    //
+    // progressBars.put(lId, progressPanel);
+    // }
+    // // update GUI
+    // // setMenusForViewport();
+    // validate();
+  }
+
+  @Override
+  public void registerHandler(final long id,
+          final IProgressIndicatorHandler handler)
+  {
+    progressBar.registerHandler(id, handler);
+    // if (progressBarHandlers == null || !progressBars.contains(new Long(id)))
+    // {
+    // throw new
+    // Error(MessageManager.getString("error.call_setprogressbar_before_registering_handler"));
+    // }
+    // progressBarHandlers.put(new Long(id), handler);
+    // final JPanel progressPanel = (JPanel) progressBars.get(new Long(id));
+    // if (handler.canCancel())
+    // {
+    // JButton cancel = new JButton(
+    // MessageManager.getString("action.cancel"));
+    // final IProgressIndicator us = this;
+    // cancel.addActionListener(new ActionListener()
+    // {
+    //
+    // @Override
+    // public void actionPerformed(ActionEvent e)
+    // {
+    // handler.cancelActivity(id);
+    // us.setProgressBar(MessageManager.formatMessage("label.cancelled_params",
+    // new String[]{((JLabel) progressPanel.getComponent(0)).getText()}), id);
+    // }
+    // });
+    // progressPanel.add(cancel, BorderLayout.EAST);
+    // }
+  }
+
+  /**
+   * 
+   * @return true if any progress bars are still active
+   */
+  @Override
+  public boolean operationInProgress()
+  {
+    return progressBar.operationInProgress();
+  }
+
+  @Override
+  protected void resetButton_actionPerformed(ActionEvent e)
+  {
+    int t = top;
+    top = 0; // ugly - prevents dimensionChanged events from being processed
+    xCombobox.setSelectedIndex(0);
+    yCombobox.setSelectedIndex(1);
+    top = t;
+    zCombobox.setSelectedIndex(2);
+  }
 }

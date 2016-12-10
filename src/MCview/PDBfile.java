@@ -1,73 +1,93 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package MCview;
 
-import java.io.*;
-import java.util.*;
-
-import java.awt.*;
-
-import jalview.datamodel.*;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.DBRefSource;
+import jalview.datamodel.SequenceI;
 import jalview.io.FileParse;
+import jalview.io.StructureFile;
+import jalview.util.MessageManager;
 
-public class PDBfile extends jalview.io.AlignFile
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Vector;
+
+public class PDBfile extends StructureFile
 {
-  public Vector chains;
+  private static String CALC_ID_PREFIX = "JalviewPDB";
 
-  public String id;
-
-  /**
-   * set to true to add chain alignment annotation as visible annotation.
-   */
-  boolean VisibleChainAnnotation = false;
-
-  public PDBfile(String inFile, String inType) throws IOException
+  public PDBfile(boolean addAlignmentAnnotations,
+          boolean predictSecondaryStructure, boolean externalSecStr)
   {
-    super(inFile, inType);
+    super();
+    addSettings(addAlignmentAnnotations, predictSecondaryStructure,
+            externalSecStr);
   }
 
-  public PDBfile(FileParse source) throws IOException
+  public PDBfile(boolean addAlignmentAnnotations, boolean predictSecStr,
+          boolean externalSecStr, String dataObject, String protocol)
+          throws IOException
   {
-    super(source);
+    super(false, dataObject, protocol);
+    addSettings(addAlignmentAnnotations, predictSecStr, externalSecStr);
+    doParse();
   }
 
+  public PDBfile(boolean addAlignmentAnnotations, boolean predictSecStr,
+          boolean externalSecStr, FileParse source) throws IOException
+  {
+    super(false, source);
+    addSettings(addAlignmentAnnotations, predictSecStr, externalSecStr);
+    doParse();
+  }
+
+  @Override
   public String print()
   {
     return null;
   }
 
+  @Override
   public void parse() throws IOException
   {
+    setDbRefType(DBRefSource.PDB);
     // TODO set the filename sensibly - try using data source name.
-    id = safeName(getDataName());
+    setId(safeName(getDataName()));
 
-      chains = new Vector();
+    setChains(new Vector<PDBChain>());
+    List<SequenceI> rna = new ArrayList<SequenceI>();
+    List<SequenceI> prot = new ArrayList<SequenceI>();
+    PDBChain tmpchain;
+    String line = null;
+    boolean modelFlag = false;
+    boolean terFlag = false;
+    String lastID = "";
 
-      PDBChain tmpchain;
-      String line=null;
-      boolean modelFlag = false;
-      boolean terFlag = false;
-      String lastID = "";
-
-      int index = 0;
-      String atomnam = null;
-      try
-      {
+    int indexx = 0;
+    String atomnam = null;
+    try
+    {
       while ((line = nextLine()) != null)
       {
         if (line.indexOf("HEADER") == 0)
@@ -85,7 +105,7 @@ public class PDBfile extends jalview.io.AlignFile
             }
             if (tid.length() > 0)
             {
-              id = tid;
+              setId(tid);
             }
             continue;
           }
@@ -122,20 +142,19 @@ public class PDBfile extends jalview.io.AlignFile
           }
 
           Atom tmpatom = new Atom(line);
-          tmpchain = findChain(tmpatom.chain);
-          if (tmpchain != null)
+          try
           {
+            tmpchain = findChain(tmpatom.chain);
             if (tmpatom.resNumIns.trim().equals(lastID))
             {
               // phosphorylated protein - seen both CA and P..
               continue;
             }
             tmpchain.atoms.addElement(tmpatom);
-          }
-          else
+          } catch (Exception e)
           {
-            tmpchain = new PDBChain(id, tmpatom.chain);
-            chains.addElement(tmpchain);
+            tmpchain = new PDBChain(getId(), tmpatom.chain);
+            getChains().add(tmpchain);
             tmpchain.atoms.addElement(tmpatom);
           }
           lastID = tmpatom.resNumIns.trim();
@@ -146,121 +165,93 @@ public class PDBfile extends jalview.io.AlignFile
       makeResidueList();
       makeCaBondList();
 
-      if (id == null)
+      if (getId() == null)
       {
-        id = inFile.getName();
+        setId(inFile.getName());
       }
-      for (int i = 0; i < chains.size(); i++)
+      for (PDBChain chain : getChains())
       {
-        SequenceI dataset = ((PDBChain) chains.elementAt(i)).sequence;
-        dataset.setName(id + "|" + dataset.getName());
-        PDBEntry entry = new PDBEntry();
-        entry.setId(id);
-        if (inFile != null)
+        SequenceI chainseq = postProcessChain(chain);
+        if (isRNA(chainseq))
         {
-          entry.setFile(inFile.getAbsolutePath());
+          rna.add(chainseq);
         }
         else
         {
-          // TODO: decide if we should dump the datasource to disk
-          entry.setFile(getDataName());
+          prot.add(chainseq);
         }
-        dataset.addPDBId(entry);
-        SequenceI chainseq = dataset.deriveSequence(); // PDBChain objects
-        // maintain reference to
-        // dataset
-        seqs.addElement(chainseq);
-        AlignmentAnnotation[] chainannot = chainseq.getAnnotation();
-        if (chainannot != null)
-        {
-          for (int ai = 0; ai < chainannot.length; ai++)
-          {
-            chainannot[ai].visible = VisibleChainAnnotation;
-            annotations.addElement(chainannot[ai]);
-          }
-        }
+      }
+      if (predictSecondaryStructure)
+      {
+        addSecondaryStructure(rna, prot);
       }
     } catch (OutOfMemoryError er)
     {
       System.out.println("OUT OF MEMORY LOADING PDB FILE");
-      throw new IOException("Out of memory loading PDB File");
-    }
-    catch (NumberFormatException ex)
+      throw new IOException(
+              MessageManager
+                      .getString("exception.outofmemory_loading_pdb_file"));
+    } catch (NumberFormatException ex)
     {
-      if (line!=null) {
+      if (line != null)
+      {
         System.err.println("Couldn't read number from line:");
         System.err.println(line);
       }
     }
+    markCalcIds();
   }
 
   /**
-   * make a friendly ID string.
+   * Process a parsed chain to construct and return a Sequence, and add it to
+   * the list of sequences parsed.
    * 
-   * @param dataName
-   * @return truncated dataName to after last '/'
+   * @param chain
+   * @return
    */
-  private String safeName(String dataName)
+
+  public static boolean isCalcIdHandled(String calcId)
   {
-    int p = 0;
-    while ((p = dataName.indexOf("/")) > -1 && p < dataName.length())
-    {
-      dataName = dataName.substring(p + 1);
-    }
-    return dataName;
+    return calcId != null && (CALC_ID_PREFIX.equals(calcId));
   }
 
-  public void makeResidueList()
+  public static boolean isCalcIdForFile(AlignmentAnnotation alan,
+          String pdbFile)
   {
-    for (int i = 0; i < chains.size(); i++)
-    {
-      ((PDBChain) chains.elementAt(i)).makeResidueList();
-    }
+    return alan.getCalcId() != null
+            && CALC_ID_PREFIX.equals(alan.getCalcId())
+            && pdbFile.equals(alan.getProperty("PDBID"));
   }
 
-  public void makeCaBondList()
+  public static String relocateCalcId(String calcId,
+          Hashtable<String, String> alreadyLoadedPDB) throws Exception
   {
-    for (int i = 0; i < chains.size(); i++)
-    {
-      ((PDBChain) chains.elementAt(i)).makeCaBondList();
-    }
+    int s = CALC_ID_PREFIX.length(), end = calcId
+            .indexOf(CALC_ID_PREFIX, s);
+    String between = calcId.substring(s, end - 1);
+    return CALC_ID_PREFIX + alreadyLoadedPDB.get(between) + ":"
+            + calcId.substring(end);
   }
 
-  public PDBChain findChain(String id)
+  private void markCalcIds()
   {
-    for (int i = 0; i < chains.size(); i++)
+    for (SequenceI sq : seqs)
     {
-      if (((PDBChain) chains.elementAt(i)).id.equals(id))
+      if (sq.getAnnotation() != null)
       {
-        return (PDBChain) chains.elementAt(i);
+        for (AlignmentAnnotation aa : sq.getAnnotation())
+        {
+          String oldId = aa.getCalcId();
+          if (oldId == null)
+          {
+            oldId = "";
+          }
+          aa.setCalcId(CALC_ID_PREFIX);
+          aa.setProperty("PDBID", getId());
+          aa.setProperty("oldCalcId", oldId);
+        }
       }
     }
-
-    return null;
   }
 
-  public void setChargeColours()
-  {
-    for (int i = 0; i < chains.size(); i++)
-    {
-      ((PDBChain) chains.elementAt(i)).setChargeColours();
-    }
-  }
-
-  public void setColours(jalview.schemes.ColourSchemeI cs)
-  {
-    for (int i = 0; i < chains.size(); i++)
-    {
-      ((PDBChain) chains.elementAt(i)).setChainColours(cs);
-    }
-  }
-
-  public void setChainColours()
-  {
-    for (int i = 0; i < chains.size(); i++)
-    {
-      ((PDBChain) chains.elementAt(i)).setChainColours(Color.getHSBColor(
-              1.0f / (float) i, .4f, 1.0f));
-    }
-  }
 }

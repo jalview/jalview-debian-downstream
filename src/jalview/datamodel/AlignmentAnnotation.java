@@ -1,24 +1,36 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel;
 
-import java.util.Enumeration;
-import java.util.Hashtable;
+import jalview.analysis.Rna;
+import jalview.analysis.SecStrConsensus.SimpleBP;
+import jalview.analysis.WUSSParseException;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * DOCUMENT ME!
@@ -28,26 +40,135 @@ import java.util.Hashtable;
  */
 public class AlignmentAnnotation
 {
+  private static final String ANNOTATION_ID_PREFIX = "ann";
+
+  /*
+   * Identifers for different types of profile data
+   */
+  public static final int SEQUENCE_PROFILE = 0;
+
+  public static final int STRUCTURE_PROFILE = 1;
+
+  public static final int CDNA_PROFILE = 2;
+
+  private static long counter = 0;
+
   /**
    * If true, this annotations is calculated every edit, eg consensus, quality
    * or conservation graphs
    */
   public boolean autoCalculated = false;
 
+  /**
+   * unique ID for this annotation, used to match up the same annotation row
+   * shown in multiple views and alignments
+   */
   public String annotationId;
 
+  /**
+   * the sequence this annotation is associated with (or null)
+   */
   public SequenceI sequenceRef;
 
-  /** DOCUMENT ME!! */
+  /** label shown in dropdown menus and in the annotation label area */
   public String label;
 
-  /** DOCUMENT ME!! */
+  /** longer description text shown as a tooltip */
   public String description;
 
-  /** DOCUMENT ME!! */
+  /** Array of annotations placed in the current coordinate system */
   public Annotation[] annotations;
 
-  public java.util.Hashtable sequenceMapping;
+  public List<SimpleBP> bps = null;
+
+  /**
+   * RNA secondary structure contact positions
+   */
+  public SequenceFeature[] _rnasecstr = null;
+
+  /**
+   * position of annotation resulting in invalid WUSS parsing or -1. -2 means
+   * there was no RNA structure in this annotation
+   */
+  private long invalidrnastruc = -2;
+
+  /**
+   * Updates the _rnasecstr field Determines the positions that base pair and
+   * the positions of helices based on secondary structure from a Stockholm file
+   * 
+   * @param RNAannot
+   */
+  private void _updateRnaSecStr(CharSequence RNAannot)
+  {
+    try
+    {
+      bps = Rna.getModeleBP(RNAannot);
+      _rnasecstr = Rna.getBasePairs(bps);
+      invalidrnastruc = -1;
+    } catch (WUSSParseException px)
+    {
+      // DEBUG System.out.println(px);
+      invalidrnastruc = px.getProblemPos();
+    }
+    if (invalidrnastruc > -1)
+    {
+      return;
+    }
+    Rna.HelixMap(_rnasecstr);
+    // setRNAStruc(RNAannot);
+
+    if (_rnasecstr != null && _rnasecstr.length > 0)
+    {
+      // show all the RNA secondary structure annotation symbols.
+      isrna = true;
+      showAllColLabels = true;
+      scaleColLabel = true;
+      _markRnaHelices();
+    }
+    // System.out.println("featuregroup " + _rnasecstr[0].getFeatureGroup());
+
+  }
+
+  private void _markRnaHelices()
+  {
+    int mxval = 0;
+    // Figure out number of helices
+    // Length of rnasecstr is the number of pairs of positions that base pair
+    // with each other in the secondary structure
+    for (int x = 0; x < _rnasecstr.length; x++)
+    {
+
+      /*
+       * System.out.println(this.annotation._rnasecstr[x] + " Begin" +
+       * this.annotation._rnasecstr[x].getBegin());
+       */
+      // System.out.println(this.annotation._rnasecstr[x].getFeatureGroup());
+      int val = 0;
+      try
+      {
+        val = Integer.valueOf(_rnasecstr[x].getFeatureGroup());
+        if (mxval < val)
+        {
+          mxval = val;
+        }
+      } catch (NumberFormatException q)
+      {
+      }
+      ;
+
+      annotations[_rnasecstr[x].getBegin()].value = val;
+      annotations[_rnasecstr[x].getEnd()].value = val;
+
+      // annotations[_rnasecstr[x].getBegin()].displayCharacter = "" + val;
+      // annotations[_rnasecstr[x].getEnd()].displayCharacter = "" + val;
+    }
+    setScore(mxval);
+  }
+
+  /**
+   * map of positions in the associated annotation
+   */
+  private Map<Integer, Annotation> sequenceMapping;
 
   /** DOCUMENT ME!! */
   public float graphMin;
@@ -117,11 +238,14 @@ public class AlignmentAnnotation
    */
   public boolean centreColLabels = false;
 
+  private boolean isrna;
+
   /*
    * (non-Javadoc)
    * 
    * @see java.lang.Object#finalize()
    */
+  @Override
   protected void finalize() throws Throwable
   {
     sequenceRef = null;
@@ -145,6 +269,12 @@ public class AlignmentAnnotation
     }
   }
 
+  // JBPNote: what does this do ?
+  public void ConcenStru(CharSequence RNAannot) throws WUSSParseException
+  {
+    bps = Rna.getModeleBP(RNAannot);
+  }
+
   /**
    * Creates a new AlignmentAnnotation object.
    * 
@@ -158,6 +288,7 @@ public class AlignmentAnnotation
   public AlignmentAnnotation(String label, String description,
           Annotation[] annotations)
   {
+    setAnnotationId();
     // always editable?
     editable = true;
     this.label = label;
@@ -167,9 +298,16 @@ public class AlignmentAnnotation
     validateRangeAndDisplay();
   }
 
+  /**
+   * Checks if annotation labels represent secondary structures
+   * 
+   */
   void areLabelsSecondaryStructure()
   {
     boolean nonSSLabel = false;
+    isrna = false;
+    StringBuffer rnastring = new StringBuffer();
+
     char firstChar = 0;
     for (int i = 0; i < annotations.length; i++)
     {
@@ -182,9 +320,54 @@ public class AlignmentAnnotation
       {
         hasIcons |= true;
       }
-
-      if (annotations[i].displayCharacter == null)
+      else
+      // Check for RNA secondary structure
       {
+        // System.out.println(annotations[i].secondaryStructure);
+        // TODO: 2.8.2 should this ss symbol validation check be a function in
+        // RNA/ResidueProperties ?
+        if (annotations[i].secondaryStructure == '('
+                || annotations[i].secondaryStructure == '['
+                || annotations[i].secondaryStructure == '<'
+                || annotations[i].secondaryStructure == '{'
+                || annotations[i].secondaryStructure == 'A'
+                || annotations[i].secondaryStructure == 'B'
+                || annotations[i].secondaryStructure == 'C'
+                || annotations[i].secondaryStructure == 'D'
+                || annotations[i].secondaryStructure == 'E'
+                || annotations[i].secondaryStructure == 'F'
+                || annotations[i].secondaryStructure == 'G'
+                || annotations[i].secondaryStructure == 'H'
+                || annotations[i].secondaryStructure == 'I'
+                || annotations[i].secondaryStructure == 'J'
+                || annotations[i].secondaryStructure == 'K'
+                || annotations[i].secondaryStructure == 'L'
+                || annotations[i].secondaryStructure == 'M'
+                || annotations[i].secondaryStructure == 'N'
+                || annotations[i].secondaryStructure == 'O'
+                || annotations[i].secondaryStructure == 'P'
+                || annotations[i].secondaryStructure == 'Q'
+                || annotations[i].secondaryStructure == 'R'
+                || annotations[i].secondaryStructure == 'S'
+                || annotations[i].secondaryStructure == 'T'
+                || annotations[i].secondaryStructure == 'U'
+                || annotations[i].secondaryStructure == 'V'
+                || annotations[i].secondaryStructure == 'W'
+                || annotations[i].secondaryStructure == 'X'
+                || annotations[i].secondaryStructure == 'Y'
+                || annotations[i].secondaryStructure == 'Z')
+        {
+          hasIcons |= true;
+          isrna |= true;
+        }
+      }
+
+      // System.out.println("displaychar " + annotations[i].displayCharacter);
+
+      if (annotations[i].displayCharacter == null
+              || annotations[i].displayCharacter.length() == 0)
+      {
+        rnastring.append('.');
         continue;
       }
       if (annotations[i].displayCharacter.length() == 1)
@@ -203,8 +386,38 @@ public class AlignmentAnnotation
                 // &&
                 // annotations[i].displayCharacter.charAt(0)==annotations[i].secondaryStructure
                 firstChar != ' '
-                && firstChar != 'H'
+                && firstChar != '$'
+                && firstChar != 0xCE
+                && firstChar != '('
+                && firstChar != '['
+                && firstChar != '>'
+                && firstChar != '{'
+                && firstChar != 'A'
+                && firstChar != 'B'
+                && firstChar != 'C'
+                && firstChar != 'D'
                 && firstChar != 'E'
+                && firstChar != 'F'
+                && firstChar != 'G'
+                && firstChar != 'H'
+                && firstChar != 'I'
+                && firstChar != 'J'
+                && firstChar != 'K'
+                && firstChar != 'L'
+                && firstChar != 'M'
+                && firstChar != 'N'
+                && firstChar != 'O'
+                && firstChar != 'P'
+                && firstChar != 'Q'
+                && firstChar != 'R'
+                && firstChar != 'S'
+                && firstChar != 'T'
+                && firstChar != 'U'
+                && firstChar != 'V'
+                && firstChar != 'W'
+                && firstChar != 'X'
+                && firstChar != 'Y'
+                && firstChar != 'Z'
                 && firstChar != '-'
                 && firstChar < jalview.schemes.ResidueProperties.aaIndex.length)
         {
@@ -218,6 +431,10 @@ public class AlignmentAnnotation
             nonSSLabel = true;
           }
         }
+      }
+      else
+      {
+        rnastring.append(annotations[i].displayCharacter.charAt(1));
       }
 
       if (annotations[i].displayCharacter.length() > 0)
@@ -241,8 +458,97 @@ public class AlignmentAnnotation
 
       }
     }
+    else
+    {
+      if (isrna)
+      {
+        _updateRnaSecStr(new AnnotCharSequence());
+      }
+    }
+  }
 
-    annotationId = this.hashCode() + "";
+  /**
+   * flyweight access to positions in the alignment annotation row for RNA
+   * processing
+   * 
+   * @author jimp
+   * 
+   */
+  private class AnnotCharSequence implements CharSequence
+  {
+    int offset = 0;
+
+    int max = 0;
+
+    public AnnotCharSequence()
+    {
+      this(0, annotations.length);
+    }
+
+    AnnotCharSequence(int start, int end)
+    {
+      offset = start;
+      max = end;
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end)
+    {
+      return new AnnotCharSequence(offset + start, offset + end);
+    }
+
+    @Override
+    public int length()
+    {
+      return max - offset;
+    }
+
+    @Override
+    public char charAt(int index)
+    {
+      return ((index + offset < 0) || (index + offset) >= max
+              || annotations[index + offset] == null
+              || (annotations[index + offset].secondaryStructure <= ' ') ? ' '
+              : annotations[index + offset].displayCharacter == null
+                      || annotations[index + offset].displayCharacter
+                              .length() == 0 ? annotations[index + offset].secondaryStructure
+                      : annotations[index + offset].displayCharacter
+                              .charAt(0));
+    }
+
+    @Override
+    public String toString()
+    {
+      char[] string = new char[max - offset];
+      int mx = annotations.length;
+
+      for (int i = offset; i < mx; i++)
+      {
+        string[i] = (annotations[i] == null || (annotations[i].secondaryStructure <= 32)) ? ' '
+                : (annotations[i].displayCharacter == null
+                        || annotations[i].displayCharacter.length() == 0 ? annotations[i].secondaryStructure
+                        : annotations[i].displayCharacter.charAt(0));
+      }
+      return new String(string);
+    }
+  };
+
+  private long _lastrnaannot = -1;
+
+  public String getRNAStruc()
+  {
+    if (isrna)
+    {
+      String rnastruc = new AnnotCharSequence().toString();
+      if (_lastrnaannot != rnastruc.hashCode())
+      {
+        // ensure rna structure contacts are up to date
+        _lastrnaannot = rnastruc.hashCode();
+        _updateRnaSecStr(rnastruc);
+      }
+      return rnastruc;
+    }
+    return null;
   }
 
   /**
@@ -264,6 +570,7 @@ public class AlignmentAnnotation
   public AlignmentAnnotation(String label, String description,
           Annotation[] annotations, float min, float max, int graphType)
   {
+    setAnnotationId();
     // graphs are not editable
     editable = graphType == 0;
 
@@ -280,12 +587,13 @@ public class AlignmentAnnotation
    * checks graphMin and graphMax, secondary structure symbols, sets graphType
    * appropriately, sets null labels to the empty string if appropriate.
    */
-  private void validateRangeAndDisplay()
+  public void validateRangeAndDisplay()
   {
 
     if (annotations == null)
     {
       visible = false; // try to prevent renderer from displaying.
+      invalidrnastruc = -1;
       return; // this is a non-annotation row annotation - ie a sequence score.
     }
 
@@ -293,7 +601,7 @@ public class AlignmentAnnotation
     float min = graphMin;
     float max = graphMax;
     boolean drawValues = true;
-
+    _linecolour = null;
     if (min == max)
     {
       min = 999999999;
@@ -318,6 +626,10 @@ public class AlignmentAnnotation
         if (annotations[i].value < min)
         {
           min = annotations[i].value;
+        }
+        if (_linecolour == null && annotations[i].colour != null)
+        {
+          _linecolour = annotations[i].colour;
         }
       }
       // ensure zero is origin for min/max ranges on only one side of zero
@@ -359,9 +671,12 @@ public class AlignmentAnnotation
    */
   public AlignmentAnnotation(AlignmentAnnotation annotation)
   {
+    setAnnotationId();
     this.label = new String(annotation.label);
     if (annotation.description != null)
+    {
       this.description = new String(annotation.description);
+    }
     this.graphMin = annotation.graphMin;
     this.graphMax = annotation.graphMax;
     this.graph = annotation.graph;
@@ -376,6 +691,18 @@ public class AlignmentAnnotation
     this.label = annotation.label;
     this.padGaps = annotation.padGaps;
     this.visible = annotation.visible;
+    this.centreColLabels = annotation.centreColLabels;
+    this.scaleColLabel = annotation.scaleColLabel;
+    this.showAllColLabels = annotation.showAllColLabels;
+    this.calcId = annotation.calcId;
+    if (annotation.properties != null)
+    {
+      properties = new HashMap<String, String>();
+      for (Map.Entry<String, String> val : annotation.properties.entrySet())
+      {
+        properties.put(val.getKey(), val.getValue());
+      }
+    }
     if (this.hasScore = annotation.hasScore)
     {
       this.score = annotation.score;
@@ -384,32 +711,42 @@ public class AlignmentAnnotation
     {
       threshold = new GraphLine(annotation.threshold);
     }
+    Annotation[] ann = annotation.annotations;
     if (annotation.annotations != null)
     {
-      Annotation[] ann = annotation.annotations;
       this.annotations = new Annotation[ann.length];
       for (int i = 0; i < ann.length; i++)
       {
-        annotations[i] = new Annotation(ann[i]);
-      }
-      ;
-      if (annotation.sequenceRef != null)
-      {
-        this.sequenceRef = annotation.sequenceRef;
-        if (annotation.sequenceMapping != null)
+        if (ann[i] != null)
         {
-          Integer p = null;
-          sequenceMapping = new Hashtable();
-          Enumeration pos = annotation.sequenceMapping.keys();
-          while (pos.hasMoreElements())
+          annotations[i] = new Annotation(ann[i]);
+          if (_linecolour != null)
           {
-            // could optimise this!
-            p = (Integer) pos.nextElement();
-            Annotation a = (Annotation) annotation.sequenceMapping.get(p);
-            if (a == null)
-            {
-              continue;
-            }
+            _linecolour = annotations[i].colour;
+          }
+        }
+      }
+    }
+    if (annotation.sequenceRef != null)
+    {
+      this.sequenceRef = annotation.sequenceRef;
+      if (annotation.sequenceMapping != null)
+      {
+        Integer p = null;
+        sequenceMapping = new HashMap<Integer, Annotation>();
+        Iterator<Integer> pos = annotation.sequenceMapping.keySet()
+                .iterator();
+        while (pos.hasNext())
+        {
+          // could optimise this!
+          p = pos.next();
+          Annotation a = annotation.sequenceMapping.get(p);
+          if (a == null)
+          {
+            continue;
+          }
+          if (ann != null)
+          {
             for (int i = 0; i < ann.length; i++)
             {
               if (ann[i] == a)
@@ -419,11 +756,16 @@ public class AlignmentAnnotation
             }
           }
         }
-        else
-        {
-          this.sequenceMapping = null;
-        }
       }
+      else
+      {
+        this.sequenceMapping = null;
+      }
+    }
+    // TODO: check if we need to do this: JAL-952
+    // if (this.isrna=annotation.isrna)
+    {
+      // _rnasecstr=new SequenceFeature[annotation._rnasecstr];
     }
     validateRangeAndDisplay(); // construct hashcodes, etc.
   }
@@ -443,13 +785,21 @@ public class AlignmentAnnotation
       return;
     }
     if (startRes < 0)
+    {
       startRes = 0;
+    }
     if (startRes >= annotations.length)
+    {
       startRes = annotations.length - 1;
+    }
     if (endRes >= annotations.length)
+    {
       endRes = annotations.length - 1;
+    }
     if (annotations == null)
+    {
       return;
+    }
     Annotation[] temp = new Annotation[endRes - startRes + 1];
     if (startRes < annotations.length)
     {
@@ -463,11 +813,11 @@ public class AlignmentAnnotation
       int epos = sequenceRef.findPosition(endRes);
       if (sequenceMapping != null)
       {
-        Hashtable newmapping = new Hashtable();
-        Enumeration e = sequenceMapping.keys();
-        while (e.hasMoreElements())
+        Map<Integer, Annotation> newmapping = new HashMap<Integer, Annotation>();
+        Iterator<Integer> e = sequenceMapping.keySet().iterator();
+        while (e.hasNext())
         {
-          Integer pos = (Integer) e.nextElement();
+          Integer pos = e.next();
           if (pos.intValue() >= spos && pos.intValue() <= epos)
           {
             newmapping.put(pos, sequenceMapping.get(pos));
@@ -510,9 +860,10 @@ public class AlignmentAnnotation
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String toString()
   {
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder(256);
 
     for (int i = 0; i < annotations.length; i++)
     {
@@ -585,7 +936,7 @@ public class AlignmentAnnotation
     {
       return;
     }
-    sequenceMapping = new java.util.Hashtable();
+    sequenceMapping = new HashMap<Integer, Annotation>();
 
     int seqPos;
 
@@ -608,10 +959,18 @@ public class AlignmentAnnotation
 
   }
 
+  /**
+   * When positional annotation and a sequence reference is present, clears and
+   * resizes the annotations array to the current alignment width, and adds
+   * annotation according to aligned positions of the sequenceRef given by
+   * sequenceMapping.
+   */
   public void adjustForAlignment()
   {
     if (sequenceRef == null)
+    {
       return;
+    }
 
     if (annotations == null)
     {
@@ -629,18 +988,20 @@ public class AlignmentAnnotation
     int position;
     Annotation[] temp = new Annotation[aSize];
     Integer index;
-
-    for (a = sequenceRef.getStart(); a <= sequenceRef.getEnd(); a++)
+    if (sequenceMapping != null)
     {
-      index = new Integer(a);
-      if (sequenceMapping.containsKey(index))
+      for (a = sequenceRef.getStart(); a <= sequenceRef.getEnd(); a++)
       {
-        position = sequenceRef.findIndex(a) - 1;
+        index = new Integer(a);
+        Annotation annot = sequenceMapping.get(index);
+        if (annot != null)
+        {
+          position = sequenceRef.findIndex(a) - 1;
 
-        temp[position] = (Annotation) sequenceMapping.get(index);
+          temp[position] = annot;
+        }
       }
     }
-
     annotations = temp;
   }
 
@@ -658,8 +1019,10 @@ public class AlignmentAnnotation
       if (annotations[i] == null)
       {
         if (i + 1 < iSize)
+        {
           System.arraycopy(annotations, i + 1, annotations, i, iSize - i
                   - 1);
+        }
         iSize--;
       }
       else
@@ -675,11 +1038,11 @@ public class AlignmentAnnotation
   }
 
   /**
-   * Associate this annotion with the aligned residues of a particular sequence.
-   * sequenceMapping will be updated in the following way: null sequenceI -
-   * existing mapping will be discarded but annotations left in mapped
-   * positions. valid sequenceI not equal to current sequenceRef: mapping is
-   * discarded and rebuilt assuming 1:1 correspondence TODO: overload with
+   * Associate this annotation with the aligned residues of a particular
+   * sequence. sequenceMapping will be updated in the following way: null
+   * sequenceI - existing mapping will be discarded but annotations left in
+   * mapped positions. valid sequenceI not equal to current sequenceRef: mapping
+   * is discarded and rebuilt assuming 1:1 correspondence TODO: overload with
    * parameter to specify correspondence between current and new sequenceRef
    * 
    * @param sequenceI
@@ -690,10 +1053,15 @@ public class AlignmentAnnotation
     {
       if (sequenceRef != null)
       {
+        boolean rIsDs = sequenceRef.getDatasetSequence() == null, tIsDs = sequenceI
+                .getDatasetSequence() == null;
         if (sequenceRef != sequenceI
-                && !sequenceRef.equals(sequenceI)
-                && sequenceRef.getDatasetSequence() != sequenceI
+                && (rIsDs && !tIsDs && sequenceRef != sequenceI
                         .getDatasetSequence())
+                && (!rIsDs && tIsDs && sequenceRef.getDatasetSequence() != sequenceI)
+                && (!rIsDs && !tIsDs && sequenceRef.getDatasetSequence() != sequenceI
+                        .getDatasetSequence())
+                && !sequenceRef.equals(sequenceI))
         {
           // if sequenceRef isn't intersecting with sequenceI
           // throw away old mapping and reconstruct.
@@ -793,11 +1161,15 @@ public class AlignmentAnnotation
       for (int i = 0; i < annotations.length; i++)
       {
         if (annotations[i] == null)
+        {
           annotations[i] = new Annotation(String.valueOf(gapchar), null,
-                  ' ', 0f);
+                  ' ', 0f, null);
+        }
         else if (annotations[i].displayCharacter == null
                 || annotations[i].displayCharacter.equals(" "))
+        {
           annotations[i].displayCharacter = String.valueOf(gapchar);
+        }
       }
     }
   }
@@ -813,14 +1185,305 @@ public class AlignmentAnnotation
   {
     if (seqname && this.sequenceRef != null)
     {
-      int i=description.toLowerCase().indexOf("<html>");
-      if (i>-1)
+      int i = description.toLowerCase().indexOf("<html>");
+      if (i > -1)
       {
         // move the html tag to before the sequence reference.
-        return "<html>"+sequenceRef.getName()+" : "+description.substring(i+6);
+        return "<html>" + sequenceRef.getName() + " : "
+                + description.substring(i + 6);
       }
       return sequenceRef.getName() + " : " + description;
     }
     return description;
+  }
+
+  public boolean isValidStruc()
+  {
+    return invalidrnastruc == -1;
+  }
+
+  public long getInvalidStrucPos()
+  {
+    return invalidrnastruc;
+  }
+
+  /**
+   * machine readable ID string indicating what generated this annotation
+   */
+  protected String calcId = "";
+
+  /**
+   * properties associated with the calcId
+   */
+  protected Map<String, String> properties = new HashMap<String, String>();
+
+  /**
+   * base colour for line graphs. If null, will be set automatically by
+   * searching the alignment annotation
+   */
+  public java.awt.Color _linecolour;
+
+  public String getCalcId()
+  {
+    return calcId;
+  }
+
+  public void setCalcId(String calcId)
+  {
+    this.calcId = calcId;
+  }
+
+  public boolean isRNA()
+  {
+    return isrna;
+  }
+
+  /**
+   * transfer annotation to the given sequence using the given mapping from the
+   * current positions or an existing sequence mapping
+   * 
+   * @param sq
+   * @param sp2sq
+   *          map involving sq as To or From
+   */
+  public void liftOver(SequenceI sq, Mapping sp2sq)
+  {
+    if (sp2sq.getMappedWidth() != sp2sq.getWidth())
+    {
+      // TODO: employ getWord/MappedWord to transfer annotation between cDNA and
+      // Protein reference frames
+      throw new Error(
+              "liftOver currently not implemented for transfer of annotation between different types of seqeunce");
+    }
+    boolean mapIsTo = (sp2sq != null) ? (sp2sq.getTo() == sq || sp2sq
+            .getTo() == sq.getDatasetSequence()) : false;
+
+    // TODO build a better annotation element map and get rid of annotations[]
+    Map<Integer, Annotation> mapForsq = new HashMap<Integer, Annotation>();
+    if (sequenceMapping != null)
+    {
+      if (sp2sq != null)
+      {
+        for (Entry<Integer, Annotation> ie : sequenceMapping.entrySet())
+        {
+          Integer mpos = Integer.valueOf(mapIsTo ? sp2sq
+                  .getMappedPosition(ie.getKey()) : sp2sq.getPosition(ie
+                  .getKey()));
+          if (mpos >= sq.getStart() && mpos <= sq.getEnd())
+          {
+            mapForsq.put(mpos, ie.getValue());
+          }
+        }
+        sequenceMapping = mapForsq;
+        sequenceRef = sq;
+        adjustForAlignment();
+      }
+      else
+      {
+        // trim positions
+      }
+    }
+  }
+
+  /**
+   * like liftOver but more general.
+   * 
+   * Takes an array of int pairs that will be used to update the internal
+   * sequenceMapping and so shuffle the annotated positions
+   * 
+   * @param newref
+   *          - new sequence reference for the annotation row - if null,
+   *          sequenceRef is left unchanged
+   * @param mapping
+   *          array of ints containing corresponding positions
+   * @param from
+   *          - column for current coordinate system (-1 for index+1)
+   * @param to
+   *          - column for destination coordinate system (-1 for index+1)
+   * @param idxoffset
+   *          - offset added to index when referencing either coordinate system
+   * @note no checks are made as to whether from and/or to are sensible
+   * @note caller should add the remapped annotation to newref if they have not
+   *       already
+   */
+  public void remap(SequenceI newref, HashMap<Integer, int[]> mapping,
+          int from, int to, int idxoffset)
+  {
+    if (mapping != null)
+    {
+      Map<Integer, Annotation> old = sequenceMapping;
+      Map<Integer, Annotation> remap = new HashMap<Integer, Annotation>();
+      int index = -1;
+      for (int mp[] : mapping.values())
+      {
+        if (index++ < 0)
+        {
+          continue;
+        }
+        Annotation ann = null;
+        if (from == -1)
+        {
+          ann = sequenceMapping.get(Integer.valueOf(idxoffset + index));
+        }
+        else
+        {
+          if (mp != null && mp.length > from)
+          {
+            ann = sequenceMapping.get(Integer.valueOf(mp[from]));
+          }
+        }
+        if (ann != null)
+        {
+          if (to == -1)
+          {
+            remap.put(Integer.valueOf(idxoffset + index), ann);
+          }
+          else
+          {
+            if (to > -1 && to < mp.length)
+            {
+              remap.put(Integer.valueOf(mp[to]), ann);
+            }
+          }
+        }
+      }
+      sequenceMapping = remap;
+      old.clear();
+      if (newref != null)
+      {
+        sequenceRef = newref;
+      }
+      adjustForAlignment();
+    }
+  }
+
+  public String getProperty(String property)
+  {
+    if (properties == null)
+    {
+      return null;
+    }
+    return properties.get(property);
+  }
+
+  public void setProperty(String property, String value)
+  {
+    if (properties == null)
+    {
+      properties = new HashMap<String, String>();
+    }
+    properties.put(property, value);
+  }
+
+  public boolean hasProperties()
+  {
+    return properties != null && properties.size() > 0;
+  }
+
+  public Collection<String> getProperties()
+  {
+    if (properties == null)
+    {
+      return Collections.emptyList();
+    }
+    return properties.keySet();
+  }
+
+  /**
+   * Returns the Annotation for the given sequence position (base 1) if any,
+   * else null
+   * 
+   * @param position
+   * @return
+   */
+  public Annotation getAnnotationForPosition(int position)
+  {
+    return sequenceMapping == null ? null : sequenceMapping.get(position);
+
+  }
+
+  /**
+   * Set the id to "ann" followed by a counter that increments so as to be
+   * unique for the lifetime of the JVM
+   */
+  protected final void setAnnotationId()
+  {
+    this.annotationId = ANNOTATION_ID_PREFIX + Long.toString(nextId());
+  }
+
+  /**
+   * Returns the match for the last unmatched opening RNA helix pair symbol
+   * preceding the given column, or '(' if nothing found to match.
+   * 
+   * @param column
+   * @return
+   */
+  public String getDefaultRnaHelixSymbol(int column)
+  {
+    String result = "(";
+    if (annotations == null)
+    {
+      return result;
+    }
+
+    /*
+     * for each preceding column, if it contains an open bracket, 
+     * count whether it is still unmatched at column, if so return its pair
+     * (likely faster than the fancy alternative using stacks)
+     */
+    for (int col = column - 1; col >= 0; col--)
+    {
+      Annotation annotation = annotations[col];
+      if (annotation == null)
+      {
+        continue;
+      }
+      String displayed = annotation.displayCharacter;
+      if (displayed == null || displayed.length() != 1)
+      {
+        continue;
+      }
+      char symbol = displayed.charAt(0);
+      if (!Rna.isOpeningParenthesis(symbol))
+      {
+        continue;
+      }
+
+      /*
+       * found an opening bracket symbol
+       * count (closing-opening) symbols of this type that follow it,
+       * up to and excluding the target column; if the count is less
+       * than 1, the opening bracket is unmatched, so return its match
+       */
+      String closer = String.valueOf(Rna
+              .getMatchingClosingParenthesis(symbol));
+      String opener = String.valueOf(symbol);
+      int count = 0;
+      for (int j = col + 1; j < column; j++)
+      {
+        if (annotations[j] != null)
+        {
+          String s = annotations[j].displayCharacter;
+          if (closer.equals(s))
+          {
+            count++;
+          }
+          else if (opener.equals(s))
+          {
+            count--;
+          }
+        }
+      }
+      if (count < 1)
+      {
+        return closer;
+      }
+    }
+    return result;
+  }
+
+  protected static synchronized long nextId()
+  {
+    return counter++;
   }
 }

@@ -1,30 +1,58 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 /*
  * This extension was written by Benjamin Schuster-Boeckler at sanger.ac.uk
  */
 package jalview.io;
 
-import java.io.*;
-import java.util.*;
+import jalview.analysis.Rna;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.Annotation;
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.Mapping;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.schemes.ResidueProperties;
+import jalview.util.Format;
+import jalview.util.MessageManager;
 
-import com.stevesoft.pat.*;
-import jalview.datamodel.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.Vector;
+
+import com.stevesoft.pat.Regex;
+
+import fr.orsay.lri.varna.exceptions.ExceptionUnmatchedClosingParentheses;
+import fr.orsay.lri.varna.factories.RNAFactory;
+import fr.orsay.lri.varna.models.rna.RNA;
 
 // import org.apache.log4j.*;
 
@@ -37,15 +65,36 @@ import jalview.datamodel.*;
  * into Jalview's local representation.
  * 
  * @author bsb at sanger.ac.uk
+ * @author Natasha Shersnev (Dundee, UK) (Stockholm file writer)
+ * @author Lauren Lui (UCSC, USA) (RNA secondary structure annotation import as
+ *         stockholm)
+ * @author Anne Menard (Paris, FR) (VARNA parsing of Stockholm file data)
  * @version 0.3 + jalview mods
  * 
  */
 public class StockholmFile extends AlignFile
 {
-  // static Logger logger = Logger.getLogger("jalview.io.StockholmFile");
+  private static final Regex OPEN_PAREN = new Regex("(<|\\[)", "(");
+
+  private static final Regex CLOSE_PAREN = new Regex("(>|\\])", ")");
+
+  private static final Regex DETECT_BRACKETS = new Regex(
+          "(<|>|\\[|\\]|\\(|\\))");
+
+  StringBuffer out; // output buffer
+
+  AlignmentI al;
 
   public StockholmFile()
   {
+  }
+
+  /**
+   * Creates a new StockholmFile object for output.
+   */
+  public StockholmFile(AlignmentI al)
+  {
+    this.al = al;
   }
 
   public StockholmFile(String inFile, String type) throws IOException
@@ -58,9 +107,74 @@ public class StockholmFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
+  }
+
+  /**
+   * Parse a file in Stockholm format into Jalview's data model using VARNA
+   * 
+   * @throws IOException
+   *           If there is an error with the input file
+   */
+  public void parse_with_VARNA(java.io.File inFile) throws IOException
+  {
+    FileReader fr = null;
+    fr = new FileReader(inFile);
+
+    BufferedReader r = new BufferedReader(fr);
+    List<RNA> result = null;
+    try
+    {
+      result = RNAFactory.loadSecStrStockholm(r);
+    } catch (ExceptionUnmatchedClosingParentheses umcp)
+    {
+      errormessage = "Unmatched parentheses in annotation. Aborting ("
+              + umcp.getMessage() + ")";
+      throw new IOException(umcp);
+    }
+    // DEBUG System.out.println("this is the secondary scructure:"
+    // +result.size());
+    SequenceI[] seqs = new SequenceI[result.size()];
+    String id = null;
+    for (int i = 0; i < result.size(); i++)
+    {
+      // DEBUG System.err.println("Processing i'th sequence in Stockholm file")
+      RNA current = result.get(i);
+
+      String seq = current.getSeq();
+      String rna = current.getStructDBN(true);
+      // DEBUG System.out.println(seq);
+      // DEBUG System.err.println(rna);
+      int begin = 0;
+      int end = seq.length() - 1;
+      id = safeName(getDataName());
+      seqs[i] = new Sequence(id, seq, begin, end);
+      String[] annot = new String[rna.length()];
+      Annotation[] ann = new Annotation[rna.length()];
+      for (int j = 0; j < rna.length(); j++)
+      {
+        annot[j] = rna.substring(j, j + 1);
+
+      }
+
+      for (int k = 0; k < rna.length(); k++)
+      {
+        ann[k] = new Annotation(annot[k], "", Rna.getRNASecStrucState(
+                annot[k]).charAt(0), 0f);
+
+      }
+      AlignmentAnnotation align = new AlignmentAnnotation("Sec. str.",
+              current.getID(), ann);
+
+      seqs[i].addAlignmentAnnotation(align);
+      seqs[i].setRNA(result.get(i));
+      this.annotations.addElement(align);
+    }
+    this.setSeqs(seqs);
+
   }
 
   /**
@@ -70,6 +184,7 @@ public class StockholmFile extends AlignFile
    * @throws IOException
    *           If there is an error with the input file
    */
+  @Override
   public void parse() throws IOException
   {
     StringBuffer treeString = new StringBuffer();
@@ -79,21 +194,26 @@ public class StockholmFile extends AlignFile
     String version;
     // String id;
     Hashtable seqAnn = new Hashtable(); // Sequence related annotations
-    Hashtable seqs = new Hashtable();
+    LinkedHashMap<String, String> seqs = new LinkedHashMap<String, String>();
     Regex p, r, rend, s, x;
+    // Temporary line for processing RNA annotation
+    // String RNAannot = "";
 
     // ------------------ Parsing File ----------------------
     // First, we have to check that this file has STOCKHOLM format, i.e. the
     // first line must match
+
     r = new Regex("# STOCKHOLM ([\\d\\.]+)");
     if (!r.search(nextLine()))
     {
       throw new IOException(
-              "This file is not in valid STOCKHOLM format: First line does not contain '# STOCKHOLM'");
+              MessageManager
+                      .getString("exception.stockholm_invalid_format"));
     }
     else
     {
       version = r.stringMatched(1);
+
       // logger.debug("Stockholm version: " + version);
     }
 
@@ -105,11 +225,20 @@ public class StockholmFile extends AlignFile
     r = new Regex("#=(G[FSRC]?)\\s+(.*)"); // Finds any annotation line
     x = new Regex("(\\S+)\\s+(\\S+)"); // split id from sequence
 
+    // Convert all bracket types to parentheses (necessary for passing to VARNA)
+    Regex openparen = new Regex("(<|\\[)", "(");
+    Regex closeparen = new Regex("(>|\\])", ")");
+
+    // Detect if file is RNA by looking for bracket types
+    Regex detectbrackets = new Regex("(<|>|\\[|\\]|\\(|\\))");
+
     rend.optimize();
     p.optimize();
     s.optimize();
     r.optimize();
     x.optimize();
+    openparen.optimize();
+    closeparen.optimize();
 
     while ((line = nextLine()) != null)
     {
@@ -120,15 +249,30 @@ public class StockholmFile extends AlignFile
       if (rend.search(line))
       {
         // End of the alignment, pass stuff back
-
         this.noSeqs = seqs.size();
-        // logger.debug("Number of sequences: " + this.noSeqs);
-        Enumeration accs = seqs.keys();
-        while (accs.hasMoreElements())
+
+        String seqdb, dbsource = null;
+        Regex pf = new Regex("PF[0-9]{5}(.*)"); // Finds AC for Pfam
+        Regex rf = new Regex("RF[0-9]{5}(.*)"); // Finds AC for Rfam
+        if (getAlignmentProperty("AC") != null)
         {
-          String acc = (String) accs.nextElement();
+          String dbType = getAlignmentProperty("AC").toString();
+          if (pf.search(dbType))
+          {
+            // PFAM Alignment - so references are typically from Uniprot
+            dbsource = "PFAM";
+          }
+          else if (rf.search(dbType))
+          {
+            dbsource = "RFAM";
+          }
+        }
+        // logger.debug("Number of sequences: " + this.noSeqs);
+        for (Map.Entry<String, String> skey : seqs.entrySet())
+        {
           // logger.debug("Processing sequence " + acc);
-          String seq = (String) seqs.remove(acc);
+          String acc = skey.getKey();
+          String seq = skey.getValue();
           if (maxLength < seq.length())
           {
             maxLength = seq.length();
@@ -136,12 +280,16 @@ public class StockholmFile extends AlignFile
           int start = 1;
           int end = -1;
           String sid = acc;
-          // Retrieve hash of annotations for this accession
+          /*
+           * Retrieve hash of annotations for this accession Associate
+           * Annotation with accession
+           */
           Hashtable accAnnotations = null;
 
           if (seqAnn != null && seqAnn.containsKey(acc))
           {
             accAnnotations = (Hashtable) seqAnn.remove(acc);
+            // TODO: add structures to sequence
           }
 
           // Split accession in id and from/to
@@ -169,9 +317,27 @@ public class StockholmFile extends AlignFile
               String src = dbr.substring(0, dbr.indexOf(";"));
               String acn = dbr.substring(dbr.indexOf(";") + 1);
               jalview.util.DBRefUtils.parseToDbRef(seqO, src, "0", acn);
-              // seqO.addDBRef(dbref);
             }
           }
+
+          if (accAnnotations != null && accAnnotations.containsKey("AC"))
+          {
+            if (dbsource != null)
+            {
+              String dbr = (String) accAnnotations.get("AC");
+              if (dbr != null)
+              {
+                // we could get very clever here - but for now - just try to
+                // guess accession type from source of alignment plus structure
+                // of accession
+                guessDatabaseFor(seqO, dbr, dbsource);
+
+              }
+            }
+            // else - do what ? add the data anyway and prompt the user to
+            // specify what references these are ?
+          }
+
           Hashtable features = null;
           // We need to adjust the positions of all features to account for gaps
           try
@@ -196,6 +362,25 @@ public class StockholmFile extends AlignFile
               // TODO: map coding region to core jalview feature types
               String type = i.nextElement().toString();
               Hashtable content = (Hashtable) features.remove(type);
+
+              // add alignment annotation for this feature
+              String key = type2id(type);
+              if (key != null)
+              {
+                if (accAnnotations != null
+                        && accAnnotations.containsKey(key))
+                {
+                  Vector vv = (Vector) accAnnotations.get(key);
+                  for (int ii = 0; ii < vv.size(); ii++)
+                  {
+                    AlignmentAnnotation an = (AlignmentAnnotation) vv
+                            .elementAt(ii);
+                    seqO.addAlignmentAnnotation(an);
+                    annotations.add(an);
+                  }
+                }
+              }
+
               Enumeration j = content.keys();
               while (j.hasMoreElements())
               {
@@ -241,9 +426,11 @@ public class StockholmFile extends AlignFile
         if (!x.search(line))
         {
           // logger.error("Could not parse sequence line: " + line);
-          throw new IOException("Could not parse sequence line: " + line);
+          throw new IOException(MessageManager.formatMessage(
+                  "exception.couldnt_parse_sequence_line",
+                  new String[] { line }));
         }
-        String ns = (String) seqs.get(x.stringMatched(1));
+        String ns = seqs.get(x.stringMatched(1));
         if (ns == null)
         {
           ns = "";
@@ -353,7 +540,8 @@ public class StockholmFile extends AlignFile
           }
           else
           {
-            throw new IOException("Error parsing " + line);
+            // throw new IOException("Error parsing " + line);
+            System.err.println(">> missing annotation: " + line);
           }
         }
         else if (annType.equals("GC"))
@@ -413,7 +601,8 @@ public class StockholmFile extends AlignFile
               ann = new Hashtable();
               seqAnn.put(acc, ann);
             }
-
+            // TODO test structure, call parseAnnotationRow with vector from
+            // hashtable for specific sequence
             Hashtable features;
             // Get an object with all the content for an annotation
             if (ann.containsKey("features"))
@@ -448,7 +637,29 @@ public class StockholmFile extends AlignFile
             }
             ns += seq;
             content.put(description, ns);
+
+            // if(type.equals("SS")){
+            Hashtable strucAnn;
+            if (seqAnn.containsKey(acc))
+            {
+              strucAnn = (Hashtable) seqAnn.get(acc);
+            }
+            else
+            {
+              strucAnn = new Hashtable();
+            }
+
+            Vector<AlignmentAnnotation> newStruc = new Vector<AlignmentAnnotation>();
+            parseAnnotationRow(newStruc, type, ns);
+            for (AlignmentAnnotation alan : newStruc)
+            {
+              alan.visible = false;
+            }
+            // annotations.addAll(newStruc);
+            strucAnn.put(type, newStruc);
+            seqAnn.put(acc, strucAnn);
           }
+          // }
           else
           {
             System.err
@@ -459,8 +670,9 @@ public class StockholmFile extends AlignFile
         }
         else
         {
-          throw new IOException("Unknown annotation detected: " + annType
-                  + " " + annContent);
+          throw new IOException(MessageManager.formatMessage(
+                  "exception.unknown_annotation_detected", new String[] {
+                      annType, annContent }));
         }
       }
     }
@@ -474,11 +686,129 @@ public class StockholmFile extends AlignFile
     }
   }
 
-  private AlignmentAnnotation parseAnnotationRow(Vector annotation,
-          String label, String annots)
+  /**
+   * Demangle an accession string and guess the originating sequence database
+   * for a given sequence
+   * 
+   * @param seqO
+   *          sequence to be annotated
+   * @param dbr
+   *          Accession string for sequence
+   * @param dbsource
+   *          source database for alignment (PFAM or RFAM)
+   */
+  private void guessDatabaseFor(Sequence seqO, String dbr, String dbsource)
   {
-    String type = (label.indexOf("_cons") == label.length() - 5) ? label
-            .substring(0, label.length() - 5) : label;
+    DBRefEntry dbrf = null;
+    List<DBRefEntry> dbrs = new ArrayList<DBRefEntry>();
+    String seqdb = "Unknown", sdbac = "" + dbr;
+    int st = -1, en = -1, p;
+    if ((st = sdbac.indexOf("/")) > -1)
+    {
+      String num, range = sdbac.substring(st + 1);
+      sdbac = sdbac.substring(0, st);
+      if ((p = range.indexOf("-")) > -1)
+      {
+        p++;
+        if (p < range.length())
+        {
+          num = range.substring(p).trim();
+          try
+          {
+            en = Integer.parseInt(num);
+          } catch (NumberFormatException x)
+          {
+            // could warn here that index is invalid
+            en = -1;
+          }
+        }
+      }
+      else
+      {
+        p = range.length();
+      }
+      num = range.substring(0, p).trim();
+      try
+      {
+        st = Integer.parseInt(num);
+      } catch (NumberFormatException x)
+      {
+        // could warn here that index is invalid
+        st = -1;
+      }
+    }
+    if (dbsource.equals("PFAM"))
+    {
+      seqdb = "UNIPROT";
+      if (sdbac.indexOf(".") > -1)
+      {
+        // strip of last subdomain
+        sdbac = sdbac.substring(0, sdbac.indexOf("."));
+        dbrf = jalview.util.DBRefUtils.parseToDbRef(seqO, seqdb, dbsource,
+                sdbac);
+        if (dbrf != null)
+        {
+          dbrs.add(dbrf);
+        }
+      }
+      dbrf = jalview.util.DBRefUtils.parseToDbRef(seqO, dbsource, dbsource,
+              dbr);
+      if (dbr != null)
+      {
+        dbrs.add(dbrf);
+      }
+    }
+    else
+    {
+      seqdb = "EMBL"; // total guess - could be ENA, or something else these
+                      // days
+      if (sdbac.indexOf(".") > -1)
+      {
+        // strip off last subdomain
+        sdbac = sdbac.substring(0, sdbac.indexOf("."));
+        dbrf = jalview.util.DBRefUtils.parseToDbRef(seqO, seqdb, dbsource,
+                sdbac);
+        if (dbrf != null)
+        {
+          dbrs.add(dbrf);
+        }
+      }
+
+      dbrf = jalview.util.DBRefUtils.parseToDbRef(seqO, dbsource, dbsource,
+              dbr);
+      if (dbrf != null)
+      {
+        dbrs.add(dbrf);
+      }
+    }
+    if (st != -1 && en != -1)
+    {
+      for (DBRefEntry d : dbrs)
+      {
+        jalview.util.MapList mp = new jalview.util.MapList(new int[] {
+            seqO.getStart(), seqO.getEnd() }, new int[] { st, en }, 1, 1);
+        jalview.datamodel.Mapping mping = new Mapping(mp);
+        d.setMap(mping);
+      }
+    }
+  }
+
+  protected static AlignmentAnnotation parseAnnotationRow(
+          Vector<AlignmentAnnotation> annotation, String label,
+          String annots)
+  {
+    String convert1, convert2 = null;
+
+    convert1 = OPEN_PAREN.replaceAll(annots);
+    convert2 = CLOSE_PAREN.replaceAll(convert1);
+    annots = convert2;
+
+    String type = label;
+    if (label.contains("_cons"))
+    {
+      type = (label.indexOf("_cons") == label.length() - 5) ? label
+              .substring(0, label.length() - 5) : label;
+    }
     boolean ss = false;
     type = id2type(type);
     if (type.equals("secondary structure"))
@@ -495,27 +825,41 @@ public class StockholmFile extends AlignFile
       // be written out
       if (ss)
       {
-        ann.secondaryStructure = jalview.schemes.ResidueProperties
-                .getDssp3state(pos).charAt(0);
-        if (ann.secondaryStructure == pos.charAt(0) || pos.charAt(0) == 'C')
+        // if (" .-_".indexOf(pos) == -1)
         {
-          ann.displayCharacter = ""; // null; // " ";
+          if (DETECT_BRACKETS.search(pos))
+          {
+            ann.secondaryStructure = Rna.getRNASecStrucState(pos).charAt(0);
+          }
+          else
+          {
+            ann.secondaryStructure = ResidueProperties.getDssp3state(pos)
+                    .charAt(0);
+          }
+
+          if (ann.secondaryStructure == pos.charAt(0))
+          {
+            ann.displayCharacter = ""; // null; // " ";
+          }
+          else
+          {
+            ann.displayCharacter = " " + ann.displayCharacter;
+          }
         }
-        else
-        {
-          ann.displayCharacter = " " + ann.displayCharacter;
-        }
+
       }
 
       els[i] = ann;
     }
     AlignmentAnnotation annot = null;
-    Enumeration e = annotation.elements();
+    Enumeration<AlignmentAnnotation> e = annotation.elements();
     while (e.hasMoreElements())
     {
-      annot = (AlignmentAnnotation) e.nextElement();
+      annot = e.nextElement();
       if (annot.label.equals(type))
+      {
         break;
+      }
       annot = null;
     }
     if (annot == null)
@@ -531,21 +875,251 @@ public class StockholmFile extends AlignFile
               annot.annotations.length);
       System.arraycopy(els, 0, anns, annot.annotations.length, els.length);
       annot.annotations = anns;
+      // System.out.println("else: ");
     }
     return annot;
   }
 
-  public static String print(SequenceI[] s)
+  public String print(SequenceI[] s)
   {
-    return "not yet implemented";
+    // find max length of id
+    int max = 0;
+    int maxid = 0;
+    int in = 0;
+    Hashtable dataRef = null;
+    while ((in < s.length) && (s[in] != null))
+    {
+      String tmp = printId(s[in]);
+      if (s[in].getSequence().length > max)
+      {
+        max = s[in].getSequence().length;
+      }
+
+      if (tmp.length() > maxid)
+      {
+        maxid = tmp.length();
+      }
+      if (s[in].getDBRefs() != null)
+      {
+        for (int idb = 0; idb < s[in].getDBRefs().length; idb++)
+        {
+          if (dataRef == null)
+          {
+            dataRef = new Hashtable();
+          }
+
+          String datAs1 = s[in].getDBRefs()[idb].getSource().toString()
+                  + " ; "
+                  + s[in].getDBRefs()[idb].getAccessionId().toString();
+          dataRef.put(tmp, datAs1);
+        }
+      }
+      in++;
+    }
+    maxid += 9;
+    int i = 0;
+
+    // output database type
+    if (al.getProperties() != null)
+    {
+      if (!al.getProperties().isEmpty())
+      {
+        Enumeration key = al.getProperties().keys();
+        Enumeration val = al.getProperties().elements();
+        while (key.hasMoreElements())
+        {
+          out.append("#=GF " + key.nextElement() + " " + val.nextElement());
+          out.append(newline);
+        }
+      }
+    }
+
+    // output database accessions
+    if (dataRef != null)
+    {
+      Enumeration en = dataRef.keys();
+      while (en.hasMoreElements())
+      {
+        Object idd = en.nextElement();
+        String type = (String) dataRef.remove(idd);
+        out.append(new Format("%-" + (maxid - 2) + "s").form("#=GS "
+                + idd.toString() + " "));
+        if (type.contains("PFAM") || type.contains("RFAM"))
+        {
+
+          out.append(" AC " + type.substring(type.indexOf(";") + 1));
+        }
+        else
+        {
+          out.append(" DR " + type + " ");
+        }
+        out.append(newline);
+      }
+    }
+
+    // output annotations
+    while (i < s.length && s[i] != null)
+    {
+      if (s[i].getDatasetSequence() != null)
+      {
+        SequenceI ds = s[i].getDatasetSequence();
+        AlignmentAnnotation[] alAnot;
+        Annotation[] ann;
+        Annotation annot;
+        alAnot = s[i].getAnnotation();
+        String feature = "";
+        if (alAnot != null)
+        {
+          for (int j = 0; j < alAnot.length; j++)
+          {
+            if (ds.getSequenceFeatures() != null)
+            {
+              feature = ds.getSequenceFeatures()[0].type;
+            }
+            // ?bug - feature may still have previous loop value
+            String key = type2id(feature);
+
+            if (key == null)
+            {
+              continue;
+            }
+
+            // out.append("#=GR ");
+            out.append(new Format("%-" + maxid + "s").form("#=GR "
+                    + printId(s[i]) + " " + key + " "));
+            ann = alAnot[j].annotations;
+            boolean isrna = alAnot[j].isValidStruc();
+            String seq = "";
+            for (int k = 0; k < ann.length; k++)
+            {
+              seq += outputCharacter(key, k, isrna, ann, s[i]);
+            }
+            out.append(seq);
+            out.append(newline);
+          }
+        }
+      }
+
+      out.append(new Format("%-" + maxid + "s").form(printId(s[i]) + " "));
+      out.append(s[i].getSequenceAsString());
+      out.append(newline);
+      i++;
+    }
+
+    // alignment annotation
+    AlignmentAnnotation aa;
+    if (al.getAlignmentAnnotation() != null)
+    {
+      for (int ia = 0; ia < al.getAlignmentAnnotation().length; ia++)
+      {
+        aa = al.getAlignmentAnnotation()[ia];
+        if (aa.autoCalculated || !aa.visible || aa.sequenceRef != null)
+        {
+          continue;
+        }
+        String seq = "";
+        String label;
+        String key = "";
+        if (aa.label.equals("seq"))
+        {
+          label = "seq_cons";
+        }
+        else
+        {
+          key = type2id(aa.label.toLowerCase());
+          if (key == null)
+          {
+            label = aa.label;
+          }
+          else
+          {
+            label = key + "_cons";
+          }
+        }
+        if (label == null)
+        {
+          label = aa.label;
+        }
+        label = label.replace(" ", "_");
+
+        out.append(new Format("%-" + maxid + "s").form("#=GC " + label
+                + " "));
+        boolean isrna = aa.isValidStruc();
+        for (int j = 0; j < aa.annotations.length; j++)
+        {
+          seq += outputCharacter(key, j, isrna, aa.annotations, null);
+        }
+        out.append(seq);
+        out.append(newline);
+      }
+    }
+    return out.toString();
   }
 
+  /**
+   * add an annotation character to the output row
+   * 
+   * @param seq
+   * @param key
+   * @param k
+   * @param isrna
+   * @param ann
+   * @param sequenceI
+   */
+  private char outputCharacter(String key, int k, boolean isrna,
+          Annotation[] ann, SequenceI sequenceI)
+  {
+    char seq = ' ';
+    Annotation annot = ann[k];
+    String ch = (annot == null) ? ((sequenceI == null) ? "-" : Character
+            .toString(sequenceI.getCharAt(k))) : annot.displayCharacter;
+    if (key != null && key.equals("SS"))
+    {
+      if (annot == null)
+      {
+        // sensible gap character if one is available or make one up
+        return sequenceI == null ? '-' : sequenceI.getCharAt(k);
+      }
+      else
+      {
+        // valid secondary structure AND no alternative label (e.g. ' B')
+        if (annot.secondaryStructure > ' ' && ch.length() < 2)
+        {
+          return annot.secondaryStructure;
+        }
+      }
+    }
+
+    if (ch.length() == 0)
+    {
+      seq = '.';
+    }
+    else if (ch.length() == 1)
+    {
+      seq = ch.charAt(0);
+    }
+    else if (ch.length() > 1)
+    {
+      seq = ch.charAt(1);
+    }
+    return seq;
+  }
+
+  @Override
   public String print()
   {
-    return print(getSeqsAsArray());
+    out = new StringBuffer();
+    out.append("# STOCKHOLM 1.0");
+    out.append(newline);
+    print(getSeqsAsArray());
+
+    out.append("//");
+    out.append(newline);
+    return out.toString();
   }
 
   private static Hashtable typeIds = null;
+
   static
   {
     if (typeIds == null)
@@ -570,7 +1144,7 @@ public class StockholmFile extends AlignFile
     }
   }
 
-  private String id2type(String id)
+  protected static String id2type(String id)
   {
     if (typeIds.containsKey(id))
     {
@@ -579,5 +1153,46 @@ public class StockholmFile extends AlignFile
     System.err.println("Warning : Unknown Stockholm annotation type code "
             + id);
     return id;
+  }
+
+  protected static String type2id(String type)
+  {
+    String key = null;
+    Enumeration e = typeIds.keys();
+    while (e.hasMoreElements())
+    {
+      Object ll = e.nextElement();
+      if (typeIds.get(ll).toString().equals(type))
+      {
+        key = (String) ll;
+        break;
+      }
+    }
+    if (key != null)
+    {
+      return key;
+    }
+    System.err.println("Warning : Unknown Stockholm annotation type: "
+            + type);
+    return key;
+  }
+
+  /**
+   * make a friendly ID string.
+   * 
+   * @param dataName
+   * @return truncated dataName to after last '/'
+   */
+  private String safeName(String dataName)
+  {
+    int b = 0;
+    while ((b = dataName.indexOf("/")) > -1 && b < dataName.length())
+    {
+      dataName = dataName.substring(b + 1).trim();
+
+    }
+    int e = (dataName.length() - dataName.indexOf(".")) + 1;
+    dataName = dataName.substring(1, e).trim();
+    return dataName;
   }
 }

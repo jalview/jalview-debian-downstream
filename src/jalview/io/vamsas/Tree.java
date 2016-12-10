@@ -1,29 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io.vamsas;
 
-import java.io.IOException;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
-
 import jalview.analysis.NJTree;
-import jalview.analysis.SequenceIdMatcher;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
@@ -32,11 +29,17 @@ import jalview.datamodel.SeqCigar;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequenceNode;
-import jalview.gui.AlignFrame;
-import jalview.gui.AlignViewport;
 import jalview.gui.TreePanel;
 import jalview.io.NewickFile;
 import jalview.io.VamsasAppDatastore;
+import jalview.viewmodel.AlignmentViewport;
+
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Vector;
+
 import uk.ac.vamsas.client.Vobject;
 import uk.ac.vamsas.objects.core.AlignmentSequence;
 import uk.ac.vamsas.objects.core.Entry;
@@ -103,6 +106,7 @@ public class Tree extends DatastoreItem
    * 
    * @see jalview.io.vamsas.DatastoreItem#addFromDocument()
    */
+  @Override
   public void addFromDocument()
   {
     tree = (uk.ac.vamsas.objects.core.Tree) vobj; // vtree;
@@ -133,6 +137,7 @@ public class Tree extends DatastoreItem
    * 
    * @see jalview.io.vamsas.DatastoreItem#conflict()
    */
+  @Override
   public void conflict()
   {
     Cache.log
@@ -144,6 +149,7 @@ public class Tree extends DatastoreItem
    * 
    * @see jalview.io.vamsas.DatastoreItem#update()
    */
+  @Override
   public void updateToDoc()
   {
     if (isModifiable(tree.getModifiable()))
@@ -164,6 +170,7 @@ public class Tree extends DatastoreItem
    * 
    * @see jalview.io.vamsas.DatastoreItem#updateFromDoc()
    */
+  @Override
   public void updateFromDoc()
   {
     // should probably just open a new tree panel in the same place as the old
@@ -264,26 +271,30 @@ public class Tree extends DatastoreItem
     SeqCigar[] tseqs = new SeqCigar[sequences.length];
     System.arraycopy(sequences, 0, tseqs, 0, sequences.length);
     Vector alsq = new Vector();
-    Enumeration as = jal.getSequences().elements();
-    while (as.hasMoreElements())
+    List<SequenceI> jalsqs;
+    synchronized (jalsqs = jal.getSequences())
     {
-      SequenceI asq = (SequenceI) as.nextElement();
-      for (int t = 0; t < sequences.length; t++)
+      for (SequenceI asq : jalsqs)
       {
-        if (tseqs[t] != null
-                && (tseqs[t].getRefSeq() == asq || tseqs[t].getRefSeq() == asq
-                        .getDatasetSequence()))
-        // && tseqs[t].getStart()>=asq.getStart() &&
-        // tseqs[t].getEnd()<=asq.getEnd())
+        for (int t = 0; t < sequences.length; t++)
         {
-          tseqs[t] = null;
-          alsq.add(asq);
+          if (tseqs[t] != null
+                  && (tseqs[t].getRefSeq() == asq || tseqs[t].getRefSeq() == asq
+                          .getDatasetSequence()))
+          // && tseqs[t].getStart()>=asq.getStart() &&
+          // tseqs[t].getEnd()<=asq.getEnd())
+          {
+            tseqs[t] = null;
+            alsq.add(asq);
+          }
         }
       }
     }
     if (alsq.size() < sequences.length)
+    {
       Cache.log
               .warn("Not recovered all alignment sequences for given set of input sequence CIGARS");
+    }
     return alsq;
   }
 
@@ -297,15 +308,18 @@ public class Tree extends DatastoreItem
   public void UpdateSequenceTreeMap(TreePanel tp)
   {
     if (tp == null || tree == null)
+    {
       return;
-    Vector leaves = new Vector();
+    }
+
     if (tp.getTree() == null)
     {
       Cache.log.warn("Not updating SequenceTreeMap for "
               + tree.getVorbaId());
       return;
     }
-    tp.getTree().findLeaves(tp.getTree().getTopNode(), leaves);
+    Vector<SequenceNode> leaves = tp.getTree().findLeaves(
+            tp.getTree().getTopNode());
     Treenode[] tn = tree.getTreenode(); // todo: select nodes for this
     // particular tree
     int sz = tn.length;
@@ -362,8 +376,7 @@ public class Tree extends DatastoreItem
    */
   public Treenode[] makeTreeNodes(NJTree ntree, Newick newick)
   {
-    Vector leaves = new Vector();
-    ntree.findLeaves(ntree.getTopNode(), leaves);
+    Vector<SequenceNode> leaves = ntree.findLeaves(ntree.getTopNode());
     Vector tnv = new Vector();
     Enumeration l = leaves.elements();
     Hashtable nodespecs = new Hashtable();
@@ -413,8 +426,7 @@ public class Tree extends DatastoreItem
       tnv.copyInto(tn);
       return tn;
     }
-    return new Treenode[]
-    {};
+    return new Treenode[] {};
   }
 
   private String makeNodeSpec(Hashtable nodespecs,
@@ -465,7 +477,9 @@ public class Tree extends DatastoreItem
         --occurence;
       }
       else
+      {
         bn = null;
+      }
     }
     return bn;
   }
@@ -475,6 +489,7 @@ public class Tree extends DatastoreItem
    * add jalview object to vamsas document
    * 
    */
+  @Override
   public void addToDocument()
   {
     tree = new uk.ac.vamsas.objects.core.Tree();
@@ -501,7 +516,7 @@ public class Tree extends DatastoreItem
    */
   public Object[] recoverInputData(Provenance tp)
   {
-    AlignViewport javport = null;
+    AlignmentViewport javport = null;
     jalview.datamodel.AlignmentI jal = null;
     jalview.datamodel.CigarArray view = null;
     for (int pe = 0; pe < tp.getEntryCount(); pe++)
@@ -586,8 +601,7 @@ public class Tree extends DatastoreItem
           // off by
           // one for to
         }
-        return new Object[]
-        { new AlignmentView(view), jal };
+        return new Object[] { new AlignmentView(view), jal };
       }
     }
     Cache.log
@@ -595,7 +609,7 @@ public class Tree extends DatastoreItem
     return null;
   }
 
-  private AlignViewport getViewport(Vobject v_parent)
+  private AlignmentViewport getViewport(Vobject v_parent)
   {
     if (v_parent instanceof uk.ac.vamsas.objects.core.Alignment)
     {

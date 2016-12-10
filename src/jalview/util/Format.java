@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 /**
  * A class for formatting numbers that follows printf conventions.
@@ -22,6 +25,8 @@
  * @author Cay Horstmann
  */
 package jalview.util;
+
+import java.util.Arrays;
 
 /**
  * DOCUMENT ME!
@@ -51,6 +56,8 @@ public class Format
 
   private char fmt; // one of cdeEfgGiosxXos
 
+  private final String formatString;
+
   /**
    * Creates a new Format object.
    * 
@@ -59,6 +66,7 @@ public class Format
    */
   public Format(String s)
   {
+    formatString = s;
     width = 0;
     precision = -1;
     pre = "";
@@ -619,7 +627,7 @@ public class Format
   /**
    * Formats a character into a string (like sprintf in C)
    * 
-   * @param x
+   * @param debounceTrap
    *          the value to format
    * @return the formatted string
    */
@@ -638,7 +646,7 @@ public class Format
   /**
    * Formats a string into a larger string (like sprintf in C)
    * 
-   * @param x
+   * @param debounceTrap
    *          the value to format
    * @return the formatted string
    */
@@ -658,30 +666,22 @@ public class Format
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns a string consisting of n repeats of character c
    * 
    * @param c
-   *          DOCUMENT ME!
    * @param n
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  private static String repeat(char c, int n)
+  static String repeat(char c, int n)
   {
     if (n <= 0)
     {
       return "";
     }
-
-    StringBuffer s = new StringBuffer(n);
-
-    for (int i = 0; i < n; i++)
-    {
-      s.append(c);
-    }
-
-    return s.toString();
+    char[] chars = new char[n];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   /**
@@ -934,5 +934,56 @@ public class Format
     }
 
     return f + p.substring(p.length() - 3, p.length());
+  }
+
+  @Override
+  public String toString()
+  {
+    return formatString;
+  }
+
+  /**
+   * Bespoke method to format percentage float value to the specified number of
+   * decimal places. Avoids use of general-purpose format parsers as a
+   * processing hotspot.
+   * 
+   * @param sb
+   * @param value
+   * @param dp
+   */
+  public static void appendPercentage(StringBuilder sb, float value, int dp)
+  {
+    /*
+     * rounding first
+     */
+    double d = value;
+    long factor = 1L;
+    for (int i = 0; i < dp; i++)
+    {
+      factor *= 10;
+    }
+    d *= factor;
+    d += 0.5;
+
+    /*
+     * integer part
+     */
+    value = (float) (d / factor);
+    sb.append((long) value);
+
+    /*
+     * decimal places
+     */
+    if (dp > 0)
+    {
+      sb.append(".");
+      while (dp > 0)
+      {
+        value = value - (int) value;
+        value *= 10;
+        sb.append((int) value);
+        dp--;
+      }
+    }
   }
 }

@@ -1,42 +1,40 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.gui;
 
-import java.util.ArrayList;
-import java.util.Hashtable;
-
-import javax.swing.JDialog;
-import javax.swing.JInternalFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.event.ListSelectionEvent;
-
-import com.sun.tools.corba.se.idl.InvalidArgument;
-
-import net.miginfocom.swing.MigLayout;
-
 import jalview.jbgui.GRestInputParamEditDialog;
-import jalview.ws.params.ArgumentI;
 import jalview.ws.params.InvalidArgumentException;
 import jalview.ws.params.OptionI;
 import jalview.ws.params.ParameterI;
 import jalview.ws.rest.InputType;
 import jalview.ws.rest.RestServiceDescription;
+
+import java.util.ArrayList;
+import java.util.Hashtable;
+
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.event.ListSelectionEvent;
+
+import net.miginfocom.swing.MigLayout;
 
 public class RestInputParamEditDialog extends GRestInputParamEditDialog
         implements OptsParametersContainerI
@@ -45,14 +43,14 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
 
   Hashtable<String, ArrayList<JPanel>> typeopts = new Hashtable<String, ArrayList<JPanel>>();
 
-  Hashtable<String,OptsAndParamsPage> opanps = new Hashtable<String, OptsAndParamsPage>();
-  
+  Hashtable<String, OptsAndParamsPage> opanps = new Hashtable<String, OptsAndParamsPage>();
+
   private InputType getTypeFor(String name)
   {
     try
     {
       return (InputType) (typeclass.get(name).getConstructor()
-              .newInstance(null));
+              .newInstance());
     } catch (Throwable x)
     {
       System.err
@@ -63,53 +61,60 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
   }
 
   int reply;
+
   JalviewDialog frame = new JalviewDialog()
   {
-    
+
     @Override
     protected void raiseClosed()
     {
-      
+
     }
-    
+
     @Override
     protected void okPressed()
     {
-      reply=JOptionPane.OK_OPTION; 
+      reply = JOptionPane.OK_OPTION;
     }
-    
+
     @Override
     protected void cancelPressed()
     {
-      reply=JOptionPane.CANCEL_OPTION; 
-      
+      reply = JOptionPane.CANCEL_OPTION;
+
     }
   };
-  InputType old,current;
+
+  InputType old, current;
+
   public RestInputParamEditDialog(
           RestServiceEditorPane restServiceEditorPane,
           RestServiceDescription currentservice, InputType toedit)
   {
     initFor(restServiceEditorPane, currentservice, toedit);
     frame.waitForInput();
-    // TODO: warn user if they are about to overwrite an existing parameter because they have used the same name when editing a different parameter.
+    // TODO: warn user if they are about to overwrite an existing parameter
+    // because they have used the same name when editing a different parameter.
     // TODO: make any press of the return key cause 'OK' to be pressed
   }
+
   private void initFor(RestServiceEditorPane restServiceEditorPane,
           RestServiceDescription currentservice, InputType toedit)
   {
     okcancel.add(frame.cancel);
     okcancel.add(frame.ok);
-    frame.initDialogFrame(dpane, true, true, "Edit parameter for service "+currentservice.getName(), 600,800);
-    
+    frame.initDialogFrame(dpane, true, true, "Edit parameter for service "
+            + currentservice.getName(), 600, 800);
+
     initTypeLists();
-    reply=JOptionPane.CANCEL_OPTION;
+    reply = JOptionPane.CANCEL_OPTION;
     old = toedit;
     current = null;
-    if (old!=null) {
+    if (old != null)
+    {
       setStateFor(old);
     }
-    updated = updated && reply==JOptionPane.OK_OPTION;
+    updated = updated && reply == JOptionPane.OK_OPTION;
     frame.validate();
   }
 
@@ -117,7 +122,7 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
           RestServiceEditorPane restServiceEditorPane,
           RestServiceDescription currentservice, String string)
   {
-    initFor(restServiceEditorPane, currentservice,null);
+    initFor(restServiceEditorPane, currentservice, null);
     tok.setText(string);
     frame.waitForInput();
   }
@@ -125,14 +130,17 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
   private void setStateFor(InputType current)
   {
     tok.setText(current.token);
-    OptsAndParamsPage opanp=opanps.get(current.getURLtokenPrefix());
-    for (OptionI ops:current.getOptions())
+    OptsAndParamsPage opanp = opanps.get(current.getURLtokenPrefix());
+    for (OptionI ops : current.getOptions())
     {
       if (ops instanceof ParameterI)
       {
         opanp.setParameter((ParameterI) ops);
-      } else {
-        if (ops.getValue()!=null && ops.getValue().length()>0) {
+      }
+      else
+      {
+        if (ops.getValue() != null && ops.getValue().length() > 0)
+        {
           opanp.selectOption(ops, ops.getValue());
         }
       }
@@ -140,27 +148,36 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
     typeList.setSelectedValue(current.getURLtokenPrefix(), true);
     type_SelectionChangedActionPerformed(null);
   }
+
   private void updateCurrentType()
   {
-    if (typeList.getSelectedValue()!=null) {
-    InputType newType = getTypeFor((String)typeList.getSelectedValue());
-    if (newType!=null) {
-      newType.token = tok.getText().trim();
-      try {
-        newType.configureFromArgumentI(opanps.get(newType.getURLtokenPrefix()).getCurrentSettings());
-        current=newType;
-        updated=true;
-      } catch (InvalidArgumentException ex) {
-        System.err.println("IMPLEMENTATION ERROR: Invalid argument for type : "+typeList.getSelectedValue()+"\n");
-        ex.printStackTrace();
+    if (typeList.getSelectedValue() != null)
+    {
+      InputType newType = getTypeFor((String) typeList.getSelectedValue());
+      if (newType != null)
+      {
+        newType.token = tok.getText().trim();
+        try
+        {
+          newType.configureFromArgumentI(opanps.get(
+                  newType.getURLtokenPrefix()).getCurrentSettings());
+          current = newType;
+          updated = true;
+        } catch (InvalidArgumentException ex)
+        {
+          System.err
+                  .println("IMPLEMENTATION ERROR: Invalid argument for type : "
+                          + typeList.getSelectedValue() + "\n");
+          ex.printStackTrace();
+        }
       }
     }
-    }
-    
+
   }
+
   private void initTypeLists()
   {
-    ArrayList<String> types=new ArrayList<String>();
+    ArrayList<String> types = new ArrayList<String>();
     // populate type list
     for (Class type : RestServiceDescription.getInputTypes())
     {
@@ -170,11 +187,11 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
       {
         JPanel inopts = new JPanel(new MigLayout());
         ArrayList<JPanel> opts = new ArrayList<JPanel>(), prms = new ArrayList<JPanel>();
-        jtype = (InputType) (type.getConstructor().newInstance(null));
+        jtype = (InputType) (type.getConstructor().newInstance());
         typeclass.put(jtype.getURLtokenPrefix(), type);
         // and populate parameters from this type
-        OptsAndParamsPage opanp = new OptsAndParamsPage(this,true);
-        opanps.put(jtype.getURLtokenPrefix(),opanp);
+        OptsAndParamsPage opanp = new OptsAndParamsPage(this, true);
+        opanps.put(jtype.getURLtokenPrefix(), opanp);
         for (OptionI opt : jtype.getOptions())
         {
 
@@ -202,7 +219,7 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
       }
     }
     typeList.setListData(types.toArray());
-    
+
   }
 
   @Override
@@ -215,7 +232,7 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
       for (JPanel opt : typeopts.get(typen))
       {
         opt.setOpaque(true);
-        options.add(opt,"wrap");
+        options.add(opt, "wrap");
       }
       options.invalidate();
       optionsPanel.setVisible(true);
@@ -228,7 +245,8 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
     updateCurrentType();
   }
 
-  boolean updated=false;
+  boolean updated = false;
+
   public boolean wasUpdated()
   {
     return updated;
@@ -244,15 +262,16 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
   @Override
   protected void tokChanged_actionPerformed()
   {
-    if (tok.getText().trim().length()>0)
+    if (tok.getText().trim().length() > 0)
     {
-      if (current!=null)
+      if (current != null)
       {
         current.token = tok.getText().trim();
-        updated = true; 
-      } 
+        updated = true;
+      }
     }
   }
+
   @Override
   public void argSetModified(Object modifiedElement, boolean b)
   {

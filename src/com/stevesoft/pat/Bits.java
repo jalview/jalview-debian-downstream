@@ -60,8 +60,8 @@ public class Bits
    * StringWriter(); static PrintWriter pw_s = new PrintWriter(sw,true); public
    * static void test(String var,Tester t) throws Exception {
    * 
-   * char[] ca = new char[(66536 >> 4)+1]; Bits b = new Bits(ca); FileWriter fw =
-   * new FileWriter("x.out",true); PrintWriter pw = new PrintWriter(fw);
+   * char[] ca = new char[(66536 >> 4)+1]; Bits b = new Bits(ca); FileWriter fw
+   * = new FileWriter("x.out",true); PrintWriter pw = new PrintWriter(fw);
    * 
    * //pw_s.println(" "+var+"_f();"); pw.println(" public static Bits
    * "+var+";"); pw.println(" static void "+var+"_f() {"); pw.println(" char[]

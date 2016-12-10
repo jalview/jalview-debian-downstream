@@ -1,74 +1,114 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.awt.font.LineMetrics;
-import java.awt.geom.AffineTransform;
-import java.awt.image.*;
-import java.util.Hashtable;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.Annotation;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SequenceI;
+import jalview.renderer.AnnotationRenderer;
+import jalview.renderer.AwtRenderPanelI;
+import jalview.schemes.ResidueProperties;
+import jalview.util.Comparison;
+import jalview.util.MessageManager;
 
-import javax.swing.*;
+import java.awt.AlphaComposite;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-import jalview.analysis.AAFrequency;
-import jalview.datamodel.*;
-import jalview.schemes.ColourSchemeI;
+import javax.swing.JColorChooser;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.Scrollable;
+import javax.swing.ToolTipManager;
 
 /**
- * DOCUMENT ME!
+ * AnnotationPanel displays visible portion of annotation rows below unwrapped
+ * alignment
  * 
  * @author $author$
  * @version $Revision$
  */
-public class AnnotationPanel extends JPanel implements MouseListener,
-        MouseMotionListener, ActionListener, AdjustmentListener
+public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
+        MouseListener, MouseWheelListener, MouseMotionListener,
+        ActionListener, AdjustmentListener, Scrollable
 {
-  final String HELIX = "Helix";
+  String HELIX = MessageManager.getString("label.helix");
 
-  final String SHEET = "Sheet";
+  String SHEET = MessageManager.getString("label.sheet");
 
-  final String LABEL = "Label";
+  /**
+   * For RNA secondary structure "stems" aka helices
+   */
+  String STEM = MessageManager.getString("label.rna_helix");
 
-  final String REMOVE = "Remove Annotation";
+  String LABEL = MessageManager.getString("label.label");
 
-  final String COLOUR = "Colour";
+  String REMOVE = MessageManager.getString("label.remove_annotation");
 
-  final Color HELIX_COLOUR = Color.red.darker();
+  String COLOUR = MessageManager.getString("action.colour");
 
-  final Color SHEET_COLOUR = Color.green.darker().darker();
+  public final Color HELIX_COLOUR = Color.red.darker();
+
+  public final Color SHEET_COLOUR = Color.green.darker().darker();
+
+  public final Color STEM_COLOUR = Color.blue.darker();
 
   /** DOCUMENT ME!! */
-  AlignViewport av;
+  public AlignViewport av;
 
   AlignmentPanel ap;
 
-  int activeRow = -1;
+  public int activeRow = -1;
 
-  BufferedImage image;
+  public BufferedImage image;
 
-  BufferedImage fadedImage;
+  public volatile BufferedImage fadedImage;
 
   Graphics2D gg;
 
-  FontMetrics fm;
+  public FontMetrics fm;
 
-  int imgWidth = 0;
+  public int imgWidth = 0;
 
   boolean fastPaint = false;
 
@@ -83,7 +123,14 @@ public class AnnotationPanel extends JPanel implements MouseListener,
 
   boolean mouseDragging = false;
 
-  boolean MAC = false;
+  // for editing cursor
+  int cursorX = 0;
+
+  int cursorY = 0;
+
+  public final AnnotationRenderer renderer;
+
+  private MouseWheelListener[] _mwl;
 
   /**
    * Creates a new AnnotationPanel object.
@@ -93,9 +140,6 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    */
   public AnnotationPanel(AlignmentPanel ap)
   {
-
-    MAC = new jalview.util.Platform().isAMac();
-
     ToolTipManager.sharedInstance().registerComponent(this);
     ToolTipManager.sharedInstance().setInitialDelay(0);
     ToolTipManager.sharedInstance().setDismissDelay(10000);
@@ -106,22 +150,97 @@ public class AnnotationPanel extends JPanel implements MouseListener,
     addMouseMotionListener(this);
     ap.annotationScroller.getVerticalScrollBar()
             .addAdjustmentListener(this);
+    // save any wheel listeners on the scroller, so we can propagate scroll
+    // events to them.
+    _mwl = ap.annotationScroller.getMouseWheelListeners();
+    // and then set our own listener to consume all mousewheel events
+    ap.annotationScroller.addMouseWheelListener(this);
+    renderer = new AnnotationRenderer();
   }
 
   public AnnotationPanel(AlignViewport av)
   {
     this.av = av;
+    renderer = new AnnotationRenderer();
   }
 
-  /**
-   * DOCUMENT ME!
+  @Override
+  public void mouseWheelMoved(MouseWheelEvent e)
+  {
+    if (e.isShiftDown())
+    {
+      e.consume();
+      if (e.getWheelRotation() > 0)
+      {
+        ap.scrollRight(true);
+      }
+      else
+      {
+        ap.scrollRight(false);
+      }
+    }
+    else
+    {
+      // TODO: find the correct way to let the event bubble up to
+      // ap.annotationScroller
+      for (MouseWheelListener mwl : _mwl)
+      {
+        if (mwl != null)
+        {
+          mwl.mouseWheelMoved(e);
+        }
+        if (e.isConsumed())
+        {
+          break;
+        }
+      }
+    }
+  }
+
+  @Override
+  public Dimension getPreferredScrollableViewportSize()
+  {
+    return getPreferredSize();
+  }
+
+  @Override
+  public int getScrollableBlockIncrement(Rectangle visibleRect,
+          int orientation, int direction)
+  {
+    return 30;
+  }
+
+  @Override
+  public boolean getScrollableTracksViewportHeight()
+  {
+    return false;
+  }
+
+  @Override
+  public boolean getScrollableTracksViewportWidth()
+  {
+    return true;
+  }
+
+  @Override
+  public int getScrollableUnitIncrement(Rectangle visibleRect,
+          int orientation, int direction)
+  {
+    return 30;
+  }
+
+  /*
+   * (non-Javadoc)
    * 
-   * @param evt
-   *          DOCUMENT ME!
+   * @see
+   * java.awt.event.AdjustmentListener#adjustmentValueChanged(java.awt.event
+   * .AdjustmentEvent)
    */
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
-    ap.alabels.setScrollOffset(-evt.getValue());
+    // update annotation label display
+    ap.getAlabels().setScrollOffset(-evt.getValue());
   }
 
   /**
@@ -132,7 +251,7 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    */
   public int adjustPanelHeight()
   {
-    int height=calcPanelHeight();
+    int height = av.calcPanelHeight();
     this.setPreferredSize(new Dimension(1, height));
     if (ap != null)
     {
@@ -144,72 +263,15 @@ public class AnnotationPanel extends JPanel implements MouseListener,
   }
 
   /**
-   * calculate the height for visible annotation, revalidating bounds where necessary
-   * ABSTRACT GUI METHOD
-   * @return total height of annotation
-   */
-  public int calcPanelHeight()
-  {
-    // setHeight of panels
-    AlignmentAnnotation[] aa = av.alignment.getAlignmentAnnotation();
-    int height = 0;
-
-    if (aa != null)
-    {
-      for (int i = 0; i < aa.length; i++)
-      {
-        if (aa[i] == null)
-        {
-          System.err.println("Null annotation row: ignoring.");
-          continue;
-        }
-        if (!aa[i].visible)
-        {
-          continue;
-        }
-
-        aa[i].height = 0;
-
-        if (aa[i].hasText)
-        {
-          aa[i].height += av.charHeight;
-        }
-
-        if (aa[i].hasIcons)
-        {
-          aa[i].height += 16;
-        }
-
-        if (aa[i].graph > 0)
-        {
-          aa[i].height += aa[i].graphHeight;
-        }
-
-        if (aa[i].height == 0)
-        {
-          aa[i].height = 20;
-        }
-
-        height += aa[i].height;
-      }
-    }
-    if (height == 0)
-    {
-      // set minimum
-      height = 20;
-    }
-    return height;
-  }
-
-  /**
    * DOCUMENT ME!
    * 
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
-    AlignmentAnnotation[] aa = av.alignment.getAlignmentAnnotation();
+    AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
     if (aa == null)
     {
       return;
@@ -224,18 +286,22 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       aa[activeRow].annotations = anot;
     }
 
-    if (evt.getActionCommand().equals(REMOVE))
+    String action = evt.getActionCommand();
+    if (action.equals(REMOVE))
     {
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        anot[av.getColumnSelection().columnAt(i)] = null;
+        if (av.getColumnSelection().isVisible(index))
+        {
+          anot[index] = null;
+        }
       }
     }
-    else if (evt.getActionCommand().equals(LABEL))
+    else if (action.equals(LABEL))
     {
-      String exMesg = collectAnnotVals(anot, av.getColumnSelection(), LABEL);
-      String label = JOptionPane.showInputDialog(this, "Enter label",
-              exMesg);
+      String exMesg = collectAnnotVals(anot, LABEL);
+      String label = JOptionPane.showInputDialog(this,
+              MessageManager.getString("label.enter_label"), exMesg);
 
       if (label == null)
       {
@@ -247,19 +313,16 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         aa[activeRow].hasText = true;
       }
 
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
-        if (!av.colSel.isVisible(index))
+        if (!av.getColumnSelection().isVisible(index))
+        {
           continue;
+        }
 
         if (anot[index] == null)
         {
-          anot[index] = new Annotation(label, "", ' ', 0); // TODO: verify that
-          // null exceptions
-          // aren't raised
-          // elsewhere.
+          anot[index] = new Annotation(label, "", ' ', 0);
         }
         else
         {
@@ -267,17 +330,18 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         }
       }
     }
-    else if (evt.getActionCommand().equals(COLOUR))
+    else if (action.equals(COLOUR))
     {
       Color col = JColorChooser.showDialog(this,
-              "Choose foreground colour", Color.black);
+              MessageManager.getString("label.select_foreground_colour"),
+              Color.black);
 
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
-        if (!av.colSel.isVisible(index))
+        if (!av.getColumnSelection().isVisible(index))
+        {
           continue;
+        }
 
         if (anot[index] == null)
         {
@@ -288,19 +352,27 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       }
     }
     else
-    // HELIX OR SHEET
+    // HELIX, SHEET or STEM
     {
       char type = 0;
-      String symbol = "\u03B1";
+      String symbol = "\u03B1"; // alpha
 
-      if (evt.getActionCommand().equals(HELIX))
+      if (action.equals(HELIX))
       {
         type = 'H';
       }
-      else if (evt.getActionCommand().equals(SHEET))
+      else if (action.equals(SHEET))
       {
         type = 'E';
-        symbol = "\u03B2";
+        symbol = "\u03B2"; // beta
+      }
+
+      // Added by LML to color stems
+      else if (action.equals(STEM))
+      {
+        type = 'S';
+        int column = av.getColumnSelection().getSelectedRanges().get(0)[0];
+        symbol = aa[activeRow].getDefaultRnaHelixSymbol(column);
       }
 
       if (!aa[activeRow].hasIcons)
@@ -308,8 +380,8 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         aa[activeRow].hasIcons = true;
       }
 
-      String label = JOptionPane.showInputDialog(
-              "Enter a label for the structure?", symbol);
+      String label = JOptionPane.showInputDialog(MessageManager
+              .getString("label.enter_label_for_the_structure"), symbol);
 
       if (label == null)
       {
@@ -319,58 +391,87 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       if ((label.length() > 0) && !aa[activeRow].hasText)
       {
         aa[activeRow].hasText = true;
+        if (action.equals(STEM))
+        {
+          aa[activeRow].showAllColLabels = true;
+        }
       }
-
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
-        if (!av.colSel.isVisible(index))
+        if (!av.getColumnSelection().isVisible(index))
+        {
           continue;
+        }
 
         if (anot[index] == null)
         {
           anot[index] = new Annotation(label, "", type, 0);
         }
 
-        anot[index].secondaryStructure = type;
+        anot[index].secondaryStructure = type != 'S' ? type : label
+                .length() == 0 ? ' ' : label.charAt(0);
         anot[index].displayCharacter = label;
+
       }
     }
 
+    av.getAlignment().validateAnnotation(aa[activeRow]);
+    ap.alignmentChanged();
+    ap.alignFrame.setMenusForViewport();
     adjustPanelHeight();
     repaint();
 
     return;
   }
 
-  private String collectAnnotVals(Annotation[] anot,
-          ColumnSelection columnSelection, String label2)
+  /**
+   * Returns any existing annotation concatenated as a string. For each
+   * annotation, takes the description, if any, else the secondary structure
+   * character (if type is HELIX, SHEET or STEM), else the display character (if
+   * type is LABEL).
+   * 
+   * @param anots
+   * @param type
+   * @return
+   */
+  private String collectAnnotVals(Annotation[] anots, String type)
   {
-    String collatedInput = "";
+    // TODO is this method wanted? why? 'last' is not used
+
+    StringBuilder collatedInput = new StringBuilder(64);
     String last = "";
-    for (int i = 0; i < columnSelection.size(); i++)
+    ColumnSelection viscols = av.getColumnSelection();
+
+    /*
+     * the selection list (read-only view) is in selection order, not
+     * column order; make a copy so we can sort it
+     */
+    List<Integer> selected = new ArrayList<Integer>(viscols.getSelected());
+    Collections.sort(selected);
+    for (int index : selected)
     {
-      int index = columnSelection.columnAt(i);
       // always check for current display state - just in case
-      if (!av.colSel.isVisible(index))
-        continue;
-      String tlabel = null;
-      if (anot[index] != null)
+      if (!viscols.isVisible(index))
       {
-        if (label2.equals(HELIX) || label2.equals(SHEET)
-                || label2.equals(LABEL))
+        continue;
+      }
+      String tlabel = null;
+      if (anots[index] != null)
+      { // LML added stem code
+        if (type.equals(HELIX) || type.equals(SHEET) || type.equals(STEM)
+                || type.equals(LABEL))
         {
-          tlabel = anot[index].description;
+          tlabel = anots[index].description;
           if (tlabel == null || tlabel.length() < 1)
           {
-            if (label2.equals(HELIX) || label2.equals(SHEET))
+            if (type.equals(HELIX) || type.equals(SHEET)
+                    || type.equals(STEM))
             {
-              tlabel = "" + anot[index].secondaryStructure;
+              tlabel = "" + anots[index].secondaryStructure;
             }
             else
             {
-              tlabel = "" + anot[index].displayCharacter;
+              tlabel = "" + anots[index].displayCharacter;
             }
           }
         }
@@ -378,13 +479,13 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         {
           if (last.length() > 0)
           {
-            collatedInput += " ";
+            collatedInput.append(" ");
           }
-          collatedInput += tlabel;
+          collatedInput.append(tlabel);
         }
       }
     }
-    return collatedInput;
+    return collatedInput.toString();
   }
 
   /**
@@ -393,10 +494,11 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mousePressed(MouseEvent evt)
   {
 
-    AlignmentAnnotation[] aa = av.alignment.getAlignmentAnnotation();
+    AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
     if (aa == null)
     {
       return;
@@ -405,6 +507,7 @@ public class AnnotationPanel extends JPanel implements MouseListener,
     int height = 0;
     activeRow = -1;
 
+    final int y = evt.getY();
     for (int i = 0; i < aa.length; i++)
     {
       if (aa[i].visible)
@@ -412,7 +515,7 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         height += aa[i].height;
       }
 
-      if (evt.getY() < height)
+      if (y < height)
       {
         if (aa[i].editable)
         {
@@ -422,48 +525,71 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         {
           // Stretch Graph
           graphStretch = i;
-          graphStretchY = evt.getY();
+          graphStretchY = y;
         }
 
         break;
       }
     }
 
-    if (SwingUtilities.isRightMouseButton(evt) && activeRow != -1)
+    /*
+     * isPopupTrigger fires in mousePressed on Mac,
+     * not until mouseRelease on Windows
+     */
+    if (evt.isPopupTrigger() && activeRow != -1)
     {
-      if (av.getColumnSelection() == null)
-      {
-        return;
-      }
+      showPopupMenu(y, evt.getX());
+      return;
+    }
 
-      JPopupMenu pop = new JPopupMenu("Structure type");
-      JMenuItem item = new JMenuItem(HELIX);
+    ap.getScalePanel().mousePressed(evt);
+  }
+
+  /**
+   * Construct and display a context menu at the right-click position
+   * 
+   * @param y
+   * @param x
+   */
+  void showPopupMenu(final int y, int x)
+  {
+    if (av.getColumnSelection() == null
+            || av.getColumnSelection().isEmpty())
+    {
+      return;
+    }
+
+    JPopupMenu pop = new JPopupMenu(
+            MessageManager.getString("label.structure_type"));
+    JMenuItem item;
+    /*
+     * Just display the needed structure options
+     */
+    if (av.getAlignment().isNucleotide())
+    {
+      item = new JMenuItem(STEM);
+      item.addActionListener(this);
+      pop.add(item);
+    }
+    else
+    {
+      item = new JMenuItem(HELIX);
       item.addActionListener(this);
       pop.add(item);
       item = new JMenuItem(SHEET);
       item.addActionListener(this);
       pop.add(item);
-      item = new JMenuItem(LABEL);
-      item.addActionListener(this);
-      pop.add(item);
-      item = new JMenuItem(COLOUR);
-      item.addActionListener(this);
-      pop.add(item);
-      item = new JMenuItem(REMOVE);
-      item.addActionListener(this);
-      pop.add(item);
-      pop.show(this, evt.getX(), evt.getY());
-
-      return;
     }
-
-    if (aa == null)
-    {
-      return;
-    }
-
-    ap.scalePanel.mousePressed(evt);
-
+    item = new JMenuItem(LABEL);
+    item.addActionListener(this);
+    pop.add(item);
+    item = new JMenuItem(COLOUR);
+    item.addActionListener(this);
+    pop.add(item);
+    item = new JMenuItem(REMOVE);
+    item.addActionListener(this);
+    pop.add(item);
+    pop.show(this, x, y);
   }
 
   /**
@@ -472,12 +598,23 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     graphStretch = -1;
     graphStretchY = -1;
     mouseDragging = false;
-    ap.scalePanel.mouseReleased(evt);
+    ap.getScalePanel().mouseReleased(evt);
+
+    /*
+     * isPopupTrigger is set in mouseReleased on Windows
+     * (in mousePressed on Mac)
+     */
+    if (evt.isPopupTrigger() && activeRow != -1)
+    {
+      showPopupMenu(evt.getY(), evt.getX());
+    }
+
   }
 
   /**
@@ -486,9 +623,10 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
-    ap.scalePanel.mouseEntered(evt);
+    ap.getScalePanel().mouseEntered(evt);
   }
 
   /**
@@ -497,9 +635,10 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseExited(MouseEvent evt)
   {
-    ap.scalePanel.mouseExited(evt);
+    ap.getScalePanel().mouseExited(evt);
   }
 
   /**
@@ -508,15 +647,16 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     if (graphStretch > -1)
     {
-      av.alignment.getAlignmentAnnotation()[graphStretch].graphHeight += graphStretchY
+      av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight += graphStretchY
               - evt.getY();
-      if (av.alignment.getAlignmentAnnotation()[graphStretch].graphHeight < 0)
+      if (av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight < 0)
       {
-        av.alignment.getAlignmentAnnotation()[graphStretch].graphHeight = 0;
+        av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight = 0;
       }
       graphStretchY = evt.getY();
       adjustPanelHeight();
@@ -524,19 +664,20 @@ public class AnnotationPanel extends JPanel implements MouseListener,
     }
     else
     {
-      ap.scalePanel.mouseDragged(evt);
+      ap.getScalePanel().mouseDragged(evt);
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Constructs the tooltip, and constructs and displays a status message, for
+   * the current mouse position
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
-    AlignmentAnnotation[] aa = av.alignment.getAlignmentAnnotation();
+    AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
 
     if (aa == null)
     {
@@ -557,7 +698,6 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       if (evt.getY() < height)
       {
         row = i;
-
         break;
       }
     }
@@ -568,63 +708,139 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       return;
     }
 
-    int res = (evt.getX() / av.getCharWidth()) + av.getStartRes();
+    int column = (evt.getX() / av.getCharWidth()) + av.getStartRes();
 
-    if (av.hasHiddenColumns)
+    if (av.hasHiddenColumns())
     {
-      res = av.getColumnSelection().adjustForHiddenColumns(res);
+      column = av.getColumnSelection().adjustForHiddenColumns(column);
     }
 
-    if (row > -1 && aa[row].annotations != null
-            && res < (int) aa[row].annotations.length)
+    AlignmentAnnotation ann = aa[row];
+    if (row > -1 && ann.annotations != null
+            && column < ann.annotations.length)
     {
-      if (aa[row].graphGroup > -1)
-      {
-        StringBuffer tip = new StringBuffer("<html>");
-        for (int gg = 0; gg < aa.length; gg++)
-        {
-          if (aa[gg].graphGroup == aa[row].graphGroup
-                  && aa[gg].annotations[res] != null)
-          {
-            tip.append(aa[gg].label + " "
-                    + aa[gg].annotations[res].description + "<br>");
-          }
-        }
-        if (tip.length() != 6)
-        {
-          tip.setLength(tip.length() - 4);
-          this.setToolTipText(tip.toString() + "</html>");
-        }
-      }
-      else if (aa[row].annotations[res] != null
-              && aa[row].annotations[res].description != null
-              && aa[row].annotations[res].description.length() > 0)
-      {
-        this.setToolTipText(aa[row].annotations[res].description);
-      }
-      else
-      {
-        // clear the tooltip.
-        this.setToolTipText(null);
-      }
-
-      if (aa[row].annotations[res] != null)
-      {
-        StringBuffer text = new StringBuffer("Sequence position "
-                + (res + 1));
-
-        if (aa[row].annotations[res].description != null)
-        {
-          text.append("  " + aa[row].annotations[res].description);
-        }
-
-        ap.alignFrame.statusBar.setText(text.toString());
-      }
+      buildToolTip(ann, column, aa);
+      setStatusMessage(column, ann);
     }
     else
     {
       this.setToolTipText(null);
+      ap.alignFrame.statusBar.setText(" ");
     }
+  }
+
+  /**
+   * Builds a tooltip for the annotation at the current mouse position.
+   * 
+   * @param ann
+   * @param column
+   * @param anns
+   */
+  void buildToolTip(AlignmentAnnotation ann, int column,
+          AlignmentAnnotation[] anns)
+  {
+    if (ann.graphGroup > -1)
+    {
+      StringBuilder tip = new StringBuilder(32);
+      tip.append("<html>");
+      for (int i = 0; i < anns.length; i++)
+      {
+        if (anns[i].graphGroup == ann.graphGroup
+                && anns[i].annotations[column] != null)
+        {
+          tip.append(anns[i].label);
+          String description = anns[i].annotations[column].description;
+          if (description != null && description.length() > 0)
+          {
+            tip.append(" ").append(description);
+          }
+          tip.append("<br>");
+        }
+      }
+      if (tip.length() != 6)
+      {
+        tip.setLength(tip.length() - 4);
+        this.setToolTipText(tip.toString() + "</html>");
+      }
+    }
+    else if (ann.annotations[column] != null)
+    {
+      String description = ann.annotations[column].description;
+      if (description != null && description.length() > 0)
+      {
+        this.setToolTipText(JvSwingUtils.wrapTooltip(true, description));
+      }
+    }
+    else
+    {
+      // clear the tooltip.
+      this.setToolTipText(null);
+    }
+  }
+
+  /**
+   * Constructs and displays the status bar message
+   * 
+   * @param column
+   * @param ann
+   */
+  void setStatusMessage(int column, AlignmentAnnotation ann)
+  {
+    /*
+     * show alignment column and annotation description if any
+     */
+    StringBuilder text = new StringBuilder(32);
+    text.append(MessageManager.getString("label.column")).append(" ")
+            .append(column + 1);
+
+    if (ann.annotations[column] != null)
+    {
+      String description = ann.annotations[column].description;
+      if (description != null && description.trim().length() > 0)
+      {
+        text.append("  ").append(description);
+      }
+    }
+
+    /*
+     * if the annotation is sequence-specific, show the sequence number
+     * in the alignment, and (if not a gap) the residue and position
+     */
+    SequenceI seqref = ann.sequenceRef;
+    if (seqref != null)
+    {
+      int seqIndex = av.getAlignment().findIndex(seqref);
+      if (seqIndex != -1)
+      {
+        text.append(", ")
+                .append(MessageManager.getString("label.sequence"))
+                .append(" ").append(seqIndex + 1);
+        char residue = seqref.getCharAt(column);
+        if (!Comparison.isGap(residue))
+        {
+          text.append(" ");
+          String name;
+          if (av.getAlignment().isNucleotide())
+          {
+            name = ResidueProperties.nucleotideName.get(String
+                    .valueOf(residue));
+            text.append(" Nucleotide: ").append(
+                    name != null ? name : residue);
+          }
+          else
+          {
+            name = 'X' == residue ? "X" : ('*' == residue ? "STOP"
+                    : ResidueProperties.aa2Triplet.get(String
+                            .valueOf(residue)));
+            text.append(" Residue: ").append(name != null ? name : residue);
+          }
+          int residuePos = seqref.findPosition(column);
+          text.append(" (").append(residuePos).append(")");
+        }
+      }
+    }
+
+    ap.alignFrame.statusBar.setText(text.toString());
   }
 
   /**
@@ -633,9 +849,39 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
+    // if (activeRow != -1)
+    // {
+    // AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
+    // AlignmentAnnotation anot = aa[activeRow];
+    // }
   }
+
+  // TODO mouseClicked-content and drawCursor are quite experimental!
+  public void drawCursor(Graphics graphics, SequenceI seq, int res, int x1,
+          int y1)
+  {
+    int pady = av.getCharHeight() / 5;
+    int charOffset = 0;
+    graphics.setColor(Color.black);
+    graphics.fillRect(x1, y1, av.getCharWidth(), av.getCharHeight());
+
+    if (av.validCharWidth)
+    {
+      graphics.setColor(Color.white);
+
+      char s = seq.getCharAt(res);
+
+      charOffset = (av.getCharWidth() - fm.charWidth(s)) / 2;
+      graphics.drawString(String.valueOf(s), charOffset + x1,
+              (y1 + av.getCharHeight()) - pady);
+    }
+
+  }
+
+  private volatile boolean imageFresh = false;
 
   /**
    * DOCUMENT ME!
@@ -643,6 +889,7 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    * @param g
    *          DOCUMENT ME!
    */
+  @Override
   public void paintComponent(Graphics g)
   {
     g.setColor(Color.white);
@@ -658,14 +905,32 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         return;
       }
     }
-    imgWidth = (av.endRes - av.startRes + 1) * av.charWidth;
+    imgWidth = (av.endRes - av.startRes + 1) * av.getCharWidth();
     if (imgWidth < 1)
+    {
       return;
-    if (image == null || imgWidth != image.getWidth()
+    }
+    if (image == null || imgWidth != image.getWidth(this)
             || image.getHeight(this) != getHeight())
     {
-      image = new BufferedImage(imgWidth, ap.annotationPanel.getHeight(),
-              BufferedImage.TYPE_INT_RGB);
+      try
+      {
+        image = new BufferedImage(imgWidth, ap.getAnnotationPanel()
+                .getHeight(), BufferedImage.TYPE_INT_RGB);
+      } catch (OutOfMemoryError oom)
+      {
+        try
+        {
+          System.gc();
+        } catch (Exception x)
+        {
+        }
+        ;
+        new OOMWarning(
+                "Couldn't allocate memory to redraw screen. Please restart Jalview",
+                oom);
+        return;
+      }
       gg = (Graphics2D) image.getGraphics();
 
       if (av.antiAlias)
@@ -678,11 +943,18 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       fm = gg.getFontMetrics();
       gg.setColor(Color.white);
       gg.fillRect(0, 0, imgWidth, image.getHeight());
+      imageFresh = true;
     }
 
     drawComponent(gg, av.startRes, av.endRes + 1);
+    imageFresh = false;
     g.drawImage(image, 0, 0, this);
   }
+
+  /**
+   * set true to enable redraw timing debug output on stderr
+   */
+  private final boolean debugRedraw = false;
 
   /**
    * non-Thread safe repaint
@@ -692,24 +964,25 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    */
   public void fastPaint(int horizontal)
   {
-
     if ((horizontal == 0) || gg == null
-            || av.alignment.getAlignmentAnnotation() == null
-            || av.alignment.getAlignmentAnnotation().length < 1
-            || av.updatingConsensus || av.updatingConservation)
+            || av.getAlignment().getAlignmentAnnotation() == null
+            || av.getAlignment().getAlignmentAnnotation().length < 1
+            || av.isCalcInProgress())
     {
       repaint();
       return;
     }
-    gg.copyArea(0, 0, imgWidth, getHeight(), -horizontal * av.charWidth, 0);
-
+    long stime = System.currentTimeMillis();
+    gg.copyArea(0, 0, imgWidth, getHeight(),
+            -horizontal * av.getCharWidth(), 0);
+    long mtime = System.currentTimeMillis();
     int sr = av.startRes;
     int er = av.endRes + 1;
     int transX = 0;
 
     if (horizontal > 0) // scrollbar pulled right, image to the left
     {
-      transX = (er - sr - horizontal) * av.charWidth;
+      transX = (er - sr - horizontal) * av.getCharWidth();
       sr = er - horizontal;
     }
     else if (horizontal < 0)
@@ -722,11 +995,20 @@ public class AnnotationPanel extends JPanel implements MouseListener,
     drawComponent(gg, sr, er);
 
     gg.translate(-transX, 0);
-
+    long dtime = System.currentTimeMillis();
     fastPaint = true;
     repaint();
+    long rtime = System.currentTimeMillis();
+    if (debugRedraw)
+    {
+      System.err.println("Scroll:\t" + horizontal + "\tCopyArea:\t"
+              + (mtime - stime) + "\tDraw component:\t" + (dtime - mtime)
+              + "\tRepaint call:\t" + (rtime - dtime));
+    }
 
   }
+
+  private volatile boolean lastImageGood = false;
 
   /**
    * DOCUMENT ME!
@@ -740,18 +1022,23 @@ public class AnnotationPanel extends JPanel implements MouseListener,
    */
   public void drawComponent(Graphics g, int startRes, int endRes)
   {
-    if (av.updatingConsensus || av.updatingConservation)
+    BufferedImage oldFaded = fadedImage;
+    if (av.isCalcInProgress())
     {
       if (image == null)
       {
+        lastImageGood = false;
         return;
       }
       // We'll keep a record of the old image,
       // and draw a faded image until the calculation
       // has completed
-      if (fadedImage == null || fadedImage.getWidth() != imgWidth
-              || fadedImage.getHeight() != image.getHeight())
+      if (lastImageGood
+              && (fadedImage == null || fadedImage.getWidth() != imgWidth || fadedImage
+                      .getHeight() != image.getHeight()))
       {
+        // System.err.println("redraw faded image ("+(fadedImage==null ?
+        // "null image" : "") + " lastGood="+lastImageGood+")");
         fadedImage = new BufferedImage(imgWidth, image.getHeight(),
                 BufferedImage.TYPE_INT_RGB);
 
@@ -765,15 +1052,22 @@ public class AnnotationPanel extends JPanel implements MouseListener,
         fadedG.drawImage(image, 0, 0, this);
 
       }
+      // make sure we don't overwrite the last good faded image until all
+      // calculations have finished
+      lastImageGood = false;
 
     }
     else
     {
+      if (fadedImage != null)
+      {
+        oldFaded = fadedImage;
+      }
       fadedImage = null;
     }
 
     g.setColor(Color.white);
-    g.fillRect(0, 0, (endRes - startRes) * av.charWidth, getHeight());
+    g.fillRect(0, 0, (endRes - startRes) * av.getCharWidth(), getHeight());
 
     g.setFont(av.getFont());
     if (fm == null)
@@ -781,723 +1075,83 @@ public class AnnotationPanel extends JPanel implements MouseListener,
       fm = g.getFontMetrics();
     }
 
-    if ((av.alignment.getAlignmentAnnotation() == null)
-            || (av.alignment.getAlignmentAnnotation().length < 1))
+    if ((av.getAlignment().getAlignmentAnnotation() == null)
+            || (av.getAlignment().getAlignmentAnnotation().length < 1))
     {
       g.setColor(Color.white);
       g.fillRect(0, 0, getWidth(), getHeight());
       g.setColor(Color.black);
       if (av.validCharWidth)
       {
-        g.drawString("Alignment has no annotations", 20, 15);
+        g.drawString(MessageManager
+                .getString("label.alignment_has_no_annotations"), 20, 15);
       }
 
       return;
     }
-
-    AlignmentAnnotation[] aa = av.alignment.getAlignmentAnnotation();
-
-    int x = 0, y = 0;
-    int column = 0;
-    char lastSS;
-    int lastSSX;
-    int iconOffset = 0;
-    boolean validRes = false;
-    boolean validEnd = false;
-    boolean labelAllCols = false;
-    boolean centreColLabels, centreColLabelsDef = av
-            .getCentreColumnLabels();
-    boolean scaleColLabel = false;
-    boolean[] graphGroupDrawn = new boolean[aa.length];
-    int charOffset = 0; // offset for a label
-    float fmWidth, fmScaling = 1f; // scaling for a label to fit it into a
-                                   // column.
-    Font ofont = g.getFont();
-    // \u03B2 \u03B1
-    for (int i = 0; i < aa.length; i++)
+    lastImageGood = renderer.drawComponent(this, av, g, activeRow,
+            startRes, endRes);
+    if (!lastImageGood && fadedImage == null)
     {
-      AlignmentAnnotation row = aa[i];
-
-      if (!row.visible)
-      {
-        continue;
-      }
-      centreColLabels = row.centreColLabels || centreColLabelsDef;
-      labelAllCols = row.showAllColLabels;
-      scaleColLabel = row.scaleColLabel;
-      lastSS = ' ';
-      lastSSX = 0;
-
-      if (row.graph > 0)
-      {
-        if (row.graphGroup > -1 && graphGroupDrawn[row.graphGroup])
-        {
-          continue;
-        }
-
-        // this is so that we draw the characters below the graph
-        y += row.height;
-
-        if (row.hasText)
-        {
-          iconOffset = av.charHeight - fm.getDescent();
-          y -= av.charHeight;
-        }
-      }
-      else if (row.hasText)
-      {
-        iconOffset = av.charHeight - fm.getDescent();
-
-      }
-      else
-      {
-        iconOffset = 0;
-      }
-
-      if (av.updatingConsensus && aa[i] == av.consensus)
-      {
-        y += av.charHeight;
-
-        g.drawImage(fadedImage, 0, y - row.height, imgWidth, y, 0, y
-                - row.height, imgWidth, y, this);
-        g.setColor(Color.black);
-        // g.drawString("Calculating Consensus....",20, y-row.height/2);
-
-        continue;
-      }
-      else if (av.updatingConservation
-              && aa[i].label.equals("Conservation"))
-      {
-
-        y += av.charHeight;
-        g.drawImage(fadedImage, 0, y - row.height, imgWidth, y, 0, y
-                - row.height, imgWidth, y, this);
-
-        g.setColor(Color.black);
-        // g.drawString("Calculating Conservation.....",20, y-row.height/2);
-
-        continue;
-      }
-      else if (av.updatingConservation && aa[i].label.equals("Quality"))
-      {
-
-        y += av.charHeight;
-        g.drawImage(fadedImage, 0, y - row.height, imgWidth, y, 0, y
-                - row.height, imgWidth, y, this);
-        g.setColor(Color.black);
-        // / g.drawString("Calculating Quality....",20, y-row.height/2);
-
-        continue;
-      }
-
-      x = 0;
-      while (x < endRes - startRes)
-      {
-        if (av.hasHiddenColumns)
-        {
-          column = av.getColumnSelection().adjustForHiddenColumns(
-                  startRes + x);
-          if (column > row.annotations.length - 1)
-          {
-            break;
-          }
-        }
-        else
-        {
-          column = startRes + x;
-        }
-
-        if ((row.annotations == null) || (row.annotations.length <= column)
-                || (row.annotations[column] == null))
-        {
-          validRes = false;
-        }
-        else
-        {
-          validRes = true;
-        }
-
-        if (activeRow == i)
-        {
-          g.setColor(Color.red);
-
-          if (av.getColumnSelection() != null)
-          {
-            for (int n = 0; n < av.getColumnSelection().size(); n++)
-            {
-              int v = av.getColumnSelection().columnAt(n);
-
-              if (v == column)
-              {
-                g.fillRect(x * av.charWidth, y, av.charWidth, av.charHeight);
-              }
-            }
-          }
-        }
-
-        if (av.validCharWidth && validRes
-                && row.annotations[column].displayCharacter != null
-                && (row.annotations[column].displayCharacter.length() > 0))
-        {
-
-          if (centreColLabels || scaleColLabel)
-          {
-            fmWidth = (float) fm.charsWidth(
-                    row.annotations[column].displayCharacter.toCharArray(),
-                    0, row.annotations[column].displayCharacter.length());
-
-            if (scaleColLabel)
-            {
-              // justify the label and scale to fit in column
-              if (fmWidth > av.charWidth)
-              {
-                // scale only if the current font isn't already small enough
-                fmScaling = av.charWidth;
-                fmScaling /= fmWidth;
-                g.setFont(ofont.deriveFont(AffineTransform
-                        .getScaleInstance(fmScaling, 1.0)));
-                // and update the label's width to reflect the scaling.
-                fmWidth = av.charWidth;
-              }
-            }
-          }
-          else
-          {
-            fmWidth = (float) fm
-                    .charWidth(row.annotations[column].displayCharacter
-                            .charAt(0));
-          }
-          charOffset = (int) ((av.charWidth - fmWidth) / 2f);
-
-          if (row.annotations[column].colour == null)
-            g.setColor(Color.black);
-          else
-            g.setColor(row.annotations[column].colour);
-
-          if (column == 0 || row.graph > 0)
-          {
-            g.drawString(row.annotations[column].displayCharacter,
-                    (x * av.charWidth) + charOffset, y + iconOffset);
-          }
-          else if (row.annotations[column - 1] == null
-                  || (labelAllCols
-                          || !row.annotations[column].displayCharacter
-                                  .equals(row.annotations[column - 1].displayCharacter) || (row.annotations[column].displayCharacter
-                          .length() < 2 && row.annotations[column].secondaryStructure == ' ')))
-          {
-            g.drawString(row.annotations[column].displayCharacter, x
-                    * av.charWidth + charOffset, y + iconOffset);
-          }
-          g.setFont(ofont);
-        }
-
-        if (row.hasIcons)
-        {
-          if (!validRes
-                  || (row.annotations[column].secondaryStructure != lastSS))
-          {
-            switch (lastSS)
-            {
-            case 'H':
-              g.setColor(HELIX_COLOUR);
-              if (MAC)
-              {
-                // Off by 1 offset when drawing rects and ovals
-                // to offscreen image on the MAC
-                g.fillRoundRect(lastSSX, y + 4 + iconOffset,
-                        (x * av.charWidth) - lastSSX, 7, 8, 8);
-                break;
-              }
-
-              int sCol = (lastSSX / av.charWidth) + startRes;
-              int x1 = lastSSX;
-              int x2 = (x * av.charWidth);
-
-              if (sCol == 0
-                      || row.annotations[sCol - 1] == null
-                      || row.annotations[sCol - 1].secondaryStructure != 'H')
-              {
-                g.fillArc(lastSSX, y + 4 + iconOffset, av.charWidth, 8, 90,
-                        180);
-                x1 += av.charWidth / 2;
-              }
-
-              if (!validRes || row.annotations[column] == null
-                      || row.annotations[column].secondaryStructure != 'H')
-              {
-                g.fillArc((x * av.charWidth) - av.charWidth, y + 4
-                        + iconOffset, av.charWidth, 8, 270, 180);
-                x2 -= av.charWidth / 2;
-              }
-
-              g.fillRect(x1, y + 4 + iconOffset, x2 - x1, 8);
-              break;
-
-            case 'E':
-              g.setColor(SHEET_COLOUR);
-              g.fillRect(lastSSX, y + 4 + iconOffset, (x * av.charWidth)
-                      - lastSSX - 4, 7);
-              g.fillPolygon(new int[]
-              { (x * av.charWidth) - 4, (x * av.charWidth) - 4,
-                  (x * av.charWidth) }, new int[]
-              { y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset },
-                      3);
-
-              break;
-
-            default:
-              g.setColor(Color.gray);
-              g.fillRect(lastSSX, y + 6 + iconOffset, (x * av.charWidth)
-                      - lastSSX, 2);
-
-              break;
-            }
-
-            if (validRes)
-            {
-              lastSS = row.annotations[column].secondaryStructure;
-            }
-            else
-            {
-              lastSS = ' ';
-            }
-
-            lastSSX = (x * av.charWidth);
-          }
-        }
-
-        column++;
-        x++;
-      }
-
-      if (column >= row.annotations.length)
-      {
-        column = row.annotations.length - 1;
-        validEnd = false;
-      }
-      else
-      {
-        validEnd = true;
-      }
-
-      // x ++;
-
-      if (row.hasIcons)
-      {
-        switch (lastSS)
-        {
-        case 'H':
-          g.setColor(HELIX_COLOUR);
-          if (MAC)
-          {
-            // Off by 1 offset when drawing rects and ovals
-            // to offscreen image on the MAC
-            g.fillRoundRect(lastSSX, y + 4 + iconOffset, (x * av.charWidth)
-                    - lastSSX, 7, 8, 8);
-            break;
-          }
-
-          int sCol = (lastSSX / av.charWidth) + startRes;
-          int x1 = lastSSX;
-          int x2 = (x * av.charWidth);
-
-          if (sCol == 0 || row.annotations[sCol - 1] == null
-                  || row.annotations[sCol - 1].secondaryStructure != 'H')
-          {
-            g.fillArc(lastSSX, y + 4 + iconOffset, av.charWidth, 8, 90, 180);
-            x1 += av.charWidth / 2;
-          }
-
-          if (row.annotations[column] == null
-                  || row.annotations[column].secondaryStructure != 'H')
-          {
-            g.fillArc((x * av.charWidth) - av.charWidth,
-                    y + 4 + iconOffset, av.charWidth, 8, 270, 180);
-            x2 -= av.charWidth / 2;
-          }
-
-          g.fillRect(x1, y + 4 + iconOffset, x2 - x1, 8);
-
-          break;
-
-        case 'E':
-          g.setColor(SHEET_COLOUR);
-
-          if (!validEnd || row.annotations[endRes] == null
-                  || row.annotations[endRes].secondaryStructure != 'E')
-          {
-            g.fillRect(lastSSX, y + 4 + iconOffset, (x * av.charWidth)
-                    - lastSSX - 4, 7);
-            g.fillPolygon(new int[]
-            { (x * av.charWidth) - 4, (x * av.charWidth) - 4,
-                (x * av.charWidth) }, new int[]
-            { y + iconOffset, y + 14 + iconOffset, y + 7 + iconOffset }, 3);
-          }
-          else
-          {
-            g.fillRect(lastSSX, y + 4 + iconOffset, (x + 1) * av.charWidth
-                    - lastSSX, 7);
-          }
-          break;
-
-        default:
-          g.setColor(Color.gray);
-          g.fillRect(lastSSX, y + 6 + iconOffset, (x * av.charWidth)
-                  - lastSSX, 2);
-
-          break;
-        }
-      }
-
-      if (row.graph > 0 && row.graphHeight > 0)
-      {
-        if (row.graph == AlignmentAnnotation.LINE_GRAPH)
-        {
-          if (row.graphGroup > -1 && !graphGroupDrawn[row.graphGroup])
-          {
-            float groupmax = -999999, groupmin = 9999999;
-            for (int gg = 0; gg < aa.length; gg++)
-            {
-              if (aa[gg].graphGroup != row.graphGroup)
-              {
-                continue;
-              }
-
-              if (aa[gg] != row)
-              {
-                aa[gg].visible = false;
-              }
-
-              if (aa[gg].graphMax > groupmax)
-              {
-                groupmax = aa[gg].graphMax;
-              }
-              if (aa[gg].graphMin < groupmin)
-              {
-                groupmin = aa[gg].graphMin;
-              }
-            }
-
-            for (int gg = 0; gg < aa.length; gg++)
-            {
-              if (aa[gg].graphGroup == row.graphGroup)
-              {
-                drawLineGraph(g, aa[gg], startRes, endRes, y, groupmin,
-                        groupmax, row.graphHeight);
-              }
-            }
-
-            graphGroupDrawn[row.graphGroup] = true;
-          }
-          else
-          {
-            drawLineGraph(g, row, startRes, endRes, y, row.graphMin,
-                    row.graphMax, row.graphHeight);
-          }
-        }
-        else if (row.graph == AlignmentAnnotation.BAR_GRAPH)
-        {
-          drawBarGraph(g, row, startRes, endRes, row.graphMin,
-                  row.graphMax, y);
-        }
-      }
-
-      if (row.graph > 0 && row.hasText)
-      {
-        y += av.charHeight;
-      }
-
-      if (row.graph == 0)
-      {
-        y += aa[i].height;
-      }
+      fadedImage = oldFaded;
     }
   }
 
-  public void drawLineGraph(Graphics g, AlignmentAnnotation aa, int sRes,
-          int eRes, int y, float min, float max, int graphHeight)
+  @Override
+  public FontMetrics getFontMetrics()
   {
-    if (sRes > aa.annotations.length)
-    {
-      return;
-    }
-
-    int x = 0;
-
-    // Adjustment for fastpaint to left
-    if (eRes < av.endRes)
-    {
-      eRes++;
-    }
-
-    eRes = Math.min(eRes, aa.annotations.length);
-
-    if (sRes == 0)
-    {
-      x++;
-    }
-
-    int y1 = y, y2 = y;
-    float range = max - min;
-
-    // //Draw origin
-    if (min < 0)
-    {
-      y2 = y - (int) ((0 - min / range) * graphHeight);
-    }
-
-    g.setColor(Color.gray);
-    g.drawLine(x - av.charWidth, y2, (eRes - sRes + 1) * av.charWidth, y2);
-
-    eRes = Math.min(eRes, aa.annotations.length);
-
-    int column;
-    int aaMax = aa.annotations.length - 1;
-
-    while (x < eRes - sRes)
-    {
-      column = sRes + x;
-      if (av.hasHiddenColumns)
-      {
-        column = av.getColumnSelection().adjustForHiddenColumns(column);
-      }
-
-      if (column > aaMax)
-      {
-        break;
-      }
-
-      if (aa.annotations[column] == null
-              || aa.annotations[column - 1] == null)
-      {
-        x++;
-        continue;
-      }
-
-      if (aa.annotations[column].colour == null)
-        g.setColor(Color.black);
-      else
-        g.setColor(aa.annotations[column].colour);
-
-      y1 = y
-              - (int) (((aa.annotations[column - 1].value - min) / range) * graphHeight);
-      y2 = y
-              - (int) (((aa.annotations[column].value - min) / range) * graphHeight);
-
-      g.drawLine(x * av.charWidth - av.charWidth / 2, y1, x * av.charWidth
-              + av.charWidth / 2, y2);
-      x++;
-    }
-
-    if (aa.threshold != null)
-    {
-      g.setColor(aa.threshold.colour);
-      Graphics2D g2 = (Graphics2D) g;
-      g2.setStroke(new BasicStroke(1, BasicStroke.CAP_SQUARE,
-              BasicStroke.JOIN_ROUND, 3f, new float[]
-              { 5f, 3f }, 0f));
-
-      y2 = (int) (y - ((aa.threshold.value - min) / range) * graphHeight);
-      g.drawLine(0, y2, (eRes - sRes) * av.charWidth, y2);
-      g2.setStroke(new BasicStroke());
-    }
+    return fm;
   }
 
-  public void drawBarGraph(Graphics g, AlignmentAnnotation aa, int sRes,
-          int eRes, float min, float max, int y)
+  @Override
+  public Image getFadedImage()
   {
-    ColourSchemeI profcolour = av.getGlobalColourScheme();
-    if (profcolour == null)
-    {
-      profcolour = new jalview.schemes.ZappoColourScheme();
-    }
-    if (sRes > aa.annotations.length)
-    {
-      return;
-    }
-    Font ofont = g.getFont();
-    eRes = Math.min(eRes, aa.annotations.length);
-
-    int x = 0, y1 = y, y2 = y;
-
-    float range = max - min;
-
-    if (min < 0)
-    {
-      y2 = y - (int) ((0 - min / (range)) * aa.graphHeight);
-    }
-
-    g.setColor(Color.gray);
-
-    g.drawLine(x, y2, (eRes - sRes) * av.charWidth, y2);
-
-    int column;
-    int aaMax = aa.annotations.length - 1;
-    boolean renderHistogram = true, renderProfile = true;
-    if (aa.autoCalculated && aa.label.startsWith("Consensus"))
-    {
-      // TODO: generalise this to have render styles for consensus/profile data
-      if (aa.groupRef != null)
-      {
-        renderHistogram = aa.groupRef.isShowConsensusHistogram();
-        renderProfile = aa.groupRef.isShowSequenceLogo();
-      }
-      else
-      {
-        renderHistogram = av.isShowConsensusHistogram();
-        renderProfile = av.isShowSequenceLogo();
-      }
-    }
-    while (x < eRes - sRes)
-    {
-      column = sRes + x;
-      if (av.hasHiddenColumns)
-      {
-        column = av.getColumnSelection().adjustForHiddenColumns(column);
-      }
-
-      if (column > aaMax)
-      {
-        break;
-      }
-
-      if (aa.annotations[column] == null)
-      {
-        x++;
-        continue;
-      }
-      if (aa.annotations[column].colour == null)
-        g.setColor(Color.black);
-      else
-        g.setColor(aa.annotations[column].colour);
-
-      y1 = y
-              - (int) (((aa.annotations[column].value - min) / (range)) * aa.graphHeight);
-
-      if (renderHistogram)
-      {
-        if (y1 - y2 > 0)
-        {
-          g.fillRect(x * av.charWidth, y2, av.charWidth, y1 - y2);
-        }
-        else
-        {
-          g.fillRect(x * av.charWidth, y1, av.charWidth, y2 - y1);
-        }
-      }
-      // draw profile if available
-      if (renderProfile && aa.annotations[column].value != 0)
-      {
-        int profl[] = getProfileFor(aa, column);
-        int ht = y1, htn = y2 - y1;// aa.graphHeight;
-        float wdth;
-        double ht2 = 0;
-        char[] dc = new char[1];
-        LineMetrics lm;
-        for (int c = 1; profl != null && c < profl[0];)
-        {
-          dc[0] = (char) profl[c++];
-          wdth = av.charWidth;
-          wdth /= (float) fm.charsWidth(dc, 0, 1);
-
-          if (c > 2)
-          {
-            ht += (int) ht2;
-          }
-          {
-            // if (aa.annotations[column].value==0) {
-            // g.setFont(ofont.deriveFont(AffineTransform.getScaleInstance(wdth,
-            // (ht2=(aa.graphHeight*0.1/av.charHeight)))));
-            // ht = y2-(int)ht2;
-            // } else {
-            g.setFont(ofont.deriveFont(AffineTransform.getScaleInstance(
-                    wdth, (ht2 = (htn * ((double) profl[c++]) / 100.0))
-                            / av.charHeight)));
-            lm = g.getFontMetrics().getLineMetrics(dc, 0, 1, g);
-            // htn -=ht2;
-            // }
-            g.setColor(profcolour.findColour(dc[0])); // (av.globalColourScheme!=null)
-                                                      // ? );// try to get a
-                                                      // colourscheme for the
-                                                      // group(aa.groupRef.cs==null)
-                                                      // ? av.textColour2 :
-                                                      // cs.findColour(dc));
-            g.drawChars(dc, 0, 1, x * av.charWidth,
-                    (int) (ht + lm.getHeight()));
-            // ht+=g.getFontMetrics().getAscent()-g.getFontMetrics().getDescent();
-          }
-        }
-        g.setFont(ofont);
-      }
-      x++;
-    }
-    if (aa.threshold != null)
-    {
-      g.setColor(aa.threshold.colour);
-      Graphics2D g2 = (Graphics2D) g;
-      g2.setStroke(new BasicStroke(1, BasicStroke.CAP_SQUARE,
-              BasicStroke.JOIN_ROUND, 3f, new float[]
-              { 5f, 3f }, 0f));
-
-      y2 = (int) (y - ((aa.threshold.value - min) / range) * aa.graphHeight);
-      g.drawLine(0, y2, (eRes - sRes) * av.charWidth, y2);
-      g2.setStroke(new BasicStroke());
-    }
+    return fadedImage;
   }
 
-  private int[] getProfileFor(AlignmentAnnotation aa, int column)
+  @Override
+  public int getFadedImageWidth()
   {
-    if (aa.autoCalculated && aa.label.startsWith("Consensus"))
-    {
-      if (aa.groupRef != null && aa.groupRef.consensusData != null
-              && aa.groupRef.isShowSequenceLogo())
-      {
-        return AAFrequency.extractProfile(
-                aa.groupRef.consensusData[column],
-                aa.groupRef.getIgnoreGapsConsensus());
-      }
-      // TODO extend annotation row to enable dynamic and static profile data to
-      // be stored
-      if (aa.groupRef == null && aa.sequenceRef == null
-              && av.isShowSequenceLogo())
-      {
-        return AAFrequency.extractProfile(av.hconsensus[column],
-                av.getIgnoreGapsConsensus());
-      }
-    }
-    return null;
+    return imgWidth;
   }
 
-  // used by overview window
-  public void drawGraph(Graphics g, AlignmentAnnotation aa, int width,
-          int y, int sRes, int eRes)
+  private int[] bounds = new int[2];
+
+  @Override
+  public int[] getVisibleVRange()
   {
-    eRes = Math.min(eRes, aa.annotations.length);
-    g.setColor(Color.white);
-    g.fillRect(0, 0, width, y);
-    g.setColor(new Color(0, 0, 180));
-
-    int x = 0, height;
-
-    for (int j = sRes; j < eRes; j++)
+    if (ap != null && ap.getAlabels() != null)
     {
-      if (aa.annotations[j] != null)
-      {
-        if (aa.annotations[j].colour == null)
-          g.setColor(Color.black);
-        else
-          g.setColor(aa.annotations[j].colour);
-
-        height = (int) ((aa.annotations[j].value / aa.graphMax) * y);
-        if (height > y)
-        {
-          height = y;
-        }
-
-        g.fillRect(x, y - height, av.charWidth, height);
-      }
-      x += av.charWidth;
+      int sOffset = -ap.getAlabels().getScrollOffset();
+      int visHeight = sOffset + ap.annotationSpaceFillerHolder.getHeight();
+      bounds[0] = sOffset;
+      bounds[1] = visHeight;
+      return bounds;
+    }
+    else
+    {
+      return null;
     }
   }
 
+  /**
+   * Try to ensure any references held are nulled
+   */
+  public void dispose()
+  {
+    av = null;
+    ap = null;
+    image = null;
+    fadedImage = null;
+    gg = null;
+    _mwl = null;
+
+    /*
+     * I created the renderer so I will dispose of it
+     */
+    if (renderer != null)
+    {
+      renderer.dispose();
+    }
+  }
 }

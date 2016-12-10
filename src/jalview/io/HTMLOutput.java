@@ -1,294 +1,168 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
+import jalview.api.AlignExportSettingI;
+import jalview.datamodel.AlignmentExportData;
+import jalview.exceptions.NoFileSelectedException;
+import jalview.gui.AlignmentPanel;
+import jalview.gui.IProgressIndicator;
+import jalview.util.MessageManager;
 
-import java.awt.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.Objects;
 
-import jalview.datamodel.*;
-import jalview.gui.*;
 
-public class HTMLOutput
+public abstract class HTMLOutput implements Runnable
 {
-  AlignViewport av;
+  protected AlignmentPanel ap;
 
-  SequenceRenderer sr;
+  protected long pSessionId;
 
-  FeatureRenderer fr;
+  protected IProgressIndicator pIndicator;
 
-  Color color;
+  protected File generatedFile;
 
-  public HTMLOutput(AlignmentPanel ap, SequenceRenderer sr,
-          FeatureRenderer fr1)
+  public HTMLOutput(AlignmentPanel ap)
   {
-    this.av = ap.av;
-    this.sr = sr;
-
-    fr = new FeatureRenderer(ap);
-    fr.transferSettings(fr1);
-
-    JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-            { "html" }, new String[]
-            { "HTML files" }, "HTML files");
-
-    chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Save as HTML");
-    chooser.setToolTipText("Save");
-
-    int value = chooser.showSaveDialog(null);
-
-    if (value == JalviewFileChooser.APPROVE_OPTION)
+    if (ap != null)
     {
-      String choice = chooser.getSelectedFile().getPath();
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", chooser
-              .getSelectedFile().getParent());
+      this.ap = ap;
+      this.pIndicator = ap.alignFrame;
+    }
+  }
 
+  public String getBioJSONData()
+  {
+    return getBioJSONData(null);
+  }
+
+  public String getBioJSONData(AlignExportSettingI exportSettings)
+  {
+    if (!isEmbedData())
+    {
+      return null;
+    }
+    if (exportSettings == null)
+    {
+      exportSettings = new AlignExportSettingI()
+      {
+        @Override
+        public boolean isExportHiddenSequences()
+        {
+          return true;
+        }
+
+        @Override
+        public boolean isExportHiddenColumns()
+        {
+          return true;
+        }
+
+        @Override
+        public boolean isExportAnnotations()
+        {
+          return true;
+        }
+
+        @Override
+        public boolean isExportFeatures()
+        {
+          return true;
+        }
+
+        @Override
+        public boolean isExportGroups()
+        {
+          return true;
+        }
+
+        @Override
+        public boolean isCancelled()
+        {
+          return false;
+        }
+      };
+    }
+    AlignmentExportData exportData = jalview.gui.AlignFrame
+            .getAlignmentForExport(JSONFile.FILE_DESC,
+                    ap.getAlignViewport(), exportSettings);
+    String bioJSON = new FormatAdapter(ap, exportData.getSettings())
+            .formatSequences(JSONFile.FILE_DESC, exportData.getAlignment(),
+                    exportData.getOmitHidden(), exportData
+                            .getStartEndPostions(), ap.getAlignViewport()
+                            .getColumnSelection());
+    return bioJSON;
+  }
+
+  /**
+   * Read a template file content as string
+   * 
+   * @param file
+   *          - the file to be read
+   * @return File content as String
+   * @throws IOException
+   */
+  public static String readFileAsString(File file) throws IOException
+  {
+    InputStreamReader isReader = null;
+    BufferedReader buffReader = null;
+    StringBuilder sb = new StringBuilder();
+    Objects.requireNonNull(file, "File must not be null!");
+    @SuppressWarnings("deprecation")
+    URL url = file.toURL();
+    if (url != null)
+    {
       try
       {
-        PrintWriter out = new java.io.PrintWriter(new java.io.FileWriter(
-                choice));
-        out.println("<HTML>");
-        out.println("<style type=\"text/css\">");
-        out.println("<!--");
-        out.print("td {font-family: \"" + av.getFont().getFamily()
-                + "\", \"" + av.getFont().getName() + "\", mono; "
-                + "font-size: " + av.getFont().getSize() + "px; ");
-
-        if (av.getFont().getStyle() == Font.BOLD)
+        isReader = new InputStreamReader(url.openStream());
+        buffReader = new BufferedReader(isReader);
+        String line;
+        String lineSeparator = System.getProperty("line.separator");
+        while ((line = buffReader.readLine()) != null)
         {
-          out.print("font-weight: BOLD; ");
+          sb.append(line).append(lineSeparator);
         }
-
-        if (av.getFont().getStyle() == Font.ITALIC)
-        {
-          out.print("font-style: italic; ");
-        }
-
-        out.println("text-align: center; }");
-
-        out.println("-->");
-        out.println("</style>");
-        out.println("<BODY>");
-
-        if (av.getWrapAlignment())
-        {
-          drawWrappedAlignment(out);
-        }
-        else
-        {
-          drawUnwrappedAlignment(out);
-        }
-
-        out.println("\n</body>\n</html>");
-        out.close();
-        jalview.util.BrowserLauncher.openURL("file:///" + choice);
+  
       } catch (Exception ex)
       {
         ex.printStackTrace();
+      } finally
+      {
+        if (isReader != null)
+        {
+          isReader.close();
+        }
+  
+        if (buffReader != null)
+        {
+          buffReader.close();
+        }
       }
     }
-  }
-
-  void drawUnwrappedAlignment(PrintWriter out)
-  {
-    out.println("<table border=\"1\"><tr><td>\n");
-    out.println("<table border=\"0\"  cellpadding=\"0\" cellspacing=\"0\">\n");
-
-    // ////////////
-    SequenceI seq;
-    AlignmentI alignment = av.getAlignment();
-
-    // draws the top row, the measure rule
-    out.println("<tr><td colspan=\"6\"></td>");
-
-    int i = 0;
-
-    for (i = 10; i < (alignment.getWidth() - 10); i += 10)
-    {
-      out.println("<td colspan=\"9\">" + i + "<br>|</td><td></td>");
-    }
-
-    out.println("<td colspan=\"3\"></td><td colspan=\"3\">" + i
-            + "<br>|</td>");
-    out.println("</tr>");
-
-    for (i = 0; i < alignment.getHeight(); i++)
-    {
-      seq = alignment.getSequenceAt(i);
-
-      String id = seq.getDisplayId(av.getShowJVSuffix());
-
-      out.println("<tr><td nowrap>" + id + "&nbsp;&nbsp;</td>");
-
-      for (int res = 0; res < seq.getLength(); res++)
-      {
-        if (!jalview.util.Comparison.isGap(seq.getCharAt(res)))
-        {
-          color = sr.getResidueBoxColour(seq, res);
-
-          color = fr.findFeatureColour(color, seq, res);
-        }
-        else
-        {
-          color = Color.white;
-        }
-
-        if (color.getRGB() < -1)
-        {
-          out.println("<td bgcolor=\"#"
-                  + jalview.util.Format.getHexString(color) + "\">"
-                  + seq.getCharAt(res) + "</td>");
-        }
-        else
-        {
-          out.println("<td>" + seq.getCharAt(res) + "</td>");
-        }
-      }
-
-      out.println("</tr>");
-    }
-
-    // ////////////
-    out.println("</table>");
-    out.println("</td></tr></table>");
-  }
-
-  void drawWrappedAlignment(PrintWriter out)
-  {
-    // //////////////////////////////////
-    // / How many sequences and residues can we fit on a printable page?
-    AlignmentI al = av.getAlignment();
-    SequenceI seq;
-    String r;
-    String g;
-    String b;
-
-    out.println("<table border=\"1\"><tr><td>\n");
-    out.println("<table border=\"0\"  cellpadding=\"0\" cellspacing=\"0\">\n");
-
-    for (int startRes = 0; startRes < al.getWidth(); startRes += av
-            .getWrappedWidth())
-    {
-      int endRes = startRes + av.getWrappedWidth();
-
-      if (endRes > al.getWidth())
-      {
-        endRes = al.getWidth();
-      }
-
-      if (av.getScaleAboveWrapped())
-      {
-        out.println("<tr>");
-
-        if (av.getScaleLeftWrapped())
-        {
-          out.println("<td colspan=\"7\">&nbsp;</td>");
-        }
-        else
-        {
-          out.println("<td colspan=\"6\">&nbsp;</td>");
-        }
-
-        for (int i = startRes + 10; i < endRes; i += 10)
-        {
-          out.println("<td colspan=\"9\">" + i + "<br>|</td><td></td>");
-        }
-
-        out.println("</tr>");
-      }
-
-      int startPos, endPos;
-      for (int s = 0; s < al.getHeight(); s++)
-      {
-        out.println("<tr>");
-        seq = al.getSequenceAt(s);
-
-        startPos = seq.findPosition(startRes);
-        endPos = seq.findPosition(endRes) - 1;
-
-        String id = seq.getDisplayId(av.getShowJVSuffix());
-
-        out.println("<td nowrap>" + id + "&nbsp;&nbsp;</td>");
-
-        if (av.getScaleLeftWrapped())
-        {
-          if (startPos > seq.getEnd() || endPos == 0)
-          {
-            out.println("<td nowrap>&nbsp;</td>");
-          }
-          else
-          {
-            out.println("<td nowrap>" + startPos + "&nbsp;&nbsp;</td>");
-          }
-        }
-
-        for (int res = startRes; res < endRes; res++)
-        {
-          if (!jalview.util.Comparison.isGap(seq.getCharAt(res)))
-          {
-            color = sr.getResidueBoxColour(seq, res);
-
-            color = fr.findFeatureColour(color, seq, res);
-          }
-          else
-          {
-            color = Color.white;
-          }
-
-          if (color.getRGB() < -1)
-          {
-            out.println("<td bgcolor=\"#"
-                    + jalview.util.Format.getHexString(color) + "\">"
-                    + seq.getCharAt(res) + "</td>");
-          }
-          else
-          {
-            out.println("<td>" + seq.getCharAt(res) + "</td>");
-          }
-
-        }
-
-        if (av.getScaleRightWrapped()
-                && endRes < startRes + av.getWrappedWidth())
-        {
-          out.println("<td colspan=\""
-                  + (startRes + av.getWrappedWidth() - endRes) + "\">"
-                  + "&nbsp;&nbsp;</td>");
-        }
-
-        if (av.getScaleRightWrapped() && startPos < endPos)
-        {
-          out.println("<td nowrap>&nbsp;" + endPos + "&nbsp;&nbsp;</td>");
-        }
-
-        out.println("</tr>");
-      }
-
-      if (endRes < al.getWidth())
-      {
-        out.println("<tr><td height=\"5\"></td></tr>");
-      }
-    }
-
-    out.println("</table>");
-    out.println("</table>");
+    return sb.toString();
   }
 
   public static String getImageMapHTML()
@@ -378,4 +252,122 @@ public class HTMLOutput
                     + "initToolTips(); //--></script>\n");
 
   }
+
+  public String getOutputFile() throws NoFileSelectedException
+  {
+    String selectedFile = null;
+    if (pIndicator != null && !isHeadless())
+    {
+      pIndicator.setProgressBar(MessageManager.formatMessage(
+              "status.waiting_for_user_to_select_output_file", "HTML"),
+              pSessionId);
+    }
+
+    JalviewFileChooser jvFileChooser = new JalviewFileChooser(
+            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
+            new String[] { "html" }, new String[] { "HTML files" },
+            "HTML files");
+    jvFileChooser.setFileView(new JalviewFileView());
+
+    jvFileChooser.setDialogTitle(MessageManager
+            .getString("label.save_as_html"));
+    jvFileChooser.setToolTipText(MessageManager.getString("action.save"));
+
+    int fileChooserOpt = jvFileChooser.showSaveDialog(null);
+    if (fileChooserOpt == JalviewFileChooser.APPROVE_OPTION)
+    {
+      jalview.bin.Cache.setProperty("LAST_DIRECTORY", jvFileChooser
+              .getSelectedFile().getParent());
+      selectedFile = jvFileChooser.getSelectedFile().getPath();
+    }
+    else
+    {
+      throw new NoFileSelectedException("No file was selected.");
+    }
+    return selectedFile;
+  }
+
+  protected void setProgressMessage(String message)
+  {
+    if (pIndicator != null && !isHeadless())
+    {
+      pIndicator.setProgressBar(message, pSessionId);
+    }
+    else
+    {
+      System.out.println(message);
+    }
+  }
+
+  /**
+   * Answers true if HTML export is invoke in headless mode or false otherwise
+   * 
+   * @return
+   */
+  protected boolean isHeadless()
+  {
+    return System.getProperty("java.awt.headless") != null
+            && System.getProperty("java.awt.headless").equals("true");
+  }
+
+  /**
+   * This method provides implementation of consistent behaviour which should
+   * occur before a HTML file export. It MUST be called at the start of the
+   * exportHTML() method implementation.
+   */
+  protected void exportStarted()
+  {
+    pSessionId = System.currentTimeMillis();
+  }
+
+  /**
+   * This method provides implementation of consistent behaviour which should
+   * occur after a HTML file export. It MUST be called at the end of the
+   * exportHTML() method implementation.
+   */
+  protected void exportCompleted()
+  {
+    if (isLaunchInBrowserAfterExport() && !isHeadless())
+    {
+      try
+      {
+        jalview.util.BrowserLauncher
+                .openURL("file:///" + getExportedFile());
+      } catch (IOException e)
+      {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  /**
+   * if this answers true then BioJSON data will be embedded to the exported
+   * HTML file otherwise it won't be embedded.
+   * 
+   * @return
+   */
+  public abstract boolean isEmbedData();
+
+  /**
+   * if this answers true then the generated HTML file is opened for viewing in
+   * a browser after its generation otherwise it won't be opened in a browser
+   * 
+   * @return
+   */
+  public abstract boolean isLaunchInBrowserAfterExport();
+
+  /**
+   * handle to the generated HTML file
+   * 
+   * @return
+   */
+  public abstract File getExportedFile();
+
+  /**
+   * This is the main method to handle the HTML generation.
+   * 
+   * @param outputFile
+   *          the file path of the generated HTML
+   */
+  public abstract void exportHTML(String outputFile);
 }

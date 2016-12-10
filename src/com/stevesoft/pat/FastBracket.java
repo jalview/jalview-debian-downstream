@@ -7,7 +7,8 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.BitSet;
+import java.util.Vector;
 
 /**
  * Uses table lookup to match [] type constructs, but only if it can use a

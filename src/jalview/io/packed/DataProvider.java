@@ -1,33 +1,39 @@
-/*******************************************************************************
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
- *
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
  * This file is part of Jalview.
- *
+ * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- *******************************************************************************/
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.io.packed;
 
 /**
- * API for a data provider that can be used with jalview.io.packed.ParsePackedSet
+ * API for a data provider that can be used with
+ * jalview.io.packed.ParsePackedSet
+ * 
  * @author JimP
- *
+ * 
  */
 public interface DataProvider
 {
   /**
    * class of data expected to be provided by datasource
+   * 
    * @author JimP
-   *
+   * 
    */
   public enum JvDataType
   {
@@ -38,9 +44,9 @@ public interface DataProvider
     /**
      * a jalview annotation file
      */
-    ANNOTATION, 
+    ANNOTATION,
     /**
-     * a GFF or Jalview features file 
+     * a GFF or Jalview features file
      */
     FEATURES,
     /**
@@ -48,15 +54,16 @@ public interface DataProvider
      */
     TREE,
     /**
-     * any file that provides data that should be associated with a specified sequence.
+     * any file that provides data that should be associated with a specified
+     * sequence.
      */
     SEQASSOCATED;
   }
 
   /**
-   * data to be parsed according to its type. Each call to getDataSource
-   * should return a new instance of the same data stream initialised to the
-   * beginning of the chunk of data that is to be parsed.
+   * data to be parsed according to its type. Each call to getDataSource should
+   * return a new instance of the same data stream initialised to the beginning
+   * of the chunk of data that is to be parsed.
    * 
    * @return
    */

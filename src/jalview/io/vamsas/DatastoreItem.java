@@ -1,38 +1,37 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io.vamsas;
 
 import jalview.bin.Cache;
-import jalview.datamodel.DBRefEntry;
-import jalview.gui.TreePanel;
 import jalview.io.VamsasAppDatastore;
+import jalview.util.MessageManager;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.Vector;
 
-import org.apache.commons.logging.Log;
-
 import uk.ac.vamsas.client.IClientDocument;
 import uk.ac.vamsas.client.Vobject;
 import uk.ac.vamsas.client.VorbaId;
-import uk.ac.vamsas.objects.core.DbRef;
 import uk.ac.vamsas.objects.core.Entry;
 import uk.ac.vamsas.objects.core.Provenance;
 import uk.ac.vamsas.objects.core.Seg;
@@ -131,18 +130,22 @@ public abstract class DatastoreItem
     if (vobj2jv.containsKey(vobj.getVorbaId())
             && !(vobj2jv.get(vobj.getVorbaId())).equals(jvobj))
     {
-      Cache.log.debug(
-              "Warning? Overwriting existing vamsas id binding for "
-                      + vobj.getVorbaId(), new Exception(
-                      "Overwriting vamsas id binding."));
+      Cache.log
+              .debug("Warning? Overwriting existing vamsas id binding for "
+                      + vobj.getVorbaId(),
+                      new Exception(
+                              MessageManager
+                                      .getString("exception.overwriting_vamsas_id_binding")));
     }
     else if (jv2vobj.containsKey(jvobj)
             && !((VorbaId) jv2vobj.get(jvobj)).equals(vobj.getVorbaId()))
     {
-      Cache.log.debug(
-              "Warning? Overwriting existing jalview object binding for "
-                      + jvobj, new Exception(
-                      "Overwriting jalview object binding."));
+      Cache.log
+              .debug("Warning? Overwriting existing jalview object binding for "
+                      + jvobj,
+                      new Exception(
+                              MessageManager
+                                      .getString("exception.overwriting_jalview_id_binding")));
     }
     /*
      * Cache.log.error("Attempt to make conflicting object binding! "+vobj+" id "
@@ -192,9 +195,9 @@ public abstract class DatastoreItem
     Object vobject = jv2vobj.remove(oldjvobject);
     if (vobject == null)
     {
-      throw new Error(
-              "IMPLEMENTATION ERROR: old jalview object is not bound ! ("
-                      + oldjvobject + ")");
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_old_jalview_object_not_bound",
+              new String[] { oldjvobject.toString() }));
     }
     if (newjvobject != null)
     {
@@ -233,9 +236,13 @@ public abstract class DatastoreItem
     tojalview = true;
     if (jvobj != null && !(boundType.isAssignableFrom(jvobj.getClass())))
     {
-      throw new Error("Implementation Error: Vamsas Document Class "
-              + vobj.getClass() + " should bind to a " + boundType
-              + " (found a " + jvobj.getClass() + ")");
+      throw new Error(
+              MessageManager
+                      .formatMessage(
+                              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
+                              new String[] { vobj.getClass().toString(),
+                                  boundType.toString(),
+                                  jvobj.getClass().toString() }));
     }
     dsReg.registerDsObj(this);
   }
@@ -261,9 +268,13 @@ public abstract class DatastoreItem
     vobj = getjv2vObj(jvobj);
     if (vobj != null && !(boundToType.isAssignableFrom(vobj.getClass())))
     {
-      throw new Error("Implementation Error: Jalview Class "
-              + jvobj2.getClass() + " should bind to a " + boundToType
-              + " (found a " + vobj.getClass() + ")");
+      throw new Error(
+              MessageManager
+                      .formatMessage(
+                              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
+                              new String[] { jvobj2.getClass().toString(),
+                                  boundToType.toString(),
+                                  vobj.getClass().toString() }));
     }
     dsReg.registerDsObj(this);
   }
@@ -436,8 +447,7 @@ public abstract class DatastoreItem
       end = start;
       start = t;
     }
-    return new int[]
-    { start, end, pol < 0 ? 1 : 0 };
+    return new int[] { start, end, pol < 0 ? 1 : 0 };
   }
 
   /**

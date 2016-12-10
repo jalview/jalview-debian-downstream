@@ -1,24 +1,43 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
-import java.net.*;
+import jalview.api.AlignExportSettingI;
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
+import jalview.api.FeatureSettingsModelI;
+import jalview.util.MessageManager;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.zip.GZIPInputStream;
 
 /**
  * implements a random access wrapper around a particular datasource, for
@@ -33,23 +52,43 @@ public class FileParse
 
   public File inFile = null;
 
-  public int index = 1; // sequence counter for FileParse object created from
-
-  // same data source
-
-  protected char suffixSeparator = '#';
   /**
-   * character used to write newlines 
+   * a viewport associated with the current file operation. May be null. May
+   * move to different object.
+   */
+  private AlignViewportI viewport;
+
+  /**
+   * specific settings for exporting data from the current context
+   */
+  private AlignExportSettingI exportSettings;
+
+  /**
+   * sequence counter for FileParse object created from same data source
+   */
+  public int index = 1;
+
+  /**
+   * separator for extracting specific 'frame' of a datasource for formats that
+   * support multiple records (e.g. BLC, Stockholm, etc)
+   */
+  protected char suffixSeparator = '#';
+
+  /**
+   * character used to write newlines
    */
   protected String newline = System.getProperty("line.separator");
+
   public void setNewlineString(String nl)
   {
     newline = nl;
   }
+
   public String getNewlineString()
   {
     return newline;
   }
+
   /**
    * '#' separated string tagged on to end of filename or url that was clipped
    * off to resolve to valid filename
@@ -60,7 +99,7 @@ public class FileParse
 
   protected BufferedReader dataIn = null;
 
-  protected String errormessage = "UNITIALISED SOURCE";
+  protected String errormessage = "UNINITIALISED SOURCE";
 
   protected boolean error = true;
 
@@ -87,10 +126,13 @@ public class FileParse
     if (from == null)
     {
       throw new Error(
-              "Implementation error. Null FileParse in copy constructor");
+              MessageManager
+                      .getString("error.implementation_error_null_fileparse"));
     }
     if (from == this)
+    {
       return;
+    }
     index = ++from.index;
     inFile = from.inFile;
     suffixSeparator = from.suffixSeparator;
@@ -137,10 +179,37 @@ public class FileParse
     }
     if (!error)
     {
+      if (fileStr.toLowerCase().endsWith(".gz"))
+      {
+        try
+        {
+          dataIn = tryAsGzipSource(new FileInputStream(fileStr));
+          dataName = fileStr;
+          return error;
+        } catch (Exception x)
+        {
+          warningMessage = "Failed  to resolve as a GZ stream ("
+                  + x.getMessage() + ")";
+          // x.printStackTrace();
+        }
+        ;
+      }
+
       dataIn = new BufferedReader(new FileReader(fileStr));
       dataName = fileStr;
     }
     return error;
+  }
+
+  private BufferedReader tryAsGzipSource(InputStream inputStream)
+          throws Exception
+  {
+    BufferedReader inData = new BufferedReader(new InputStreamReader(
+            new GZIPInputStream(inputStream)));
+    inData.mark(2048);
+    inData.read();
+    inData.reset();
+    return inData;
   }
 
   private boolean checkURLSource(String fileStr) throws IOException,
@@ -148,7 +217,38 @@ public class FileParse
   {
     errormessage = "URL NOT FOUND";
     URL url = new URL(fileStr);
-    dataIn = new BufferedReader(new InputStreamReader(url.openStream()));
+    //
+    // GZIPInputStream code borrowed from Aquaria (soon to be open sourced) via
+    // Kenny Sabir
+    Exception e = null;
+    if (fileStr.toLowerCase().endsWith(".gz"))
+    {
+      try
+      {
+        InputStream inputStream = url.openStream();
+        dataIn = tryAsGzipSource(inputStream);
+        dataName = fileStr;
+        return false;
+      } catch (Exception ex)
+      {
+        e = ex;
+      }
+    }
+
+    try
+    {
+      dataIn = new BufferedReader(new InputStreamReader(url.openStream()));
+    } catch (IOException q)
+    {
+      if (e != null)
+      {
+        throw new IOException(
+                MessageManager
+                        .getString("exception.failed_to_resolve_gzip_stream"),
+                e);
+      }
+      throw q;
+    }
     // record URL as name of datasource.
     dataName = fileStr;
     return false;
@@ -172,6 +272,30 @@ public class FileParse
       return fileStr.substring(0, sfpos);
     }
     return null;
+  }
+
+  /**
+   * not for general use, creates a fileParse object for an existing reader with
+   * configurable values for the origin and the type of the source
+   */
+  public FileParse(BufferedReader source, String originString,
+          String typeString)
+  {
+    type = typeString;
+    error = false;
+    inFile = null;
+    dataName = originString;
+    dataIn = source;
+    try
+    {
+      if (dataIn.markSupported())
+      {
+        dataIn.mark(READAHEAD_LIMIT);
+      }
+    } catch (IOException q)
+    {
+
+    }
   }
 
   /**
@@ -200,14 +324,17 @@ public class FileParse
         {
           if (checkFileSource(suffixLess))
           {
-            throw new IOException("Problem opening " + inFile
-                    + " (also tried " + suffixLess + ") : " + errormessage);
+            throw new IOException(MessageManager.formatMessage(
+                    "exception.problem_opening_file_also_tried",
+                    new String[] { inFile.getName(), suffixLess,
+                        errormessage }));
           }
         }
         else
         {
-          throw new IOException("Problem opening " + inFile + " : "
-                  + errormessage);
+          throw new IOException(MessageManager.formatMessage(
+                  "exception.problem_opening_file",
+                  new String[] { inFile.getName(), errormessage }));
         }
       }
     }
@@ -219,7 +346,9 @@ public class FileParse
         {
           checkURLSource(fileStr);
           if (suffixSeparator == '#')
+          {
             extractSuffix(fileStr); // URL lref is stored for later reference.
+          }
         } catch (IOException e)
         {
           String suffixLess = extractSuffix(fileStr);
@@ -261,7 +390,9 @@ public class FileParse
       {
         String suffixLess = extractSuffix(fileStr);
         if (suffixLess != null)
+        {
           is = getClass().getResourceAsStream("/" + suffixLess);
+        }
       }
       if (is != null)
       {
@@ -282,8 +413,9 @@ public class FileParse
     if (dataIn == null || error)
     {
       // pass up the reason why we have no source to read from
-      throw new IOException("Failed to read data from source:\n"
-              + errormessage);
+      throw new IOException(MessageManager.formatMessage(
+              "exception.failed_to_read_data_from_source",
+              new String[] { errormessage }));
     }
     error = false;
     dataIn.mark(READAHEAD_LIMIT);
@@ -303,17 +435,35 @@ public class FileParse
     }
     else
     {
-      throw new IOException("Unitialised Source Stream");
+      throw new IOException(
+              MessageManager.getString("exception.no_init_source_stream"));
     }
   }
 
   public String nextLine() throws IOException
   {
     if (!error)
+    {
       return dataIn.readLine();
-    throw new IOException("Invalid Source Stream:" + errormessage);
+    }
+    throw new IOException(MessageManager.formatMessage(
+            "exception.invalid_source_stream",
+            new String[] { errormessage }));
   }
 
+  /**
+   * 
+   * @return true if this FileParse is configured for Export only
+   */
+  public boolean isExporting()
+  {
+    return !error && dataIn == null;
+  }
+
+  /**
+   * 
+   * @return true if the data source is valid
+   */
   public boolean isValid()
   {
     return !error;
@@ -332,11 +482,19 @@ public class FileParse
   }
 
   /**
-   * rewinds the datasource the beginning.
+   * Rewinds the datasource to the marked point if possible
+   * 
+   * @param bytesRead
    * 
    */
-  public void reset() throws IOException
+  public void reset(int bytesRead) throws IOException
   {
+    if (bytesRead >= READAHEAD_LIMIT)
+    {
+      System.err.println(String.format(
+              "File reset error: read %d bytes but reset limit is %d",
+              bytesRead, READAHEAD_LIMIT));
+    }
     if (dataIn != null && !error)
     {
       dataIn.reset();
@@ -344,7 +502,8 @@ public class FileParse
     else
     {
       throw new IOException(
-              "Implementation Error: Reset called for invalid source.");
+              MessageManager
+                      .getString("error.implementation_error_reset_called_for_invalid_source"));
     }
   }
 
@@ -385,26 +544,85 @@ public class FileParse
   {
     return dataName;
   }
+
   /**
    * set the (human readable) name or URI for this datasource
+   * 
    * @param dataname
    */
-  protected void setDataName(String dataname) {
+  protected void setDataName(String dataname)
+  {
     dataName = dataname;
   }
-  
 
   /**
    * get the underlying bufferedReader for this data source.
+   * 
    * @return null if no reader available
    * @throws IOException
    */
   public Reader getReader()
   {
-    if (dataIn != null) // Probably don't need to test for readiness && dataIn.ready())
+    if (dataIn != null) // Probably don't need to test for readiness &&
+                        // dataIn.ready())
     {
       return dataIn;
     }
+    return null;
+  }
+
+  public AlignViewportI getViewport()
+  {
+    return viewport;
+  }
+
+  public void setViewport(AlignViewportI viewport)
+  {
+    this.viewport = viewport;
+  }
+
+  /**
+   * @return the currently configured exportSettings for writing data.
+   */
+  public AlignExportSettingI getExportSettings()
+  {
+    return exportSettings;
+  }
+
+  /**
+   * Set configuration for export of data.
+   * 
+   * @param exportSettings
+   *          the exportSettings to set
+   */
+  public void setExportSettings(AlignExportSettingI exportSettings)
+  {
+    this.exportSettings = exportSettings;
+  }
+
+  /**
+   * method overridden by complex file exporter/importers which support
+   * exporting visualisation and layout settings for a view
+   * 
+   * @param avpanel
+   */
+  public void configureForView(AlignmentViewPanel avpanel)
+  {
+    if (avpanel != null)
+    {
+      setViewport(avpanel.getAlignViewport());
+    }
+    // could also set export/import settings
+  }
+
+  /**
+   * Returns the preferred feature colour configuration if there is one, else
+   * null
+   * 
+   * @return
+   */
+  public FeatureSettingsModelI getFeatureColourScheme()
+  {
     return null;
   }
 }

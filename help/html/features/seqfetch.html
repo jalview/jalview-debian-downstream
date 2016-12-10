@@ -1,72 +1,107 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
 <head>
 <title>Sequence Fetcher</title>
 </head>
 <body>
-<p><strong>Sequence Fetcher</strong></p>
-<p>Jalview can retrieve sequences from certain databases using
-either the WSDBFetch service provided by the European Bioinformatics
-Institute, and, since Jalview 2.4, DAS servers capable of the <em>sequence</em>
-command (configured in <a href="dassettings.html">DAS settings</a>).</p>
-<img src="seqfetcher.gif" align="center"
-	alt="The Jalview Sequence Fetcher Dialog Box">
-<p>The Sequence Fetcher dialog box can be opened via the
-&quot;File&quot; menu on the main desktop in order to retrieve sequences
-as a new alignment, or opened via the &quot;File&quot; menu of an
-existing alignment to import additional sequences. Please note, there
-will be a short delay when the sequence fetcher is first opened, whilst
-Jalview compiles the list of available sequence datasources from the
-currently defined DAS server registry.</strong></p>
-<p>First, select the database you want to retrieve sequences from.
-Then, enter one or more accession ids (as a semi-colon separated list),
-or press the &quot;Example&quot; button to paste the example accession
-for the currently selected database into the retrieval box. Finally,
-press &quot;OK&quot; to initiate the retrieval.</p>
-<p><em>Fetching Individual PDB Chains</em><br>
-If you are retrieving sequences from the PDB, you can retrieve specific
-chains by appending a colon and the chain id to the PDB id. For example
-:<br>
-<pre> 1GAQ:A</pre>
-</p>
-<p><em>Retrieving parts of large sequence records</em><br>
-When retrieving from DAS sequence sources, coordinate range arguments
-can be passed to the server using the standard DAS sequence command
-format:<pre>
-  &lt;AccessionId&gt;:&lt;start&gt;,&lt;end&gt;</pre> If you know a source
-understands this type of query format, then you should untick the
-checkbox for 'replace commas with semi-colons' so the range query can be
-passed to the server; otherwise, the query will be split into two (e.g
-'Mito:1' and '85779' rather than 'Mito:1,85779'). In most cases,
-however, a source that supports range queries will include a range
-qualification in its example query, and Jalview will then automatically
-disable the 'replace commas with semi-colons' option.<br>
-<em>The option to disable the comma to semi-colon translation was
-added in Jalview 2.6</em></p>
-<p>If you use the WSDBFetch sequence fetcher services (EMBL,
-Uniprot, PDB and PFAM) in work for publication, please cite:</p>
-<p>Pillai S., Silventoinen V., Kallio K., Senger M., Sobhany S.,
-Tate J., Velankar S., Golovin A., Henrick K., Rice P., Stoehr P., Lopez
-R. <br>
-SOAP-based services provided by the European Bioinformatics Institute.<br>
-Nucleic Acids Res. 33(1):W25-W28 (2005) <br>
-<br>
-</p>
+  <p>
+    <strong>Sequence Fetcher</strong>
+  </p>
+  <p>
+    Jalview can retrieve sequences from certain databases using either
+    the DBFetch service provided by the EMBL European Bioinformatics
+    Institute, or, since Jalview 2.4, DAS servers capable of the <em>sequence</em>
+    command (configured in <a href="dassettings.html">DAS settings</a>).
+  </p>
+  <p>The Sequence Fetcher can be opened via the &quot;File&quot;
+    menu on the main desktop in order to retrieve sequences as a new
+    alignment, or opened via the &quot;File&quot; menu of an existing
+    alignment to import additional sequences. There may be a short delay
+    when the sequence fetcher is first opened, whilst Jalview compiles
+    the list of available sequence datasources from the currently
+    defined DAS server registry.</p>
+  <p>
+    Every time a new fetcher is opened, you will need to <strong>select
+      the database you want to retrieve sequences</strong> from the database
+    chooser.
+  </p>
+  <img src="selectfetchdb.gif" align="left" width="480" height="204"
+    alt="Database selection dialog for fetching sequences (introduced in Jalview 2.8)">
+  <p>
+    The databases are shown as a tree, and ordered alphabetically;
+    tooltips are shown if you mouse over some sources, explaining what
+    the database will retrieve. You can select one by using the up/down
+    arrow keys and hitting return, or by double clicking with the mouse.
+    <br />
+    <em>If you have DAS sources enabled, then you may have several
+      sources for the same type of sequence identifier, and these will
+      be grouped together in a sub-branch branch labeled with the
+      identifier.</em>
+  </p>
+  <p>Once you have selected a sequence database, its fetcher dialog
+    will open. Jalview provides two types of dialog:</p>
+  <ol>
+    <li><strong>The Free-text Search Interface</strong> <br />Free-text
+      search clients are provided for PDB (Since 2.9), and UniProt
+      (Since 2.10). They provide access to each database's own query
+      system, enabling you to retrieve data by accession, free text
+      description, or any other type of supported field. For full
+      details, see each client's help page:
+      <ul>
+        <li><a href="pdbsequencefetcher.html">PDB Sequence
+            Fetcher</a></li>
+        <li><a href="uniprotsequencefetcher.html">UniProt
+            Sequence Fetcher</a></li>
+      </ul></li>
+    <li><strong>Accession based sequence retrieval</strong> <br />
+
+      <img src="seqfetcher.gif" align="center"
+      alt="The Jalview Sequence Fetcher Dialog Box"><br /> To
+      retrieve sequences, simply <strong>enter one or more
+        accession ids</strong> (as a semi-colon separated list), or press the
+      &quot;Example&quot; button to paste the example accession for the
+      currently selected database into the retrieval box. Finally, press
+      &quot;OK&quot; to initiate the retrieval.</li>
+  </ol>
+  <p>
+    <strong>Only retrieving part of a sequence</strong>
+  </p>
+  <p>
+    When using DAS sources (indicated by a &quot;<em>(DAS)</em>&quot;),
+    you can append a range in addition to a sequence ID. For example, to
+    retrieve 50 residues starting at position 35 in UNIPROT sequence
+    P73137 using the UNIPROT DAS server, you would enter
+    &quot;'P73137:35,84'.<br /> <em>Full support for DAS range
+      queries was introduced in Jalview 2.8</em>
+  </p>
+
+  <p>If you use the WSDBFetch sequence fetcher services (EMBL,
+    UniProt, PFAM, and RFAM) in work for publication, please cite:</p>
+  <p>
+    Pillai S., Silventoinen V., Kallio K., Senger M., Sobhany S., Tate
+    J., Velankar S., Golovin A., Henrick K., Rice P., Stoehr P., Lopez
+    R. <br> SOAP-based services provided by the European
+    Bioinformatics Institute.<br> Nucleic Acids Res. 33(1):W25-W28
+    (2005) <br> <br>
+  </p>
 </body>
 </html>

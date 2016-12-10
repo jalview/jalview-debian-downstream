@@ -1,25 +1,32 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.Annotation;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceI;
 
-import jalview.datamodel.*;
+import java.io.IOException;
 
 /**
  * DOCUMENT ME!
@@ -70,19 +77,20 @@ public class FastaFile extends AlignFile
    * @throws IOException
    *           DOCUMENT ME!
    */
+  @Override
   public void parse() throws IOException
   {
     StringBuffer sb = new StringBuffer();
     boolean firstLine = true;
 
-    String line;
+    String line, uline;
     Sequence seq = null;
 
     boolean annotation = false;
 
-    while ((line = nextLine()) != null)
+    while ((uline = nextLine()) != null)
     {
-      line = line.trim();
+      line = uline.trim();
       if (line.length() > 0)
       {
         if (line.charAt(0) == '>')
@@ -91,17 +99,7 @@ public class FastaFile extends AlignFile
           {
             if (annotation)
             {
-              Annotation[] anots = new Annotation[sb.length()];
-              String anotString = sb.toString();
-              for (int i = 0; i < sb.length(); i++)
-              {
-                anots[i] = new Annotation(anotString.substring(i, i + 1),
-                        null, ' ', 0);
-              }
-              AlignmentAnnotation aa = new AlignmentAnnotation(seq
-                      .getName().substring(2), seq.getDescription(), anots);
-
-              annotations.addElement(aa);
+              annotations.addElement(makeAnnotation(seq, sb));
             }
           }
           else
@@ -131,24 +129,14 @@ public class FastaFile extends AlignFile
         }
         else
         {
-          sb.append(line);
+          sb.append(annotation ? uline : line);
         }
       }
     }
 
     if (annotation)
     {
-      Annotation[] anots = new Annotation[sb.length()];
-      String anotString = sb.toString();
-      for (int i = 0; i < sb.length(); i++)
-      {
-        anots[i] = new Annotation(anotString.substring(i, i + 1), null,
-                ' ', 0);
-      }
-      AlignmentAnnotation aa = new AlignmentAnnotation(seq.getName()
-              .substring(2), seq.getDescription(), anots);
-
-      annotations.addElement(aa);
+      annotations.addElement(makeAnnotation(seq, sb));
     }
 
     else if (!firstLine)
@@ -156,6 +144,23 @@ public class FastaFile extends AlignFile
       seq.setSequence(sb.toString());
       seqs.addElement(seq);
     }
+  }
+
+  private AlignmentAnnotation makeAnnotation(SequenceI seq, StringBuffer sb)
+  {
+    Annotation[] anots = new Annotation[sb.length()];
+    char cb;
+    for (int i = 0; i < anots.length; i++)
+    {
+      char cn = sb.charAt(i);
+      if (cn != ' ')
+      {
+        anots[i] = new Annotation("" + cn, null, ' ', Float.NaN);
+      }
+    }
+    AlignmentAnnotation aa = new AlignmentAnnotation(seq.getName()
+            .substring(2), seq.getDescription(), anots);
+    return aa;
   }
 
   /**
@@ -169,8 +174,7 @@ public class FastaFile extends AlignFile
     addProperties(al);
     for (int i = 0; i < annotations.size(); i++)
     {
-      AlignmentAnnotation aa = (AlignmentAnnotation) annotations
-              .elementAt(i);
+      AlignmentAnnotation aa = annotations.elementAt(i);
       aa.setPadGaps(true, al.getGapCharacter());
       al.addAnnotation(aa);
     }
@@ -205,7 +209,8 @@ public class FastaFile extends AlignFile
 
       out.append(newline);
 
-      int nochunks = (s[i].getLength() / len) + 1;
+      int nochunks = (s[i].getLength() / len)
+              + (s[i].getLength() % len > 0 ? 1 : 0);
 
       for (int j = 0; j < nochunks; j++)
       {
@@ -234,6 +239,7 @@ public class FastaFile extends AlignFile
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());

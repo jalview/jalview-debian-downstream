@@ -1,55 +1,67 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
- */
-/*
- * Jalview - A Sequence Alignment Editor and Viewer
- * Copyright (C) 2007 AM Waterhouse, J Procter, G Barton, M Clamp, S Searle
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
 
-import java.util.*;
-
-import java.awt.*;
-
-import jalview.analysis.*;
-import jalview.api.StructureSelectionManagerProvider;
-
-import jalview.bin.*;
-
-import jalview.datamodel.*;
-
-import jalview.schemes.*;
+import jalview.analysis.AlignmentUtils;
+import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
+import jalview.analysis.NJTree;
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
+import jalview.api.FeatureColourI;
+import jalview.api.FeatureSettingsModelI;
+import jalview.api.FeaturesDisplayedI;
+import jalview.api.ViewStyleI;
+import jalview.bin.Cache;
+import jalview.commands.CommandI;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.UserColourScheme;
+import jalview.structure.CommandListener;
 import jalview.structure.SelectionSource;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasSource;
+import jalview.util.MessageManager;
+import jalview.viewmodel.AlignmentViewport;
+import jalview.ws.params.AutoCalcSetting;
+
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Vector;
+
+import javax.swing.JInternalFrame;
+import javax.swing.JOptionPane;
 
 /**
  * DOCUMENT ME!
@@ -57,141 +69,31 @@ import jalview.structure.VamsasSource;
  * @author $author$
  * @version $Revision: 1.141 $
  */
-public class AlignViewport implements SelectionSource, VamsasSource
+public class AlignViewport extends AlignmentViewport implements
+        SelectionSource, CommandListener
 {
-  private static final int RIGHT_JUSTIFY = 1;
-
-  int startRes;
-
-  int endRes;
-
-  int startSeq;
-
-  int endSeq;
-
-  boolean showJVSuffix = true;
-
-  boolean showText = true;
-
-  boolean showColourText = false;
-
-  boolean showBoxes = true;
-
-  boolean wrapAlignment = false;
-
-  boolean renderGaps = true;
-
-  boolean showSequenceFeatures = false;
-
-  boolean showAnnotation = true;
-
-  boolean colourAppliesToAllGroups = true;
-
-  ColourSchemeI globalColourScheme = null;
-
-  boolean conservationColourSelected = false;
-
-  boolean abovePIDThreshold = false;
-
-  SequenceGroup selectionGroup;
-
-  int charHeight;
-
-  int charWidth;
-
-  boolean validCharWidth;
-
-  int wrappedWidth;
-
   Font font;
-
-  boolean seqNameItalics;
-
-  AlignmentI alignment;
-
-  ColumnSelection colSel = new ColumnSelection();
-
-  int threshold;
-
-  int increment;
 
   NJTree currentTree = null;
 
-  boolean scaleAboveWrapped = false;
-
-  boolean scaleLeftWrapped = true;
-
-  boolean scaleRightWrapped = true;
-
-  boolean hasHiddenColumns = false;
-
-  boolean hasHiddenRows = false;
-
-  boolean showHiddenMarkers = true;
-
   boolean cursorMode = false;
-
-  /**
-   * Keys are the feature types which are currently visible. Note: Values are
-   * not used!
-   */
-  Hashtable featuresDisplayed = null;
-
-  /** DOCUMENT ME!! */
-  public Hashtable[] hconsensus;
-
-  AlignmentAnnotation consensus;
-
-  AlignmentAnnotation conservation;
-
-  AlignmentAnnotation quality;
-
-  AlignmentAnnotation[] groupConsensus;
-
-  AlignmentAnnotation[] groupConservation;
-
-  boolean autoCalculateConsensus = true;
-
-  /** DOCUMENT ME!! */
-  public int ConsPercGaps = 25; // JBPNote : This should be a scalable property!
-
-  // JBPNote Prolly only need this in the applet version.
-  private java.beans.PropertyChangeSupport changeSupport = new java.beans.PropertyChangeSupport(
-          this);
-
-  boolean ignoreGapsInConsensusCalculation = false;
-
-  boolean isDataset = false;
 
   boolean antiAlias = false;
 
-  boolean padGaps = false;
-
-  Rectangle explodedPosition;
+  private Rectangle explodedGeometry;
 
   String viewName;
 
-  String sequenceSetID;
+  /*
+   * Flag set true on the view that should 'gather' multiple views of the same
+   * sequence set id when a project is reloaded. Set false on all views when
+   * they are 'exploded' into separate windows. Set true on the current view
+   * when 'Gather' is performed, and also on the first tab when the first new
+   * view is created.
+   */
+  private boolean gatherViewsHere = false;
 
-  boolean gatherViewsHere = false;
-
-  Stack historyList = new Stack();
-
-  Stack redoList = new Stack();
-
-  Hashtable sequenceColours;
-
-  int thresholdTextColour = 0;
-
-  Color textColour = Color.black;
-
-  Color textColour2 = Color.white;
-
-  boolean rightAlignIds = false;
-
-  Hashtable hiddenRepSequences;
-
-  boolean sortByTree;
+  private AnnotationColumnChooser annotationColumnSelectionState;
 
   /**
    * Creates a new AlignViewport object.
@@ -248,16 +150,7 @@ public class AlignViewport implements SelectionSource, VamsasSource
     setAlignment(al);
     if (hiddenColumns != null)
     {
-      this.colSel = hiddenColumns;
-      if (hiddenColumns.getHiddenColumns() != null
-              && hiddenColumns.getHiddenColumns().size() > 0)
-      {
-        hasHiddenColumns = true;
-      }
-      else
-      {
-        hasHiddenColumns = false;
-      }
+      colSel = hiddenColumns;
     }
     init();
   }
@@ -304,18 +197,41 @@ public class AlignViewport implements SelectionSource, VamsasSource
     setAlignment(al);
     if (hiddenColumns != null)
     {
-      this.colSel = hiddenColumns;
-      if (hiddenColumns.getHiddenColumns() != null
-              && hiddenColumns.getHiddenColumns().size() > 0)
-      {
-        hasHiddenColumns = true;
-      }
-      else
-      {
-        hasHiddenColumns = false;
-      }
+      colSel = hiddenColumns;
     }
     init();
+  }
+
+  /**
+   * Apply any settings saved in user preferences
+   */
+  private void applyViewProperties()
+  {
+    antiAlias = Cache.getDefault("ANTI_ALIAS", false);
+
+    viewStyle.setShowJVSuffix(Cache.getDefault("SHOW_JVSUFFIX", true));
+    setShowAnnotation(Cache.getDefault("SHOW_ANNOTATIONS", true));
+
+    setRightAlignIds(Cache.getDefault("RIGHT_ALIGN_IDS", false));
+    setCentreColumnLabels(Cache.getDefault("CENTRE_COLUMN_LABELS", false));
+    autoCalculateConsensus = Cache.getDefault("AUTO_CALC_CONSENSUS", true);
+
+    setPadGaps(Cache.getDefault("PAD_GAPS", true));
+    setShowNPFeats(Cache.getDefault("SHOW_NPFEATS_TOOLTIP", true));
+    setShowDBRefs(Cache.getDefault("SHOW_DBREFS_TOOLTIP", true));
+    viewStyle.setSeqNameItalics(Cache.getDefault("ID_ITALICS", true));
+    viewStyle.setWrapAlignment(Cache.getDefault("WRAP_ALIGNMENT", false));
+    viewStyle.setShowUnconserved(Cache
+            .getDefault("SHOW_UNCONSERVED", false));
+    sortByTree = Cache.getDefault("SORT_BY_TREE", false);
+    followSelection = Cache.getDefault("FOLLOW_SELECTIONS", true);
+    sortAnnotationsBy = SequenceAnnotationOrder.valueOf(Cache.getDefault(
+            Preferences.SORT_ANNOTATIONS,
+            SequenceAnnotationOrder.NONE.name()));
+    showAutocalculatedAbove = Cache.getDefault(
+            Preferences.SHOW_AUTOCALC_ABOVE, false);
+    viewStyle.setScaleProteinAsCdna(Cache.getDefault(
+            Preferences.SCALE_PROTEIN_TO_CDNA, true));
   }
 
   void init()
@@ -324,25 +240,11 @@ public class AlignViewport implements SelectionSource, VamsasSource
     this.endRes = alignment.getWidth() - 1;
     this.startSeq = 0;
     this.endSeq = alignment.getHeight() - 1;
-
-    antiAlias = Cache.getDefault("ANTI_ALIAS", false);
-
-    showJVSuffix = Cache.getDefault("SHOW_JVSUFFIX", true);
-    showAnnotation = Cache.getDefault("SHOW_ANNOTATIONS", true);
-
-    rightAlignIds = Cache.getDefault("RIGHT_ALIGN_IDS", false);
-    centreColumnLabels = Cache.getDefault("CENTRE_COLUMN_LABELS", false);
-    autoCalculateConsensus = Cache.getDefault("AUTO_CALC_CONSENSUS", true);
-
-    padGaps = Cache.getDefault("PAD_GAPS", true);
-    shownpfeats = Cache.getDefault("SHOW_NPFEATS_TOOLTIP", true);
-    showdbrefs = Cache.getDefault("SHOW_DBREFS_TOOLTIP", true);
+    applyViewProperties();
 
     String fontName = Cache.getDefault("FONT_NAME", "SansSerif");
     String fontStyle = Cache.getDefault("FONT_STYLE", Font.PLAIN + "");
     String fontSize = Cache.getDefault("FONT_SIZE", "10");
-
-    seqNameItalics = Cache.getDefault("ID_ITALICS", true);
 
     int style = 0;
 
@@ -355,7 +257,7 @@ public class AlignViewport implements SelectionSource, VamsasSource
       style = 2;
     }
 
-    setFont(new Font(fontName, style, Integer.parseInt(fontSize)));
+    setFont(new Font(fontName, style, Integer.parseInt(fontSize)), true);
 
     alignment
             .setGapCharacter(Cache.getDefault("GAP_SYMBOL", "-").charAt(0));
@@ -366,241 +268,43 @@ public class AlignViewport implements SelectionSource, VamsasSource
     {
       if (!alignment.isNucleotide())
       {
-        conservation = new AlignmentAnnotation("Conservation",
-                "Conservation of total alignment less than " + ConsPercGaps
-                        + "% gaps", new Annotation[1], 0f, 11f,
-                AlignmentAnnotation.BAR_GRAPH);
-        conservation.hasText = true;
-        conservation.autoCalculated = true;
-
-        if (Cache.getDefault("SHOW_CONSERVATION", true))
-        {
-          alignment.addAnnotation(conservation);
-        }
-
-        if (Cache.getDefault("SHOW_QUALITY", true))
-        {
-          quality = new AlignmentAnnotation("Quality",
-                  "Alignment Quality based on Blosum62 scores",
-                  new Annotation[1], 0f, 11f, AlignmentAnnotation.BAR_GRAPH);
-          quality.hasText = true;
-          quality.autoCalculated = true;
-
-          alignment.addAnnotation(quality);
-        }
+        showConservation = Cache.getDefault("SHOW_CONSERVATION", true);
+        showQuality = Cache.getDefault("SHOW_QUALITY", true);
         showGroupConservation = Cache.getDefault("SHOW_GROUP_CONSERVATION",
                 false);
-
-        {
-
-        }
       }
       showConsensusHistogram = Cache.getDefault("SHOW_CONSENSUS_HISTOGRAM",
               true);
       showSequenceLogo = Cache.getDefault("SHOW_CONSENSUS_LOGO", false);
+      normaliseSequenceLogo = Cache.getDefault("NORMALISE_CONSENSUS_LOGO",
+              false);
       showGroupConsensus = Cache.getDefault("SHOW_GROUP_CONSENSUS", false);
-      // TODO: add menu option action that nulls or creates consensus object
-      // depending on if the user wants to see the annotation or not in a
-      // specific alignment
-      consensus = new AlignmentAnnotation("Consensus", "PID",
-              new Annotation[1], 0f, 100f, AlignmentAnnotation.BAR_GRAPH);
-      consensus.hasText = true;
-      consensus.autoCalculated = true;
-
-      if (Cache.getDefault("SHOW_IDENTITY", true))
-      {
-        alignment.addAnnotation(consensus);
-      }
+      showConsensus = Cache.getDefault("SHOW_IDENTITY", true);
     }
-
-    if (jalview.bin.Cache.getProperty("DEFAULT_COLOUR") != null)
+    initAutoAnnotation();
+    String colourProperty = alignment.isNucleotide() ? Preferences.DEFAULT_COLOUR_NUC
+            : Preferences.DEFAULT_COLOUR_PROT;
+    String propertyValue = Cache.getProperty(colourProperty);
+    if (propertyValue == null)
+    {
+      // fall back on this property for backwards compatibility
+      propertyValue = Cache.getProperty(Preferences.DEFAULT_COLOUR);
+    }
+    if (propertyValue != null)
     {
       globalColourScheme = ColourSchemeProperty.getColour(alignment,
-              jalview.bin.Cache.getProperty("DEFAULT_COLOUR"));
+              propertyValue);
 
       if (globalColourScheme instanceof UserColourScheme)
       {
         globalColourScheme = UserDefinedColours.loadDefaultColours();
         ((UserColourScheme) globalColourScheme).setThreshold(0,
-                getIgnoreGapsConsensus());
+                isIgnoreGapsConsensus());
       }
 
       if (globalColourScheme != null)
       {
         globalColourScheme.setConsensus(hconsensus);
-      }
-    }
-
-    wrapAlignment = jalview.bin.Cache.getDefault("WRAP_ALIGNMENT", false);
-    showUnconserved = jalview.bin.Cache.getDefault("SHOW_UNCONSERVED",
-            false);
-    sortByTree = jalview.bin.Cache.getDefault("SORT_BY_TREE", false);
-    followSelection = jalview.bin.Cache.getDefault("FOLLOW_SELECTIONS",
-            true);
-  }
-
-  /**
-   * set the flag
-   * 
-   * @param b
-   *          features are displayed if true
-   */
-  public void setShowSequenceFeatures(boolean b)
-  {
-    showSequenceFeatures = b;
-  }
-
-  public boolean getShowSequenceFeatures()
-  {
-    return showSequenceFeatures;
-  }
-
-  ConservationThread conservationThread;
-
-  ConsensusThread consensusThread;
-
-  boolean consUpdateNeeded = false;
-
-  static boolean UPDATING_CONSENSUS = false;
-
-  static boolean UPDATING_CONSERVATION = false;
-
-  boolean updatingConsensus = false;
-
-  boolean updatingConservation = false;
-
-  /**
-   * centre columnar annotation labels in displayed alignment annotation TODO:
-   * add to jalviewXML and annotation display settings
-   */
-  boolean centreColumnLabels = false;
-
-  private boolean showdbrefs;
-
-  private boolean shownpfeats;
-
-  /**
-   * trigger update of conservation annotation
-   */
-  public void updateConservation(final AlignmentPanel ap)
-  {
-    // see note in mantis : issue number 8585
-    if (alignment.isNucleotide() || conservation == null
-            || !autoCalculateConsensus)
-    {
-      return;
-    }
-
-    conservationThread = new ConservationThread(this, ap);
-    conservationThread.start();
-  }
-
-  /**
-   * trigger update of consensus annotation
-   */
-  public void updateConsensus(final AlignmentPanel ap)
-  {
-    // see note in mantis : issue number 8585
-    if (consensus == null || !autoCalculateConsensus)
-    {
-      return;
-    }
-    consensusThread = new ConsensusThread(ap);
-    consensusThread.start();
-  }
-
-  class ConsensusThread extends Thread
-  {
-    AlignmentPanel ap;
-
-    public ConsensusThread(AlignmentPanel ap)
-    {
-      this.ap = ap;
-    }
-
-    public void run()
-    {
-      updatingConsensus = true;
-      while (UPDATING_CONSENSUS)
-      {
-        try
-        {
-          if (ap != null)
-          {
-            ap.paintAlignment(false);
-          }
-
-          Thread.sleep(200);
-        } catch (Exception ex)
-        {
-          ex.printStackTrace();
-        }
-      }
-
-      UPDATING_CONSENSUS = true;
-
-      try
-      {
-        int aWidth = (alignment != null) ? alignment.getWidth() : -1; // null
-        // pointer
-        // possibility
-        // here.
-        if (aWidth <= 0)
-        {
-          updatingConsensus = false;
-          UPDATING_CONSENSUS = false;
-          return;
-        }
-
-        consensus.annotations = null;
-        consensus.annotations = new Annotation[aWidth];
-
-        hconsensus = new Hashtable[aWidth];
-        AAFrequency.calculate(alignment.getSequencesArray(), 0,
-                alignment.getWidth(), hconsensus, true);
-        updateAnnotation(true);
-
-        if (globalColourScheme != null)
-        {
-          globalColourScheme.setConsensus(hconsensus);
-        }
-
-      } catch (OutOfMemoryError error)
-      {
-        alignment.deleteAnnotation(consensus);
-
-        consensus = null;
-        hconsensus = null;
-        new OOMWarning("calculating consensus", error);
-      }
-      UPDATING_CONSENSUS = false;
-      updatingConsensus = false;
-
-      if (ap != null)
-      {
-        ap.paintAlignment(true);
-      }
-    }
-
-    /**
-     * update the consensus annotation from the sequence profile data using
-     * current visualization settings.
-     */
-    public void updateAnnotation()
-    {
-      updateAnnotation(false);
-    }
-
-    protected void updateAnnotation(boolean immediate)
-    {
-      // TODO: make calls thread-safe, so if another thread calls this method,
-      // it will either return or wait until one calculation is finished.
-      if (immediate
-              || (!updatingConsensus && consensus != null && hconsensus != null))
-      {
-        AAFrequency.completeConsensus(consensus, hconsensus, 0,
-                hconsensus.length, ignoreGapsInConsensusCalculation,
-                showSequenceLogo);
       }
     }
   }
@@ -643,209 +347,43 @@ public class AlignViewport implements SelectionSource, VamsasSource
     return sq;
   }
 
+  boolean validCharWidth;
+
   /**
+   * update view settings with the given font. You may need to call
+   * alignPanel.fontChanged to update the layout geometry
    * 
-   * 
-   * @return null or the currently selected sequence region
+   * @param setGrid
+   *          when true, charWidth/height is set according to font mentrics
    */
-  public SequenceGroup getSelectionGroup()
-  {
-    return selectionGroup;
-  }
-
-  /**
-   * Set the selection group for this window.
-   * 
-   * @param sg - group holding references to sequences in this alignment view
-   *          
-   */
-  public void setSelectionGroup(SequenceGroup sg)
-  {
-    selectionGroup = sg;
-  }
-
-  /**
-   * GUI state
-   * @return true if conservation based shading is enabled
-   */
-  public boolean getConservationSelected()
-  {
-    return conservationColourSelected;
-  }
-
-  /**
-   * GUI state
-   * @param b
-   *          enable conservation based shading
-   */
-  public void setConservationSelected(boolean b)
-  {
-    conservationColourSelected = b;
-  }
-
-  /**
-   * GUI state
-   * @return true if percent identity threshold is applied to shading
-   */
-  public boolean getAbovePIDThreshold()
-  {
-    return abovePIDThreshold;
-  }
-
-  /**
-   * GUI state
-   * 
-   * 
-   * @param b indicate if percent identity threshold is applied to shading
-   */
-  public void setAbovePIDThreshold(boolean b)
-  {
-    abovePIDThreshold = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getStartRes()
-  {
-    return startRes;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getEndRes()
-  {
-    return endRes;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getStartSeq()
-  {
-    return startSeq;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param cs
-   *          DOCUMENT ME!
-   */
-  public void setGlobalColourScheme(ColourSchemeI cs)
-  {
-    globalColourScheme = cs;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public ColourSchemeI getGlobalColourScheme()
-  {
-    return globalColourScheme;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param res
-   *          DOCUMENT ME!
-   */
-  public void setStartRes(int res)
-  {
-    this.startRes = res;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param seq
-   *          DOCUMENT ME!
-   */
-  public void setStartSeq(int seq)
-  {
-    this.startSeq = seq;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param res
-   *          DOCUMENT ME!
-   */
-  public void setEndRes(int res)
-  {
-    if (res > (alignment.getWidth() - 1))
-    {
-      // log.System.out.println(" Corrected res from " + res + " to maximum " +
-      // (alignment.getWidth()-1));
-      res = alignment.getWidth() - 1;
-    }
-
-    if (res < 0)
-    {
-      res = 0;
-    }
-
-    this.endRes = res;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param seq
-   *          DOCUMENT ME!
-   */
-  public void setEndSeq(int seq)
-  {
-    if (seq > alignment.getHeight())
-    {
-      seq = alignment.getHeight();
-    }
-
-    if (seq < 0)
-    {
-      seq = 0;
-    }
-
-    this.endSeq = seq;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getEndSeq()
-  {
-    return endSeq;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param f
-   *          DOCUMENT ME!
-   */
-  public void setFont(Font f)
+  public void setFont(Font f, boolean setGrid)
   {
     font = f;
 
     Container c = new Container();
 
     java.awt.FontMetrics fm = c.getFontMetrics(font);
-    setCharHeight(fm.getHeight());
-    setCharWidth(fm.charWidth('M'));
+    int w = viewStyle.getCharWidth(), ww = fm.charWidth('M'), h = viewStyle
+            .getCharHeight();
+    if (setGrid)
+    {
+      setCharHeight(fm.getHeight());
+      setCharWidth(ww);
+    }
+    viewStyle.setFontName(font.getName());
+    viewStyle.setFontStyle(font.getStyle());
+    viewStyle.setFontSize(font.getSize());
+
     validCharWidth = true;
+  }
+
+  @Override
+  public void setViewStyle(ViewStyleI settingsForView)
+  {
+    super.setViewStyle(settingsForView);
+    setFont(new Font(viewStyle.getFontName(), viewStyle.getFontStyle(),
+            viewStyle.getFontSize()), false);
+
   }
 
   /**
@@ -861,197 +399,76 @@ public class AlignViewport implements SelectionSource, VamsasSource
   /**
    * DOCUMENT ME!
    * 
-   * @param w
-   *          DOCUMENT ME!
-   */
-  public void setCharWidth(int w)
-  {
-    this.charWidth = w;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getCharWidth()
-  {
-    return charWidth;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param h
-   *          DOCUMENT ME!
-   */
-  public void setCharHeight(int h)
-  {
-    this.charHeight = h;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getCharHeight()
-  {
-    return charHeight;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param w
-   *          DOCUMENT ME!
-   */
-  public void setWrappedWidth(int w)
-  {
-    this.wrappedWidth = w;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getWrappedWidth()
-  {
-    return wrappedWidth;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public AlignmentI getAlignment()
-  {
-    return alignment;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
    * @param align
    *          DOCUMENT ME!
    */
+  @Override
   public void setAlignment(AlignmentI align)
   {
-    if (alignment != null && alignment.getCodonFrames() != null)
+    replaceMappings(align);
+    super.setAlignment(align);
+  }
+
+  /**
+   * Replace any codon mappings for this viewport with those for the given
+   * viewport
+   * 
+   * @param align
+   */
+  public void replaceMappings(AlignmentI align)
+  {
+
+    /*
+     * Deregister current mappings (if any)
+     */
+    deregisterMappings();
+
+    /*
+     * Register new mappings (if any)
+     */
+    if (align != null)
     {
-      StructureSelectionManager.getStructureSelectionManager(Desktop.instance)
-              .removeMappings(alignment.getCodonFrames());
+      StructureSelectionManager ssm = StructureSelectionManager
+              .getStructureSelectionManager(Desktop.instance);
+      ssm.registerMappings(align.getCodonFrames());
     }
-    this.alignment = align;
-    if (alignment.getCodonFrames() != null)
+
+    /*
+     * replace mappings on our alignment
+     */
+    if (alignment != null && align != null)
     {
-      StructureSelectionManager.getStructureSelectionManager(Desktop.instance).addMappings(
-              alignment.getCodonFrames());
+      alignment.setCodonFrames(align.getCodonFrames());
+    }
+  }
+
+  protected void deregisterMappings()
+  {
+    AlignmentI al = getAlignment();
+    if (al != null)
+    {
+      List<AlignedCodonFrame> mappings = al.getCodonFrames();
+      if (mappings != null)
+      {
+        StructureSelectionManager ssm = StructureSelectionManager
+                .getStructureSelectionManager(Desktop.instance);
+        for (AlignedCodonFrame acf : mappings)
+        {
+          if (noReferencesTo(acf))
+          {
+            ssm.deregisterMapping(acf);
+          }
+        }
+      }
     }
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param state
-   *          DOCUMENT ME!
-   */
-  public void setWrapAlignment(boolean state)
-  {
-    wrapAlignment = state;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param state
-   *          DOCUMENT ME!
-   */
-  public void setShowText(boolean state)
-  {
-    showText = state;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param state
-   *          DOCUMENT ME!
-   */
-  public void setRenderGaps(boolean state)
-  {
-    renderGaps = state;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
    * @return DOCUMENT ME!
    */
-  public boolean getColourText()
-  {
-    return showColourText;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param state
-   *          DOCUMENT ME!
-   */
-  public void setColourText(boolean state)
-  {
-    showColourText = state;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param state
-   *          DOCUMENT ME!
-   */
-  public void setShowBoxes(boolean state)
-  {
-    showBoxes = state;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getWrapAlignment()
-  {
-    return wrapAlignment;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getShowText()
-  {
-    return showText;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getShowBoxes()
-  {
-    return showBoxes;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
+  @Override
   public char getGapCharacter()
   {
     return getAlignment().getGapCharacter();
@@ -1074,58 +491,6 @@ public class AlignViewport implements SelectionSource, VamsasSource
   /**
    * DOCUMENT ME!
    * 
-   * @param thresh
-   *          DOCUMENT ME!
-   */
-  public void setThreshold(int thresh)
-  {
-    threshold = thresh;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getThreshold()
-  {
-    return threshold;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param inc
-   *          DOCUMENT ME!
-   */
-  public void setIncrement(int inc)
-  {
-    increment = inc;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public int getIncrement()
-  {
-    return increment;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public ColumnSelection getColumnSelection()
-  {
-    return colSel;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
    * @param tree
    *          DOCUMENT ME!
    */
@@ -1142,687 +507,6 @@ public class AlignViewport implements SelectionSource, VamsasSource
   public NJTree getCurrentTree()
   {
     return currentTree;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setColourAppliesToAllGroups(boolean b)
-  {
-    colourAppliesToAllGroups = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getColourAppliesToAllGroups()
-  {
-    return colourAppliesToAllGroups;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getShowJVSuffix()
-  {
-    return showJVSuffix;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setShowJVSuffix(boolean b)
-  {
-    showJVSuffix = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getShowAnnotation()
-  {
-    return showAnnotation;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setShowAnnotation(boolean b)
-  {
-    showAnnotation = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getScaleAboveWrapped()
-  {
-    return scaleAboveWrapped;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getScaleLeftWrapped()
-  {
-    return scaleLeftWrapped;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean getScaleRightWrapped()
-  {
-    return scaleRightWrapped;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setScaleAboveWrapped(boolean b)
-  {
-    scaleAboveWrapped = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setScaleLeftWrapped(boolean b)
-  {
-    scaleLeftWrapped = b;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param b
-   *          DOCUMENT ME!
-   */
-  public void setScaleRightWrapped(boolean b)
-  {
-    scaleRightWrapped = b;
-  }
-
-  /**
-   * Property change listener for changes in alignment
-   * 
-   * @param listener
-   *          DOCUMENT ME!
-   */
-  public void addPropertyChangeListener(
-          java.beans.PropertyChangeListener listener)
-  {
-    changeSupport.addPropertyChangeListener(listener);
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param listener
-   *          DOCUMENT ME!
-   */
-  public void removePropertyChangeListener(
-          java.beans.PropertyChangeListener listener)
-  {
-    changeSupport.removePropertyChangeListener(listener);
-  }
-
-  /**
-   * Property change listener for changes in alignment
-   * 
-   * @param prop
-   *          DOCUMENT ME!
-   * @param oldvalue
-   *          DOCUMENT ME!
-   * @param newvalue
-   *          DOCUMENT ME!
-   */
-  public void firePropertyChange(String prop, Object oldvalue,
-          Object newvalue)
-  {
-    changeSupport.firePropertyChange(prop, oldvalue, newvalue);
-  }
-
-  public void setIgnoreGapsConsensus(boolean b, AlignmentPanel ap)
-  {
-    ignoreGapsInConsensusCalculation = b;
-    updateConsensus(ap);
-    if (globalColourScheme != null)
-    {
-      globalColourScheme.setThreshold(globalColourScheme.getThreshold(),
-              ignoreGapsInConsensusCalculation);
-    }
-  }
-
-  public boolean getIgnoreGapsConsensus()
-  {
-    return ignoreGapsInConsensusCalculation;
-  }
-
-  public void setDataset(boolean b)
-  {
-    isDataset = b;
-  }
-
-  public boolean isDataset()
-  {
-    return isDataset;
-  }
-
-  public void hideSelectedColumns()
-  {
-    if (colSel.size() < 1)
-    {
-      return;
-    }
-
-    colSel.hideSelectedColumns();
-    setSelectionGroup(null);
-
-    hasHiddenColumns = true;
-  }
-
-  public void hideColumns(int start, int end)
-  {
-    if (start == end)
-    {
-      colSel.hideColumns(start);
-    }
-    else
-    {
-      colSel.hideColumns(start, end);
-    }
-
-    hasHiddenColumns = true;
-  }
-
-  public void hideRepSequences(SequenceI repSequence, SequenceGroup sg)
-  {
-    int sSize = sg.getSize();
-    if (sSize < 2)
-    {
-      return;
-    }
-
-    if (hiddenRepSequences == null)
-    {
-      hiddenRepSequences = new Hashtable();
-    }
-
-    hiddenRepSequences.put(repSequence, sg);
-
-    // Hide all sequences except the repSequence
-    SequenceI[] seqs = new SequenceI[sSize - 1];
-    int index = 0;
-    for (int i = 0; i < sSize; i++)
-    {
-      if (sg.getSequenceAt(i) != repSequence)
-      {
-        if (index == sSize - 1)
-        {
-          return;
-        }
-
-        seqs[index++] = sg.getSequenceAt(i);
-      }
-    }
-    sg.setSeqrep(repSequence);
-    sg.setHidereps(true);
-    hideSequence(seqs);
-
-  }
-
-  public void hideAllSelectedSeqs()
-  {
-    if (selectionGroup == null || selectionGroup.getSize() < 1)
-    {
-      return;
-    }
-
-    SequenceI[] seqs = selectionGroup.getSequencesInOrder(alignment);
-
-    hideSequence(seqs);
-
-    setSelectionGroup(null);
-  }
-
-  public void hideSequence(SequenceI[] seq)
-  {
-    if (seq != null)
-    {
-      for (int i = 0; i < seq.length; i++)
-      {
-        alignment.getHiddenSequences().hideSequence(seq[i]);
-      }
-      hasHiddenRows = true;
-      firePropertyChange("alignment", null, alignment.getSequences());
-    }
-  }
-
-  public void showSequence(int index)
-  {
-    Vector tmp = alignment.getHiddenSequences().showSequence(index,
-            hiddenRepSequences);
-    if (tmp.size() > 0)
-    {
-      if (selectionGroup == null)
-      {
-        selectionGroup = new SequenceGroup();
-        selectionGroup.setEndRes(alignment.getWidth() - 1);
-      }
-
-      for (int t = 0; t < tmp.size(); t++)
-      {
-        selectionGroup.addSequence((SequenceI) tmp.elementAt(t), false);
-      }
-      firePropertyChange("alignment", null, alignment.getSequences());
-      sendSelection();
-    }
-
-    if (alignment.getHiddenSequences().getSize() < 1)
-    {
-      hasHiddenRows = false;
-    }
-  }
-
-  public void showColumn(int col)
-  {
-    colSel.revealHiddenColumns(col);
-    if (colSel.getHiddenColumns() == null)
-    {
-      hasHiddenColumns = false;
-    }
-  }
-
-  public void showAllHiddenColumns()
-  {
-    colSel.revealAllHiddenColumns();
-    hasHiddenColumns = false;
-  }
-
-  public void showAllHiddenSeqs()
-  {
-    if (alignment.getHiddenSequences().getSize() > 0)
-    {
-      if (selectionGroup == null)
-      {
-        selectionGroup = new SequenceGroup();
-        selectionGroup.setEndRes(alignment.getWidth() - 1);
-      }
-      Vector tmp = alignment.getHiddenSequences().showAll(
-              hiddenRepSequences);
-      for (int t = 0; t < tmp.size(); t++)
-      {
-        selectionGroup.addSequence((SequenceI) tmp.elementAt(t), false);
-      }
-      firePropertyChange("alignment", null, alignment.getSequences());
-      sendSelection();
-      hasHiddenRows = false;
-      hiddenRepSequences = null;
-    }
-  }
-
-  public void invertColumnSelection()
-  {
-    colSel.invertColumnSelection(0, alignment.getWidth());
-  }
-
-  public int adjustForHiddenSeqs(int alignmentIndex)
-  {
-    return alignment.getHiddenSequences().adjustForHiddenSeqs(
-            alignmentIndex);
-  }
-
-  /**
-   * This method returns an array of new SequenceI objects derived from the
-   * whole alignment or just the current selection with start and end points
-   * adjusted
-   * 
-   * @note if you need references to the actual SequenceI objects in the
-   *       alignment or currently selected then use getSequenceSelection()
-   * @return selection as new sequenceI objects
-   */
-  public SequenceI[] getSelectionAsNewSequence()
-  {
-    SequenceI[] sequences;
-
-    if (selectionGroup == null)
-    {
-      sequences = alignment.getSequencesArray();
-      AlignmentAnnotation[] annots = alignment.getAlignmentAnnotation();
-      for (int i = 0; i < sequences.length; i++)
-      {
-        sequences[i] = new Sequence(sequences[i], annots); // construct new
-        // sequence with
-        // subset of visible
-        // annotation
-      }
-    }
-    else
-    {
-      sequences = selectionGroup.getSelectionAsNewSequences(alignment);
-    }
-
-    return sequences;
-  }
-
-  /**
-   * get the currently selected sequence objects or all the sequences in the
-   * alignment.
-   * 
-   * @return array of references to sequence objects
-   */
-  public SequenceI[] getSequenceSelection()
-  {
-    SequenceI[] sequences = null;
-    if (selectionGroup != null)
-    {
-      sequences = selectionGroup.getSequencesInOrder(alignment);
-    }
-    if (sequences == null)
-    {
-      sequences = alignment.getSequencesArray();
-    }
-    return sequences;
-  }
-
-  /**
-   * This method returns the visible alignment as text, as seen on the GUI, ie
-   * if columns are hidden they will not be returned in the result. Use this for
-   * calculating trees, PCA, redundancy etc on views which contain hidden
-   * columns.
-   * 
-   * @return String[]
-   */
-  public jalview.datamodel.CigarArray getViewAsCigars(
-          boolean selectedRegionOnly)
-  {
-    return new jalview.datamodel.CigarArray(alignment, (hasHiddenColumns ? colSel : null), (selectedRegionOnly ? selectionGroup : null));
-  }
-
-  /**
-   * return a compact representation of the current alignment selection to pass
-   * to an analysis function
-   * 
-   * @param selectedOnly
-   *          boolean true to just return the selected view
-   * @return AlignmentView
-   */
-  public jalview.datamodel.AlignmentView getAlignmentView(boolean selectedOnly)
-  {
-    return getAlignmentView(selectedOnly, false);
-  }
-  
-  /**
-   * return a compact representation of the current alignment selection to pass
-   * to an analysis function
-   * 
-   * @param selectedOnly
-   *          boolean true to just return the selected view
-   * @param markGroups
-   *          boolean true to annotate the alignment view with groups on the alignment (and intersecting with selected region if selectedOnly is true) 
-   * @return AlignmentView
-   */
-  public jalview.datamodel.AlignmentView getAlignmentView(boolean selectedOnly, boolean markGroups)
-  {
-    return new AlignmentView(alignment, colSel, selectionGroup, hasHiddenColumns, selectedOnly, markGroups);
-  }
-
-  /**
-   * This method returns the visible alignment as text, as seen on the GUI, ie
-   * if columns are hidden they will not be returned in the result. Use this for
-   * calculating trees, PCA, redundancy etc on views which contain hidden
-   * columns.
-   * 
-   * @return String[]
-   */
-  public String[] getViewAsString(boolean selectedRegionOnly)
-  {
-    String[] selection = null;
-    SequenceI[] seqs = null;
-    int i, iSize;
-    int start = 0, end = 0;
-    if (selectedRegionOnly && selectionGroup != null)
-    {
-      iSize = selectionGroup.getSize();
-      seqs = selectionGroup.getSequencesInOrder(alignment);
-      start = selectionGroup.getStartRes();
-      end = selectionGroup.getEndRes() + 1;
-    }
-    else
-    {
-      iSize = alignment.getHeight();
-      seqs = alignment.getSequencesArray();
-      end = alignment.getWidth();
-    }
-
-    selection = new String[iSize];
-    if (hasHiddenColumns)
-    {
-      selection = colSel.getVisibleSequenceStrings(start, end, seqs);
-    }
-    else
-    {
-      for (i = 0; i < iSize; i++)
-      {
-        selection[i] = seqs[i].getSequenceAsString(start, end);
-      }
-
-    }
-    return selection;
-  }
-
-  public int[][] getVisibleRegionBoundaries(int min, int max)
-  {
-    Vector regions = new Vector();
-    int start = min;
-    int end = max;
-
-    do
-    {
-      if (hasHiddenColumns)
-      {
-        if (start == 0)
-        {
-          start = colSel.adjustForHiddenColumns(start);
-        }
-
-        end = colSel.getHiddenBoundaryRight(start);
-        if (start == end)
-        {
-          end = max;
-        }
-        if (end > max)
-        {
-          end = max;
-        }
-      }
-
-      regions.addElement(new int[]
-      { start, end });
-
-      if (hasHiddenColumns)
-      {
-        start = colSel.adjustForHiddenColumns(end);
-        start = colSel.getHiddenBoundaryLeft(start) + 1;
-      }
-    } while (end < max);
-
-    int[][] startEnd = new int[regions.size()][2];
-
-    regions.copyInto(startEnd);
-
-    return startEnd;
-
-  }
-
-  public boolean getShowHiddenMarkers()
-  {
-    return showHiddenMarkers;
-  }
-
-  public void setShowHiddenMarkers(boolean show)
-  {
-    showHiddenMarkers = show;
-  }
-
-  public String getSequenceSetId()
-  {
-    if (sequenceSetID == null)
-    {
-      sequenceSetID = alignment.hashCode() + "";
-    }
-
-    return sequenceSetID;
-  }
-
-  /**
-   * unique viewId for synchronizing state with stored Jalview Project
-   * 
-   */
-  private String viewId = null;
-
-  public String getViewId()
-  {
-    if (viewId == null)
-    {
-      viewId = this.getSequenceSetId() + "." + this.hashCode() + "";
-    }
-    return viewId;
-  }
-
-  public void alignmentChanged(AlignmentPanel ap)
-  {
-    if (padGaps)
-    {
-      alignment.padGaps();
-    }
-    if (hconsensus != null && autoCalculateConsensus)
-    {
-      updateConservation(ap);
-    }
-    if (autoCalculateConsensus)
-    {
-      updateConsensus(ap);
-    }
-
-    // Reset endRes of groups if beyond alignment width
-    int alWidth = alignment.getWidth();
-    Vector groups = alignment.getGroups();
-    if (groups != null)
-    {
-      for (int i = 0; i < groups.size(); i++)
-      {
-        SequenceGroup sg = (SequenceGroup) groups.elementAt(i);
-        if (sg.getEndRes() > alWidth)
-        {
-          sg.setEndRes(alWidth - 1);
-        }
-      }
-    }
-
-    if (selectionGroup != null && selectionGroup.getEndRes() > alWidth)
-    {
-      selectionGroup.setEndRes(alWidth - 1);
-    }
-
-    resetAllColourSchemes();
-
-    // alignment.adjustSequenceAnnotations();
-  }
-
-  void resetAllColourSchemes()
-  {
-    ColourSchemeI cs = globalColourScheme;
-    if (cs != null)
-    {
-      if (cs instanceof ClustalxColourScheme)
-      {
-        ((ClustalxColourScheme) cs).resetClustalX(alignment.getSequences(),
-                alignment.getWidth());
-      }
-
-      cs.setConsensus(hconsensus);
-      if (cs.conservationApplied())
-      {
-        Alignment al = (Alignment) alignment;
-        Conservation c = new Conservation("All",
-                ResidueProperties.propHash, 3, al.getSequences(), 0,
-                al.getWidth() - 1);
-        c.calculate();
-        c.verdict(false, ConsPercGaps);
-
-        cs.setConservation(c);
-      }
-    }
-
-    int s, sSize = alignment.getGroups().size();
-    for (s = 0; s < sSize; s++)
-    {
-      SequenceGroup sg = (SequenceGroup) alignment.getGroups().elementAt(s);
-      if (sg.cs != null && sg.cs instanceof ClustalxColourScheme)
-      {
-        ((ClustalxColourScheme) sg.cs).resetClustalX(
-                sg.getSequences(hiddenRepSequences), sg.getWidth());
-      }
-      sg.recalcConservation();
-    }
-  }
-
-  public Color getSequenceColour(SequenceI seq)
-  {
-    if (sequenceColours == null || !sequenceColours.containsKey(seq))
-    {
-      return Color.white;
-    }
-    else
-    {
-      return (Color) sequenceColours.get(seq);
-    }
-  }
-
-  public void setSequenceColour(SequenceI seq, Color col)
-  {
-    if (sequenceColours == null)
-    {
-      sequenceColours = new Hashtable();
-    }
-
-    if (col == null)
-    {
-      sequenceColours.remove(seq);
-    }
-    else
-    {
-      sequenceColours.put(seq, col);
-    }
   }
 
   /**
@@ -1857,11 +541,12 @@ public class AlignViewport implements SelectionSource, VamsasSource
    */
   public long[] getUndoRedoHash()
   {
+    // TODO: JAL-1126
     if (historyList == null || redoList == null)
-      return new long[]
-      { -1, -1 };
-    return new long[]
-    { historyList.hashCode(), this.redoList.hashCode() };
+    {
+      return new long[] { -1, -1 };
+    }
+    return new long[] { historyList.hashCode(), this.redoList.hashCode() };
   }
 
   /**
@@ -1895,108 +580,6 @@ public class AlignViewport implements SelectionSource, VamsasSource
     return false;
   }
 
-  public boolean getCentreColumnLabels()
-  {
-    return centreColumnLabels;
-  }
-
-  public void setCentreColumnLabels(boolean centrecolumnlabels)
-  {
-    centreColumnLabels = centrecolumnlabels;
-  }
-
-  public void updateSequenceIdColours()
-  {
-    Vector groups = alignment.getGroups();
-    if (sequenceColours == null)
-    {
-      sequenceColours = new Hashtable();
-    }
-    for (int ig = 0, igSize = groups.size(); ig < igSize; ig++)
-    {
-      SequenceGroup sg = (SequenceGroup) groups.elementAt(ig);
-      if (sg.idColour != null)
-      {
-        Vector sqs = sg.getSequences(hiddenRepSequences);
-        for (int s = 0, sSize = sqs.size(); s < sSize; s++)
-        {
-          sequenceColours.put(sqs.elementAt(s), sg.idColour);
-        }
-      }
-    }
-  }
-
-  /**
-   * enable or disable the display of Database Cross References in the sequence
-   * ID tooltip
-   */
-  public void setShowDbRefs(boolean show)
-  {
-    showdbrefs = show;
-  }
-
-  /**
-   * 
-   * @return true if Database References are to be displayed on tooltips.
-   */
-  public boolean isShowDbRefs()
-  {
-    return showdbrefs;
-  }
-
-  /**
-   * 
-   * @return true if Non-positional features are to be displayed on tooltips.
-   */
-  public boolean isShowNpFeats()
-  {
-    return shownpfeats;
-  }
-
-  /**
-   * enable or disable the display of Non-Positional sequence features in the
-   * sequence ID tooltip
-   * 
-   * @param show
-   */
-  public void setShowNpFeats(boolean show)
-  {
-    shownpfeats = show;
-  }
-
-  /**
-   * 
-   * @return true if view has hidden rows
-   */
-  public boolean hasHiddenRows()
-  {
-    return hasHiddenRows;
-  }
-
-  /**
-   * 
-   * @return true if view has hidden columns
-   */
-  public boolean hasHiddenColumns()
-  {
-    return hasHiddenColumns;
-  }
-
-  /**
-   * when set, view will scroll to show the highlighted position
-   */
-  public boolean followHighlight = true;
-
-  /**
-   * @return true if view should scroll to show the highlighted region of a
-   *         sequence
-   * @return
-   */
-  public boolean getFollowHighlight()
-  {
-    return followHighlight;
-  }
-
   public boolean followSelection = true;
 
   /**
@@ -2008,74 +591,16 @@ public class AlignViewport implements SelectionSource, VamsasSource
     return followSelection;
   }
 
-  private long sgrouphash = -1, colselhash = -1;
-
-  boolean showSeqFeaturesHeight;
-
   /**
-   * checks current SelectionGroup against record of last hash value, and
-   * updates record.
-   * @param b update the record of last hash value
-   * 
-   * @return true if SelectionGroup changed since last call (when b is true)
+   * Send the current selection to be broadcast to any selection listeners.
    */
-  boolean isSelectionGroupChanged(boolean b)
-  {
-    int hc = (selectionGroup == null || selectionGroup.getSize()==0) ? -1 : selectionGroup.hashCode();
-    if (hc!=-1 && hc != sgrouphash)
-    {
-      if (b) {sgrouphash = hc;}
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * checks current colsel against record of last hash value, and optionally updates
-   * record.
-
-   * @param b update the record of last hash value
-   * @return true if colsel changed since last call (when b is true)
-   */
-  boolean isColSelChanged(boolean b)
-  {
-    int hc = (colSel == null || colSel.size()==0) ? -1 : colSel.hashCode();
-    if (hc!=-1 && hc != colselhash)
-    {
-      if (b) {colselhash = hc;}
-      return true;
-    }
-    return false;
-  }
-
+  @Override
   public void sendSelection()
   {
     jalview.structure.StructureSelectionManager
             .getStructureSelectionManager(Desktop.instance).sendSelection(
                     new SequenceGroup(getSelectionGroup()),
                     new ColumnSelection(getColumnSelection()), this);
-  }
-
-  public void setShowSequenceFeaturesHeight(boolean selected)
-  {
-    showSeqFeaturesHeight = selected;
-  }
-
-  public boolean getShowSequenceFeaturesHeight()
-  {
-    return showSeqFeaturesHeight;
-  }
-
-  boolean showUnconserved = false;
-
-  public boolean getShowUnconserved()
-  {
-    return showUnconserved;
-  }
-
-  public void setShowUnconserved(boolean showunconserved)
-  {
-    showUnconserved = showunconserved;
   }
 
   /**
@@ -2090,7 +615,6 @@ public class AlignViewport implements SelectionSource, VamsasSource
   {
     AlignmentPanel[] aps = PaintRefresher.getAssociatedPanels(this
             .getSequenceSetId());
-    AlignmentPanel ap = null;
     for (int p = 0; aps != null && p < aps.length; p++)
     {
       if (aps[p].av == this)
@@ -2112,174 +636,517 @@ public class AlignViewport implements SelectionSource, VamsasSource
   }
 
   /**
-   * should conservation rows be shown for groups
+   * Returns the (Desktop) instance of the StructureSelectionManager
    */
-  boolean showGroupConservation = false;
-
-  /**
-   * should consensus rows be shown for groups
-   */
-  boolean showGroupConsensus = false;
-
-  /**
-   * should consensus profile be rendered by default
-   */
-  public boolean showSequenceLogo = false;
-
-  /**
-   * should consensus histograms be rendered by default
-   */
-  public boolean showConsensusHistogram = true;
-
-  /**
-   * @return the showConsensusProfile
-   */
-  public boolean isShowSequenceLogo()
-  {
-    return showSequenceLogo;
-  }
-
-  /**
-   * @param showSequenceLogo
-   *          the new value
-   */
-  public void setShowSequenceLogo(boolean showSequenceLogo)
-  {
-    if (showSequenceLogo != this.showSequenceLogo)
-    {
-      // TODO: decouple settings setting from calculation when refactoring
-      // annotation update method from alignframe to viewport
-      this.showSequenceLogo = showSequenceLogo;
-      if (consensusThread != null)
-      {
-        consensusThread.updateAnnotation();
-      }
-    }
-    this.showSequenceLogo = showSequenceLogo;
-  }
-
-  /**
-   * @param showConsensusHistogram
-   *          the showConsensusHistogram to set
-   */
-  public void setShowConsensusHistogram(boolean showConsensusHistogram)
-  {
-    this.showConsensusHistogram = showConsensusHistogram;
-  }
-
-  /**
-   * @return the showGroupConservation
-   */
-  public boolean isShowGroupConservation()
-  {
-    return showGroupConservation;
-  }
-
-  /**
-   * @param showGroupConservation
-   *          the showGroupConservation to set
-   */
-  public void setShowGroupConservation(boolean showGroupConservation)
-  {
-    this.showGroupConservation = showGroupConservation;
-  }
-
-  /**
-   * @return the showGroupConsensus
-   */
-  public boolean isShowGroupConsensus()
-  {
-    return showGroupConsensus;
-  }
-
-  /**
-   * @param showGroupConsensus
-   *          the showGroupConsensus to set
-   */
-  public void setShowGroupConsensus(boolean showGroupConsensus)
-  {
-    this.showGroupConsensus = showGroupConsensus;
-  }
-
-  /**
-   * 
-   * @return flag to indicate if the consensus histogram should be rendered by
-   *         default
-   */
-  public boolean isShowConsensusHistogram()
-  {
-    return this.showConsensusHistogram;
-  }
-
-  /**
-   * synthesize a column selection if none exists so it covers the given
-   * selection group. if wholewidth is false, no column selection is made if the
-   * selection group covers the whole alignment width.
-   * 
-   * @param sg
-   * @param wholewidth
-   */
-  public void expandColSelection(SequenceGroup sg, boolean wholewidth)
-  {
-    int sgs, sge;
-    if (sg != null
-            && (sgs = sg.getStartRes()) >= 0
-            && sg.getStartRes() <= (sge = sg.getEndRes())
-            && (colSel == null || colSel.getSelected() == null || colSel
-                    .getSelected().size() == 0))
-    {
-      if (!wholewidth && alignment.getWidth() == (1 + sge - sgs))
-      {
-        // do nothing
-        return;
-      }
-      if (colSel == null)
-      {
-        colSel = new ColumnSelection();
-      }
-      for (int cspos = sg.getStartRes(); cspos <= sg.getEndRes(); cspos++)
-      {
-        colSel.addElement(cspos);
-      }
-    }
-  }
-
+  @Override
   public StructureSelectionManager getStructureSelectionManager()
   {
-    return StructureSelectionManager.getStructureSelectionManager(Desktop.instance);
+    return StructureSelectionManager
+            .getStructureSelectionManager(Desktop.instance);
   }
 
   /**
    * 
    * @param pdbEntries
-   * @return a series of SequenceI arrays, one for each PDBEntry, listing which sequence in the alignment holds a reference to it
+   * @return an array of SequenceI arrays, one for each PDBEntry, listing which
+   *         sequences in the alignment hold a reference to it
    */
   public SequenceI[][] collateForPDB(PDBEntry[] pdbEntries)
   {
-    ArrayList<SequenceI[]> seqvectors = new ArrayList<SequenceI[]>();
-    for (PDBEntry pdb: pdbEntries) {
-    ArrayList<SequenceI> seqs = new ArrayList<SequenceI>();
-    for (int i = 0; i < alignment.getHeight(); i++)
+    List<SequenceI[]> seqvectors = new ArrayList<SequenceI[]>();
+    for (PDBEntry pdb : pdbEntries)
     {
-      Vector pdbs = alignment.getSequenceAt(i)
-              .getDatasetSequence().getPDBId();
-      if (pdbs == null)
-        continue;
-      SequenceI sq;
-      for (int p = 0; p < pdbs.size(); p++)
+      List<SequenceI> choosenSeqs = new ArrayList<SequenceI>();
+      for (SequenceI sq : alignment.getSequences())
       {
-        PDBEntry p1 = (PDBEntry) pdbs.elementAt(p);
-        if (p1.getId().equals(pdb.getId()))
+        Vector<PDBEntry> pdbRefEntries = sq.getDatasetSequence()
+                .getAllPDBEntries();
+        if (pdbRefEntries == null)
         {
-          if (!seqs.contains(sq=alignment.getSequenceAt(i)))
-            seqs.add(sq);
-
           continue;
         }
+        for (PDBEntry pdbRefEntry : pdbRefEntries)
+        {
+          if (pdbRefEntry.getId().equals(pdb.getId()))
+          {
+            if (pdbRefEntry.getChainCode() != null
+                    && pdb.getChainCode() != null)
+            {
+              if (pdbRefEntry.getChainCode().equalsIgnoreCase(
+                      pdb.getChainCode())
+                      && !choosenSeqs.contains(sq))
+              {
+                choosenSeqs.add(sq);
+                continue;
+              }
+            }
+            else
+            {
+              if (!choosenSeqs.contains(sq))
+              {
+                choosenSeqs.add(sq);
+                continue;
+              }
+            }
+
+          }
+        }
       }
-    }
-    seqvectors.add(seqs.toArray(new SequenceI[seqs.size()]));
+      seqvectors
+              .add(choosenSeqs.toArray(new SequenceI[choosenSeqs.size()]));
     }
     return seqvectors.toArray(new SequenceI[seqvectors.size()][]);
   }
+
+  @Override
+  public boolean isNormaliseSequenceLogo()
+  {
+    return normaliseSequenceLogo;
+  }
+
+  public void setNormaliseSequenceLogo(boolean state)
+  {
+    normaliseSequenceLogo = state;
+  }
+
+  /**
+   * 
+   * @return true if alignment characters should be displayed
+   */
+  @Override
+  public boolean isValidCharWidth()
+  {
+    return validCharWidth;
+  }
+
+  private Hashtable<String, AutoCalcSetting> calcIdParams = new Hashtable<String, AutoCalcSetting>();
+
+  public AutoCalcSetting getCalcIdSettingsFor(String calcId)
+  {
+    return calcIdParams.get(calcId);
+  }
+
+  public void setCalcIdSettingsFor(String calcId, AutoCalcSetting settings,
+          boolean needsUpdate)
+  {
+    calcIdParams.put(calcId, settings);
+    // TODO: create a restart list to trigger any calculations that need to be
+    // restarted after load
+    // calculator.getRegisteredWorkersOfClass(settings.getWorkerClass())
+    if (needsUpdate)
+    {
+      Cache.log.debug("trigger update for " + calcId);
+    }
+  }
+
+  /**
+   * Method called when another alignment's edit (or possibly other) command is
+   * broadcast to here.
+   *
+   * To allow for sequence mappings (e.g. protein to cDNA), we have to first
+   * 'unwind' the command on the source sequences (in simulation, not in fact),
+   * and then for each edit in turn:
+   * <ul>
+   * <li>compute the equivalent edit on the mapped sequences</li>
+   * <li>apply the mapped edit</li>
+   * <li>'apply' the source edit to the working copy of the source sequences</li>
+   * </ul>
+   * 
+   * @param command
+   * @param undo
+   * @param ssm
+   */
+  @Override
+  public void mirrorCommand(CommandI command, boolean undo,
+          StructureSelectionManager ssm, VamsasSource source)
+  {
+    /*
+     * Do nothing unless we are a 'complement' of the source. May replace this
+     * with direct calls not via SSM.
+     */
+    if (source instanceof AlignViewportI
+            && ((AlignViewportI) source).getCodingComplement() == this)
+    {
+      // ok to continue;
+    }
+    else
+    {
+      return;
+    }
+
+    CommandI mappedCommand = ssm.mapCommand(command, undo, getAlignment(),
+            getGapCharacter());
+    if (mappedCommand != null)
+    {
+      AlignmentI[] views = getAlignPanel().alignFrame.getViewAlignments();
+      mappedCommand.doCommand(views);
+      getAlignPanel().alignmentChanged();
+    }
+  }
+
+  /**
+   * Add the sequences from the given alignment to this viewport. Optionally,
+   * may give the user the option to open a new frame, or split panel, with cDNA
+   * and protein linked.
+   * 
+   * @param toAdd
+   * @param title
+   */
+  public void addAlignment(AlignmentI toAdd, String title)
+  {
+    // TODO: promote to AlignViewportI? applet CutAndPasteTransfer is different
+
+    // JBPComment: title is a largely redundant parameter at the moment
+    // JBPComment: this really should be an 'insert/pre/append' controller
+    // JBPComment: but the DNA/Protein check makes it a bit more complex
+
+    // refactored from FileLoader / CutAndPasteTransfer / SequenceFetcher with
+    // this comment:
+    // TODO: create undo object for this JAL-1101
+
+    /*
+     * Ensure datasets are created for the new alignment as
+     * mappings operate on dataset sequences
+     */
+    toAdd.setDataset(null);
+
+    /*
+     * Check if any added sequence could be the object of a mapping or
+     * cross-reference; if so, make the mapping explicit 
+     */
+    getAlignment().realiseMappings(toAdd.getSequences());
+
+    /*
+     * If any cDNA/protein mappings exist or can be made between the alignments, 
+     * offer to open a split frame with linked alignments
+     */
+    if (Cache.getDefault(Preferences.ENABLE_SPLIT_FRAME, true))
+    {
+      if (AlignmentUtils.isMappable(toAdd, getAlignment()))
+      {
+        if (openLinkedAlignment(toAdd, title))
+        {
+          return;
+        }
+      }
+    }
+
+    /*
+     * No mappings, or offer declined - add sequences to this alignment
+     */
+    // TODO: JAL-407 regardless of above - identical sequences (based on ID and
+    // provenance) should share the same dataset sequence
+
+    AlignmentI al = getAlignment();
+    String gap = String.valueOf(al.getGapCharacter());
+    for (int i = 0; i < toAdd.getHeight(); i++)
+    {
+      SequenceI seq = toAdd.getSequenceAt(i);
+      /*
+       * experimental!
+       * - 'align' any mapped sequences as per existing 
+       *    e.g. cdna to genome, domain hit to protein sequence
+       * very experimental! (need a separate menu option for this)
+       * - only add mapped sequences ('select targets from a dataset')
+       */
+      if (true /*AlignmentUtils.alignSequenceAs(seq, al, gap, true, true)*/)
+      {
+        al.addSequence(seq);
+      }
+    }
+
+    setEndSeq(getAlignment().getHeight());
+    firePropertyChange("alignment", null, getAlignment().getSequences());
+  }
+
+  /**
+   * Show a dialog with the option to open and link (cDNA <-> protein) as a new
+   * alignment, either as a standalone alignment or in a split frame. Returns
+   * true if the new alignment was opened, false if not, because the user
+   * declined the offer.
+   * 
+   * @param al
+   * @param title
+   */
+  protected boolean openLinkedAlignment(AlignmentI al, String title)
+  {
+    String[] options = new String[] {
+        MessageManager.getString("action.no"),
+        MessageManager.getString("label.split_window"),
+        MessageManager.getString("label.new_window"), };
+    final String question = JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.open_split_window?"));
+    int response = JOptionPane.showOptionDialog(Desktop.desktop, question,
+            MessageManager.getString("label.open_split_window"),
+            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null,
+            options, options[0]);
+
+    if (response != 1 && response != 2)
+    {
+      return false;
+    }
+    final boolean openSplitPane = (response == 1);
+    final boolean openInNewWindow = (response == 2);
+
+    /*
+     * Identify protein and dna alignments. Make a copy of this one if opening
+     * in a new split pane.
+     */
+    AlignmentI thisAlignment = openSplitPane ? new Alignment(getAlignment())
+            : getAlignment();
+    AlignmentI protein = al.isNucleotide() ? thisAlignment : al;
+    final AlignmentI cdna = al.isNucleotide() ? al : thisAlignment;
+
+    /*
+     * Map sequences. At least one should get mapped as we have already passed
+     * the test for 'mappability'. Any mappings made will be added to the
+     * protein alignment. Note creating dataset sequences on the new alignment
+     * is a pre-requisite for building mappings.
+     */
+    al.setDataset(null);
+    AlignmentUtils.mapProteinAlignmentToCdna(protein, cdna);
+
+    /*
+     * Create the AlignFrame for the added alignment. If it is protein, mappings
+     * are registered with StructureSelectionManager as a side-effect.
+     */
+    AlignFrame newAlignFrame = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
+            AlignFrame.DEFAULT_HEIGHT);
+    newAlignFrame.setTitle(title);
+    newAlignFrame.statusBar.setText(MessageManager.formatMessage(
+            "label.successfully_loaded_file", new Object[] { title }));
+
+    // TODO if we want this (e.g. to enable reload of the alignment from file),
+    // we will need to add parameters to the stack.
+    // if (!protocol.equals(AppletFormatAdapter.PASTE))
+    // {
+    // alignFrame.setFileName(file, format);
+    // }
+
+    if (openInNewWindow)
+    {
+      Desktop.addInternalFrame(newAlignFrame, title,
+              AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+    }
+
+    try
+    {
+      newAlignFrame.setMaximum(jalview.bin.Cache.getDefault(
+              "SHOW_FULLSCREEN", false));
+    } catch (java.beans.PropertyVetoException ex)
+    {
+    }
+
+    if (openSplitPane)
+    {
+      al.alignAs(thisAlignment);
+      protein = openSplitFrame(newAlignFrame, thisAlignment);
+    }
+
+    return true;
+  }
+
+  /**
+   * Helper method to open a new SplitFrame holding linked dna and protein
+   * alignments.
+   * 
+   * @param newAlignFrame
+   *          containing a new alignment to be shown
+   * @param complement
+   *          cdna/protein complement alignment to show in the other split half
+   * @return the protein alignment in the split frame
+   */
+  protected AlignmentI openSplitFrame(AlignFrame newAlignFrame,
+          AlignmentI complement)
+  {
+    /*
+     * Make a new frame with a copy of the alignment we are adding to. If this
+     * is protein, the mappings to cDNA will be registered with
+     * StructureSelectionManager as a side-effect.
+     */
+    AlignFrame copyMe = new AlignFrame(complement,
+            AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+    copyMe.setTitle(getAlignPanel().alignFrame.getTitle());
+
+    AlignmentI al = newAlignFrame.viewport.getAlignment();
+    final AlignFrame proteinFrame = al.isNucleotide() ? copyMe
+            : newAlignFrame;
+    final AlignFrame cdnaFrame = al.isNucleotide() ? newAlignFrame : copyMe;
+    cdnaFrame.setVisible(true);
+    proteinFrame.setVisible(true);
+    String linkedTitle = MessageManager
+            .getString("label.linked_view_title");
+
+    /*
+     * Open in split pane. DNA sequence above, protein below.
+     */
+    JInternalFrame splitFrame = new SplitFrame(cdnaFrame, proteinFrame);
+    Desktop.addInternalFrame(splitFrame, linkedTitle, -1, -1);
+
+    return proteinFrame.viewport.getAlignment();
+  }
+
+  public AnnotationColumnChooser getAnnotationColumnSelectionState()
+  {
+    return annotationColumnSelectionState;
+  }
+
+  public void setAnnotationColumnSelectionState(
+          AnnotationColumnChooser currentAnnotationColumnSelectionState)
+  {
+    this.annotationColumnSelectionState = currentAnnotationColumnSelectionState;
+  }
+
+  @Override
+  public void setIdWidth(int i)
+  {
+    super.setIdWidth(i);
+    AlignmentPanel ap = getAlignPanel();
+    if (ap != null)
+    {
+      // modify GUI elements to reflect geometry change
+      Dimension idw = getAlignPanel().getIdPanel().getIdCanvas()
+              .getPreferredSize();
+      idw.width = i;
+      getAlignPanel().getIdPanel().getIdCanvas().setPreferredSize(idw);
+    }
+  }
+
+  public Rectangle getExplodedGeometry()
+  {
+    return explodedGeometry;
+  }
+
+  public void setExplodedGeometry(Rectangle explodedPosition)
+  {
+    this.explodedGeometry = explodedPosition;
+  }
+
+  public boolean isGatherViewsHere()
+  {
+    return gatherViewsHere;
+  }
+
+  public void setGatherViewsHere(boolean gatherViewsHere)
+  {
+    this.gatherViewsHere = gatherViewsHere;
+  }
+
+  /**
+   * If this viewport has a (Protein/cDNA) complement, then scroll the
+   * complementary alignment to match this one.
+   */
+  public void scrollComplementaryAlignment()
+  {
+    /*
+     * Populate a SearchResults object with the mapped location to scroll to. If
+     * there is no complement, or it is not following highlights, or no mapping
+     * is found, the result will be empty.
+     */
+    SearchResultsI sr = new SearchResults();
+    int verticalOffset = findComplementScrollTarget(sr);
+    if (!sr.isEmpty())
+    {
+      // TODO would like next line without cast but needs more refactoring...
+      final AlignmentPanel complementPanel = ((AlignViewport) getCodingComplement())
+              .getAlignPanel();
+      complementPanel.setDontScrollComplement(true);
+      complementPanel.scrollToCentre(sr, verticalOffset);
+    }
+  }
+
+  /**
+   * Answers true if no alignment holds a reference to the given mapping
+   * 
+   * @param acf
+   * @return
+   */
+  protected boolean noReferencesTo(AlignedCodonFrame acf)
+  {
+    AlignFrame[] frames = Desktop.getAlignFrames();
+    if (frames == null)
+    {
+      return true;
+    }
+    for (AlignFrame af : frames)
+    {
+      if (!af.isClosed())
+      {
+        for (AlignmentViewPanel ap : af.getAlignPanels())
+        {
+          AlignmentI al = ap.getAlignment();
+          if (al != null && al.getCodonFrames().contains(acf))
+          {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Applies the supplied feature settings descriptor to currently known
+   * features. This supports an 'initial configuration' of feature colouring
+   * based on a preset or user favourite. This may then be modified in the usual
+   * way using the Feature Settings dialogue.
+   * 
+   * @param featureSettings
+   */
+  @Override
+  public void applyFeaturesStyle(FeatureSettingsModelI featureSettings)
+  {
+    if (featureSettings == null)
+    {
+      return;
+    }
+
+    FeatureRenderer fr = getAlignPanel().getSeqPanel().seqCanvas
+            .getFeatureRenderer();
+    fr.findAllFeatures(true);
+    List<String> renderOrder = fr.getRenderOrder();
+    FeaturesDisplayedI displayed = fr.getFeaturesDisplayed();
+    displayed.clear();
+    // TODO this clears displayed.featuresRegistered - do we care?
+
+    /*
+     * set feature colour if specified by feature settings
+     * set visibility of all features
+     */
+    for (String type : renderOrder)
+    {
+      FeatureColourI preferredColour = featureSettings
+              .getFeatureColour(type);
+      if (preferredColour != null)
+      {
+        fr.setColour(type, preferredColour);
+      }
+      if (featureSettings.isFeatureDisplayed(type))
+      {
+        displayed.setVisible(type);
+      }
+    }
+
+    /*
+     * set visibility of feature groups
+     */
+    for (String group : fr.getFeatureGroups())
+    {
+      fr.setGroupVisibility(group, featureSettings.isGroupDisplayed(group));
+    }
+
+    /*
+     * order the features
+     */
+    if (featureSettings.optimiseOrder())
+    {
+      // TODO not supported (yet?)
+    }
+    else
+    {
+      fr.orderFeatures(featureSettings);
+    }
+    fr.setTransparency(featureSettings.getTransparency());
+  }
+
 }

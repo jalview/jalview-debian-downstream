@@ -1,34 +1,67 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package MCview;
 
-import java.io.*;
-
-import java.awt.event.*;
-import javax.swing.*;
-
-import jalview.datamodel.*;
-import jalview.gui.*;
-import jalview.io.*;
-import jalview.schemes.*;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SequenceI;
+import jalview.gui.AlignmentPanel;
+import jalview.gui.Desktop;
+import jalview.gui.OOMWarning;
+import jalview.gui.UserDefinedColours;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
+import jalview.schemes.BuriedColourScheme;
+import jalview.schemes.HelixColourScheme;
+import jalview.schemes.HydrophobicColourScheme;
+import jalview.schemes.StrandColourScheme;
+import jalview.schemes.TaylorColourScheme;
+import jalview.schemes.TurnColourScheme;
+import jalview.schemes.UserColourScheme;
+import jalview.schemes.ZappoColourScheme;
+import jalview.util.MessageManager;
 import jalview.ws.ebi.EBIFetchClient;
 
-import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.PrintWriter;
+
+import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JColorChooser;
+import javax.swing.JInternalFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JRadioButtonMenuItem;
 
 public class PDBViewer extends JInternalFrame implements Runnable
 {
@@ -52,7 +85,6 @@ public class PDBViewer extends JInternalFrame implements Runnable
 
   public PDBViewer(PDBEntry pdbentry, SequenceI[] seq, String[] chains,
           AlignmentPanel ap, String protocol)
-
   {
     this.pdbentry = pdbentry;
     this.seq = seq;
@@ -80,7 +112,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
       try
       {
         tmpPDBFile = pdbentry.getFile();
-        PDBfile pdbfile = new PDBfile(tmpPDBFile,
+        PDBfile pdbfile = new PDBfile(false, false, false, tmpPDBFile,
                 jalview.io.AppletFormatAdapter.FILE);
 
         pdbcanvas.init(pdbentry, seq, chains, ap, protocol);
@@ -96,33 +128,35 @@ public class PDBViewer extends JInternalFrame implements Runnable
       worker.start();
     }
 
-    if (pdbentry.getProperty() != null)
+    String method = (String) pdbentry.getProperty("method");
+    if (method != null)
     {
-      if (pdbentry.getProperty().get("method") != null)
-      {
-        title.append(" Method: ");
-        title.append(pdbentry.getProperty().get("method"));
-      }
-      if (pdbentry.getProperty().get("chains") != null)
-      {
-        title.append(" Chain:");
-        title.append(pdbentry.getProperty().get("chains"));
-      }
+      title.append(" Method: ");
+      title.append(method);
+    }
+    String ch = (String) pdbentry.getProperty("chains");
+    if (ch != null)
+    {
+      title.append(" Chain:");
+      title.append(ch);
     }
     Desktop.addInternalFrame(this, title.toString(), 400, 400);
   }
 
+  @Override
   public void run()
   {
     try
     {
       EBIFetchClient ebi = new EBIFetchClient();
       String query = "pdb:" + pdbentry.getId();
-      pdbentry.setFile(ebi.fetchDataAsFile(query, "default", "raw")
+      pdbentry.setFile(ebi.fetchDataAsFile(query, "default", ".xml")
               .getAbsolutePath());
 
       if (pdbentry.getFile() != null)
+      {
         pdbcanvas.init(pdbentry, seq, chains, ap, protocol);
+      }
     } catch (Exception ex)
     {
       pdbcanvas.errorMessage = "Error retrieving file: " + pdbentry.getId();
@@ -134,6 +168,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
   {
     this.addKeyListener(new KeyAdapter()
     {
+      @Override
       public void keyPressed(KeyEvent evt)
       {
         pdbcanvas.keyPressed(evt);
@@ -141,13 +176,14 @@ public class PDBViewer extends JInternalFrame implements Runnable
     });
 
     this.setJMenuBar(jMenuBar1);
-    fileMenu.setText("File");
-    coloursMenu.setText("Colours");
-    saveMenu.setActionCommand("Save Image");
-    saveMenu.setText("Save As");
+    fileMenu.setText(MessageManager.getString("action.file"));
+    coloursMenu.setText(MessageManager.getString("label.colours"));
+    saveMenu.setActionCommand(MessageManager.getString("action.save_image"));
+    saveMenu.setText(MessageManager.getString("action.save_as"));
     png.setText("PNG");
     png.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         png_actionPerformed(e);
@@ -156,155 +192,175 @@ public class PDBViewer extends JInternalFrame implements Runnable
     eps.setText("EPS");
     eps.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         eps_actionPerformed(e);
       }
     });
-    mapping.setText("View Mapping");
+    mapping.setText(MessageManager.getString("label.view_mapping"));
     mapping.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         mapping_actionPerformed(e);
       }
     });
-    wire.setText("Wireframe");
+    wire.setText(MessageManager.getString("label.wireframe"));
     wire.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         wire_actionPerformed(e);
       }
     });
     depth.setSelected(true);
-    depth.setText("Depthcue");
+    depth.setText(MessageManager.getString("label.depthcue"));
     depth.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         depth_actionPerformed(e);
       }
     });
     zbuffer.setSelected(true);
-    zbuffer.setText("Z Buffering");
+    zbuffer.setText(MessageManager.getString("label.z_buffering"));
     zbuffer.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         zbuffer_actionPerformed(e);
       }
     });
-    charge.setText("Charge & Cysteine");
+    charge.setText(MessageManager.getString("label.charge_cysteine"));
     charge.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         charge_actionPerformed(e);
       }
     });
-    chain.setText("By Chain");
+    chain.setText(MessageManager.getString("action.by_chain"));
     chain.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         chain_actionPerformed(e);
       }
     });
     seqButton.setSelected(true);
-    seqButton.setText("By Sequence");
+    seqButton.setText(MessageManager.getString("action.by_sequence"));
     seqButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         seqButton_actionPerformed(e);
       }
     });
     allchains.setSelected(true);
-    allchains.setText("Show All Chains");
+    allchains.setText(MessageManager.getString("label.show_all_chains"));
     allchains.addItemListener(new ItemListener()
     {
+      @Override
       public void itemStateChanged(ItemEvent e)
       {
         allchains_itemStateChanged(e);
       }
     });
-    zappo.setText("Zappo");
+    zappo.setText(MessageManager.getString("label.zappo"));
     zappo.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         zappo_actionPerformed(e);
       }
     });
-    taylor.setText("Taylor");
+    taylor.setText(MessageManager.getString("label.taylor"));
     taylor.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         taylor_actionPerformed(e);
       }
     });
-    hydro.setText("Hydro");
+    hydro.setText(MessageManager.getString("label.hydrophobicity"));
     hydro.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hydro_actionPerformed(e);
       }
     });
-    helix.setText("Helix");
+    helix.setText(MessageManager.getString("label.helix_propensity"));
     helix.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         helix_actionPerformed(e);
       }
     });
-    strand.setText("Strand");
+    strand.setText(MessageManager.getString("label.strand_propensity"));
     strand.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         strand_actionPerformed(e);
       }
     });
-    turn.setText("Turn");
+    turn.setText(MessageManager.getString("label.turn_propensity"));
     turn.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         turn_actionPerformed(e);
       }
     });
-    buried.setText("Buried");
+    buried.setText(MessageManager.getString("label.buried_index"));
     buried.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         buried_actionPerformed(e);
       }
     });
-    user.setText("User Defined...");
+    user.setText(MessageManager.getString("action.user_defined"));
     user.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         user_actionPerformed(e);
       }
     });
-    viewMenu.setText("View");
-    background.setText("Background Colour...");
+    viewMenu.setText(MessageManager.getString("action.view"));
+    background
+            .setText(MessageManager.getString("action.background_colour"));
     background.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         background_actionPerformed(e);
       }
     });
-    savePDB.setText("PDB File");
+    savePDB.setText(MessageManager.getString("label.pdb_file"));
     savePDB.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         savePDB_actionPerformed(e);
@@ -355,39 +411,59 @@ public class PDBViewer extends JInternalFrame implements Runnable
         radioItem.setName("USER_DEFINED");
         radioItem.addMouseListener(new MouseAdapter()
         {
+          @Override
           public void mousePressed(MouseEvent evt)
           {
-            if (evt.isControlDown()
-                    || SwingUtilities.isRightMouseButton(evt))
+            if (evt.isPopupTrigger()) // Mac
             {
-              radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+              offerRemoval(radioItem);
+            }
+          }
 
-              int option = JOptionPane.showInternalConfirmDialog(
-                      jalview.gui.Desktop.desktop,
-                      "Remove from default list?",
-                      "Remove user defined colour",
-                      JOptionPane.YES_NO_OPTION);
-              if (option == JOptionPane.YES_OPTION)
+          @Override
+          public void mouseReleased(MouseEvent evt)
+          {
+            if (evt.isPopupTrigger()) // Windows
+            {
+              offerRemoval(radioItem);
+            }
+          }
+
+          /**
+           * @param radioItem
+           */
+          void offerRemoval(final JRadioButtonMenuItem radioItem)
+          {
+            radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+
+            int option = JOptionPane.showInternalConfirmDialog(
+                    jalview.gui.Desktop.desktop, MessageManager
+                            .getString("label.remove_from_default_list"),
+                    MessageManager
+                            .getString("label.remove_user_defined_colour"),
+                    JOptionPane.YES_NO_OPTION);
+            if (option == JOptionPane.YES_OPTION)
+            {
+              jalview.gui.UserDefinedColours
+                      .removeColourFromDefaults(radioItem.getText());
+              coloursMenu.remove(radioItem);
+            }
+            else
+            {
+              radioItem.addActionListener(new ActionListener()
               {
-                jalview.gui.UserDefinedColours
-                        .removeColourFromDefaults(radioItem.getText());
-                coloursMenu.remove(radioItem);
-              }
-              else
-              {
-                radioItem.addActionListener(new ActionListener()
+                @Override
+                public void actionPerformed(ActionEvent evt)
                 {
-                  public void actionPerformed(ActionEvent evt)
-                  {
-                    user_actionPerformed(evt);
-                  }
-                });
-              }
+                  user_actionPerformed(evt);
+                }
+              });
             }
           }
         });
         radioItem.addActionListener(new ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent evt)
           {
             user_actionPerformed(evt);
@@ -462,7 +538,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
    */
   public void eps_actionPerformed(ActionEvent e)
   {
-    makePDBImage(jalview.util.ImageMaker.EPS);
+    makePDBImage(jalview.util.ImageMaker.TYPE.EPS);
   }
 
   /**
@@ -473,26 +549,34 @@ public class PDBViewer extends JInternalFrame implements Runnable
    */
   public void png_actionPerformed(ActionEvent e)
   {
-    makePDBImage(jalview.util.ImageMaker.PNG);
+    makePDBImage(jalview.util.ImageMaker.TYPE.PNG);
   }
 
-  void makePDBImage(int type)
+  void makePDBImage(jalview.util.ImageMaker.TYPE type)
   {
     int width = pdbcanvas.getWidth();
     int height = pdbcanvas.getHeight();
 
     jalview.util.ImageMaker im;
 
-    if (type == jalview.util.ImageMaker.PNG)
+    if (type == jalview.util.ImageMaker.TYPE.PNG)
     {
-      im = new jalview.util.ImageMaker(this, jalview.util.ImageMaker.PNG,
-              "Make PNG image from view", width, height, null, null);
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from view",
+              width, height, null, null, null, 0, false);
+    }
+    else if (type == jalview.util.ImageMaker.TYPE.EPS)
+    {
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from view",
+              width, height, null, this.getTitle(), null, 0, false);
     }
     else
     {
-      im = new jalview.util.ImageMaker(this, jalview.util.ImageMaker.EPS,
-              "Make EPS file from view", width, height, null,
-              this.getTitle());
+
+      im = new jalview.util.ImageMaker(this,
+              jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
+              width, height, null, this.getTitle(), null, 0, false);
     }
 
     if (im.getGraphics() != null)
@@ -566,7 +650,9 @@ public class PDBViewer extends JInternalFrame implements Runnable
     try
     {
       cap.setText(pdbcanvas.mappingDetails.toString());
-      Desktop.addInternalFrame(cap, "PDB - Sequence Mapping", 550, 600);
+      Desktop.addInternalFrame(cap,
+              MessageManager.getString("label.pdb_sequence_mapping"), 550,
+              600);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("Opening sequence to structure mapping report", oom);
@@ -629,7 +715,8 @@ public class PDBViewer extends JInternalFrame implements Runnable
 
   public void user_actionPerformed(ActionEvent e)
   {
-    if (e.getActionCommand().equals("User Defined..."))
+    if (e.getActionCommand().equals(
+            MessageManager.getString("action.user_defined")))
     {
       // new UserDefinedColours(pdbcanvas, null);
     }
@@ -647,7 +734,8 @@ public class PDBViewer extends JInternalFrame implements Runnable
   public void background_actionPerformed(ActionEvent e)
   {
     java.awt.Color col = JColorChooser.showDialog(this,
-            "Select Background Colour", pdbcanvas.backgroundColour);
+            MessageManager.getString("label.select_backgroud_colour"),
+            pdbcanvas.backgroundColour);
 
     if (col != null)
     {
@@ -663,8 +751,8 @@ public class PDBViewer extends JInternalFrame implements Runnable
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle("Save PDB File");
-    chooser.setToolTipText("Save");
+    chooser.setDialogTitle(MessageManager.getString("label.save_pdb_file"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
 
@@ -685,6 +773,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
           }
         }
         out.close();
+        in.close();
       } catch (Exception ex)
       {
         ex.printStackTrace();

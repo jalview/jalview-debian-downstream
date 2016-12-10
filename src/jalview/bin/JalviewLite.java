@@ -1,27 +1,32 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.bin;
 
+import jalview.analysis.AlignmentUtils;
 import jalview.api.StructureSelectionManagerProvider;
 import jalview.appletgui.AlignFrame;
 import jalview.appletgui.AlignViewport;
 import jalview.appletgui.EmbmenuFrame;
 import jalview.appletgui.FeatureSettings;
+import jalview.appletgui.SplitFrame;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
@@ -34,12 +39,17 @@ import jalview.io.AnnotationFile;
 import jalview.io.AppletFormatAdapter;
 import jalview.io.FileParse;
 import jalview.io.IdentifyFile;
+import jalview.io.JPredFile;
 import jalview.io.JnetAnnotationMaker;
+import jalview.io.NewickFile;
 import jalview.javascript.JSFunctionExec;
 import jalview.javascript.JalviewLiteJsApi;
 import jalview.javascript.JsCallBack;
+import jalview.javascript.MouseOverStructureListener;
 import jalview.structure.SelectionListener;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.HttpUtils;
+import jalview.util.MessageManager;
 
 import java.applet.Applet;
 import java.awt.Button;
@@ -55,7 +65,9 @@ import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -71,19 +83,24 @@ public class JalviewLite extends Applet implements
         StructureSelectionManagerProvider, JalviewLiteJsApi
 {
 
+  private static final String TRUE = "true";
+
+  private static final String FALSE = "false";
+
   public StructureSelectionManager getStructureSelectionManager()
   {
     return StructureSelectionManager.getStructureSelectionManager(this);
   }
 
   // /////////////////////////////////////////
-  // The following public methods maybe called
+  // The following public methods may be called
   // externally, eg via javascript in HTML page
   /*
    * (non-Javadoc)
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSelectedSequences()
    */
+  @Override
   public String getSelectedSequences()
   {
     return getSelectedSequencesFrom(getDefaultTargetFrame());
@@ -94,6 +111,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSelectedSequences(java.lang.String)
    */
+  @Override
   public String getSelectedSequences(String sep)
   {
     return getSelectedSequencesFrom(getDefaultTargetFrame(), sep);
@@ -106,6 +124,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesFrom(jalview.appletgui
    * .AlignFrame)
    */
+  @Override
   public String getSelectedSequencesFrom(AlignFrame alf)
   {
     return getSelectedSequencesFrom(alf, separator); // ""+0x00AC);
@@ -118,6 +137,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesFrom(jalview.appletgui
    * .AlignFrame, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesFrom(AlignFrame alf, String sep)
   {
     StringBuffer result = new StringBuffer("");
@@ -146,6 +166,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#highlight(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void highlight(String sequenceId, String position,
           String alignedPosition)
   {
@@ -159,6 +180,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#highlightIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public void highlightIn(final AlignFrame alf, final String sequenceId,
           final String position, final String alignedPosition)
   {
@@ -215,6 +237,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#select(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public void select(String sequenceIds, String columns)
   {
     selectIn(getDefaultTargetFrame(), sequenceIds, columns, separator);
@@ -226,6 +249,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#select(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void select(String sequenceIds, String columns, String sep)
   {
     selectIn(getDefaultTargetFrame(), sequenceIds, columns, sep);
@@ -237,6 +261,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#selectIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void selectIn(AlignFrame alf, String sequenceIds, String columns)
   {
     selectIn(alf, sequenceIds, columns, separator);
@@ -248,6 +273,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#selectIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public void selectIn(final AlignFrame alf, String sequenceIds,
           String columns, String sep)
   {
@@ -440,15 +466,11 @@ public class JalviewLite extends Applet implements
         SequenceI rs = sel.getSequenceAt(0);
         start = rs.findIndex(start);
         end = rs.findIndex(end);
-        if (csel != null)
+        List<Integer> cs = new ArrayList<Integer>(csel.getSelected());
+        csel.clear();
+        for (Integer selectedCol : cs)
         {
-          Vector cs = csel.getSelected();
-          csel.clear();
-          for (int csi = 0, csiS = cs.size(); csi < csiS; csi++)
-          {
-            csel.addElement(rs.findIndex(((Integer) cs.elementAt(csi))
-                    .intValue()));
-          }
+          csel.addElement(rs.findIndex(selectedCol));
         }
       }
       sel.setStartRes(start);
@@ -471,6 +493,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesAsAlignment(java.lang.
    * String, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesAsAlignment(String format, String suffix)
   {
     return getSelectedSequencesAsAlignmentFrom(getDefaultTargetFrame(),
@@ -484,14 +507,18 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesAsAlignmentFrom(jalview
    * .appletgui.AlignFrame, java.lang.String, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesAsAlignmentFrom(AlignFrame alf,
           String format, String suffix)
   {
     try
     {
-      boolean seqlimits = suffix.equalsIgnoreCase("true");
+      boolean seqlimits = suffix.equalsIgnoreCase(TRUE);
       if (alf.viewport.getSelectionGroup() != null)
       {
+        // JBPNote: getSelectionAsNewSequence behaviour has changed - this
+        // method now returns a full copy of sequence data
+        // TODO consider using getSequenceSelection instead here
         String reply = new AppletFormatAdapter().formatSequences(format,
                 new Alignment(alf.viewport.getSelectionAsNewSequence()),
                 seqlimits);
@@ -510,6 +537,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAlignmentOrder()
    */
+  @Override
   public String getAlignmentOrder()
   {
     return getAlignmentOrderFrom(getDefaultTargetFrame());
@@ -522,6 +550,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentOrderFrom(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getAlignmentOrderFrom(AlignFrame alf)
   {
     return getAlignmentOrderFrom(alf, separator);
@@ -534,6 +563,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentOrderFrom(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public String getAlignmentOrderFrom(AlignFrame alf, String sep)
   {
     AlignmentI alorder = alf.getAlignViewport().getAlignment();
@@ -551,6 +581,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#orderBy(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String orderBy(String order, String undoName)
   {
     return orderBy(order, undoName, separator);
@@ -562,6 +593,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#orderBy(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public String orderBy(String order, String undoName, String sep)
   {
     return orderAlignmentBy(getDefaultTargetFrame(), order, undoName, sep);
@@ -574,6 +606,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#orderAlignmentBy(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public String orderAlignmentBy(AlignFrame alf, String order,
           String undoName, String sep)
   {
@@ -622,7 +655,7 @@ public class JalviewLite extends Applet implements
     final String _undoName = undoName;
     // TODO: deal with synchronization here: cannot raise any events until after
     // this has returned.
-    return alf.sortBy(aorder, _undoName) ? "true" : "";
+    return alf.sortBy(aorder, _undoName) ? TRUE : "";
   }
 
   /*
@@ -630,9 +663,10 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAlignment(java.lang.String)
    */
+  @Override
   public String getAlignment(String format)
   {
-    return getAlignmentFrom(getDefaultTargetFrame(), format, "true");
+    return getAlignmentFrom(getDefaultTargetFrame(), format, TRUE);
   }
 
   /*
@@ -642,9 +676,10 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public String getAlignmentFrom(AlignFrame alf, String format)
   {
-    return getAlignmentFrom(alf, format, "true");
+    return getAlignmentFrom(alf, format, TRUE);
   }
 
   /*
@@ -653,6 +688,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#getAlignment(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String getAlignment(String format, String suffix)
   {
     return getAlignmentFrom(getDefaultTargetFrame(), format, suffix);
@@ -665,12 +701,13 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentFrom(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public String getAlignmentFrom(AlignFrame alf, String format,
           String suffix)
   {
     try
     {
-      boolean seqlimits = suffix.equalsIgnoreCase("true");
+      boolean seqlimits = suffix.equalsIgnoreCase(TRUE);
 
       String reply = new AppletFormatAdapter().formatSequences(format,
               alf.viewport.getAlignment(), seqlimits);
@@ -687,6 +724,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#loadAnnotation(java.lang.String)
    */
+  @Override
   public void loadAnnotation(String annotation)
   {
     loadAnnotationFrom(getDefaultTargetFrame(), annotation);
@@ -699,10 +737,11 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#loadAnnotationFrom(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void loadAnnotationFrom(AlignFrame alf, String annotation)
   {
-    if (new AnnotationFile().readAnnotationFile(alf.getAlignViewport()
-            .getAlignment(), annotation, AppletFormatAdapter.PASTE))
+    if (new AnnotationFile().annotateAlignmentView(alf.getAlignViewport(),
+            annotation, AppletFormatAdapter.PASTE))
     {
       alf.alignPanel.fontChanged();
       alf.alignPanel.setScrollValues(0, 0);
@@ -716,8 +755,35 @@ public class JalviewLite extends Applet implements
   /*
    * (non-Javadoc)
    * 
+   * @see jalview.bin.JalviewLiteJsApi#loadAnnotation(java.lang.String)
+   */
+  @Override
+  public void loadFeatures(String features, boolean autoenabledisplay)
+  {
+    loadFeaturesFrom(getDefaultTargetFrame(), features, autoenabledisplay);
+  }
+
+  /*
+   * (non-Javadoc)
+   * 
+   * @see
+   * jalview.bin.JalviewLiteJsApi#loadAnnotationFrom(jalview.appletgui.AlignFrame
+   * , java.lang.String)
+   */
+  @Override
+  public boolean loadFeaturesFrom(AlignFrame alf, String features,
+          boolean autoenabledisplay)
+  {
+    return alf.parseFeaturesFile(features, AppletFormatAdapter.PASTE,
+            autoenabledisplay);
+  }
+
+  /*
+   * (non-Javadoc)
+   * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatures(java.lang.String)
    */
+  @Override
   public String getFeatures(String format)
   {
     return getFeaturesFrom(getDefaultTargetFrame(), format);
@@ -730,6 +796,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeaturesFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public String getFeaturesFrom(AlignFrame alf, String format)
   {
     return alf.outputFeatures(false, format);
@@ -740,6 +807,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAnnotation()
    */
+  @Override
   public String getAnnotation()
   {
     return getAnnotationFrom(getDefaultTargetFrame());
@@ -752,6 +820,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAnnotationFrom(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getAnnotationFrom(AlignFrame alf)
   {
     return alf.outputAnnotations(false);
@@ -762,6 +831,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newView()
    */
+  @Override
   public AlignFrame newView()
   {
     return newViewFrom(getDefaultTargetFrame());
@@ -772,6 +842,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newView(java.lang.String)
    */
+  @Override
   public AlignFrame newView(String name)
   {
     return newViewFrom(getDefaultTargetFrame(), name);
@@ -782,6 +853,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newViewFrom(jalview.appletgui.AlignFrame)
    */
+  @Override
   public AlignFrame newViewFrom(AlignFrame alf)
   {
     return alf.newView(null);
@@ -793,6 +865,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#newViewFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public AlignFrame newViewFrom(AlignFrame alf, String name)
   {
     return alf.newView(name);
@@ -804,11 +877,12 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#loadAlignment(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public AlignFrame loadAlignment(String text, String title)
   {
-    Alignment al = null;
+    AlignmentI al = null;
 
-    String format = new IdentifyFile().Identify(text,
+    String format = new IdentifyFile().identify(text,
             AppletFormatAdapter.PASTE);
     try
     {
@@ -830,6 +904,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setMouseoverListener(java.lang.String)
    */
+  @Override
   public void setMouseoverListener(String listener)
   {
     setMouseoverListener(currentAlignFrame, listener);
@@ -844,6 +919,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#setMouseoverListener(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void setMouseoverListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -876,6 +952,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setSelectionListener(java.lang.String)
    */
+  @Override
   public void setSelectionListener(String listener)
   {
     setSelectionListener(null, listener);
@@ -888,6 +965,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#setSelectionListener(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void setSelectionListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -915,12 +993,18 @@ public class JalviewLite extends Applet implements
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
+  /**
+   * Callable from javascript to register a javascript function to pass events
+   * to a structure viewer.
+   *
+   * @param listener
+   *          the name of a javascript function
+   * @param modelSet
+   *          a token separated list of PDB file names listened for
    * @see jalview.bin.JalviewLiteJsApi#setStructureListener(java.lang.String,
-   * java.lang.String)
+   *      java.lang.String)
    */
+  @Override
   public void setStructureListener(String listener, String modelSet)
   {
     if (listener != null)
@@ -933,8 +1017,8 @@ public class JalviewLite extends Applet implements
         return;
       }
     }
-    jalview.javascript.MouseOverStructureListener mol = new jalview.javascript.MouseOverStructureListener(
-            this, listener, separatorListToArray(modelSet));
+    MouseOverStructureListener mol = new MouseOverStructureListener(this,
+            listener, separatorListToArray(modelSet));
     javascriptListeners.addElement(mol);
     StructureSelectionManager.getStructureSelectionManager(this)
             .addStructureViewerListener(mol);
@@ -954,6 +1038,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#removeJavascriptListener(jalview.appletgui
    * .AlignFrame, java.lang.String)
    */
+  @Override
   public void removeJavascriptListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -1003,12 +1088,14 @@ public class JalviewLite extends Applet implements
     }
   }
 
+  @Override
   public void stop()
   {
     System.err.println("Applet " + getName() + " stop().");
     tidyUp();
   }
 
+  @Override
   public void destroy()
   {
     System.err.println("Applet " + getName() + " destroy().");
@@ -1065,6 +1152,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#mouseOverStructure(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void mouseOverStructure(final String pdbResNum,
           final String chain, final String pdbfile)
   {
@@ -1102,6 +1190,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#scrollViewToIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void scrollViewToIn(final AlignFrame alf, final String topRow,
           final String leftHandColumn)
   {
@@ -1201,7 +1290,10 @@ public class JalviewLite extends Applet implements
 
   String file = "No file";
 
-  Button launcher = new Button("Start Jalview");
+  String file2 = null;
+
+  Button launcher = new Button(
+          MessageManager.getString("label.start_jalview"));
 
   /**
    * The currentAlignFrame is static, it will change if and when the user
@@ -1237,7 +1329,7 @@ public class JalviewLite extends Applet implements
 
   public static boolean debug = false;
 
-  static String builddate = null, version = null;
+  static String builddate = null, version = null, installation = null;
 
   private static void initBuildDetails()
   {
@@ -1245,6 +1337,7 @@ public class JalviewLite extends Applet implements
     {
       builddate = "unknown";
       version = "test";
+      installation = "applet";
       java.net.URL url = JalviewLite.class
               .getResource("/.build_properties");
       if (url != null)
@@ -1264,6 +1357,10 @@ public class JalviewLite extends Applet implements
             {
               builddate = line.substring(line.indexOf("=") + 1);
             }
+            if (line.indexOf("INSTALLATION") > -1)
+            {
+              installation = line.substring(line.indexOf("=") + 1);
+            }
           }
         } catch (Exception ex)
         {
@@ -1279,6 +1376,12 @@ public class JalviewLite extends Applet implements
     return builddate;
   }
 
+  public static String getInstallation()
+  {
+    initBuildDetails();
+    return installation;
+  }
+
   public static String getVersion()
   {
     initBuildDetails();
@@ -1290,9 +1393,10 @@ public class JalviewLite extends Applet implements
   /**
    * init method for Jalview Applet
    */
+  @Override
   public void init()
   {
-    // remove any handlers that might be hanging around from an earlier instance
+    debug = TRUE.equalsIgnoreCase(getParameter("debug"));
     try
     {
       if (debug)
@@ -1315,26 +1419,17 @@ public class JalviewLite extends Applet implements
         ex.printStackTrace();
       }
     }
-    /**
-     * turn on extra applet debugging
-     */
-    String dbg = getParameter("debug");
-    if (dbg != null)
-    {
-      debug = dbg.toLowerCase().equals("true");
-    }
+
     if (debug)
     {
-
       System.err.println("JalviewLite Version " + getVersion());
       System.err.println("Build Date : " + getBuildDate());
-
+      System.err.println("Installation : " + getInstallation());
     }
     String externalsviewer = getParameter("externalstructureviewer");
     if (externalsviewer != null)
     {
-      useXtrnalSviewer = externalsviewer.trim().toLowerCase()
-              .equals("true");
+      useXtrnalSviewer = externalsviewer.trim().toLowerCase().equals(TRUE);
     }
     /**
      * if true disable the check for jmol
@@ -1342,7 +1437,7 @@ public class JalviewLite extends Applet implements
     String chkforJmol = getParameter("nojmol");
     if (chkforJmol != null)
     {
-      checkForJmol = !chkforJmol.equals("true");
+      checkForJmol = !chkforJmol.equals(TRUE);
     }
     /**
      * get the separator parameter if present
@@ -1361,7 +1456,8 @@ public class JalviewLite extends Applet implements
       else
       {
         throw new Error(
-                "Invalid separator parameter - must be non-zero length");
+                MessageManager
+                        .getString("error.invalid_separator_parameter"));
       }
     }
     int r = 255;
@@ -1408,37 +1504,40 @@ public class JalviewLite extends Applet implements
         file = data.toString();
       }
     }
-
-    final JalviewLite jvapplet = this;
-    if (getParameter("embedded") != null
-            && getParameter("embedded").equalsIgnoreCase("true"))
+    if (getDefaultParameter("enableSplitFrame", true))
     {
-      // Launch as embedded applet in page
-      embedded = true;
-      LoadingThread loader = new LoadingThread(file, jvapplet);
+      file2 = getParameter("file2");
+    }
+
+    embedded = TRUE.equalsIgnoreCase(getParameter("embedded"));
+    if (embedded)
+    {
+      LoadingThread loader = new LoadingThread(file, file2, this);
       loader.start();
     }
     else if (file != null)
     {
-      if (getParameter("showbutton") == null
-              || !getParameter("showbutton").equalsIgnoreCase("false"))
+      /*
+       * Start the applet immediately or show a button to start it
+       */
+      if (FALSE.equalsIgnoreCase(getParameter("showbutton")))
       {
-        // Add the JalviewLite 'Button' to the page
-        add(launcher);
-        launcher.addActionListener(new java.awt.event.ActionListener()
-        {
-          public void actionPerformed(ActionEvent e)
-          {
-            LoadingThread loader = new LoadingThread(file, jvapplet);
-            loader.start();
-          }
-        });
+        LoadingThread loader = new LoadingThread(file, file2, this);
+        loader.start();
       }
       else
       {
-        // Open jalviewLite immediately.
-        LoadingThread loader = new LoadingThread(file, jvapplet);
-        loader.start();
+        add(launcher);
+        launcher.addActionListener(new java.awt.event.ActionListener()
+        {
+          @Override
+          public void actionPerformed(ActionEvent e)
+          {
+            LoadingThread loader = new LoadingThread(file, file2,
+                    JalviewLite.this);
+            loader.start();
+          }
+        });
       }
     }
     else
@@ -1447,7 +1546,44 @@ public class JalviewLite extends Applet implements
       // still be called to open new alignments.
       file = "NO FILE";
       fileFound = false;
-      // callInitCallback();
+      callInitCallback();
+    }
+  }
+
+  private void initLiveConnect()
+  {
+    // try really hard to get the liveConnect thing working
+    boolean notFailed = false;
+    int tries = 0;
+    while (!notFailed && tries < 10)
+    {
+      if (tries > 0)
+      {
+        System.err.println("LiveConnect request thread going to sleep.");
+      }
+      try
+      {
+        Thread.sleep(700 * (1 + tries));
+      } catch (InterruptedException q)
+      {
+      }
+      ;
+      if (tries++ > 0)
+      {
+        System.err.println("LiveConnect request thread woken up.");
+      }
+      try
+      {
+        JSObject scriptObject = JSObject.getWindow(this);
+        if (scriptObject.eval("navigator") != null)
+        {
+          notFailed = true;
+        }
+      } catch (Exception jsex)
+      {
+        System.err.println("Attempt " + tries
+                + " to access LiveConnect javascript failed.");
+      }
     }
   }
 
@@ -1469,6 +1605,9 @@ public class JalviewLite extends Applet implements
       {
       }
       ;
+      // try really hard to let the browser plugin know we want liveconnect
+      initLiveConnect();
+
       if (scriptObject != null)
       {
         try
@@ -1514,6 +1653,7 @@ public class JalviewLite extends Applet implements
     frame.setTitle(title);
     frame.addWindowListener(new WindowAdapter()
     {
+      @Override
       public void windowClosing(WindowEvent e)
       {
         if (frame instanceof AlignFrame)
@@ -1538,6 +1678,7 @@ public class JalviewLite extends Applet implements
         frame.dispose();
       }
 
+      @Override
       public void windowActivated(WindowEvent e)
       {
         if (frame instanceof AlignFrame)
@@ -1575,6 +1716,7 @@ public class JalviewLite extends Applet implements
    * @param g
    *          graphics context
    */
+  @Override
   public void paint(Graphics g)
   {
     if (!fileFound)
@@ -1583,15 +1725,19 @@ public class JalviewLite extends Applet implements
       g.setColor(Color.cyan);
       g.fillRect(0, 0, getSize().width, getSize().height);
       g.setColor(Color.red);
-      g.drawString("Jalview can't open file", 5, 15);
+      g.drawString(
+              MessageManager.getString("label.jalview_cannot_open_file"),
+              5, 15);
       g.drawString("\"" + file + "\"", 5, 30);
     }
     else if (embedded)
     {
       g.setColor(Color.black);
       g.setFont(new Font("Arial", Font.BOLD, 24));
-      g.drawString("Jalview Applet", 50, getSize().height / 2 - 30);
-      g.drawString("Loading Data...", 50, getSize().height / 2);
+      g.drawString(MessageManager.getString("label.jalview_applet"), 50,
+              getSize().height / 2 - 30);
+      g.drawString(MessageManager.getString("label.loading_data") + "...",
+              50, getSize().height / 2);
     }
   }
 
@@ -1622,6 +1768,7 @@ public class JalviewLite extends Applet implements
   {
     private boolean running = false;
 
+    @Override
     public void run()
     {
       if (running || checkedForJmol)
@@ -1669,27 +1816,19 @@ public class JalviewLite extends Applet implements
   class LoadingThread extends Thread
   {
     /**
-     * State variable: File source
-     */
-    String file;
-
-    /**
      * State variable: protocol for access to file source
      */
     String protocol;
 
-    /**
-     * State variable: format of file source
-     */
-    String format;
+    String _file; // alignment file or URL spec
 
-    String _file;
+    String _file2; // second alignment file or URL spec
 
     JalviewLite applet;
 
     private void dbgMsg(String msg)
     {
-      if (applet.debug)
+      if (JalviewLite.debug)
       {
         System.err.println(msg);
       }
@@ -1699,35 +1838,82 @@ public class JalviewLite extends Applet implements
      * update the protocol state variable for accessing the datasource located
      * by file.
      * 
-     * @param file
+     * @param path
      * @return possibly updated datasource string
      */
-    public String setProtocolState(String file)
+    public String resolveFileProtocol(String path)
     {
-      if (file.startsWith("PASTE"))
+      /*
+       * is it paste data?
+       */
+      if (path.startsWith("PASTE"))
       {
-        file = file.substring(5);
         protocol = AppletFormatAdapter.PASTE;
+        return path.substring(5);
       }
-      else if (inArchive(file))
+
+      /*
+       * is it a URL?
+       */
+      if (path.indexOf("://") != -1)
+      {
+        protocol = AppletFormatAdapter.URL;
+        return path;
+      }
+
+      /*
+       * try relative to document root
+       */
+      URL documentBase = getDocumentBase();
+      String withDocBase = resolveUrlForLocalOrAbsolute(path, documentBase);
+      if (HttpUtils.isValidUrl(withDocBase))
+      {
+        if (debug)
+        {
+          System.err.println("Prepended document base '" + documentBase
+                  + "' to make: '" + withDocBase + "'");
+        }
+        protocol = AppletFormatAdapter.URL;
+        return withDocBase;
+      }
+
+      /*
+       * try relative to codebase (if different to document base)
+       */
+      URL codeBase = getCodeBase();
+      String withCodeBase = applet.resolveUrlForLocalOrAbsolute(path,
+              codeBase);
+      if (!withCodeBase.equals(withDocBase)
+              && HttpUtils.isValidUrl(withCodeBase))
+      {
+        protocol = AppletFormatAdapter.URL;
+        if (debug)
+        {
+          System.err.println("Prepended codebase '" + codeBase
+                  + "' to make: '" + withCodeBase + "'");
+        }
+        return withCodeBase;
+      }
+
+      /*
+       * try locating by classloader; try this last so files in the directory
+       * are resolved using document base
+       */
+      if (inArchive(path))
       {
         protocol = AppletFormatAdapter.CLASSLOADER;
       }
-      else
-      {
-        file = addProtocol(file);
-        protocol = AppletFormatAdapter.URL;
-      }
-      dbgMsg("Protocol identified as '" + protocol + "'");
-      return file;
+      return path;
     }
 
-    public LoadingThread(String _file, JalviewLite _applet)
+    public LoadingThread(String file, String file2, JalviewLite _applet)
     {
-      this._file = _file;
+      this._file = file;
+      this._file2 = file2;
       applet = _applet;
     }
 
+    @Override
     public void run()
     {
       LoadJmolThread jmolchecker = new LoadJmolThread();
@@ -1741,25 +1927,128 @@ public class JalviewLite extends Applet implements
         } catch (Exception e)
         {
         }
-        ;
       }
       startLoading();
       // applet.callInitCallback();
     }
 
+    /**
+     * Load the alignment and any related files as specified by applet
+     * parameters
+     */
     private void startLoading()
     {
-      AlignFrame newAlignFrame;
       dbgMsg("Loading thread started with:\n>>file\n" + _file + ">>endfile");
-      file = setProtocolState(_file);
 
-      format = new jalview.io.IdentifyFile().Identify(file, protocol);
-      dbgMsg("File identified as '" + format + "'");
       dbgMsg("Loading started.");
-      Alignment al = null;
+
+      AlignFrame newAlignFrame = readAlignment(_file);
+      AlignFrame newAlignFrame2 = readAlignment(_file2);
+      if (newAlignFrame != null)
+      {
+        addToDisplay(newAlignFrame, newAlignFrame2);
+        loadTree(newAlignFrame);
+
+        loadScoreFile(newAlignFrame);
+
+        loadFeatures(newAlignFrame);
+
+        loadAnnotations(newAlignFrame);
+
+        loadJnetFile(newAlignFrame);
+
+        loadPdbFiles(newAlignFrame);
+      }
+      else
+      {
+        fileFound = false;
+        applet.remove(launcher);
+        applet.repaint();
+      }
+      callInitCallback();
+    }
+
+    /**
+     * Add an AlignFrame to the display; or if two are provided, a SplitFrame.
+     * 
+     * @param af
+     * @param af2
+     */
+    public void addToDisplay(AlignFrame af, AlignFrame af2)
+    {
+      if (af2 != null)
+      {
+        AlignmentI al1 = af.viewport.getAlignment();
+        AlignmentI al2 = af2.viewport.getAlignment();
+        AlignmentI cdna = al1.isNucleotide() ? al1 : al2;
+        AlignmentI prot = al1.isNucleotide() ? al2 : al1;
+        if (AlignmentUtils.mapProteinAlignmentToCdna(prot, cdna))
+        {
+          al2.alignAs(al1);
+          SplitFrame sf = new SplitFrame(af, af2);
+          sf.addToDisplay(embedded, JalviewLite.this);
+          return;
+        }
+        else
+        {
+          String msg = "Could not map any sequence in " + af2.getTitle()
+                  + " as "
+                  + (al1.isNucleotide() ? "protein product" : "cDNA")
+                  + " for " + af.getTitle();
+          System.err.println(msg);
+        }
+      }
+
+      af.addToDisplay(embedded);
+    }
+
+    /**
+     * Read the alignment file (from URL, text 'paste', or archive by
+     * classloader).
+     * 
+     * @return
+     */
+    protected AlignFrame readAlignment(String fileParam)
+    {
+      if (fileParam == null)
+      {
+        return null;
+      }
+      String resolvedFile = resolveFileProtocol(fileParam);
+      String format = new IdentifyFile().identify(resolvedFile, protocol);
+      dbgMsg("File identified as '" + format + "'");
+      AlignmentI al = null;
       try
       {
-        al = new AppletFormatAdapter().readFile(file, protocol, format);
+        al = new AppletFormatAdapter().readFile(resolvedFile, protocol,
+                format);
+        if ((al != null) && (al.getHeight() > 0))
+        {
+          dbgMsg("Successfully loaded file.");
+          al.setDataset(null);
+          AlignFrame newAlignFrame = new AlignFrame(al, applet,
+                  resolvedFile, embedded, false);
+          newAlignFrame.setTitle(resolvedFile);
+          if (initialAlignFrame == null)
+          {
+            initialAlignFrame = newAlignFrame;
+          }
+          // update the focus.
+          currentAlignFrame = newAlignFrame;
+
+          if (protocol == AppletFormatAdapter.PASTE)
+          {
+            newAlignFrame.setTitle(MessageManager.formatMessage(
+                    "label.sequences_from", new Object[] { applet
+                            .getDocumentBase().toString() }));
+          }
+
+          newAlignFrame.statusBar.setText(MessageManager.formatMessage(
+                  "label.successfully_loaded_file",
+                  new Object[] { resolvedFile }));
+
+          return newAlignFrame;
+        }
       } catch (java.io.IOException ex)
       {
         dbgMsg("File load exception.");
@@ -1768,9 +2057,9 @@ public class JalviewLite extends Applet implements
         {
           try
           {
-            FileParse fp = new FileParse(file, protocol);
+            FileParse fp = new FileParse(resolvedFile, protocol);
             String ln = null;
-            dbgMsg(">>>Dumping contents of '" + file + "' " + "("
+            dbgMsg(">>>Dumping contents of '" + resolvedFile + "' " + "("
                     + protocol + ")");
             while ((ln = fp.nextLine()) != null)
             {
@@ -1785,374 +2074,387 @@ public class JalviewLite extends Applet implements
           }
         }
       }
-      if ((al != null) && (al.getHeight() > 0))
+      return null;
+    }
+
+    /**
+     * Load PDBFiles if any specified by parameter(s). Returns true if loaded,
+     * else false.
+     * 
+     * @param alignFrame
+     * @return
+     */
+    protected boolean loadPdbFiles(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      /*
+       * <param name="alignpdbfiles" value="false/true"/> Undocumented for 2.6 -
+       * related to JAL-434
+       */
+
+      applet.setAlignPdbStructures(getDefaultParameter("alignpdbfiles",
+              false));
+      /*
+       * <param name="PDBfile" value="1gaq.txt PDB|1GAQ|1GAQ|A PDB|1GAQ|1GAQ|B
+       * PDB|1GAQ|1GAQ|C">
+       * 
+       * <param name="PDBfile2" value="1gaq.txt A=SEQA B=SEQB C=SEQB">
+       * 
+       * <param name="PDBfile3" value="1q0o Q45135_9MICO">
+       */
+
+      int pdbFileCount = 0;
+      // Accumulate pdbs here if they are heading for the same view (if
+      // alignPdbStructures is true)
+      Vector pdbs = new Vector();
+      // create a lazy matcher if we're asked to
+      jalview.analysis.SequenceIdMatcher matcher = (applet
+              .getDefaultParameter("relaxedidmatch", false)) ? new jalview.analysis.SequenceIdMatcher(
+              alignFrame.getAlignViewport().getAlignment()
+                      .getSequencesArray()) : null;
+
+      String param;
+      do
       {
-        dbgMsg("Successfully loaded file.");
-        newAlignFrame = new AlignFrame(al, applet, file, embedded);
-        if (initialAlignFrame == null)
+        if (pdbFileCount > 0)
         {
-          initialAlignFrame = newAlignFrame;
+          param = applet.getParameter("PDBFILE" + pdbFileCount);
         }
-        // update the focus.
-        currentAlignFrame = newAlignFrame;
-
-        if (protocol == jalview.io.AppletFormatAdapter.PASTE)
+        else
         {
-          newAlignFrame.setTitle("Sequences from "
-                  + applet.getDocumentBase());
+          param = applet.getParameter("PDBFILE");
         }
 
-        newAlignFrame.statusBar.setText("Successfully loaded file " + file);
-
-        String treeFile = applet.getParameter("tree");
-        if (treeFile == null)
-        {
-          treeFile = applet.getParameter("treeFile");
-        }
-
-        if (treeFile != null)
-        {
-          try
-          {
-            treeFile = setProtocolState(treeFile);
-            /*
-             * if (inArchive(treeFile)) { protocol =
-             * AppletFormatAdapter.CLASSLOADER; } else { protocol =
-             * AppletFormatAdapter.URL; treeFile = addProtocol(treeFile); }
-             */
-            jalview.io.NewickFile fin = new jalview.io.NewickFile(treeFile,
-                    protocol);
-
-            fin.parse();
-
-            if (fin.getTree() != null)
-            {
-              newAlignFrame.loadTree(fin, treeFile);
-              dbgMsg("Successfuly imported tree.");
-            }
-            else
-            {
-              dbgMsg("Tree parameter did not resolve to a valid tree.");
-            }
-          } catch (Exception ex)
-          {
-            ex.printStackTrace();
-          }
-        }
-
-        String param = applet.getParameter("features");
         if (param != null)
         {
-          param = setProtocolState(param);
+          PDBEntry pdb = new PDBEntry();
 
-          newAlignFrame.parseFeaturesFile(param, protocol);
-        }
+          String seqstring;
+          SequenceI[] seqs = null;
+          String[] chains = null;
 
-        param = applet.getParameter("showFeatureSettings");
-        if (param != null && param.equalsIgnoreCase("true"))
-        {
-          newAlignFrame.viewport.showSequenceFeatures(true);
-          new FeatureSettings(newAlignFrame.alignPanel);
-        }
+          StringTokenizer st = new StringTokenizer(param, " ");
 
-        param = applet.getParameter("annotations");
-        if (param != null)
-        {
-          param = setProtocolState(param);
-
-          if (new AnnotationFile().readAnnotationFile(
-                  newAlignFrame.viewport.getAlignment(), param, protocol))
+          if (st.countTokens() < 2)
           {
-            newAlignFrame.alignPanel.fontChanged();
-            newAlignFrame.alignPanel.setScrollValues(0, 0);
+            String sequence = applet.getParameter("PDBSEQ");
+            if (sequence != null)
+            {
+              seqs = new SequenceI[] { matcher == null ? (Sequence) alignFrame
+                      .getAlignViewport().getAlignment().findName(sequence)
+                      : matcher.findIdMatch(sequence) };
+            }
+
           }
           else
           {
-            System.err
-                    .println("Annotations were not added from annotation file '"
-                            + param + "'");
-          }
+            param = st.nextToken();
+            List<SequenceI> tmp = new ArrayList<SequenceI>();
+            List<String> tmp2 = new ArrayList<String>();
 
-        }
-
-        param = applet.getParameter("jnetfile");
-        if (param != null)
-        {
-          try
-          {
-            param = setProtocolState(param);
-            jalview.io.JPredFile predictions = new jalview.io.JPredFile(
-                    param, protocol);
-            JnetAnnotationMaker.add_annotation(predictions,
-                    newAlignFrame.viewport.getAlignment(), 0, false); // false==do
-            // not
-            // add
-            // sequence
-            // profile
-            // from
-            // concise
-            // output
-            newAlignFrame.alignPanel.fontChanged();
-            newAlignFrame.alignPanel.setScrollValues(0, 0);
-          } catch (Exception ex)
-          {
-            ex.printStackTrace();
-          }
-        }
-        /*
-         * <param name="alignpdbfiles" value="false/true"/> Undocumented for 2.6
-         * - related to JAL-434
-         */
-        applet.setAlignPdbStructures(getDefaultParameter("alignpdbfiles",
-                false));
-        /*
-         * <param name="PDBfile" value="1gaq.txt PDB|1GAQ|1GAQ|A PDB|1GAQ|1GAQ|B
-         * PDB|1GAQ|1GAQ|C">
-         * 
-         * <param name="PDBfile2" value="1gaq.txt A=SEQA B=SEQB C=SEQB">
-         * 
-         * <param name="PDBfile3" value="1q0o Q45135_9MICO">
-         */
-
-        int pdbFileCount = 0;
-        // Accumulate pdbs here if they are heading for the same view (if
-        // alignPdbStructures is true)
-        Vector pdbs = new Vector();
-        // create a lazy matcher if we're asked to
-        jalview.analysis.SequenceIdMatcher matcher = (applet
-                .getDefaultParameter("relaxedidmatch", false)) ? new jalview.analysis.SequenceIdMatcher(
-                newAlignFrame.getAlignViewport().getAlignment()
-                        .getSequencesArray()) : null;
-
-        do
-        {
-          if (pdbFileCount > 0)
-          {
-            param = applet.getParameter("PDBFILE" + pdbFileCount);
-          }
-          else
-          {
-            param = applet.getParameter("PDBFILE");
-          }
-
-          if (param != null)
-          {
-            PDBEntry pdb = new PDBEntry();
-
-            String seqstring;
-            SequenceI[] seqs = null;
-            String[] chains = null;
-
-            StringTokenizer st = new StringTokenizer(param, " ");
-
-            if (st.countTokens() < 2)
+            while (st.hasMoreTokens())
             {
-              String sequence = applet.getParameter("PDBSEQ");
-              if (sequence != null)
-                seqs = new SequenceI[]
-                { matcher == null ? (Sequence) newAlignFrame
-                        .getAlignViewport().getAlignment()
-                        .findName(sequence) : matcher.findIdMatch(sequence) };
-
-            }
-            else
-            {
-              param = st.nextToken();
-              Vector tmp = new Vector();
-              Vector tmp2 = new Vector();
-
-              while (st.hasMoreTokens())
+              seqstring = st.nextToken();
+              StringTokenizer st2 = new StringTokenizer(seqstring, "=");
+              if (st2.countTokens() > 1)
               {
-                seqstring = st.nextToken();
-                StringTokenizer st2 = new StringTokenizer(seqstring, "=");
-                if (st2.countTokens() > 1)
-                {
-                  // This is the chain
-                  tmp2.addElement(st2.nextToken());
-                  seqstring = st2.nextToken();
-                }
-                tmp.addElement(matcher == null ? (Sequence) newAlignFrame
-                        .getAlignViewport().getAlignment()
-                        .findName(seqstring) : matcher
-                        .findIdMatch(seqstring));
+                // This is the chain
+                tmp2.add(st2.nextToken());
+                seqstring = st2.nextToken();
               }
-
-              seqs = new SequenceI[tmp.size()];
-              tmp.copyInto(seqs);
-              if (tmp2.size() == tmp.size())
-              {
-                chains = new String[tmp2.size()];
-                tmp2.copyInto(chains);
-              }
-            }
-            param = setProtocolState(param);
-
-            if (// !jmolAvailable
-            // &&
-            protocol == AppletFormatAdapter.CLASSLOADER
-                    && !useXtrnalSviewer)
-            {
-              // Re: JAL-357 : the bug isn't a problem if we are using an
-              // external viewer!
-              // TODO: verify this Re:
-              // https://mantis.lifesci.dundee.ac.uk/view.php?id=36605
-              // This exception preserves the current behaviour where, even if
-              // the local pdb file was identified in the class loader
-              protocol = AppletFormatAdapter.URL; // this is probably NOT
-              // CORRECT!
-              param = addProtocol(param); //
+              tmp.add(matcher == null ? (Sequence) alignFrame
+                      .getAlignViewport().getAlignment()
+                      .findName(seqstring) : matcher.findIdMatch(seqstring));
             }
 
-            pdb.setFile(param);
-
-            if (seqs != null)
+            seqs = tmp.toArray(new SequenceI[tmp.size()]);
+            if (tmp2.size() == tmp.size())
             {
-              for (int i = 0; i < seqs.length; i++)
-              {
-                if (seqs[i] != null)
-                {
-                  ((Sequence) seqs[i]).addPDBId(pdb);
-                }
-                else
-                {
-                  if (JalviewLite.debug)
-                  {
-                    // this may not really be a problem but we give a warning
-                    // anyway
-                    System.err
-                            .println("Warning: Possible input parsing error: Null sequence for attachment of PDB (sequence "
-                                    + i + ")");
-                  }
-                }
-              }
+              chains = tmp2.toArray(new String[tmp2.size()]);
+            }
+          }
+          param = resolveFileProtocol(param);
+          // TODO check JAL-357 for files in a jar (CLASSLOADER)
+          pdb.setFile(param);
 
-              if (!alignPdbStructures)
+          if (seqs != null)
+          {
+            for (int i = 0; i < seqs.length; i++)
+            {
+              if (seqs[i] != null)
               {
-                newAlignFrame.newStructureView(applet, pdb, seqs, chains,
-                        protocol);
+                ((Sequence) seqs[i]).addPDBId(pdb);
+                StructureSelectionManager.getStructureSelectionManager(
+                        applet).registerPDBEntry(pdb);
               }
               else
               {
-                pdbs.addElement(new Object[]
-                { pdb, seqs, chains, new String(protocol) });
+                if (JalviewLite.debug)
+                {
+                  // this may not really be a problem but we give a warning
+                  // anyway
+                  System.err
+                          .println("Warning: Possible input parsing error: Null sequence for attachment of PDB (sequence "
+                                  + i + ")");
+                }
               }
             }
-          }
 
-          pdbFileCount++;
-        } while (param != null || pdbFileCount < 10);
-        if (pdbs.size() > 0)
-        {
-          SequenceI[][] seqs = new SequenceI[pdbs.size()][];
-          PDBEntry[] pdb = new PDBEntry[pdbs.size()];
-          String[][] chains = new String[pdbs.size()][];
-          String[] protocols = new String[pdbs.size()];
-          for (int pdbsi = 0, pdbsiSize = pdbs.size(); pdbsi < pdbsiSize; pdbsi++)
-          {
-            Object[] o = (Object[]) pdbs.elementAt(pdbsi);
-            pdb[pdbsi] = (PDBEntry) o[0];
-            seqs[pdbsi] = (SequenceI[]) o[1];
-            chains[pdbsi] = (String[]) o[2];
-            protocols[pdbsi] = (String) o[3];
+            if (!alignPdbStructures)
+            {
+              alignFrame.newStructureView(applet, pdb, seqs, chains,
+                      protocol);
+            }
+            else
+            {
+              pdbs.addElement(new Object[] { pdb, seqs, chains,
+                  new String(protocol) });
+            }
           }
-          newAlignFrame.alignedStructureView(applet, pdb, seqs, chains,
-                  protocols);
+        }
 
-        }
-        // ///////////////////////////
-        // modify display of features
-        //
-        // hide specific groups
-        param = applet.getParameter("hidefeaturegroups");
-        if (param != null)
-        {
-          applet.setFeatureGroupStateOn(newAlignFrame, param, false);
-        }
-        // show specific groups
-        param = applet.getParameter("showfeaturegroups");
-        if (param != null)
-        {
-          applet.setFeatureGroupStateOn(newAlignFrame, param, true);
-        }
-      }
-      else
+        pdbFileCount++;
+      } while (param != null || pdbFileCount < 10);
+      if (pdbs.size() > 0)
       {
-        fileFound = false;
-        applet.remove(launcher);
-        applet.repaint();
+        SequenceI[][] seqs = new SequenceI[pdbs.size()][];
+        PDBEntry[] pdb = new PDBEntry[pdbs.size()];
+        String[][] chains = new String[pdbs.size()][];
+        String[] protocols = new String[pdbs.size()];
+        for (int pdbsi = 0, pdbsiSize = pdbs.size(); pdbsi < pdbsiSize; pdbsi++)
+        {
+          Object[] o = (Object[]) pdbs.elementAt(pdbsi);
+          pdb[pdbsi] = (PDBEntry) o[0];
+          seqs[pdbsi] = (SequenceI[]) o[1];
+          chains[pdbsi] = (String[]) o[2];
+          protocols[pdbsi] = (String) o[3];
+        }
+        alignFrame.alignedStructureView(applet, pdb, seqs, chains,
+                protocols);
+        result = true;
       }
-      callInitCallback();
+      return result;
+    }
+
+    /**
+     * Load in a Jnetfile if specified by parameter. Returns true if loaded,
+     * else false.
+     * 
+     * @param alignFrame
+     * @return
+     */
+    protected boolean loadJnetFile(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      String param = applet.getParameter("jnetfile");
+      if (param != null)
+      {
+        try
+        {
+          param = resolveFileProtocol(param);
+          JPredFile predictions = new JPredFile(param, protocol);
+          JnetAnnotationMaker.add_annotation(predictions,
+                  alignFrame.viewport.getAlignment(), 0, false);
+          // false == do not add sequence profile from concise output
+          SequenceI repseq = alignFrame.viewport.getAlignment()
+                  .getSequenceAt(0);
+          alignFrame.viewport.getAlignment().setSeqrep(repseq);
+          ColumnSelection cs = new ColumnSelection();
+          cs.hideInsertionsFor(repseq);
+          alignFrame.viewport.setColumnSelection(cs);
+          alignFrame.alignPanel.fontChanged();
+          alignFrame.alignPanel.setScrollValues(0, 0);
+          result = true;
+        } catch (Exception ex)
+        {
+          ex.printStackTrace();
+        }
+      }
+      return result;
+    }
+
+    /**
+     * Load annotations if specified by parameter. Returns true if loaded, else
+     * false.
+     * 
+     * @param alignFrame
+     * @return
+     */
+    protected boolean loadAnnotations(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      String param = applet.getParameter("annotations");
+      if (param != null)
+      {
+        param = resolveFileProtocol(param);
+
+        if (new AnnotationFile().annotateAlignmentView(alignFrame.viewport,
+                param, protocol))
+        {
+          alignFrame.alignPanel.fontChanged();
+          alignFrame.alignPanel.setScrollValues(0, 0);
+          result = true;
+        }
+        else
+        {
+          System.err
+                  .println("Annotations were not added from annotation file '"
+                          + param + "'");
+        }
+      }
+      return result;
+    }
+
+    /**
+     * Load features file and view settings as specified by parameters. Returns
+     * true if features were loaded, else false.
+     * 
+     * @param alignFrame
+     * @return
+     */
+    protected boolean loadFeatures(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      // ///////////////////////////
+      // modify display of features
+      // we do this before any features have been loaded, ensuring any hidden
+      // groups are hidden when features first displayed
+      //
+      // hide specific groups
+      //
+      String param = applet.getParameter("hidefeaturegroups");
+      if (param != null)
+      {
+        alignFrame.setFeatureGroupState(separatorListToArray(param), false);
+        // applet.setFeatureGroupStateOn(newAlignFrame, param, false);
+      }
+      // show specific groups
+      param = applet.getParameter("showfeaturegroups");
+      if (param != null)
+      {
+        alignFrame.setFeatureGroupState(separatorListToArray(param), true);
+        // applet.setFeatureGroupStateOn(newAlignFrame, param, true);
+      }
+      // and now load features
+      param = applet.getParameter("features");
+      if (param != null)
+      {
+        param = resolveFileProtocol(param);
+
+        result = alignFrame.parseFeaturesFile(param, protocol);
+      }
+
+      param = applet.getParameter("showFeatureSettings");
+      if (param != null && param.equalsIgnoreCase(TRUE))
+      {
+        alignFrame.viewport.setShowSequenceFeatures(true);
+        new FeatureSettings(alignFrame.alignPanel);
+      }
+      return result;
+    }
+
+    /**
+     * Load a score file if specified by parameter. Returns true if file was
+     * loaded, else false.
+     * 
+     * @param alignFrame
+     */
+    protected boolean loadScoreFile(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      String sScoreFile = applet.getParameter("scoreFile");
+      if (sScoreFile != null && !"".equals(sScoreFile))
+      {
+        try
+        {
+          if (debug)
+          {
+            System.err
+                    .println("Attempting to load T-COFFEE score file from the scoreFile parameter");
+          }
+          result = alignFrame.loadScoreFile(sScoreFile);
+          if (!result)
+          {
+            System.err
+                    .println("Failed to parse T-COFFEE parameter as a valid score file ('"
+                            + sScoreFile + "')");
+          }
+        } catch (Exception e)
+        {
+          System.err.printf("Cannot read score file: '%s'. Cause: %s \n",
+                  sScoreFile, e.getMessage());
+        }
+      }
+      return result;
+    }
+
+    /**
+     * Load a tree for the alignment if specified by parameter. Returns true if
+     * a tree was loaded, else false.
+     * 
+     * @param alignFrame
+     * @return
+     */
+    protected boolean loadTree(AlignFrame alignFrame)
+    {
+      boolean result = false;
+      String treeFile = applet.getParameter("tree");
+      if (treeFile == null)
+      {
+        treeFile = applet.getParameter("treeFile");
+      }
+
+      if (treeFile != null)
+      {
+        try
+        {
+          treeFile = resolveFileProtocol(treeFile);
+          NewickFile fin = new NewickFile(treeFile, protocol);
+          fin.parse();
+
+          if (fin.getTree() != null)
+          {
+            alignFrame.loadTree(fin, treeFile);
+            result = true;
+            dbgMsg("Successfully imported tree.");
+          }
+          else
+          {
+            dbgMsg("Tree parameter did not resolve to a valid tree.");
+          }
+        } catch (Exception ex)
+        {
+          ex.printStackTrace();
+        }
+      }
+      return result;
     }
 
     /**
      * Discovers whether the given file is in the Applet Archive
      * 
-     * @param file
+     * @param f
      *          String
      * @return boolean
      */
-    boolean inArchive(String file)
+    boolean inArchive(String f)
     {
       // This might throw a security exception in certain browsers
       // Netscape Communicator for instance.
       try
       {
-        boolean rtn = (getClass().getResourceAsStream("/" + file) != null);
+        boolean rtn = (getClass().getResourceAsStream("/" + f) != null);
         if (debug)
         {
-          System.err.println("Resource '" + file + "' was "
-                  + (rtn ? "" : "not") + " located by classloader.");
+          System.err.println("Resource '" + f + "' was "
+                  + (rtn ? "" : "not ") + "located by classloader.");
         }
         return rtn;
       } catch (Exception ex)
       {
-        System.out.println("Exception checking resources: " + file + " "
-                + ex);
+        System.out.println("Exception checking resources: " + f + " " + ex);
         return false;
       }
-    }
-
-    String addProtocol(String file)
-    {
-      if (file.indexOf("://") == -1)
-      {
-        String fl = applet.resolveUrlForLocalOrAbsolute(file,
-                getDocumentBase());
-        try
-        {
-          if (new java.net.URL(fl).openStream() != null)
-          {
-            if (debug)
-            {
-              System.err.println("Prepended document base for resource: '"
-                      + file + "'");
-            }
-            return fl;
-          }
-        } catch (Exception x)
-        {
-        }
-        ;
-        fl = applet.resolveUrlForLocalOrAbsolute(file, getCodeBase());
-        try
-        {
-          if (new java.net.URL(fl).openStream() != null)
-          {
-            if (debug)
-            {
-              System.err.println("Prepended codebase for resource: '"
-                      + file + "'");
-            }
-            return fl;
-          }
-        } catch (Exception x)
-        {
-        }
-        ;
-
-      }
-
-      return file;
     }
   }
 
@@ -2206,12 +2508,14 @@ public class JalviewLite extends Applet implements
    * @param separator
    * @return elements separated by separator
    */
-  public String[] separatorListToArray(String list, String separator)
+  public static String[] separatorListToArray(String list, String separator)
   {
-    // note separator local variable intentionally masks object field
+    // TODO use StringUtils version (slightly different...)
     int seplen = separator.length();
     if (list == null || list.equals("") || list.equals(separator))
+    {
       return null;
+    }
     java.util.Vector jv = new Vector();
     int cp = 0, pos;
     while ((pos = list.indexOf(separator, cp)) > cp)
@@ -2272,8 +2576,9 @@ public class JalviewLite extends Applet implements
    * @param separator
    * @return concatenated string
    */
-  public String arrayToSeparatorList(String[] list, String separator)
+  public static String arrayToSeparatorList(String[] list, String separator)
   {
+    // TODO use StringUtils version
     StringBuffer v = new StringBuffer();
     if (list != null && list.length > 0)
     {
@@ -2309,6 +2614,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatureGroups()
    */
+  @Override
   public String getFeatureGroups()
   {
     String lst = arrayToSeparatorList(getDefaultTargetFrame()
@@ -2323,6 +2629,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeatureGroupsOn(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getFeatureGroupsOn(AlignFrame alf)
   {
     String lst = arrayToSeparatorList(alf.getFeatureGroups());
@@ -2334,6 +2641,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatureGroupsOfState(boolean)
    */
+  @Override
   public String getFeatureGroupsOfState(boolean visible)
   {
     return arrayToSeparatorList(getDefaultTargetFrame()
@@ -2347,6 +2655,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeatureGroupsOfStateOn(jalview.appletgui
    * .AlignFrame, boolean)
    */
+  @Override
   public String getFeatureGroupsOfStateOn(AlignFrame alf, boolean visible)
   {
     return arrayToSeparatorList(alf.getFeatureGroupsOfState(visible));
@@ -2358,6 +2667,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#setFeatureGroupStateOn(jalview.appletgui.
    * AlignFrame, java.lang.String, boolean)
    */
+  @Override
   public void setFeatureGroupStateOn(final AlignFrame alf,
           final String groups, boolean state)
   {
@@ -2379,6 +2689,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#setFeatureGroupState(java.lang.String,
    * boolean)
    */
+  @Override
   public void setFeatureGroupState(String groups, boolean state)
   {
     setFeatureGroupStateOn(getDefaultTargetFrame(), groups, state);
@@ -2389,6 +2700,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSeparator()
    */
+  @Override
   public String getSeparator()
   {
     return separator;
@@ -2399,6 +2711,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setSeparator(java.lang.String)
    */
+  @Override
   public void setSeparator(String separator)
   {
     if (separator == null || separator.length() < 1)
@@ -2430,7 +2743,7 @@ public class JalviewLite extends Applet implements
     {
       return def;
     }
-    if (stn.toLowerCase().equals("true"))
+    if (TRUE.equalsIgnoreCase(stn))
     {
       return true;
     }
@@ -2443,6 +2756,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#addPdbFile(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public boolean addPdbFile(AlignFrame alFrame, String sequenceId,
           String pdbEntryString, String pdbFile)
   {
@@ -2459,6 +2773,7 @@ public class JalviewLite extends Applet implements
     return alignPdbStructures;
   }
 
+  @Override
   public void start()
   {
     // callInitCallback();
@@ -2492,6 +2807,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#getJsMessage(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String getJsMessage(String messageclass, String viewId)
   {
     Hashtable<String, String[]> msgset = jsmessages.get(messageclass);
@@ -2591,27 +2907,61 @@ public class JalviewLite extends Applet implements
    * form a complete URL given a path to a resource and a reference location on
    * the same server
    * 
-   * @param url
+   * @param targetPath
    *          - an absolute path on the same server as localref or a document
    *          located relative to localref
    * @param localref
    *          - a URL on the same server as url
    * @return a complete URL for the resource located by url
    */
-  private String resolveUrlForLocalOrAbsolute(String url, URL localref)
+  private String resolveUrlForLocalOrAbsolute(String targetPath,
+          URL localref)
   {
-    String codebase = localref.toString();
-    if (url.indexOf("/") == 0)
+    String resolvedPath = "";
+    if (targetPath.startsWith("/"))
     {
-      url = codebase.substring(0, codebase.length()
-              - localref.getFile().length())
-              + url;
+      String codebase = localref.toString();
+      String localfile = localref.getFile();
+      resolvedPath = codebase.substring(0,
+              codebase.length() - localfile.length())
+              + targetPath;
+      return resolvedPath;
+    }
+
+    /*
+     * get URL path and strip off any trailing file e.g.
+     * www.jalview.org/examples/index.html#applets?a=b is trimmed to
+     * www.jalview.org/examples/
+     */
+    String urlPath = localref.toString();
+    String directoryPath = urlPath;
+    int lastSeparator = directoryPath.lastIndexOf("/");
+    if (lastSeparator > 0)
+    {
+      directoryPath = directoryPath.substring(0, lastSeparator + 1);
+    }
+
+    if (targetPath.startsWith("/"))
+    {
+      /*
+       * construct absolute URL to a file on the server - this is not allowed?
+       */
+      // String localfile = localref.getFile();
+      // resolvedPath = urlPath.substring(0,
+      // urlPath.length() - localfile.length())
+      // + targetPath;
+      resolvedPath = directoryPath + targetPath.substring(1);
     }
     else
     {
-      url = localref + url;
+      resolvedPath = directoryPath + targetPath;
     }
-    return url;
+    if (debug)
+    {
+      System.err.println("resolveUrlForLocalOrAbsolute returning "
+              + resolvedPath);
+    }
+    return resolvedPath;
   }
 
   /**
@@ -2633,8 +2983,8 @@ public class JalviewLite extends Applet implements
         URL prepend;
         url = resolveUrlForLocalOrAbsolute(
                 url,
-                prepend = getDefaultParameter("resolvetocodebase", false) ? getDocumentBase()
-                        : getCodeBase());
+                prepend = getDefaultParameter("resolvetocodebase", false) ? getCodeBase()
+                        : getDocumentBase());
         if (debug)
         {
           System.err

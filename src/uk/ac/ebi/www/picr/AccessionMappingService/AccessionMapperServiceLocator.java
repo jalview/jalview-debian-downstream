@@ -1,21 +1,26 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package uk.ac.ebi.www.picr.AccessionMappingService;
+
+import jalview.util.MessageManager;
 
 public class AccessionMapperServiceLocator extends
         org.apache.axis.client.Service implements
@@ -108,10 +113,10 @@ public class AccessionMapperServiceLocator extends
     {
       throw new javax.xml.rpc.ServiceException(t);
     }
-    throw new javax.xml.rpc.ServiceException(
-            "There is no stub implementation for the interface:  "
-                    + (serviceEndpointInterface == null ? "null"
-                            : serviceEndpointInterface.getName()));
+    throw new javax.xml.rpc.ServiceException(MessageManager.formatMessage(
+            "exception.no_stub_implementation_for_interface",
+            new String[] { (serviceEndpointInterface == null ? "null"
+                    : serviceEndpointInterface.getName()) }));
   }
 
   /**
@@ -173,7 +178,9 @@ public class AccessionMapperServiceLocator extends
     else
     { // Unknown Port Name
       throw new javax.xml.rpc.ServiceException(
-              " Cannot set Endpoint Address for Unknown Port" + portName);
+              MessageManager.formatMessage(
+                      "exception.cannot_set_endpoint_address_unknown_port",
+                      new String[] { portName }));
     }
   }
 

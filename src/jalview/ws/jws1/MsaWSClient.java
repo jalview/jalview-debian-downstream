@@ -1,30 +1,42 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.jws1;
+
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentView;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.gui.WebserviceInfo;
+import jalview.util.MessageManager;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.*;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 
-import ext.vamsas.*;
-import jalview.datamodel.*;
-import jalview.gui.*;
+import ext.vamsas.MuscleWSServiceLocator;
+import ext.vamsas.MuscleWSSoapBindingStub;
+import ext.vamsas.ServiceHandle;
 
 /**
  * DOCUMENT ME!
@@ -59,31 +71,29 @@ public class MsaWSClient extends WS1Client
 
   public MsaWSClient(ext.vamsas.ServiceHandle sh, String altitle,
           jalview.datamodel.AlignmentView msa, boolean submitGaps,
-          boolean preserveOrder, Alignment seqdataset,
+          boolean preserveOrder, AlignmentI seqdataset,
           AlignFrame _alignFrame)
   {
     super();
     alignFrame = _alignFrame;
     if (!sh.getAbstractName().equals("MsaWS"))
     {
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      "The Service called \n"
-                              + sh.getName()
-                              + "\nis not a \nMultiple Sequence Alignment Service !",
-                      "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.service_called_is_not_msa_service",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
 
     if ((wsInfo = setWebService(sh)) == null)
     {
-      JOptionPane.showMessageDialog(
-              Desktop.desktop,
-              "The Multiple Sequence Alignment Service named "
-                      + sh.getName() + " is unknown",
-              "Internal Jalview Error", JOptionPane.WARNING_MESSAGE);
+      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.msa_service_is_unknown",
+                      new String[] { sh.getName() }), MessageManager
+              .getString("label.internal_jalview_error"),
+              JOptionPane.WARNING_MESSAGE);
 
       return;
     }
@@ -98,7 +108,7 @@ public class MsaWSClient extends WS1Client
   }
 
   private void startMsaWSClient(String altitle, AlignmentView msa,
-          boolean submitGaps, boolean preserveOrder, Alignment seqdataset)
+          boolean submitGaps, boolean preserveOrder, AlignmentI seqdataset)
   {
     if (!locateWebService())
     {
@@ -148,7 +158,7 @@ public class MsaWSClient extends WS1Client
 
     try
     {
-      this.server = (MuscleWS) loc.getMuscleWS(new java.net.URL(WsURL));
+      this.server = loc.getMuscleWS(new java.net.URL(WsURL));
       ((MuscleWSSoapBindingStub) this.server).setTimeout(60000); // One minute
       // timeout
     } catch (Exception ex)
@@ -190,6 +200,7 @@ public class MsaWSClient extends WS1Client
     return (WebServiceName.indexOf("lustal") > -1); // cheat!
   }
 
+  @Override
   public void attachWSMenuEntry(JMenu msawsmenu,
           final ServiceHandle serviceHandle, final AlignFrame alignFrame)
   {
@@ -198,6 +209,7 @@ public class MsaWSClient extends WS1Client
     method.setToolTipText(WsURL);
     method.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         AlignmentView msa = alignFrame.gatherSequencesForAlignment();
@@ -217,6 +229,7 @@ public class MsaWSClient extends WS1Client
       methodR.setToolTipText(WsURL);
       methodR.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = alignFrame.gatherSequencesForAlignment();

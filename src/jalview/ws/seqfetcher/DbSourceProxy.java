@@ -1,37 +1,38 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.seqfetcher;
 
+import jalview.api.FeatureSettingsModelI;
 import jalview.datamodel.AlignmentI;
-
-import java.util.Hashtable;
 
 import com.stevesoft.pat.Regex;
 
 /**
  * generic Reference Retrieval interface for a particular database
- * source/version as cited in DBRefEntry. TODO: add/define property to describe
- * max number of queries that this source can cope with at once. TODO:
- * add/define mechanism for retrieval of Trees and distance matrices from a
- * database (unify with io)
+ * source/version as cited in DBRefEntry.
+ * 
+ * TODO: add/define mechanism for retrieval of Trees and distance matrices from
+ * a database (unify with io)
  * 
  * @author JimP
- * 
  */
 public interface DbSourceProxy
 {
@@ -39,7 +40,7 @@ public interface DbSourceProxy
    * 
    * @return source string constant used for this DB source
    */
-  public String getDbSource();
+  String getDbSource();
 
   /**
    * Short meaningful name for this data source for display in menus or
@@ -47,13 +48,13 @@ public interface DbSourceProxy
    * 
    * @return String
    */
-  public String getDbName();
+  String getDbName();
 
   /**
    * 
    * @return version string for this database.
    */
-  public String getDbVersion();
+  String getDbVersion();
 
   /**
    * Separator between individual accession queries for a database that allows
@@ -63,69 +64,118 @@ public interface DbSourceProxy
    * @return string for separating concatenated queries (as individually
    *         validated by the accession validator)
    */
-  public String getAccessionSeparator();
+  String getAccessionSeparator();
 
   /**
    * Regular expression for checking form of query string understood by this
-   * source.
+   * source. If the Regex includes parenthesis, then the first parenthesis
+   * should yield the same accession string as the one used to annotate the
+   * sequence. This is used to match query strings to returned sequences.
    * 
    * @return null or a validation regex
    */
-  public Regex getAccessionValidator();
-
-  /**
-   * DbSource properties hash - define the capabilities of this source Property
-   * hash methods defined in DbSourceProxyImpl. See constants in
-   * jalview.datamodel.DBRefSource for definition of properties.
-   * 
-   * @return
-   */
-  public Hashtable getDbSourceProperties();
+  Regex getAccessionValidator();
 
   /**
    * 
    * @return a test/example query that can be used to validate retrieval and
    *         parsing mechanisms
    */
-  public String getTestQuery();
+  String getTestQuery();
 
   /**
-   * optionally implemented
+   * Required for sources supporting multiple query retrieval for use with the
+   * DBRefFetcher, which attempts to limit its queries with putative accession
+   * strings for a source to only those that are likely to be valid.
    * 
    * @param accession
    * @return
    */
-  public boolean isValidReference(String accession);
+  boolean isValidReference(String accession);
 
   /**
    * make one or more queries to the database and attempt to parse the response
    * into an alignment
    * 
    * @param queries
-   * @return null if queries were successful but result was not parsable
+   *          - one or more queries for database in expected form
+   * @return null if queries were successful but result was not parsable.
+   *         Otherwise, an AlignmentI object containing properly annotated data
+   *         (e.g. sequences with accessions for this datasource)
    * @throws Exception
-   *           TODO
+   *           - propagated from underlying transport to database (note -
+   *           exceptions are not raised if query not found in database)
+   * 
    */
-  public AlignmentI getSequenceRecords(String queries) throws Exception;
+  AlignmentI getSequenceRecords(String queries) throws Exception;
 
   /**
    * 
    * @return true if a query is currently being made
    */
-  public boolean queryInProgress();
+  boolean queryInProgress();
 
   /**
    * get the raw reponse from the last set of queries
    * 
    * @return one or more string buffers for each individual query
    */
-  public StringBuffer getRawRecords();
+  StringBuffer getRawRecords();
 
-  
   /**
-   * Find out more info about the source.
-   * @param dbsourceproperty - one of the database reference source properties in jalview.datamodel.DBRefSource
-   * @return true if the source has this property
+   * Tier for this data source
+   * 
+   * @return 0 - primary datasource, 1 - das primary source, 2 - secondary
    */
-  public boolean isA(Object dbsourceproperty);
+  int getTier();
+
+  /**
+   * Extracts valid accession strings from a query string. If there is an
+   * accession id validator, returns the the matched region or the first
+   * subgroup match from the matched region; else just returns the whole query.
+   * 
+   * @param query
+   * @return
+   */
+  String getAccessionIdFromQuery(String query);
+
+  /**
+   * Returns the maximum number of accession ids that can be queried in one
+   * request.
+   * 
+   * @return
+   */
+  int getMaximumQueryCount();
+
+  /**
+   * Returns true if the source may provide coding DNA i.e. sequences with
+   * implicit peptide products
+   * 
+   * @return
+   */
+  boolean isDnaCoding();
+
+  /**
+   * Answers true if the database is a source of alignments (for example, domain
+   * families)
+   * 
+   * @return
+   */
+  boolean isAlignmentSource();
+
+  /**
+   * Returns an (optional) description of the source, suitable for display as a
+   * tooltip, or null
+   * 
+   * @return
+   */
+  String getDescription();
+
+  /**
+   * Returns the preferred feature colour configuration if there is one, else
+   * null
+   * 
+   * @return
+   */
+  FeatureSettingsModelI getFeatureColourScheme();
 }

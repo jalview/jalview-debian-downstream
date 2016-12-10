@@ -7,7 +7,8 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * The Bracket is a form of the Or class, implements the pattern element [ ].

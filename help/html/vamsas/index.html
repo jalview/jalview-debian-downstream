@@ -1,136 +1,157 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
--->
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
 <head>
 <title>VAMSAS Interoperation</title>
 </head>
 <body>
-<p><strong>VAMSAS Interoperation</strong></p>
-<p>Jalview can interact with other applications using &quot;the <strong>VAMSAS
-Interoperation framework</strong>&quot; which is an experimental model for
-interoperation between bioinformatics applications (<strong>V</strong>isualization
-and <strong>A</strong>nalysis of <strong>Molecular</strong> <strong>S</strong>equences,
-<strong>Alignements</strong> and <strong>S</strong>tructures).
-Currently, the only other VAMSAS enabled application is <a
-	href="http://www.topali.org">TOPALi</a> - a user friendly program for
-phylogenetics and evolutionary analysis.
-<p>VAMSAS enabled applications access a shared bioinformatics
-dataset containing sequences, alignments, annotation and trees, which
-can be represented by an XML document analogous to a <a
-	href="../features/jalarchive.html">Jalview Project Archive</a>.</p>
-<br>
-<strong>Connecting to a VAMSAS session</strong><br>
-The VAMSAS functionality in Jalview is accessed through the Desktop's <strong>Vamsas</strong>
-menu. The options available in this menu depend on whether the
-application is currently interacting with a VAMSAS dataset in a <strong>VAMSAS
-session</strong>. When the application is not connected to a session is active,
-the menu options are as follows:<br>
-<ul>
-	<li><em>Connect to an existing session</em><br>
-	If visible, this submenu contains a list of existing sessions that the
-	VAMSAS framework has discovered on your computer. <br>
-	Choose one to connect to it.</li>
-	<li><em>New VAMSAS Session</em><br>
-	This option will create a new session on your computer.</li>
-	<li><em>Load VAMSAS Session...</em><br>
-	This option will open a file browser window allowing you to select a
-	VAMSAS session archive from which a new session will be created.<br/>
-	<em>New in 2.5:</em>Sessions created from an imported document inherit
-	the file or URL for the document.</li>
+  <p>
+    <strong>VAMSAS Interoperation</strong>
+  </p>
+  <p>
+    Jalview can interact with other applications using &quot;the <strong>VAMSAS
+      Interoperation framework</strong>&quot; which is an experimental model for
+    interoperation between bioinformatics applications (<strong>V</strong>isualization
+    and <strong>A</strong>nalysis of <strong>Molecular</strong> <strong>S</strong>equences,
+    <strong>Alignements</strong> and <strong>S</strong>tructures).
+    Currently, the only other VAMSAS enabled application is <a
+      href="http://www.topali.org">TOPALi</a> - a user friendly
+    program for phylogenetics and evolutionary analysis.
+  <p>
+    VAMSAS enabled applications access a shared bioinformatics dataset
+    containing sequences, alignments, annotation and trees, which can be
+    represented by an XML document analogous to a <a
+      href="../features/jalarchive.html">Jalview Project
+      Archive</a>.
+  </p>
+  <br>
+  <strong>Connecting to a VAMSAS session</strong>
+  <br> The VAMSAS functionality in Jalview is accessed through the
+  Desktop's
+  <strong>Vamsas</strong> menu. The options available in this menu
+  depend on whether the application is currently interacting with a
+  VAMSAS dataset in a
+  <strong>VAMSAS session</strong>. When the application is not connected
+  to a session is active, the menu options are as follows:
+  <br>
+  <ul>
+    <li><em>Connect to an existing session</em><br> If
+      visible, this submenu contains a list of existing sessions that
+      the VAMSAS framework has discovered on your computer. <br>
+      Choose one to connect to it.</li>
+    <li><em>New VAMSAS Session</em><br> This option will
+      create a new session on your computer.</li>
+    <li><em>Load VAMSAS Session...</em><br> This option will
+      open a file browser window allowing you to select a VAMSAS session
+      archive from which a new session will be created.<br /> <em>New
+        in 2.5:</em>Sessions created from an imported document inherit the
+      file or URL for the document.</li>
 
-</ul>
-<br>
-<strong>VAMSAS and Firewalls</strong>: VAMSAS uses sockets to
-communicate between different programs. This means that after starting a
-session, your firewall software may ask you whether to allow the java
-executable access to the internet (port 53782). If you do not allow
-this, messages will not be exchanged with other VAMSAS applications.</br>
-<br>
-Once you have successfully connected to a VAMSAS session, any data made
-available by other VAMSAS applications will be automatically imported
-into Jalview. However, in order to share the data in Jalview with other
-VAMSAS applications, you must manually select the <strong>Vamsas&#8594;&quot;Session
-Update&quot;</strong> entry that is visible when a session is active. Selecting
-this option will update the VAMSAS session document, with the data
-loaded into Jalview. Any new alignments, trees and annotation will be
-written to the session, in addition to any edits you have made to data
-originally stored in the document. <br>
-<strong>Saving the current session</strong><br>
-You can save the current session as a VAMSAS Session archive using the <strong>Vamsas&#8594;&quot;Session
-Update&quot;</strong>. The file contains a snapshot of the current VAMSAS
-session, including data from any other applications connected to the
-session. <strong>Leaving a VAMSAS session</strong><br>
-A session can be disconnected from at any time using the <strong>Vamsas&#8594;&quot;Stop
-Session&quot;</strong> option. Selecting this option will only disconnect Jalview
-from the session - any other applications will remain connected to the
-session. If Jalview is the only application connected to the session and
-you have not yet saved the VAMSAS session then you will be prompted with
-an optional 'Save VAMSAS session...' dialog box, allowing the session to
-be saved and returned to at a later date. <br>
-<strong>VAMSAS Session Persistence</strong><br>
-VAMSAS sessions are persistent - this means that they exist
-independently of any VAMSAS applications that are connected to them.
-This means that if something goes wrong with a VAMSAS application and it
-crashes or otherwise fails, the VAMSAS session it is connected to will
-(hopefully) be unaffected. For instance, if Jalview is killed or crashes
-whilst it is still connected to a session, that session can be recovered
-in a new Jalview instance using the <strong>Vamsas&#8594;&quot;Existing
-session&quot;</strong> sub menu.</p>
-<strong>A quick Demo</strong>
-<br>
-Jalview can talk to itself through VAMSAS. Simply start two copies of
-the application, create a new vamsas session in one, and connect to the
-new session in the other. Then load your data into one of the
-applications, and use the
-<strong>Vamsas&#8594;&quot;Session Update&quot;</strong>
-menu entry to try to propagate the data to the other application.
-<br>
-<table>
-	<tr>
-		<td>Data Sharing Capability</td>
-		<td>Jalview Version</td>
-	</tr>
-	<tr>
-		<td>Alignments, sequences and annotation, trees, database
-		references, cDNA/protein mappings.</td>
-		<td>2.4</td>
-	</tr>
-	<tr>
-		<td>Mouseover location across linked DNA, protein and structure
-		positions.</td>
-		<td>2.4</td>
-	</tr>
-	<tr>
-		<td>Jalview project settings (Multiple views, groups, tree
-		partitions, colouring, window positions)</td>
-		<td>2.5</td>
-	</tr>
-	<tr>
-		<td>Sequence region and column selections</td>
-		<td>2.5</td>
-	</tr>
-</table>
-<br />
-<p>Version 0.2 of the VAMSAS client library is used in <em>Jalview
-2.5</em>. For further details about the VAMSAS framework, please check the
-<a href="http://www.vamsas.ac.uk">VAMSAS website</a>. The VAMSAS
-framework is implemented as a Java 1.4 Library and depends on a number
-of other open source projects. Its source is released under the
-LGPL license. &nbsp;</p>
+  </ul>
+  <br>
+  <strong>VAMSAS and Firewalls</strong>: VAMSAS uses sockets to
+  communicate between different programs. This means that after starting
+  a session, your firewall software may ask you whether to allow the
+  java executable access to the internet (port 53782). If you do not
+  allow this, messages will not be exchanged with other VAMSAS
+  applications.
+  </br>
+  <br> Once you have successfully connected to a VAMSAS session,
+  any data made available by other VAMSAS applications will be
+  automatically imported into Jalview. However, in order to share the
+  data in Jalview with other VAMSAS applications, you must manually
+  select the
+  <strong>Vamsas&#8594;&quot;Session Update&quot;</strong> entry that is
+  visible when a session is active. Selecting this option will update
+  the VAMSAS session document, with the data loaded into Jalview. Any
+  new alignments, trees and annotation will be written to the session,
+  in addition to any edits you have made to data originally stored in
+  the document.
+  <br>
+  <strong>Saving the current session</strong>
+  <br> You can save the current session as a VAMSAS Session archive
+  using the
+  <strong>Vamsas&#8594;&quot;Session Update&quot;</strong>. The file
+  contains a snapshot of the current VAMSAS session, including data from
+  any other applications connected to the session.
+  <strong>Leaving a VAMSAS session</strong>
+  <br> A session can be disconnected from at any time using the
+  <strong>Vamsas&#8594;&quot;Stop Session&quot;</strong> option.
+  Selecting this option will only disconnect Jalview from the session -
+  any other applications will remain connected to the session. If
+  Jalview is the only application connected to the session and you have
+  not yet saved the VAMSAS session then you will be prompted with an
+  optional 'Save VAMSAS session...' dialog box, allowing the session to
+  be saved and returned to at a later date.
+  <br>
+  <strong>VAMSAS Session Persistence</strong>
+  <br> VAMSAS sessions are persistent - this means that they exist
+  independently of any VAMSAS applications that are connected to them.
+  This means that if something goes wrong with a VAMSAS application and
+  it crashes or otherwise fails, the VAMSAS session it is connected to
+  will (hopefully) be unaffected. For instance, if Jalview is killed or
+  crashes whilst it is still connected to a session, that session can be
+  recovered in a new Jalview instance using the
+  <strong>Vamsas&#8594;&quot;Existing session&quot;</strong> sub menu.
+  </p>
+  <p>
+    <strong>A quick Demo</strong> <br> Jalview can talk to itself
+    through VAMSAS. Simply start two copies of the application, create a
+    new vamsas session in one, and connect to the new session in the
+    other. Then load your data into one of the applications, and use the
+    <strong>Vamsas&#8594;&quot;Session Update&quot;</strong> menu entry
+    to try to propagate the data to the other application. <br>
+  <table>
+    <tr>
+      <td>Data Sharing Capability</td>
+      <td>Jalview Version</td>
+    </tr>
+    <tr>
+      <td>Alignments, sequences and annotation, trees, database
+        references, cDNA/protein mappings.</td>
+      <td>2.4</td>
+    </tr>
+    <tr>
+      <td>Mouseover location across linked DNA, protein and
+        structure positions.</td>
+      <td>2.4</td>
+    </tr>
+    <tr>
+      <td>Jalview project settings (Multiple views, groups, tree
+        partitions, colouring, window positions)</td>
+      <td>2.5</td>
+    </tr>
+    <tr>
+      <td>Sequence region and column selections</td>
+      <td>2.5</td>
+    </tr>
+  </table>
+  <br />
+  <p>
+    Version 0.2 of the VAMSAS client library is used in <em>Jalview
+      2.5</em>. For further details about the VAMSAS framework, please check
+    the <a href="http://www.vamsas.ac.uk">VAMSAS website</a>. The VAMSAS
+    framework is implemented as a Java 1.4 Library and depends on a
+    number of other open source projects. Its source is released under
+    the LGPL license. &nbsp;
+  </p>
 </body>
 </html>

@@ -7,7 +7,8 @@ package //
 //
 com.stevesoft.pat.wrap;
 
-import com.stevesoft.pat.*;
+import com.stevesoft.pat.BasicStringBufferLike;
+import com.stevesoft.pat.StringLike;
 
 /**
  * Allows the outcome of a replaceAll() or replaceFirst() to be an array of

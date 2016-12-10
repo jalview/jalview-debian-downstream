@@ -1,26 +1,31 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.schemes;
 
-import java.awt.*;
+import jalview.datamodel.ProfileI;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
-import jalview.analysis.*;
-import jalview.datamodel.*;
+import java.awt.Color;
 
 public class PIDColourScheme extends ResidueColourScheme
 {
@@ -36,14 +41,15 @@ public class PIDColourScheme extends ResidueColourScheme
     this.thresholds = ResidueProperties.pidThresholds;
   }
 
-  public Color findColour(char c, int j)
+  @Override
+  public Color findColour(char c, int j, SequenceI seq)
   {
     if ('a' <= c && c <= 'z')
     {
       c -= ('a' - 'A');
     }
 
-    if (consensus == null || j >= consensus.length || consensus[j] == null)
+    if (consensus == null || consensus.get(j) == null)
     {
       return Color.white;
     }
@@ -57,25 +63,24 @@ public class PIDColourScheme extends ResidueColourScheme
 
     double sc = 0;
 
-    if (consensus.length <= j)
-    {
-      return Color.white;
-    }
 
-    if ((Integer
-            .parseInt(consensus[j].get(AAFrequency.MAXCOUNT).toString()) != -1)
-            && consensus[j].contains(String.valueOf(c)))
+    /*
+     * test whether this is the consensus (or joint consensus) residue
+     */
+    ProfileI profile = consensus.get(j);
+    boolean matchesConsensus = profile.getModalResidue().contains(
+            String.valueOf(c));
+    if (matchesConsensus)
     {
-      sc = ((Float) consensus[j].get(ignoreGaps)).floatValue();
+      sc = profile.getPercentageIdentity(ignoreGaps);
 
-      if (!jalview.util.Comparison.isGap(c))
+      if (!Comparison.isGap(c))
       {
         for (int i = 0; i < thresholds.length; i++)
         {
           if (sc > thresholds[i])
           {
             currentColour = pidColours[i];
-
             break;
           }
         }

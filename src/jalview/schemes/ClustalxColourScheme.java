@@ -1,67 +1,84 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.schemes;
 
-import java.util.*;
+import jalview.datamodel.AnnotatedCollectionI;
+import jalview.datamodel.SequenceCollectionI;
+import jalview.datamodel.SequenceI;
 
-import java.awt.*;
+import java.awt.Color;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import jalview.datamodel.*;
-
-public class ClustalxColourScheme extends ResidueColourScheme // implements
-// IParameterizable
+public class ClustalxColourScheme extends ResidueColourScheme
 {
-  public static Hashtable colhash = new Hashtable();
+  private static final int EIGHTY_FIVE = 85;
 
-  Hashtable[] cons;
+  private static final int FIFTY = 50;
 
-  int[][] cons2;
+  private static final int EIGHTY = 80;
 
-  ConsensusColour[] colours;
+  private static final int SIXTY = 60;
 
-  ConsensusColour[] ResidueColour;
+  /*
+   * Map from conventional colour names to Clustal version of the same
+   */
+  private static Map<Color, Color> colhash = new HashMap<Color, Color>();
 
-  int size;
+  private int[][] cons2;
 
-  Consensus[] conses = new Consensus[32];
+  private ConsensusColour[] colours;
 
-  Vector colourTable = new Vector();
+  private ConsensusColour[] residueColour;
+
+  private int size;
+
+  private Consensus[] conses = new Consensus[32];
 
   private boolean includeGaps = true;
 
+  static
   {
-    colhash.put("RED", new Color((float) 0.9, (float) 0.2, (float) 0.1));
-    colhash.put("BLUE", new Color((float) 0.5, (float) 0.7, (float) 0.9));
-    colhash.put("GREEN", new Color((float) 0.1, (float) 0.8, (float) 0.1));
-    colhash.put("ORANGE", new Color((float) 0.9, (float) 0.6, (float) 0.3));
-    colhash.put("CYAN", new Color((float) 0.1, (float) 0.7, (float) 0.7));
-    colhash.put("PINK", new Color((float) 0.9, (float) 0.5, (float) 0.5));
-    colhash.put("MAGENTA", new Color((float) 0.8, (float) 0.3, (float) 0.8));
-    colhash.put("YELLOW", new Color((float) 0.8, (float) 0.8, (float) 0.0));
+    colhash.put(Color.RED, new Color(0.9f, 0.2f, 0.1f));
+    colhash.put(Color.BLUE, new Color(0.5f, 0.7f, 0.9f));
+    colhash.put(Color.GREEN, new Color(0.1f, 0.8f, 0.1f));
+    colhash.put(Color.ORANGE, new Color(0.9f, 0.6f, 0.3f));
+    colhash.put(Color.CYAN, new Color(0.1f, 0.7f, 0.7f));
+    colhash.put(Color.PINK, new Color(0.9f, 0.5f, 0.5f));
+    colhash.put(Color.MAGENTA, new Color(0.8f, 0.3f, 0.8f));
+    colhash.put(Color.YELLOW, new Color(0.8f, 0.8f, 0.0f));
   }
 
-  public ClustalxColourScheme(Vector seqs, int maxWidth)
+  public ClustalxColourScheme(AnnotatedCollectionI alignment,
+          Map<SequenceI, SequenceCollectionI> hiddenReps)
   {
-    resetClustalX(seqs, maxWidth);
+    alignmentChanged(alignment, hiddenReps);
   }
 
-  public void resetClustalX(Vector seqs, int maxWidth)
+  public void alignmentChanged(AnnotatedCollectionI alignment,
+          Map<SequenceI, SequenceCollectionI> hiddenReps)
   {
+    int maxWidth = alignment.getWidth();
+    List<SequenceI> seqs = alignment.getSequences(hiddenReps);
     cons2 = new int[maxWidth][24];
     includeGaps = isIncludeGaps(); // does nothing - TODO replace with call to
     // get the current setting of the
@@ -82,9 +99,9 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     int j = 0;
     char[] seq;
 
-    while (j < seqs.size())
+    for (SequenceI sq : seqs)
     {
-      seq = ((SequenceI) seqs.elementAt(j)).getSequence();
+      seq = sq.getSequence();
 
       int end_j = seq.length - 1;
 
@@ -111,36 +128,36 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
 
   public void makeColours()
   {
-    conses[0] = new Consensus("WLVIMAFCYHP", 60);
-    conses[1] = new Consensus("WLVIMAFCYHP", 80);
-    conses[2] = new Consensus("ED", 50);
-    conses[3] = new Consensus("KR", 60);
-    conses[4] = new Consensus("G", 50);
-    conses[5] = new Consensus("N", 50);
-    conses[6] = new Consensus("QE", 50);
-    conses[7] = new Consensus("P", 50);
-    conses[8] = new Consensus("TS", 50);
+    conses[0] = new Consensus("WLVIMAFCYHP", SIXTY);
+    conses[1] = new Consensus("WLVIMAFCYHP", EIGHTY);
+    conses[2] = new Consensus("ED", FIFTY);
+    conses[3] = new Consensus("KR", SIXTY);
+    conses[4] = new Consensus("G", FIFTY);
+    conses[5] = new Consensus("N", FIFTY);
+    conses[6] = new Consensus("QE", FIFTY);
+    conses[7] = new Consensus("P", FIFTY);
+    conses[8] = new Consensus("TS", FIFTY);
 
-    conses[26] = new Consensus("A", 85);
-    conses[27] = new Consensus("C", 85);
-    conses[10] = new Consensus("E", 85);
-    conses[11] = new Consensus("F", 85);
-    conses[12] = new Consensus("G", 85);
-    conses[13] = new Consensus("H", 85);
-    conses[14] = new Consensus("I", 85);
-    conses[15] = new Consensus("L", 85);
-    conses[16] = new Consensus("M", 85);
-    conses[17] = new Consensus("N", 85);
-    conses[18] = new Consensus("P", 85);
-    conses[19] = new Consensus("Q", 85);
-    conses[20] = new Consensus("R", 85);
-    conses[21] = new Consensus("S", 85);
-    conses[22] = new Consensus("T", 85);
-    conses[23] = new Consensus("V", 85);
-    conses[24] = new Consensus("W", 85);
-    conses[25] = new Consensus("Y", 85);
-    conses[28] = new Consensus("K", 85);
-    conses[29] = new Consensus("D", 85);
+    conses[26] = new Consensus("A", EIGHTY_FIVE);
+    conses[27] = new Consensus("C", EIGHTY_FIVE);
+    conses[10] = new Consensus("E", EIGHTY_FIVE);
+    conses[11] = new Consensus("F", EIGHTY_FIVE);
+    conses[12] = new Consensus("G", EIGHTY_FIVE);
+    conses[13] = new Consensus("H", EIGHTY_FIVE);
+    conses[14] = new Consensus("I", EIGHTY_FIVE);
+    conses[15] = new Consensus("L", EIGHTY_FIVE);
+    conses[16] = new Consensus("M", EIGHTY_FIVE);
+    conses[17] = new Consensus("N", EIGHTY_FIVE);
+    conses[18] = new Consensus("P", EIGHTY_FIVE);
+    conses[19] = new Consensus("Q", EIGHTY_FIVE);
+    conses[20] = new Consensus("R", EIGHTY_FIVE);
+    conses[21] = new Consensus("S", EIGHTY_FIVE);
+    conses[22] = new Consensus("T", EIGHTY_FIVE);
+    conses[23] = new Consensus("V", EIGHTY_FIVE);
+    conses[24] = new Consensus("W", EIGHTY_FIVE);
+    conses[25] = new Consensus("Y", EIGHTY_FIVE);
+    conses[28] = new Consensus("K", EIGHTY_FIVE);
+    conses[29] = new Consensus("D", EIGHTY_FIVE);
 
     conses[30] = new Consensus("G", 0);
     conses[31] = new Consensus("P", 0);
@@ -150,15 +167,15 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
 
     Consensus[] tmp8 = new Consensus[1];
     tmp8[0] = conses[30]; // G
-    colours[7] = new ConsensusColour((Color) colhash.get("ORANGE"), tmp8);
+    colours[7] = new ConsensusColour(colhash.get(Color.ORANGE), tmp8);
 
     Consensus[] tmp9 = new Consensus[1];
     tmp9[0] = conses[31]; // P
-    colours[8] = new ConsensusColour((Color) colhash.get("YELLOW"), tmp9);
+    colours[8] = new ConsensusColour(colhash.get(Color.YELLOW), tmp9);
 
     Consensus[] tmp10 = new Consensus[1];
     tmp10[0] = conses[27]; // C
-    colours[9] = new ConsensusColour((Color) colhash.get("PINK"), tmp8);
+    colours[9] = new ConsensusColour(colhash.get(Color.PINK), tmp8);
 
     Consensus[] tmp1 = new Consensus[14];
     tmp1[0] = conses[0]; // %
@@ -175,9 +192,9 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     tmp1[11] = conses[25]; // Y
     tmp1[12] = conses[18]; // P
     tmp1[13] = conses[19]; // p
-    colours[0] = new ConsensusColour((Color) colhash.get("BLUE"), tmp1);
+    colours[0] = new ConsensusColour(colhash.get(Color.BLUE), tmp1);
 
-    colours[10] = new ConsensusColour((Color) colhash.get("CYAN"), tmp1);
+    colours[10] = new ConsensusColour(colhash.get(Color.CYAN), tmp1);
 
     Consensus[] tmp2 = new Consensus[5];
     tmp2[0] = conses[8]; // t
@@ -185,14 +202,14 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     tmp2[2] = conses[22]; // T
     tmp2[3] = conses[0]; // %
     tmp2[4] = conses[1]; // #
-    colours[1] = new ConsensusColour((Color) colhash.get("GREEN"), tmp2);
+    colours[1] = new ConsensusColour(colhash.get(Color.GREEN), tmp2);
 
     Consensus[] tmp3 = new Consensus[3];
 
     tmp3[0] = conses[17]; // N
     tmp3[1] = conses[29]; // D
     tmp3[2] = conses[5]; // n
-    colours[2] = new ConsensusColour((Color) colhash.get("GREEN"), tmp3);
+    colours[2] = new ConsensusColour(colhash.get(Color.GREEN), tmp3);
 
     Consensus[] tmp4 = new Consensus[6];
     tmp4[0] = conses[6]; // q = QE
@@ -201,14 +218,14 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     tmp4[3] = conses[3]; // +
     tmp4[4] = conses[28]; // K
     tmp4[5] = conses[20]; // R
-    colours[3] = new ConsensusColour((Color) colhash.get("GREEN"), tmp4);
+    colours[3] = new ConsensusColour(colhash.get(Color.GREEN), tmp4);
 
     Consensus[] tmp5 = new Consensus[4];
     tmp5[0] = conses[3]; // +
     tmp5[1] = conses[28]; // K
     tmp5[2] = conses[20]; // R
     tmp5[3] = conses[19]; // Q
-    colours[4] = new ConsensusColour((Color) colhash.get("RED"), tmp5);
+    colours[4] = new ConsensusColour(colhash.get(Color.RED), tmp5);
 
     Consensus[] tmp6 = new Consensus[6];
     tmp6[0] = conses[3]; // -
@@ -217,7 +234,7 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     tmp6[3] = conses[6]; // QE
     tmp6[4] = conses[19]; // Q
     tmp6[5] = conses[2]; // DE
-    colours[5] = new ConsensusColour((Color) colhash.get("MAGENTA"), tmp6);
+    colours[5] = new ConsensusColour(colhash.get(Color.MAGENTA), tmp6);
 
     Consensus[] tmp7 = new Consensus[5];
     tmp7[0] = conses[3]; // -
@@ -225,38 +242,40 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     tmp7[2] = conses[10]; // E
     tmp7[3] = conses[17]; // N
     tmp7[4] = conses[2]; // DE
-    colours[6] = new ConsensusColour((Color) colhash.get("MAGENTA"), tmp7);
+    colours[6] = new ConsensusColour(colhash.get(Color.MAGENTA), tmp7);
 
     // Now attach the ConsensusColours to the residue letters
-    ResidueColour = new ConsensusColour[20];
-    ResidueColour[0] = colours[0]; // A
-    ResidueColour[1] = colours[4]; // R
-    ResidueColour[2] = colours[2]; // N
-    ResidueColour[3] = colours[6]; // D
-    ResidueColour[4] = colours[0]; // C
-    ResidueColour[5] = colours[3]; // Q
-    ResidueColour[6] = colours[5]; // E
-    ResidueColour[7] = colours[7]; // G
-    ResidueColour[8] = colours[10]; // H
-    ResidueColour[9] = colours[0]; // I
-    ResidueColour[10] = colours[0]; // L
-    ResidueColour[11] = colours[4]; // K
-    ResidueColour[12] = colours[0]; // M
-    ResidueColour[13] = colours[0]; // F
-    ResidueColour[14] = colours[8]; // P
-    ResidueColour[15] = colours[1]; // S
-    ResidueColour[16] = colours[1]; // T
-    ResidueColour[17] = colours[0]; // W
-    ResidueColour[18] = colours[10]; // Y
-    ResidueColour[19] = colours[0]; // V
+    residueColour = new ConsensusColour[20];
+    residueColour[0] = colours[0]; // A
+    residueColour[1] = colours[4]; // R
+    residueColour[2] = colours[2]; // N
+    residueColour[3] = colours[6]; // D
+    residueColour[4] = colours[0]; // C
+    residueColour[5] = colours[3]; // Q
+    residueColour[6] = colours[5]; // E
+    residueColour[7] = colours[7]; // G
+    residueColour[8] = colours[10]; // H
+    residueColour[9] = colours[0]; // I
+    residueColour[10] = colours[0]; // L
+    residueColour[11] = colours[4]; // K
+    residueColour[12] = colours[0]; // M
+    residueColour[13] = colours[0]; // F
+    residueColour[14] = colours[8]; // P
+    residueColour[15] = colours[1]; // S
+    residueColour[16] = colours[1]; // T
+    residueColour[17] = colours[0]; // W
+    residueColour[18] = colours[10]; // Y
+    residueColour[19] = colours[0]; // V
   }
 
+  @Override
   public Color findColour(char c)
   {
     return Color.pink;
   }
 
-  public Color findColour(char c, int j)
+  @Override
+  public Color findColour(char c, int j, SequenceI seq)
   {
     Color currentColour;
 
@@ -275,12 +294,12 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
       return currentColour;
     }
 
-    for (int k = 0; k < ResidueColour[i].conses.length; k++)
+    for (int k = 0; k < residueColour[i].conses.length; k++)
     {
-      if (ResidueColour[i].conses[k].isConserved(cons2, j, size,
+      if (residueColour[i].conses[k].isConserved(cons2, j, size,
               includeGaps))
       {
-        currentColour = ResidueColour[i].c;
+        currentColour = residueColour[i].c;
       }
     }
 
@@ -288,7 +307,7 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
     {
       if (conses[27].isConserved(cons2, j, size, includeGaps))
       {
-        currentColour = (Color) colhash.get("PINK");
+        currentColour = colhash.get(Color.PINK);
       }
     }
 
@@ -315,6 +334,16 @@ public class ClustalxColourScheme extends ResidueColourScheme // implements
   protected void setIncludeGaps(boolean includeGaps)
   {
     this.includeGaps = includeGaps;
+  }
+
+  @Override
+  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
+          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  {
+    ClustalxColourScheme css = new ClustalxColourScheme(sg,
+            hiddenRepSequences);
+    css.includeGaps = includeGaps;
+    return css;
   }
 }
 

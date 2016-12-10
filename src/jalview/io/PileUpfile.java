@@ -1,19 +1,22 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
@@ -32,10 +35,10 @@ package jalview.io;
  * found in Emboss (thanks David Martin!)
  * 
  */
-import java.io.*;
+import jalview.datamodel.SequenceI;
+import jalview.util.Format;
 
-import jalview.datamodel.*;
-import jalview.util.*;
+import java.io.IOException;
 
 public class PileUpfile extends MSFfile
 {
@@ -73,17 +76,19 @@ public class PileUpfile extends MSFfile
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());
   }
 
+  @Override
   public String print(SequenceI[] s)
   {
     StringBuffer out = new StringBuffer("PileUp");
     out.append(newline);
     out.append(newline);
-    
+
     int max = 0;
     int maxid = 0;
 
@@ -98,8 +103,7 @@ public class PileUpfile extends MSFfile
     }
 
     out.append("   MSF: " + s[0].getSequence().length
-            + "   Type: P    Check:  " + bigChecksum % 10000
-            + "   ..");
+            + "   Type: P    Check:  " + bigChecksum % 10000 + "   ..");
     out.append(newline);
     out.append(newline);
     out.append(newline);
@@ -131,17 +135,15 @@ public class PileUpfile extends MSFfile
     }
 
     maxid++;
-    out.append(newline);out.append(newline);out.append("//");
-    out.append(newline);out.append(newline);
+    out.append(newline);
+    out.append(newline);
+    out.append("//");
+    out.append(newline);
+    out.append(newline);
 
     int len = 50;
 
-    int nochunks = (max / len) + 1;
-
-    if ((max % len) == 0)
-    {
-      nochunks--;
-    }
+    int nochunks = (max / len) + (max % len > 0 ? 1 : 0);
 
     for (i = 0; i < nochunks; i++)
     {

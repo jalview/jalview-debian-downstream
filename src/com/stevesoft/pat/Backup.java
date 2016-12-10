@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * Implements the (?&lt;number) Pattern, where number is an integer telling us

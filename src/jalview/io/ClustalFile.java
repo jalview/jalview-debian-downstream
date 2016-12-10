@@ -1,27 +1,34 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.7)
- * Copyright (C) 2011 J Procter, AM Waterhouse, G Barton, M Clamp, S Searle
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License 
- * as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
 
-import java.io.*;
-import java.util.*;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceI;
+import jalview.util.Format;
 
-import jalview.datamodel.*;
-import jalview.util.*;
+import java.io.IOException;
+import java.util.Hashtable;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
 public class ClustalFile extends AlignFile
 {
@@ -40,16 +47,20 @@ public class ClustalFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
   }
 
+  @Override
   public void parse() throws IOException
   {
     int i = 0;
     boolean flag = false;
-
+    boolean rna = false;
+    boolean top = false;
+    StringBuffer pssecstr = new StringBuffer(), consstr = new StringBuffer();
     Vector headers = new Vector();
     Hashtable seqhash = new Hashtable();
     StringBuffer tempseq;
@@ -60,6 +71,10 @@ public class ClustalFile extends AlignFile
     {
       while ((line = nextLine()) != null)
       {
+        if (line.length() == 0)
+        {
+          top = true;
+        }
         if (line.indexOf(" ") != 0)
         {
           str = new StringTokenizer(line, " ");
@@ -95,12 +110,27 @@ public class ClustalFile extends AlignFile
                 {
                   tempseq.append(str.nextToken());
                 }
+                top = false;
               }
             }
           }
           else
           {
             flag = true;
+          }
+        }
+        else
+        {
+          if (line.matches("\\s+(-|\\.|\\(|\\[|\\]|\\))+"))
+          {
+            if (top)
+            {
+              pssecstr.append(line.trim());
+            }
+            else
+            {
+              consstr.append(line.trim());
+            }
           }
         }
       }
@@ -139,17 +169,42 @@ public class ClustalFile extends AlignFile
                           + headers.elementAt(i));
         }
       }
+      AlignmentAnnotation lastssa = null;
+      if (pssecstr.length() == maxLength)
+      {
+        Vector ss = new Vector();
+        AlignmentAnnotation ssa = lastssa = StockholmFile
+                .parseAnnotationRow(ss, "secondary structure",
+                        pssecstr.toString());
+        ssa.label = "Secondary Structure";
+        annotations.addElement(ssa);
+      }
+      if (consstr.length() == maxLength)
+      {
+        Vector ss = new Vector();
+        AlignmentAnnotation ssa = StockholmFile.parseAnnotationRow(ss,
+                "secondary structure", consstr.toString());
+        ssa.label = "Consensus Secondary Structure";
+        if (lastssa == null
+                || !lastssa.getRNAStruc().equals(
+                        ssa.getRNAStruc().replace('-', '.')))
+        {
+          annotations.addElement(ssa);
+        }
+      }
     }
   }
 
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());
+    // TODO: locaRNA style aln output
   }
 
   public String print(SequenceI[] s)
   {
-    StringBuffer out = new StringBuffer("CLUSTAL"+newline+newline);
+    StringBuffer out = new StringBuffer("CLUSTAL" + newline + newline);
 
     int max = 0;
     int maxid = 0;
@@ -181,7 +236,7 @@ public class ClustalFile extends AlignFile
     maxid++;
 
     int len = 60;
-    int nochunks = (max / len) + 1;
+    int nochunks = (max / len) + (max % len > 0 ? 1 : 0);
 
     for (i = 0; i < nochunks; i++)
     {

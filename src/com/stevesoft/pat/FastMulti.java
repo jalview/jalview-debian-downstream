@@ -7,7 +7,7 @@
 //
 package com.stevesoft.pat;
 
-import java.util.*;
+import java.util.Hashtable;
 
 /**
  * A special case of Multi, implemented when minChars().equals(maxChars()), and
