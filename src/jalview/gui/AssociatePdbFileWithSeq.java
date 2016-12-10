@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.gui;
 import jalview.api.StructureSelectionManagerProvider;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.StructureFile;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
 
@@ -48,7 +49,7 @@ public class AssociatePdbFileWithSeq
           StructureSelectionManagerProvider ssmp)
   {
     PDBEntry entry = new PDBEntry();
-    MCview.PDBfile pdbfile = null;
+    StructureFile pdbfile = null;
     pdbfile = StructureSelectionManager.getStructureSelectionManager(ssmp)
             .setMapping(false, new SequenceI[] { sequence }, null, choice,
                     protocol);
@@ -57,7 +58,7 @@ public class AssociatePdbFileWithSeq
       // stacktrace already thrown so just return
       return null;
     }
-    if (pdbfile.id == null)
+    if (pdbfile.getId() == null)
     {
       String reply = null;
 
@@ -78,7 +79,7 @@ public class AssociatePdbFileWithSeq
     }
     else
     {
-      entry.setId(pdbfile.id);
+      entry.setId(pdbfile.getId());
     }
     entry.setType(PDBEntry.Type.FILE);
 

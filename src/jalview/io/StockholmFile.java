@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@
  */
 package jalview.io;
 
+import jalview.analysis.Rna;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
@@ -31,6 +32,7 @@ import jalview.datamodel.Mapping;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.schemes.ResidueProperties;
 import jalview.util.Format;
 import jalview.util.MessageManager;
 
@@ -72,8 +74,12 @@ import fr.orsay.lri.varna.models.rna.RNA;
  */
 public class StockholmFile extends AlignFile
 {
-  // static Logger logger = Logger.getLogger("jalview.io.StockholmFile");
-  protected ArrayList<RNA> result;
+  private static final Regex OPEN_PAREN = new Regex("(<|\\[)", "(");
+
+  private static final Regex CLOSE_PAREN = new Regex("(>|\\])", ")");
+
+  private static final Regex DETECT_BRACKETS = new Regex(
+          "(<|>|\\[|\\]|\\(|\\))");
 
   StringBuffer out; // output buffer
 
@@ -101,6 +107,7 @@ public class StockholmFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
@@ -118,7 +125,7 @@ public class StockholmFile extends AlignFile
     fr = new FileReader(inFile);
 
     BufferedReader r = new BufferedReader(fr);
-    result = null;
+    List<RNA> result = null;
     try
     {
       result = RNAFactory.loadSecStrStockholm(r);
@@ -155,9 +162,8 @@ public class StockholmFile extends AlignFile
 
       for (int k = 0; k < rna.length(); k++)
       {
-        ann[k] = new Annotation(annot[k], "",
-                jalview.schemes.ResidueProperties.getRNASecStrucState(
-                        annot[k]).charAt(0), 0f);
+        ann[k] = new Annotation(annot[k], "", Rna.getRNASecStrucState(
+                annot[k]).charAt(0), 0f);
 
       }
       AlignmentAnnotation align = new AlignmentAnnotation("Sec. str.",
@@ -178,6 +184,7 @@ public class StockholmFile extends AlignFile
    * @throws IOException
    *           If there is an error with the input file
    */
+  @Override
   public void parse() throws IOException
   {
     StringBuffer treeString = new StringBuffer();
@@ -533,8 +540,7 @@ public class StockholmFile extends AlignFile
           }
           else
           {
-            // throw new IOException(MessageManager.formatMessage(
-            // "exception.error_parsing_line", new String[] { line }));
+            // throw new IOException("Error parsing " + line);
             System.err.println(">> missing annotation: " + line);
           }
         }
@@ -788,19 +794,13 @@ public class StockholmFile extends AlignFile
   }
 
   protected static AlignmentAnnotation parseAnnotationRow(
-          Vector annotation, String label, String annots)
+          Vector<AlignmentAnnotation> annotation, String label,
+          String annots)
   {
     String convert1, convert2 = null;
 
-    // Convert all bracket types to parentheses
-    Regex openparen = new Regex("(<|\\[)", "(");
-    Regex closeparen = new Regex("(>|\\])", ")");
-
-    // Detect if file is RNA by looking for bracket types
-    Regex detectbrackets = new Regex("(<|>|\\[|\\]|\\(|\\))");
-
-    convert1 = openparen.replaceAll(annots);
-    convert2 = closeparen.replaceAll(convert1);
+    convert1 = OPEN_PAREN.replaceAll(annots);
+    convert2 = CLOSE_PAREN.replaceAll(convert1);
     annots = convert2;
 
     String type = label;
@@ -827,15 +827,14 @@ public class StockholmFile extends AlignFile
       {
         // if (" .-_".indexOf(pos) == -1)
         {
-          if (detectbrackets.search(pos))
+          if (DETECT_BRACKETS.search(pos))
           {
-            ann.secondaryStructure = jalview.schemes.ResidueProperties
-                    .getRNASecStrucState(pos).charAt(0);
+            ann.secondaryStructure = Rna.getRNASecStrucState(pos).charAt(0);
           }
           else
           {
-            ann.secondaryStructure = jalview.schemes.ResidueProperties
-                    .getDssp3state(pos).charAt(0);
+            ann.secondaryStructure = ResidueProperties.getDssp3state(pos)
+                    .charAt(0);
           }
 
           if (ann.secondaryStructure == pos.charAt(0))
@@ -853,10 +852,10 @@ public class StockholmFile extends AlignFile
       els[i] = ann;
     }
     AlignmentAnnotation annot = null;
-    Enumeration e = annotation.elements();
+    Enumeration<AlignmentAnnotation> e = annotation.elements();
     while (e.hasMoreElements())
     {
-      annot = (AlignmentAnnotation) e.nextElement();
+      annot = e.nextElement();
       if (annot.label.equals(type))
       {
         break;
@@ -900,18 +899,18 @@ public class StockholmFile extends AlignFile
       {
         maxid = tmp.length();
       }
-      if (s[in].getDBRef() != null)
+      if (s[in].getDBRefs() != null)
       {
-        for (int idb = 0; idb < s[in].getDBRef().length; idb++)
+        for (int idb = 0; idb < s[in].getDBRefs().length; idb++)
         {
           if (dataRef == null)
           {
             dataRef = new Hashtable();
           }
 
-          String datAs1 = s[in].getDBRef()[idb].getSource().toString()
+          String datAs1 = s[in].getDBRefs()[idb].getSource().toString()
                   + " ; "
-                  + s[in].getDBRef()[idb].getAccessionId().toString();
+                  + s[in].getDBRefs()[idb].getAccessionId().toString();
           dataRef.put(tmp, datAs1);
         }
       }
@@ -1106,6 +1105,7 @@ public class StockholmFile extends AlignFile
     return seq;
   }
 
+  @Override
   public String print()
   {
     out = new StringBuffer();
@@ -1119,6 +1119,7 @@ public class StockholmFile extends AlignFile
   }
 
   private static Hashtable typeIds = null;
+
   static
   {
     if (typeIds == null)

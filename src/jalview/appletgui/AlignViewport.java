@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,11 +22,13 @@ package jalview.appletgui;
 
 import jalview.analysis.NJTree;
 import jalview.api.AlignViewportI;
+import jalview.api.FeatureSettingsModelI;
 import jalview.bin.JalviewLite;
 import jalview.commands.CommandI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
@@ -57,6 +59,7 @@ public class AlignViewport extends AlignmentViewport implements
 
   private AnnotationColumnChooser annotationColumnSelectionState;
 
+  @Override
   public void finalize()
   {
     applet = null;
@@ -187,8 +190,13 @@ public class AlignViewport extends AlignmentViewport implements
 
     if (applet != null)
     {
-      String colour = applet.getParameter("defaultColour");
-
+      String colour = al.isNucleotide() ? applet
+              .getParameter("defaultColourNuc") : applet
+              .getParameter("defaultColourProt");
+      if (colour == null)
+      {
+        colour = applet.getParameter("defaultColour");
+      }
       if (colour == null)
       {
         colour = applet.getParameter("userDefinedColour");
@@ -320,6 +328,7 @@ public class AlignViewport extends AlignmentViewport implements
     return followSelection;
   }
 
+  @Override
   public void sendSelection()
   {
     getStructureSelectionManager().sendSelection(
@@ -340,39 +349,7 @@ public class AlignViewport extends AlignmentViewport implements
             .getStructureSelectionManager(applet);
   }
 
-  /**
-   * synthesize a column selection if none exists so it covers the given
-   * selection group. if wholewidth is false, no column selection is made if the
-   * selection group covers the whole alignment width.
-   * 
-   * @param sg
-   * @param wholewidth
-   */
-  public void expandColSelection(SequenceGroup sg, boolean wholewidth)
-  {
-    int sgs, sge;
-    if (sg != null
-            && (sgs = sg.getStartRes()) >= 0
-            && sg.getStartRes() <= (sge = sg.getEndRes())
-            && (colSel == null || colSel.getSelected() == null || colSel
-                    .getSelected().size() == 0))
-    {
-      if (!wholewidth && alignment.getWidth() == (1 + sge - sgs))
-      {
-        // do nothing
-        return;
-      }
-      if (colSel == null)
-      {
-        colSel = new ColumnSelection();
-      }
-      for (int cspos = sg.getStartRes(); cspos <= sg.getEndRes(); cspos++)
-      {
-        colSel.addElement(cspos);
-      }
-    }
-  }
-
+  @Override
   public boolean isNormaliseSequenceLogo()
   {
     return normaliseSequenceLogo;
@@ -387,6 +364,7 @@ public class AlignViewport extends AlignmentViewport implements
    * 
    * @return true if alignment characters should be displayed
    */
+  @Override
   public boolean isValidCharWidth()
   {
     return validCharWidth;
@@ -456,13 +434,27 @@ public class AlignViewport extends AlignmentViewport implements
      * there is no complement, or it is not following highlights, or no mapping
      * is found, the result will be empty.
      */
-    SearchResults sr = new SearchResults();
+    SearchResultsI sr = new SearchResults();
     int seqOffset = findComplementScrollTarget(sr);
     if (!sr.isEmpty())
     {
       complementPanel.setFollowingComplementScroll(true);
       complementPanel.scrollToCentre(sr, seqOffset);
     }
+  }
+
+  /**
+   * Applies the supplied feature settings descriptor to currently known
+   * features. This supports an 'initial configuration' of feature colouring
+   * based on a preset or user favourite. This may then be modified in the usual
+   * way using the Feature Settings dialogue.
+   * 
+   * @param featureSettings
+   */
+  @Override
+  public void applyFeaturesStyle(FeatureSettingsModelI featureSettings)
+  {
+    // TODO implement for applet
   }
 
 }

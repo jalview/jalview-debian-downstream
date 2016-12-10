@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,9 @@
  */
 package jalview.gui;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.SequenceI;
 import jalview.io.AnnotationFile;
 import jalview.io.FeaturesFile;
 import jalview.io.JalviewFileChooser;
@@ -32,6 +34,7 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -153,17 +156,28 @@ public class AnnotationExporter extends JPanel
             .getString("label.no_features_on_alignment");
     if (features)
     {
+      Map<String, FeatureColourI> displayedFeatureColours = ap
+              .getFeatureRenderer().getDisplayedFeatureCols();
+      FeaturesFile formatter = new FeaturesFile();
+      SequenceI[] sequences = ap.av.getAlignment().getSequencesArray();
+      Map<String, FeatureColourI> featureColours = ap.getFeatureRenderer()
+              .getDisplayedFeatureCols();
+      boolean includeNonPositional = ap.av.isShowNPFeats();
       if (GFFFormat.isSelected())
       {
-        text = new FeaturesFile().printGFFFormat(ap.av.getAlignment()
-                .getDataset().getSequencesArray(), ap.getFeatureRenderer()
-                .getDisplayedFeatureCols(), true, ap.av.isShowNPFeats());// ap.av.featuresDisplayed//);
+        text = new FeaturesFile().printGffFormat(ap.av.getAlignment()
+                .getDataset().getSequencesArray(), displayedFeatureColours,
+                true, ap.av.isShowNPFeats());
+        text = formatter.printGffFormat(sequences, featureColours, true,
+                includeNonPositional);
       }
       else
       {
         text = new FeaturesFile().printJalviewFormat(ap.av.getAlignment()
-                .getDataset().getSequencesArray(), ap.getFeatureRenderer()
-                .getDisplayedFeatureCols(), true, ap.av.isShowNPFeats()); // ap.av.featuresDisplayed);
+                .getDataset().getSequencesArray(), displayedFeatureColours,
+                true, ap.av.isShowNPFeats()); // ap.av.featuresDisplayed);
+        text = formatter.printJalviewFormat(sequences, featureColours,
+                true, includeNonPositional);
       }
     }
     else
@@ -236,6 +250,7 @@ public class AnnotationExporter extends JPanel
     toFile.setText(MessageManager.getString("label.to_file"));
     toFile.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         toFile_actionPerformed(e);
@@ -244,6 +259,7 @@ public class AnnotationExporter extends JPanel
     toTextbox.setText(MessageManager.getString("label.to_textbox"));
     toTextbox.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         toTextbox_actionPerformed(e);
@@ -252,6 +268,7 @@ public class AnnotationExporter extends JPanel
     close.setText(MessageManager.getString("action.close"));
     close.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         close_actionPerformed(e);

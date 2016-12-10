@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,11 @@
  */
 package jalview.bin;
 
+import jalview.datamodel.PDBEntry;
+import jalview.structure.StructureImportSettings;
 import jalview.ws.dbsources.das.api.DasSourceRegistryI;
 import jalview.ws.dbsources.das.datamodel.DasSourceRegistry;
+import jalview.ws.sifts.SiftsSettings;
 
 import java.awt.Color;
 import java.io.BufferedReader;
@@ -35,6 +38,7 @@ import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.TreeSet;
 
@@ -216,6 +220,33 @@ public class Cache
 
   public static final String DAS_ACTIVE_SOURCE = "DAS_ACTIVE_SOURCE";
 
+  public static final String DEFAULT_SIFTS_DOWNLOAD_DIR = System
+          .getProperty("user.home")
+          + File.separatorChar
+          + ".sifts_downloads" + File.separatorChar;
+
+  private final static String DEFAULT_CACHE_THRESHOLD_IN_DAYS = "2";
+
+  private final static String DEFAULT_FAIL_SAFE_PID_THRESHOLD = "30";
+
+  /**
+   * Allowed values are PDB or mmCIF
+   */
+  private final static String PDB_DOWNLOAD_FORMAT = PDBEntry.Type.MMCIF
+          .toString();
+
+  private final static String DEFAULT_PDB_FILE_PARSER = StructureImportSettings.StructureParser.JMOL_PARSER
+          .toString();
+
+  /*
+   * a date formatter using a fixed (rather than the user's) locale; 
+   * this ensures that date properties can be written and re-read successfully
+   * even if the user changes their locale setting
+   */
+  private static final DateFormat date_format = SimpleDateFormat
+          .getDateTimeInstance(SimpleDateFormat.MEDIUM,
+                  SimpleDateFormat.MEDIUM, Locale.UK);
+
   /**
    * Initialises the Jalview Application Log
    */
@@ -394,9 +425,31 @@ public class Cache
       codeInstallation = " (" + codeInstallation + ")";
     }
     new BuildDetails(codeVersion, null, codeInstallation);
+
+    SiftsSettings
+            .setMapWithSifts(Cache.getDefault("MAP_WITH_SIFTS", false));
+
+    SiftsSettings.setSiftDownloadDirectory(jalview.bin.Cache.getDefault(
+            "sifts_download_dir", DEFAULT_SIFTS_DOWNLOAD_DIR));
+
+    SiftsSettings.setFailSafePIDThreshold(jalview.bin.Cache.getDefault(
+            "sifts_fail_safe_pid_threshold",
+            DEFAULT_FAIL_SAFE_PID_THRESHOLD));
+
+    SiftsSettings.setCacheThresholdInDays(jalview.bin.Cache.getDefault(
+            "sifts_cache_threshold_in_days",
+            DEFAULT_CACHE_THRESHOLD_IN_DAYS));
+
     System.out
             .println("Jalview Version: " + codeVersion + codeInstallation);
 
+    StructureImportSettings.setDefaultStructureFileFormat(jalview.bin.Cache
+            .getDefault("PDB_DOWNLOAD_FORMAT", PDB_DOWNLOAD_FORMAT));
+    StructureImportSettings
+            .setDefaultPDBFileParser(DEFAULT_PDB_FILE_PARSER);
+    // StructureImportSettings
+    // .setDefaultPDBFileParser(jalview.bin.Cache.getDefault(
+    // "DEFAULT_PDB_FILE_PARSER", DEFAULT_PDB_FILE_PARSER));
     // jnlpVersion will be null if we're using InstallAnywhere
     // Dont do this check if running in headless mode
     if (jnlpVersion == null
@@ -407,6 +460,7 @@ public class Cache
 
       class VersionChecker extends Thread
       {
+        @Override
         public void run()
         {
           String orgtimeout = System
@@ -417,7 +471,7 @@ public class Cache
             System.out.println("# INFO: Setting default net timeout to "
                     + orgtimeout + " seconds.");
           }
-          String jnlpVersion = null;
+          String remoteVersion = null;
           try
           {
             System.setProperty("sun.net.client.defaultConnectTimeout",
@@ -437,20 +491,20 @@ public class Cache
 
               line = line.substring(line.indexOf("value=") + 7);
               line = line.substring(0, line.lastIndexOf("\""));
-              jnlpVersion = line;
+              remoteVersion = line;
               break;
             }
           } catch (Exception ex)
           {
             System.out
-                    .println("Non-fatal exceptions when checking version at www.jalview.org :");
+                    .println("Non-fatal exception when checking version at www.jalview.org :");
             System.out.println(ex);
-            jnlpVersion = getProperty("VERSION");
+            remoteVersion = getProperty("VERSION");
           }
           System.setProperty("sun.net.client.defaultConnectTimeout",
                   orgtimeout);
 
-          setProperty("LATEST_VERSION", jnlpVersion);
+          setProperty("LATEST_VERSION", remoteVersion);
         }
       }
 
@@ -842,30 +896,31 @@ public class Cache
     setProperty(property, jalview.util.Format.getHexString(colour));
   }
 
-  public static final DateFormat date_format = SimpleDateFormat
-          .getDateTimeInstance();
-
   /**
-   * store a date in a jalview property
+   * Stores a formatted date in a jalview property, using a fixed locale.
    * 
-   * @param string
-   * @param time
+   * @param propertyName
+   * @param date
+   * @return the formatted date string
    */
-  public static void setDateProperty(String property, Date time)
+  public static String setDateProperty(String propertyName, Date date)
   {
-    setProperty(property, date_format.format(time));
+    String formatted = date_format.format(date);
+    setProperty(propertyName, formatted);
+    return formatted;
   }
 
   /**
-   * read a date stored in a jalview property
+   * Reads a date stored in a Jalview property, parses it (using a fixed locale
+   * format) and returns as a Date, or null if parsing fails
    * 
-   * @param property
-   * @return valid date as stored by setDateProperty, or null
+   * @param propertyName
+   * @return
    * 
    */
-  public static Date getDateProperty(String property)
+  public static Date getDateProperty(String propertyName)
   {
-    String val = getProperty(property);
+    String val = getProperty(propertyName);
     if (val != null)
     {
       try
@@ -874,7 +929,7 @@ public class Cache
       } catch (Exception ex)
       {
         System.err.println("Invalid or corrupt date in property '"
-                + property + "' : value was '" + val + "'");
+                + propertyName + "' : value was '" + val + "'");
       }
     }
     return null;

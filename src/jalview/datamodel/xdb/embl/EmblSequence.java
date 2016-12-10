@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,11 +27,7 @@ package jalview.datamodel.xdb.embl;
  */
 public class EmblSequence
 {
-  String version;
-
   String sequence;
-
-  String type;
 
   /**
    * @return the sequence
@@ -47,40 +43,7 @@ public class EmblSequence
    */
   public void setSequence(String sequence)
   {
-    this.sequence = sequence;
-  }
-
-  /**
-   * @return the type
-   */
-  public String getType()
-  {
-    return type;
-  }
-
-  /**
-   * @param type
-   *          the type to set
-   */
-  public void setType(String type)
-  {
-    this.type = type;
-  }
-
-  /**
-   * @return the version
-   */
-  public String getVersion()
-  {
-    return version;
-  }
-
-  /**
-   * @param version
-   *          the version to set
-   */
-  public void setVersion(String version)
-  {
-    this.version = version;
+    // remove spaces introduced by unmarshalling of newline characters
+    this.sequence = sequence.replace(" ", "");
   }
 }

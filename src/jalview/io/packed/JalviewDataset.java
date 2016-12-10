@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,13 +20,16 @@
  */
 package jalview.io.packed;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
 import jalview.io.NewickFile;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 public class JalviewDataset
 {
@@ -55,7 +58,7 @@ public class JalviewDataset
   /**
    * @return the featureColours
    */
-  public Hashtable getFeatureColours()
+  public Map<String, FeatureColourI> getFeatureColours()
   {
     return featureColours;
   }
@@ -64,7 +67,7 @@ public class JalviewDataset
    * @param featureColours
    *          the featureColours to set
    */
-  public void setFeatureColours(Hashtable featureColours)
+  public void setFeatureColours(Map<String, FeatureColourI> featureColours)
   {
     this.featureColours = featureColours;
   }
@@ -185,7 +188,7 @@ public class JalviewDataset
   /**
    * current set of feature colours
    */
-  Hashtable featureColours;
+  Map<String, FeatureColourI> featureColours;
 
   /**
    * original identity of each sequence in results
@@ -199,7 +202,7 @@ public class JalviewDataset
     seqDetails = new Hashtable();
     al = new ArrayList<AlignmentSet>();
     parentDataset = null;
-    featureColours = new Hashtable();
+    featureColours = new HashMap<String, FeatureColourI>();
   }
 
   /**
@@ -207,9 +210,10 @@ public class JalviewDataset
    * 
    * @param parentAlignment
    */
-  public JalviewDataset(AlignmentI aldataset, Hashtable fc,
-          Hashtable seqDets)
+  public JalviewDataset(AlignmentI aldataset,
+          Map<String, FeatureColourI> fc, Hashtable seqDets)
   {
+    // TODO not used - remove?
     this(aldataset, fc, seqDets, null);
   }
 
@@ -228,8 +232,9 @@ public class JalviewDataset
    *          (may be null) alignment to associate new annotation and trees
    *          with.
    */
-  public JalviewDataset(AlignmentI aldataset, Hashtable fc,
-          Hashtable seqDets, AlignmentI parentAlignment)
+  public JalviewDataset(AlignmentI aldataset,
+          Map<String, FeatureColourI> fc, Hashtable seqDets,
+          AlignmentI parentAlignment)
   {
     this();
     parentDataset = aldataset;

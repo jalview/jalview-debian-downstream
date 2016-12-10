@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,9 @@
  */
 package jalview.io;
 
-import jalview.api.AlignExportSettingI;
-import jalview.api.AlignmentViewPanel;
-import jalview.datamodel.AlignmentExportData;
 import jalview.exceptions.NoFileSelectedException;
+import jalview.gui.AlignmentPanel;
+import jalview.gui.OOMWarning;
 import jalview.json.binding.biojs.BioJSReleasePojo;
 import jalview.json.binding.biojs.BioJSRepositoryPojo;
 import jalview.util.MessageManager;
@@ -40,9 +39,8 @@ import java.net.URL;
 import java.util.Objects;
 import java.util.TreeMap;
 
-public class BioJsHTMLOutput
+public class BioJsHTMLOutput extends HTMLOutput
 {
-  private AlignmentViewPanel ap;
 
   private static File currentBJSTemplateFile;
 
@@ -59,161 +57,41 @@ public class BioJsHTMLOutput
                   "biojs_template_git_repo",
                   "https://raw.githubusercontent.com/jalview/exporter-templates/master/biojs/package.json");
 
-  public BioJsHTMLOutput(AlignmentViewPanel ap)
+  public BioJsHTMLOutput(AlignmentPanel ap)
   {
-    if (ap != null)
-    {
-      this.ap = ap;
-    }
+    super(ap);
   }
 
-  public void exportJalviewAlignmentAsBioJsHtmlFile()
+  @Override
+  public void exportHTML(String outputFile)
   {
+    exportStarted();
     try
     {
-      String outputFile = getOutputFile();
-      // String jalviewAlignmentJson = JSONFile.getJSONData(ap);
-      AlignExportSettingI exportSettings = new AlignExportSettingI()
+      if (outputFile == null)
       {
-        @Override
-        public boolean isExportHiddenSequences()
-        {
-          return true;
-        }
-
-        @Override
-        public boolean isExportHiddenColumns()
-        {
-          return true;
-        }
-
-        @Override
-        public boolean isExportAnnotations()
-        {
-          return true;
-        }
-
-        @Override
-        public boolean isExportFeatures()
-        {
-          return true;
-        }
-
-        @Override
-        public boolean isExportGroups()
-        {
-          return true;
-        }
-
-        @Override
-        public boolean isCancelled()
-        {
-          return false;
-        }
-
-      };
-      AlignmentExportData exportData = jalview.gui.AlignFrame
-              .getAlignmentForExport(JSONFile.FILE_DESC,
-                      ap.getAlignViewport(), exportSettings);
-      if (exportData.getSettings().isCancelled())
-      {
-        return;
+        outputFile = getOutputFile();
       }
-      String jalviewAlignmentJson = new FormatAdapter(ap,
-              exportData.getSettings()).formatSequences(JSONFile.FILE_DESC,
-              exportData.getAlignment(), exportData.getOmitHidden(),
-              exportData.getStartEndPostions(), ap.getAlignViewport()
-                      .getColumnSelection());
-
-      String bioJSTemplateString = getBioJsTemplateAsString();
-      String generatedBioJsWithJalviewAlignmentAsJson = bioJSTemplateString
-              .replaceAll("#sequenceData#", jalviewAlignmentJson)
-              .toString();
-
-      PrintWriter out = new java.io.PrintWriter(new java.io.FileWriter(
-              outputFile));
-      out.print(generatedBioJsWithJalviewAlignmentAsJson);
-      out.flush();
-      out.close();
-      jalview.util.BrowserLauncher.openURL("file:///" + outputFile);
-    } catch (NoFileSelectedException ex)
+      generatedFile = new File(outputFile);
+    } catch (NoFileSelectedException e)
     {
-      // do noting if no file was selected
+      setProgressMessage(MessageManager.formatMessage(
+              "status.cancelled_image_export_operation", "BioJS MSA"));
+      return;
     } catch (Exception e)
     {
+      setProgressMessage(MessageManager.formatMessage(
+              "info.error_creating_file", "BioJS MSA"));
       e.printStackTrace();
+      return;
     }
+    new Thread(this).start();
+
   }
 
-  public String getOutputFile() throws NoFileSelectedException
-  {
-    String selectedFile = null;
-    JalviewFileChooser jvFileChooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "html" }, new String[] { "HTML files" },
-            "HTML files");
-    jvFileChooser.setFileView(new JalviewFileView());
 
-    jvFileChooser.setDialogTitle(MessageManager
-            .getString("label.save_as_biojs_html"));
-    jvFileChooser.setToolTipText(MessageManager.getString("action.save"));
 
-    int fileChooserOpt = jvFileChooser.showSaveDialog(null);
-    if (fileChooserOpt == JalviewFileChooser.APPROVE_OPTION)
-    {
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", jvFileChooser
-              .getSelectedFile().getParent());
-      selectedFile = jvFileChooser.getSelectedFile().getPath();
-    }
-    else
-    {
-      throw new NoFileSelectedException("No file was selected.");
-    }
-    return selectedFile;
-  }
-
-  public static String getBioJsTemplateAsString() throws IOException
-  {
-    InputStreamReader isReader = null;
-    BufferedReader buffReader = null;
-    StringBuilder sb = new StringBuilder();
-    Objects.requireNonNull(getCurrentBJSTemplateFile(),
-            "BioJsTemplate File not initialized!");
-    @SuppressWarnings("deprecation")
-    URL url = getCurrentBJSTemplateFile().toURL();
-    if (url != null)
-    {
-      try
-      {
-        isReader = new InputStreamReader(url.openStream());
-        buffReader = new BufferedReader(isReader);
-        String line;
-        String lineSeparator = System.getProperty("line.separator");
-        while ((line = buffReader.readLine()) != null)
-        {
-          sb.append(line).append(lineSeparator);
-        }
-
-      } catch (Exception ex)
-      {
-        ex.printStackTrace();
-      } finally
-      {
-        if (isReader != null)
-        {
-          isReader.close();
-        }
-
-        if (buffReader != null)
-        {
-          buffReader.close();
-        }
-      }
-    }
-    return sb.toString();
-  }
-
-  public static void refreshBioJSVersionsInfo(String dirName)
+  public static void refreshVersionInfo(String dirName)
           throws URISyntaxException
   {
     File directory = new File(BJS_TEMPLATES_LOCAL_DIRECTORY);
@@ -250,6 +128,7 @@ public class BioJsHTMLOutput
   {
     Thread updateThread = new Thread()
     {
+      @Override
       public void run()
       {
         try
@@ -260,7 +139,7 @@ public class BioJsHTMLOutput
             BioJSRepositoryPojo release = new BioJSRepositoryPojo(
                     gitRepoPkgJson);
             syncUpdates(BJS_TEMPLATES_LOCAL_DIRECTORY, release);
-            refreshBioJSVersionsInfo(BJS_TEMPLATES_LOCAL_DIRECTORY);
+            refreshVersionInfo(BJS_TEMPLATES_LOCAL_DIRECTORY);
           }
         } catch (URISyntaxException e)
         {
@@ -379,6 +258,58 @@ public class BioJsHTMLOutput
           TreeMap<String, File> bioJsMSAVersions)
   {
     BioJsHTMLOutput.bioJsMSAVersions = bioJsMSAVersions;
+  }
+
+  @Override
+  public boolean isEmbedData()
+  {
+    return true;
+  }
+
+  @Override
+  public boolean isLaunchInBrowserAfterExport()
+  {
+    return true;
+  }
+
+  @Override
+  public File getExportedFile()
+  {
+    return generatedFile;
+  }
+
+  @Override
+  public void run()
+  {
+    try
+    {
+      String bioJSON = getBioJSONData();
+      String bioJSTemplateString = HTMLOutput
+              .readFileAsString(getCurrentBJSTemplateFile());
+      String generatedBioJsWithJalviewAlignmentAsJson = bioJSTemplateString
+              .replaceAll("#sequenceData#", bioJSON).toString();
+
+      PrintWriter out = new java.io.PrintWriter(new java.io.FileWriter(
+              generatedFile));
+      out.print(generatedBioJsWithJalviewAlignmentAsJson);
+      out.flush();
+      out.close();
+      setProgressMessage(MessageManager.formatMessage(
+              "status.export_complete", "BioJS"));
+      exportCompleted();
+
+    } catch (OutOfMemoryError err)
+    {
+      System.out.println("########################\n" + "OUT OF MEMORY "
+              + generatedFile + "\n" + "########################");
+      new OOMWarning("Creating Image for " + generatedFile, err);
+    } catch (Exception e)
+    {
+      setProgressMessage(MessageManager.formatMessage(
+              "info.error_creating_file", "HTML"));
+      e.printStackTrace();
+    }
+
   }
 
 }

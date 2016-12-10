@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,8 @@
  * @author Cay Horstmann
  */
 package jalview.util;
+
+import java.util.Arrays;
 
 /**
  * DOCUMENT ME!
@@ -664,30 +666,22 @@ public class Format
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns a string consisting of n repeats of character c
    * 
    * @param c
-   *          DOCUMENT ME!
    * @param n
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  private static String repeat(char c, int n)
+  static String repeat(char c, int n)
   {
     if (n <= 0)
     {
       return "";
     }
-
-    StringBuffer s = new StringBuffer(n);
-
-    for (int i = 0; i < n; i++)
-    {
-      s.append(c);
-    }
-
-    return s.toString();
+    char[] chars = new char[n];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   /**
@@ -946,5 +940,50 @@ public class Format
   public String toString()
   {
     return formatString;
+  }
+
+  /**
+   * Bespoke method to format percentage float value to the specified number of
+   * decimal places. Avoids use of general-purpose format parsers as a
+   * processing hotspot.
+   * 
+   * @param sb
+   * @param value
+   * @param dp
+   */
+  public static void appendPercentage(StringBuilder sb, float value, int dp)
+  {
+    /*
+     * rounding first
+     */
+    double d = value;
+    long factor = 1L;
+    for (int i = 0; i < dp; i++)
+    {
+      factor *= 10;
+    }
+    d *= factor;
+    d += 0.5;
+
+    /*
+     * integer part
+     */
+    value = (float) (d / factor);
+    sb.append((long) value);
+
+    /*
+     * decimal places
+     */
+    if (dp > 0)
+    {
+      sb.append(".");
+      while (dp > 0)
+      {
+        value = value - (int) value;
+        value *= 10;
+        sb.append((int) value);
+        dp--;
+      }
+    }
   }
 }

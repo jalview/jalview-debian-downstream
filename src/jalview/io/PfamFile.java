@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,9 +26,8 @@ import jalview.util.Format;
 import jalview.util.MessageManager;
 
 import java.io.IOException;
-import java.util.Hashtable;
-import java.util.StringTokenizer;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class PfamFile extends AlignFile
 {
@@ -47,56 +46,69 @@ public class PfamFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
   }
 
+  @Override
   public void parse() throws IOException
   {
     int i = 0;
     String line;
 
-    Hashtable seqhash = new Hashtable();
-    Vector headers = new Vector();
-
+    HashMap<String, StringBuffer> seqhash = new HashMap<String, StringBuffer>();
+    ArrayList<String> headers = new ArrayList<String>();
+    boolean useTabs = false;
+    int spces;
     while ((line = nextLine()) != null)
     {
-      if (line.indexOf(" ") != 0)
+      if (line.indexOf("#") == 0)
       {
-        if (line.indexOf("#") != 0)
+        // skip comment lines
+        continue;
+      }
+      // locate first space or (if already checked), tab
+      if (useTabs)
+      {
+        spces = line.indexOf("\t");
+      }
+      else
+      {
+        spces = line.indexOf(" ");
+        // check to see if we ought to split on tabs instead.
+        if (!useTabs && spces == -1)
         {
-          // TODO: verify pfam format requires spaces and not tab characters -
-          // if not upgrade to use stevesoft regex and look for whitespace.
-          StringTokenizer str = new StringTokenizer(line, " ");
-          String id = "";
-
-          if (str.hasMoreTokens())
-          {
-            id = str.nextToken();
-
-            StringBuffer tempseq;
-
-            if (seqhash.containsKey(id))
-            {
-              tempseq = (StringBuffer) seqhash.get(id);
-            }
-            else
-            {
-              tempseq = new StringBuffer();
-              seqhash.put(id, tempseq);
-            }
-
-            if (!(headers.contains(id)))
-            {
-              headers.addElement(id);
-            }
-            if (str.hasMoreTokens())
-            {
-              tempseq.append(str.nextToken());
-            }
-          }
+          useTabs = true;
+          spces = line.indexOf("\t");
         }
+      }
+      if (spces <= 0)
+      {
+        // no sequence data to split on
+        continue;
+      }
+      String id = line.substring(0, spces);
+      StringBuffer tempseq;
+
+      if (seqhash.containsKey(id))
+      {
+        tempseq = seqhash.get(id);
+      }
+      else
+      {
+        tempseq = new StringBuffer();
+        seqhash.put(id, tempseq);
+      }
+
+      if (!(headers.contains(id)))
+      {
+        headers.add(id);
+      }
+      if (spces + 1 < line.length())
+      {
+        tempseq.append(line.substring(spces + 1).trim());
       }
     }
 
@@ -110,23 +122,22 @@ public class PfamFile extends AlignFile
 
     for (i = 0; i < headers.size(); i++)
     {
-      if (seqhash.get(headers.elementAt(i)) != null)
+      if (seqhash.get(headers.get(i)) != null)
       {
-        if (maxLength < seqhash.get(headers.elementAt(i)).toString()
-                .length())
+        if (maxLength < seqhash.get(headers.get(i)).toString().length())
         {
-          maxLength = seqhash.get(headers.elementAt(i)).toString().length();
+          maxLength = seqhash.get(headers.get(i)).toString().length();
         }
 
-        Sequence newSeq = parseId(headers.elementAt(i).toString());
-        newSeq.setSequence(seqhash.get(headers.elementAt(i).toString())
+        Sequence newSeq = parseId(headers.get(i).toString());
+        newSeq.setSequence(seqhash.get(headers.get(i).toString())
                 .toString());
         seqs.addElement(newSeq);
       }
       else
       {
         System.err.println("PFAM File reader: Can't find sequence for "
-                + headers.elementAt(i));
+                + headers.get(i));
       }
     }
   }
@@ -178,6 +189,7 @@ public class PfamFile extends AlignFile
     return out.toString();
   }
 
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());

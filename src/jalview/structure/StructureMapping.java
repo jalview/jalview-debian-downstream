@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,8 @@ package jalview.structure;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.SequenceI;
 
+import java.util.HashMap;
+
 public class StructureMapping
 {
   String mappingDetails;
@@ -35,11 +37,19 @@ public class StructureMapping
 
   String pdbchain;
 
-  // Mapping index 0 is resNum, index 1 is atomNo
-  int[][] mapping;
+  public static final int UNASSIGNED_VALUE = -1;
+
+  private static final int PDB_RES_NUM_INDEX = 0;
+
+  private static final int PDB_ATOM_NUM_INDEX = 1;
+
+  // Mapping key is residue index while value is an array containing PDB resNum,
+  // and atomNo
+  HashMap<Integer, int[]> mapping;
 
   public StructureMapping(SequenceI seq, String pdbfile, String pdbid,
-          String chain, int[][] mapping, String mappingDetails)
+          String chain, HashMap<Integer, int[]> mapping,
+          String mappingDetails)
   {
     sequence = seq;
     this.pdbfile = pdbfile;
@@ -71,13 +81,14 @@ public class StructureMapping
    */
   public int getAtomNum(int seqpos)
   {
-    if (mapping.length > seqpos)
+    int[] resNumAtomMap = mapping.get(seqpos);
+    if (resNumAtomMap != null)
     {
-      return mapping[seqpos][1];
+      return resNumAtomMap[PDB_ATOM_NUM_INDEX];
     }
     else
     {
-      return 0;
+      return UNASSIGNED_VALUE;
     }
   }
 
@@ -88,13 +99,14 @@ public class StructureMapping
    */
   public int getPDBResNum(int seqpos)
   {
-    if (mapping.length > seqpos)
+    int[] resNumAtomMap = mapping.get(seqpos);
+    if (resNumAtomMap != null)
     {
-      return mapping[seqpos][0];
+      return resNumAtomMap[PDB_RES_NUM_INDEX];
     }
     else
     {
-      return 0;
+      return UNASSIGNED_VALUE;
     }
   }
 
@@ -105,14 +117,14 @@ public class StructureMapping
    */
   public int getSeqPos(int pdbResNum)
   {
-    for (int i = 0; i < mapping.length; i++)
+    for (Integer seqPos : mapping.keySet())
     {
-      if (mapping[i][0] == pdbResNum)
+      if (pdbResNum == getPDBResNum(seqPos))
       {
-        return i;
+        return seqPos;
       }
     }
-    return -1;
+    return UNASSIGNED_VALUE;
   }
 
   /**
@@ -146,5 +158,15 @@ public class StructureMapping
       sequence.addAlignmentAnnotation(ala_copy);
     }
     return ala_copy;
+  }
+
+  public String getMappingDetailsOutput()
+  {
+    return mappingDetails;
+  }
+
+  public HashMap<Integer, int[]> getMapping()
+  {
+    return mapping;
   }
 }

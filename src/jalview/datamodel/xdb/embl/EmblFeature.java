@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,7 +37,7 @@ public class EmblFeature
 
   Vector<Qualifier> qualifiers;
 
-  Vector<EmblFeatureLocations> locations;
+  String location;
 
   /**
    * @return the dbRefs
@@ -57,20 +57,19 @@ public class EmblFeature
   }
 
   /**
-   * @return the locations
+   * @return the location
    */
-  public Vector<EmblFeatureLocations> getLocations()
+  public String getLocation()
   {
-    return locations;
+    return location;
   }
 
   /**
-   * @param locations
-   *          the locations to set
+   * @param loc
    */
-  public void setLocations(Vector<EmblFeatureLocations> locations)
+  public void setLocation(String loc)
   {
-    this.locations = locations;
+    this.location = loc;
   }
 
   /**

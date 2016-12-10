@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,9 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.datamodel.xdb.embl;
+
+import jalview.datamodel.DBRefEntry;
+import jalview.ws.dbsources.Uniprot;
 
 import java.io.File;
 import java.io.FileReader;
@@ -42,6 +45,8 @@ public class EmblFile
   Vector<EmblEntry> entries;
 
   Vector<EmblError> errors;
+
+  String text;
 
   /**
    * @return the entries
@@ -129,6 +134,8 @@ public class EmblFile
       unmar.setMapping(map);
       unmar.setLogWriter(new PrintWriter(System.out));
       record = (EmblFile) unmar.unmarshal(file);
+
+      canonicaliseDbRefs(record);
     } catch (Exception e)
     {
       e.printStackTrace(System.err);
@@ -136,5 +143,60 @@ public class EmblFile
     }
 
     return record;
+  }
+
+  /**
+   * Change blank version to "0" in any DBRefEntry, to ensure consistent
+   * comparison with other DBRefEntry in Jalview
+   * 
+   * @param record
+   * @see Uniprot#getDbVersion
+   */
+  static void canonicaliseDbRefs(EmblFile record)
+  {
+    if (record.getEntries() == null)
+    {
+      return;
+    }
+    for (EmblEntry entry : record.getEntries())
+    {
+      if (entry.getDbRefs() != null)
+      {
+        for (DBRefEntry dbref : entry.getDbRefs())
+        {
+          if ("".equals(dbref.getVersion()))
+          {
+            dbref.setVersion("0");
+          }
+        }
+      }
+
+      if (entry.getFeatures() != null)
+      {
+        for (EmblFeature feature : entry.getFeatures())
+        {
+          if (feature.getDbRefs() != null)
+          {
+            for (DBRefEntry dbref : feature.getDbRefs())
+            {
+              if ("".equals(dbref.getVersion()))
+              {
+                dbref.setVersion("0");
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  public String getText()
+  {
+    return text;
+  }
+
+  public void setText(String text)
+  {
+    this.text = text;
   }
 }

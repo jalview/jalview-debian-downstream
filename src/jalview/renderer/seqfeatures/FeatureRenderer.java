@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,10 @@
  */
 package jalview.renderer.seqfeatures;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.viewmodel.seqfeatures.FeatureRendererModel;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -30,8 +32,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-public class FeatureRenderer extends
-        jalview.viewmodel.seqfeatures.FeatureRendererModel
+public class FeatureRenderer extends FeatureRendererModel
 {
 
   FontMetrics fm;
@@ -49,6 +50,18 @@ public class FeatureRenderer extends
   int av_charHeight, av_charWidth;
 
   boolean av_validCharWidth, av_isShowSeqFeatureHeight;
+
+  private Integer currentColour;
+
+  /**
+   * Constructor given a viewport
+   * 
+   * @param viewport
+   */
+  public FeatureRenderer(AlignViewportI viewport)
+  {
+    this.av = viewport;
+  }
 
   protected void updateAvConfig()
   {
@@ -168,21 +181,27 @@ public class FeatureRenderer extends
 
   BufferedImage offscreenImage;
 
+  @Override
   public Color findFeatureColour(Color initialCol, SequenceI seq, int res)
   {
     return new Color(findFeatureColour(initialCol.getRGB(), seq, res));
   }
 
   /**
-   * This is used by the Molecule Viewer and Overview to get the accurate
-   * colourof the rendered sequence
+   * This is used by Structure Viewers and the Overview Window to get the
+   * feature colour of the rendered sequence, returned as an RGB value
+   * 
+   * @param defaultColour
+   * @param seq
+   * @param column
+   * @return
    */
-  public synchronized int findFeatureColour(int initialCol,
+  public synchronized int findFeatureColour(int defaultColour,
           final SequenceI seq, int column)
   {
     if (!av.isShowSequenceFeatures())
     {
-      return initialCol;
+      return defaultColour;
     }
 
     SequenceFeature[] sequenceFeatures = seq.getSequenceFeatures();
@@ -209,7 +228,7 @@ public class FeatureRenderer extends
 
     if (lastSequenceFeatures == null || sfSize == 0)
     {
-      return initialCol;
+      return defaultColour;
     }
 
     if (jalview.util.Comparison.isGap(lastSeq.getCharAt(column)))
@@ -230,7 +249,7 @@ public class FeatureRenderer extends
 
     if (offscreenImage != null)
     {
-      offscreenImage.setRGB(0, 0, initialCol);
+      offscreenImage.setRGB(0, 0, defaultColour);
       drawSequence(offscreenImage.getGraphics(), lastSeq, column, column, 0);
 
       return offscreenImage.getRGB(0, 0);
@@ -241,11 +260,11 @@ public class FeatureRenderer extends
 
       if (currentColour == null)
       {
-        return initialCol;
+        return defaultColour;
       }
       else
       {
-        return ((Integer) currentColour).intValue();
+        return currentColour.intValue();
       }
     }
 
@@ -261,6 +280,19 @@ public class FeatureRenderer extends
 
   int epos;
 
+  /**
+   * Draws the sequence on the graphics context, or just determines the colour
+   * that would be drawn (if flag offscreenrender is true).
+   * 
+   * @param g
+   * @param seq
+   * @param start
+   *          start column (or sequence position in offscreenrender mode)
+   * @param end
+   *          end column (not used in offscreenrender mode)
+   * @param y1
+   *          vertical offset at which to draw on the graphics
+   */
   public synchronized void drawSequence(Graphics g, final SequenceI seq,
           int start, int end, int y1)
   {
@@ -298,12 +330,10 @@ public class FeatureRenderer extends
     }
 
     sfSize = lastSequenceFeatures.length;
-    String type;
     for (int renderIndex = 0; renderIndex < renderOrder.length; renderIndex++)
     {
-      type = renderOrder[renderIndex];
-
-      if (type == null || !showFeatureOfType(type))
+      String type = renderOrder[renderIndex];
+      if (!showFeatureOfType(type))
       {
         continue;
       }
@@ -318,16 +348,16 @@ public class FeatureRenderer extends
           continue;
         }
 
-        if (featureGroups != null
-                && sequenceFeature.featureGroup != null
-                && sequenceFeature.featureGroup.length() != 0
-                && featureGroups.containsKey(sequenceFeature.featureGroup)
-                && !featureGroups.get(sequenceFeature.featureGroup)
-                        .booleanValue())
+        if (featureGroupNotShown(sequenceFeature))
         {
           continue;
         }
 
+        /*
+         * check feature overlaps the visible part of the alignment, 
+         * unless doing offscreenRender (to the Overview window or a 
+         * structure viewer) which is not limited 
+         */
         if (!offscreenRender
                 && (sequenceFeature.getBegin() > epos || sequenceFeature
                         .getEnd() < spos))
@@ -335,35 +365,43 @@ public class FeatureRenderer extends
           continue;
         }
 
+        Color featureColour = getColour(sequenceFeature);
+        boolean isContactFeature = sequenceFeature.isContactFeature();
+
         if (offscreenRender && offscreenImage == null)
         {
-          if (sequenceFeature.begin <= start
-                  && sequenceFeature.end >= start)
+          /*
+           * offscreen mode with no image (image is only needed if transparency 
+           * is applied to feature colours) - just check feature is rendered at 
+           * the requested position (start == sequence position in this mode)
+           */
+          boolean featureIsAtPosition = sequenceFeature.begin <= start
+                  && sequenceFeature.end >= start;
+          if (isContactFeature)
+          {
+            featureIsAtPosition = sequenceFeature.begin == start
+                    || sequenceFeature.end == start;
+          }
+          if (featureIsAtPosition)
           {
             // this is passed out to the overview and other sequence renderers
             // (e.g. molecule viewer) to get displayed colour for rendered
             // sequence
-            currentColour = new Integer(getColour(sequenceFeature).getRGB());
+            currentColour = new Integer(featureColour.getRGB());
             // used to be retreived from av.featuresDisplayed
             // currentColour = av.featuresDisplayed
             // .get(sequenceFeatures[sfindex].type);
 
           }
         }
-        else if (sequenceFeature.type.equals("disulfide bond"))
+        else if (isContactFeature)
         {
           renderFeature(g, seq, seq.findIndex(sequenceFeature.begin) - 1,
-                  seq.findIndex(sequenceFeature.begin) - 1,
-                  getColour(sequenceFeature)
-                  // new Color(((Integer) av.featuresDisplayed
-                  // .get(sequenceFeatures[sfindex].type)).intValue())
-                  , start, end, y1);
+                  seq.findIndex(sequenceFeature.begin) - 1, featureColour,
+                  start, end, y1);
           renderFeature(g, seq, seq.findIndex(sequenceFeature.end) - 1,
-                  seq.findIndex(sequenceFeature.end) - 1,
-                  getColour(sequenceFeature)
-                  // new Color(((Integer) av.featuresDisplayed
-                  // .get(sequenceFeatures[sfindex].type)).intValue())
-                  , start, end, y1);
+                  seq.findIndex(sequenceFeature.end) - 1, featureColour,
+                  start, end, y1);
 
         }
         else if (showFeature(sequenceFeature))
@@ -374,22 +412,20 @@ public class FeatureRenderer extends
             renderScoreFeature(g, seq,
                     seq.findIndex(sequenceFeature.begin) - 1,
                     seq.findIndex(sequenceFeature.end) - 1,
-                    getColour(sequenceFeature), start, end, y1,
+                    featureColour, start, end, y1,
                     normaliseScore(sequenceFeature));
           }
           else
           {
             renderFeature(g, seq, seq.findIndex(sequenceFeature.begin) - 1,
                     seq.findIndex(sequenceFeature.end) - 1,
-                    getColour(sequenceFeature), start, end, y1);
+                    featureColour, start, end, y1);
           }
         }
-
       }
-
     }
 
-    if (transparency != 1.0f && g != null && transparencyAvailable)
+    if (transparency != 1.0f && g != null)
     {
       Graphics2D g2 = (Graphics2D) g;
       g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
@@ -397,17 +433,22 @@ public class FeatureRenderer extends
     }
   }
 
-  boolean transparencyAvailable = true;
-
-  protected void setTransparencyAvailable(boolean isTransparencyAvailable)
+  /**
+   * Answers true if the feature belongs to a feature group which is not
+   * currently displayed, else false
+   * 
+   * @param sequenceFeature
+   * @return
+   */
+  protected boolean featureGroupNotShown(
+          final SequenceFeature sequenceFeature)
   {
-    transparencyAvailable = isTransparencyAvailable;
-  }
-
-  @Override
-  public boolean isTransparencyAvailable()
-  {
-    return transparencyAvailable;
+    return featureGroups != null
+            && sequenceFeature.featureGroup != null
+            && sequenceFeature.featureGroup.length() != 0
+            && featureGroups.containsKey(sequenceFeature.featureGroup)
+            && !featureGroups.get(sequenceFeature.featureGroup)
+                    .booleanValue();
   }
 
   /**
@@ -415,6 +456,7 @@ public class FeatureRenderer extends
    * discover and display.
    * 
    */
+  @Override
   public void featuresAdded()
   {
     lastSeq = null;

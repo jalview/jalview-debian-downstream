@@ -72,6 +72,7 @@ public class JalviewUserColoursDescriptor extends
     desc.setImmutable(true);
     handler = new org.exolab.castor.xml.XMLFieldHandler()
     {
+      @Override
       public java.lang.Object getValue(java.lang.Object object)
               throws IllegalStateException
       {
@@ -79,6 +80,7 @@ public class JalviewUserColoursDescriptor extends
         return target.getSchemeName();
       }
 
+      @Override
       public void setValue(java.lang.Object object, java.lang.Object value)
               throws IllegalStateException, IllegalArgumentException
       {
@@ -92,6 +94,7 @@ public class JalviewUserColoursDescriptor extends
         }
       }
 
+      @Override
       public java.lang.Object newInstance(java.lang.Object parent)
       {
         return null;
@@ -119,6 +122,7 @@ public class JalviewUserColoursDescriptor extends
     desc.setImmutable(true);
     handler = new org.exolab.castor.xml.XMLFieldHandler()
     {
+      @Override
       public java.lang.Object getValue(java.lang.Object object)
               throws IllegalStateException
       {
@@ -126,6 +130,7 @@ public class JalviewUserColoursDescriptor extends
         return target.getVersion();
       }
 
+      @Override
       public void setValue(java.lang.Object object, java.lang.Object value)
               throws IllegalStateException, IllegalArgumentException
       {
@@ -139,6 +144,7 @@ public class JalviewUserColoursDescriptor extends
         }
       }
 
+      @Override
       public java.lang.Object newInstance(java.lang.Object parent)
       {
         return null;
@@ -163,6 +169,7 @@ public class JalviewUserColoursDescriptor extends
             org.exolab.castor.xml.NodeType.Element);
     handler = new org.exolab.castor.xml.XMLFieldHandler()
     {
+      @Override
       public java.lang.Object getValue(java.lang.Object object)
               throws IllegalStateException
       {
@@ -170,6 +177,7 @@ public class JalviewUserColoursDescriptor extends
         return target.getColour();
       }
 
+      @Override
       public void setValue(java.lang.Object object, java.lang.Object value)
               throws IllegalStateException, IllegalArgumentException
       {
@@ -183,6 +191,7 @@ public class JalviewUserColoursDescriptor extends
         }
       }
 
+      @Override
       public void resetValue(Object object) throws IllegalStateException,
               IllegalArgumentException
       {
@@ -196,6 +205,7 @@ public class JalviewUserColoursDescriptor extends
         }
       }
 
+      @Override
       public java.lang.Object newInstance(java.lang.Object parent)
       {
         return new Colour();
@@ -222,6 +232,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the access mode specified for this class.
    */
+  @Override
   public org.exolab.castor.mapping.AccessMode getAccessMode()
   {
     return null;
@@ -232,6 +243,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the identity field, null if this class has no identity.
    */
+  @Override
   public org.exolab.castor.mapping.FieldDescriptor getIdentity()
   {
     return super.getIdentity();
@@ -242,6 +254,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the Java class represented by this descriptor.
    */
+  @Override
   public java.lang.Class getJavaClass()
   {
     return jalview.schemabinding.version2.JalviewUserColours.class;
@@ -252,6 +265,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the namespace prefix to use when marshaling as XML.
    */
+  @Override
   public java.lang.String getNameSpacePrefix()
   {
     return _nsPrefix;
@@ -262,6 +276,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the namespace URI used when marshaling and unmarshaling as XML.
    */
+  @Override
   public java.lang.String getNameSpaceURI()
   {
     return _nsURI;
@@ -273,6 +288,7 @@ public class JalviewUserColoursDescriptor extends
    * @return a specific validator for the class described by this
    *         ClassDescriptor.
    */
+  @Override
   public org.exolab.castor.xml.TypeValidator getValidator()
   {
     return this;
@@ -283,6 +299,7 @@ public class JalviewUserColoursDescriptor extends
    * 
    * @return the XML Name for the Class being described.
    */
+  @Override
   public java.lang.String getXMLName()
   {
     return _xmlName;
@@ -294,6 +311,7 @@ public class JalviewUserColoursDescriptor extends
    * @return true if XML schema definition of this Class is that of a global
    *         element or element with anonymous type definition.
    */
+  @Override
   public boolean isElementDefinition()
   {
     return _elementDefinition;

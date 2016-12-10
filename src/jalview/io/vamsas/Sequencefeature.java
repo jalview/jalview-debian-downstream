@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,6 +27,7 @@ import jalview.io.VamsasAppDatastore;
 import jalview.util.UrlLink;
 
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.Vector;
 
 import uk.ac.vamsas.objects.core.DataSetAnnotations;
@@ -71,6 +72,7 @@ public class Sequencefeature extends Rangetype
     doJvUpdate();
   }
 
+  @Override
   public void addToDocument()
   {
     DataSetAnnotations dsa = (DataSetAnnotations) vobj;
@@ -89,6 +91,7 @@ public class Sequencefeature extends Rangetype
     dataset.addDataSetAnnotations(dsa);
   }
 
+  @Override
   public void addFromDocument()
   {
     DataSetAnnotations dsa = (DataSetAnnotations) vobj;
@@ -106,6 +109,7 @@ public class Sequencefeature extends Rangetype
     bindjvvobj(sf, dsa);
   }
 
+  @Override
   public void conflict()
   {
     log.warn("Untested sequencefeature conflict code");
@@ -118,6 +122,7 @@ public class Sequencefeature extends Rangetype
     addToDocument(); // and create a new feature in the document
   }
 
+  @Override
   public void updateToDoc()
   {
     DataSetAnnotations dsa = (DataSetAnnotations) vobj;
@@ -144,6 +149,7 @@ public class Sequencefeature extends Rangetype
 
   }
 
+  @Override
   public void updateFromDoc()
   {
     DataSetAnnotations dsa = (DataSetAnnotations) vobj;
@@ -229,11 +235,11 @@ public class Sequencefeature extends Rangetype
     }
     if (feature.otherDetails != null)
     {
-      Enumeration iter = feature.otherDetails.keys();
+      Iterator<String> iter = feature.otherDetails.keySet().iterator();
       Vector props = dsa.getPropertyAsReference();
-      while (iter.hasMoreElements())
+      while (iter.hasNext())
       {
-        String key = (String) iter.nextElement();
+        String key = iter.next();
         if (!key.equalsIgnoreCase("score")
                 && !key.equalsIgnoreCase("status"))
         {

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -249,6 +249,18 @@ public class Comparison
   }
 
   /**
+   * Overloaded method signature to test whether a single sequence is nucleotide
+   * (that is, more than 85% CGTA)
+   * 
+   * @param seq
+   * @return
+   */
+  public static final boolean isNucleotide(SequenceI seq)
+  {
+    return isNucleotide(new SequenceI[] { seq });
+  }
+
+  /**
    * Answers true if more than 85% of the sequence residues (ignoring gaps) are
    * A, G, C, T or U, else false. This is just a heuristic guess and may give a
    * wrong answer (as AGCT are also amino acid codes).
@@ -262,9 +274,35 @@ public class Comparison
     {
       return false;
     }
+    char[][] letters = new char[seqs.length][];
+    for (int i = 0; i < seqs.length; i++)
+    {
+      if (seqs[i] != null)
+      {
+        char[] sequence = seqs[i].getSequence();
+        if (sequence != null)
+        {
+          letters[i] = sequence;
+        }
+      }
+    }
+
+    return areNucleotide(letters);
+  }
+
+  /**
+   * Answers true if more than 85% of the sequence residues (ignoring gaps) are
+   * A, G, C, T or U, else false. This is just a heuristic guess and may give a
+   * wrong answer (as AGCT are also amino acid codes).
+   * 
+   * @param letters
+   * @return
+   */
+  static final boolean areNucleotide(char[][] letters)
+  {
     int ntCount = 0;
     int aaCount = 0;
-    for (SequenceI seq : seqs)
+    for (char[] seq : letters)
     {
       if (seq == null)
       {
@@ -272,18 +310,13 @@ public class Comparison
       }
       // TODO could possibly make an informed guess just from the first sequence
       // to save a lengthy calculation
-      for (char c : seq.getSequence())
+      for (char c : seq)
       {
-        if ('a' <= c && c <= 'z')
-        {
-          c -= TO_UPPER_CASE;
-        }
-
-        if (c == 'A' || c == 'G' || c == 'C' || c == 'T' || c == 'U')
+        if (isNucleotide(c))
         {
           ntCount++;
         }
-        else if (!Comparison.isGap(c))
+        else if (!isGap(c))
         {
           aaCount++;
         }
@@ -303,6 +336,59 @@ public class Comparison
       return false;
     }
 
+  }
+
+  /**
+   * Answers true if the character is one of aAcCgGtTuU
+   * 
+   * @param c
+   * @return
+   */
+  public static boolean isNucleotide(char c)
+  {
+    if ('a' <= c && c <= 'z')
+    {
+      c -= TO_UPPER_CASE;
+    }
+
+    switch (c)
+    {
+    case 'A':
+    case 'C':
+    case 'G':
+    case 'T':
+    case 'U':
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Answers true if every character in the string is one of aAcCgGtTuU, or
+   * (optionally) a gap character (dot, dash, space), else false
+   * 
+   * @param s
+   * @param allowGaps
+   * @return
+   */
+  public static boolean isNucleotideSequence(String s, boolean allowGaps)
+  {
+    if (s == null)
+    {
+      return false;
+    }
+    for (int i = 0; i < s.length(); i++)
+    {
+      char c = s.charAt(i);
+      if (!isNucleotide(c))
+      {
+        if (!allowGaps || !isGap(c))
+        {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   /**
@@ -328,5 +414,30 @@ public class Comparison
     final SequenceI[] oneDArray = flattened.toArray(new SequenceI[flattened
             .size()]);
     return isNucleotide(oneDArray);
+  }
+
+  /**
+   * Compares two residues either case sensitively or case insensitively
+   * depending on the caseSensitive flag
+   * 
+   * @param c1
+   *          first char
+   * @param c2
+   *          second char to compare with
+   * @param caseSensitive
+   *          if true comparison will be case sensitive otherwise its not
+   * @return
+   */
+  public static boolean isSameResidue(char c1, char c2,
+          boolean caseSensitive)
+  {
+    if (caseSensitive)
+    {
+      return (c1 == c2);
+    }
+    else
+    {
+      return Character.toUpperCase(c1) == Character.toUpperCase(c2);
+    }
   }
 }

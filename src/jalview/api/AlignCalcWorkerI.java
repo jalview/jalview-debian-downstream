@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,12 +22,39 @@ package jalview.api;
 
 import jalview.datamodel.AlignmentAnnotation;
 
+/**
+ * Interface describing a worker that calculates alignment annotation(s). The
+ * main (re-)calculation should be performed by the inherited run() method.
+ */
 public interface AlignCalcWorkerI extends Runnable
 {
+  /**
+   * Answers true if this worker updates the given annotation (regardless of its
+   * current state)
+   * 
+   * @param annot
+   * @return
+   */
+  boolean involves(AlignmentAnnotation annot);
 
-  public boolean involves(AlignmentAnnotation annot);
+  /**
+   * Updates the display of calculated annotation values (does not recalculate
+   * the values). This allows ßquick redraw of annotations when display settings
+   * are changed.
+   */
+  void updateAnnotation();
 
-  public void updateAnnotation();
+  /**
+   * Removes any annotation(s) managed by this worker from the alignment
+   */
+  void removeAnnotation();
 
-  void removeOurAnnotation();
+  /**
+   * Answers true if the worker should be deleted entirely when its annotation
+   * is deleted from the display, or false if it should continue to run. Some
+   * workers are required to run for their side-effects.
+   * 
+   * @return
+   */
+  boolean isDeletable();
 }

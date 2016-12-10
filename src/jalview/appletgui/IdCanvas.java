@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -138,11 +138,13 @@ public class IdCanvas extends Panel
     repaint();
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     if (getSize().height < 0 || getSize().width < 0)
@@ -378,7 +380,7 @@ public class IdCanvas extends Panel
     Font bold = new Font(av.getFont().getName(), Font.BOLD, av.getFont()
             .getSize());
 
-    if (av.isHiddenRepSequence(seq))
+    if (av.isReferenceSeq(seq) || av.isHiddenRepSequence(seq))
     {
       gg.setFont(bold);
       return true;

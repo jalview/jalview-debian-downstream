@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,39 +21,30 @@
 package jalview.commands;
 
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.util.ShiftList;
-
-import java.util.List;
 
 public class TrimRegionCommand extends EditCommand
 {
-  public static String TRIM_LEFT = "TrimLeft";
-
-  public static String TRIM_RIGHT = "TrimRight";
-
-  public ColumnSelection colSel = null;
-
-  int[] start;
-
-  ShiftList shiftList;
-
-  SequenceGroup selectionGroup;
-
-  List<int[]> deletedHiddenColumns;
-
   int columnsDeleted;
 
-  public TrimRegionCommand(String description, String command,
-          SequenceI[] seqs, int column, AlignmentI al,
-          ColumnSelection colSel, SequenceGroup selectedRegion)
+  /**
+   * Constructs and performs a trim alignment command
+   * 
+   * @param description
+   *          (to show in Undo/Redo menu)
+   * @param trimLeft
+   *          if true trim to left of column, else to right
+   * @param seqs
+   *          the sequences to trim
+   * @param column
+   *          the alignment column (base 0) from which to trim
+   * @param al
+   */
+  public TrimRegionCommand(String description, boolean trimLeft,
+          SequenceI[] seqs, int column, AlignmentI al)
   {
     this.description = description;
-    this.selectionGroup = selectedRegion;
-    this.colSel = colSel;
-    if (command.equalsIgnoreCase(TRIM_LEFT))
+    if (trimLeft)
     {
       if (column == 0)
       {
@@ -64,109 +55,23 @@ public class TrimRegionCommand extends EditCommand
 
       setEdit(new Edit(Action.CUT, seqs, 0, column, al));
     }
-    else if (command.equalsIgnoreCase(TRIM_RIGHT))
+    else
     {
       int width = al.getWidth() - column - 1;
-      if (width < 2)
+      if (width < 1)
       {
         return;
       }
 
-      columnsDeleted = width - 1;
+      columnsDeleted = width;
 
       setEdit(new Edit(Action.CUT, seqs, column + 1, width, al));
-    }
-
-    // We need to keep a record of the sequence start
-    // in order to restore the state after a redo
-    int i, isize = getEdit(0).seqs.length;
-    start = new int[isize];
-    for (i = 0; i < isize; i++)
-    {
-      start[i] = getEdit(0).seqs[i].getStart();
     }
 
     performEdit(0, null);
   }
 
-  void cut(Edit command)
-  {
-    int column, j, jSize = command.seqs.length;
-    for (j = 0; j < jSize; j++)
-    {
-      if (command.position == 0)
-      {
-        // This is a TRIM_LEFT command
-        column = command.seqs[j].findPosition(command.number);
-        command.seqs[j].setStart(column);
-      }
-      else
-      {
-        // This is a TRIM_RIGHT command
-        column = command.seqs[j].findPosition(command.position) - 1;
-        command.seqs[j].setEnd(column);
-      }
-    }
-
-    super.cut(command, null);
-
-    if (command.position == 0)
-    {
-      deletedHiddenColumns = colSel.compensateForEdit(0, command.number);
-      if (selectionGroup != null)
-      {
-        selectionGroup.adjustForRemoveLeft(command.number);
-      }
-    }
-    else
-    {
-      deletedHiddenColumns = colSel.compensateForEdit(command.position,
-              command.number);
-      if (selectionGroup != null)
-      {
-        selectionGroup.adjustForRemoveRight(command.position);
-      }
-    }
-  }
-
-  void paste(Edit command)
-  {
-    super.paste(command, null);
-    int column, j, jSize = command.seqs.length;
-    for (j = 0; j < jSize; j++)
-    {
-      if (command.position == 0)
-      {
-        command.seqs[j].setStart(start[j]);
-      }
-      else
-      {
-        column = command.seqs[j].findPosition(command.number
-                + command.position) - 1;
-        command.seqs[j].setEnd(column);
-      }
-    }
-
-    if (command.position == 0)
-    {
-      colSel.compensateForEdit(0, -command.number);
-      if (selectionGroup != null)
-      {
-        selectionGroup.adjustForRemoveLeft(-command.number);
-      }
-    }
-
-    if (deletedHiddenColumns != null)
-    {
-      int[] region;
-      for (int i = 0; i < deletedHiddenColumns.size(); i++)
-      {
-        region = deletedHiddenColumns.get(i);
-        colSel.hideColumns(region[0], region[1]);
-      }
-    }
-  }
-
+  @Override
   public int getSize()
   {
     return columnsDeleted;

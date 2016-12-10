@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -77,6 +77,7 @@ public class FastaFile extends AlignFile
    * @throws IOException
    *           DOCUMENT ME!
    */
+  @Override
   public void parse() throws IOException
   {
     StringBuffer sb = new StringBuffer();
@@ -173,8 +174,7 @@ public class FastaFile extends AlignFile
     addProperties(al);
     for (int i = 0; i < annotations.size(); i++)
     {
-      AlignmentAnnotation aa = (AlignmentAnnotation) annotations
-              .elementAt(i);
+      AlignmentAnnotation aa = annotations.elementAt(i);
       aa.setPadGaps(true, al.getGapCharacter());
       al.addAnnotation(aa);
     }
@@ -209,7 +209,8 @@ public class FastaFile extends AlignFile
 
       out.append(newline);
 
-      int nochunks = (s[i].getLength() / len) + 1;
+      int nochunks = (s[i].getLength() / len)
+              + (s[i].getLength() % len > 0 ? 1 : 0);
 
       for (int j = 0; j < nochunks; j++)
       {
@@ -238,6 +239,7 @@ public class FastaFile extends AlignFile
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,6 +33,8 @@ import javax.swing.plaf.basic.BasicInternalFrameUI;
 
 public class GSplitFrame extends JInternalFrame
 {
+  protected static final int DIVIDER_SIZE = 5;
+
   private static final long serialVersionUID = 1L;
 
   private GAlignFrame topFrame;
@@ -40,6 +42,12 @@ public class GSplitFrame extends JInternalFrame
   private GAlignFrame bottomFrame;
 
   private JSplitPane splitPane;
+
+  /*
+   * proportional position of split divider; saving this allows it to be
+   * restored after hiding one half and resizing
+   */
+  private double dividerRatio;
 
   /**
    * Constructor
@@ -65,12 +73,23 @@ public class GSplitFrame extends JInternalFrame
     splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topFrame,
             bottomFrame);
     splitPane.setVisible(true);
-    final double ratio = bottomFrame.getHeight() == 0 ? 0.5d : topFrame
-            .getHeight()
-            / (double) (topFrame.getHeight() + bottomFrame.getHeight());
-    splitPane.setDividerLocation(ratio);
-    splitPane.setResizeWeight(ratio);
-    splitPane.setDividerSize(5);
+
+    /*
+     * set divider split at 50:50, or restore saved split if loading from
+     * project
+     */
+    int topFrameHeight = topFrame.getHeight();
+    splitPane.setDividerSize(DIVIDER_SIZE);
+    if (topFrameHeight == 0)
+    {
+      setRelativeDividerLocation(0.5d); // as a proportion
+    }
+    else
+    {
+      int dividerPosition = topFrameHeight + DIVIDER_SIZE / 2;
+      splitPane.setDividerLocation(dividerPosition); // absolute position
+    }
+    splitPane.setResizeWeight(0.5d);
     add(splitPane);
   }
 
@@ -139,11 +158,25 @@ public class GSplitFrame extends JInternalFrame
   }
 
   /**
-   * Make the complement of the specified split component visible or hidden,
-   * adjusting the position of the split divide.
+   * Makes the complement of the specified split component visible or hidden,
+   * restoring or saving the position of the split divide.
    */
   public void setComplementVisible(Object alignFrame, boolean show)
   {
+    /*
+     * save divider ratio on hide, restore on show
+     */
+    if (show)
+    {
+      setRelativeDividerLocation(dividerRatio);
+    }
+    else
+    {
+      this.dividerRatio = splitPane.getDividerLocation()
+              / (double) (splitPane.getHeight() - splitPane
+                      .getDividerSize());
+    }
+
     if (alignFrame == this.topFrame)
     {
       this.bottomFrame.setVisible(show);
@@ -152,12 +185,40 @@ public class GSplitFrame extends JInternalFrame
     {
       this.topFrame.setVisible(show);
     }
-    if (show)
-    {
-      // SplitPane needs nudging to restore 50-50 split
-      // TODO save/restore other ratios
-      splitPane.setDividerLocation(0.5d);
-    }
+
     validate();
+  }
+
+  /**
+   * Set the divider location as a proportion (0 <= r <= 1) of the height <br>
+   * Warning: this overloads setDividerLocation(int), and getDividerLocation()
+   * returns the int (pixel count) value
+   * 
+   * @param r
+   */
+  public void setRelativeDividerLocation(double r)
+  {
+    this.dividerRatio = r;
+    splitPane.setDividerLocation(r);
+  }
+
+  /**
+   * Sets the divider location (in pixels from top)
+   * 
+   * @return
+   */
+  protected void setDividerLocation(int p)
+  {
+    splitPane.setDividerLocation(p);
+  }
+
+  /**
+   * Returns the divider location (in pixels from top)
+   * 
+   * @return
+   */
+  protected int getDividerLocation()
+  {
+    return splitPane.getDividerLocation();
   }
 }

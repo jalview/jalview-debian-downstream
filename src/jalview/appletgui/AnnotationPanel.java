@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,9 +22,13 @@ package jalview.appletgui;
 
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.SequenceI;
 import jalview.renderer.AnnotationRenderer;
 import jalview.renderer.AwtRenderPanelI;
+import jalview.schemes.ResidueProperties;
+import jalview.util.Comparison;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -98,7 +102,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
 
   public AnnotationPanel(AlignmentPanel ap)
   {
-    MAC = new jalview.util.Platform().isAMac();
+    new jalview.util.Platform();
+    MAC = Platform.isAMac();
     this.ap = ap;
     av = ap.av;
     setLayout(null);
@@ -150,7 +155,7 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
 
     String label = "";
     if (av.getColumnSelection() != null
-            && av.getColumnSelection().size() > 0
+            && !av.getColumnSelection().isEmpty()
             && anot[av.getColumnSelection().getMin()] != null)
     {
       label = anot[av.getColumnSelection().getMin()].displayCharacter;
@@ -158,9 +163,12 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
 
     if (evt.getActionCommand().equals(REMOVE))
     {
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        anot[av.getColumnSelection().columnAt(i)] = null;
+        if (av.getColumnSelection().isVisible(index))
+        {
+          anot[index] = null;
+        }
       }
     }
     else if (evt.getActionCommand().equals(LABEL))
@@ -177,10 +185,10 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
         aa[activeRow].hasText = true;
       }
 
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
+        // TODO: JAL-2001 - provide a fast method to list visible selected
+        // columns
         if (!av.getColumnSelection().isVisible(index))
         {
           continue;
@@ -201,10 +209,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
 
       Color col = udc.getColor();
 
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
         if (!av.getColumnSelection().isVisible(index))
         {
           continue;
@@ -238,7 +244,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
       else if (evt.getActionCommand().equals(STEM))
       {
         type = 'S';
-        symbol = "\u03C3";
+        int column = av.getColumnSelection().getSelectedRanges().get(0)[0];
+        symbol = aa[activeRow].getDefaultRnaHelixSymbol(column);
       }
 
       if (!aa[activeRow].hasIcons)
@@ -262,10 +269,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
         }
       }
 
-      for (int i = 0; i < av.getColumnSelection().size(); i++)
+      for (int index : av.getColumnSelection().getSelected())
       {
-        int index = av.getColumnSelection().columnAt(i);
-
         if (!av.getColumnSelection().isVisible(index))
         {
           continue;
@@ -345,7 +350,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
     if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK
             && activeRow != -1)
     {
-      if (av.getColumnSelection() == null)
+      if (av.getColumnSelection() == null
+              || av.getColumnSelection().isEmpty())
       {
         return;
       }
@@ -353,10 +359,8 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
       PopupMenu pop = new PopupMenu(
               MessageManager.getString("label.structure_type"));
       MenuItem item;
-      /*
-       * Just display the needed structure options
-       */
-      if (av.getAlignment().isNucleotide() == true)
+
+      if (av.getAlignment().isNucleotide())
       {
         item = new MenuItem(STEM);
         item.addActionListener(this);
@@ -458,21 +462,67 @@ public class AnnotationPanel extends Panel implements AwtRenderPanelI,
       }
     }
 
-    int res = evt.getX() / av.getCharWidth() + av.getStartRes();
+    int column = evt.getX() / av.getCharWidth() + av.getStartRes();
 
     if (av.hasHiddenColumns())
     {
-      res = av.getColumnSelection().adjustForHiddenColumns(res);
+      column = av.getColumnSelection().adjustForHiddenColumns(column);
     }
 
-    if (row > -1 && res < aa[row].annotations.length
-            && aa[row].annotations[res] != null)
+    if (row > -1 && column < aa[row].annotations.length
+            && aa[row].annotations[column] != null)
     {
-      StringBuffer text = new StringBuffer("Sequence position " + (res + 1));
-      if (aa[row].annotations[res].description != null)
+      StringBuilder text = new StringBuilder();
+      text.append(MessageManager.getString("label.column")).append(" ")
+              .append(column + 1);
+      String description = aa[row].annotations[column].description;
+      if (description != null && description.length() > 0)
       {
-        text.append("  " + aa[row].annotations[res].description);
+        text.append("  ").append(description);
       }
+
+      /*
+       * if the annotation is sequence-specific, show the sequence number
+       * in the alignment, and (if not a gap) the residue and position
+       */
+      SequenceI seqref = aa[row].sequenceRef;
+      if (seqref != null)
+      {
+        int seqIndex = av.getAlignment().findIndex(seqref);
+        if (seqIndex != -1)
+        {
+          text.append(", ")
+                  .append(MessageManager.getString("label.sequence"))
+                  .append(" ").append(seqIndex + 1);
+          char residue = seqref.getCharAt(column);
+          if (!Comparison.isGap(residue))
+          {
+            text.append(" ");
+            String name;
+            if (av.getAlignment().isNucleotide())
+            {
+              name = ResidueProperties.nucleotideName.get(String
+                      .valueOf(residue));
+              text.append(" Nucleotide: ").append(
+                      name != null ? name : residue);
+            }
+            else
+            {
+              name = 'X' == residue ? "X" : ('*' == residue ? "STOP"
+                      : ResidueProperties.aa2Triplet.get(String
+                              .valueOf(residue)));
+              text.append(" Residue: ").append(
+                      name != null ? name : residue);
+            }
+            int residuePos = seqref.findPosition(column);
+            text.append(" (").append(residuePos).append(")");
+            // int residuePos = seqref.findPosition(column);
+            // text.append(residue).append(" (")
+            // .append(residuePos).append(")");
+          }
+        }
+      }
+
       ap.alignFrame.statusBar.setText(text.toString());
     }
   }

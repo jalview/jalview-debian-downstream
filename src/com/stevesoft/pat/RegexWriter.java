@@ -8,6 +8,7 @@
 package com.stevesoft.pat;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.io.Writer;
 
 import com.stevesoft.pat.wrap.WriterWrap;
@@ -230,5 +231,52 @@ public class RegexWriter extends Writer
   public void setBufferSize(int i)
   {
     bufferSize = i;
+  }
+
+  static void test(String re, String inp, int n) throws Exception
+  {
+    StringWriter sw = new StringWriter();
+    Regex rex = Regex.perlCode(re);
+    String res1 = rex.replaceAll(inp);
+    RegexWriter rw = new RegexWriter(rex, sw);
+    for (int i = 0; i < inp.length(); i++)
+    {
+      rw.write(inp.charAt(i));
+    }
+    rw.close();
+    String res2 = sw.toString();
+    if (!res1.equals(res2))
+    {
+      System.out.println("nmax=" + n);
+      System.out.println("re=" + re);
+      System.out.println("inp=" + inp);
+      System.out.println("res1=" + res1);
+      System.out.println("res2=" + res2);
+      System.exit(255);
+    }
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    for (int n = 1; n <= 1; n++)
+    {
+      test("s/x/y/", "-----x123456789", n);
+      test("s/x/y/", "x123456789", n);
+      test("s/x/y/", "-----x", n);
+      test("s/x.*?x/y/", ".xx..x..x...x...x....x....x", n);
+      test("s/x.*x/[$&]/", "--x........x--xx", n);
+      test("s/x.*x/[$&]/", "--x........x------", n);
+      test("s/.$/a/m", "bb\nbbb\nbbbb\nbbbbb\nbbbbbb\nbbbbbbbbbbbb", n);
+      test("s/.$/a/", "123", n);
+      test("s/.$/a/", "bb\nbbb\nbbbb\nbbbbb\nbbbbbb\nbb", n);
+      test("s/^./a/", "bb\nbbb\nbbbb\nbbbbb\nbbbbbb\nbb", n);
+      test("s/$/a/", "bbb", n);
+      test("s/^/a/", "bbb", n);
+      test("s/^/a/", "", n);
+      test("s{.*}{N}", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", n);
+      test("s/.{0,7}/y/", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", n);
+      test("s/x/$&/", "xxx", n);
+    }
+    System.out.println("Success!!!");
   }
 }

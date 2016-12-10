@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,11 @@
  */
 package jalview.gui;
 
+import static jalview.util.UrlConstants.DB_ACCESSION;
+import static jalview.util.UrlConstants.EMBLEBI_STRING;
+import static jalview.util.UrlConstants.SEQUENCE_ID;
+import static jalview.util.UrlConstants.SRS_STRING;
+
 import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
 import jalview.bin.Cache;
 import jalview.gui.Help.HelpId;
@@ -30,6 +35,8 @@ import jalview.jbgui.GPreferences;
 import jalview.jbgui.GSequenceLink;
 import jalview.schemes.ColourSchemeProperty;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.ws.sifts.SiftsSettings;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -39,7 +46,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.io.File;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
@@ -95,7 +102,7 @@ public class Preferences extends GPreferences
    * Holds name and link separated with | character. Sequence ID must be
    * $SEQUENCE_ID$ or $SEQUENCE_ID=/.possible | chars ./=$
    */
-  public static Vector sequenceURLLinks;
+  public static Vector<String> sequenceURLLinks;
 
   /**
    * Holds name and link separated with | character. Sequence IDS and Sequences
@@ -105,14 +112,11 @@ public class Preferences extends GPreferences
    * (TODO: proper escape for using | to separate ids or sequences
    */
 
-  public static Vector groupURLLinks;
+  public static List<String> groupURLLinks;
   static
   {
-    String string = Cache
-            .getDefault(
-                    "SEQUENCE_LINKS",
-                    "EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$");
-    sequenceURLLinks = new Vector();
+    String string = Cache.getDefault("SEQUENCE_LINKS", EMBLEBI_STRING);
+    sequenceURLLinks = new Vector<String>();
 
     try
     {
@@ -122,7 +126,11 @@ public class Preferences extends GPreferences
         String name = st.nextToken();
         String url = st.nextToken();
         // check for '|' within a regex
-        int rxstart = url.indexOf("$SEQUENCE_ID$");
+        int rxstart = url.indexOf("$" + DB_ACCESSION + "$");
+        if (rxstart == -1)
+        {
+          rxstart = url.indexOf("$" + SEQUENCE_ID + "$");
+        }
         while (rxstart == -1 && url.indexOf("/=$") == -1)
         {
           url = url + "|" + st.nextToken();
@@ -135,14 +143,10 @@ public class Preferences extends GPreferences
     }
     {
       // upgrade old SRS link
-      int srsPos = sequenceURLLinks
-              .indexOf("SRS|http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-newId+(([uniprot-all:$SEQUENCE_ID$]))+-view+SwissEntry");
+      int srsPos = sequenceURLLinks.indexOf(SRS_STRING);
       if (srsPos > -1)
       {
-        sequenceURLLinks
-                .setElementAt(
-                        "EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$",
-                        srsPos);
+        sequenceURLLinks.setElementAt(EMBLEBI_STRING, srsPos);
       }
     }
 
@@ -151,16 +155,26 @@ public class Preferences extends GPreferences
      * .properties file as '|' separated strings
      */
 
-    groupURLLinks = new Vector();
+    groupURLLinks = new ArrayList<String>();
   }
 
-  Vector nameLinks, urlLinks;
+  Vector<String> nameLinks, urlLinks;
 
   JInternalFrame frame;
 
   DasSourceBrowser dasSource;
 
   private WsPreferences wsPrefs;
+
+  private OptionsParam promptEachTimeOpt = new OptionsParam(
+          MessageManager.getString("label.prompt_each_time"),
+          "Prompt each time");
+
+  private OptionsParam lineArtOpt = new OptionsParam(
+          MessageManager.getString("label.lineart"), "Lineart");
+
+  private OptionsParam textOpt = new OptionsParam(
+          MessageManager.getString("action.text"), "Text");
 
   /**
    * Creates a new Preferences object.
@@ -175,7 +189,8 @@ public class Preferences extends GPreferences
     wsPrefs = new WsPreferences();
     wsTab.add(wsPrefs, BorderLayout.CENTER);
     int width = 500, height = 450;
-    if (new jalview.util.Platform().isAMac())
+    new jalview.util.Platform();
+    if (Platform.isAMac())
     {
       width = 570;
       height = 480;
@@ -313,11 +328,23 @@ public class Preferences extends GPreferences
       }
     });
 
+    if (Cache.getDefault("MAP_WITH_SIFTS", false))
+    {
+      siftsMapping.setSelected(true);
+    }
+    else
+    {
+      nwMapping.setSelected(true);
+    }
+
+    SiftsSettings
+            .setMapWithSifts(Cache.getDefault("MAP_WITH_SIFTS", false));
+
     /*
      * Set Connections tab defaults
      */
-    nameLinks = new Vector();
-    urlLinks = new Vector();
+    nameLinks = new Vector<String>();
+    urlLinks = new Vector<String>();
     for (int i = 0; i < sequenceURLLinks.size(); i++)
     {
       String link = sequenceURLLinks.elementAt(i).toString();
@@ -344,12 +371,23 @@ public class Preferences extends GPreferences
     /*
      * Set Output tab defaults
      */
-    epsRendering
-            .addItem(MessageManager.getString("label.prompt_each_time"));
-    epsRendering.addItem(MessageManager.getString("label.lineart"));
-    epsRendering.addItem(MessageManager.getString("action.text"));
-    epsRendering.setSelectedItem(Cache.getDefault("EPS_RENDERING",
-            "Prompt each time"));
+    epsRendering.addItem(promptEachTimeOpt);
+    epsRendering.addItem(lineArtOpt);
+    epsRendering.addItem(textOpt);
+    String defaultEPS = Cache.getDefault("EPS_RENDERING",
+            "Prompt each time");
+    if (defaultEPS.equalsIgnoreCase("Text"))
+    {
+      epsRendering.setSelectedItem(textOpt);
+    }
+    else if (defaultEPS.equalsIgnoreCase("Lineart"))
+    {
+      epsRendering.setSelectedItem(lineArtOpt);
+    }
+    else
+    {
+      epsRendering.setSelectedItem(promptEachTimeOpt);
+    }
     autoIdWidth.setSelected(Cache.getDefault("FIGURE_AUTOIDWIDTH", false));
     userIdWidth.setEnabled(!autoIdWidth.isSelected());
     userIdWidthlabel.setEnabled(!autoIdWidth.isSelected());
@@ -384,6 +422,7 @@ public class Preferences extends GPreferences
    * 
    * @param e
    */
+  @Override
   public void ok_actionPerformed(ActionEvent e)
   {
     if (!validateSettings())
@@ -492,19 +531,15 @@ public class Preferences extends GPreferences
     Cache.applicationProperties.setProperty(STRUCTURE_DISPLAY, structViewer
             .getSelectedItem().toString());
     Cache.setOrRemove(CHIMERA_PATH, chimeraPath.getText());
+    Cache.applicationProperties.setProperty("MAP_WITH_SIFTS",
+            Boolean.toString(siftsMapping.isSelected()));
+    SiftsSettings.setMapWithSifts(siftsMapping.isSelected());
 
     /*
      * Save Output settings
      */
-    if (epsRendering.getSelectedItem().equals("Prompt each time"))
-    {
-      Cache.applicationProperties.remove("EPS_RENDERING");
-    }
-    else
-    {
-      Cache.applicationProperties.setProperty("EPS_RENDERING", epsRendering
-              .getSelectedItem().toString());
-    }
+    Cache.applicationProperties.setProperty("EPS_RENDERING",
+            ((OptionsParam) epsRendering.getSelectedItem()).getCode());
 
     /*
      * Save Connections settings
@@ -516,7 +551,7 @@ public class Preferences extends GPreferences
     if (nameLinks.size() > 0)
     {
       StringBuffer links = new StringBuffer();
-      sequenceURLLinks = new Vector();
+      sequenceURLLinks = new Vector<String>();
       for (int i = 0; i < nameLinks.size(); i++)
       {
         sequenceURLLinks.addElement(nameLinks.elementAt(i) + "|"
@@ -532,6 +567,7 @@ public class Preferences extends GPreferences
     else
     {
       Cache.applicationProperties.remove("SEQUENCE_LINKS");
+      sequenceURLLinks.clear();
     }
 
     Cache.applicationProperties.setProperty("USE_PROXY",
@@ -647,6 +683,7 @@ public class Preferences extends GPreferences
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void startupFileTextfield_mouseClicked()
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
@@ -676,6 +713,7 @@ public class Preferences extends GPreferences
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void cancel_actionPerformed(ActionEvent e)
   {
     try
@@ -694,6 +732,7 @@ public class Preferences extends GPreferences
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void annotations_actionPerformed(ActionEvent e)
   {
     conservation.setEnabled(annotations.isSelected());
@@ -707,6 +746,7 @@ public class Preferences extends GPreferences
             && (identity.isSelected() || showGroupConsensus.isSelected()));
   }
 
+  @Override
   public void newLink_actionPerformed(ActionEvent e)
   {
 
@@ -733,6 +773,7 @@ public class Preferences extends GPreferences
     }
   }
 
+  @Override
   public void editLink_actionPerformed(ActionEvent e)
   {
     GSequenceLink link = new GSequenceLink();
@@ -774,6 +815,7 @@ public class Preferences extends GPreferences
     }
   }
 
+  @Override
   public void deleteLink_actionPerformed(ActionEvent e)
   {
     int index = linkNameList.getSelectedIndex();
@@ -796,6 +838,7 @@ public class Preferences extends GPreferences
     linkURLList.setListData(urlLinks);
   }
 
+  @Override
   public void defaultBrowser_mouseClicked(MouseEvent e)
   {
     JFileChooser chooser = new JFileChooser(".");
@@ -818,13 +861,14 @@ public class Preferences extends GPreferences
    * jalview.jbgui.GPreferences#showunconserved_actionPerformed(java.awt.event
    * .ActionEvent)
    */
+  @Override
   protected void showunconserved_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
     super.showunconserved_actionPerformed(e);
   }
 
-  public static Collection getGroupURLLinks()
+  public static List<String> getGroupURLLinks()
   {
     return groupURLLinks;
   }
@@ -956,4 +1000,58 @@ public class Preferences extends GPreferences
     }
   }
 
+  public class OptionsParam
+  {
+    private String name;
+
+    private String code;
+
+    public OptionsParam(String name, String code)
+    {
+      this.name = name;
+      this.code = code;
+    }
+
+    public String getName()
+    {
+      return name;
+    }
+
+    public void setName(String name)
+    {
+      this.name = name;
+    }
+
+    public String getCode()
+    {
+      return code;
+    }
+
+    public void setCode(String code)
+    {
+      this.code = code;
+    }
+
+    @Override
+    public String toString()
+    {
+      return name;
+    }
+
+    @Override
+    public boolean equals(Object that)
+    {
+      if (!(that instanceof OptionsParam))
+      {
+        return false;
+      }
+      return this.code.equalsIgnoreCase(((OptionsParam) that).code);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return name.hashCode() + code.hashCode();
+    }
+  }
 }

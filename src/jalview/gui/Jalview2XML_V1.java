@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.gui;
 
+import jalview.analysis.Conservation;
 import jalview.binding.Annotation;
 import jalview.binding.AnnotationElement;
 import jalview.binding.Features;
@@ -37,21 +38,20 @@ import jalview.binding.Viewport;
 import jalview.datamodel.PDBEntry;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.ResidueProperties;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
 import jalview.util.jarInputStreamProvider;
 import jalview.viewmodel.seqfeatures.FeatureRendererSettings;
 
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.UnknownHostException;
 import java.util.Hashtable;
 import java.util.Vector;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
 import javax.swing.JOptionPane;
-
-import org.exolab.castor.xml.IDResolver;
 
 /**
  * DOCUMENT ME!
@@ -127,33 +127,29 @@ public class Jalview2XML_V1
           jarentry = jin.getNextJarEntry();
         }
 
-        class NoDescIDResolver implements IDResolver
-        {
-          public Object resolve(String idref)
-          {
-            System.out.println(idref + " used");
-            return null;
-          }
-        }
-
         if (jarentry != null)
         {
-          InputStreamReader in = new InputStreamReader(jin, "UTF-8");
-          JalviewModel object = new JalviewModel();
-
-          object = object.unmarshal(in);
-
-          af = LoadFromObject(object, file);
           entryCount++;
+          if (jarentry.getName().endsWith(".xml"))
+          {
+            Reader in = new InputStreamReader(jin, "UTF-8");
+            JalviewModel object = new JalviewModel();
+
+            object = object.unmarshal(in);
+
+            af = LoadFromObject(object, file);
+          }
         }
+        jin.close();
       } while (jarentry != null);
-    } catch (final java.net.UnknownHostException ex)
+    } catch (final UnknownHostException ex)
     {
       ex.printStackTrace();
       if (raiseGUI)
       {
         javax.swing.SwingUtilities.invokeLater(new Runnable()
         {
+          @Override
           public void run()
           {
 
@@ -176,6 +172,7 @@ public class Jalview2XML_V1
       {
         javax.swing.SwingUtilities.invokeLater(new Runnable()
         {
+          @Override
           public void run()
           {
 
@@ -362,9 +359,8 @@ public class Jalview2XML_V1
 
         if (groups[i].getConsThreshold() != 0)
         {
-          jalview.analysis.Conservation c = new jalview.analysis.Conservation(
-                  "All", ResidueProperties.propHash, 3,
-                  sg.getSequences(null), 0, sg.getWidth() - 1);
+          Conservation c = new Conservation("All", sg.getSequences(null),
+                  0, sg.getWidth() - 1);
           c.calculate();
           c.verdict(false, 25);
           sg.cs.setConservation(c);

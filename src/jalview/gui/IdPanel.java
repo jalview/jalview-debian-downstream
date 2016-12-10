@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.io.SequenceAnnotationReport;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 import jalview.util.UrlLink;
 import jalview.viewmodel.AlignmentViewport;
 
@@ -108,12 +109,12 @@ public class IdPanel extends JPanel implements MouseListener,
     if (seq > -1 && seq < av.getAlignment().getHeight())
     {
       SequenceI sequence = av.getAlignment().getSequenceAt(seq);
-      StringBuffer tip = new StringBuffer(64);
-      seqAnnotReport.createSequenceAnnotationReport(tip, sequence,
+      StringBuilder tip = new StringBuilder(64);
+      seqAnnotReport.createTooltipAnnotationReport(tip, sequence,
               av.isShowDBRefs(), av.isShowNPFeats(),
               sp.seqCanvas.fr.getMinMax());
-      setToolTipText("<html>" + sequence.getDisplayId(true) + " "
-              + tip.toString() + "</html>");
+      setToolTipText(JvSwingUtils.wrapTooltip(true,
+              sequence.getDisplayId(true) + " " + tip.toString()));
     }
   }
 
@@ -193,6 +194,8 @@ public class IdPanel extends JPanel implements MouseListener,
      */
     if (e.getClickCount() < 2 || SwingUtilities.isRightMouseButton(e))
     {
+      // reinstate isRightMouseButton check to ignore mouse-related popup events
+      // note - this does nothing on default MacBookPro force-trackpad config!
       return;
     }
 
@@ -222,7 +225,14 @@ public class IdPanel extends JPanel implements MouseListener,
         url = null;
         continue;
       }
-      ;
+
+      if (urlLink.usesDBAccession())
+      {
+        // this URL requires an accession id, not the name of a sequence
+        url = null;
+        continue;
+      }
+
       if (!urlLink.isValid())
       {
         jalview.bin.Cache.log.error(urlLink.getInvalidMessage());
@@ -314,38 +324,24 @@ public class IdPanel extends JPanel implements MouseListener,
       return;
     }
 
-    int seq = alignPanel.getSeqPanel().findSeq(e);
-
-    if (SwingUtilities.isRightMouseButton(e))
+    if (e.isPopupTrigger()) // Mac reports this in mousePressed
     {
-      Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq);
-      // build a new links menu based on the current links + any non-positional
-      // features
-      Vector nlinks = new Vector(Preferences.sequenceURLLinks);
-      SequenceFeature sf[] = sq == null ? null : sq.getSequenceFeatures();
-      for (int sl = 0; sf != null && sl < sf.length; sl++)
-      {
-        if (sf[sl].begin == sf[sl].end && sf[sl].begin == 0)
-        {
-          if (sf[sl].links != null && sf[sl].links.size() > 0)
-          {
-            for (int l = 0, lSize = sf[sl].links.size(); l < lSize; l++)
-            {
-              nlinks.addElement(sf[sl].links.elementAt(l));
-            }
-          }
-        }
-      }
+      showPopupMenu(e);
+      return;
+    }
 
-      jalview.gui.PopupMenu pop = new jalview.gui.PopupMenu(alignPanel, sq,
-              nlinks, new Vector(Preferences.getGroupURLLinks()));
-      pop.show(this, e.getX(), e.getY());
-
+    /*
+     * defer right-mouse click handling to mouseReleased on Windows
+     * (where isPopupTrigger() will answer true)
+     * NB isRightMouseButton is also true for Cmd-click on Mac
+     */
+    if (SwingUtilities.isRightMouseButton(e) && !Platform.isAMac())
+    {
       return;
     }
 
     if ((av.getSelectionGroup() == null)
-            || ((!e.isControlDown() && !e.isShiftDown()) && av
+            || (!jalview.util.Platform.isControlDown(e) && !e.isShiftDown() && av
                     .getSelectionGroup() != null))
     {
       av.setSelectionGroup(new SequenceGroup());
@@ -353,6 +349,7 @@ public class IdPanel extends JPanel implements MouseListener,
       av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
     }
 
+    int seq = alignPanel.getSeqPanel().findSeq(e);
     if (e.isShiftDown() && (lastid != -1))
     {
       selectSeqs(lastid, seq);
@@ -361,10 +358,45 @@ public class IdPanel extends JPanel implements MouseListener,
     {
       selectSeq(seq);
     }
-    // TODO is this addition ok here?
+
     av.isSelectionGroupChanged(true);
 
     alignPanel.paintAlignment(true);
+  }
+
+  /**
+   * Build and show the popup-menu at the right-click mouse position
+   * 
+   * @param e
+   */
+  void showPopupMenu(MouseEvent e)
+  {
+    int seq2 = alignPanel.getSeqPanel().findSeq(e);
+    Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq2);
+    // build a new links menu based on the current links + any non-positional
+    // features
+    Vector<String> nlinks = new Vector<String>(Preferences.sequenceURLLinks);
+    SequenceFeature sfs[] = sq == null ? null : sq.getSequenceFeatures();
+    if (sfs != null)
+    {
+      for (SequenceFeature sf : sfs)
+      {
+        if (sf.begin == sf.end && sf.begin == 0)
+        {
+          if (sf.links != null && sf.links.size() > 0)
+          {
+            for (int l = 0, lSize = sf.links.size(); l < lSize; l++)
+            {
+              nlinks.addElement(sf.links.elementAt(l));
+            }
+          }
+        }
+      }
+    }
+
+    PopupMenu pop = new PopupMenu(alignPanel, sq, nlinks,
+            Preferences.getGroupURLLinks());
+    pop.show(this, e.getX(), e.getY());
   }
 
   /**
@@ -434,6 +466,11 @@ public class IdPanel extends JPanel implements MouseListener,
     PaintRefresher.Refresh(this, av.getSequenceSetId());
     // always send selection message when mouse is released
     av.sendSelection();
+
+    if (e.isPopupTrigger()) // Windows reports this in mouseReleased
+    {
+      showPopupMenu(e);
+    }
   }
 
   /**

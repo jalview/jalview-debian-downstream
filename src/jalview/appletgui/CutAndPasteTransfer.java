@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.appletgui;
 
 import jalview.analysis.AlignmentUtils;
 import jalview.api.ComplexAlignFile;
+import jalview.api.FeaturesSourceI;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
@@ -33,6 +34,7 @@ import jalview.io.FileParse;
 import jalview.io.IdentifyFile;
 import jalview.io.NewickFile;
 import jalview.io.TCoffeeScoreFile;
+import jalview.json.binding.biojson.v1.ColourSchemeMapper;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.TCoffeeColourScheme;
 import jalview.util.MessageManager;
@@ -115,6 +117,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     addSequences.setVisible(false);
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == accept)
@@ -222,7 +225,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   {
     AlignmentI al = null;
 
-    String format = new IdentifyFile().Identify(text,
+    String format = new IdentifyFile().identify(text,
             AppletFormatAdapter.PASTE);
     AppletFormatAdapter afa = new AppletFormatAdapter(alignFrame.alignPanel);
     try
@@ -259,17 +262,27 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
                   .getHiddenSequences();
           boolean showSeqFeatures = ((ComplexAlignFile) source)
                   .isShowSeqFeatures();
-          ColourSchemeI cs = ((ComplexAlignFile) source).getColourScheme();
+          String colourSchemeName = ((ComplexAlignFile) source)
+                  .getGlobalColourScheme();
           af = new AlignFrame(al, hiddenSeqs, colSel,
                   alignFrame.viewport.applet, "Cut & Paste input - "
                           + format, false);
           af.getAlignViewport().setShowSequenceFeatures(showSeqFeatures);
-          af.changeColour(cs);
+          ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
+                  colourSchemeName, al);
+          if (cs != null)
+          {
+            af.changeColour(cs);
+          }
         }
         else
         {
           af = new AlignFrame(al, alignFrame.viewport.applet,
                   "Cut & Paste input - " + format, false);
+          if (source instanceof FeaturesSourceI)
+          {
+            af.getAlignViewport().setShowSequenceFeatures(true);
+          }
         }
 
         af.statusBar
@@ -304,7 +317,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     }
     AlignmentI protein = thisAlignment.isNucleotide() ? al : thisAlignment;
     AlignmentI dna = thisAlignment.isNucleotide() ? thisAlignment : al;
-    boolean mapped = AlignmentUtils.mapProteinToCdna(protein, dna);
+    boolean mapped = AlignmentUtils.mapProteinAlignmentToCdna(protein, dna);
     if (!mapped)
     {
       return false;
@@ -330,6 +343,11 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     {
       return false;
     }
+
+    /*
+     * 'align' the added alignment to match the current one
+     */
+    al.alignAs(thisAlignment);
 
     /*
      * Open SplitFrame with DNA above and protein below, including the alignment
@@ -478,6 +496,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     this.add(textarea, java.awt.BorderLayout.CENTER);
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     if (textarea.getText().startsWith(
@@ -487,18 +506,22 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }

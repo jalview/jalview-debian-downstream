@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,6 +31,7 @@ import jalview.gui.StructureViewer.ViewerType;
 import jalview.io.AppletFormatAdapter;
 import jalview.io.JalviewFileChooser;
 import jalview.io.JalviewFileView;
+import jalview.io.StructureFile;
 import jalview.schemes.BuriedColourScheme;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.HelixColourScheme;
@@ -46,7 +47,6 @@ import jalview.util.Platform;
 import jalview.ws.dbsources.Pdb;
 
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.BufferedReader;
@@ -59,16 +59,13 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.Vector;
 
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JColorChooser;
 import javax.swing.JInternalFrame;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
@@ -196,7 +193,7 @@ public class ChimeraViewFrame extends StructureViewerBase
   public ChimeraViewFrame(PDBEntry pdbentry, SequenceI[] seq,
           String[] chains, final AlignmentPanel ap)
   {
-    super();
+    this();
     String pdbId = pdbentry.getId();
 
     /*
@@ -249,10 +246,9 @@ public class ChimeraViewFrame extends StructureViewerBase
           SequenceI[][] seqs)
   {
     createProgressBar();
-    String[][] chains = extractChains(seqs);
+    // FIXME extractChains needs pdbentries to match IDs to PDBEntry(s) on seqs
     jmb = new JalviewChimeraBindingModel(this,
-            ap.getStructureSelectionManager(), pdbentrys, seqs, chains,
-            null);
+            ap.getStructureSelectionManager(), pdbentrys, seqs, null);
     addAlignmentPanel(ap);
     useAlignmentPanelForColourbyseq(ap);
     if (pdbentrys.length > 1)
@@ -270,6 +266,7 @@ public class ChimeraViewFrame extends StructureViewerBase
 
     this.addInternalFrameListener(new InternalFrameAdapter()
     {
+      @Override
       public void internalFrameClosing(InternalFrameEvent internalFrameEvent)
       {
         closeViewer(false);
@@ -278,38 +275,7 @@ public class ChimeraViewFrame extends StructureViewerBase
 
   }
 
-  /**
-   * Retrieve chains for sequences by inspecting their PDB refs. The hope is
-   * that the first will be to the sequence's own chain. Really need a more
-   * managed way of doing this.
-   * 
-   * @param seqs
-   * @return
-   */
-  protected String[][] extractChains(SequenceI[][] seqs)
-  {
-    String[][] chains = new String[seqs.length][];
-    for (int i = 0; i < seqs.length; i++)
-    {
-      chains[i] = new String[seqs[i].length];
-      int seqno = 0;
-      for (SequenceI seq : seqs[i])
-      {
-        String chain = null;
-        if (seq.getDatasetSequence() != null)
-        {
-          Vector<PDBEntry> pdbrefs = seq.getDatasetSequence()
-                  .getAllPDBEntries();
-          if (pdbrefs != null && pdbrefs.size() > 0)
-          {
-            chain = pdbrefs.get(0).getChainCode();
-          }
-        }
-        chains[i][seqno++] = chain;
-      }
-    }
-    return chains;
-  }
+
 
   /**
    * Create a new viewer from saved session state data including Chimera session
@@ -328,7 +294,7 @@ public class ChimeraViewFrame extends StructureViewerBase
           SequenceI[][] seqsArray, boolean colourByChimera,
           boolean colourBySequence, String newViewId)
   {
-    super();
+    this();
     setViewId(newViewId);
     this.chimeraSessionFile = chimeraSessionFile;
     openNewChimera(alignPanel, pdbArray, seqsArray);
@@ -357,31 +323,22 @@ public class ChimeraViewFrame extends StructureViewerBase
   public ChimeraViewFrame(PDBEntry[] pe, SequenceI[][] seqs,
           AlignmentPanel ap)
   {
-    super();
+    this();
     openNewChimera(ap, pe, seqs);
   }
 
-  public ChimeraViewFrame(Map<PDBEntry, List<SequenceI>> toView,
-          AlignmentPanel alignPanel)
+  /**
+   * Default constructor
+   */
+  public ChimeraViewFrame()
   {
     super();
 
     /*
-     * Convert the map of sequences per pdb entry into the tied arrays expected
-     * by openNewChimera
-     * 
-     * TODO pass the Map down to openNewChimera and its callees instead
+     * closeViewer will decide whether or not to close this frame
+     * depending on whether user chooses to Cancel or not
      */
-    final Set<PDBEntry> pdbEntries = toView.keySet();
-    PDBEntry[] pdbs = pdbEntries.toArray(new PDBEntry[pdbEntries.size()]);
-    SequenceI[][] seqsForPdbs = new SequenceI[pdbEntries.size()][];
-    for (int i = 0; i < pdbs.length; i++)
-    {
-      final List<SequenceI> seqsForPdb = toView.get(pdbs[i]);
-      seqsForPdbs[i] = seqsForPdb.toArray(new SequenceI[seqsForPdb.size()]);
-    }
-
-    openNewChimera(alignPanel, pdbs, seqsForPdbs);
+    setDefaultCloseOperation(JInternalFrame.DO_NOTHING_ON_CLOSE);
   }
 
   /**
@@ -443,61 +400,11 @@ public class ChimeraViewFrame extends StructureViewerBase
     jmb.startChimeraListener();
   }
 
-  /**
-   * If the list is not empty, add menu items for 'All' and each individual
-   * chain to the "View | Show Chain" sub-menu. Multiple selections are allowed.
-   * 
-   * @param chainNames
-   */
-  void setChainMenuItems(List<String> chainNames)
-  {
-    chainMenu.removeAll();
-    if (chainNames == null || chainNames.isEmpty())
-    {
-      return;
-    }
-    JMenuItem menuItem = new JMenuItem(
-            MessageManager.getString("label.all"));
-    menuItem.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent evt)
-      {
-        allChainsSelected = true;
-        for (int i = 0; i < chainMenu.getItemCount(); i++)
-        {
-          if (chainMenu.getItem(i) instanceof JCheckBoxMenuItem)
-          {
-            ((JCheckBoxMenuItem) chainMenu.getItem(i)).setSelected(true);
-          }
-        }
-        showSelectedChains();
-        allChainsSelected = false;
-      }
-    });
-
-    chainMenu.add(menuItem);
-
-    for (String chainName : chainNames)
-    {
-      menuItem = new JCheckBoxMenuItem(chainName, true);
-      menuItem.addItemListener(new ItemListener()
-      {
-        public void itemStateChanged(ItemEvent evt)
-        {
-          if (!allChainsSelected)
-          {
-            showSelectedChains();
-          }
-        }
-      });
-
-      chainMenu.add(menuItem);
-    }
-  }
 
   /**
    * Show only the selected chain(s) in the viewer
    */
+  @Override
   void showSelectedChains()
   {
     List<String> toshow = new ArrayList<String>();
@@ -523,6 +430,7 @@ public class ChimeraViewFrame extends StructureViewerBase
    * @param closeChimera
    *          if true, close any linked Chimera process; if false, prompt first
    */
+  @Override
   public void closeViewer(boolean closeChimera)
   {
     if (jmb != null && jmb.isChimeraRunning())
@@ -535,7 +443,15 @@ public class ChimeraViewFrame extends StructureViewerBase
         prompt = JvSwingUtils.wrapTooltip(true, prompt);
         int confirm = JOptionPane.showConfirmDialog(this, prompt,
                 MessageManager.getString("label.close_viewer"),
-                JOptionPane.YES_NO_OPTION);
+                JOptionPane.YES_NO_CANCEL_OPTION);
+        /*
+         * abort closure if user hits escape or Cancel
+         */
+        if (confirm == JOptionPane.CANCEL_OPTION
+                || confirm == JOptionPane.CLOSED_OPTION)
+        {
+          return;
+        }
         closeChimera = confirm == JOptionPane.YES_OPTION;
       }
       jmb.closeViewer(closeChimera);
@@ -547,12 +463,14 @@ public class ChimeraViewFrame extends StructureViewerBase
     // TODO: check for memory leaks where instance isn't finalised because jmb
     // holds a reference to the window
     jmb = null;
+    dispose();
   }
 
   /**
    * Open any newly added PDB structures in Chimera, having first fetched data
    * from PDB (if not already saved).
    */
+  @Override
   public void run()
   {
     _started = true;
@@ -562,6 +480,7 @@ public class ChimeraViewFrame extends StructureViewerBase
     List<PDBEntry> filePDB = new ArrayList<PDBEntry>();
     List<Integer> filePDBpos = new ArrayList<Integer>();
     PDBEntry thePdbEntry = null;
+    StructureFile pdb = null;
     try
     {
       String[] curfiles = jmb.getPdbFile(); // files currently in viewer
@@ -651,7 +570,8 @@ public class ChimeraViewFrame extends StructureViewerBase
           {
             int pos = filePDBpos.get(num).intValue();
             long startTime = startProgressBar("Chimera "
-                    + MessageManager.getString("status.opening_file"));
+                    + MessageManager.getString("status.opening_file_for")
+                    + " " + pe.getId());
             jmb.openFile(pe);
             jmb.addSequence(pos, jmb.getSequence()[pos]);
             File fl = new File(pe.getFile());
@@ -669,8 +589,9 @@ public class ChimeraViewFrame extends StructureViewerBase
               stopProgressBar("", startTime);
             }
             // Explicitly map to the filename used by Chimera ;
-            jmb.getSsm().setMapping(jmb.getSequence()[pos],
+            pdb = jmb.getSsm().setMapping(jmb.getSequence()[pos],
                     jmb.getChains()[pos], pe.getFile(), protocol);
+            stashFoundChains(pdb, pe.getFile());
           } catch (OutOfMemoryError oomerror)
           {
             new OOMWarning(
@@ -686,6 +607,7 @@ public class ChimeraViewFrame extends StructureViewerBase
           }
         }
       }
+      jmb.refreshGUI();
       jmb.setFinishedInit(true);
       jmb.setLoadingFromArchive(false);
 
@@ -699,6 +621,7 @@ public class ChimeraViewFrame extends StructureViewerBase
       {
         new Thread(new Runnable()
         {
+          @Override
           public void run()
           {
             alignStructs_withAllAlignPanels();
@@ -720,8 +643,20 @@ public class ChimeraViewFrame extends StructureViewerBase
    * @return
    * @throws Exception
    */
+
+  private void stashFoundChains(StructureFile pdb, String file)
+  {
+    for (int i = 0; i < pdb.getChains().size(); i++)
+    {
+      String chid = new String(pdb.getId() + ":"
+              + pdb.getChains().elementAt(i).id);
+      jmb.getChainNames().add(chid);
+      jmb.getChainFile().put(chid, file);
+    }
+  }
   private String fetchPdbFile(PDBEntry processingEntry) throws Exception
   {
+    // FIXME: this is duplicated code with Jmol frame ?
     String filePath = null;
     Pdb pdbclient = new Pdb();
     AlignmentI pdbseq = null;
@@ -1091,6 +1026,7 @@ public class ChimeraViewFrame extends StructureViewerBase
     }
   }
 
+  @Override
   public void setJalviewColourScheme(ColourSchemeI ucs)
   {
     jmb.setJalviewColourScheme(ucs);

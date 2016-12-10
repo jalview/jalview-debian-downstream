@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -157,6 +157,7 @@ public class FontChooser extends GFontChooser
     init = false;
   }
 
+  @Override
   public void smoothFont_actionPerformed(ActionEvent e)
   {
     ap.av.antiAlias = smoothFont.isSelected();
@@ -170,6 +171,7 @@ public class FontChooser extends GFontChooser
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void ok_actionPerformed(ActionEvent e)
   {
     try
@@ -194,6 +196,7 @@ public class FontChooser extends GFontChooser
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void cancel_actionPerformed(ActionEvent e)
   {
     if (ap != null)
@@ -247,10 +250,10 @@ public class FontChooser extends GFontChooser
     double iw = iBounds.getWidth();
     if (mw < 1 || iw < 1)
     {
-      final String messageKey = iBounds.getHeight() < 1 ? "label.font_doesnt_have_letters_defined"
-              : "label.font_too_small";
-      JOptionPane.showInternalMessageDialog(this,
-              MessageManager.getString(messageKey),
+      String message = iBounds.getHeight() < 1 ? MessageManager
+              .getString("label.font_doesnt_have_letters_defined")
+              : MessageManager.getString("label.font_too_small");
+      JOptionPane.showInternalMessageDialog(this, message,
               MessageManager.getString("label.invalid_font"),
               JOptionPane.WARNING_MESSAGE);
       /*
@@ -301,6 +304,7 @@ public class FontChooser extends GFontChooser
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void fontName_actionPerformed(ActionEvent e)
   {
     if (init)
@@ -317,6 +321,7 @@ public class FontChooser extends GFontChooser
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void fontSize_actionPerformed(ActionEvent e)
   {
     if (init)
@@ -333,6 +338,7 @@ public class FontChooser extends GFontChooser
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void fontStyle_actionPerformed(ActionEvent e)
   {
     if (init)
@@ -349,6 +355,7 @@ public class FontChooser extends GFontChooser
    * 
    * @param e
    */
+  @Override
   public void defaultButton_actionPerformed(ActionEvent e)
   {
     Cache.setProperty("FONT_NAME", fontName.getSelectedItem().toString());

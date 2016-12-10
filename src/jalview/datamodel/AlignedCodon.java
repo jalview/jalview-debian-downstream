@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,32 +27,38 @@ package jalview.datamodel;
  * 
  * Example: in "G-AT-C-GA" the aligned codons are (0, 2, 3) and (5, 7, 8).
  * 
- * JBPComment: Is this useful anywhere other than jalview.analysis.Dna ?
- * 
  * @author gmcarstairs
  *
  */
 public final class AlignedCodon
 {
+  // base 1 aligned sequence position (base 0)
   public final int pos1;
 
+  // base 2 aligned sequence position (base 0)
   public final int pos2;
 
+  // base 3 aligned sequence position (base 0)
   public final int pos3;
 
+  // peptide aligned sequence position (base 0)
+  public final int peptideCol;
+
+  // peptide coded for by this codon
   public final String product;
 
   public AlignedCodon(int i, int j, int k)
   {
-    this(i, j, k, null);
+    this(i, j, k, null, 0);
   }
 
-  public AlignedCodon(int i, int j, int k, String prod)
+  public AlignedCodon(int i, int j, int k, String prod, int prodCol)
   {
     pos1 = i;
     pos2 = j;
     pos3 = k;
     product = prod;
+    peptideCol = prodCol;
   }
 
   /**

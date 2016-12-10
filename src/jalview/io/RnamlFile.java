@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.io;
 
-import jalview.analysis.SecStrConsensus.SimpleBP;
+import jalview.analysis.Rna;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.Sequence;
@@ -32,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import com.stevesoft.pat.Regex;
 
@@ -79,6 +80,7 @@ public class RnamlFile extends AlignFile
    * 
    * @see jalview.io.AlignFile#parse()
    */
+  @Override
   public void parse() throws IOException
   {
     if (System.getProperty("java.version").indexOf("1.6") > -1
@@ -134,10 +136,10 @@ public class RnamlFile extends AlignFile
 
     result = RNAFactory.loadSecStrRNAML(getReader());
 
-    ArrayList<ArrayList> allarray = new ArrayList();
-    ArrayList<ArrayList<SimpleBP>> BP = new ArrayList();
-    ArrayList strucinarray = new ArrayList();
-    SequenceI[] seqs = new SequenceI[result.size()];
+    // ArrayList<ArrayList> allarray = new ArrayList();
+    // ArrayList<ArrayList<SimpleBP>> BP = new ArrayList();
+    // ArrayList strucinarray = new ArrayList();
+    SequenceI[] sqs = new SequenceI[result.size()];
 
     for (int i = 0; i < result.size(); i++)
     {
@@ -157,9 +159,9 @@ public class RnamlFile extends AlignFile
           id += "." + i;
         }
       }
-      seqs[i] = new Sequence(id, seq, begin, end);
+      sqs[i] = new Sequence(id, seq, begin, end);
 
-      seqs[i].setEnd(seqs[i].findPosition(seqs[i].getLength()));
+      sqs[i].setEnd(sqs[i].findPosition(sqs[i].getLength()));
       String[] annot = new String[rna.length()];
       Annotation[] ann = new Annotation[rna.length()];
 
@@ -170,9 +172,8 @@ public class RnamlFile extends AlignFile
       }
       for (int k = 0; k < rna.length(); k++)
       {
-        ann[k] = new Annotation(annot[k], "",
-                jalview.schemes.ResidueProperties.getRNASecStrucState(
-                        annot[k]).charAt(0), 0f);
+        ann[k] = new Annotation(annot[k], "", Rna.getRNASecStrucState(
+                annot[k]).charAt(0), 0f);
       }
 
       AlignmentAnnotation align = new AlignmentAnnotation(
@@ -181,17 +182,17 @@ public class RnamlFile extends AlignFile
                       + current.getID()
                       : "", ann);
 
-      seqs[i].addAlignmentAnnotation(align);
-      seqs[i].setRNA(result.get(i));
+      sqs[i].addAlignmentAnnotation(align);
+      sqs[i].setRNA(result.get(i));
 
-      allarray.add(strucinarray);
+      // allarray.add(strucinarray);
 
       annotations.addElement(align);
-      BP.add(align.bps);
+      // BP.add(align.bps);
 
     }
 
-    setSeqs(seqs);
+    setSeqs(sqs);
   }
 
   public static String print(SequenceI[] s)
@@ -199,13 +200,14 @@ public class RnamlFile extends AlignFile
     return "not yet implemented";
   }
 
+  @Override
   public String print()
   {
     System.out.print("print :");
     return print(getSeqsAsArray());
   }
 
-  public ArrayList getRNA()
+  public List<RNA> getRNA()
   {
     return result;
   }

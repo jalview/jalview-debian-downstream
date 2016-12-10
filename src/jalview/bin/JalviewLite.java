@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -45,8 +45,10 @@ import jalview.io.NewickFile;
 import jalview.javascript.JSFunctionExec;
 import jalview.javascript.JalviewLiteJsApi;
 import jalview.javascript.JsCallBack;
+import jalview.javascript.MouseOverStructureListener;
 import jalview.structure.SelectionListener;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.HttpUtils;
 import jalview.util.MessageManager;
 
 import java.applet.Applet;
@@ -61,10 +63,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -92,13 +93,14 @@ public class JalviewLite extends Applet implements
   }
 
   // /////////////////////////////////////////
-  // The following public methods maybe called
+  // The following public methods may be called
   // externally, eg via javascript in HTML page
   /*
    * (non-Javadoc)
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSelectedSequences()
    */
+  @Override
   public String getSelectedSequences()
   {
     return getSelectedSequencesFrom(getDefaultTargetFrame());
@@ -109,6 +111,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSelectedSequences(java.lang.String)
    */
+  @Override
   public String getSelectedSequences(String sep)
   {
     return getSelectedSequencesFrom(getDefaultTargetFrame(), sep);
@@ -121,6 +124,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesFrom(jalview.appletgui
    * .AlignFrame)
    */
+  @Override
   public String getSelectedSequencesFrom(AlignFrame alf)
   {
     return getSelectedSequencesFrom(alf, separator); // ""+0x00AC);
@@ -133,6 +137,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesFrom(jalview.appletgui
    * .AlignFrame, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesFrom(AlignFrame alf, String sep)
   {
     StringBuffer result = new StringBuffer("");
@@ -161,6 +166,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#highlight(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void highlight(String sequenceId, String position,
           String alignedPosition)
   {
@@ -174,6 +180,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#highlightIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public void highlightIn(final AlignFrame alf, final String sequenceId,
           final String position, final String alignedPosition)
   {
@@ -230,6 +237,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#select(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public void select(String sequenceIds, String columns)
   {
     selectIn(getDefaultTargetFrame(), sequenceIds, columns, separator);
@@ -241,6 +249,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#select(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void select(String sequenceIds, String columns, String sep)
   {
     selectIn(getDefaultTargetFrame(), sequenceIds, columns, sep);
@@ -252,6 +261,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#selectIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void selectIn(AlignFrame alf, String sequenceIds, String columns)
   {
     selectIn(alf, sequenceIds, columns, separator);
@@ -263,6 +273,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#selectIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public void selectIn(final AlignFrame alf, String sequenceIds,
           String columns, String sep)
   {
@@ -455,14 +466,11 @@ public class JalviewLite extends Applet implements
         SequenceI rs = sel.getSequenceAt(0);
         start = rs.findIndex(start);
         end = rs.findIndex(end);
-        if (csel != null)
+        List<Integer> cs = new ArrayList<Integer>(csel.getSelected());
+        csel.clear();
+        for (Integer selectedCol : cs)
         {
-          List<Integer> cs = csel.getSelected();
-          csel.clear();
-          for (Integer selectedCol : cs)
-          {
-            csel.addElement(rs.findIndex(selectedCol));
-          }
+          csel.addElement(rs.findIndex(selectedCol));
         }
       }
       sel.setStartRes(start);
@@ -485,6 +493,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesAsAlignment(java.lang.
    * String, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesAsAlignment(String format, String suffix)
   {
     return getSelectedSequencesAsAlignmentFrom(getDefaultTargetFrame(),
@@ -498,6 +507,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getSelectedSequencesAsAlignmentFrom(jalview
    * .appletgui.AlignFrame, java.lang.String, java.lang.String)
    */
+  @Override
   public String getSelectedSequencesAsAlignmentFrom(AlignFrame alf,
           String format, String suffix)
   {
@@ -527,6 +537,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAlignmentOrder()
    */
+  @Override
   public String getAlignmentOrder()
   {
     return getAlignmentOrderFrom(getDefaultTargetFrame());
@@ -539,6 +550,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentOrderFrom(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getAlignmentOrderFrom(AlignFrame alf)
   {
     return getAlignmentOrderFrom(alf, separator);
@@ -551,6 +563,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentOrderFrom(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public String getAlignmentOrderFrom(AlignFrame alf, String sep)
   {
     AlignmentI alorder = alf.getAlignViewport().getAlignment();
@@ -568,6 +581,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#orderBy(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String orderBy(String order, String undoName)
   {
     return orderBy(order, undoName, separator);
@@ -579,6 +593,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#orderBy(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public String orderBy(String order, String undoName, String sep)
   {
     return orderAlignmentBy(getDefaultTargetFrame(), order, undoName, sep);
@@ -591,6 +606,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#orderAlignmentBy(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public String orderAlignmentBy(AlignFrame alf, String order,
           String undoName, String sep)
   {
@@ -647,6 +663,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAlignment(java.lang.String)
    */
+  @Override
   public String getAlignment(String format)
   {
     return getAlignmentFrom(getDefaultTargetFrame(), format, TRUE);
@@ -659,6 +676,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public String getAlignmentFrom(AlignFrame alf, String format)
   {
     return getAlignmentFrom(alf, format, TRUE);
@@ -670,6 +688,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#getAlignment(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String getAlignment(String format, String suffix)
   {
     return getAlignmentFrom(getDefaultTargetFrame(), format, suffix);
@@ -682,6 +701,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAlignmentFrom(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public String getAlignmentFrom(AlignFrame alf, String format,
           String suffix)
   {
@@ -704,6 +724,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#loadAnnotation(java.lang.String)
    */
+  @Override
   public void loadAnnotation(String annotation)
   {
     loadAnnotationFrom(getDefaultTargetFrame(), annotation);
@@ -716,6 +737,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#loadAnnotationFrom(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void loadAnnotationFrom(AlignFrame alf, String annotation)
   {
     if (new AnnotationFile().annotateAlignmentView(alf.getAlignViewport(),
@@ -735,6 +757,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#loadAnnotation(java.lang.String)
    */
+  @Override
   public void loadFeatures(String features, boolean autoenabledisplay)
   {
     loadFeaturesFrom(getDefaultTargetFrame(), features, autoenabledisplay);
@@ -747,6 +770,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#loadAnnotationFrom(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public boolean loadFeaturesFrom(AlignFrame alf, String features,
           boolean autoenabledisplay)
   {
@@ -759,6 +783,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatures(java.lang.String)
    */
+  @Override
   public String getFeatures(String format)
   {
     return getFeaturesFrom(getDefaultTargetFrame(), format);
@@ -771,6 +796,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeaturesFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public String getFeaturesFrom(AlignFrame alf, String format)
   {
     return alf.outputFeatures(false, format);
@@ -781,6 +807,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getAnnotation()
    */
+  @Override
   public String getAnnotation()
   {
     return getAnnotationFrom(getDefaultTargetFrame());
@@ -793,6 +820,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getAnnotationFrom(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getAnnotationFrom(AlignFrame alf)
   {
     return alf.outputAnnotations(false);
@@ -803,6 +831,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newView()
    */
+  @Override
   public AlignFrame newView()
   {
     return newViewFrom(getDefaultTargetFrame());
@@ -813,6 +842,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newView(java.lang.String)
    */
+  @Override
   public AlignFrame newView(String name)
   {
     return newViewFrom(getDefaultTargetFrame(), name);
@@ -823,6 +853,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#newViewFrom(jalview.appletgui.AlignFrame)
    */
+  @Override
   public AlignFrame newViewFrom(AlignFrame alf)
   {
     return alf.newView(null);
@@ -834,6 +865,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#newViewFrom(jalview.appletgui.AlignFrame,
    * java.lang.String)
    */
+  @Override
   public AlignFrame newViewFrom(AlignFrame alf, String name)
   {
     return alf.newView(name);
@@ -845,11 +877,12 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#loadAlignment(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public AlignFrame loadAlignment(String text, String title)
   {
     AlignmentI al = null;
 
-    String format = new IdentifyFile().Identify(text,
+    String format = new IdentifyFile().identify(text,
             AppletFormatAdapter.PASTE);
     try
     {
@@ -871,6 +904,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setMouseoverListener(java.lang.String)
    */
+  @Override
   public void setMouseoverListener(String listener)
   {
     setMouseoverListener(currentAlignFrame, listener);
@@ -885,6 +919,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#setMouseoverListener(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void setMouseoverListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -917,6 +952,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setSelectionListener(java.lang.String)
    */
+  @Override
   public void setSelectionListener(String listener)
   {
     setSelectionListener(null, listener);
@@ -929,6 +965,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#setSelectionListener(jalview.appletgui.AlignFrame
    * , java.lang.String)
    */
+  @Override
   public void setSelectionListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -956,12 +993,18 @@ public class JalviewLite extends Applet implements
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * 
+  /**
+   * Callable from javascript to register a javascript function to pass events
+   * to a structure viewer.
+   *
+   * @param listener
+   *          the name of a javascript function
+   * @param modelSet
+   *          a token separated list of PDB file names listened for
    * @see jalview.bin.JalviewLiteJsApi#setStructureListener(java.lang.String,
-   * java.lang.String)
+   *      java.lang.String)
    */
+  @Override
   public void setStructureListener(String listener, String modelSet)
   {
     if (listener != null)
@@ -974,8 +1017,8 @@ public class JalviewLite extends Applet implements
         return;
       }
     }
-    jalview.javascript.MouseOverStructureListener mol = new jalview.javascript.MouseOverStructureListener(
-            this, listener, separatorListToArray(modelSet));
+    MouseOverStructureListener mol = new MouseOverStructureListener(this,
+            listener, separatorListToArray(modelSet));
     javascriptListeners.addElement(mol);
     StructureSelectionManager.getStructureSelectionManager(this)
             .addStructureViewerListener(mol);
@@ -995,6 +1038,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#removeJavascriptListener(jalview.appletgui
    * .AlignFrame, java.lang.String)
    */
+  @Override
   public void removeJavascriptListener(AlignFrame af, String listener)
   {
     if (listener != null)
@@ -1044,12 +1088,14 @@ public class JalviewLite extends Applet implements
     }
   }
 
+  @Override
   public void stop()
   {
     System.err.println("Applet " + getName() + " stop().");
     tidyUp();
   }
 
+  @Override
   public void destroy()
   {
     System.err.println("Applet " + getName() + " destroy().");
@@ -1106,6 +1152,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#mouseOverStructure(java.lang.String,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void mouseOverStructure(final String pdbResNum,
           final String chain, final String pdbfile)
   {
@@ -1143,6 +1190,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#scrollViewToIn(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String)
    */
+  @Override
   public void scrollViewToIn(final AlignFrame alf, final String topRow,
           final String leftHandColumn)
   {
@@ -1345,9 +1393,10 @@ public class JalviewLite extends Applet implements
   /**
    * init method for Jalview Applet
    */
+  @Override
   public void init()
   {
-    // remove any handlers that might be hanging around from an earlier instance
+    debug = TRUE.equalsIgnoreCase(getParameter("debug"));
     try
     {
       if (debug)
@@ -1370,17 +1419,12 @@ public class JalviewLite extends Applet implements
         ex.printStackTrace();
       }
     }
-    /**
-     * turn on extra applet debugging
-     */
-    debug = TRUE.equalsIgnoreCase(getParameter("debug"));
+
     if (debug)
     {
-
       System.err.println("JalviewLite Version " + getVersion());
       System.err.println("Build Date : " + getBuildDate());
       System.err.println("Installation : " + getInstallation());
-
     }
     String externalsviewer = getParameter("externalstructureviewer");
     if (externalsviewer != null)
@@ -1486,6 +1530,7 @@ public class JalviewLite extends Applet implements
         add(launcher);
         launcher.addActionListener(new java.awt.event.ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent e)
           {
             LoadingThread loader = new LoadingThread(file, file2,
@@ -1608,6 +1653,7 @@ public class JalviewLite extends Applet implements
     frame.setTitle(title);
     frame.addWindowListener(new WindowAdapter()
     {
+      @Override
       public void windowClosing(WindowEvent e)
       {
         if (frame instanceof AlignFrame)
@@ -1632,6 +1678,7 @@ public class JalviewLite extends Applet implements
         frame.dispose();
       }
 
+      @Override
       public void windowActivated(WindowEvent e)
       {
         if (frame instanceof AlignFrame)
@@ -1669,6 +1716,7 @@ public class JalviewLite extends Applet implements
    * @param g
    *          graphics context
    */
+  @Override
   public void paint(Graphics g)
   {
     if (!fileFound)
@@ -1720,6 +1768,7 @@ public class JalviewLite extends Applet implements
   {
     private boolean running = false;
 
+    @Override
     public void run()
     {
       if (running || checkedForJmol)
@@ -1789,27 +1838,72 @@ public class JalviewLite extends Applet implements
      * update the protocol state variable for accessing the datasource located
      * by file.
      * 
-     * @param file
+     * @param path
      * @return possibly updated datasource string
      */
-    public String setProtocolState(String file)
+    public String resolveFileProtocol(String path)
     {
-      if (file.startsWith("PASTE"))
+      /*
+       * is it paste data?
+       */
+      if (path.startsWith("PASTE"))
       {
-        file = file.substring(5);
         protocol = AppletFormatAdapter.PASTE;
+        return path.substring(5);
       }
-      else if (inArchive(file))
+
+      /*
+       * is it a URL?
+       */
+      if (path.indexOf("://") != -1)
+      {
+        protocol = AppletFormatAdapter.URL;
+        return path;
+      }
+
+      /*
+       * try relative to document root
+       */
+      URL documentBase = getDocumentBase();
+      String withDocBase = resolveUrlForLocalOrAbsolute(path, documentBase);
+      if (HttpUtils.isValidUrl(withDocBase))
+      {
+        if (debug)
+        {
+          System.err.println("Prepended document base '" + documentBase
+                  + "' to make: '" + withDocBase + "'");
+        }
+        protocol = AppletFormatAdapter.URL;
+        return withDocBase;
+      }
+
+      /*
+       * try relative to codebase (if different to document base)
+       */
+      URL codeBase = getCodeBase();
+      String withCodeBase = applet.resolveUrlForLocalOrAbsolute(path,
+              codeBase);
+      if (!withCodeBase.equals(withDocBase)
+              && HttpUtils.isValidUrl(withCodeBase))
+      {
+        protocol = AppletFormatAdapter.URL;
+        if (debug)
+        {
+          System.err.println("Prepended codebase '" + codeBase
+                  + "' to make: '" + withCodeBase + "'");
+        }
+        return withCodeBase;
+      }
+
+      /*
+       * try locating by classloader; try this last so files in the directory
+       * are resolved using document base
+       */
+      if (inArchive(path))
       {
         protocol = AppletFormatAdapter.CLASSLOADER;
       }
-      else
-      {
-        file = addProtocol(file);
-        protocol = AppletFormatAdapter.URL;
-      }
-      dbgMsg("Protocol identified as '" + protocol + "'");
-      return file;
+      return path;
     }
 
     public LoadingThread(String file, String file2, JalviewLite _applet)
@@ -1819,6 +1913,7 @@ public class JalviewLite extends Applet implements
       applet = _applet;
     }
 
+    @Override
     public void run()
     {
       LoadJmolThread jmolchecker = new LoadJmolThread();
@@ -1885,8 +1980,11 @@ public class JalviewLite extends Applet implements
       {
         AlignmentI al1 = af.viewport.getAlignment();
         AlignmentI al2 = af2.viewport.getAlignment();
-        if (AlignmentUtils.isMappable(al1, al2))
+        AlignmentI cdna = al1.isNucleotide() ? al1 : al2;
+        AlignmentI prot = al1.isNucleotide() ? al2 : al1;
+        if (AlignmentUtils.mapProteinAlignmentToCdna(prot, cdna))
         {
+          al2.alignAs(al1);
           SplitFrame sf = new SplitFrame(af, af2);
           sf.addToDisplay(embedded, JalviewLite.this);
           return;
@@ -1916,8 +2014,8 @@ public class JalviewLite extends Applet implements
       {
         return null;
       }
-      String resolvedFile = setProtocolState(fileParam);
-      String format = new IdentifyFile().Identify(resolvedFile, protocol);
+      String resolvedFile = resolveFileProtocol(fileParam);
+      String format = new IdentifyFile().identify(resolvedFile, protocol);
       dbgMsg("File identified as '" + format + "'");
       AlignmentI al = null;
       try
@@ -2051,8 +2149,8 @@ public class JalviewLite extends Applet implements
           else
           {
             param = st.nextToken();
-            Vector tmp = new Vector();
-            Vector tmp2 = new Vector();
+            List<SequenceI> tmp = new ArrayList<SequenceI>();
+            List<String> tmp2 = new ArrayList<String>();
 
             while (st.hasMoreTokens())
             {
@@ -2061,39 +2159,22 @@ public class JalviewLite extends Applet implements
               if (st2.countTokens() > 1)
               {
                 // This is the chain
-                tmp2.addElement(st2.nextToken());
+                tmp2.add(st2.nextToken());
                 seqstring = st2.nextToken();
               }
-              tmp.addElement(matcher == null ? (Sequence) alignFrame
+              tmp.add(matcher == null ? (Sequence) alignFrame
                       .getAlignViewport().getAlignment()
                       .findName(seqstring) : matcher.findIdMatch(seqstring));
             }
 
-            seqs = new SequenceI[tmp.size()];
-            tmp.copyInto(seqs);
+            seqs = tmp.toArray(new SequenceI[tmp.size()]);
             if (tmp2.size() == tmp.size())
             {
-              chains = new String[tmp2.size()];
-              tmp2.copyInto(chains);
+              chains = tmp2.toArray(new String[tmp2.size()]);
             }
           }
-          param = setProtocolState(param);
-
-          if (// !jmolAvailable
-          // &&
-          protocol == AppletFormatAdapter.CLASSLOADER && !useXtrnalSviewer)
-          {
-            // Re: JAL-357 : the bug isn't a problem if we are using an
-            // external viewer!
-            // TODO: verify this Re:
-            // https://mantis.lifesci.dundee.ac.uk/view.php?id=36605
-            // This exception preserves the current behaviour where, even if
-            // the local pdb file was identified in the class loader
-            protocol = AppletFormatAdapter.URL; // this is probably NOT
-            // CORRECT!
-            param = addProtocol(param); //
-          }
-
+          param = resolveFileProtocol(param);
+          // TODO check JAL-357 for files in a jar (CLASSLOADER)
           pdb.setFile(param);
 
           if (seqs != null)
@@ -2170,7 +2251,7 @@ public class JalviewLite extends Applet implements
       {
         try
         {
-          param = setProtocolState(param);
+          param = resolveFileProtocol(param);
           JPredFile predictions = new JPredFile(param, protocol);
           JnetAnnotationMaker.add_annotation(predictions,
                   alignFrame.viewport.getAlignment(), 0, false);
@@ -2205,7 +2286,7 @@ public class JalviewLite extends Applet implements
       String param = applet.getParameter("annotations");
       if (param != null)
       {
-        param = setProtocolState(param);
+        param = resolveFileProtocol(param);
 
         if (new AnnotationFile().annotateAlignmentView(alignFrame.viewport,
                 param, protocol))
@@ -2258,7 +2339,7 @@ public class JalviewLite extends Applet implements
       param = applet.getParameter("features");
       if (param != null)
       {
-        param = setProtocolState(param);
+        param = resolveFileProtocol(param);
 
         result = alignFrame.parseFeaturesFile(param, protocol);
       }
@@ -2327,7 +2408,7 @@ public class JalviewLite extends Applet implements
       {
         try
         {
-          treeFile = setProtocolState(treeFile);
+          treeFile = resolveFileProtocol(treeFile);
           NewickFile fin = new NewickFile(treeFile, protocol);
           fin.parse();
 
@@ -2352,113 +2433,28 @@ public class JalviewLite extends Applet implements
     /**
      * Discovers whether the given file is in the Applet Archive
      * 
-     * @param file
+     * @param f
      *          String
      * @return boolean
      */
-    boolean inArchive(String file)
+    boolean inArchive(String f)
     {
       // This might throw a security exception in certain browsers
       // Netscape Communicator for instance.
       try
       {
-        boolean rtn = (getClass().getResourceAsStream("/" + file) != null);
+        boolean rtn = (getClass().getResourceAsStream("/" + f) != null);
         if (debug)
         {
-          System.err.println("Resource '" + file + "' was "
-                  + (rtn ? "" : "not") + " located by classloader.");
+          System.err.println("Resource '" + f + "' was "
+                  + (rtn ? "" : "not ") + "located by classloader.");
         }
         return rtn;
       } catch (Exception ex)
       {
-        System.out.println("Exception checking resources: " + file + " "
-                + ex);
+        System.out.println("Exception checking resources: " + f + " " + ex);
         return false;
       }
-    }
-
-    /**
-     * If the file is not already in URL format, tries to locate it by resolving
-     * as a URL.
-     * 
-     * @param f
-     * @return
-     */
-    String addProtocol(final String f)
-    {
-      if (f.indexOf("://") != -1)
-      {
-        // already has URL format
-        return f;
-      }
-
-      /*
-       * Try relative to document base
-       */
-      URL documentBase = getDocumentBase();
-      String url = applet.resolveUrlForLocalOrAbsolute(f, documentBase);
-      if (urlExists(url))
-      {
-        if (debug)
-        {
-          System.err.println("Prepended document base '" + documentBase
-                  + "' to make: '" + url + "'");
-        }
-        return url;
-      }
-
-      /*
-       * Try relative to codebase
-       */
-      URL codeBase = getCodeBase();
-      url = applet.resolveUrlForLocalOrAbsolute(f, codeBase);
-      if (urlExists(url))
-      {
-        if (debug)
-        {
-          System.err.println("Prepended codebase '" + codeBase
-                  + "' to make: '" + url + "'");
-        }
-        return url;
-      }
-
-      return f;
-    }
-
-    /**
-     * Returns true if an input stream can be opened on the specified URL, else
-     * false.
-     * 
-     * @param url
-     * @return
-     */
-    private boolean urlExists(String url)
-    {
-      InputStream is = null;
-      try
-      {
-        is = new URL(url).openStream();
-        if (is != null)
-        {
-          return true;
-        }
-      } catch (Exception x)
-      {
-        // ignore
-      } finally
-      {
-        if (is != null)
-        {
-          try
-          {
-            is.close();
-          } catch (IOException e)
-          {
-            // ignore
-          }
-        }
-      }
-      return false;
     }
   }
 
@@ -2512,8 +2508,9 @@ public class JalviewLite extends Applet implements
    * @param separator
    * @return elements separated by separator
    */
-  public String[] separatorListToArray(String list, String separator)
+  public static String[] separatorListToArray(String list, String separator)
   {
+    // TODO use StringUtils version (slightly different...)
     int seplen = separator.length();
     if (list == null || list.equals("") || list.equals(separator))
     {
@@ -2579,8 +2576,9 @@ public class JalviewLite extends Applet implements
    * @param separator
    * @return concatenated string
    */
-  public String arrayToSeparatorList(String[] list, String separator)
+  public static String arrayToSeparatorList(String[] list, String separator)
   {
+    // TODO use StringUtils version
     StringBuffer v = new StringBuffer();
     if (list != null && list.length > 0)
     {
@@ -2616,6 +2614,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatureGroups()
    */
+  @Override
   public String getFeatureGroups()
   {
     String lst = arrayToSeparatorList(getDefaultTargetFrame()
@@ -2630,6 +2629,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeatureGroupsOn(jalview.appletgui.AlignFrame
    * )
    */
+  @Override
   public String getFeatureGroupsOn(AlignFrame alf)
   {
     String lst = arrayToSeparatorList(alf.getFeatureGroups());
@@ -2641,6 +2641,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getFeatureGroupsOfState(boolean)
    */
+  @Override
   public String getFeatureGroupsOfState(boolean visible)
   {
     return arrayToSeparatorList(getDefaultTargetFrame()
@@ -2654,6 +2655,7 @@ public class JalviewLite extends Applet implements
    * jalview.bin.JalviewLiteJsApi#getFeatureGroupsOfStateOn(jalview.appletgui
    * .AlignFrame, boolean)
    */
+  @Override
   public String getFeatureGroupsOfStateOn(AlignFrame alf, boolean visible)
   {
     return arrayToSeparatorList(alf.getFeatureGroupsOfState(visible));
@@ -2665,6 +2667,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#setFeatureGroupStateOn(jalview.appletgui.
    * AlignFrame, java.lang.String, boolean)
    */
+  @Override
   public void setFeatureGroupStateOn(final AlignFrame alf,
           final String groups, boolean state)
   {
@@ -2686,6 +2689,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#setFeatureGroupState(java.lang.String,
    * boolean)
    */
+  @Override
   public void setFeatureGroupState(String groups, boolean state)
   {
     setFeatureGroupStateOn(getDefaultTargetFrame(), groups, state);
@@ -2696,6 +2700,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#getSeparator()
    */
+  @Override
   public String getSeparator()
   {
     return separator;
@@ -2706,6 +2711,7 @@ public class JalviewLite extends Applet implements
    * 
    * @see jalview.bin.JalviewLiteJsApi#setSeparator(java.lang.String)
    */
+  @Override
   public void setSeparator(String separator)
   {
     if (separator == null || separator.length() < 1)
@@ -2750,6 +2756,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#addPdbFile(jalview.appletgui.AlignFrame,
    * java.lang.String, java.lang.String, java.lang.String)
    */
+  @Override
   public boolean addPdbFile(AlignFrame alFrame, String sequenceId,
           String pdbEntryString, String pdbFile)
   {
@@ -2766,6 +2773,7 @@ public class JalviewLite extends Applet implements
     return alignPdbStructures;
   }
 
+  @Override
   public void start()
   {
     // callInitCallback();
@@ -2799,6 +2807,7 @@ public class JalviewLite extends Applet implements
    * @see jalview.bin.JalviewLiteJsApi#getJsMessage(java.lang.String,
    * java.lang.String)
    */
+  @Override
   public String getJsMessage(String messageclass, String viewId)
   {
     Hashtable<String, String[]> msgset = jsmessages.get(messageclass);
@@ -2898,35 +2907,61 @@ public class JalviewLite extends Applet implements
    * form a complete URL given a path to a resource and a reference location on
    * the same server
    * 
-   * @param url
+   * @param targetPath
    *          - an absolute path on the same server as localref or a document
    *          located relative to localref
    * @param localref
    *          - a URL on the same server as url
    * @return a complete URL for the resource located by url
    */
-  private String resolveUrlForLocalOrAbsolute(String url, URL localref)
+  private String resolveUrlForLocalOrAbsolute(String targetPath,
+          URL localref)
   {
-    String codebase = localref.toString();
-    if (url.indexOf("/") == 0)
+    String resolvedPath = "";
+    if (targetPath.startsWith("/"))
     {
+      String codebase = localref.toString();
       String localfile = localref.getFile();
-      url = codebase.substring(0, codebase.length() - localfile.length())
-              + url;
+      resolvedPath = codebase.substring(0,
+              codebase.length() - localfile.length())
+              + targetPath;
+      return resolvedPath;
+    }
+
+    /*
+     * get URL path and strip off any trailing file e.g.
+     * www.jalview.org/examples/index.html#applets?a=b is trimmed to
+     * www.jalview.org/examples/
+     */
+    String urlPath = localref.toString();
+    String directoryPath = urlPath;
+    int lastSeparator = directoryPath.lastIndexOf("/");
+    if (lastSeparator > 0)
+    {
+      directoryPath = directoryPath.substring(0, lastSeparator + 1);
+    }
+
+    if (targetPath.startsWith("/"))
+    {
+      /*
+       * construct absolute URL to a file on the server - this is not allowed?
+       */
+      // String localfile = localref.getFile();
+      // resolvedPath = urlPath.substring(0,
+      // urlPath.length() - localfile.length())
+      // + targetPath;
+      resolvedPath = directoryPath + targetPath.substring(1);
     }
     else
     {
-      url = localref + url;
+      resolvedPath = directoryPath + targetPath;
     }
     if (debug)
     {
-      System.err.println("URL: " + localref.toString());
-      System.err.println("URL.getFile: " + localref.getFile());
-      System.err.println("URL.getPath: " + localref.getPath());
-      System.err.println("URL.getQuery: " + localref.getQuery());
-      System.err.println("returning " + url);
+      System.err.println("resolveUrlForLocalOrAbsolute returning "
+              + resolvedPath);
     }
-    return url;
+    return resolvedPath;
   }
 
   /**
@@ -2948,8 +2983,8 @@ public class JalviewLite extends Applet implements
         URL prepend;
         url = resolveUrlForLocalOrAbsolute(
                 url,
-                prepend = getDefaultParameter("resolvetocodebase", false) ? getDocumentBase()
-                        : getCodeBase());
+                prepend = getDefaultParameter("resolvetocodebase", false) ? getCodeBase()
+                        : getDocumentBase());
         if (debug)
         {
           System.err

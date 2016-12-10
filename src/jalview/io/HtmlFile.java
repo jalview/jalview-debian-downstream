@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,10 +22,10 @@
 package jalview.io;
 
 import jalview.api.ComplexAlignFile;
+import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.ColourSchemeI;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -40,7 +40,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
 
   public static final String FILE_DESC = "HTML";
 
-  private ColourSchemeI colourScheme;
+  private String globalColourScheme;
 
   private boolean showSeqFeatures;
 
@@ -108,7 +108,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
       this.seqGroups = jsonFile.getSeqGroups();
       this.annotations = jsonFile.getAnnotations();
       this.showSeqFeatures = jsonFile.isShowSeqFeatures();
-      this.colourScheme = jsonFile.getColourScheme();
+      this.globalColourScheme = jsonFile.getGlobalColourScheme();
       this.hiddenSequences = jsonFile.getHiddenSequences();
       this.columnSelection = jsonFile.getColumnSelection();
       this.displayedFeatures = jsonFile.getDisplayedFeatures();
@@ -125,6 +125,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
             "Print method of HtmlFile is not supported!");
   }
 
+  @Override
   public boolean isShowSeqFeatures()
   {
     return showSeqFeatures;
@@ -135,16 +136,18 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
     this.showSeqFeatures = showSeqFeatures;
   }
 
-  public ColourSchemeI getColourScheme()
+  @Override
+  public String getGlobalColourScheme()
   {
-    return colourScheme;
+    return globalColourScheme;
   }
 
-  public void setColourScheme(ColourSchemeI colourScheme)
+  public void setColourScheme(String globalColourScheme)
   {
-    this.colourScheme = colourScheme;
+    this.globalColourScheme = globalColourScheme;
   }
 
+  @Override
   public ColumnSelection getColumnSelection()
   {
     return columnSelection;
@@ -155,6 +158,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
     this.columnSelection = columnSelection;
   }
 
+  @Override
   public SequenceI[] getHiddenSequences()
   {
     return hiddenSequences;
@@ -169,6 +173,21 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
   public FeaturesDisplayedI getDisplayedFeatures()
   {
     return displayedFeatures;
+  }
+
+  /**
+   * Returns a descriptor for suitable feature display settings with
+   * <ul>
+   * <li>ResNums or insertions features visible</li>
+   * <li>insertions features coloured red</li>
+   * <li>ResNum features coloured by label</li>
+   * <li>Insertions displayed above (on top of) ResNums</li>
+   * </ul>
+   */
+  @Override
+  public FeatureSettingsModelI getFeatureColourScheme()
+  {
+    return new PDBFeatureSettings();
   }
 
 }

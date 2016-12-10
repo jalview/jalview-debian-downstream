@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.appletgui;
 
-import jalview.analysis.AlignmentUtils;
 import jalview.api.AlignmentViewPanel;
 import jalview.api.ViewStyleI;
 import jalview.bin.JalviewLite;
@@ -44,12 +43,14 @@ public class SplitFrame extends EmbmenuFrame
   private Panel outermost;
 
   /**
-   * Constructor
+   * Constructs the split frame placing cdna in the top half. No 'alignment' is
+   * performed here, this should be done by the calling client if wanted.
    */
   public SplitFrame(AlignFrame af1, AlignFrame af2)
   {
-    topFrame = af1;
-    bottomFrame = af2;
+    boolean af1IsNucleotide = af1.viewport.getAlignment().isNucleotide();
+    topFrame = af1IsNucleotide ? af1 : af2;
+    bottomFrame = topFrame == af1 ? af2 : af1;
     init();
   }
 
@@ -75,20 +76,15 @@ public class SplitFrame extends EmbmenuFrame
     AlignmentViewport protein = !topAlignment.isNucleotide() ? topViewport
             : (!bottomAlignment.isNucleotide() ? bottomViewport : null);
 
-    boolean mapped = AlignmentUtils.mapProteinToCdna(
-            protein.getAlignment(), cdna.getAlignment());
-    if (mapped)
-    {
-      final StructureSelectionManager ssm = StructureSelectionManager
-              .getStructureSelectionManager(topViewport.applet);
-      ssm.registerMappings(protein.getAlignment().getCodonFrames());
-      topViewport.setCodingComplement(bottomViewport);
-      ssm.addCommandListener(cdna);
-      ssm.addCommandListener(protein);
-    }
+    final StructureSelectionManager ssm = StructureSelectionManager
+            .getStructureSelectionManager(topViewport.applet);
+    ssm.registerMappings(protein.getAlignment().getCodonFrames());
+    topViewport.setCodingComplement(bottomViewport);
+    ssm.addCommandListener(cdna);
+    ssm.addCommandListener(protein);
 
     /*
-     * Now mappings exist, can compute cDNA consensus on protein alignment
+     * Compute cDNA consensus on protein alignment
      */
     protein.initComplementConsensus();
     AlignmentViewPanel ap = topAlignment.isNucleotide() ? bottomFrame.alignPanel

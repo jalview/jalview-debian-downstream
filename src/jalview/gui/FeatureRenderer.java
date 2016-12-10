@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,13 @@
  */
 package jalview.gui;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.GraduatedColor;
+import jalview.schemes.FeatureColour;
+import jalview.schemes.UserColourScheme;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -37,6 +40,8 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
+import java.util.Comparator;
 
 import javax.swing.JColorChooser;
 import javax.swing.JComboBox;
@@ -71,9 +76,8 @@ public class FeatureRenderer extends
    */
   public FeatureRenderer(AlignmentPanel ap)
   {
-    super();
+    super(ap.av);
     this.ap = ap;
-    this.av = ap.av;
     if (ap != null && ap.getSeqPanel() != null
             && ap.getSeqPanel().seqCanvas != null
             && ap.getSeqPanel().seqCanvas.fr != null)
@@ -92,7 +96,7 @@ public class FeatureRenderer extends
 
   static String lastDescriptionAdded;
 
-  Object oldcol, fcol;
+  FeatureColourI oldcol, fcol;
 
   int featureIndex = 0;
 
@@ -121,22 +125,22 @@ public class FeatureRenderer extends
     {
       FeatureColourChooser fcc = null;
 
+      @Override
       public void mousePressed(MouseEvent evt)
       {
-        if (fcol instanceof Color)
+        if (fcol.isSimpleColour())
         {
           Color col = JColorChooser.showDialog(Desktop.desktop,
                   MessageManager.getString("label.select_feature_colour"),
-                  ((Color) fcol));
+                  fcol.getColour());
           if (col != null)
           {
-            fcol = col;
-            updateColourButton(bigPanel, colour, col);
+            fcol = new FeatureColour(col);
+            updateColourButton(bigPanel, colour, new FeatureColour(col));
           }
         }
         else
         {
-
           if (fcc == null)
           {
             final String type = features[featureIndex].getType();
@@ -147,6 +151,7 @@ public class FeatureRenderer extends
             fcc.addActionListener(new ActionListener()
             {
 
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 fcol = fcc.getLastColour();
@@ -169,7 +174,8 @@ public class FeatureRenderer extends
     {
       panel = new JPanel(new GridLayout(4, 1));
       tmp = new JPanel();
-      tmp.add(new JLabel(MessageManager.getString("label.select_feature")));
+      tmp.add(new JLabel(MessageManager.getString("label.select_feature")
+              + ":"));
       overlaps = new JComboBox();
       for (int i = 0; i < features.length; i++)
       {
@@ -182,6 +188,7 @@ public class FeatureRenderer extends
 
       overlaps.addItemListener(new ItemListener()
       {
+        @Override
         public void itemStateChanged(ItemEvent e)
         {
           int index = overlaps.getSelectedIndex();
@@ -194,18 +201,18 @@ public class FeatureRenderer extends
             start.setValue(new Integer(features[index].getBegin()));
             end.setValue(new Integer(features[index].getEnd()));
 
-            SearchResults highlight = new SearchResults();
+            SearchResultsI highlight = new SearchResults();
             highlight.addResult(sequences[0], features[index].getBegin(),
                     features[index].getEnd());
 
             ap.getSeqPanel().seqCanvas.highlightSearchResults(highlight);
 
           }
-          Object col = getFeatureStyle(name.getText());
+          FeatureColourI col = getFeatureStyle(name.getText());
           if (col == null)
           {
-            col = new jalview.schemes.UserColourScheme()
-                    .createColourFromName(name.getText());
+            col = new FeatureColour(UserColourScheme
+                    .createColourFromName(name.getText()));
           }
           oldcol = fcol = col;
           updateColourButton(bigPanel, colour, col);
@@ -219,12 +226,13 @@ public class FeatureRenderer extends
 
     tmp = new JPanel();
     panel.add(tmp);
-    tmp.add(new JLabel(MessageManager.getString("label.name"), JLabel.RIGHT));
+    tmp.add(new JLabel(MessageManager.getString("label.name:"),
+            JLabel.RIGHT));
     tmp.add(name);
 
     tmp = new JPanel();
     panel.add(tmp);
-    tmp.add(new JLabel(MessageManager.getString("label.group") + ":",
+    tmp.add(new JLabel(MessageManager.getString("label.group:"),
             JLabel.RIGHT));
     tmp.add(source);
 
@@ -243,7 +251,7 @@ public class FeatureRenderer extends
     bigPanel.add(panel, BorderLayout.NORTH);
 
     panel = new JPanel();
-    panel.add(new JLabel(MessageManager.getString("label.description"),
+    panel.add(new JLabel(MessageManager.getString("label.description:"),
             JLabel.RIGHT));
     description.setFont(JvSwingUtils.getTextAreaFont());
     description.setLineWrap(true);
@@ -416,26 +424,36 @@ public class FeatureRenderer extends
    * 
    * @param bigPanel
    * @param col
-   * @param col2
+   * @param col
    */
   protected void updateColourButton(JPanel bigPanel, JLabel colour,
-          Object col2)
+          FeatureColourI col)
   {
     colour.removeAll();
     colour.setIcon(null);
     colour.setToolTipText(null);
     colour.setText("");
 
-    if (col2 instanceof Color)
+    if (col.isSimpleColour())
     {
-      colour.setBackground((Color) col2);
+      colour.setBackground(col.getColour());
     }
     else
     {
       colour.setBackground(bigPanel.getBackground());
       colour.setForeground(Color.black);
-      FeatureSettings.renderGraduatedColor(colour, (GraduatedColor) col2);
-      // colour.setForeground(colour.getBackground());
+      FeatureSettings.renderGraduatedColor(colour, col);
     }
+  }
+
+  /**
+   * Orders features in render precedence (last in order is last to render, so
+   * displayed on top of other features)
+   * 
+   * @param order
+   */
+  public void orderFeatures(Comparator<String> order)
+  {
+    Arrays.sort(renderOrder, order);
   }
 }

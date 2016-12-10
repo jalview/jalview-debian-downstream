@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -62,7 +62,7 @@ public class FeaturesDisplayed implements FeaturesDisplayedI
   }
 
   @Override
-  public boolean areVisible(Collection featureTypes)
+  public boolean areVisible(Collection<String> featureTypes)
   {
     return featuresDisplayed.containsAll(featureTypes);
   }
@@ -75,7 +75,7 @@ public class FeaturesDisplayed implements FeaturesDisplayedI
   }
 
   @Override
-  public void setAllVisible(Collection makeVisible)
+  public void setAllVisible(Collection<String> makeVisible)
   {
     featuresDisplayed.addAll(makeVisible);
     featuresRegistered.addAll(makeVisible);
@@ -107,7 +107,7 @@ public class FeaturesDisplayed implements FeaturesDisplayedI
   }
 
   @Override
-  public int getRegisterdFeaturesCount()
+  public int getRegisteredFeaturesCount()
   {
     return featuresRegistered.size();
   }

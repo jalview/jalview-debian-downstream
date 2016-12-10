@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,7 @@ import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
 import jalview.api.AlignViewControllerGuiI;
 import jalview.api.AlignViewControllerI;
 import jalview.api.AlignViewportI;
+import jalview.api.FeatureColourI;
 import jalview.api.FeatureRenderer;
 import jalview.api.FeatureSettingsControllerI;
 import jalview.api.SequenceStructureBinding;
@@ -75,6 +76,7 @@ import java.awt.BorderLayout;
 import java.awt.Canvas;
 import java.awt.CheckboxMenuItem;
 import java.awt.Color;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Frame;
@@ -83,6 +85,7 @@ import java.awt.Label;
 import java.awt.Menu;
 import java.awt.MenuBar;
 import java.awt.MenuItem;
+import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
@@ -99,7 +102,6 @@ import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -216,6 +218,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       viewport.setColumnSelection(columnSelection);
     }
+    viewport.setScaleAboveWrapped(scaleAbove.getState());
 
     alignPanel = new AlignmentPanel(this, viewport);
     avc = new jalview.controller.AlignViewController(this, viewport,
@@ -232,8 +235,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     normSequenceLogo.setState(viewport.isNormaliseSequenceLogo());
     applyToAllGroups.setState(viewport.getColourAppliesToAllGroups());
     annotationPanelMenuItem.setState(viewport.isShowAnnotation());
-    showAlignmentAnnotations.setState(viewport.isShowAnnotation());
-    showSequenceAnnotations.setState(viewport.isShowAnnotation());
+    showAlignmentAnnotations.setEnabled(annotationPanelMenuItem.getState());
+    showSequenceAnnotations.setEnabled(annotationPanelMenuItem.getState());
+    showAlignmentAnnotations.setState(true);
+    showSequenceAnnotations.setState(false);
 
     seqLimits.setState(viewport.getShowJVSuffix());
 
@@ -302,6 +307,8 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     alignPanel.annotationSpaceFillerHolder.addKeyListener(this);
     alignPanel.alabels.addKeyListener(this);
 
+    setAnnotationsVisibility();
+
     if (addToDisplay)
     {
       addToDisplay(embedded);
@@ -358,18 +365,15 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public boolean parseFeaturesFile(String file, String type,
           boolean autoenabledisplay)
   {
-    // TODO: test if importing a features file onto an alignment which already
-    // has features with links overwrites the original links.
-
-    Hashtable featureLinks = new Hashtable();
     boolean featuresFile = false;
     try
     {
-      featuresFile = new jalview.io.FeaturesFile(file, type).parse(viewport
-              .getAlignment(), alignPanel.seqPanel.seqCanvas
-              .getFeatureRenderer().getFeatureColours(), featureLinks,
-              true, viewport.applet.getDefaultParameter("relaxedidmatch",
-                      false));
+      Map<String, FeatureColourI> colours = alignPanel.seqPanel.seqCanvas
+              .getFeatureRenderer().getFeatureColours();
+      boolean relaxedIdMatching = viewport.applet.getDefaultParameter(
+              "relaxedidmatch", false);
+      featuresFile = new FeaturesFile(file, type).parse(
+              viewport.getAlignment(), colours, true, relaxedIdMatching);
     } catch (Exception ex)
     {
       ex.printStackTrace();
@@ -377,10 +381,6 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     if (featuresFile)
     {
-      if (featureLinks.size() > 0)
-      {
-        alignPanel.seqPanel.seqCanvas.getFeatureRenderer().featureLinks = featureLinks;
-      }
       if (autoenabledisplay)
       {
         viewport.setShowSequenceFeatures(true);
@@ -702,9 +702,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       // Hide everything by the current selection - this is a hack - we do the
       // invert and then hide
       // first check that there will be visible columns after the invert.
-      if ((viewport.getColumnSelection() != null
-              && viewport.getColumnSelection().getSelected() != null && viewport
-              .getColumnSelection().getSelected().size() > 0)
+      if (viewport.hasSelectedColumns()
               || (sg != null && sg.getSize() > 0 && sg.getStartRes() <= sg
                       .getEndRes()))
       {
@@ -732,8 +730,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
         hide = true;
         viewport.hideAllSelectedSeqs();
       }
-      else if (!(toggleCols && viewport.getColumnSelection().getSelected()
-              .size() > 0))
+      else if (!(toggleCols && viewport.hasSelectedColumns()))
       {
         viewport.showAllHiddenSeqs();
       }
@@ -741,7 +738,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
     if (toggleCols)
     {
-      if (viewport.getColumnSelection().getSelected().size() > 0)
+      if (viewport.hasSelectedColumns())
       {
         viewport.hideSelectedColumns();
         if (!toggleSeqs)
@@ -753,6 +750,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       {
         viewport.showAllHiddenColumns();
       }
+      viewport.sendSelection();
     }
   }
 
@@ -812,8 +810,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
     else if (source == annotationPanelMenuItem)
     {
-      viewport.setShowAnnotation(annotationPanelMenuItem.getState());
-      alignPanel.setAnnotationVisible(annotationPanelMenuItem.getState());
+      boolean showAnnotations = annotationPanelMenuItem.getState();
+      showAlignmentAnnotations.setEnabled(showAnnotations);
+      showSequenceAnnotations.setEnabled(showAnnotations);
+      viewport.setShowAnnotation(showAnnotations);
+      alignPanel.setAnnotationVisible(showAnnotations);
     }
     else if (source == sequenceFeatures)
     {
@@ -913,7 +914,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   /**
    * Set the visibility state of sequence-related and/or alignment-related
-   * annotations depending on checkbox selections. Repaint after calling.
+   * annotations depending on checkbox selections, and repaint.
    * 
    * @param visible
    */
@@ -921,12 +922,15 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   {
     boolean showForAlignment = showAlignmentAnnotations.getState();
     boolean showForSequences = showSequenceAnnotations.getState();
-    for (AlignmentAnnotation aa : alignPanel.getAlignment()
-            .getAlignmentAnnotation())
+    if (alignPanel.getAlignment().getAlignmentAnnotation() != null)
     {
-      boolean visible = (aa.sequenceRef == null ? showForAlignment
-              : showForSequences);
-      aa.visible = visible;
+      for (AlignmentAnnotation aa : alignPanel.getAlignment()
+              .getAlignmentAnnotation())
+      {
+        boolean visible = (aa.sequenceRef == null ? showForAlignment
+                : showForSequences);
+        aa.visible = visible;
+      }
     }
     alignPanel.validateAnnotationDimensions(true);
     validate();
@@ -1068,11 +1072,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     else if (source == invertSequenceMenuItem)
     {
       invertSequenceMenuItem_actionPerformed();
+      // uncomment to slave sequence selections in split frame
+      // viewport.sendSelection();
     }
     else if (source == invertColSel)
     {
       viewport.invertColumnSelection();
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == remove2LeftMenuItem)
     {
@@ -1106,27 +1113,34 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     {
       viewport.showAllHiddenColumns();
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == showSeqs)
     {
       viewport.showAllHiddenSeqs();
       alignPanel.paintAlignment(true);
+      // uncomment if we want to slave sequence selections in split frame
+      // viewport.sendSelection();
     }
     else if (source == hideColumns)
     {
       viewport.hideSelectedColumns();
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == hideSequences
             && viewport.getSelectionGroup() != null)
     {
       viewport.hideAllSelectedSeqs();
       alignPanel.paintAlignment(true);
+      // uncomment if we want to slave sequence selections in split frame
+      // viewport.sendSelection();
     }
     else if (source == hideAllButSelection)
     {
       toggleHiddenRegions(false, false);
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == hideAllSelection)
     {
@@ -1135,12 +1149,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       viewport.hideAllSelectedSeqs();
       viewport.hideSelectedColumns();
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == showAllHidden)
     {
       viewport.showAllHiddenColumns();
       viewport.showAllHiddenSeqs();
       alignPanel.paintAlignment(true);
+      viewport.sendSelection();
     }
     else if (source == showGroupConsensus)
     {
@@ -1381,7 +1397,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     return annotation;
   }
 
-  private Map<String, Object> getDisplayedFeatureCols()
+  private Map<String, FeatureColourI> getDisplayedFeatureCols()
   {
     if (alignPanel.getFeatureRenderer() != null
             && viewport.getFeaturesDisplayed() != null)
@@ -1395,15 +1411,15 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
   public String outputFeatures(boolean displayTextbox, String format)
   {
     String features;
+    FeaturesFile formatter = new FeaturesFile();
     if (format.equalsIgnoreCase("Jalview"))
     {
-      features = new FeaturesFile().printJalviewFormat(viewport
-              .getAlignment().getSequencesArray(),
-              getDisplayedFeatureCols());
+      features = formatter.printJalviewFormat(viewport.getAlignment()
+              .getSequencesArray(), getDisplayedFeatureCols());
     }
     else
     {
-      features = new FeaturesFile().printGFFFormat(viewport.getAlignment()
+      features = formatter.printGffFormat(viewport.getAlignment()
               .getSequencesArray(), getDisplayedFeatureCols());
     }
 
@@ -1743,9 +1759,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
               viewport, complement);
       complement.getAlignment().moveSelectedSequencesByOne(mappedSelection,
               up ? null : complement.getHiddenRepSequences(), up);
-      // TODO need to trigger a repaint of the complementary panel - how?
-      // would prefer to handle in SplitFrame but it is not overriding key
-      // listener chiz
+      getSplitFrame().getComplement(this).alignPanel.paintAlignment(true);
     }
   }
 
@@ -2059,9 +2073,32 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       seqs.addElement(seq);
     }
 
-    // If the cut affects all sequences, remove highlighted columns
+    /*
+     * If the cut affects all sequences, warn, remove highlighted columns
+     */
     if (sg.getSize() == viewport.getAlignment().getHeight())
     {
+      boolean isEntireAlignWidth = (((sg.getEndRes() - sg.getStartRes()) + 1) == viewport
+              .getAlignment().getWidth()) ? true : false;
+      if (isEntireAlignWidth)
+      {
+        String title = MessageManager.getString("label.delete_all");
+        Panel infoPanel = new Panel();
+        infoPanel.setLayout(new FlowLayout());
+        infoPanel
+                .add(new Label(MessageManager.getString("warn.delete_all")));
+
+        final JVDialog dialog = new JVDialog(this, title, true, 400, 200);
+        dialog.setMainPanel(infoPanel);
+        dialog.ok.setLabel(MessageManager.getString("action.ok"));
+        dialog.cancel.setLabel(MessageManager.getString("action.cancel"));
+        dialog.setVisible(true);
+
+        if (!dialog.accept)
+        {
+          return;
+        }
+      }
       viewport.getColumnSelection().removeElements(sg.getStartRes(),
               sg.getEndRes() + 1);
     }
@@ -2192,7 +2229,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     }
     sg.setEndRes(viewport.getAlignment().getWidth() - 1);
     viewport.setSelectionGroup(sg);
-    alignPanel.paintAlignment(true);
+    // JAL-2034 - should delegate to
+    // alignPanel to decide if overview needs
+    // updating.
+    alignPanel.paintAlignment(false);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
     viewport.sendSelection();
   }
@@ -2209,7 +2249,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     viewport.setSelectionGroup(null);
     alignPanel.idPanel.idCanvas.searchResults = null;
     alignPanel.seqPanel.seqCanvas.highlightSearchResults(null);
-    alignPanel.paintAlignment(true);
+    // JAL-2034 - should delegate to
+    // alignPanel to decide if overview needs
+    // updating.
+    alignPanel.paintAlignment(false);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
     viewport.sendSelection();
   }
@@ -2239,7 +2282,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     ColumnSelection colSel = viewport.getColumnSelection();
     int column;
 
-    if (colSel.size() > 0)
+    if (!colSel.isEmpty())
     {
       if (trimLeft)
       {
@@ -2264,18 +2307,14 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       TrimRegionCommand trimRegion;
       if (trimLeft)
       {
-        trimRegion = new TrimRegionCommand("Remove Left",
-                TrimRegionCommand.TRIM_LEFT, seqs, column,
-                viewport.getAlignment(), viewport.getColumnSelection(),
-                viewport.getSelectionGroup());
+        trimRegion = new TrimRegionCommand("Remove Left", true, seqs,
+                column, viewport.getAlignment());
         viewport.setStartRes(0);
       }
       else
       {
-        trimRegion = new TrimRegionCommand("Remove Right",
-                TrimRegionCommand.TRIM_RIGHT, seqs, column,
-                viewport.getAlignment(), viewport.getColumnSelection(),
-                viewport.getSelectionGroup());
+        trimRegion = new TrimRegionCommand("Remove Right", false, seqs,
+                column, viewport.getAlignment());
       }
 
       statusBar.setText(MessageManager.formatMessage(
@@ -2579,6 +2618,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
 
   }
 
+  @Override
   public void changeColour(ColourSchemeI cs)
   {
 
@@ -3357,8 +3397,11 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
             MessageManager.getString("label.sort_annotations_by_label"));
     showAutoFirst = new CheckboxMenuItem(
             MessageManager.getString("label.show_first"));
+    showAutoFirst.setState(false); // pending applet parameter
+    setShowAutoCalculatedAbove(showAutoFirst.getState());
     showAutoLast = new CheckboxMenuItem(
             MessageManager.getString("label.show_last"));
+    showAutoLast.setState(!showAutoFirst.getState());
     showAlignmentAnnotations.addItemListener(this);
     showSequenceAnnotations.addItemListener(this);
     sortAnnBySequence.addItemListener(this);
@@ -3469,10 +3512,10 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     nucleotideColour.setLabel(MessageManager.getString("label.nucleotide"));
     nucleotideColour.addActionListener(this);
     modifyPID.setLabel(MessageManager
-            .getString("label.modify_identity_thereshold"));
+            .getString("label.modify_identity_threshold"));
     modifyPID.addActionListener(this);
     modifyConservation.setLabel(MessageManager
-            .getString("label.modify_conservation_thereshold"));
+            .getString("label.modify_conservation_threshold"));
     modifyConservation.addActionListener(this);
     annotationColour.setLabel(MessageManager
             .getString("action.by_annotation"));
@@ -3726,6 +3769,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     this.add(statusBar, BorderLayout.SOUTH);
   }
 
+  @Override
   public void setStatus(String string)
   {
     statusBar.setText(string);
@@ -3979,12 +4023,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
       }
       if (needtoadd)
       {
-        // make a note of the access mode and add
-        if (pdbentry.getProperty() == null)
-        {
-          pdbentry.setProperty(new Hashtable());
-        }
-        pdbentry.getProperty().put("protocol", protocol);
+        pdbentry.setProperty("protocol", protocol);
         toaddpdb.addPDBId(pdbentry);
         alignPanel.getStructureSelectionManager()
                 .registerPDBEntry(pdbentry);
@@ -4035,7 +4074,7 @@ public class AlignFrame extends EmbmenuFrame implements ActionListener,
     if (protocol == null || protocol.trim().length() == 0
             || protocol.equals("null"))
     {
-      protocol = (String) pdb.getProperty().get("protocol");
+      protocol = (String) pdb.getProperty("protocol");
       if (protocol == null)
       {
         System.err.println("Couldn't work out protocol to open structure: "

@@ -1,3 +1,35 @@
+/* vim: set ts=2: */
+/**
+ * Copyright (c) 2006 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions, and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions, and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *   3. Redistributions must acknowledge that this software was
+ *      originally developed by the UCSF Computer Graphics Laboratory
+ *      under support by the NIH National Center for Research Resources,
+ *      grant P41-RR01081.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 package ext.edu.ucsf.rbvi.strucviz2;
 
 import java.awt.Color;
@@ -145,6 +177,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * 
    * @return ChimeraModel
    */
+  @Override
   public ChimeraModel getChimeraModel()
   {
     return this;
@@ -272,6 +305,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * 
    * @return user data
    */
+  @Override
   public Object getUserData()
   {
     return userData;
@@ -283,6 +317,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * @param data
    *          user data to associate with this model
    */
+  @Override
   public void setUserData(Object data)
   {
     this.userData = data;
@@ -293,6 +328,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * 
    * @return the selected state
    */
+  @Override
   public boolean isSelected()
   {
     return selected;
@@ -304,6 +340,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * @param selected
    *          a boolean to set the selected state to
    */
+  @Override
   public void setSelected(boolean selected)
   {
     this.selected = selected;
@@ -314,6 +351,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * 
    * @return the chains in this model as a list
    */
+  @Override
   public List<ChimeraStructuralObject> getChildren()
   {
     return new ArrayList<ChimeraStructuralObject>(chainMap.values());
@@ -414,6 +452,7 @@ public class ChimeraModel implements ChimeraStructuralObject
   /**
    * Checks if this model has selected children.
    */
+  @Override
   public boolean hasSelectedChildren()
   {
     if (selected)
@@ -458,10 +497,13 @@ public class ChimeraModel implements ChimeraStructuralObject
   /**
    * Return the Chimera specification for this model.
    */
+  @Override
   public String toSpec()
   {
     if (subModelNumber == 0)
+    {
       return ("#" + modelNumber);
+    }
     return ("#" + modelNumber + "." + subModelNumber);
   }
 
@@ -469,6 +511,7 @@ public class ChimeraModel implements ChimeraStructuralObject
    * Return a string representation for the model. Shorten if longer than 100
    * characters.
    */
+  @Override
   public String toString()
   {
     String modelName = "";
@@ -553,5 +596,28 @@ public class ChimeraModel implements ChimeraStructuralObject
       nodeName = nodeName.substring(0, 100) + "...";
     }
     return nodeName;
+  }
+
+  @Override
+  public boolean equals(Object otherChimeraModel)
+  {
+    if (!(otherChimeraModel instanceof ChimeraModel))
+    {
+      return false;
+    }
+    ChimeraModel otherCM = ((ChimeraModel) otherChimeraModel);
+    return this.name.equals(otherCM.name)
+            && this.modelNumber == otherCM.modelNumber
+            && this.type == otherCM.type;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int hashCode = 1;
+    hashCode = hashCode * 37 + this.name.hashCode();
+    hashCode = hashCode * 37 + this.type.hashCode();
+    hashCode = (hashCode * 37) + modelNumber;
+    return hashCode;
   }
 }

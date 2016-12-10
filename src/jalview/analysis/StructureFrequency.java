@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 import jalview.util.Format;
 
 import java.util.ArrayList;
@@ -103,23 +104,24 @@ public class StructureFrequency
 
     SequenceFeature[] rna = rnaStruc._rnasecstr;
     char c, s, cEnd;
-    int count = 0, nonGap = 0, i, bpEnd = -1, j, jSize = sequences.length;
+    int bpEnd = -1;
+    int jSize = sequences.length;
     int[] values;
     int[][] pairs;
     float percentage;
-    boolean wooble = true;
-    for (i = start; i < end; i++) // foreach column
+
+    for (int i = start; i < end; i++) // foreach column
     {
-      residueHash = new Hashtable();
+      int canonicalOrWobblePairCount = 0, canonical = 0;
+      int otherPairCount = 0;
+      int nongap = 0;
       maxResidue = "-";
       values = new int[255];
       pairs = new int[255][255];
       bpEnd = -1;
-      // System.out.println("s="+struc[i]);
       if (i < struc.length)
       {
         s = struc[i];
-
       }
       else
       {
@@ -130,7 +132,7 @@ public class StructureFrequency
         s = '-';
       }
 
-      if (s != '(' && s != '[')
+      if (!Rna.isOpeningParenthesis(s))
       {
         if (s == '-')
         {
@@ -139,12 +141,11 @@ public class StructureFrequency
       }
       else
       {
-
         bpEnd = findPair(rna, i);
 
         if (bpEnd > -1)
         {
-          for (j = 0; j < jSize; j++) // foreach row
+          for (int j = 0; j < jSize; j++) // foreach row
           {
             if (sequences[j] == null)
             {
@@ -152,45 +153,45 @@ public class StructureFrequency
                       .println("WARNING: Consensus skipping null sequence - possible race condition.");
               continue;
             }
+
             c = sequences[j].getCharAt(i);
-            // System.out.println("c="+c);
+            cEnd = sequences[j].getCharAt(bpEnd);
 
-            // standard representation for gaps in sequence and structure
-            if (c == '.' || c == ' ')
-            {
-              c = '-';
-            }
-
-            if (c == '-')
+            if (Comparison.isGap(c) || Comparison.isGap(cEnd))
             {
               values['-']++;
               continue;
             }
-            cEnd = sequences[j].getCharAt(bpEnd);
-
-            // System.out.println("pairs ="+c+","+cEnd);
-            if (checkBpType(c, cEnd) == true)
+            nongap++;
+            /*
+             * ensure upper-case for counting purposes
+             */
+            if ('a' <= c && 'z' >= c)
             {
-              values['(']++; // H means it's a helix (structured)
-              maxResidue = "(";
-              wooble = true;
-              // System.out.println("It's a pair wc");
-
+              c += 'A' - 'a';
             }
-            if (checkBpType(c, cEnd) == false)
+            if ('a' <= cEnd && 'z' >= cEnd)
             {
-              wooble = false;
-              values['[']++; // H means it's a helix (structured)
-              maxResidue = "[";
-
+              cEnd += 'A' - 'a';
+            }
+            if (Rna.isCanonicalOrWobblePair(c, cEnd))
+            {
+              canonicalOrWobblePairCount++;
+              if (Rna.isCanonicalPair(c, cEnd))
+              {
+                canonical++;
+              }
+            }
+            else
+            {
+              otherPairCount++;
             }
             pairs[c][cEnd]++;
-
           }
         }
-        // nonGap++;
       }
-      // UPDATE this for new values
+
+      residueHash = new Hashtable();
       if (profile)
       {
         // TODO 1-dim array with jsize in [0], nongapped in [1]; or Pojo
@@ -199,13 +200,30 @@ public class StructureFrequency
 
         residueHash.put(PAIRPROFILE, pairs);
       }
-      if (wooble == true)
+      values['('] = canonicalOrWobblePairCount;
+      values['['] = canonical;
+      values['{'] = otherPairCount;
+      /*
+       * the count is the number of valid pairs (as a percentage, determines
+       * the relative size of the profile logo)
+       */
+      int count = canonicalOrWobblePairCount;
+
+      /*
+       * display '(' if most pairs are canonical, or as
+       * '[' if there are more wobble pairs. 
+       */
+      if (canonicalOrWobblePairCount > 0 || otherPairCount > 0)
       {
-        count = values['('];
-      }
-      if (wooble == false)
-      {
-        count = values['['];
+        if (canonicalOrWobblePairCount >= otherPairCount)
+        {
+          maxResidue = (canonicalOrWobblePairCount - canonical) < canonical ? "("
+                  : "[";
+        }
+        else
+        {
+          maxResidue = "{";
+        }
       }
       residueHash.put(MAXCOUNT, new Integer(count));
       residueHash.put(MAXRESIDUE, maxResidue);
@@ -213,8 +231,9 @@ public class StructureFrequency
       percentage = ((float) count * 100) / jSize;
       residueHash.put(PID_GAPS, new Float(percentage));
 
-      // percentage = ((float) count * 100) / (float) nongap;
-      // residueHash.put(PID_NOGAPS, new Float(percentage));
+      percentage = ((float) count * 100) / nongap;
+      residueHash.put(PID_NOGAPS, new Float(percentage));
+
       if (result[i] == null)
       {
         result[i] = residueHash;
@@ -223,19 +242,14 @@ public class StructureFrequency
       {
         values[')'] = values['('];
         values[']'] = values['['];
+        values['}'] = values['{'];
         values['('] = 0;
         values['['] = 0;
+        values['{'] = 0;
+        maxResidue = maxResidue.equals("(") ? ")"
+                : maxResidue.equals("[") ? "]" : "}";
+
         residueHash = new Hashtable();
-        if (wooble == true)
-        {
-          // System.out.println(maxResidue+","+wooble);
-          maxResidue = ")";
-        }
-        if (wooble == false)
-        {
-          // System.out.println(maxResidue+","+wooble);
-          maxResidue = "]";
-        }
         if (profile)
         {
           residueHash.put(PROFILE, new int[][] { values,
@@ -250,81 +264,12 @@ public class StructureFrequency
         percentage = ((float) count * 100) / jSize;
         residueHash.put(PID_GAPS, new Float(percentage));
 
+        percentage = ((float) count * 100) / nongap;
+        residueHash.put(PID_NOGAPS, new Float(percentage));
+
         result[bpEnd] = residueHash;
-
       }
     }
-  }
-
-  /**
-   * Method to check if a base-pair is a canonical or a wobble bp
-   * 
-   * @param up
-   *          5' base
-   * @param down
-   *          3' base
-   * @return True if it is a canonical/wobble bp
-   */
-  public static boolean checkBpType(char up, char down)
-  {
-    if (up > 'Z')
-    {
-      up -= 32;
-    }
-    if (down > 'Z')
-    {
-      down -= 32;
-    }
-
-    switch (up)
-    {
-    case 'A':
-      switch (down)
-      {
-      case 'T':
-        return true;
-      case 'U':
-        return true;
-      }
-      break;
-    case 'C':
-      switch (down)
-      {
-      case 'G':
-        return true;
-      }
-      break;
-    case 'T':
-      switch (down)
-      {
-      case 'A':
-        return true;
-      case 'G':
-        return true;
-      }
-      break;
-    case 'G':
-      switch (down)
-      {
-      case 'C':
-        return true;
-      case 'T':
-        return true;
-      case 'U':
-        return true;
-      }
-      break;
-    case 'U':
-      switch (down)
-      {
-      case 'A':
-        return true;
-      case 'G':
-        return true;
-      }
-      break;
-    }
-    return false;
   }
 
   /**
@@ -534,7 +479,7 @@ public class StructureFrequency
       for (String j : test)
       {
         System.out.println(i + "-" + j + ": "
-                + StructureFrequency.checkBpType(i.charAt(0), j.charAt(0)));
+                + Rna.isCanonicalOrWobblePair(i.charAt(0), j.charAt(0)));
       }
     }
   }

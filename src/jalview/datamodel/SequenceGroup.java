@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,14 +23,11 @@ package jalview.datamodel;
 import jalview.analysis.AAFrequency;
 import jalview.analysis.Conservation;
 import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ResidueProperties;
 
 import java.awt.Color;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 /**
  * Collects a set contiguous ranges on a set of sequences
@@ -45,8 +42,6 @@ public class SequenceGroup implements AnnotatedCollectionI
   String description;
 
   Conservation conserve;
-
-  Vector aaFrequency;
 
   boolean displayBoxes = true;
 
@@ -209,7 +204,7 @@ public class SequenceGroup implements AnnotatedCollectionI
       if (seqs[ipos] != null)
       {
         seqs[ipos].setDescription(seq.getDescription());
-        seqs[ipos].setDBRef(seq.getDBRef());
+        seqs[ipos].setDBRefs(seq.getDBRefs());
         seqs[ipos].setSequenceFeatures(seq.getSequenceFeatures());
         if (seq.getDatasetSequence() != null)
         {
@@ -504,32 +499,51 @@ public class SequenceGroup implements AnnotatedCollectionI
   }
 
   /**
-   * calculate residue conservation for group - but only if necessary.
+   * calculate residue conservation and colourschemes for group - but only if
+   * necessary. returns true if the calculation resulted in a visible change to
+   * group
    */
-  public void recalcConservation()
+  public boolean recalcConservation()
+  {
+    return recalcConservation(false);
+  }
+
+  /**
+   * calculate residue conservation for group - but only if necessary. returns
+   * true if the calculation resulted in a visible change to group
+   * 
+   * @param defer
+   *          when set, colourschemes for this group are not refreshed after
+   *          recalculation
+   */
+  public boolean recalcConservation(boolean defer)
   {
     if (cs == null && consensus == null && conservation == null)
     {
-      return;
+      return false;
     }
+    // TODO: try harder to detect changes in state in order to minimise
+    // recalculation effort
+    boolean upd = false;
     try
     {
-      Hashtable cnsns[] = AAFrequency.calculate(sequences, startRes,
+      ProfilesI cnsns = AAFrequency.calculate(sequences, startRes,
               endRes + 1, showSequenceLogo);
       if (consensus != null)
       {
         _updateConsensusRow(cnsns, sequences.size());
+        upd = true;
       }
       if (cs != null)
       {
         cs.setConsensus(cnsns);
+        upd = true;
       }
 
       if ((conservation != null)
               || (cs != null && cs.conservationApplied()))
       {
-        Conservation c = new Conservation(groupName,
-                ResidueProperties.propHash, 3, sequences, startRes,
+        Conservation c = new Conservation(groupName, sequences, startRes,
                 endRes + 1);
         c.calculate();
         c.verdict(false, consPercGaps);
@@ -544,17 +558,25 @@ public class SequenceGroup implements AnnotatedCollectionI
             cs.setConservation(c);
           }
         }
+        // eager update - will cause a refresh of overview regardless
+        upd = true;
       }
-      if (cs != null)
+      if (cs != null && !defer)
       {
+        // TODO: JAL-2034 should cs.alignmentChanged modify return state
         cs.alignmentChanged(context != null ? context : this, null);
+        return true;
+      }
+      else
+      {
+        return upd;
       }
     } catch (java.lang.OutOfMemoryError err)
     {
       // TODO: catch OOM
       System.out.println("Out of memory loading groups: " + err);
     }
-
+    return upd;
   }
 
   private void _updateConservationRow(Conservation c)
@@ -577,9 +599,9 @@ public class SequenceGroup implements AnnotatedCollectionI
     c.completeAnnotations(conservation, null, startRes, endRes + 1);
   }
 
-  public Hashtable[] consensusData = null;
+  public ProfilesI consensusData = null;
 
-  private void _updateConsensusRow(Hashtable[] cnsns, long nseq)
+  private void _updateConsensusRow(ProfilesI cnsns, long nseq)
   {
     if (consensus == null)
     {
@@ -894,6 +916,7 @@ public class SequenceGroup implements AnnotatedCollectionI
   /**
    * @return the representative sequence for this group
    */
+  @Override
   public SequenceI getSeqrep()
   {
     return seqrep;
@@ -906,6 +929,7 @@ public class SequenceGroup implements AnnotatedCollectionI
    * @param seqrep
    *          the seqrep to set (null means no sequence representative)
    */
+  @Override
   public void setSeqrep(SequenceI seqrep)
   {
     this.seqrep = seqrep;
@@ -915,6 +939,7 @@ public class SequenceGroup implements AnnotatedCollectionI
    * 
    * @return true if group has a sequence representative
    */
+  @Override
   public boolean hasSeqrep()
   {
     return seqrep != null;
@@ -1036,7 +1061,8 @@ public class SequenceGroup implements AnnotatedCollectionI
 
   /**
    * 
-   * @return automatically calculated consensus row
+   * @return automatically calculated consensus row note: the row is a stub if a
+   *         consensus calculation has not yet been performed on the group
    */
   public AlignmentAnnotation getConsensus()
   {

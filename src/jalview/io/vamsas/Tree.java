@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -291,8 +291,10 @@ public class Tree extends DatastoreItem
       }
     }
     if (alsq.size() < sequences.length)
+    {
       Cache.log
               .warn("Not recovered all alignment sequences for given set of input sequence CIGARS");
+    }
     return alsq;
   }
 
@@ -306,15 +308,18 @@ public class Tree extends DatastoreItem
   public void UpdateSequenceTreeMap(TreePanel tp)
   {
     if (tp == null || tree == null)
+    {
       return;
-    Vector leaves = new Vector();
+    }
+
     if (tp.getTree() == null)
     {
       Cache.log.warn("Not updating SequenceTreeMap for "
               + tree.getVorbaId());
       return;
     }
-    tp.getTree().findLeaves(tp.getTree().getTopNode(), leaves);
+    Vector<SequenceNode> leaves = tp.getTree().findLeaves(
+            tp.getTree().getTopNode());
     Treenode[] tn = tree.getTreenode(); // todo: select nodes for this
     // particular tree
     int sz = tn.length;
@@ -371,8 +376,7 @@ public class Tree extends DatastoreItem
    */
   public Treenode[] makeTreeNodes(NJTree ntree, Newick newick)
   {
-    Vector leaves = new Vector();
-    ntree.findLeaves(ntree.getTopNode(), leaves);
+    Vector<SequenceNode> leaves = ntree.findLeaves(ntree.getTopNode());
     Vector tnv = new Vector();
     Enumeration l = leaves.elements();
     Hashtable nodespecs = new Hashtable();
@@ -473,7 +477,9 @@ public class Tree extends DatastoreItem
         --occurence;
       }
       else
+      {
         bn = null;
+      }
     }
     return bn;
   }

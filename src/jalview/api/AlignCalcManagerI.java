@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,17 +35,12 @@ public interface AlignCalcManagerI
   void notifyStart(AlignCalcWorkerI worker);
 
   /**
-   * check if a calculation of this type is already active
+   * tell manager that a thread running worker's run() loop is ready to start
+   * processing data
    * 
    * @param worker
-   * @return
-   */
-  boolean alreadyDoing(AlignCalcWorkerI worker);
-
-  /**
-   * tell manager that worker is now processing data
-   * 
-   * @param worker
+   * @return true if worker should start processing, false if another thread is
+   *         in progress
    */
   boolean notifyWorking(AlignCalcWorkerI worker);
 
@@ -63,7 +58,7 @@ public interface AlignCalcManagerI
    * 
    * @param worker
    */
-  void workerCannotRun(AlignCalcWorkerI worker);
+  void disableWorker(AlignCalcWorkerI worker);
 
   /**
    * indicate that a worker like this may be run on the platform.
@@ -71,7 +66,15 @@ public interface AlignCalcManagerI
    * @param worker
    *          of class to be removed from the execution blacklist
    */
-  void workerMayRun(AlignCalcWorkerI worker);
+  void enableWorker(AlignCalcWorkerI worker);
+
+  /**
+   * Answers true if the worker is disabled from running
+   * 
+   * @param worker
+   * @return
+   */
+  boolean isDisabled(AlignCalcWorkerI worker);
 
   /**
    * launch a new worker
@@ -83,7 +86,7 @@ public interface AlignCalcManagerI
   /**
    * 
    * @param worker
-   * @return
+   * @return true if the worker is currently running
    */
   boolean isWorking(AlignCalcWorkerI worker);
 
@@ -120,7 +123,7 @@ public interface AlignCalcManagerI
    * 
    * @param workerClass
    */
-  void updateAnnotationFor(Class workerClass);
+  void updateAnnotationFor(Class<? extends AlignCalcWorkerI> workerClass);
 
   /**
    * return any registered workers of the given class
@@ -128,17 +131,8 @@ public interface AlignCalcManagerI
    * @param workerClass
    * @return null or one or more workers of the given class
    */
-  List<AlignCalcWorkerI> getRegisteredWorkersOfClass(Class workerClass);
-
-  /**
-   * start any workers of the given class
-   * 
-   * @param workerClass
-   * @return false if no workers of given class were registered (note -
-   *         blacklisted classes cannot be restarted, so this method will return
-   *         true for blacklisted workers)
-   */
-  boolean startRegisteredWorkersOfClass(Class workerClass);
+  List<AlignCalcWorkerI> getRegisteredWorkersOfClass(
+          Class<? extends AlignCalcWorkerI> workerClass);
 
   /**
    * work out if there is an instance of a worker that is *waiting* to start
@@ -156,6 +150,15 @@ public interface AlignCalcManagerI
    * 
    * @param typeToRemove
    */
-  void removeRegisteredWorkersOfClass(Class typeToRemove);
+  void removeRegisteredWorkersOfClass(
+          Class<? extends AlignCalcWorkerI> typeToRemove);
 
+  /**
+   * Removes the worker that produces the given annotation, provided it is
+   * marked as 'deletable'. Some workers may need to continue to run as the
+   * results of their calculations are needed, e.g. for colour schemes.
+   * 
+   * @param ann
+   */
+  void removeWorkerForAnnotation(AlignmentAnnotation ann);
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -44,7 +44,7 @@ import java.util.Vector;
  */
 public class NJTree
 {
-  Vector cluster;
+  Vector<Cluster> cluster;
 
   SequenceI[] sequence;
 
@@ -68,7 +68,7 @@ public class NJTree
 
   float rj;
 
-  Vector groups = new Vector();
+  Vector<SequenceNode> groups = new Vector<SequenceNode>();
 
   SequenceNode maxdist;
 
@@ -80,15 +80,13 @@ public class NJTree
 
   int ycount;
 
-  Vector node;
+  Vector<SequenceNode> node;
 
   String type;
 
   String pwtype;
 
   Object found = null;
-
-  Object leaves = null;
 
   boolean hasDistances = true; // normal case for jalview trees
 
@@ -151,8 +149,7 @@ public class NJTree
 
     SequenceIdMatcher algnIds = new SequenceIdMatcher(seqs);
 
-    Vector leaves = new Vector();
-    findLeaves(top, leaves);
+    Vector<SequenceNode> leaves = findLeaves(top);
 
     int i = 0;
     int namesleft = seqs.length;
@@ -160,11 +157,11 @@ public class NJTree
     SequenceNode j;
     SequenceI nam;
     String realnam;
-    Vector one2many = new Vector();
+    Vector<SequenceI> one2many = new Vector<SequenceI>();
     int countOne2Many = 0;
     while (i < leaves.size())
     {
-      j = (SequenceNode) leaves.elementAt(i++);
+      j = leaves.elementAt(i++);
       realnam = j.getName();
       nam = null;
 
@@ -221,7 +218,7 @@ public class NJTree
           String pwtype, ScoreModelI sm, int start, int end)
   {
     this.sequence = sequence;
-    this.node = new Vector();
+    this.node = new Vector<SequenceNode>();
     this.type = type;
     this.pwtype = pwtype;
     if (seqData != null)
@@ -282,6 +279,7 @@ public class NJTree
    * 
    * @return Newick File with all tree data available
    */
+  @Override
   public String toString()
   {
     jalview.io.NewickFile fout = new jalview.io.NewickFile(getTopNode());
@@ -299,8 +297,7 @@ public class NJTree
    */
   public void UpdatePlaceHolders(List<SequenceI> list)
   {
-    Vector leaves = new Vector();
-    findLeaves(top, leaves);
+    Vector<SequenceNode> leaves = findLeaves(top);
 
     int sz = leaves.size();
     SequenceIdMatcher seqmatcher = null;
@@ -308,7 +305,7 @@ public class NJTree
 
     while (i < sz)
     {
-      SequenceNode leaf = (SequenceNode) leaves.elementAt(i++);
+      SequenceNode leaf = leaves.elementAt(i++);
 
       if (list.contains(leaf.element()))
       {
@@ -369,12 +366,12 @@ public class NJTree
     {
 
       @Override
-      public void transform(BinaryNode node)
+      public void transform(BinaryNode nd)
       {
-        Object el = node.element();
+        Object el = nd.element();
         if (el != null && el instanceof SequenceI)
         {
-          node.setName(((SequenceI) el).getName());
+          nd.setName(((SequenceI) el).getName());
         }
       }
     });
@@ -428,7 +425,7 @@ public class NJTree
     }
 
     joinClusters(one, two);
-    top = (SequenceNode) (node.elementAt(one));
+    top = (node.elementAt(one));
 
     reCount(top);
     findHeight(top);
@@ -449,19 +446,19 @@ public class NJTree
   {
     float dist = distance[i][j];
 
-    int noi = ((Cluster) cluster.elementAt(i)).value.length;
-    int noj = ((Cluster) cluster.elementAt(j)).value.length;
+    int noi = cluster.elementAt(i).value.length;
+    int noj = cluster.elementAt(j).value.length;
 
     int[] value = new int[noi + noj];
 
     for (int ii = 0; ii < noi; ii++)
     {
-      value[ii] = ((Cluster) cluster.elementAt(i)).value[ii];
+      value[ii] = cluster.elementAt(i).value[ii];
     }
 
     for (int ii = noi; ii < (noi + noj); ii++)
     {
-      value[ii] = ((Cluster) cluster.elementAt(j)).value[ii - noi];
+      value[ii] = cluster.elementAt(j).value[ii - noi];
     }
 
     Cluster c = new Cluster(value);
@@ -480,11 +477,11 @@ public class NJTree
 
     SequenceNode sn = new SequenceNode();
 
-    sn.setLeft((SequenceNode) (node.elementAt(i)));
-    sn.setRight((SequenceNode) (node.elementAt(j)));
+    sn.setLeft((node.elementAt(i)));
+    sn.setRight((node.elementAt(j)));
 
-    SequenceNode tmpi = (SequenceNode) (node.elementAt(i));
-    SequenceNode tmpj = (SequenceNode) (node.elementAt(j));
+    SequenceNode tmpi = (node.elementAt(i));
+    SequenceNode tmpj = (node.elementAt(j));
 
     if (type.equals("NJ"))
     {
@@ -576,8 +573,8 @@ public class NJTree
    */
   public void findClusterDistance(int i, int j)
   {
-    int noi = ((Cluster) cluster.elementAt(i)).value.length;
-    int noj = ((Cluster) cluster.elementAt(j)).value.length;
+    int noi = cluster.elementAt(i).value.length;
+    int noj = cluster.elementAt(j).value.length;
 
     // New distances from cluster to others
     float[] newdist = new float[noseqs];
@@ -733,7 +730,7 @@ public class NJTree
   public float[][] findDistances(ScoreModelI _pwmatrix)
   {
 
-    float[][] distance = new float[noseqs][noseqs];
+    float[][] dist = new float[noseqs][noseqs];
     if (_pwmatrix == null)
     {
       // Resolve substitution model
@@ -743,8 +740,8 @@ public class NJTree
         _pwmatrix = ResidueProperties.getScoreMatrix("BLOSUM62");
       }
     }
-    distance = _pwmatrix.findDistances(seqData);
-    return distance;
+    dist = _pwmatrix.findDistances(seqData);
+    return dist;
 
   }
 
@@ -753,7 +750,7 @@ public class NJTree
    */
   public void makeLeaves()
   {
-    cluster = new Vector();
+    cluster = new Vector<Cluster>();
 
     for (int i = 0; i < noseqs; i++)
     {
@@ -772,26 +769,42 @@ public class NJTree
   }
 
   /**
+   * Search for leaf nodes below (or at) the given node
+   * 
+   * @param nd
+   *          root node to search from
+   * 
+   * @return
+   */
+  public Vector<SequenceNode> findLeaves(SequenceNode nd)
+  {
+    Vector<SequenceNode> leaves = new Vector<SequenceNode>();
+    findLeaves(nd, leaves);
+    return leaves;
+  }
+
+  /**
    * Search for leaf nodes.
    * 
-   * @param node
+   * @param nd
    *          root node to search from
    * @param leaves
    *          Vector of leaves to add leaf node objects too.
    * 
    * @return Vector of leaf nodes on binary tree
    */
-  public Vector findLeaves(SequenceNode node, Vector leaves)
+  Vector<SequenceNode> findLeaves(SequenceNode nd,
+          Vector<SequenceNode> leaves)
   {
-    if (node == null)
+    if (nd == null)
     {
       return leaves;
     }
 
-    if ((node.left() == null) && (node.right() == null)) // Interior node
+    if ((nd.left() == null) && (nd.right() == null)) // Interior node
     // detection
     {
-      leaves.addElement(node);
+      leaves.addElement(nd);
 
       return leaves;
     }
@@ -801,8 +814,8 @@ public class NJTree
        * TODO: Identify internal nodes... if (node.isSequenceLabel()) {
        * leaves.addElement(node); }
        */
-      findLeaves((SequenceNode) node.left(), leaves);
-      findLeaves((SequenceNode) node.right(), leaves);
+      findLeaves((SequenceNode) nd.left(), leaves);
+      findLeaves((SequenceNode) nd.right(), leaves);
     }
 
     return leaves;
@@ -811,16 +824,16 @@ public class NJTree
   /**
    * Find the leaf node with a particular ycount
    * 
-   * @param node
+   * @param nd
    *          initial point on tree to search from
    * @param count
    *          value to search for
    * 
    * @return null or the node with ycound=count
    */
-  public Object findLeaf(SequenceNode node, int count)
+  public Object findLeaf(SequenceNode nd, int count)
   {
-    found = _findLeaf(node, count);
+    found = _findLeaf(nd, count);
 
     return found;
   }
@@ -828,23 +841,23 @@ public class NJTree
   /*
    * #see findLeaf(SequenceNode node, count)
    */
-  public Object _findLeaf(SequenceNode node, int count)
+  public Object _findLeaf(SequenceNode nd, int count)
   {
-    if (node == null)
+    if (nd == null)
     {
       return null;
     }
 
-    if (node.ycount == count)
+    if (nd.ycount == count)
     {
-      found = node.element();
+      found = nd.element();
 
       return found;
     }
     else
     {
-      _findLeaf((SequenceNode) node.left(), count);
-      _findLeaf((SequenceNode) node.right(), count);
+      _findLeaf((SequenceNode) nd.left(), count);
+      _findLeaf((SequenceNode) nd.right(), count);
     }
 
     return found;
@@ -853,58 +866,57 @@ public class NJTree
   /**
    * printNode is mainly for debugging purposes.
    * 
-   * @param node
+   * @param nd
    *          SequenceNode
    */
-  public void printNode(SequenceNode node)
+  public void printNode(SequenceNode nd)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    if ((node.left() == null) && (node.right() == null))
+    if ((nd.left() == null) && (nd.right() == null))
     {
-      System.out
-              .println("Leaf = " + ((SequenceI) node.element()).getName());
-      System.out.println("Dist " + node.dist);
-      System.out.println("Boot " + node.getBootstrap());
+      System.out.println("Leaf = " + ((SequenceI) nd.element()).getName());
+      System.out.println("Dist " + nd.dist);
+      System.out.println("Boot " + nd.getBootstrap());
     }
     else
     {
-      System.out.println("Dist " + node.dist);
-      printNode((SequenceNode) node.left());
-      printNode((SequenceNode) node.right());
+      System.out.println("Dist " + nd.dist);
+      printNode((SequenceNode) nd.left());
+      printNode((SequenceNode) nd.right());
     }
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    */
-  public void findMaxDist(SequenceNode node)
+  public void findMaxDist(SequenceNode nd)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    if ((node.left() == null) && (node.right() == null))
+    if ((nd.left() == null) && (nd.right() == null))
     {
-      float dist = node.dist;
+      float dist = nd.dist;
 
       if (dist > maxDistValue)
       {
-        maxdist = node;
+        maxdist = nd;
         maxDistValue = dist;
       }
     }
     else
     {
-      findMaxDist((SequenceNode) node.left());
-      findMaxDist((SequenceNode) node.right());
+      findMaxDist((SequenceNode) nd.left());
+      findMaxDist((SequenceNode) nd.right());
     }
   }
 
@@ -913,7 +925,7 @@ public class NJTree
    * 
    * @return DOCUMENT ME!
    */
-  public Vector getGroups()
+  public Vector<SequenceNode> getGroups()
   {
     return groups;
   }
@@ -931,51 +943,51 @@ public class NJTree
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    * @param threshold
    *          DOCUMENT ME!
    */
-  public void groupNodes(SequenceNode node, float threshold)
+  public void groupNodes(SequenceNode nd, float threshold)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    if ((node.height / maxheight) > threshold)
+    if ((nd.height / maxheight) > threshold)
     {
-      groups.addElement(node);
+      groups.addElement(nd);
     }
     else
     {
-      groupNodes((SequenceNode) node.left(), threshold);
-      groupNodes((SequenceNode) node.right(), threshold);
+      groupNodes((SequenceNode) nd.left(), threshold);
+      groupNodes((SequenceNode) nd.right(), threshold);
     }
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  public float findHeight(SequenceNode node)
+  public float findHeight(SequenceNode nd)
   {
-    if (node == null)
+    if (nd == null)
     {
       return maxheight;
     }
 
-    if ((node.left() == null) && (node.right() == null))
+    if ((nd.left() == null) && (nd.right() == null))
     {
-      node.height = ((SequenceNode) node.parent()).height + node.dist;
+      nd.height = ((SequenceNode) nd.parent()).height + nd.dist;
 
-      if (node.height > maxheight)
+      if (nd.height > maxheight)
       {
-        return node.height;
+        return nd.height;
       }
       else
       {
@@ -984,18 +996,18 @@ public class NJTree
     }
     else
     {
-      if (node.parent() != null)
+      if (nd.parent() != null)
       {
-        node.height = ((SequenceNode) node.parent()).height + node.dist;
+        nd.height = ((SequenceNode) nd.parent()).height + nd.dist;
       }
       else
       {
         maxheight = 0;
-        node.height = (float) 0.0;
+        nd.height = (float) 0.0;
       }
 
-      maxheight = findHeight((SequenceNode) (node.left()));
-      maxheight = findHeight((SequenceNode) (node.right()));
+      maxheight = findHeight((SequenceNode) (nd.left()));
+      maxheight = findHeight((SequenceNode) (nd.right()));
     }
 
     return maxheight;
@@ -1078,43 +1090,42 @@ public class NJTree
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    */
-  public void printN(SequenceNode node)
+  public void printN(SequenceNode nd)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    if ((node.left() != null) && (node.right() != null))
+    if ((nd.left() != null) && (nd.right() != null))
     {
-      printN((SequenceNode) node.left());
-      printN((SequenceNode) node.right());
+      printN((SequenceNode) nd.left());
+      printN((SequenceNode) nd.right());
     }
     else
     {
-      System.out.println(" name = "
-              + ((SequenceI) node.element()).getName());
+      System.out.println(" name = " + ((SequenceI) nd.element()).getName());
     }
 
-    System.out.println(" dist = " + node.dist + " " + node.count + " "
-            + node.height);
+    System.out.println(" dist = " + nd.dist + " " + nd.count + " "
+            + nd.height);
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    */
-  public void reCount(SequenceNode node)
+  public void reCount(SequenceNode nd)
   {
     ycount = 0;
     _lycount = 0;
     // _lylimit = this.node.size();
-    _reCount(node);
+    _reCount(nd);
   }
 
   private long _lycount = 0, _lylimit = 0;
@@ -1122,37 +1133,37 @@ public class NJTree
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    */
-  public void _reCount(SequenceNode node)
+  public void _reCount(SequenceNode nd)
   {
     // if (_lycount<_lylimit)
     // {
     // System.err.println("Warning: depth of _recount greater than number of nodes.");
     // }
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
     _lycount++;
 
-    if ((node.left() != null) && (node.right() != null))
+    if ((nd.left() != null) && (nd.right() != null))
     {
 
-      _reCount((SequenceNode) node.left());
-      _reCount((SequenceNode) node.right());
+      _reCount((SequenceNode) nd.left());
+      _reCount((SequenceNode) nd.right());
 
-      SequenceNode l = (SequenceNode) node.left();
-      SequenceNode r = (SequenceNode) node.right();
+      SequenceNode l = (SequenceNode) nd.left();
+      SequenceNode r = (SequenceNode) nd.right();
 
-      node.count = l.count + r.count;
-      node.ycount = (l.ycount + r.ycount) / 2;
+      nd.count = l.count + r.count;
+      nd.ycount = (l.ycount + r.ycount) / 2;
     }
     else
     {
-      node.count = 1;
-      node.ycount = ycount++;
+      nd.count = 1;
+      nd.ycount = ycount++;
     }
     _lycount--;
   }
@@ -1160,80 +1171,80 @@ public class NJTree
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    */
-  public void swapNodes(SequenceNode node)
+  public void swapNodes(SequenceNode nd)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    SequenceNode tmp = (SequenceNode) node.left();
+    SequenceNode tmp = (SequenceNode) nd.left();
 
-    node.setLeft(node.right());
-    node.setRight(tmp);
+    nd.setLeft(nd.right());
+    nd.setRight(tmp);
   }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param node
+   * @param nd
    *          DOCUMENT ME!
    * @param dir
    *          DOCUMENT ME!
    */
-  public void changeDirection(SequenceNode node, SequenceNode dir)
+  public void changeDirection(SequenceNode nd, SequenceNode dir)
   {
-    if (node == null)
+    if (nd == null)
     {
       return;
     }
 
-    if (node.parent() != top)
+    if (nd.parent() != top)
     {
-      changeDirection((SequenceNode) node.parent(), node);
+      changeDirection((SequenceNode) nd.parent(), nd);
 
-      SequenceNode tmp = (SequenceNode) node.parent();
+      SequenceNode tmp = (SequenceNode) nd.parent();
 
-      if (dir == node.left())
+      if (dir == nd.left())
       {
-        node.setParent(dir);
-        node.setLeft(tmp);
+        nd.setParent(dir);
+        nd.setLeft(tmp);
       }
-      else if (dir == node.right())
+      else if (dir == nd.right())
       {
-        node.setParent(dir);
-        node.setRight(tmp);
+        nd.setParent(dir);
+        nd.setRight(tmp);
       }
     }
     else
     {
-      if (dir == node.left())
+      if (dir == nd.left())
       {
-        node.setParent(node.left());
+        nd.setParent(nd.left());
 
-        if (top.left() == node)
+        if (top.left() == nd)
         {
-          node.setRight(top.right());
+          nd.setRight(top.right());
         }
         else
         {
-          node.setRight(top.left());
+          nd.setRight(top.left());
         }
       }
       else
       {
-        node.setParent(node.right());
+        nd.setParent(nd.right());
 
-        if (top.left() == node)
+        if (top.left() == nd)
         {
-          node.setLeft(top.right());
+          nd.setLeft(top.right());
         }
         else
         {
-          node.setLeft(top.left());
+          nd.setLeft(top.left());
         }
       }
     }
@@ -1289,8 +1300,9 @@ public class NJTree
    */
   public void applyToNodes(NodeTransformI nodeTransformI)
   {
-    for (Enumeration nodes = node.elements(); nodes.hasMoreElements(); nodeTransformI
-            .transform((BinaryNode) nodes.nextElement()))
+    for (Enumeration<SequenceNode> nodes = node.elements(); nodes
+            .hasMoreElements(); nodeTransformI.transform(nodes
+            .nextElement()))
     {
       ;
     }

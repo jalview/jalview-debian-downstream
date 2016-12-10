@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -91,6 +91,10 @@ public class RNAHelicesColour extends ResidueColourScheme
     // This loop will find the first rna structure annotation by which to colour
     // the sequences.
     AlignmentAnnotation[] annotations = alignment.getAlignmentAnnotation();
+    if (annotations == null)
+    {
+      return;
+    }
     for (int i = 0; i < annotations.length; i++)
     {
 

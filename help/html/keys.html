@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -30,10 +30,10 @@
     Jalview has two distinct modes of keyboard operation - in 'Normal'
     mode, single keystrokes (including those shown next to menu items)
     provide short cuts to common commands. In <a
-      href="features/cursorMode.html"
-    >'Cursor'</a> mode (enabled by <em>F2</em>), some of these are
-    disabled and more complex 'Compound Keystrokes' can be entered to
-    perform precise navigation, selection and editing operations.
+      href="features/cursorMode.html">'Cursor'</a> mode (enabled by
+    <em>F2</em>), some of these are disabled and more complex 'Compound
+    Keystrokes' can be entered to perform precise navigation, selection
+    and editing operations.
   </p>
   <table border="1">
     <tr>
@@ -159,13 +159,26 @@
       <td>Both</td>
       <td>Cuts the (fully) selected sequences from the alignment. <!-- not yet in this version 
 This will not happen if only some
-columns are selected, you should use the <a href="features/regionHiding.html">Hide Regions feature</a> instead.-->
+columns are selected, you should use the <a href="features/hiddenRegions.html">Hide Regions feature</a> instead.-->
       </td>
     </tr>
     <tr>
       <td><strong>Control 'F'</strong></td>
       <td>Both</td>
       <td>Launches the search window</td>
+    </tr>
+    <tr><td><strong>B</strong></td>
+      <td>Both</td>
+      <td>Add highlighted columns to current column selection</td>
+    </tr>
+    <tr><td><strong>Alt 'B'</strong></td>
+      <td>Both</td>
+      <td>Add all but the currently highlighted columns to current selection</td>
+    </tr>
+    <tr><td><strong>Control 'B'</strong></td>
+      <td>Both</td>
+      <td>Toggle the column selection marks for the currently highlighted 
+          columns (or all others if Alt is also pressed)</td>
     </tr>
     <tr>
       <td><strong>H</strong></td>
@@ -279,7 +292,7 @@ columns are selected, you should use the <a href="features/regionHiding.html">Hi
       <td>Cursor</td>
       <td>Move cursor to a particular column (<strong><em>p1</em></strong>)
         and row (<strong><em>p2</em></strong>) in the alignment.<br>
-      <em>e.g. '5,6&lt;Return&gt;' moves the cursor to the 5th
+        <em>e.g. '5,6&lt;Return&gt;' moves the cursor to the 5th
           column in the 6th sequence.</em></td>
     </tr>
     <tr>
@@ -317,25 +330,22 @@ columns are selected, you should use the <a href="features/regionHiding.html">Hi
       <td><strong><em>[p]</em><br>Space</strong></td>
       <td>Cursor</td>
       <td>Inserts one (or optionally <strong><em>p</em></strong>)
-        gaps at the current position.<br>
-      <em>Hold down Control or Shift to insert gaps over a sequence
-          group</em></td>
+        gaps at the current position.<br> <em>Hold down
+          Control or Shift to insert gaps over a sequence group</em></td>
     </tr>
     <tr>
       <td><strong><em>[p]</em><br>Delete<br></strong></td>
       <td>Cursor</td>
       <td>Removes one (or optionally <strong><em>p</em></strong>)
-        gaps at the cursor position.<br>
-      <em>Hold down Control or Shift to insert gaps over a sequence
-          group</em></td>
+        gaps at the cursor position.<br> <em>Hold down Control
+          or Shift to insert gaps over a sequence group</em></td>
     </tr>
     <tr>
       <td><strong><em>[p]</em><br>Backspace<br></strong></td>
       <td>Cursor</td>
       <td>Removes one (or optionally <strong><em>p</em></strong>)
-        gaps at the cursor position.<br>
-      <em>Hold down Control or Shift to insert gaps over a sequence
-          group</em></td>
+        gaps at the cursor position.<br> <em>Hold down Control
+          or Shift to insert gaps over a sequence group</em></td>
     </tr>
   </table>
   <p>&nbsp;</p>

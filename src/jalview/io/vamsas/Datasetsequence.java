@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -175,10 +175,10 @@ public class Datasetsequence extends DatastoreItem
     boolean modifiedthedoc = false;
     SequenceI sq = (SequenceI) jvobj;
 
-    if (sq.getDatasetSequence() == null && sq.getDBRef() != null)
+    if (sq.getDatasetSequence() == null && sq.getDBRefs() != null)
     {
       // only sync database references for dataset sequences
-      DBRefEntry[] entries = sq.getDBRef();
+      DBRefEntry[] entries = sq.getDBRefs();
       // jalview.datamodel.DBRefEntry dbentry;
       for (int db = 0; db < entries.length; db++)
       {

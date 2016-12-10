@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 package jalview.schemes;
 
 import jalview.datamodel.AnnotatedCollectionI;
+import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
 
@@ -52,7 +53,7 @@ public interface ColourSchemeI
   /**
    * assign the given consensus profile for the colourscheme
    */
-  public void setConsensus(java.util.Hashtable[] h);
+  public void setConsensus(ProfilesI hconsensus);
 
   /**
    * assign the given conservation to the colourscheme

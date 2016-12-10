@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,6 @@
 package jalview.workers;
 
 import jalview.analysis.Conservation;
-import jalview.api.AlignCalcWorkerI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.AlignmentAnnotation;
@@ -30,8 +29,7 @@ import jalview.datamodel.AlignmentI;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ConservationThread extends AlignCalcWorker implements
-        AlignCalcWorkerI
+public class ConservationThread extends AlignCalcWorker
 {
 
   private int ConsPercGaps = 25; // JBPNote : This should be a configurable
@@ -97,7 +95,6 @@ public class ConservationThread extends AlignCalcWorker implements
       try
       {
         cons = Conservation.calculateConservation("All",
-                jalview.schemes.ResidueProperties.propHash, 3,
                 alignment.getSequences(), 0, alWidth - 1, false,
                 ConsPercGaps, quality != null);
       } catch (IndexOutOfBoundsException x)
@@ -110,7 +107,7 @@ public class ConservationThread extends AlignCalcWorker implements
     } catch (OutOfMemoryError error)
     {
       ap.raiseOOMWarning("calculating conservation", error);
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
       // alignViewport.conservation = null;
       // this.alignViewport.quality = null;
 

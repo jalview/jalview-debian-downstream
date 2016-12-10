@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,9 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.appletgui;
+
+import static jalview.util.UrlConstants.EMBLEBI_STRING;
+import static jalview.util.UrlConstants.SRS_STRING;
 
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
@@ -82,24 +85,22 @@ public class IdPanel extends Panel implements MouseListener,
     }
     {
       // upgrade old SRS link
-      int srsPos = links
-              .indexOf("SRS|http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-newId+(([uniprot-all:$SEQUENCE_ID$]))+-view+SwissEntry");
+      int srsPos = links.indexOf(SRS_STRING);
       if (srsPos > -1)
       {
-        links.setElementAt(
-                "EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$",
-                srsPos);
+        links.setElementAt(EMBLEBI_STRING, srsPos);
       }
     }
     if (links.size() < 1)
     {
       links = new java.util.Vector();
-      links.addElement("EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$");
+      links.addElement(EMBLEBI_STRING);
     }
   }
 
   Tooltip tooltip;
 
+  @Override
   public void mouseMoved(MouseEvent e)
   {
     int seq = alignPanel.seqPanel.findSeq(e);
@@ -188,6 +189,7 @@ public class IdPanel extends Panel implements MouseListener,
     tooltiptext = null;
   }
 
+  @Override
   public void mouseDragged(MouseEvent e)
   {
     mouseDragging = true;
@@ -207,6 +209,7 @@ public class IdPanel extends Panel implements MouseListener,
     alignPanel.paintAlignment(false);
   }
 
+  @Override
   public void mouseClicked(MouseEvent e)
   {
     if (e.getClickCount() < 2)
@@ -243,7 +246,14 @@ public class IdPanel extends Panel implements MouseListener,
         url = null;
         continue;
       }
-      ;
+
+      if (urlLink.usesDBAccession())
+      {
+        // this URL requires an accession id, not the name of a sequence
+        url = null;
+        continue;
+      }
+
       if (!urlLink.isValid())
       {
         System.err.println(urlLink.getInvalidMessage());
@@ -270,6 +280,7 @@ public class IdPanel extends Panel implements MouseListener,
     }
   }
 
+  @Override
   public void mouseEntered(MouseEvent e)
   {
     if (scrollThread != null)
@@ -278,6 +289,7 @@ public class IdPanel extends Panel implements MouseListener,
     }
   }
 
+  @Override
   public void mouseExited(MouseEvent e)
   {
     if (av.getWrapAlignment())
@@ -297,6 +309,7 @@ public class IdPanel extends Panel implements MouseListener,
     }
   }
 
+  @Override
   public void mousePressed(MouseEvent e)
   {
     if (e.getClickCount() > 1)
@@ -345,8 +358,8 @@ public class IdPanel extends Panel implements MouseListener,
     }
 
     if ((av.getSelectionGroup() == null)
-            || ((!e.isControlDown() && !e.isShiftDown()) && av
-                    .getSelectionGroup() != null))
+            || ((!jalview.util.Platform.isControlDown(e) && !e
+                    .isShiftDown()) && av.getSelectionGroup() != null))
     {
       av.setSelectionGroup(new SequenceGroup());
       av.getSelectionGroup().setStartRes(0);
@@ -401,6 +414,7 @@ public class IdPanel extends Panel implements MouseListener,
 
   }
 
+  @Override
   public void mouseReleased(MouseEvent e)
   {
     if (scrollThread != null)
@@ -455,6 +469,7 @@ public class IdPanel extends Panel implements MouseListener,
       running = false;
     }
 
+    @Override
     public void run()
     {
       running = true;

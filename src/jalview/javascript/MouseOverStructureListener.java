@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,6 +32,7 @@ import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
 import jalview.structure.StructureMappingcommandSet;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.HttpUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,45 +88,41 @@ public class MouseOverStructureListener extends JSFunctionExec implements
     {
       for (int i = 0; i < modelSet.length; i++)
       {
-        // resolve a real filename
-        try
-        {
-          if (new java.net.URL(modelSet[i]).openConnection() != null)
-          {
-            continue;
-          }
-        } catch (Exception x)
-        {
-        }
-        ;
-        try
-        {
-          String db = jvlite.getDocumentBase().toString();
-          db = db.substring(0, db.lastIndexOf("/"));
-          if (new java.net.URL(db + "/" + modelSet[i]).openConnection() != null)
-          {
-            modelSet[i] = db + "/" + modelSet[i];
-            continue;
-          }
-        } catch (Exception x)
-        {
-        }
-        ;
-        try
-        {
-          if (new java.net.URL(jvlite.getCodeBase() + modelSet[i])
-                  .openConnection() != null)
-          {
-            modelSet[i] = jvlite.getCodeBase() + modelSet[i];
-            continue;
-          }
-        } catch (Exception x)
-        {
-        }
-        ;
-
+        modelSet[i] = resolveModelFile(modelSet[i]);
       }
     }
+  }
+
+  /**
+   * Returns the first out of: file, file prefixed by document base, or file
+   * prefixed by codebase which can be resolved to a valid URL. If none can,
+   * returns the input parameter value.
+   * 
+   * @param file
+   */
+  public String resolveModelFile(String file)
+  {
+    // TODO reuse JalviewLite.LoadingThread.addProtocol instead
+    if (HttpUtils.isValidUrl(file))
+    {
+      return file;
+    }
+
+    String db = jvlite.getDocumentBase().toString();
+    db = db.substring(0, db.lastIndexOf("/"));
+    String docBaseFile = db + "/" + file;
+    if (HttpUtils.isValidUrl(docBaseFile))
+    {
+      return docBaseFile;
+    }
+
+    String cb = jvlite.getCodeBase() + file;
+    if (HttpUtils.isValidUrl(cb))
+    {
+      return cb;
+    }
+
+    return file;
   }
 
   @Override
@@ -301,7 +298,7 @@ public class MouseOverStructureListener extends JSFunctionExec implements
     return _listenerfn;
   }
 
-  public void finalise()
+  public void finalize() throws Throwable
   {
     jvlite = null;
     super.finalize();

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,8 +29,6 @@ import jalview.structure.StructureSelectionManager;
 import java.awt.Container;
 import java.util.Map;
 
-import javajs.awt.Dimension;
-
 import org.jmol.api.JmolAppConsoleInterface;
 import org.jmol.console.AppletConsole;
 import org.jmol.java.BS;
@@ -45,9 +43,9 @@ class AppletJmolBinding extends JalviewJmolBinding
 
   public AppletJmolBinding(AppletJmol appletJmol,
           StructureSelectionManager sSm, PDBEntry[] pdbentry,
-          SequenceI[][] seq, String[][] chains, String protocol)
+          SequenceI[][] seq, String protocol)
   {
-    super(sSm, pdbentry, seq, chains, protocol);
+    super(sSm, pdbentry, seq, protocol);
     appletJmolBinding = appletJmol;
   }
 
@@ -113,12 +111,14 @@ class AppletJmolBinding extends JalviewJmolBinding
     appletJmolBinding.updateTitleAndMenus();
   }
 
+  @Override
   public void updateColours(Object source)
   {
     AlignmentPanel ap = (AlignmentPanel) source;
     colourBySequence(ap);
   }
 
+  @Override
   public void showUrl(String url)
   {
     try
@@ -143,6 +143,7 @@ class AppletJmolBinding extends JalviewJmolBinding
     // do nothing.
   }
 
+  @Override
   public void selectionChanged(BS arg0)
   {
     // TODO Auto-generated method stub
@@ -183,7 +184,7 @@ class AppletJmolBinding extends JalviewJmolBinding
   }
 
   @Override
-  public Dimension resizeInnerPanel(String data)
+  public int[] resizeInnerPanel(String data)
   {
     // TODO Auto-generated method stub
     return null;

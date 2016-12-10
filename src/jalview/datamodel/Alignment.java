@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,14 +21,17 @@
 package jalview.datamodel;
 
 import jalview.analysis.AlignmentUtils;
+import jalview.datamodel.AlignedCodonFrame.SequenceToSequenceMapping;
 import jalview.io.FastaFile;
+import jalview.util.Comparison;
+import jalview.util.LinkedIdentityHashSet;
 import jalview.util.MessageManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,12 +46,11 @@ import java.util.Vector;
  */
 public class Alignment implements AlignmentI
 {
-  protected Alignment dataset;
+  private Alignment dataset;
 
   protected List<SequenceI> sequences;
 
-  protected List<SequenceGroup> groups = java.util.Collections
-          .synchronizedList(new ArrayList<SequenceGroup>());
+  protected List<SequenceGroup> groups;
 
   protected char gapCharacter = '-';
 
@@ -60,20 +62,21 @@ public class Alignment implements AlignmentI
 
   public boolean hasRNAStructure = false;
 
-  /** DOCUMENT ME!! */
   public AlignmentAnnotation[] annotations;
 
-  HiddenSequences hiddenSequences = new HiddenSequences(this);
+  HiddenSequences hiddenSequences;
 
   public Hashtable alignmentProperties;
 
-  private Set<AlignedCodonFrame> codonFrameList = new LinkedHashSet<AlignedCodonFrame>();
+  private List<AlignedCodonFrame> codonFrameList;
 
   private void initAlignment(SequenceI[] seqs)
   {
-    int i = 0;
+    groups = Collections.synchronizedList(new ArrayList<SequenceGroup>());
+    hiddenSequences = new HiddenSequences(this);
+    codonFrameList = new ArrayList<AlignedCodonFrame>();
 
-    if (jalview.util.Comparison.isNucleotide(seqs))
+    if (Comparison.isNucleotide(seqs))
     {
       type = NUCLEOTIDE;
     }
@@ -82,10 +85,9 @@ public class Alignment implements AlignmentI
       type = PROTEIN;
     }
 
-    sequences = java.util.Collections
-            .synchronizedList(new ArrayList<SequenceI>());
+    sequences = Collections.synchronizedList(new ArrayList<SequenceI>());
 
-    for (i = 0; i < seqs.length; i++)
+    for (int i = 0; i < seqs.length; i++)
     {
       sequences.add(seqs[i]);
     }
@@ -104,13 +106,15 @@ public class Alignment implements AlignmentI
       seqs[i] = new Sequence(seqs[i]);
     }
 
-    /*
-     * Share the same dataset sequence mappings (if any). TODO: find a better
-     * place for these to live (alignment dataset?).
-     */
-    this.codonFrameList = ((Alignment) al).codonFrameList;
-
     initAlignment(seqs);
+
+    /*
+     * Share the same dataset sequence mappings (if any). 
+     */
+    if (dataset == null && al.getDataset() == null)
+    {
+      this.setCodonFrames(al.getCodonFrames());
+    }
   }
 
   /**
@@ -223,18 +227,21 @@ public class Alignment implements AlignmentI
   {
     if (dataset != null)
     {
+
       // maintain dataset integrity
-      if (snew.getDatasetSequence() != null)
-      {
-        getDataset().addSequence(snew.getDatasetSequence());
-      }
-      else
+      SequenceI dsseq = snew.getDatasetSequence();
+      if (dsseq == null)
       {
         // derive new sequence
         SequenceI adding = snew.deriveSequence();
-        getDataset().addSequence(adding.getDatasetSequence());
         snew = adding;
+        dsseq = snew.getDatasetSequence();
       }
+      if (getDataset().findIndex(dsseq) == -1)
+      {
+        getDataset().addSequence(dsseq);
+      }
+
     }
     if (sequences == null)
     {
@@ -253,18 +260,22 @@ public class Alignment implements AlignmentI
     }
   }
 
-  /**
-   * Adds a sequence to the alignment. Recalculates maxLength and size.
-   * 
-   * @param snew
-   */
   @Override
-  public void setSequenceAt(int i, SequenceI snew)
+  public SequenceI replaceSequenceAt(int i, SequenceI snew)
   {
     synchronized (sequences)
     {
-      deleteSequence(i);
-      sequences.set(i, snew);
+      if (sequences.size() > i)
+      {
+        return sequences.set(i, snew);
+
+      }
+      else
+      {
+        sequences.add(snew);
+        hiddenSequences.adjustHeightSequenceAdded();
+      }
+      return null;
     }
   }
 
@@ -280,13 +291,23 @@ public class Alignment implements AlignmentI
   }
 
   @Override
-  public void finalize()
+  public void finalize() throws Throwable
   {
     if (getDataset() != null)
     {
       getDataset().removeAlignmentRef();
     }
 
+    nullReferences();
+    super.finalize();
+  }
+
+  /**
+   * Defensively nulls out references in case this object is not garbage
+   * collected
+   */
+  void nullReferences()
+  {
     dataset = null;
     sequences = null;
     groups = null;
@@ -295,14 +316,16 @@ public class Alignment implements AlignmentI
   }
 
   /**
-   * decrement the alignmentRefs counter by one and call finalize if it goes to
-   * zero.
+   * decrement the alignmentRefs counter by one and null references if it goes
+   * to zero.
+   * 
+   * @throws Throwable
    */
-  private void removeAlignmentRef()
+  private void removeAlignmentRef() throws Throwable
   {
     if (--alignmentRefs == 0)
     {
-      finalize();
+      nullReferences();
     }
   }
 
@@ -638,7 +661,7 @@ public class Alignment implements AlignmentI
    * jalview.datamodel.AlignmentI#findIndex(jalview.datamodel.SearchResults)
    */
   @Override
-  public int findIndex(SearchResults results)
+  public int findIndex(SearchResultsI results)
   {
     int i = 0;
 
@@ -987,33 +1010,20 @@ public class Alignment implements AlignmentI
   }
 
   @Override
-  public void setDataset(Alignment data)
+  public void setDataset(AlignmentI data)
   {
     if (dataset == null && data == null)
     {
-      // Create a new dataset for this alignment.
-      // Can only be done once, if dataset is not null
-      // This will not be performed
-      SequenceI[] seqs = new SequenceI[getHeight()];
-      SequenceI currentSeq;
-      for (int i = 0; i < getHeight(); i++)
-      {
-        currentSeq = getSequenceAt(i);
-        if (currentSeq.getDatasetSequence() != null)
-        {
-          seqs[i] = currentSeq.getDatasetSequence();
-        }
-        else
-        {
-          seqs[i] = currentSeq.createDatasetSequence();
-        }
-      }
-
-      dataset = new Alignment(seqs);
+      createDatasetAlignment();
     }
     else if (dataset == null && data != null)
     {
-      dataset = data;
+      if (!(data instanceof Alignment))
+      {
+        throw new Error(
+                "Implementation Error: jalview.datamodel.Alignment does not yet support other implementations of AlignmentI as its dataset reference");
+      }
+      dataset = (Alignment) data;
       for (int i = 0; i < getHeight(); i++)
       {
         SequenceI currentSeq = getSequenceAt(i);
@@ -1037,6 +1047,111 @@ public class Alignment implements AlignmentI
       }
     }
     dataset.addAlignmentRef();
+  }
+
+  /**
+   * add dataset sequences to seq for currentSeq and any sequences it references
+   */
+  private void resolveAndAddDatasetSeq(SequenceI currentSeq,
+          Set<SequenceI> seqs, boolean createDatasetSequence)
+  {
+    SequenceI alignedSeq = currentSeq;
+    if (currentSeq.getDatasetSequence() != null)
+    {
+      currentSeq = currentSeq.getDatasetSequence();
+    }
+    else
+    {
+      if (createDatasetSequence)
+      {
+        currentSeq = currentSeq.createDatasetSequence();
+      }
+    }
+    if (seqs.contains(currentSeq))
+    {
+      return;
+    }
+    List<SequenceI> toProcess = new ArrayList<SequenceI>();
+    toProcess.add(currentSeq);
+    while (toProcess.size() > 0)
+    {
+      // use a queue ?
+      SequenceI curDs = toProcess.remove(0);
+      if (seqs.contains(curDs))
+      {
+        continue;
+      }
+      seqs.add(curDs);
+      // iterate over database references, making sure we add forward referenced
+      // sequences
+      if (curDs.getDBRefs() != null)
+      {
+        for (DBRefEntry dbr : curDs.getDBRefs())
+        {
+          if (dbr.getMap() != null && dbr.getMap().getTo() != null)
+          {
+            if (dbr.getMap().getTo() == alignedSeq)
+            {
+              /*
+               * update mapping to be to the newly created dataset sequence
+               */
+              dbr.getMap().setTo(currentSeq);
+            }
+            if (dbr.getMap().getTo().getDatasetSequence() != null)
+            {
+              throw new Error(
+                      "Implementation error: Map.getTo() for dbref " + dbr
+                              + " from " + curDs.getName()
+                              + " is not a dataset sequence.");
+            }
+            // we recurse to add all forward references to dataset sequences via
+            // DBRefs/etc
+            toProcess.add(dbr.getMap().getTo());
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Creates a new dataset for this alignment. Can only be done once - if
+   * dataset is not null this will not be performed.
+   */
+  public void createDatasetAlignment()
+  {
+    if (dataset != null)
+    {
+      return;
+    }
+    // try to avoid using SequenceI.equals at this stage, it will be expensive
+    Set<SequenceI> seqs = new LinkedIdentityHashSet<SequenceI>();
+
+    for (int i = 0; i < getHeight(); i++)
+    {
+      SequenceI currentSeq = getSequenceAt(i);
+      resolveAndAddDatasetSeq(currentSeq, seqs, true);
+    }
+
+    // verify all mappings are in dataset
+    for (AlignedCodonFrame cf : codonFrameList)
+    {
+      for (SequenceToSequenceMapping ssm : cf.getMappings())
+      {
+        if (!seqs.contains(ssm.getFromSeq()))
+        {
+          resolveAndAddDatasetSeq(ssm.getFromSeq(), seqs, false);
+        }
+        if (!seqs.contains(ssm.getMapping().getTo()))
+        {
+          resolveAndAddDatasetSeq(ssm.getMapping().getTo(), seqs, false);
+        }
+      }
+    }
+    // finally construct dataset
+    dataset = new Alignment(seqs.toArray(new SequenceI[seqs.size()]));
+    // move mappings to the dataset alignment
+    dataset.codonFrameList = this.codonFrameList;
+    this.codonFrameList = null;
   }
 
   /**
@@ -1261,19 +1376,17 @@ public class Alignment implements AlignmentI
     return alignmentProperties;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * jalview.datamodel.AlignmentI#addCodonFrame(jalview.datamodel.AlignedCodonFrame
-   * )
+  /**
+   * Adds the given mapping to the stored set. Note this may be held on the
+   * dataset alignment.
    */
   @Override
   public void addCodonFrame(AlignedCodonFrame codons)
   {
-    if (codons != null)
+    List<AlignedCodonFrame> acfs = getCodonFrames();
+    if (codons != null && acfs != null && !acfs.contains(codons))
     {
-      codonFrameList.add(codons);
+      acfs.add(codons);
     }
   }
 
@@ -1291,7 +1404,7 @@ public class Alignment implements AlignmentI
       return null;
     }
     List<AlignedCodonFrame> cframes = new ArrayList<AlignedCodonFrame>();
-    for (AlignedCodonFrame acf : codonFrameList)
+    for (AlignedCodonFrame acf : getCodonFrames())
     {
       if (acf.involvesSequence(seq))
       {
@@ -1302,52 +1415,60 @@ public class Alignment implements AlignmentI
   }
 
   /**
-   * Sets the codon frame mappings (replacing any existing mappings).
+   * Sets the codon frame mappings (replacing any existing mappings). Note the
+   * mappings are set on the dataset alignment instead if there is one.
    * 
    * @see jalview.datamodel.AlignmentI#setCodonFrames()
    */
   @Override
-  public void setCodonFrames(Set<AlignedCodonFrame> acfs)
+  public void setCodonFrames(List<AlignedCodonFrame> acfs)
   {
-    this.codonFrameList = acfs;
+    if (dataset != null)
+    {
+      dataset.setCodonFrames(acfs);
+    }
+    else
+    {
+      this.codonFrameList = acfs;
+    }
   }
 
   /**
    * Returns the set of codon frame mappings. Any changes to the returned set
-   * will affect the alignment.
+   * will affect the alignment. The mappings are held on (and read from) the
+   * dataset alignment if there is one.
    * 
    * @see jalview.datamodel.AlignmentI#getCodonFrames()
    */
   @Override
-  public Set<AlignedCodonFrame> getCodonFrames()
+  public List<AlignedCodonFrame> getCodonFrames()
   {
-    return codonFrameList;
+    // TODO: Fix this method to fix failing AlignedCodonFrame tests
+    // this behaviour is currently incorrect. method should return codon frames
+    // for just the alignment,
+    // selected from dataset
+    return dataset != null ? dataset.getCodonFrames() : codonFrameList;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @seejalview.datamodel.AlignmentI#removeCodonFrame(jalview.datamodel.
-   * AlignedCodonFrame)
+  /**
+   * Removes the given mapping from the stored set. Note that the mappings are
+   * held on the dataset alignment if there is one.
    */
   @Override
   public boolean removeCodonFrame(AlignedCodonFrame codons)
   {
-    if (codons == null || codonFrameList == null)
+    List<AlignedCodonFrame> acfs = getCodonFrames();
+    if (codons == null || acfs == null)
     {
       return false;
     }
-    return codonFrameList.remove(codons);
+    return acfs.remove(codons);
   }
 
   @Override
   public void append(AlignmentI toappend)
   {
-    if (toappend == this)
-    {
-      System.err.println("Self append may cause a deadlock.");
-    }
-    // TODO test this method for a future 2.5 release
+    // TODO JAL-1270 needs test coverage
     // currently tested for use in jalview.gui.SequenceFetcher
     boolean samegap = toappend.getGapCharacter() == getGapCharacter();
     char oldc = toappend.getGapCharacter();
@@ -1358,6 +1479,8 @@ public class Alignment implements AlignmentI
             .getFullAlignment().getSequences() : toappend.getSequences();
     if (sqs != null)
     {
+      // avoid self append deadlock by
+      List<SequenceI> toappendsq = new ArrayList<SequenceI>();
       synchronized (sqs)
       {
         for (SequenceI addedsq : sqs)
@@ -1373,8 +1496,12 @@ public class Alignment implements AlignmentI
               }
             }
           }
-          addSequence(addedsq);
+          toappendsq.add(addedsq);
         }
+      }
+      for (SequenceI addedsq : toappendsq)
+      {
+        addSequence(addedsq);
       }
     }
     AlignmentAnnotation[] alan = toappend.getAlignmentAnnotation();
@@ -1383,7 +1510,8 @@ public class Alignment implements AlignmentI
       addAnnotation(alan[a]);
     }
 
-    this.codonFrameList.addAll(toappend.getCodonFrames());
+    // use add method
+    getCodonFrames().addAll(toappend.getCodonFrames());
 
     List<SequenceGroup> sg = toappend.getGroups();
     if (sg != null)
@@ -1595,6 +1723,7 @@ public class Alignment implements AlignmentI
    * 
    * @return the representative sequence for this group
    */
+  @Override
   public SequenceI getSeqrep()
   {
     return seqrep;
@@ -1607,6 +1736,7 @@ public class Alignment implements AlignmentI
    * @param seqrep
    *          the seqrep to set (null means no sequence representative)
    */
+  @Override
   public void setSeqrep(SequenceI seqrep)
   {
     this.seqrep = seqrep;
@@ -1616,6 +1746,7 @@ public class Alignment implements AlignmentI
    * 
    * @return true if group has a sequence representative
    */
+  @Override
   public boolean hasSeqrep()
   {
     return seqrep != null;
@@ -1670,9 +1801,11 @@ public class Alignment implements AlignmentI
    * Parameters control whether gaps in exon (mapped) and intron (unmapped)
    * regions are preserved. Gaps that connect introns to exons are treated
    * conservatively, i.e. only preserved if both intron and exon gaps are
-   * preserved.
+   * preserved. TODO: check caveats below where the implementation fails
    * 
    * @param al
+   *          - must have same dataset, and sequences in al must have equivalent
+   *          dataset sequence and start/end bounds under given mapping
    * @param preserveMappedGaps
    *          if true, gaps within and between mapped codons are preserved
    * @param preserveUnmappedGaps
@@ -1683,31 +1816,18 @@ public class Alignment implements AlignmentI
           boolean preserveUnmappedGaps)
   {
     // TODO should this method signature be the one in the interface?
-    int count = 0;
+    // JBPComment - yes - neither flag is used, so should be deleted.
     boolean thisIsNucleotide = this.isNucleotide();
     boolean thatIsProtein = !al.isNucleotide();
     if (!thatIsProtein && !thisIsNucleotide)
     {
       return AlignmentUtils.alignProteinAsDna(this, al);
     }
-
-    char thisGapChar = this.getGapCharacter();
-    String gap = thisIsNucleotide && thatIsProtein ? String
-            .valueOf(new char[] { thisGapChar, thisGapChar, thisGapChar })
-            : String.valueOf(thisGapChar);
-
-    // TODO handle intron regions? Needs a 'holistic' alignment of dna,
-    // not just sequence by sequence. But how to 'gap' intron regions?
-
-    /*
-     * Get mappings from 'that' alignment's sequences to this.
-     */
-    for (SequenceI alignTo : getSequences())
+    else if (thatIsProtein && thisIsNucleotide)
     {
-      count += AlignmentUtils.alignSequenceAs(alignTo, al, gap,
-              preserveMappedGaps, preserveUnmappedGaps) ? 1 : 0;
+      return AlignmentUtils.alignCdsAsProtein(this, al);
     }
-    return count;
+    return AlignmentUtils.alignAs(this, al);
   }
 
   /**
@@ -1747,5 +1867,83 @@ public class Alignment implements AlignmentI
       }
     }
     return hasValidSeq;
+  }
+
+  /**
+   * Update any mappings to 'virtual' sequences to compatible real ones, if
+   * present in the added sequences. Returns a count of mappings updated.
+   * 
+   * @param seqs
+   * @return
+   */
+  @Override
+  public int realiseMappings(List<SequenceI> seqs)
+  {
+    int count = 0;
+    for (SequenceI seq : seqs)
+    {
+      for (AlignedCodonFrame mapping : getCodonFrames())
+      {
+        count += mapping.realiseWith(seq);
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Returns the first AlignedCodonFrame that has a mapping between the given
+   * dataset sequences
+   * 
+   * @param mapFrom
+   * @param mapTo
+   * @return
+   */
+  @Override
+  public AlignedCodonFrame getMapping(SequenceI mapFrom, SequenceI mapTo)
+  {
+    for (AlignedCodonFrame acf : getCodonFrames())
+    {
+      if (acf.getAaForDnaSeq(mapFrom) == mapTo)
+      {
+        return acf;
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public int[] getVisibleStartAndEndIndex(List<int[]> hiddenCols)
+  {
+    int[] alignmentStartEnd = new int[] { 0, getWidth() - 1 };
+    int startPos = alignmentStartEnd[0];
+    int endPos = alignmentStartEnd[1];
+
+    int[] lowestRange = new int[] { -1, -1 };
+    int[] higestRange = new int[] { -1, -1 };
+
+    for (int[] hiddenCol : hiddenCols)
+    {
+      lowestRange = (hiddenCol[0] <= startPos) ? hiddenCol : lowestRange;
+      higestRange = (hiddenCol[1] >= endPos) ? hiddenCol : higestRange;
+    }
+
+    if (lowestRange[0] == -1 && lowestRange[1] == -1)
+    {
+      startPos = alignmentStartEnd[0];
+    }
+    else
+    {
+      startPos = lowestRange[1] + 1;
+    }
+
+    if (higestRange[0] == -1 && higestRange[1] == -1)
+    {
+      endPos = alignmentStartEnd[1];
+    }
+    else
+    {
+      endPos = higestRange[0] - 1;
+    }
+    return new int[] { startPos, endPos };
   }
 }

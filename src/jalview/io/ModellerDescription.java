@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -268,10 +268,10 @@ public class ModellerDescription
       // sets the local reference field
       int t = 0; // sequence
       if (seq.getDatasetSequence() != null
-              && seq.getDatasetSequence().getDBRef() != null)
+              && seq.getDatasetSequence().getDBRefs() != null)
       {
         jalview.datamodel.DBRefEntry[] dbr = seq.getDatasetSequence()
-                .getDBRef();
+                .getDBRefs();
         int i, j;
         for (i = 0, j = dbr.length; i < j; i++)
         {

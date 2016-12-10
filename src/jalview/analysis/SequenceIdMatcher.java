@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -46,7 +46,7 @@ public class SequenceIdMatcher
   }
 
   /**
-   * add more sequences to this matcher - also used by the constructor
+   * Adds sequences to this matcher
    * 
    * @param seqs
    */
@@ -54,26 +54,36 @@ public class SequenceIdMatcher
   {
     for (SequenceI seq : seqs)
     {
-      // TODO: deal with ID collisions - SequenceI should be appended to list
-      // associated with this key.
-      names.put(new SeqIdName(seq.getDisplayId(true)), seq);
-      SequenceI dbseq = seq;
-      while (dbseq.getDatasetSequence() != null)
+      add(seq);
+    }
+  }
+
+  /**
+   * Adds one sequence to this matcher
+   * 
+   * @param seq
+   */
+  public void add(SequenceI seq)
+  {
+    // TODO: deal with ID collisions - SequenceI should be appended to list
+    // associated with this key.
+    names.put(new SeqIdName(seq.getDisplayId(true)), seq);
+    SequenceI dbseq = seq;
+    while (dbseq.getDatasetSequence() != null)
+    {
+      dbseq = dbseq.getDatasetSequence();
+    }
+    // add in any interesting identifiers
+    if (dbseq.getDBRefs() != null)
+    {
+      DBRefEntry dbr[] = dbseq.getDBRefs();
+      SeqIdName sid = null;
+      for (int r = 0; r < dbr.length; r++)
       {
-        dbseq = dbseq.getDatasetSequence();
-      }
-      // add in any interesting identifiers
-      if (dbseq.getDBRef() != null)
-      {
-        DBRefEntry dbr[] = dbseq.getDBRef();
-        SeqIdName sid = null;
-        for (int r = 0; r < dbr.length; r++)
+        sid = new SeqIdName(dbr[r].getAccessionId());
+        if (!names.containsKey(sid))
         {
-          sid = new SeqIdName(dbr[r].getAccessionId());
-          if (!names.containsKey(sid))
-          {
-            names.put(sid, seq);
-          }
+          names.put(sid, seq);
         }
       }
     }
@@ -272,7 +282,7 @@ public class SequenceIdMatcher
     return r;
   }
 
-  private class SeqIdName
+  class SeqIdName
   {
     String id;
 
@@ -280,7 +290,7 @@ public class SequenceIdMatcher
     {
       if (s != null)
       {
-        id = new String(s);
+        id = s.toLowerCase();
       }
       else
       {
@@ -304,13 +314,13 @@ public class SequenceIdMatcher
       }
       if (s instanceof SeqIdName)
       {
-        return this.equals((SeqIdName) s);
+        return this.stringequals(((SeqIdName) s).id);
       }
       else
       {
         if (s instanceof String)
         {
-          return this.equals((String) s);
+          return this.stringequals(((String) s).toLowerCase());
         }
       }
 
@@ -332,26 +342,9 @@ public class SequenceIdMatcher
      * todo: (JBPNote) Set separator characters appropriately
      * 
      * @param s
-     *          SeqIdName
      * @return boolean
      */
-    public boolean equals(SeqIdName s)
-    {
-      // TODO: JAL-732 patch for cases when name includes a list of IDs, and the
-      // match contains one ID flanked
-      if (id.length() > s.id.length())
-      {
-        return id.startsWith(s.id) ? (WORD_SEP.indexOf(id.charAt(s.id
-                .length())) > -1) : false;
-      }
-      else
-      {
-        return s.id.startsWith(id) ? (s.id.equals(id) ? true : (WORD_SEP
-                .indexOf(s.id.charAt(id.length())) > -1)) : false;
-      }
-    }
-
-    public boolean equals(String s)
+    private boolean stringequals(String s)
     {
       if (id.length() > s.length())
       {
@@ -363,6 +356,16 @@ public class SequenceIdMatcher
         return s.startsWith(id) ? (s.equals(id) ? true : (WORD_SEP
                 .indexOf(s.charAt(id.length())) > -1)) : false;
       }
+    }
+
+    /**
+     * toString method returns the wrapped sequence id. For debugging purposes
+     * only, behaviour not guaranteed not to change.
+     */
+    @Override
+    public String toString()
+    {
+      return id;
     }
   }
 }

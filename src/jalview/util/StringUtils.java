@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -247,5 +247,160 @@ public class StringUtils
               + "' separated List\n");
     }
     return "" + separator;
+  }
+
+  /**
+   * Converts a list to a string with a delimiter before each term except the
+   * first. Returns an empty string given a null or zero-length argument. This
+   * can be replaced with StringJoiner in Java 8.
+   * 
+   * @param terms
+   * @param delim
+   * @return
+   */
+  public static String listToDelimitedString(List<String> terms,
+          String delim)
+  {
+    StringBuilder sb = new StringBuilder(32);
+    if (terms != null && !terms.isEmpty())
+    {
+      boolean appended = false;
+      for (String term : terms)
+      {
+        if (appended)
+        {
+          sb.append(delim);
+        }
+        appended = true;
+        sb.append(term);
+      }
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Convenience method to parse a string to an integer, returning 0 if the
+   * input is null or not a valid integer
+   * 
+   * @param s
+   * @return
+   */
+  public static int parseInt(String s)
+  {
+    int result = 0;
+    if (s != null && s.length() > 0)
+    {
+      try
+      {
+        result = Integer.parseInt(s);
+      } catch (NumberFormatException ex)
+      {
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Compares two versions formatted as e.g. "3.4.5" and returns -1, 0 or 1 as
+   * the first version precedes, is equal to, or follows the second
+   * 
+   * @param v1
+   * @param v2
+   * @return
+   */
+  public static int compareVersions(String v1, String v2)
+  {
+    return compareVersions(v1, v2, null);
+  }
+
+  /**
+   * Compares two versions formatted as e.g. "3.4.5b1" and returns -1, 0 or 1 as
+   * the first version precedes, is equal to, or follows the second
+   * 
+   * @param v1
+   * @param v2
+   * @param pointSeparator
+   *          a string used to delimit point increments in sub-tokens of the
+   *          version
+   * @return
+   */
+  public static int compareVersions(String v1, String v2,
+          String pointSeparator)
+  {
+    if (v1 == null || v2 == null)
+    {
+      return 0;
+    }
+    String[] toks1 = v1.split("\\.");
+    String[] toks2 = v2.split("\\.");
+    int i = 0;
+    for (; i < toks1.length; i++)
+    {
+      if (i >= toks2.length)
+      {
+        /*
+         * extra tokens in v1
+         */
+        return 1;
+      }
+      String tok1 = toks1[i];
+      String tok2 = toks2[i];
+      if (pointSeparator != null)
+      {
+        /*
+         * convert e.g. 5b2 into decimal 5.2 for comparison purposes
+         */
+        tok1 = tok1.replace(pointSeparator, ".");
+        tok2 = tok2.replace(pointSeparator, ".");
+      }
+      try
+      {
+        float f1 = Float.valueOf(tok1);
+        float f2 = Float.valueOf(tok2);
+        int comp = Float.compare(f1, f2);
+        if (comp != 0)
+        {
+          return comp;
+        }
+      } catch (NumberFormatException e)
+      {
+        System.err.println("Invalid version format found: "
+                + e.getMessage());
+        return 0;
+      }
+    }
+
+    if (i < toks2.length)
+    {
+      /*
+       * extra tokens in v2 
+       */
+      return -1;
+    }
+
+    /*
+     * same length, all tokens match
+     */
+    return 0;
+  }
+
+  /**
+   * Converts the string to all lower-case except the first character which is
+   * upper-cased
+   * 
+   * @param s
+   * @return
+   */
+  public static String toSentenceCase(String s)
+  {
+    if (s == null)
+    {
+      return s;
+    }
+    if (s.length() <= 1)
+    {
+      return s.toUpperCase();
+    }
+    return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
   }
 }

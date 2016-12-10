@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -295,14 +295,25 @@ public class OverviewPanel extends JPanel implements Runnable
     final boolean hasHiddenRows = av.hasHiddenRows(), hasHiddenCols = av
             .hasHiddenColumns();
     boolean hiddenRow = false;
+    // get hidden row and hidden column map once at beginning.
+    // clone featureRenderer settings to avoid race conditions... if state is
+    // updated just need to refresh again
     for (row = 0; row < sequencesHeight; row++)
     {
+      if (resizeAgain)
+      {
+        break;
+      }
       if ((int) (row * sampleRow) == lastrow)
       {
         // No need to recalculate the colours,
         // Just copy from the row above
         for (col = 0; col < width; col++)
         {
+          if (resizeAgain)
+          {
+            break;
+          }
           miniMe.setRGB(col, row, miniMe.getRGB(col, row - 1));
         }
         continue;
@@ -340,6 +351,10 @@ public class OverviewPanel extends JPanel implements Runnable
 
       for (col = 0; col < width; col++)
       {
+        if (resizeAgain)
+        {
+          break;
+        }
         if ((int) (col * sampleCol) == lastcol
                 && (int) (row * sampleRow) == lastrow)
         {
@@ -380,6 +395,10 @@ public class OverviewPanel extends JPanel implements Runnable
       renderer.updateFromAlignViewport(av);
       for (col = 0; col < width; col++)
       {
+        if (resizeAgain)
+        {
+          break;
+        }
         lastcol = (int) (col * sampleCol);
         {
           mg.translate(col, sequencesHeight);
@@ -395,13 +414,17 @@ public class OverviewPanel extends JPanel implements Runnable
 
     resizing = false;
 
-    setBoxPosition();
-
     if (resizeAgain)
     {
       resizeAgain = false;
       updateOverviewImage();
     }
+    else
+    {
+      lastMiniMe = miniMe;
+    }
+
+    setBoxPosition();
   }
 
   /**
@@ -456,6 +479,8 @@ public class OverviewPanel extends JPanel implements Runnable
     repaint();
   }
 
+  private BufferedImage lastMiniMe = null;
+
   /**
    * DOCUMENT ME!
    * 
@@ -465,19 +490,32 @@ public class OverviewPanel extends JPanel implements Runnable
   @Override
   public void paintComponent(Graphics g)
   {
-    if (resizing)
+    if (resizing || resizeAgain)
     {
-      g.setColor(Color.white);
+      if (lastMiniMe == null)
+      {
+        g.setColor(Color.white);
+        g.fillRect(0, 0, getWidth(), getHeight());
+      }
+      else
+      {
+        g.drawImage(lastMiniMe, 0, 0, getWidth(), getHeight(), this);
+      }
+      g.setColor(new Color(100, 100, 100, 25));
       g.fillRect(0, 0, getWidth(), getHeight());
     }
-    else if (miniMe != null)
+    else if (lastMiniMe != null)
     {
-      g.drawImage(miniMe, 0, 0, this);
+      g.drawImage(lastMiniMe, 0, 0, this);
+      if (lastMiniMe != miniMe)
+      {
+        g.setColor(new Color(100, 100, 100, 25));
+        g.fillRect(0, 0, getWidth(), getHeight());
+      }
     }
-
+    // TODO: render selected regions
     g.setColor(Color.red);
     g.drawRect(boxX, boxY, boxWidth, boxHeight);
     g.drawRect(boxX + 1, boxY + 1, boxWidth - 2, boxHeight - 2);
-
   }
 }

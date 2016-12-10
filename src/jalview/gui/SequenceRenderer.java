@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,12 +29,6 @@ import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 
-/**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
- */
 public class SequenceRenderer implements jalview.api.SequenceRenderer
 {
   final static int CHAR_TO_UPPER = 'A' - 'a';
@@ -91,6 +85,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
   @Override
   public Color getResidueBoxColour(SequenceI seq, int i)
   {
+    // rate limiting step when rendering overview for lots of groups
     allGroups = av.getAlignment().findAllGroups(seq);
 
     if (inCurrentSequenceGroup(i))
@@ -417,7 +412,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
           }
           if (!isarep && av.getShowUnconserved())
           {
-            s = getDisplayChar(srep, i, s, '.', currentSequenceGroup);
+            s = getDisplayChar(srep, i, s, '.', null);
 
           }
 
@@ -447,12 +442,17 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
   {
     // TODO - use currentSequenceGroup rather than alignment
     // currentSequenceGroup.getConsensus()
-    char conschar = (usesrep) ? (currentGroup == null ? av.getAlignment()
+    char conschar = (usesrep) ? (currentGroup == null
+            || position < currentGroup.getStartRes()
+            || position > currentGroup.getEndRes() ? av.getAlignment()
             .getSeqrep().getCharAt(position)
             : (currentGroup.getSeqrep() != null ? currentGroup.getSeqrep()
                     .getCharAt(position) : av.getAlignment().getSeqrep()
                     .getCharAt(position)))
-            : (currentGroup != null && currentGroup.getConsensus() != null) ? currentGroup
+            : (currentGroup != null && currentGroup.getConsensus() != null
+                    && position >= currentGroup.getStartRes()
+                    && position <= currentGroup.getEndRes() && currentGroup
+                    .getConsensus().annotations.length > position) ? currentGroup
                     .getConsensus().annotations[position].displayCharacter
                     .charAt(0)
                     : av.getAlignmentConsensusAnnotation().annotations[position].displayCharacter

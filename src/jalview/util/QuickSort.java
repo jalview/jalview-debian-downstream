@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,40 +32,106 @@ import java.util.Comparator;
  */
 public class QuickSort
 {
+  /**
+   * A comparator that compares two integers by comparing their respective
+   * indexed values in an array of floats
+   */
   static class FloatComparator implements Comparator<Integer>
   {
-
     private final float[] values;
 
-    FloatComparator(float[] v)
+    private boolean ascending;
+
+    FloatComparator(float[] v, boolean asc)
     {
       values = v;
+      ascending = asc;
     }
 
     @Override
     public int compare(Integer o1, Integer o2)
     {
-      return Float.compare(values[o1], values[o2]);
+      return ascending ? Float.compare(values[o1], values[o2]) : Float
+              .compare(values[o2], values[o1]);
     }
-
   }
 
-  static class IntComparator implements Comparator<Integer>
+  /**
+   * A comparator that compares two integers by comparing their respective
+   * indexed values in an array of doubles
+   */
+  static class DoubleComparator implements Comparator<Integer>
   {
+    private final double[] values;
 
-    private final int[] values;
+    private boolean ascending;
 
-    IntComparator(int[] v)
+    DoubleComparator(double[] v, boolean asc)
     {
       values = v;
+      ascending = asc;
     }
 
     @Override
     public int compare(Integer o1, Integer o2)
     {
-      return Integer.compare(values[o1], values[o2]);
+      if (ascending)
+      {
+        return Double.compare(values[o1], values[o2]);
+      }
+      else
+      {
+        return Double.compare(values[o2], values[o1]);
+      }
+    }
+  }
+
+  /**
+   * A comparator that compares two integers by comparing their respective
+   * indexed values in an array of ints
+   */
+  static class IntComparator implements Comparator<Integer>
+  {
+    private final int[] values;
+
+    private boolean ascending;
+
+    IntComparator(int[] v, boolean asc)
+    {
+      values = v;
+      ascending = asc;
     }
 
+    @Override
+    public int compare(Integer o1, Integer o2)
+    {
+      return ascending ? Integer.compare(values[o1], values[o2]) : Integer
+              .compare(values[o2], values[o1]);
+    }
+  }
+
+  /**
+   * A comparator that compares two integers by comparing their respective
+   * indexed values in an array of comparable objects.
+   */
+  static class ExternalComparator implements Comparator<Integer>
+  {
+    private final Comparable[] values;
+
+    private boolean ascending;
+
+    ExternalComparator(Comparable[] v, boolean asc)
+    {
+      values = v;
+      ascending = asc;
+    }
+
+    @Override
+    public int compare(Integer o1, Integer o2)
+    {
+      return ascending ? values[o1].compareTo(values[o2]) : values[o2]
+              .compareTo(values[o1]);
+    }
   }
 
   /**
@@ -106,7 +172,7 @@ public class QuickSort
 
   /**
    * Sorts both arrays with respect to descending order of the items in the
-   * first array.
+   * first array. The sorting is case-sensitive.
    * 
    * @param arr
    * @param s
@@ -340,8 +406,10 @@ public class QuickSort
   }
 
   /**
-   * Sorts both arrays to give ascending order in the first array, by first
-   * partitioning into zero and non-zero values before sorting the latter.
+   * Sorts both arrays to give ascending order by the first array, by first
+   * partitioning into zero and non-zero values before sorting the latter. This
+   * is faster than a direct call to charSortByFloat in the case where most of
+   * the array to be sorted is zero.
    * 
    * @param arr
    * @param s
@@ -349,71 +417,87 @@ public class QuickSort
   public static void sort(float[] arr, char[] s)
   {
     /*
-     * Sort all zero values to the front
+     * Move all zero values to the front, non-zero to the back, while counting
+     * negative values
      */
     float[] f1 = new float[arr.length];
     char[] s1 = new char[s.length];
-    int nextZeroValue = 0;
+    int negativeCount = 0;
+    int zerosCount = 0;
     int nextNonZeroValue = arr.length - 1;
     for (int i = 0; i < arr.length; i++)
     {
       float val = arr[i];
-      if (val > 0f)
+      if (val != 0f)
       {
         f1[nextNonZeroValue] = val;
         s1[nextNonZeroValue] = s[i];
         nextNonZeroValue--;
+        if (val < 0f)
+        {
+          negativeCount++;
+        }
       }
       else
       {
-        f1[nextZeroValue] = val;
-        s1[nextZeroValue] = s[i];
-        nextZeroValue++;
+        f1[zerosCount] = val;
+        s1[zerosCount] = s[i];
+        zerosCount++;
       }
     }
+    int positiveCount = arr.length - zerosCount - negativeCount;
 
-    /*
-     * Copy zero values back to original arrays
-     */
-    System.arraycopy(f1, 0, arr, 0, nextZeroValue);
-    System.arraycopy(s1, 0, s, 0, nextZeroValue);
-
-    if (nextZeroValue == arr.length)
+    if (zerosCount == arr.length)
     {
       return; // all zero
     }
-    /*
-     * Sort the non-zero values
-     */
-    float[] nonZeroFloats = Arrays
-            .copyOfRange(f1, nextZeroValue, f1.length);
-    char[] nonZeroChars = Arrays.copyOfRange(s1, nextZeroValue, s1.length);
-    externalSort(nonZeroFloats, nonZeroChars);
-    // sort(nonZeroFloats, 0, nonZeroFloats.length - 1, nonZeroChars);
 
     /*
-     * Assemble sorted non-zero results
+     * sort the non-zero values
      */
-    System.arraycopy(nonZeroFloats, 0, arr, nextZeroValue,
-            nonZeroFloats.length);
-    System.arraycopy(nonZeroChars, 0, s, nextZeroValue, nonZeroChars.length);
+    float[] nonZeroFloats = Arrays.copyOfRange(f1, zerosCount, f1.length);
+    char[] nonZeroChars = Arrays.copyOfRange(s1, zerosCount, s1.length);
+    charSortByFloat(nonZeroFloats, nonZeroChars, true);
+
+    /*
+     * Backfill zero values to original arrays, after the space reserved for
+     * negatives
+     */
+    System.arraycopy(f1, 0, arr, negativeCount, zerosCount);
+    System.arraycopy(s1, 0, s, negativeCount, zerosCount);
+
+    /*
+     * Copy sorted negative values to the front of arr, s
+     */
+    System.arraycopy(nonZeroFloats, 0, arr, 0, negativeCount);
+    System.arraycopy(nonZeroChars, 0, s, 0, negativeCount);
+
+    /*
+     * Copy sorted positive values after the negatives and zeros
+     */
+    System.arraycopy(nonZeroFloats, negativeCount, arr, negativeCount
+            + zerosCount, positiveCount);
+    System.arraycopy(nonZeroChars, negativeCount, s, negativeCount
+            + zerosCount, positiveCount);
   }
 
   /**
-   * Sort by making an array of indices, and sorting it using a comparator that
-   * refers to the float values.
+   * Sorts arrays of float and char by the float values, by making an array of
+   * indices, and sorting it using a comparator that refers to the float values.
    * 
    * @see http
    *      ://stackoverflow.com/questions/4859261/get-the-indices-of-an-array-
    *      after-sorting
    * @param arr
    * @param s
+   * @param ascending
    */
-  protected static void externalSort(float[] arr, char[] s)
+  public static void charSortByFloat(float[] arr, char[] s,
+          boolean ascending)
   {
     final int length = arr.length;
     Integer[] indices = makeIndexArray(length);
-    Arrays.sort(indices, new FloatComparator(arr));
+    Arrays.sort(indices, new FloatComparator(arr, ascending));
 
     /*
      * Copy the array values as per the sorted indices
@@ -462,77 +546,95 @@ public class QuickSort
 
   /**
    * Sorts both arrays to give ascending order in the first array, by first
-   * partitioning into zero and non-zero values before sorting the latter.
+   * partitioning into zero and non-zero values before sorting the latter. This
+   * is faster than a direct call to charSortByInt in the case where most of the
+   * array to be sorted is zero.
    * 
    * @param arr
    * @param s
    */
   public static void sort(int[] arr, char[] s)
-  {
-    /*
-     * Sort all zero values to the front
+  { /*
+     * Move all zero values to the front, non-zero to the back, while counting
+     * negative values
      */
     int[] f1 = new int[arr.length];
     char[] s1 = new char[s.length];
-    int nextZeroValue = 0;
+    int negativeCount = 0;
+    int zerosCount = 0;
     int nextNonZeroValue = arr.length - 1;
     for (int i = 0; i < arr.length; i++)
     {
       int val = arr[i];
-      if (val > 0f)
+      if (val != 0f)
       {
         f1[nextNonZeroValue] = val;
         s1[nextNonZeroValue] = s[i];
         nextNonZeroValue--;
+        if (val < 0)
+        {
+          negativeCount++;
+        }
       }
       else
       {
-        f1[nextZeroValue] = val;
-        s1[nextZeroValue] = s[i];
-        nextZeroValue++;
+        f1[zerosCount] = val;
+        s1[zerosCount] = s[i];
+        zerosCount++;
       }
     }
+    int positiveCount = arr.length - zerosCount - negativeCount;
 
-    /*
-     * Copy zero values back to original arrays
-     */
-    System.arraycopy(f1, 0, arr, 0, nextZeroValue);
-    System.arraycopy(s1, 0, s, 0, nextZeroValue);
-
-    if (nextZeroValue == arr.length)
+    if (zerosCount == arr.length)
     {
       return; // all zero
     }
-    /*
-     * Sort the non-zero values
-     */
-    int[] nonZeroInts = Arrays.copyOfRange(f1, nextZeroValue, f1.length);
-    char[] nonZeroChars = Arrays.copyOfRange(s1, nextZeroValue, s1.length);
-    externalSort(nonZeroInts, nonZeroChars);
-    // sort(nonZeroFloats, 0, nonZeroFloats.length - 1, nonZeroChars);
 
     /*
-     * Assemble sorted non-zero results
+     * sort the non-zero values
      */
-    System.arraycopy(nonZeroInts, 0, arr, nextZeroValue, nonZeroInts.length);
-    System.arraycopy(nonZeroChars, 0, s, nextZeroValue, nonZeroChars.length);
+    int[] nonZeroInts = Arrays.copyOfRange(f1, zerosCount, f1.length);
+    char[] nonZeroChars = Arrays.copyOfRange(s1, zerosCount, s1.length);
+    charSortByInt(nonZeroInts, nonZeroChars, true);
+
+    /*
+     * Backfill zero values to original arrays, after the space reserved for
+     * negatives
+     */
+    System.arraycopy(f1, 0, arr, negativeCount, zerosCount);
+    System.arraycopy(s1, 0, s, negativeCount, zerosCount);
+
+    /*
+     * Copy sorted negative values to the front of arr, s
+     */
+    System.arraycopy(nonZeroInts, 0, arr, 0, negativeCount);
+    System.arraycopy(nonZeroChars, 0, s, 0, negativeCount);
+
+    /*
+     * Copy sorted positive values after the negatives and zeros
+     */
+    System.arraycopy(nonZeroInts, negativeCount, arr, negativeCount
+            + zerosCount, positiveCount);
+    System.arraycopy(nonZeroChars, negativeCount, s, negativeCount
+            + zerosCount, positiveCount);
   }
 
   /**
-   * Sort by making an array of indices, and sorting it using a comparator that
-   * refers to the float values.
+   * Sorts arrays of int and char, by making an array of indices, and sorting it
+   * using a comparator that refers to the int values.
    * 
    * @see http
    *      ://stackoverflow.com/questions/4859261/get-the-indices-of-an-array-
    *      after-sorting
    * @param arr
    * @param s
+   * @param ascending
    */
-  protected static void externalSort(int[] arr, char[] s)
+  public static void charSortByInt(int[] arr, char[] s, boolean ascending)
   {
     final int length = arr.length;
     Integer[] indices = makeIndexArray(length);
-    Arrays.sort(indices, new IntComparator(arr));
+    Arrays.sort(indices, new IntComparator(arr, ascending));
 
     /*
      * Copy the array values as per the sorted indices
@@ -550,5 +652,113 @@ public class QuickSort
      */
     System.arraycopy(sortedInts, 0, arr, 0, length);
     System.arraycopy(sortedChars, 0, s, 0, s.length);
+  }
+
+  /**
+   * Sorts arrays of int and Object, by making an array of indices, and sorting
+   * it using a comparator that refers to the int values.
+   * 
+   * @see http
+   *      ://stackoverflow.com/questions/4859261/get-the-indices-of-an-array-
+   *      after-sorting
+   * @param arr
+   * @param s
+   * @param ascending
+   */
+  public static void sortByInt(int[] arr, Object[] s, boolean ascending)
+  {
+    final int length = arr.length;
+    Integer[] indices = makeIndexArray(length);
+    Arrays.sort(indices, new IntComparator(arr, ascending));
+
+    /*
+     * Copy the array values as per the sorted indices
+     */
+    int[] sortedInts = new int[length];
+    Object[] sortedObjects = new Object[s.length];
+    for (int i = 0; i < length; i++)
+    {
+      sortedInts[i] = arr[indices[i]];
+      sortedObjects[i] = s[indices[i]];
+    }
+
+    /*
+     * And copy the sorted values back into the arrays
+     */
+    System.arraycopy(sortedInts, 0, arr, 0, length);
+    System.arraycopy(sortedObjects, 0, s, 0, s.length);
+  }
+
+  /**
+   * Sorts arrays of String and Object, by making an array of indices, and
+   * sorting it using a comparator that refers to the String values. Both arrays
+   * are sorted by case-sensitive order of the string array values.
+   * 
+   * @see http
+   *      ://stackoverflow.com/questions/4859261/get-the-indices-of-an-array-
+   *      after-sorting
+   * @param arr
+   * @param s
+   * @param ascending
+   */
+  public static void sortByString(String[] arr, Object[] s,
+          boolean ascending)
+  {
+    final int length = arr.length;
+    Integer[] indices = makeIndexArray(length);
+    Arrays.sort(indices, new ExternalComparator(arr, ascending));
+
+    /*
+     * Copy the array values as per the sorted indices
+     */
+    String[] sortedStrings = new String[length];
+    Object[] sortedObjects = new Object[s.length];
+    for (int i = 0; i < length; i++)
+    {
+      sortedStrings[i] = arr[indices[i]];
+      sortedObjects[i] = s[indices[i]];
+    }
+
+    /*
+     * And copy the sorted values back into the arrays
+     */
+    System.arraycopy(sortedStrings, 0, arr, 0, length);
+    System.arraycopy(sortedObjects, 0, s, 0, s.length);
+  }
+
+  /**
+   * Sorts arrays of double and Object, by making an array of indices, and
+   * sorting it using a comparator that refers to the double values.
+   * 
+   * @see http
+   *      ://stackoverflow.com/questions/4859261/get-the-indices-of-an-array-
+   *      after-sorting
+   * @param arr
+   * @param s
+   * @param ascending
+   */
+  public static void sortByDouble(double[] arr, Object[] s,
+          boolean ascending)
+  {
+    final int length = arr.length;
+    Integer[] indices = makeIndexArray(length);
+    Arrays.sort(indices, new DoubleComparator(arr, ascending));
+
+    /*
+     * Copy the array values as per the sorted indices
+     */
+    double[] sortedDoubles = new double[length];
+    Object[] sortedObjects = new Object[s.length];
+    for (int i = 0; i < length; i++)
+    {
+      sortedDoubles[i] = arr[indices[i]];
+      sortedObjects[i] = s[indices[i]];
+    }
+
+    /*
+     * And copy the sorted values back into the arrays
+     */
+    System.arraycopy(sortedDoubles, 0, arr, 0, length);
+    System.arraycopy(sortedObjects, 0, s, 0, s.length);
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,11 +22,13 @@ package jalview.ws;
 
 import jalview.bin.Cache;
 import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
 import jalview.gui.FeatureSettings;
+import jalview.util.DBRefUtils;
 import jalview.util.MessageManager;
 import jalview.util.UrlLink;
 import jalview.ws.dbsources.das.api.DasSourceRegistryI;
@@ -181,13 +183,12 @@ public class DasSequenceFeatureFetcher
     int refCount = 0;
     for (int i = 0; i < sequences.length; i++)
     {
-      DBRefEntry[] dbref = sequences[i].getDBRef();
+      DBRefEntry[] dbref = sequences[i].getDBRefs();
       if (dbref != null)
       {
         for (int j = 0; j < dbref.length; j++)
         {
-          if (dbref[j].getSource().equals(
-                  jalview.datamodel.DBRefSource.UNIPROT))
+          if (dbref[j].getSource().equals(DBRefSource.UNIPROT))
           {
             refCount++;
             break;
@@ -238,6 +239,7 @@ public class DasSequenceFeatureFetcher
 
   class FetchSeqFeatures implements Runnable
   {
+    @Override
     public void run()
     {
       startFetching();
@@ -247,10 +249,14 @@ public class DasSequenceFeatureFetcher
 
   class FetchDBRefs implements Runnable
   {
+    @Override
     public void run()
     {
       running = true;
-      new DBRefFetcher(sequences, af).fetchDBRefs(true);
+      boolean isNucleotide = af.getViewport().getAlignment().isNucleotide();
+      new DBRefFetcher(sequences, af, null, af.featureSettings,
+              isNucleotide).fetchDBRefs(true);
+
       startFetching();
       setGuiFetchComplete();
     }
@@ -280,8 +286,7 @@ public class DasSequenceFeatureFetcher
       {
         jalviewSourceI[] sources = sourceRegistry.getSources().toArray(
                 new jalviewSourceI[0]);
-        String active = jalview.bin.Cache.getDefault("DAS_ACTIVE_SOURCE",
-                "uniprot");
+        String active = Cache.getDefault("DAS_ACTIVE_SOURCE", "uniprot");
         StringTokenizer st = new StringTokenizer(active, "\t");
         selectedSources = new Vector();
         String token;
@@ -637,10 +642,10 @@ public class DasSequenceFeatureFetcher
     {
       return null;
     }
-    DBRefEntry[] uprefs = jalview.util.DBRefUtils.selectRefs(
-            seq.getDBRef(), new String[] {
+    DBRefEntry[] uprefs = DBRefUtils.selectRefs(seq.getDBRefs(),
+            new String[] {
             // jalview.datamodel.DBRefSource.PDB,
-            jalview.datamodel.DBRefSource.UNIPROT,
+            DBRefSource.UNIPROT,
             // jalview.datamodel.DBRefSource.EMBL - not tested on any EMBL coord
             // sys sources
             });
@@ -659,8 +664,8 @@ public class DasSequenceFeatureFetcher
 
         for (COORDINATES csys : dasSource.getVersion().getCOORDINATES())
         {
-          if (jalview.util.DBRefUtils.isDasCoordinateSystem(
-                  csys.getAuthority(), uprefs[j]))
+          if (DBRefUtils.isDasCoordinateSystem(csys.getAuthority(),
+                  uprefs[j]))
           {
             debug("Launched fetcher for coordinate system "
                     + csys.getAuthority());

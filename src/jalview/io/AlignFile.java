@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -47,7 +47,8 @@ public abstract class AlignFile extends FileParse
   int maxLength = 0;
 
   /**
-   * Sequences to be added to form a new alignment.
+   * Sequences to be added to form a new alignment. TODO: remove vector in this
+   * class
    */
   protected Vector<SequenceI> seqs;
 
@@ -88,14 +89,14 @@ public abstract class AlignFile extends FileParse
   /**
    * Constructor which parses the data from a file of some specified type.
    * 
-   * @param inFile
-   *          Filename to read from.
+   * @param dataObject
+   *          Filename, URL or Pasted String to read from.
    * @param type
-   *          What type of file to read from (File, URL)
+   *          What type of file to read from (File, URL, Pasted String)
    */
-  public AlignFile(String inFile, String type) throws IOException
+  public AlignFile(String dataObject, String type) throws IOException
   {
-    this(true, inFile, type);
+    this(true, dataObject, type);
   }
 
   /**
@@ -104,16 +105,16 @@ public abstract class AlignFile extends FileParse
    * 
    * @param parseImmediately
    *          if false, need to call 'doParse()' to begin parsing data
-   * @param inFile
-   *          Filename to read from.
+   * @param dataObject
+   *          Filename, URL or Pasted String to read from.
    * @param type
    *          What type of file to read from (File, URL)
    * @throws IOException
    */
-  public AlignFile(boolean parseImmediately, String inFile, String type)
+  public AlignFile(boolean parseImmediately, String dataObject, String type)
           throws IOException
   {
-    super(inFile, type);
+    super(dataObject, type);
     initData();
     if (parseImmediately)
     {
@@ -351,7 +352,15 @@ public abstract class AlignFile extends FileParse
     if (space > -1)
     {
       seq = new Sequence(id.substring(0, space), "");
-      seq.setDescription(id.substring(space + 1));
+      String desc = id.substring(space + 1);
+      seq.setDescription(desc);
+
+      /*
+       * it is tempting to parse Ensembl style gene description e.g.
+       * chromosome:GRCh38:7:140696688:140721955:1 and set the
+       * start position of the sequence, but this causes much confusion
+       * for reverse strand feature locations
+       */
     }
     else
     {

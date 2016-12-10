@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  *
  * This file is part of Jalview.
  *
@@ -30,7 +30,7 @@ import java.io.IOException;
  */
 public class IdentifyFile
 {
-  public static final String GFF3File = "GFF v2 or v3";
+  public static final String FeaturesFile = "GFF or Jalview features";
 
   /**
    * Identify a datasource's file content.
@@ -44,7 +44,7 @@ public class IdentifyFile
    *          DOCUMENT ME!
    * @return ID String
    */
-  public String Identify(String file, String protocol)
+  public String identify(String file, String protocol)
   {
     String emessage = "UNIDENTIFIED FILE PARSING ERROR";
     FileParse parser = null;
@@ -53,7 +53,7 @@ public class IdentifyFile
       parser = new FileParse(file, protocol);
       if (parser.isValid())
       {
-        return Identify(parser);
+        return identify(parser);
       }
     } catch (Exception e)
     {
@@ -68,9 +68,9 @@ public class IdentifyFile
     return emessage;
   }
 
-  public String Identify(FileParse source)
+  public String identify(FileParse source)
   {
-    return Identify(source, true); // preserves original behaviour prior to
+    return identify(source, true); // preserves original behaviour prior to
     // version 2.3
   }
 
@@ -82,11 +82,12 @@ public class IdentifyFile
    * @param closeSource
    * @return filetype string
    */
-  public String Identify(FileParse source, boolean closeSource)
+  public String identify(FileParse source, boolean closeSource)
   {
     String reply = "PFAM";
     String data;
-    int length = 0;
+    int bytesRead = 0;
+    int trimmedLength = 0;
     boolean lineswereskipped = false;
     boolean isBinary = false; // true if length is non-zero and non-printable
     // characters are encountered
@@ -98,7 +99,8 @@ public class IdentifyFile
       }
       while ((data = source.nextLine()) != null)
       {
-        length += data.trim().length();
+        bytesRead += data.length();
+        trimmedLength += data.trim().length();
         if (!lineswereskipped)
         {
           for (int i = 0; !isBinary && i < data.length(); i++)
@@ -134,12 +136,25 @@ public class IdentifyFile
 
         if (data.startsWith("##GFF-VERSION"))
         {
-          reply = GFF3File;
+          // GFF - possibly embedded in a Jalview features file!
+          reply = FeaturesFile;
+          break;
+        }
+        if (looksLikeFeatureData(data))
+        {
+          reply = FeaturesFile;
           break;
         }
         if (data.indexOf("# STOCKHOLM") > -1)
         {
           reply = "STH";
+          break;
+        }
+        if (data.indexOf("_ENTRY.ID") > -1
+                || data.indexOf("_AUDIT_AUTHOR.NAME") > -1
+                || data.indexOf("_ATOM_SITE.") > -1)
+        {
+          reply = "mmCIF";
           break;
         }
         // if (data.indexOf(">") > -1)
@@ -215,7 +230,6 @@ public class IdentifyFile
                 } catch (IOException ex)
                 {
                 }
-                ;
                 if (dta != null && dta.indexOf("*") > -1)
                 {
                   starterm = true;
@@ -235,29 +249,19 @@ public class IdentifyFile
           // read as a FASTA (probably)
           break;
         }
-        if ((data.indexOf("<") > -1)) // possible Markup Language data i.e HTML,
-                                      // RNAML, XML
+        int lessThan = data.indexOf("<");
+        if ((lessThan > -1)) // possible Markup Language data i.e HTML,
+                             // RNAML, XML
         {
-          boolean identified = false;
-          do
+          String upper = data.toUpperCase();
+          if (upper.substring(lessThan).startsWith("<HTML"))
           {
-            if (data.matches("<(?i)html(\"[^\"]*\"|'[^']*'|[^'\">])*>"))
-            {
-              reply = HtmlFile.FILE_DESC;
-              identified = true;
-              break;
-            }
-
-            if (data.matches("<(?i)rnaml (\"[^\"]*\"|'[^']*'|[^'\">])*>"))
-            {
-              reply = "RNAML";
-              identified = true;
-              break;
-            }
-          } while ((data = source.nextLine()) != null);
-
-          if (identified)
+            reply = HtmlFile.FILE_DESC;
+            break;
+          }
+          if (upper.substring(lessThan).startsWith("<RNAML"))
           {
+            reply = "RNAML";
             break;
           }
         }
@@ -305,23 +309,13 @@ public class IdentifyFile
           reply = PhylipFile.FILE_DESC;
           break;
         }
-
-        /*
-         * // TODO comment out SimpleBLAST identification for Jalview 2.4.1 else
-         * if (!lineswereskipped && data.indexOf("BLAST")<4) { reply =
-         * "SimpleBLAST"; break;
-         * 
-         * } // end comments for Jalview 2.4.1
-         */
-        else if (!lineswereskipped && data.charAt(0) != '*'
-                && data.charAt(0) != ' '
-                && data.indexOf(":") < data.indexOf(",")) // &&
-        // data.indexOf(",")<data.indexOf(",",
-        // data.indexOf(",")))
+        else
         {
-          // file looks like a concise JNet file
-          reply = "JnetFile";
-          break;
+          if (!lineswereskipped && looksLikeJnetData(data))
+          {
+            reply = "JnetFile";
+            break;
+          }
         }
 
         lineswereskipped = true; // this means there was some junk before any
@@ -333,14 +327,14 @@ public class IdentifyFile
       }
       else
       {
-        source.reset(); // so the file can be parsed from the beginning again.
+        source.reset(bytesRead); // so the file can be parsed from the mark
       }
     } catch (Exception ex)
     {
       System.err.println("File Identification failed!\n" + ex);
       return source.errormessage;
     }
-    if (length == 0)
+    if (trimmedLength == 0)
     {
       System.err
               .println("File Identification failed! - Empty file was read.");
@@ -349,13 +343,61 @@ public class IdentifyFile
     return reply;
   }
 
+  /**
+   * Returns true if the data appears to be Jnet concise annotation format
+   * 
+   * @param data
+   * @return
+   */
+  protected boolean looksLikeJnetData(String data)
+  {
+    char firstChar = data.charAt(0);
+    int colonPos = data.indexOf(":");
+    int commaPos = data.indexOf(",");
+    boolean isJnet = firstChar != '*' && firstChar != ' ' && colonPos > -1
+            && commaPos > -1 && colonPos < commaPos;
+    // && data.indexOf(",")<data.indexOf(",", data.indexOf(","))) / ??
+    return isJnet;
+  }
+
+  /**
+   * Returns true if the data has at least 6 tab-delimited fields _and_ fields 4
+   * and 5 are integer (start/end)
+   * 
+   * @param data
+   * @return
+   */
+  protected boolean looksLikeFeatureData(String data)
+  {
+    if (data == null)
+    {
+      return false;
+    }
+    String[] columns = data.split("\t");
+    if (columns.length < 6)
+    {
+      return false;
+    }
+    for (int col = 3; col < 5; col++)
+    {
+      try
+      {
+        Integer.parseInt(columns[col]);
+      } catch (NumberFormatException e)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public static void main(String[] args)
   {
 
     for (int i = 0; args != null && i < args.length; i++)
     {
       IdentifyFile ider = new IdentifyFile();
-      String type = ider.Identify(args[i], AppletFormatAdapter.FILE);
+      String type = ider.identify(args[i], AppletFormatAdapter.FILE);
       System.out.println("Type of " + args[i] + " is " + type);
     }
     if (args == null || args.length == 0)

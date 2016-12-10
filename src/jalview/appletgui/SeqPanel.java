@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,8 +25,9 @@ import jalview.commands.EditCommand;
 import jalview.commands.EditCommand.Action;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResults;
-import jalview.datamodel.SearchResults.Match;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
@@ -458,7 +459,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
    * @param results
    * @return true if results were matched, false if not
    */
-  private boolean setStatusMessage(SearchResults results)
+  private boolean setStatusMessage(SearchResultsI results)
   {
     AlignmentI al = this.av.getAlignment();
     int sequenceIndex = al.findIndex(results);
@@ -467,7 +468,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       return false;
     }
     SequenceI ds = al.getSequenceAt(sequenceIndex).getDatasetSequence();
-    for (Match m : results.getResults())
+    for (SearchResultMatchI m : results.getResults())
     {
       SequenceI seq = m.getSequence();
       if (seq.getDatasetSequence() != null)
@@ -481,7 +482,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
          * Convert position in sequence (base 1) to sequence character array
          * index (base 0)
          */
-        int start = m.getStart() - 1;
+        int start = m.getStart() - m.getSequence().getStart();
         setStatusMessage(seq, start, sequenceIndex);
         return true;
       }
@@ -489,6 +490,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     return false;
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     lastMousePress = evt.getPoint();
@@ -539,6 +541,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     return;
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
     SequenceI sequence = av.getAlignment().getSequenceAt(findSeq(evt));
@@ -557,7 +560,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
       if (features != null && features.length > 0)
       {
-        SearchResults highlight = new SearchResults();
+        SearchResultsI highlight = new SearchResults();
         highlight.addResult(sequence, features[0].getBegin(),
                 features[0].getEnd());
         seqCanvas.highlightSearchResults(highlight);
@@ -572,6 +575,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     mouseDragging = false;
@@ -715,6 +719,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
   String lastMessage;
 
+  @Override
   public void mouseOverSequence(SequenceI sequence, int index, int pos)
   {
     String tmp = sequence.hashCode() + index + "";
@@ -726,7 +731,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     lastMessage = tmp;
   }
 
-  public void highlightSequence(SearchResults results)
+  @Override
+  public void highlightSequence(SearchResultsI results)
   {
     if (av.isFollowHighlight())
     {
@@ -746,12 +752,14 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     return this.ap == null ? null : this.ap.av;
   }
 
+  @Override
   public void updateColours(SequenceI seq, int index)
   {
     System.out.println("update the seqPanel colours");
     // repaint();
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
     int res = findRes(evt);
@@ -912,6 +920,15 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
   Tooltip tooltip;
 
+  /**
+   * set when the current UI interaction has resulted in a change that requires
+   * overview shading to be recalculated. this could be changed to something
+   * more expressive that indicates what actually has changed, so selective
+   * redraws can be applied
+   */
+  private boolean needOverviewUpdate; // TODO: refactor to avcontroller
+
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     if (mouseWheelPressed)
@@ -1513,9 +1530,11 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     {
       return;
     }
-
-    stretchGroup.recalcConservation(); // always do this - annotation has own
-                                       // state
+    // always do this - annotation has own state
+    // but defer colourscheme update until hidden sequences are passed in
+    boolean vischange = stretchGroup.recalcConservation(true);
+    // here we rely on stretchGroup == av.getSelection()
+    needOverviewUpdate |= vischange && av.isSelectionDefinedGroup();
     if (stretchGroup.cs != null)
     {
       stretchGroup.cs.alignmentChanged(stretchGroup,
@@ -1532,11 +1551,12 @@ public class SeqPanel extends Panel implements MouseMotionListener,
                 stretchGroup.getName());
       }
     }
+    PaintRefresher.Refresh(ap, av.getSequenceSetId());
+    ap.paintAlignment(needOverviewUpdate);
+    needOverviewUpdate = false;
     changeEndRes = false;
     changeStartRes = false;
     stretchGroup = null;
-    PaintRefresher.Refresh(ap, av.getSequenceSetId());
-    ap.paintAlignment(true);
     av.sendSelection();
   }
 
@@ -1588,6 +1608,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       if (res > (stretchGroup.getStartRes() - 1))
       {
         stretchGroup.setEndRes(res);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
     else if (changeStartRes)
@@ -1595,6 +1616,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       if (res < (stretchGroup.getEndRes() + 1))
       {
         stretchGroup.setStartRes(res);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
 
@@ -1628,6 +1650,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       if (stretchGroup.getSequences(null).contains(nextSeq))
       {
         stretchGroup.deleteSequence(seq, false);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
       else
       {
@@ -1637,6 +1660,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         }
 
         stretchGroup.addSequence(nextSeq, false);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
 
@@ -1659,6 +1683,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     seqCanvas.repaint();
   }
 
+  @Override
   public void mouseEntered(MouseEvent e)
   {
     if (oldSeq < 0)
@@ -1673,6 +1698,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
   }
 
+  @Override
   public void mouseExited(MouseEvent e)
   {
     if (av.getWrapAlignment())
@@ -1732,6 +1758,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       running = false;
     }
 
+    @Override
     public void run()
     {
       running = true;
@@ -1776,6 +1803,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   /**
    * modify current selection according to a received message.
    */
+  @Override
   public void selection(SequenceGroup seqsel, ColumnSelection colsel,
           SelectionSource source)
   {
@@ -1801,9 +1829,12 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
     // do we want to thread this ? (contention with seqsel and colsel locks, I
     // suspect)
-    // rules are: colsel is copied if there is a real intersection between
-    // sequence selection
-    boolean repaint = false, copycolsel = true;
+    /*
+     * only copy colsel if there is a real intersection between
+     * sequence selection and this panel's alignment
+     */
+    boolean repaint = false;
+    boolean copycolsel = false;
     if (av.getSelectionGroup() == null || !av.isSelectionGroupChanged(true))
     {
       SequenceGroup sgroup = null;
@@ -1820,11 +1851,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         }
         sgroup = seqsel.intersect(av.getAlignment(),
                 (av.hasHiddenRows()) ? av.getHiddenRepSequences() : null);
-        if ((sgroup == null || sgroup.getSize() == 0)
-                && (colsel == null || colsel.size() == 0))
+        if ((sgroup != null && sgroup.getSize() > 0))
         {
-          // don't copy columns if the region didn't intersect.
-          copycolsel = false;
+          copycolsel = true;
         }
       }
       if (sgroup != null && sgroup.getSize() > 0)
@@ -1843,7 +1872,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     {
       // the current selection is unset or from a previous message
       // so import the new colsel.
-      if (colsel == null || colsel.size() == 0)
+      if (colsel == null || colsel.isEmpty())
       {
         if (av.getColumnSelection() != null)
         {
@@ -1952,7 +1981,6 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     ColumnSelection cs = MappingUtils.mapColumnSelection(colsel, sourceAv,
             av);
     av.setColumnSelection(cs);
-    av.isColSelChanged(true);
 
     ap.scalePanelHolder.repaint();
     ap.repaint();

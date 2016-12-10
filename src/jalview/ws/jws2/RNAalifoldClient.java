@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.ws.jws2;
 
-import jalview.api.AlignCalcWorkerI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.gui.AlignFrame;
@@ -50,8 +49,7 @@ import compbio.metadata.Argument;
  * 
  */
 
-public class RNAalifoldClient extends JabawsCalcWorker implements
-        AlignCalcWorkerI
+public class RNAalifoldClient extends JabawsCalcWorker
 {
 
   String methodName;
@@ -75,6 +73,7 @@ public class RNAalifoldClient extends JabawsCalcWorker implements
     initViewportParams();
   }
 
+  @Override
   public String getCalcId()
   {
     return CALC_ID;

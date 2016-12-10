@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,43 +28,23 @@
   </p>
   <p>
     Since Jalview 2.8.2, <a href="http://www.cgl.ucsf.edu/chimera/">Chimera</a>
-    (http://www.cgl.ucsf.edu/chimera/) has been integrated into Jalview
-    for interactively viewing structures opened by entries in the <strong>&quot;Structure&quot;</strong>
-    submenu in the <a href="../menus/popupMenu.html">sequence id
-      pop-up menu</a> (if you can't see this, then you need to <a
-      href="viewingpdbs.html"
-    >associate a PDB structure</a> with the sequence). Chimera is
-    available from the Jalview desktop, provided Chimera has been
-    separately installed.
+    (http://www.cgl.ucsf.edu/chimera/) can be used for viewing
+    structures opened via the <a href="structurechooser.html"><strong>&quot;View
+        Structure Data..&quot;</strong> dialog</a>.
   </p>
   <p>
     You can set a default choice of Jmol or Chimera structure viewer in
     <a href="preferences.html#structure"> Preferences</a>. You can also
     optionally specify the path to the Chimera program here (if it
-    differs from the standard paths searched by Jalview).
+    differs from the standard paths searched by Jalview).<br /> <strong>Please
+      make sure your version of Chimera is up to date. Jalview requires
+      at least Chimera version 1.11.1</strong>
+  </p>
   <p>
     If you save your Jalview session as a project file, the state of any
     open Chimera windows will also be saved, and can be reopened by
     loading the project file on any machine with Chimera installed. <em>Since
       Jalview 2.9.</em>
-    <!-- <p>The following menu entries are provided for viewing structure data<br>
-  <ul>
-    <li>The <strong>&quot;Structure&#8594;View
-        Structure&#8594;</strong> submenu allows a single PDB structure to be chosen
-      for display from the available structures for a sequence.
-    </li>
-    <li>The <strong>&quot;Structure&#8594;View all <em>N</em>
-        structures
-    </strong> option will open a new window containing all structures associated
-      with the current selection.
-    </li>
-    <li>The <strong>&quot;Structure&#8594;View all <em>N</em>
-        representative structures
-    </strong> option will open a new window containing exactly one structure per
-      currently selected sequence.<br /></li>
-  </ul>
-  <br> 
-</p> -->
   <p>
     <a name="align"><strong>Superposing structures based on
         their aligned sequences</strong></a><br> If several structures are
@@ -85,13 +65,23 @@
     number and chain code ([RES]Num:Chain). Moving the mouse over an
     associated residue in an alignment window highlights the associated
     atoms in the displayed structures. When residues are selected in the
-    Chimera window, they are highlighted on the alignment. For
-    comprehensive details of Chimera's commands, refer to the tool's
-    Help menu.
+    Chimera window, they are highlighted on the alignment.
+  <p>For comprehensive details of Chimera's commands, refer to the
+    tool's Help menu.</p>
+  <p>
+    <strong>Selecting residues in Jalview from Chimera</strong><br />
+    When a selection is highlighted in a Jalview window, use the
+    <em>Select&#8594;Select Highlighted Region</em> or press <em>B</em>
+    to add the mapped positions to the alignment window's column
+    selection.<br /> <em>Hint: Use your machine's 'switch
+      application' key combination (Alt-Tab on Windows and Linux,
+      Cmd-Tab on OSX) to quickly switch between UCSF Chimera and Jalview
+      before pressing 'B' to select highlighted regions.</em>
+  </p>
   <p>
     Basic screen operations (see <a
-      href="http://www.cgl.ucsf.edu/chimera/current/docs/UsersGuide/mouse.html"
-    >Chimera help</a> at
+      href="http://www.cgl.ucsf.edu/chimera/current/docs/UsersGuide/mouse.html">Chimera
+      help</a> at
     http://www.cgl.ucsf.edu/chimera/current/docs/UsersGuide/mouse.html
     for full details).
   <table border="1">
@@ -181,7 +171,7 @@
         </strong><em> Colours each residue in the structure with the colour
             of its corresponding residue in the associated sequence as
             rendered in the associated alignment views, including any
-            Uniprot sequence features or region colourings.<br />Pick
+            UniProt sequence features or region colourings.<br />Pick
             which of the associated alignment views are used to colour
             the structures using the <strong>View&#8594;Colour
               by ..</strong> sub menu.
@@ -205,8 +195,8 @@
             colourschemes.<br>
         </strong><em>The remaining entries apply the colourschemes available
             from the standard and user defined <a
-            href="../colourSchemes/index.html"
-          >amino acid colours</a>.
+            href="../colourSchemes/index.html">amino acid
+              colours</a>.
         </em></li>
       </ul></li>
     <li><strong>Chimera<br>
@@ -237,8 +227,8 @@
   </p>
   Jalview and Chimera communicate using Chimera's
   <a
-    href="http://www.cgl.ucsf.edu/chimera/current/docs/ContributedSoftware/restserver/restserver.html"
-  >REST service</a>
+    href="http://www.cgl.ucsf.edu/chimera/current/docs/ContributedSoftware/restserver/restserver.html">REST
+    service</a>
   (http://www.cgl.ucsf.edu/chimera/current/docs/ContributedSoftware/restserver/restserver.html).
   <br> Technically this requires both Chimera and Jalview to open
   ports on the local network, and this may be blocked by Windows

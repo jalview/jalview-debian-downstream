@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,7 +23,9 @@ package jalview.gui;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.api.ComplexAlignFile;
+import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
+import jalview.api.FeaturesSourceI;
 import jalview.bin.Jalview;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
@@ -35,6 +37,7 @@ import jalview.io.IdentifyFile;
 import jalview.io.JalviewFileChooser;
 import jalview.io.JalviewFileView;
 import jalview.jbgui.GCutAndPasteTransfer;
+import jalview.json.binding.biojson.v1.ColourSchemeMapper;
 import jalview.schemes.ColourSchemeI;
 import jalview.util.MessageManager;
 
@@ -71,6 +74,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
   {
     SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         textarea.requestFocus();
@@ -123,6 +127,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     textarea.append(text);
   }
 
+  @Override
   public void save_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
@@ -159,6 +164,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void copyItem_actionPerformed(ActionEvent e)
   {
     textarea.getSelectedText();
@@ -172,6 +178,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void pasteMenu_actionPerformed(ActionEvent e)
   {
     Clipboard c = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -197,6 +204,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void ok_actionPerformed(ActionEvent e)
   {
     String text = getText();
@@ -205,7 +213,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
       return;
     }
 
-    String format = new IdentifyFile().Identify(text, "Paste");
+    String format = new IdentifyFile().identify(text, "Paste");
     if (format == null || format.equalsIgnoreCase("EMPTY DATA FILE"))
     {
       System.err.println(MessageManager
@@ -246,8 +254,19 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     {
       String title = MessageManager.formatMessage(
               "label.input_cut_paste_params", new String[] { format });
-      if (viewport != null)
+      FeatureSettingsModelI proxyColourScheme = source
+              .getFeatureColourScheme();
+
+      /*
+       * if the view panel was closed its alignment is nulled
+       * and this is an orphaned cut and paste window
+       */
+      if (viewport != null && viewport.getAlignment() != null)
       {
+        if (proxyColourScheme != null)
+        {
+          viewport.applyFeaturesStyle(proxyColourScheme);
+        }
         ((AlignViewport) viewport).addAlignment(al, title);
       }
       else
@@ -262,21 +281,34 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
                   .getHiddenSequences();
           boolean showSeqFeatures = ((ComplexAlignFile) source)
                   .isShowSeqFeatures();
-          ColourSchemeI cs = ((ComplexAlignFile) source).getColourScheme();
+          String colourSchemeName = ((ComplexAlignFile) source)
+                  .getGlobalColourScheme();
           FeaturesDisplayedI fd = ((ComplexAlignFile) source)
                   .getDisplayedFeatures();
           af = new AlignFrame(al, hiddenSeqs, colSel,
                   AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
           af.getViewport().setShowSequenceFeatures(showSeqFeatures);
           af.getViewport().setFeaturesDisplayed(fd);
-          af.changeColour(cs);
+          ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
+                  colourSchemeName, al);
+          if (cs != null)
+          {
+            af.changeColour(cs);
+          }
         }
         else
         {
           af = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
                   AlignFrame.DEFAULT_HEIGHT);
+          if (source instanceof FeaturesSourceI)
+          {
+            af.getViewport().setShowSequenceFeatures(true);
+          }
         }
-
+        if (proxyColourScheme != null)
+        {
+          af.getViewport().applyFeaturesStyle(proxyColourScheme);
+        }
         af.currentFileFormat = format;
         Desktop.addInternalFrame(af, title, AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
@@ -312,6 +344,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void cancel_actionPerformed(ActionEvent e)
   {
     try
@@ -322,9 +355,14 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     }
   }
 
+  @Override
   public void textarea_mousePressed(MouseEvent e)
   {
-    if (SwingUtilities.isRightMouseButton(e))
+    /*
+     * isPopupTrigger is checked in mousePressed on Mac,
+     * in mouseReleased on Windows
+     */
+    if (e.isPopupTrigger())
     {
       JPopupMenu popup = new JPopupMenu(
               MessageManager.getString("action.edit"));
@@ -332,6 +370,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
               MessageManager.getString("action.copy"));
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           copyItem_actionPerformed(e);
@@ -341,6 +380,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
       item = new JMenuItem(MessageManager.getString("action.paste"));
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           pasteMenu_actionPerformed(e);

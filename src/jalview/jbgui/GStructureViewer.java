@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -114,6 +114,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     pdbFile.setText(MessageManager.getString("label.pdb_file"));
     pdbFile.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         pdbFile_actionPerformed(actionEvent);
@@ -124,6 +125,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     png.setText("PNG");
     png.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         png_actionPerformed(actionEvent);
@@ -134,6 +136,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     eps.setText("EPS");
     eps.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         eps_actionPerformed(actionEvent);
@@ -144,6 +147,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     viewMapping.setText(MessageManager.getString("label.view_mapping"));
     viewMapping.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         viewMapping_actionPerformed(actionEvent);
@@ -156,6 +160,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     fitToWindow.setText(MessageManager.getString("label.fit_to_window"));
     fitToWindow.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         fitToWindow_actionPerformed();
@@ -170,6 +175,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
             .setText(MessageManager.getString("action.background_colour"));
     backGround.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         backGround_actionPerformed(actionEvent);
@@ -179,6 +185,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     seqColour.setText(MessageManager.getString("action.by_sequence"));
     seqColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         seqColour_actionPerformed(actionEvent);
@@ -187,6 +194,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     chainColour.setText(MessageManager.getString("action.by_chain"));
     chainColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         chainColour_actionPerformed(actionEvent);
@@ -195,6 +203,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     chargeColour.setText(MessageManager.getString("label.charge_cysteine"));
     chargeColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         chargeColour_actionPerformed(actionEvent);
@@ -203,6 +212,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     zappoColour.setText(MessageManager.getString("label.zappo"));
     zappoColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         zappoColour_actionPerformed(actionEvent);
@@ -211,6 +221,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     taylorColour.setText(MessageManager.getString("label.taylor"));
     taylorColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         taylorColour_actionPerformed(actionEvent);
@@ -219,6 +230,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     hydroColour.setText(MessageManager.getString("label.hydrophobicity"));
     hydroColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         hydroColour_actionPerformed(actionEvent);
@@ -228,6 +240,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
             .getString("label.strand_propensity"));
     strandColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         strandColour_actionPerformed(actionEvent);
@@ -236,6 +249,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     helixColour.setText(MessageManager.getString("label.helix_propensity"));
     helixColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         helixColour_actionPerformed(actionEvent);
@@ -244,6 +258,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     turnColour.setText(MessageManager.getString("label.turn_propensity"));
     turnColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         turnColour_actionPerformed(actionEvent);
@@ -252,6 +267,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     buriedColour.setText(MessageManager.getString("label.buried_index"));
     buriedColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         buriedColour_actionPerformed(actionEvent);
@@ -261,6 +277,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
             .getString("label.purine_pyrimidine"));
     purinePyrimidineColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         purinePyrimidineColour_actionPerformed(actionEvent);
@@ -270,6 +287,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     userColour.setText(MessageManager.getString("action.user_defined"));
     userColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         userColour_actionPerformed(actionEvent);
@@ -282,6 +300,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
             .getString("label.let_jmol_manage_structure_colours"));
     viewerColour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         viewerColour_actionPerformed(actionEvent);
@@ -293,6 +312,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
     helpItem.setText(MessageManager.getString("label.jmol_help"));
     helpItem.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         showHelp_actionPerformed(actionEvent);
@@ -302,6 +322,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
             .setText(MessageManager.getString("label.align_structures"));
     alignStructs.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         alignStructs_actionPerformed(actionEvent);
@@ -361,6 +382,10 @@ public abstract class GStructureViewer extends JInternalFrame implements
   }
 
   protected void fitToWindow_actionPerformed()
+  {
+  }
+
+  protected void highlightSelection_actionPerformed()
   {
   }
 

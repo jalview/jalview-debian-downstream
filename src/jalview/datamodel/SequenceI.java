@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -217,6 +217,15 @@ public interface SequenceI extends ASequenceI
   public int[] findPositionMap();
 
   /**
+   * Answers true if the sequence is composed of amino acid characters. Note
+   * that implementations may use heuristic methods which are not guaranteed to
+   * give the biologically 'right' answer.
+   * 
+   * @return
+   */
+  public boolean isProtein();
+
+  /**
    * Delete a range of aligned sequence columns, creating a new dataset sequence
    * if necessary and adjusting start and end positions accordingly.
    * 
@@ -231,34 +240,39 @@ public interface SequenceI extends ASequenceI
    * DOCUMENT ME!
    * 
    * @param i
-   *          DOCUMENT ME!
+   *          alignment column number
    * @param c
-   *          DOCUMENT ME!
+   *          character to insert
    */
   public void insertCharAt(int i, char c);
 
   /**
-   * DOCUMENT ME!
+   * insert given character at alignment column position
    * 
    * @param position
-   *          DOCUMENT ME!
+   *          alignment column number
+   * @param count
+   *          length of insert
    * @param ch
-   *          DOCUMENT ME!
+   *          character to insert
    */
   public void insertCharAt(int position, int count, char ch);
 
   /**
-   * DOCUMENT ME!
+   * Gets array holding sequence features associated with this sequence. The
+   * array may be held by the sequence's dataset sequence if that is defined.
    * 
-   * @return DOCUMENT ME!
+   * @return hard reference to array
    */
   public SequenceFeature[] getSequenceFeatures();
 
   /**
-   * DOCUMENT ME!
+   * Replaces the array of sequence features associated with this sequence with
+   * a new array reference. If this sequence has a dataset sequence, then this
+   * method will update the dataset sequence's feature array
    * 
-   * @param v
-   *          DOCUMENT ME!
+   * @param features
+   *          New array of sequence features
    */
   public void setSequenceFeatures(SequenceFeature[] features);
 
@@ -278,11 +292,18 @@ public interface SequenceI extends ASequenceI
   public Vector<PDBEntry> getAllPDBEntries();
 
   /**
-   * add entry to the vector of PDBIds, if it isn't in the list already
+   * Adds the entry to the *normalised* list of PDBIds.
+   * 
+   * If a PDBEntry is passed with the same entry.getID() string as one already
+   * in the list, or one is added that appears to be the same but has a chain ID
+   * appended, then the existing PDBEntry will be updated with the new
+   * attributes instead, unless the entries have distinct chain codes or
+   * associated structure files.
    * 
    * @param entry
+   * @return true if the entry was added, false if updated
    */
-  public void addPDBId(PDBEntry entry);
+  public boolean addPDBId(PDBEntry entry);
 
   /**
    * update the list of PDBEntrys to include any DBRefEntrys citing structural
@@ -296,9 +317,17 @@ public interface SequenceI extends ASequenceI
 
   public void setVamsasId(String id);
 
-  public void setDBRef(DBRefEntry[] dbs);
+  /**
+   * set the array of Database references for the sequence.
+   * 
+   * @param dbs
+   * @deprecated - use is discouraged since side-effects may occur if DBRefEntry
+   *             set are not normalised.
+   */
+  @Deprecated
+  public void setDBRefs(DBRefEntry[] dbs);
 
-  public DBRefEntry[] getDBRef();
+  public DBRefEntry[] getDBRefs();
 
   /**
    * add the given entry to the list of DBRefs for this sequence, or replace a
@@ -429,4 +458,14 @@ public interface SequenceI extends ASequenceI
    * @return
    */
   public PDBEntry getPDBEntry(String pdbId);
+
+  /**
+   * Get all primary database/accessions for this sequence's data. These
+   * DBRefEntry are expected to resolve to a valid record in the associated
+   * external database, either directly or via a provided 1:1 Mapping.
+   * 
+   * @return just the primary references (if any) for this sequence, or an empty
+   *         list
+   */
+  public List<DBRefEntry> getPrimaryDBRefs();
 }

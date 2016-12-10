@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,9 @@
  */
 package jalview.util;
 
+import java.awt.Toolkit;
+import java.awt.event.MouseEvent;
+
 /**
  * System platform information used by Applet and Application
  * 
@@ -27,6 +30,10 @@ package jalview.util;
  */
 public class Platform
 {
+  private static Boolean isAMac = null;
+
+  private static Boolean isHeadless = null;
+
   /**
    * sorry folks - Macs really are different
    * 
@@ -34,15 +41,21 @@ public class Platform
    */
   public static boolean isAMac()
   {
-    return java.lang.System.getProperty("os.name").indexOf("Mac") > -1;
+    if (isAMac == null)
+    {
+      isAMac = System.getProperty("os.name").indexOf("Mac") > -1;
+    }
+    return isAMac.booleanValue();
 
   }
 
   public static boolean isHeadless()
   {
-    String hdls = java.lang.System.getProperty("java.awt.headless");
-
-    return hdls != null && hdls.equals("true");
+    if (isHeadless == null)
+    {
+      isHeadless = "true".equals(System.getProperty("java.awt.headless"));
+    }
+    return isHeadless;
   }
 
   /**
@@ -73,5 +86,45 @@ public class Platform
     }
     f.append(file.substring(lastp));
     return f.toString();
+  }
+
+  /**
+   * Answers true if the mouse event has Meta-down (Command key on Mac) or
+   * Ctrl-down (on other o/s). Note this answers _false_ if the Ctrl key is
+   * pressed instead of the Meta/Cmd key on Mac. To test for Ctrl-click on Mac,
+   * you can use e.isPopupTrigger().
+   * 
+   * @param e
+   * @return
+   */
+  public static boolean isControlDown(MouseEvent e)
+  {
+    boolean aMac = isAMac();
+    return isControlDown(e, aMac);
+  }
+
+  /**
+   * Overloaded version of method (to allow unit testing)
+   * 
+   * @param e
+   * @param aMac
+   * @return
+   */
+  protected static boolean isControlDown(MouseEvent e, boolean aMac)
+  {
+    if (aMac)
+    {
+      /*
+       * answer false for right mouse button
+       */
+      if (e.isPopupTrigger())
+      {
+        return false;
+      }
+      return (Toolkit.getDefaultToolkit().getMenuShortcutKeyMask() & e
+              .getModifiers()) != 0;
+      // could we use e.isMetaDown() here?
+    }
+    return e.isControlDown();
   }
 }

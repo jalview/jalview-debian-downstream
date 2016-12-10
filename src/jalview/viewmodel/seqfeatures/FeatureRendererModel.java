@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,19 +21,21 @@
 package jalview.viewmodel.seqfeatures;
 
 import jalview.api.AlignViewportI;
+import jalview.api.FeatureColourI;
 import jalview.api.FeaturesDisplayedI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.renderer.seqfeatures.FeatureRenderer;
-import jalview.schemes.GraduatedColor;
-import jalview.viewmodel.AlignmentViewport;
+import jalview.schemes.FeatureColour;
+import jalview.schemes.UserColourScheme;
 
 import java.awt.Color;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
@@ -50,19 +52,20 @@ public abstract class FeatureRendererModel implements
    */
   protected float transparency = 1.0f;
 
-  protected Map<String, Object> featureColours = new ConcurrentHashMap<String, Object>();
+  protected Map<String, FeatureColourI> featureColours = new ConcurrentHashMap<String, FeatureColourI>();
 
   protected Map<String, Boolean> featureGroups = new ConcurrentHashMap<String, Boolean>();
 
-  protected Object currentColour;
-
   protected String[] renderOrder;
+
+  Map<String, Float> featureOrder = null;
 
   protected PropertyChangeSupport changeSupport = new PropertyChangeSupport(
           this);
 
-  protected AlignmentViewport av;
+  protected AlignViewportI av;
 
+  @Override
   public AlignViewportI getViewport()
   {
     return av;
@@ -188,9 +191,9 @@ public abstract class FeatureRendererModel implements
     renderOrder = neworder;
   }
 
-  protected Hashtable minmax = new Hashtable();
+  protected Map<String, float[][]> minmax = new Hashtable<String, float[][]>();
 
-  public Hashtable getMinMax()
+  public Map<String, float[][]> getMinMax()
   {
     return minmax;
   }
@@ -204,7 +207,7 @@ public abstract class FeatureRendererModel implements
    */
   protected final byte[] normaliseScore(SequenceFeature sequenceFeature)
   {
-    float[] mm = ((float[][]) minmax.get(sequenceFeature.type))[0];
+    float[] mm = minmax.get(sequenceFeature.type)[0];
     final byte[] r = new byte[] { 0, (byte) 255 };
     if (mm != null)
     {
@@ -285,8 +288,12 @@ public abstract class FeatureRendererModel implements
           continue;
         }
 
-        if ((features[i].getBegin() <= res)
-                && (features[i].getEnd() >= res))
+        // check if start/end are at res, and if not a contact feature, that res
+        // lies between start and end
+        if ((features[i].getBegin() == res || features[i].getEnd() == res)
+                || (!features[i].isContactFeature()
+                        && (features[i].getBegin() < res) && (features[i]
+                        .getEnd() >= res)))
         {
           tmp.add(features[i]);
         }
@@ -335,7 +342,7 @@ public abstract class FeatureRendererModel implements
     }
     if (minmax == null)
     {
-      minmax = new Hashtable();
+      minmax = new Hashtable<String, float[][]>();
     }
     AlignmentI alignment = av.getAlignment();
     for (int i = 0; i < alignment.getHeight(); i++)
@@ -390,7 +397,7 @@ public abstract class FeatureRendererModel implements
         if (!Float.isNaN(features[index].score))
         {
           int nonpos = features[index].getBegin() >= 1 ? 0 : 1;
-          float[][] mm = (float[][]) minmax.get(features[index].getType());
+          float[][] mm = minmax.get(features[index].getType());
           if (mm == null)
           {
             mm = new float[][] { null, null };
@@ -439,7 +446,6 @@ public abstract class FeatureRendererModel implements
     List<String> allfeatures = new ArrayList<String>(allFeatures);
     String[] oldRender = renderOrder;
     renderOrder = new String[allfeatures.size()];
-    Object mmrange, fc = null;
     boolean initOrders = (featureOrder == null);
     int opos = 0;
     if (oldRender != null && oldRender.length > 0)
@@ -459,16 +465,13 @@ public abstract class FeatureRendererModel implements
             allfeatures.remove(oldRender[j]);
             if (minmax != null)
             {
-              mmrange = minmax.get(oldRender[j]);
+              float[][] mmrange = minmax.get(oldRender[j]);
               if (mmrange != null)
               {
-                fc = featureColours.get(oldRender[j]);
-                if (fc != null && fc instanceof GraduatedColor
-                        && ((GraduatedColor) fc).isAutoScale())
+                FeatureColourI fc = featureColours.get(oldRender[j]);
+                if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled())
                 {
-                  ((GraduatedColor) fc).updateBounds(
-                          ((float[][]) mmrange)[0][0],
-                          ((float[][]) mmrange)[0][1]);
+                  fc.updateBounds(mmrange[0][0], mmrange[0][1]);
                 }
               }
             }
@@ -492,15 +495,13 @@ public abstract class FeatureRendererModel implements
       if (minmax != null)
       {
         // update from new features minmax if necessary
-        mmrange = minmax.get(newf[i]);
+        float[][] mmrange = minmax.get(newf[i]);
         if (mmrange != null)
         {
-          fc = featureColours.get(newf[i]);
-          if (fc != null && fc instanceof GraduatedColor
-                  && ((GraduatedColor) fc).isAutoScale())
+          FeatureColourI fc = featureColours.get(newf[i]);
+          if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled())
           {
-            ((GraduatedColor) fc).updateBounds(((float[][]) mmrange)[0][0],
-                    ((float[][]) mmrange)[0][1]);
+            fc.updateBounds(mmrange[0][0], mmrange[0][1]);
           }
         }
       }
@@ -512,7 +513,7 @@ public abstract class FeatureRendererModel implements
         setOrder(newf[i], i / (float) denom);
       }
       // set order from newly found feature from persisted ordering.
-      sortOrder[i] = 2 - ((Float) featureOrder.get(newf[i])).floatValue();
+      sortOrder[i] = 2 - featureOrder.get(newf[i]).floatValue();
       if (i < iSize)
       {
         // only sort if we need to
@@ -530,48 +531,22 @@ public abstract class FeatureRendererModel implements
 
   /**
    * get a feature style object for the given type string. Creates a
-   * java.awt.Color for a featureType with no existing colourscheme. TODO:
-   * replace return type with object implementing standard abstract colour/style
-   * interface
+   * java.awt.Color for a featureType with no existing colourscheme.
    * 
    * @param featureType
-   * @return java.awt.Color or GraduatedColor
+   * @return
    */
-  public Object getFeatureStyle(String featureType)
+  @Override
+  public FeatureColourI getFeatureStyle(String featureType)
   {
-    Object fc = featureColours.get(featureType);
+    FeatureColourI fc = featureColours.get(featureType);
     if (fc == null)
     {
-      jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme();
-      Color col = ucs.createColourFromName(featureType);
-      featureColours.put(featureType, fc = col);
+      Color col = UserColourScheme.createColourFromName(featureType);
+      fc = new FeatureColour(col);
+      featureColours.put(featureType, fc);
     }
     return fc;
-  }
-
-  /**
-   * return a nominal colour for this feature
-   * 
-   * @param featureType
-   * @return standard color, or maximum colour for graduated colourscheme
-   */
-  public Color getColour(String featureType)
-  {
-    Object fc = getFeatureStyle(featureType);
-
-    if (fc instanceof Color)
-    {
-      return (Color) fc;
-    }
-    else
-    {
-      if (fc instanceof GraduatedColor)
-      {
-        return ((GraduatedColor) fc).getMaxColor();
-      }
-    }
-    throw new Error("Implementation Error: Unrecognised render object "
-            + fc.getClass() + " for features of type " + featureType);
   }
 
   /**
@@ -583,51 +558,32 @@ public abstract class FeatureRendererModel implements
    */
   public Color getColour(SequenceFeature feature)
   {
-    Object fc = getFeatureStyle(feature.getType());
-    if (fc instanceof Color)
-    {
-      return (Color) fc;
-    }
-    else
-    {
-      if (fc instanceof GraduatedColor)
-      {
-        return ((GraduatedColor) fc).findColor(feature);
-      }
-    }
-    throw new Error("Implementation Error: Unrecognised render object "
-            + fc.getClass() + " for features of type " + feature.getType());
+    FeatureColourI fc = getFeatureStyle(feature.getType());
+    return fc.getColor(feature);
   }
 
   protected boolean showFeature(SequenceFeature sequenceFeature)
   {
-    Object fc = getFeatureStyle(sequenceFeature.type);
-    if (fc instanceof GraduatedColor)
-    {
-      return ((GraduatedColor) fc).isColored(sequenceFeature);
-    }
-    else
-    {
-      return true;
-    }
+    FeatureColourI fc = getFeatureStyle(sequenceFeature.type);
+    return fc.isColored(sequenceFeature);
   }
 
+  /**
+   * Answers true if the feature type is currently selected to be displayed,
+   * else false
+   * 
+   * @param type
+   * @return
+   */
   protected boolean showFeatureOfType(String type)
   {
-    return av.getFeaturesDisplayed().isVisible(type);
+    return type == null ? false : av.getFeaturesDisplayed().isVisible(type);
   }
 
-  public void setColour(String featureType, Object col)
+  @Override
+  public void setColour(String featureType, FeatureColourI col)
   {
-    // overwrite
-    // Color _col = (col instanceof Color) ? ((Color) col) : (col instanceof
-    // GraduatedColor) ? ((GraduatedColor) col).getMaxColor() : null;
-    // Object c = featureColours.get(featureType);
-    // if (c == null || c instanceof Color || (c instanceof GraduatedColor &&
-    // !((GraduatedColor)c).getMaxColor().equals(_col)))
-    {
-      featureColours.put(featureType, col);
-    }
+    featureColours.put(featureType, col);
   }
 
   public void setTransparency(float value)
@@ -639,8 +595,6 @@ public abstract class FeatureRendererModel implements
   {
     return transparency;
   }
-
-  Map featureOrder = null;
 
   /**
    * analogous to colour - store a normalized ordering for all feature types in
@@ -656,7 +610,7 @@ public abstract class FeatureRendererModel implements
   {
     if (featureOrder == null)
     {
-      featureOrder = new Hashtable();
+      featureOrder = new Hashtable<String, Float>();
     }
     featureOrder.put(type, new Float(position));
     return position;
@@ -674,16 +628,16 @@ public abstract class FeatureRendererModel implements
     {
       if (featureOrder.containsKey(type))
       {
-        return ((Float) featureOrder.get(type)).floatValue();
+        return featureOrder.get(type).floatValue();
       }
     }
     return -1;
   }
 
   @Override
-  public Map<String, Object> getFeatureColours()
+  public Map<String, FeatureColourI> getFeatureColours()
   {
-    return new ConcurrentHashMap<String, Object>(featureColours);
+    return featureColours;
   }
 
   /**
@@ -691,21 +645,32 @@ public abstract class FeatureRendererModel implements
    * 
    * @param data
    *          { String(Type), Colour(Type), Boolean(Displayed) }
+   * @return true if any visible features have been reordered, else false
    */
-  public void setFeaturePriority(Object[][] data)
+  public boolean setFeaturePriority(Object[][] data)
   {
-    setFeaturePriority(data, true);
+    return setFeaturePriority(data, true);
   }
 
   /**
+   * Sets the priority order for features
    * 
    * @param data
    *          { String(Type), Colour(Type), Boolean(Displayed) }
    * @param visibleNew
    *          when true current featureDisplay list will be cleared
+   * @return true if any visible features have been reordered or recoloured,
+   *         else false (i.e. no need to repaint)
    */
-  public void setFeaturePriority(Object[][] data, boolean visibleNew)
+  public boolean setFeaturePriority(Object[][] data, boolean visibleNew)
   {
+    /*
+     * note visible feature ordering and colours before update
+     */
+    List<String> visibleFeatures = getDisplayedFeatureTypes();
+    Map<String, FeatureColourI> visibleColours = new HashMap<String, FeatureColourI>(
+            getFeatureColours());
+
     FeaturesDisplayedI av_featuresdisplayed = null;
     if (visibleNew)
     {
@@ -724,10 +689,10 @@ public abstract class FeatureRendererModel implements
     }
     if (data == null)
     {
-      return;
+      return false;
     }
     // The feature table will display high priority
-    // features at the top, but theses are the ones
+    // features at the top, but these are the ones
     // we need to render last, so invert the data
     renderOrder = new String[data.length];
 
@@ -736,8 +701,7 @@ public abstract class FeatureRendererModel implements
       for (int i = 0; i < data.length; i++)
       {
         String type = data[i][0].toString();
-        setColour(type, data[i][1]); // todo : typesafety - feature color
-        // interface object
+        setColour(type, (FeatureColourI) data[i][1]);
         if (((Boolean) data[i][2]).booleanValue())
         {
           av_featuresdisplayed.setVisible(type);
@@ -747,6 +711,30 @@ public abstract class FeatureRendererModel implements
       }
     }
 
+    /*
+     * get the new visible ordering and return true if it has changed
+     * order or any colour has changed
+     */
+    List<String> reorderedVisibleFeatures = getDisplayedFeatureTypes();
+    if (!visibleFeatures.equals(reorderedVisibleFeatures))
+    {
+      /*
+       * the list of ordered visible features has changed
+       */
+      return true;
+    }
+
+    /*
+     * return true if any feature colour has changed
+     */
+    for (String feature : visibleFeatures)
+    {
+      if (visibleColours.get(feature) != getFeatureStyle(feature))
+      {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -767,7 +755,7 @@ public abstract class FeatureRendererModel implements
     changeSupport.removePropertyChangeListener(listener);
   }
 
-  public Set getAllFeatureColours()
+  public Set<String> getAllFeatureColours()
   {
     return featureColours.keySet();
   }
@@ -782,6 +770,9 @@ public abstract class FeatureRendererModel implements
     return renderOrder != null;
   }
 
+  /**
+   * Returns feature types in ordering of rendering, where last means on top
+   */
   public List<String> getRenderOrder()
   {
     if (renderOrder == null)
@@ -835,9 +826,9 @@ public abstract class FeatureRendererModel implements
   {
     if (featureGroups != null)
     {
-      ArrayList gp = new ArrayList();
+      List<String> gp = new ArrayList<String>();
 
-      for (Object grp : featureGroups.keySet())
+      for (String grp : featureGroups.keySet())
       {
         Boolean state = featureGroups.get(grp);
         if (state.booleanValue() == visible)
@@ -879,19 +870,19 @@ public abstract class FeatureRendererModel implements
   }
 
   @Override
-  public Hashtable getDisplayedFeatureCols()
+  public Map<String, FeatureColourI> getDisplayedFeatureCols()
   {
-    Hashtable fcols = new Hashtable();
+    Map<String, FeatureColourI> fcols = new Hashtable<String, FeatureColourI>();
     if (getViewport().getFeaturesDisplayed() == null)
     {
       return fcols;
     }
-    Iterator<String> en = getViewport().getFeaturesDisplayed()
+    Iterator<String> features = getViewport().getFeaturesDisplayed()
             .getVisibleFeatures();
-    while (en.hasNext())
+    while (features.hasNext())
     {
-      String col = en.next();
-      fcols.put(col, getColour(col));
+      String feature = features.next();
+      fcols.put(feature, getFeatureStyle(feature));
     }
     return fcols;
   }
@@ -902,39 +893,39 @@ public abstract class FeatureRendererModel implements
     return av.getFeaturesDisplayed();
   }
 
+  /**
+   * Returns a (possibly empty) list of visible feature types, in render order
+   * (last is on top)
+   */
   @Override
-  public String[] getDisplayedFeatureTypes()
+  public List<String> getDisplayedFeatureTypes()
   {
-    String[] typ = null;
-    typ = getRenderOrder().toArray(new String[0]);
+    List<String> typ = getRenderOrder();
+    List<String> displayed = new ArrayList<String>();
     FeaturesDisplayedI feature_disp = av.getFeaturesDisplayed();
     if (feature_disp != null)
     {
       synchronized (feature_disp)
       {
-        for (int i = 0; i < typ.length; i++)
+        for (String type : typ)
         {
-          if (!feature_disp.isVisible(typ[i]))
+          if (feature_disp.isVisible(type))
           {
-            typ[i] = null;
+            displayed.add(type);
           }
         }
       }
     }
-    return typ;
+    return displayed;
   }
 
   @Override
-  public String[] getDisplayedFeatureGroups()
+  public List<String> getDisplayedFeatureGroups()
   {
-    String[] gps = null;
-    ArrayList<String> _gps = new ArrayList<String>();
-    Iterator en = getFeatureGroups().iterator();
-    int g = 0;
+    List<String> _gps = new ArrayList<String>();
     boolean valid = false;
-    while (en.hasNext())
+    for (String gp : getFeatureGroups())
     {
-      String gp = (String) en.next();
       if (checkGroupVisibility(gp, false))
       {
         valid = true;
@@ -946,11 +937,11 @@ public abstract class FeatureRendererModel implements
       }
       else
       {
-        gps = new String[_gps.size()];
-        _gps.toArray(gps);
+        // gps = new String[_gps.size()];
+        // _gps.toArray(gps);
       }
     }
-    return gps;
+    return _gps;
   }
 
 }

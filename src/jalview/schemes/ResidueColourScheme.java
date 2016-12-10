@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,17 @@
  */
 package jalview.schemes;
 
-import jalview.analysis.AAFrequency;
 import jalview.analysis.Conservation;
 import jalview.datamodel.AnnotatedCollectionI;
+import jalview.datamodel.ProfileI;
+import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
+import jalview.util.ColorUtils;
+import jalview.util.Comparison;
 import jalview.util.MessageManager;
 
 import java.awt.Color;
-import java.util.Hashtable;
 import java.util.Map;
 
 /**
@@ -48,17 +50,21 @@ public class ResidueColourScheme implements ColourSchemeI
   int threshold = 0;
 
   /* Set when threshold colouring to either pid_gaps or pid_nogaps */
-  protected String ignoreGaps = AAFrequency.PID_GAPS;
+  protected boolean ignoreGaps = false;
 
-  /** Consenus as a hashtable array */
-  Hashtable[] consensus;
+  /*
+   * Consensus data indexed by column
+   */
+  ProfilesI consensus;
 
-  /** Conservation string as a char array */
+  /*
+   * Conservation string as a char array 
+   */
   char[] conservation;
 
-  int conservationLength = 0;
-
-  /** DOCUMENT ME!! */
+  /*
+   * The conservation slider percentage setting 
+   */
   int inc = 30;
 
   /**
@@ -100,6 +106,7 @@ public class ResidueColourScheme implements ColourSchemeI
   /**
    * Find a colour without an index in a sequence
    */
+  @Override
   public Color findColour(char c)
   {
     return colors == null ? Color.white : colors[symbolIndex[c]];
@@ -133,58 +140,63 @@ public class ResidueColourScheme implements ColourSchemeI
    * 
    * @return Returns the percentage threshold
    */
+  @Override
   public int getThreshold()
   {
     return threshold;
   }
 
   /**
-   * DOCUMENT ME!
+   * Sets the percentage consensus threshold value, and whether gaps are ignored
+   * in percentage identity calculation
    * 
-   * @param ct
-   *          DOCUMENT ME!
+   * @param consensusThreshold
+   * @param ignoreGaps
    */
-  public void setThreshold(int ct, boolean ignoreGaps)
+  @Override
+  public void setThreshold(int consensusThreshold, boolean ignoreGaps)
   {
-    threshold = ct;
-    if (ignoreGaps)
-    {
-      this.ignoreGaps = AAFrequency.PID_NOGAPS;
-    }
-    else
-    {
-      this.ignoreGaps = AAFrequency.PID_GAPS;
-    }
+    threshold = consensusThreshold;
+    this.ignoreGaps = ignoreGaps;
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers true if there is a consensus profile for the specified column, and
+   * the given residue matches the consensus (or joint consensus) residue for
+   * the column, and the percentage identity for the profile is equal to or
+   * greater than the current threshold; else answers false. The percentage
+   * calculation depends on whether or not we are ignoring gapped sequences.
    * 
-   * @param s
-   *          DOCUMENT ME!
-   * @param j
-   *          DOCUMENT ME!
+   * @param residue
+   * @param column
+   *          (index into consensus profiles)
    * 
-   * @return DOCUMENT ME!
+   * @return
+   * @see #setThreshold(int, boolean)
    */
-  public boolean aboveThreshold(char c, int j)
+  public boolean aboveThreshold(char residue, int column)
   {
-    if ('a' <= c && c <= 'z')
+    if ('a' <= residue && residue <= 'z')
     {
       // TO UPPERCASE !!!
       // Faster than toUpperCase
-      c -= ('a' - 'A');
+      residue -= ('a' - 'A');
     }
 
-    if (consensus == null || consensus.length < j || consensus[j] == null)
+    if (consensus == null)
     {
       return false;
     }
 
-    if ((((Integer) consensus[j].get(AAFrequency.MAXCOUNT)).intValue() != -1)
-            && consensus[j].contains(String.valueOf(c)))
+    ProfileI profile = consensus.get(column);
+
+    /*
+     * test whether this is the consensus (or joint consensus) residue
+     */
+    if (profile != null
+            && profile.getModalResidue().contains(String.valueOf(residue)))
     {
-      if (((Float) consensus[j].get(ignoreGaps)).floatValue() >= threshold)
+      if (profile.getPercentageIdentity(ignoreGaps) >= threshold)
       {
         return true;
       }
@@ -193,6 +205,7 @@ public class ResidueColourScheme implements ColourSchemeI
     return false;
   }
 
+  @Override
   public boolean conservationApplied()
   {
     return conservationColouring;
@@ -204,11 +217,13 @@ public class ResidueColourScheme implements ColourSchemeI
     conservationColouring = conservationApplied;
   }
 
+  @Override
   public void setConservationInc(int i)
   {
     inc = i;
   }
 
+  @Override
   public int getConservationInc()
   {
     return inc;
@@ -220,7 +235,8 @@ public class ResidueColourScheme implements ColourSchemeI
    * @param consensus
    *          DOCUMENT ME!
    */
-  public void setConsensus(Hashtable[] consensus)
+  @Override
+  public void setConsensus(ProfilesI consensus)
   {
     if (consensus == null)
     {
@@ -230,6 +246,7 @@ public class ResidueColourScheme implements ColourSchemeI
     this.consensus = consensus;
   }
 
+  @Override
   public void setConservation(Conservation cons)
   {
     if (cons == null)
@@ -240,73 +257,70 @@ public class ResidueColourScheme implements ColourSchemeI
     else
     {
       conservationColouring = true;
-      int i, iSize = cons.getConsSequence().getLength();
+      int iSize = cons.getConsSequence().getLength();
       conservation = new char[iSize];
-      for (i = 0; i < iSize; i++)
+      for (int i = 0; i < iSize; i++)
       {
         conservation[i] = cons.getConsSequence().getCharAt(i);
       }
-      conservationLength = conservation.length;
     }
 
   }
 
   /**
-   * DOCUMENT ME!
+   * Applies a combination of column conservation score, and conservation
+   * percentage slider, to 'bleach' out the residue colours towards white.
+   * <p>
+   * If a column is fully conserved (identical residues, conservation score 11,
+   * shown as *), or all 10 physico-chemical properties are conserved
+   * (conservation score 10, shown as +), then the colour is left unchanged.
+   * <p>
+   * Otherwise a 'bleaching' factor is computed and applied to the colour. This
+   * is designed to fade colours for scores of 0-9 completely to white at slider
+   * positions ranging from 18% - 100% respectively.
    * 
-   * @param s
-   *          DOCUMENT ME!
-   * @param i
-   *          DOCUMENT ME!
+   * @param currentColour
+   * @param column
    * 
-   * @return DOCUMENT ME!
+   * @return bleached (or unmodified) colour
    */
-
-  Color applyConservation(Color currentColour, int i)
+  Color applyConservation(Color currentColour, int column)
   {
-
-    if ((conservationLength > i) && (conservation[i] != '*')
-            && (conservation[i] != '+'))
+    if (conservation == null || conservation.length <= column)
     {
-      if (jalview.util.Comparison.isGap(conservation[i]))
-      {
-        currentColour = Color.white;
-      }
-      else
-      {
-        float t = 11 - (conservation[i] - '0');
-        if (t == 0)
-        {
-          return Color.white;
-        }
-
-        int red = currentColour.getRed();
-        int green = currentColour.getGreen();
-        int blue = currentColour.getBlue();
-
-        int dr = 255 - red;
-        int dg = 255 - green;
-        int db = 255 - blue;
-
-        dr *= t / 10f;
-        dg *= t / 10f;
-        db *= t / 10f;
-
-        red += (inc / 20f) * dr;
-        green += (inc / 20f) * dg;
-        blue += (inc / 20f) * db;
-
-        if (red > 255 || green > 255 || blue > 255)
-        {
-          currentColour = Color.white;
-        }
-        else
-        {
-          currentColour = new Color(red, green, blue);
-        }
-      }
+      return currentColour;
     }
-    return currentColour;
+    char conservationScore = conservation[column];
+
+    /*
+     * if residues are fully conserved (* or 11), or all properties
+     * are conserved (+ or 10), leave colour unchanged
+     */
+    if (conservationScore == '*' || conservationScore == '+'
+            || conservationScore == (char) 10
+            || conservationScore == (char) 11)
+    {
+      return currentColour;
+    }
+
+    if (Comparison.isGap(conservationScore))
+    {
+      return Color.white;
+    }
+
+    /*
+     * convert score 0-9 to a bleaching factor 1.1 - 0.2
+     */
+    float bleachFactor = (11 - (conservationScore - '0')) / 10f;
+
+    /*
+     * scale this up by 0-5 (percentage slider / 20)
+     * as a result, scores of:         0  1  2  3  4  5  6  7  8  9
+     * fade to white at slider value: 18 20 22 25 29 33 40 50 67 100%
+     */
+    bleachFactor *= (inc / 20f);
+
+    return ColorUtils.bleachColour(currentColour, bleachFactor);
   }
 
   @Override

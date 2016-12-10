@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -107,7 +107,6 @@ public class FormatAdapter extends AppletFormatAdapter
       {
         startRes = seqs[i].getStart();
         endRes = seqs[i].getEnd();
-
         if (startEnd != null)
         {
           startIndex = startEnd[0];
@@ -127,9 +126,7 @@ public class FormatAdapter extends AppletFormatAdapter
           }
 
           startRes = seqs[i].findPosition(startIndex);
-          startRes = seqs[i].getStart() > 1 ? startRes - seqs[i].getStart()
-                  : startRes;
-          endRes = seqs[i].findPosition(endIndex) - seqs[i].getStart();
+          endRes = seqs[i].findPosition(endIndex);
         }
 
         tmp[i] = new Sequence(seqs[i].getName(), omitHiddenColumns[i],
@@ -306,20 +303,6 @@ public class FormatAdapter extends AppletFormatAdapter
       return this.formatSequences(format, alv, suffix);
     }
     return this.formatSequences(format, alignment, suffix);
-  }
-
-  public AlignmentI readFile(String inFile, String type, String format)
-          throws java.io.IOException
-  {
-    AlignmentI al = super.readFile(inFile, type, format);
-    return al;
-  }
-
-  public AlignmentI readFromFile(FileParse source, String format)
-          throws java.io.IOException
-  {
-    AlignmentI al = super.readFromFile(source, format);
-    return al;
   }
 
   /**

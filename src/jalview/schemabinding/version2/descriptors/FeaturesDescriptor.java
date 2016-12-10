@@ -11,6 +11,7 @@ package jalview.schemabinding.version2.descriptors;
 //- Imported classes and packages -/
 //---------------------------------/
 
+import jalview.schemabinding.version2.Features;
 
 /**
  * Class FeaturesDescriptor.

@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,28 +27,37 @@
     <strong>Alignment RNA Structure Consensus Annotation</strong>
   </p>
 
+  <p>The RNA structure consensus displayed below the alignment gives
+    the percentage of valid base pairs per column for the first
+    secondary structure annotation shown on the annotation panel. These
+    values are shown as a histogram labeled &quot;StrucConsensus&quot;,
+    where a symbol below each bar indicates whether the majority of base
+    pairs are:
+  <ul>
+    <li>'(' - Watson-Crick (C:G, A:U/T)</li>
+    <li>'[' - Non-canonical (a.ka. wobble) (G:U/T)</li>
+    <li>'{' - Invalid (a.k.a. tertiary) (the rest)</li>
+  </ul>
+  <p>Mousing over the column gives the fraction of pairs classified
+    as Watson-Crick, Canonical or Invalid.</p>
+
   <p>
-    The RNA structure consensus displayed below the alignment is the
-    percentage of valid base pairs per column. It is calculated in
-    relation to a secondary structure and just paired columns are
-    calculated. The canonical Watson-Crick base pairings (A-T/U, G-C)
-    and the wobble base pair (G-T/U) are regarded as valid pairings.<br>
-    The amount of valid base pairs is indicated by the profile in the
-    Alignment Annotation row.<br> By default this calculation
-    includes gaps in columns. You can choose to ignore gaps in the
-    calculation by right clicking on the label &quot;StrConsensus&quot;
-    to the left of the structure consensus bar chart.<br>
+    By default this calculation includes gaps in columns. You can choose
+    to ignore gaps in the calculation by right clicking on the label
+    &quot;StrucConsensus&quot; to the left of the structure consensus
+    bar chart.<br>
   <p>
-    <strong>Structure logo</strong>
-  </p>
-  By clicking on the label you can also activate the structure logo. It
-  is very similar to a sequence logo but counts the numbers of base
-  pairs. There are two residues per column, the actual column and the
-  interacting base. The opening bracket is always the one on the left
-  side.
-  <br> Like sequence logos the relative amount of a specific base
-  pair can be estimated by its size in the logo. The tool tip of a
-  column gives the exact numbers for all occurring valid base pairs.
+    <strong>RNA Structure logo</strong><br /> Right-clicking on the
+    label allows you to enable the structure logo. It is very similar to
+    a sequence logo but instead shows the distribution of base pairs.
+    There are two residues per column, the actual column and the
+    interacting base. The opening bracket is always the one on the left
+    side. <br> Like <a href="consensus.html#logo">sequence
+      logos</a>, the relative amount of a specific base pair can be
+    estimated by its size in the logo, and this can be made more obvious
+    by <em>normalising</em> the logo (enabled via the popup menu). When
+    the logo is displayed, the tool tip for a column gives the exact
+    percentages for all base pairs at that position.
   </p>
 </body>
 </html>

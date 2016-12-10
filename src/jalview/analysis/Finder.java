@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,24 +21,31 @@
 package jalview.analysis;
 
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResults;
-import jalview.datamodel.Sequence;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
+
+import com.stevesoft.pat.Regex;
 
 public class Finder
 {
   /**
    * Implements the search algorithms for the Find dialog box.
    */
-  SearchResults searchResults;
+  SearchResultsI searchResults;
 
   AlignmentI alignment;
 
-  jalview.datamodel.SequenceGroup selection = null;
+  SequenceGroup selection = null;
 
-  Vector idMatch = null;
+  Vector<SequenceI> idMatch = null;
 
   boolean caseSensitive = false;
 
@@ -46,10 +53,10 @@ public class Finder
 
   boolean findAll = false;
 
-  com.stevesoft.pat.Regex regex = null;
+  Regex regex = null;
 
   /**
-   * hold's last-searched position between calles to find(false)
+   * holds last-searched position between calls to find(false)
    */
   int seqIndex = 0, resIndex = -1;
 
@@ -83,11 +90,10 @@ public class Finder
     {
       searchString = searchString.toUpperCase();
     }
-    regex = new com.stevesoft.pat.Regex(searchString);
+    regex = new Regex(searchString);
     regex.setIgnoreCase(!caseSensitive);
     searchResults = new SearchResults();
-    idMatch = new Vector();
-    Sequence seq;
+    idMatch = new Vector<SequenceI>();
     String item = null;
     boolean found = false;
     int end = alignment.getHeight();
@@ -102,10 +108,11 @@ public class Finder
         selection = null;
       }
     }
+    SearchResultMatchI lastm = null;
 
     while (!found && (seqIndex < end))
     {
-      seq = (Sequence) alignment.getSequenceAt(seqIndex);
+      SequenceI seq = alignment.getSequenceAt(seqIndex);
 
       if ((selection != null && selection.getSize() > 0)
               && !selection.getSequences(null).contains(seq))
@@ -140,7 +147,7 @@ public class Finder
         {
         }
 
-        if (regex.search(seq.getName()))
+        if (regex.search(seq.getName()) && !idMatch.contains(seq))
         {
           idMatch.addElement(seq);
           hasResults = true;
@@ -153,7 +160,8 @@ public class Finder
         }
 
         if (isIncludeDescription() && seq.getDescription() != null
-                && regex.search(seq.getDescription()))
+                && regex.search(seq.getDescription())
+                && !idMatch.contains(seq))
         {
           idMatch.addElement(seq);
           hasResults = true;
@@ -174,16 +182,16 @@ public class Finder
       }
 
       // /Shall we ignore gaps???? - JBPNote: Add Flag for forcing this or not
-      StringBuffer noGapsSB = new StringBuffer();
+      StringBuilder noGapsSB = new StringBuilder();
       int insertCount = 0;
-      Vector spaces = new Vector();
+      List<Integer> spaces = new ArrayList<Integer>();
 
       for (int j = 0; j < item.length(); j++)
       {
-        if (!jalview.util.Comparison.isGap(item.charAt(j)))
+        if (!Comparison.isGap(item.charAt(j)))
         {
           noGapsSB.append(item.charAt(j));
-          spaces.addElement(new Integer(insertCount));
+          spaces.add(Integer.valueOf(insertCount));
         }
         else
         {
@@ -192,7 +200,6 @@ public class Finder
       }
 
       String noGaps = noGapsSB.toString();
-
       for (int r = resIndex; r < noGaps.length(); r++)
       {
 
@@ -201,22 +208,22 @@ public class Finder
           resIndex = regex.matchedFrom();
 
           if ((selection != null && selection.getSize() > 0)
-                  && ((resIndex + Integer.parseInt(spaces.elementAt(
-                          resIndex).toString())) < selection.getStartRes()))
+                  && (resIndex + spaces.get(resIndex) < selection
+                          .getStartRes()))
           {
             continue;
           }
           // if invalid string used, then regex has no matched to/from
-          int sres = seq
-                  .findPosition(resIndex
-                          + Integer.parseInt(spaces.elementAt(resIndex)
-                                  .toString()));
-          int eres = seq.findPosition(regex.matchedTo()
-                  - 1
-                  + Integer.parseInt(spaces
-                          .elementAt(regex.matchedTo() - 1).toString()));
-
-          searchResults.addResult(seq, sres, eres);
+          int sres = seq.findPosition(resIndex + spaces.get(resIndex));
+          int eres = seq.findPosition(regex.matchedTo() - 1
+                  + (spaces.get(regex.matchedTo() - 1)));
+          // only add result if not contained in previous result
+          if (lastm == null
+                  || (lastm.getSequence() != seq || (!(lastm.getStart() <= sres && lastm
+                          .getEnd() >= eres))))
+          {
+            lastm = searchResults.addResult(seq, sres, eres);
+          }
           hasResults = true;
           if (!findAll)
           {
@@ -320,9 +327,12 @@ public class Finder
   }
 
   /**
-   * @return the idMatch
+   * Returns the (possibly empty) list of matching sequences (when search
+   * includes searching sequence names)
+   * 
+   * @return
    */
-  public Vector getIdMatch()
+  public Vector<SequenceI> getIdMatch()
   {
     return idMatch;
   }
@@ -338,7 +348,7 @@ public class Finder
   /**
    * @return the searchResults
    */
-  public SearchResults getSearchResults()
+  public SearchResultsI getSearchResults()
   {
     return searchResults;
   }

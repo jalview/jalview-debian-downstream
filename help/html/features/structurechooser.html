@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,57 +28,65 @@
     <strong>Structure Chooser</strong>
   </p>
 
-  The Structure Chooser interface provides a smart technique for
-  selecting PDB structures to view in Jalview by querying readily
-  available meta-data of structures. The Interface can be invoked by
-  selecting the
-  <strong>"3D Structure Data.."</strong> option from a sequence's
-  <a href="../menus/popupMenu.html">pop-up menu</a>. Some of the main
-  features it provides are listed below:
+  <p>
+    The Structure Chooser interface allows you to interactively select
+    which PDB structures to view for the currently selected set of
+    sequences. It is opened by selecting the <strong>"3D
+      Structure Data.."</strong> option from the Sequence ID panel's <a
+      href="../menus/popupMenu.html">pop-up menu</a>. The dialog
+    provides:
+  </p>
   <ul>
     <li>Automatic discovery, retrieval and association of PDB
-      entries for an alignment's sequences</li>
-    <li>Visualisation of discovered structures' meta-data</li>
-    <li>Ability to configure the meta-data entries to visualise</li>
-    <li>Auto-selection of the best structure via filtering by the
-      available metric parameters in the meta-data (i.e. resolution,
-      quality etc).</li>
-    <li>Selection of multiple structures in a single operation</li>
+      entries for sequences</li>
+    <li>Exploration of meta-data for available 3D structures</li>
+    <li>Automatic selection of the 'best structure' to display for
+      each sequence</li>
+    <li>Manual association of PDB entries by entering a PDB Id</li>
+    <li>Association of structure data from a local file (in mmCIF
+      or PDB format)</li>
   </ul>
-  Additionally, the Structure Chooser retains the following contemporary
-  features of Jalview:
-  <ul>
-    <li>Manual association of PDB entries via entering the PDB Id
-      or From File</li>
-    <li>Ability to view cached PDB entries</li>
-  </ul>
-
-
-  <strong>Associating PDB files with Sequences</strong>
-  <br> Discovery/Association of PDB entries to a sequence now
-  happens automatically during the initialisation of the Structure
-  Chooser Interface. Jalview uses the sequence's ID to query the PDB
-  Rest API provided by the EBI to discover PDB Ids associated with the
-  sequence.
-
-  <br>
-  <br>
-  <strong>Configuring displayed meta-data for Structures</strong>
-  <br> To configure the visible meta-data displayed for the
-  discovered structures, click the 'Configure Displayed Columns' tab,
-  then tick the options which you intend to make visible.
-
-  <br>
-  <br>
-  <strong>Auto-selection of best Structures</strong>
-  <br> Jalview can automatically filter and select the best
-  structures using various metric categories avaialble from the
-  meta-data of the structures. To perform this simply select any of the
-  following options from the drop-down menu in the Structure Chooser
-  interface: Best Uniprot coverage, Higest Resolution, Best Quality,
-  Highest Protein Chain etc. When the 'Invert' option is selected,
-  Jalview returns an inverse result for the current selected option in
-  the drop-down menu.
+  <p>
+    <strong>Selecting and Viewing Structures</strong>
+  </p>
+  <p>
+    Once one or more structures have been selected, pressing the <strong>View</strong>
+    button will import them into <a
+      href="viewingpdbs.html#afterviewbutton">a new or existing
+      structure view</a>.
+  </p>
+  <p>
+    <strong>Automated discovery of structure data</strong>
+  </p>
+  <p>
+    After selecting "3D Structure Data ..", Jalview queries the PDB via
+    the PDBe SOLR Rest API provided by EMBL-EBI to discover PDB IDs
+    associated with the sequence. It does this based on the sequence's
+    ID string, and any other associated database IDs. <br />
+    <br />
+  <p>
+    <strong><a name="cachedstructview">Viewing existing
+        structures for your sequences</a></strong>
+  </p>
+  <p>
+    If you have already loaded 3D structure data for the selected
+    sequences, the structure chooser will first open with the <strong>Cached
+      Structures View</strong>. This view shows associations between each
+    sequence, and chains for 3D structure files already in memory. If
+    you want to download additional structures, select one of the other
+    options from the drop down menu.
+  </p>
+  <p>
+    <strong>Selection of the best structure for each sequence</strong>
+  </p>
+  <p>Jalview can automatically select the best structures according
+    to meta-data provided by the PDB. For alignments with no existing
+    structure data, the 'Best Quality' structure for each sequence will
+    by default be selected, but clicking on the drop down menu allows
+    other criteria to be chosen, including Resolution (only defined for
+    X-Ray structures), Highest Protein Chain etc. When 'Invert' is
+    selected, structures are selected in reverse order for the current
+    criteria (e.g. worst quality rather than best).</p>
   <p>
 
     <img src="schooser_main.png" style="width: 464px; height: 369px;">
@@ -89,34 +97,33 @@
 	<p><img src="schooser_cached.png"> -->
     <br>The screenshot above shows the Structure Chooser interface
     along with the meta-data of auto-discovered structures for the
-    sample alignment. Note however that if no structures were
-    auto-discovered, a different interface for manual association will
-    be invoked as seen in the screenshot below.
+    sample alignment. If no structures were
+    auto-discovered, options for manually associating PDB records will be shown (see below).
+  <p>
+    <strong>Exploration of meta-data for available structures</strong>
+  </p>
+  <p>Information on each structure available is displayed in columns
+    in the dialog box. By default, only the title, resolution and PDB
+    identifier are shown, but many more are provided by the PDBe. To
+    configure which ones are displayed, select the 'Configure Displayed
+    Columns' tab and tick the columns which you want to see.</p>
   <p>
     <img src="schooser_enter-id.png"
-      style="width: 464px; height: 369px;"
-    >
-  <p>
+      style="width: 464px; height: 369px;">
+      <br/>
     <strong>Manual selection/association of PDB files with
       Sequences</strong>
   </p>
-  <p>To manually associate PDB files with a sequence, select any of
-    the follwing options listed below from the drop-down menu in the
-    interface:
+  <p>To manually associate PDB files with a sequence, select 'From
+    File', or 'Enter PDB Id' from the drop-down menu:
   <ul>
-    <li><strong>From File</strong> - You can load a PDB file from
-      the local machine or network and associate it with the selected
-      sequence. PDB files associated in this way will also be saved in
-      the <a href="jalarchive.html">Jalview Archive file</a>.<br></li>
-    <li><strong>Enter PDB Id</strong> - Jalview will use the PDB
-      Rest API, provided by the EBI, to fetch the PDB file with the
-      entered Id.<br></li>
-    <li><strong>Cached PDB Entries</strong> - You can view PDB
-      structures which have previously been downloaded/viewed using this
-      option. Jalview caches previously downloaded PDB entries in the
-      computer memory. However, if the project is saved before exiting
-      Jalview, Jalview will serialize the cached entries to the file
-      system.</li>
+    <li><strong>From File</strong> - allows you to load a PDB file
+      from the local machine or network and associate it with the
+      selected sequence. PDB files associated in this way will also be
+      saved in the <a href="jalarchive.html">Jalview Archive file</a>.<br></li>
+    <li><strong>Enter PDB Id</strong> - allows you specify a PDB ID
+      for your sequence. The PDB Rest API, provided by EMBL-EBI, is used
+      to validate and fetch structure data.<br></li>
   </ul>
 
   <p>

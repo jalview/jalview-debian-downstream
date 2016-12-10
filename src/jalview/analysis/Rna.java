@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,82 +31,108 @@ import jalview.datamodel.SequenceFeature;
 import jalview.util.MessageManager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Stack;
 import java.util.Vector;
 
 public class Rna
 {
 
-  static Hashtable<Integer, Integer> pairHash = new Hashtable();
-
-  private static final Character[] openingPars = { '(', '[', '{', '<', 'A',
-      'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
-      'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' };
-
-  private static final Character[] closingPars = { ')', ']', '}', '>', 'a',
-      'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-      'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z' };
-
-  private static HashSet<Character> openingParsSet = new HashSet<Character>(
-          Arrays.asList(openingPars));
-
-  private static HashSet<Character> closingParsSet = new HashSet<Character>(
-          Arrays.asList(closingPars));
-
-  private static Hashtable<Character, Character> closingToOpening = new Hashtable<Character, Character>()
-  // Initializing final data structure
+  /**
+   * Answers true if the character is a valid open pair rna secondary structure
+   * symbol. Currently accepts A-Z, ([{<
+   * 
+   * @param c
+   * @return
+   */
+  public static boolean isOpeningParenthesis(char c)
   {
-    private static final long serialVersionUID = 1L;
-    {
-      for (int i = 0; i < openingPars.length; i++)
-      {
-        // System.out.println(closingPars[i] + "->" + openingPars[i]);
-        put(closingPars[i], openingPars[i]);
-      }
-    }
-  };
-
-  private static boolean isOpeningParenthesis(char c)
-  {
-    return openingParsSet.contains(c);
+    return ('A' <= c && c <= 'Z' || c == '(' || c == '[' || c == '{' || c == '<');
   }
 
-  private static boolean isClosingParenthesis(char c)
+  /**
+   * Answers true if the string is a valid open pair rna secondary structure
+   * symbol. Currently accepts A-Z, ([{<
+   * 
+   * @param s
+   * @return
+   */
+  public static boolean isOpeningParenthesis(String s)
   {
-    return closingParsSet.contains(c);
+    return s != null && s.length() == 1
+            && isOpeningParenthesis(s.charAt(0));
   }
 
-  private static char matchingOpeningParenthesis(char closingParenthesis)
-          throws WUSSParseException
+  /**
+   * Answers true if the character is a valid close pair rna secondary structure
+   * symbol. Currently accepts a-z, )]}>
+   * 
+   * @param c
+   * @return
+   */
+  public static boolean isClosingParenthesis(char c)
   {
-    if (!isClosingParenthesis(closingParenthesis))
-    {
-      throw new WUSSParseException(
-              MessageManager.formatMessage(
-                      "exception.querying_matching_opening_parenthesis_for_non_closing_parenthesis",
-                      new String[] { new StringBuffer(closingParenthesis)
-                              .toString() }), -1);
-    }
+    return ('a' <= c && c <= 'z' || c == ')' || c == ']' || c == '}' || c == '>');
+  }
 
-    return closingToOpening.get(closingParenthesis);
+  /**
+   * Answers true if the string is a valid close pair rna secondary structure
+   * symbol. Currently accepts a-z, )]}>
+   * 
+   * @param s
+   * @return
+   */
+  public static boolean isClosingParenthesis(String s)
+  {
+    return s != null && s.length() == 1
+            && isClosingParenthesis(s.charAt(0));
+  }
+
+  /**
+   * Returns the matching open pair symbol for the given closing symbol.
+   * Currently returns A-Z for a-z, or ([{< for )]}>, or the input symbol if it
+   * is not a valid closing symbol.
+   * 
+   * @param c
+   * @return
+   */
+  public static char getMatchingOpeningParenthesis(char c)
+  {
+    if ('a' <= c && c <= 'z')
+    {
+      return (char) (c + 'A' - 'a');
+    }
+    switch (c)
+    {
+    case ')':
+      return '(';
+    case ']':
+      return '[';
+    case '}':
+      return '{';
+    case '>':
+      return '<';
+    default:
+      return c;
+    }
   }
 
   /**
    * Based off of RALEE code ralee-get-base-pairs. Keeps track of open bracket
    * positions in "stack" vector. When a close bracket is reached, pair this
-   * with the last element in the "stack" vector and store in "pairs" vector.
-   * Remove last element in the "stack" vector. Continue in this manner until
-   * the whole string is processed.
+   * with the last matching element in the "stack" vector and store in "pairs"
+   * vector. Remove last element in the "stack" vector. Continue in this manner
+   * until the whole string is processed. Parse errors are thrown as exceptions
+   * wrapping the error location - position of the first unmatched closing
+   * bracket, or string length if there is an unmatched opening bracket.
    * 
    * @param line
    *          Secondary structure line of an RNA Stockholm file
-   * @return Array of SequenceFeature; type = RNA helix, begin is open base
-   *         pair, end is close base pair
+   * @return
+   * @throw {@link WUSSParseException}
    */
-  public static Vector<SimpleBP> GetSimpleBPs(CharSequence line)
+  public static Vector<SimpleBP> getSimpleBPs(CharSequence line)
           throws WUSSParseException
   {
     Hashtable<Character, Stack<Integer>> stacks = new Hashtable<Character, Stack<Integer>>();
@@ -128,13 +154,13 @@ public class Rna
       else if (isClosingParenthesis(base))
       {
 
-        char opening = matchingOpeningParenthesis(base);
+        char opening = getMatchingOpeningParenthesis(base);
 
         if (!stacks.containsKey(opening))
         {
           throw new WUSSParseException(MessageManager.formatMessage(
                   "exception.mismatched_unseen_closing_char",
-                  new String[] { new StringBuffer(base).toString() }), i);
+                  new String[] { String.valueOf(base) }), i);
         }
 
         Stack<Integer> stack = stacks.get(opening);
@@ -143,7 +169,7 @@ public class Rna
           // error whilst parsing i'th position. pass back
           throw new WUSSParseException(MessageManager.formatMessage(
                   "exception.mismatched_closing_char",
-                  new String[] { new StringBuffer(base).toString() }), i);
+                  new String[] { String.valueOf(base) }), i);
         }
         int temp = stack.pop();
 
@@ -156,33 +182,36 @@ public class Rna
       Stack<Integer> stack = stacks.get(opening);
       if (!stack.empty())
       {
+        /*
+         * we have an unmatched opening bracket; report error as at
+         * i (length of input string)
+         */
         throw new WUSSParseException(MessageManager.formatMessage(
                 "exception.mismatched_opening_char",
-                new String[] { new StringBuffer(opening).toString(),
-                    Integer.valueOf(stack.pop()).toString() }), i);
+                new String[] { String.valueOf(opening),
+                    String.valueOf(stack.pop()) }), i);
       }
     }
     return pairs;
   }
 
-  public static SequenceFeature[] GetBasePairs(CharSequence line)
+  public static SequenceFeature[] getBasePairs(List<SimpleBP> bps)
           throws WUSSParseException
   {
-    Vector<SimpleBP> bps = GetSimpleBPs(line);
     SequenceFeature[] outPairs = new SequenceFeature[bps.size()];
     for (int p = 0; p < bps.size(); p++)
     {
-      SimpleBP bp = bps.elementAt(p);
+      SimpleBP bp = bps.get(p);
       outPairs[p] = new SequenceFeature("RNA helix", "", "", bp.getBP5(),
               bp.getBP3(), "");
     }
     return outPairs;
   }
 
-  public static ArrayList<SimpleBP> GetModeleBP(CharSequence line)
+  public static List<SimpleBP> getModeleBP(CharSequence line)
           throws WUSSParseException
   {
-    Vector<SimpleBP> bps = GetSimpleBPs(line);
+    Vector<SimpleBP> bps = getSimpleBPs(line);
     return new ArrayList<SimpleBP>(bps);
   }
 
@@ -220,8 +249,8 @@ public class Rna
     int close; // Position of a close bracket under review
     int j; // Counter
 
-    Hashtable helices = new Hashtable(); // Keep track of helix number for each
-                                         // position
+    Hashtable<Integer, Integer> helices = new Hashtable<Integer, Integer>();
+    // Keep track of helix number for each position
 
     // Go through each base pair and assign positions a helix
     for (i = 0; i < pairs.length; i++)
@@ -255,7 +284,7 @@ public class Rna
         if ((popen < lastopen) && (popen > open))
         {
           if (helices.containsValue(popen)
-                  && (((Integer) helices.get(popen)) == helix))
+                  && ((helices.get(popen)) == helix))
           {
             continue;
           }
@@ -279,6 +308,196 @@ public class Rna
       lastopen = open;
       lastclose = close;
 
+    }
+  }
+
+  /**
+   * Answers true if the character is a recognised symbol for RNA secondary
+   * structure. Currently accepts a-z, A-Z, ()[]{}<>.
+   * 
+   * @param c
+   * @return
+   */
+  public static boolean isRnaSecondaryStructureSymbol(char c)
+  {
+    return isOpeningParenthesis(c) || isClosingParenthesis(c);
+  }
+
+  /**
+   * Answers true if the string is a recognised symbol for RNA secondary
+   * structure. Currently accepts a-z, A-Z, ()[]{}<>.
+   * 
+   * @param s
+   * @return
+   */
+  public static boolean isRnaSecondaryStructureSymbol(String s)
+  {
+    return isOpeningParenthesis(s) || isClosingParenthesis(s);
+  }
+
+  /**
+   * Translates a string to RNA secondary structure representation. Returns the
+   * string with any non-SS characters changed to spaces. Accepted characters
+   * are a-z, A-Z, and (){}[]<> brackets.
+   * 
+   * @param ssString
+   * @return
+   */
+  public static String getRNASecStrucState(String ssString)
+  {
+    if (ssString == null)
+    {
+      return null;
+    }
+    StringBuilder result = new StringBuilder(ssString.length());
+    for (int i = 0; i < ssString.length(); i++)
+    {
+      char c = ssString.charAt(i);
+      result.append(isRnaSecondaryStructureSymbol(c) ? c : " ");
+    }
+    return result.toString();
+  }
+
+  /**
+   * Answers true if the base-pair is either a Watson-Crick (A:T/U, C:G) or a
+   * wobble (G:T/U) pair (either way round), else false
+   * 
+   * @param first
+   * @param second
+   * @return
+   */
+  public static boolean isCanonicalOrWobblePair(char first, char second)
+  {
+    if (first > 'Z')
+    {
+      first -= 32;
+    }
+    if (second > 'Z')
+    {
+      second -= 32;
+    }
+
+    switch (first)
+    {
+    case 'A':
+      switch (second)
+      {
+      case 'T':
+      case 'U':
+        return true;
+      }
+      break;
+    case 'C':
+      switch (second)
+      {
+      case 'G':
+        return true;
+      }
+      break;
+    case 'T':
+    case 'U':
+      switch (second)
+      {
+      case 'A':
+      case 'G':
+        return true;
+      }
+      break;
+    case 'G':
+      switch (second)
+      {
+      case 'C':
+      case 'T':
+      case 'U':
+        return true;
+      }
+      break;
+    }
+    return false;
+  }
+
+  /**
+   * Answers true if the base-pair is Watson-Crick - (A:T/U or C:G, either way
+   * round), else false
+   * 
+   * @param first
+   * @param second
+   * @return
+   */
+  public static boolean isCanonicalPair(char first, char second)
+  {
+
+    if (first > 'Z')
+    {
+      first -= 32;
+    }
+    if (second > 'Z')
+    {
+      second -= 32;
+    }
+
+    switch (first)
+    {
+    case 'A':
+      switch (second)
+      {
+      case 'T':
+      case 'U':
+        return true;
+      }
+      break;
+    case 'G':
+      switch (second)
+      {
+      case 'C':
+        return true;
+      }
+      break;
+    case 'C':
+      switch (second)
+      {
+      case 'G':
+        return true;
+      }
+      break;
+    case 'T':
+    case 'U':
+      switch (second)
+      {
+      case 'A':
+        return true;
+      }
+      break;
+    }
+    return false;
+  }
+
+  /**
+   * Returns the matching close pair symbol for the given opening symbol.
+   * Currently returns a-z for A-Z, or )]}> for ([{<, or the input symbol if it
+   * is not a valid opening symbol.
+   * 
+   * @param c
+   * @return
+   */
+  public static char getMatchingClosingParenthesis(char c)
+  {
+    if ('A' <= c && c <= 'Z')
+    {
+      return (char) (c + 'a' - 'A');
+    }
+    switch (c)
+    {
+    case '(':
+      return ')';
+    case '[':
+      return ']';
+    case '{':
+      return '}';
+    case '<':
+      return '>';
+    default:
+      return c;
     }
   }
 }

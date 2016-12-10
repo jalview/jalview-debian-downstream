@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -81,6 +81,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     ListSelectionModel rowSM = table.getSelectionModel();
     rowSM.addListSelectionListener(new ListSelectionListener()
     {
+      @Override
       public void valueChanged(ListSelectionEvent e)
       {
         ListSelectionModel lsm = (ListSelectionModel) e.getSource();
@@ -94,10 +95,10 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     table.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseClicked(MouseEvent evt)
       {
-        if (evt.getClickCount() == 2
-                || SwingUtilities.isRightMouseButton(evt))
+        if (evt.getClickCount() == 2 || evt.isPopupTrigger())
         {
           editRemoveLocalSource(evt);
         }
@@ -119,6 +120,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     this(null);
   }
 
+  @Override
   public void paintComponent(java.awt.Graphics g)
   {
     if (sourceRegistry == null)
@@ -145,6 +147,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         TableSorter sorter = (TableSorter) table.getModel();
@@ -282,6 +285,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     fullDetails.setText(text.toString());
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         fullDetailsScrollpane.getVerticalScrollBar().setValue(0);
@@ -289,6 +293,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     });
   }
 
+  @Override
   public void run()
   {
     loadingDasSources = true;
@@ -358,6 +363,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     return selected;
   }
 
+  @Override
   public void refresh_actionPerformed(ActionEvent e)
   {
     saveProperties(jalview.bin.Cache.applicationProperties);
@@ -411,6 +417,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         filter1.setSelectedIndex(0);
@@ -420,6 +427,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     });
   }
 
+  @Override
   public void amendLocal(boolean newSource)
   {
     String url = "http://localhost:8080/", nickname = "";
@@ -440,7 +448,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     seqs.setSelected(seqsrc);
     JPanel panel = new JPanel(new BorderLayout());
     JPanel pane12 = new JPanel(new BorderLayout());
-    pane12.add(new JLabel(MessageManager.getString("label.name")),
+    pane12.add(new JLabel(MessageManager.getString("label.name:")),
             BorderLayout.CENTER);
     pane12.add(nametf, BorderLayout.EAST);
     panel.add(pane12, BorderLayout.NORTH);
@@ -503,6 +511,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         scrollPane.getVerticalScrollBar().setValue(
@@ -571,6 +580,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
       refreshTableData(data);
       SwingUtilities.invokeLater(new Runnable()
       {
+        @Override
         public void run()
         {
           scrollPane.getVerticalScrollBar().setValue(
@@ -582,6 +592,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     }
   }
 
+  @Override
   public void valueChanged(ListSelectionEvent evt)
   {
     // Called when the MainTable selection changes
@@ -691,6 +702,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     }
   }
 
+  @Override
   public void reset_actionPerformed(ActionEvent e)
   {
     registryURL.setText(sourceRegistry.getDasRegistryURL());
@@ -743,21 +755,25 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     private Object[][] data;
 
+    @Override
     public int getColumnCount()
     {
       return columnNames.length;
     }
 
+    @Override
     public int getRowCount()
     {
       return data.length;
     }
 
+    @Override
     public String getColumnName(int col)
     {
       return columnNames[col];
     }
 
+    @Override
     public Object getValueAt(int row, int col)
     {
       return data[row][col];
@@ -768,6 +784,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
      * each cell. If we didn't implement this method, then the last column would
      * contain text ("true"/"false"), rather than a check box.
      */
+    @Override
     public Class getColumnClass(int c)
     {
       return getValueAt(0, c).getClass();
@@ -776,6 +793,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     /*
      * Don't need to implement this method unless your table's editable.
      */
+    @Override
     public boolean isCellEditable(int row, int col)
     {
       // Note that the data/cell address is constant,
@@ -787,6 +805,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
     /*
      * Don't need to implement this method unless your table's data can change.
      */
+    @Override
     public void setValueAt(Object value, int row, int col)
     {
       data[row][col] = value;
@@ -812,6 +831,7 @@ public class DasSourceBrowser extends GDasSourceBrowser implements
 
     Thread thr = new Thread(new Runnable()
     {
+      @Override
       public void run()
       {
         // this actually initialises the das source list

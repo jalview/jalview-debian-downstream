@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -46,6 +46,7 @@ public class PIRFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void parse() throws IOException
   {
     StringBuffer sequence;
@@ -100,6 +101,7 @@ public class PIRFile extends AlignFile
     }
   }
 
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());
@@ -174,7 +176,8 @@ public class PIRFile extends AlignFile
           }
         }
       }
-      int nochunks = (seq.length() / len) + 1;
+      int nochunks = (seq.length() / len)
+              + (seq.length() % len > 0 ? 1 : 0);
 
       for (int j = 0; j < nochunks; j++)
       {

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,8 @@ package jalview.ws.dbsources;
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
-import jalview.ws.seqfetcher.DbSourceProxy;
+import jalview.datamodel.DBRefSource;
+import jalview.io.FormatAdapter;
 
 import com.stevesoft.pat.Regex;
 
@@ -34,15 +35,12 @@ import com.stevesoft.pat.Regex;
  * @author JimP
  * 
  */
-abstract public class Pfam extends Xfam implements DbSourceProxy
+abstract public class Pfam extends Xfam
 {
 
   public Pfam()
   {
     super();
-    // all extensions of this PFAM source base class are DOMAINDB sources
-    addDbSourceProperty(jalview.datamodel.DBRefSource.DOMAINDB);
-    addDbSourceProperty(jalview.datamodel.DBRefSource.ALIGNMENTDB);
   }
 
   /*
@@ -50,6 +48,7 @@ abstract public class Pfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionSeparator()
    */
+  @Override
   public String getAccessionSeparator()
   {
     // TODO Auto-generated method stub
@@ -61,6 +60,7 @@ abstract public class Pfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionValidator()
    */
+  @Override
   public Regex getAccessionValidator()
   {
     // TODO Auto-generated method stub
@@ -111,22 +111,22 @@ abstract public class Pfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getSequenceRecords(java.lang.String[])
    */
+  @Override
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
     // TODO: this is not a perfect implementation. We need to be able to add
     // individual references to each sequence in each family alignment that's
     // retrieved.
     startQuery();
-    AlignmentI rcds = new jalview.io.FormatAdapter().readFile(getXFAMURL()
+    AlignmentI rcds = new FormatAdapter().readFile(getXFAMURL()
             + queries.trim().toUpperCase(), jalview.io.FormatAdapter.URL,
             "STH");
     for (int s = 0, sNum = rcds.getHeight(); s < sNum; s++)
     {
-      rcds.getSequenceAt(s).addDBRef(
-              new DBRefEntry(jalview.datamodel.DBRefSource.PFAM,
-              // getDbSource(),
-                      getDbVersion(), queries.trim().toUpperCase()));
-      if (!getDbSource().equals(jalview.datamodel.DBRefSource.PFAM))
+      rcds.getSequenceAt(s).addDBRef(new DBRefEntry(DBRefSource.PFAM,
+      // getDbSource(),
+              getDbVersion(), queries.trim().toUpperCase()));
+      if (!getDbSource().equals(DBRefSource.PFAM))
       { // add the specific ref too
         rcds.getSequenceAt(s).addDBRef(
                 new DBRefEntry(getDbSource(), getDbVersion(), queries
@@ -142,6 +142,7 @@ abstract public class Pfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#isValidReference(java.lang.String)
    */
+  @Override
   public boolean isValidReference(String accession)
   {
     return accession.indexOf("PF") == 0;
@@ -151,9 +152,10 @@ abstract public class Pfam extends Xfam implements DbSourceProxy
    * public String getDbName() { return "PFAM"; // getDbSource(); }
    */
 
+  @Override
   public String getXfamSource()
   {
-    return jalview.datamodel.DBRefSource.PFAM;
+    return DBRefSource.PFAM;
   }
 
 }

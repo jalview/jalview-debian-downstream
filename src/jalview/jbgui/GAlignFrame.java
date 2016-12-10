@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -55,7 +55,6 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
@@ -137,8 +136,6 @@ public class GAlignFrame extends JInternalFrame
 
   public JCheckBoxMenuItem showSeqFeatures = new JCheckBoxMenuItem();
 
-  public JCheckBoxMenuItem showSeqFeaturesHeight = new JCheckBoxMenuItem();
-
   JMenuItem copy = new JMenuItem();
 
   JMenuItem cut = new JMenuItem();
@@ -173,7 +170,13 @@ public class GAlignFrame extends JInternalFrame
 
   protected JMenuItem showTranslation = new JMenuItem();
 
+  protected JMenuItem showReverse = new JMenuItem();
+
+  protected JMenuItem showReverseComplement = new JMenuItem();
+
   protected JMenu showProducts = new JMenu();
+
+  protected JMenuItem runGroovy = new JMenuItem();
 
   protected JMenuItem rnahelicesColour = new JMenuItem();
 
@@ -289,35 +292,50 @@ public class GAlignFrame extends JInternalFrame
           @Override
           public void mousePressed(MouseEvent evt)
           {
-            if (evt.isControlDown()
-                    || SwingUtilities.isRightMouseButton(evt))
+            if (evt.isPopupTrigger()) // Mac
             {
-              radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+              offerRemoval(radioItem);
+            }
+          }
 
-              int option = JOptionPane.showInternalConfirmDialog(
-                      jalview.gui.Desktop.desktop,
-                      MessageManager
-                              .getString("label.remove_from_default_list"),
-                      MessageManager
-                              .getString("label.remove_user_defined_colour"),
-                      JOptionPane.YES_NO_OPTION);
-              if (option == JOptionPane.YES_OPTION)
+          @Override
+          public void mouseReleased(MouseEvent evt)
+          {
+            if (evt.isPopupTrigger()) // Windows
+            {
+              offerRemoval(radioItem);
+            }
+          }
+
+          /**
+           * @param radioItem
+           */
+          void offerRemoval(final JRadioButtonMenuItem radioItem)
+          {
+            radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+
+            int option = JOptionPane.showInternalConfirmDialog(
+                    jalview.gui.Desktop.desktop, MessageManager
+                            .getString("label.remove_from_default_list"),
+                    MessageManager
+                            .getString("label.remove_user_defined_colour"),
+                    JOptionPane.YES_NO_OPTION);
+            if (option == JOptionPane.YES_OPTION)
+            {
+              jalview.gui.UserDefinedColours
+                      .removeColourFromDefaults(radioItem.getText());
+              colourMenu.remove(radioItem);
+            }
+            else
+            {
+              radioItem.addActionListener(new ActionListener()
               {
-                jalview.gui.UserDefinedColours
-                        .removeColourFromDefaults(radioItem.getText());
-                colourMenu.remove(radioItem);
-              }
-              else
-              {
-                radioItem.addActionListener(new ActionListener()
+                @Override
+                public void actionPerformed(ActionEvent evt)
                 {
-                  @Override
-                  public void actionPerformed(ActionEvent evt)
-                  {
-                    userDefinedColour_actionPerformed(evt);
-                  }
-                });
-              }
+                  userDefinedColour_actionPerformed(evt);
+                }
+              });
             }
           }
         });
@@ -1295,8 +1313,10 @@ public class GAlignFrame extends JInternalFrame
             MessageManager.getString("label.show_last"));
     buttonGroup.add(showAutoFirst);
     buttonGroup.add(showAutoLast);
-    showAutoFirst.setSelected(Cache.getDefault(
-            Preferences.SHOW_AUTOCALC_ABOVE, false));
+    final boolean autoFirst = Cache.getDefault(
+            Preferences.SHOW_AUTOCALC_ABOVE, false);
+    showAutoFirst.setSelected(autoFirst);
+    setShowAutoCalculatedAbove(autoFirst);
     showAutoFirst.addActionListener(new ActionListener()
     {
       @Override
@@ -1585,7 +1605,7 @@ public class GAlignFrame extends JInternalFrame
     });
 
     JMenuItem modifyPID = new JMenuItem(
-            MessageManager.getString("label.modify_identity_thereshold"));
+            MessageManager.getString("label.modify_identity_threshold"));
     modifyPID.addActionListener(new ActionListener()
     {
       @Override
@@ -1595,7 +1615,7 @@ public class GAlignFrame extends JInternalFrame
       }
     });
     modifyConservation.setText(MessageManager
-            .getString("label.modify_conservation_thereshold"));
+            .getString("label.modify_conservation_threshold"));
     modifyConservation.addActionListener(new ActionListener()
     {
       @Override
@@ -1684,6 +1704,25 @@ public class GAlignFrame extends JInternalFrame
         showTranslation_actionPerformed(e);
       }
     });
+    showReverse.setText(MessageManager.getString("label.reverse"));
+    showReverse.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showReverse_actionPerformed(false);
+      }
+    });
+    showReverseComplement.setText(MessageManager
+            .getString("label.reverse_complement"));
+    showReverseComplement.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showReverse_actionPerformed(true);
+      }
+    });
 
     JMenuItem extractScores = new JMenuItem(
             MessageManager.getString("label.extract_scores"));
@@ -1700,6 +1739,18 @@ public class GAlignFrame extends JInternalFrame
 
     // for show products actions see AlignFrame.canShowProducts
     showProducts.setText(MessageManager.getString("label.get_cross_refs"));
+
+    runGroovy.setText(MessageManager.getString("label.run_groovy"));
+    runGroovy.setToolTipText(MessageManager
+            .getString("label.run_groovy_tip"));
+    runGroovy.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        runGroovy_actionPerformed();
+      }
+    });
 
     JMenuItem openFeatureSettings = new JMenuItem(
             MessageManager.getString("action.feature_settings"));
@@ -1996,7 +2047,19 @@ public class GAlignFrame extends JInternalFrame
       @Override
       public void mousePressed(MouseEvent e)
       {
-        tabbedPane_mousePressed(e);
+        if (e.isPopupTrigger()) // Mac
+        {
+          tabbedPane_mousePressed(e);
+        }
+      }
+
+      @Override
+      public void mouseReleased(MouseEvent e)
+      {
+        if (e.isPopupTrigger()) // Windows
+        {
+          tabbedPane_mousePressed(e);
+        }
       }
     });
     tabbedPane.addFocusListener(new FocusAdapter()
@@ -2118,6 +2181,19 @@ public class GAlignFrame extends JInternalFrame
         alignmentProperties();
       }
     });
+    JMenuItem selectHighlighted = new JMenuItem(
+            MessageManager.getString("action.select_highlighted_columns"));
+    selectHighlighted.setToolTipText(MessageManager
+            .getString("tooltip.select_highlighted_columns"));
+    al = new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        selectHighlightedColumns_actionPerformed(actionEvent);
+      }
+    };
+    selectHighlighted.addActionListener(al);
     JMenu tooltipSettingsMenu = new JMenu(
             MessageManager.getString("label.sequence_id_tooltip"));
     JMenu autoAnnMenu = new JMenu(
@@ -2135,6 +2211,7 @@ public class GAlignFrame extends JInternalFrame
     alignFrameMenuBar.add(colourMenu);
     alignFrameMenuBar.add(calculateMenu);
     alignFrameMenuBar.add(webService);
+
     fileMenu.add(fetchSequence);
     fileMenu.add(addSequenceMenu);
     fileMenu.add(reload);
@@ -2153,6 +2230,9 @@ public class GAlignFrame extends JInternalFrame
     fileMenu.add(associatedData);
     fileMenu.addSeparator();
     fileMenu.add(closeMenuItem);
+
+    pasteMenu.add(pasteNew);
+    pasteMenu.add(pasteThis);
     editMenu.add(undoMenuItem);
     editMenu.add(redoMenuItem);
     editMenu.add(cut);
@@ -2173,6 +2253,13 @@ public class GAlignFrame extends JInternalFrame
     // editMenu.addSeparator();
     editMenu.add(padGapsMenuitem);
 
+    showMenu.add(showAllColumns);
+    showMenu.add(showAllSeqs);
+    showMenu.add(showAllhidden);
+    hideMenu.add(hideSelColumns);
+    hideMenu.add(hideSelSequences);
+    hideMenu.add(hideAllSelection);
+    hideMenu.add(hideAllButSelection);
     viewMenu.add(newView);
     viewMenu.add(expandViews);
     viewMenu.add(gatherViews);
@@ -2243,6 +2330,12 @@ public class GAlignFrame extends JInternalFrame
     colourMenu.add(modifyPID);
     colourMenu.add(annotationColour);
     colourMenu.add(rnahelicesColour);
+
+    sort.add(sortIDMenuItem);
+    sort.add(sortLengthMenuItem);
+    sort.add(sortGroupMenuItem);
+    sort.add(sortPairwiseMenuItem);
+    sort.add(sortByTreeMenu);
     calculateMenu.add(sort);
     calculateMenu.add(calculateTree);
     calculateMenu.addSeparator();
@@ -2250,21 +2343,20 @@ public class GAlignFrame extends JInternalFrame
     calculateMenu.add(PCAMenuItem);
     calculateMenu.addSeparator();
     calculateMenu.add(showTranslation);
+    calculateMenu.add(showReverse);
+    calculateMenu.add(showReverseComplement);
     calculateMenu.add(showProducts);
     calculateMenu.add(autoCalculate);
     calculateMenu.add(sortByTree);
     calculateMenu.addSeparator();
+    calculateMenu.add(expandAlignment);
     calculateMenu.add(extractScores);
+    calculateMenu.addSeparator();
+    calculateMenu.add(runGroovy);
+
     webServiceNoServices = new JMenuItem(
             MessageManager.getString("label.no_services"));
     webService.add(webServiceNoServices);
-    pasteMenu.add(pasteNew);
-    pasteMenu.add(pasteThis);
-    sort.add(sortIDMenuItem);
-    sort.add(sortLengthMenuItem);
-    sort.add(sortGroupMenuItem);
-    sort.add(sortPairwiseMenuItem);
-    sort.add(sortByTreeMenu);
     exportImageMenu.add(htmlMenuItem);
     exportImageMenu.add(epsFile);
     exportImageMenu.add(createPNG);
@@ -2276,13 +2368,6 @@ public class GAlignFrame extends JInternalFrame
     this.getContentPane().add(statusPanel, java.awt.BorderLayout.SOUTH);
     statusPanel.add(statusBar, null);
     this.getContentPane().add(tabbedPane, java.awt.BorderLayout.CENTER);
-    showMenu.add(showAllColumns);
-    showMenu.add(showAllSeqs);
-    showMenu.add(showAllhidden);
-    hideMenu.add(hideSelColumns);
-    hideMenu.add(hideSelSequences);
-    hideMenu.add(hideAllSelection);
-    hideMenu.add(hideAllButSelection);
 
     formatMenu.add(font);
     formatMenu.addSeparator();
@@ -2310,11 +2395,37 @@ public class GAlignFrame extends JInternalFrame
     selectMenu.add(grpsFromSelection);
     selectMenu.add(deleteGroups);
     selectMenu.add(annotationColumn);
-    calculateMenu.add(expandAlignment);
+    selectMenu.add(selectHighlighted);
     // TODO - determine if the listenToViewSelections button is needed : see bug
     // JAL-574
     // selectMenu.addSeparator();
     // selectMenu.add(listenToViewSelections);
+  }
+
+  protected void selectHighlightedColumns_actionPerformed(
+          ActionEvent actionEvent)
+  {
+    // TODO Auto-generated method stub
+
+  }
+
+  /**
+   * Generate the reverse sequence (or reverse complement if the flag is true)
+   * and add it to the alignment
+   * 
+   * @param complement
+   */
+  protected void showReverse_actionPerformed(boolean complement)
+  {
+  }
+
+  /**
+   * Try to run script in a Groovy console, having first ensured that this
+   * alignframe is set as currentAlignFrame in Desktop
+   */
+  protected void runGroovy_actionPerformed()
+  {
+
   }
 
   /**
@@ -2453,13 +2564,6 @@ public class GAlignFrame extends JInternalFrame
   }
 
   protected void showUnconservedMenuItem_actionPerformed(ActionEvent e)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void showSeqFeaturesHeight_actionPerformed(
-          ActionEvent actionEvent)
   {
     // TODO Auto-generated method stub
 
@@ -3105,7 +3209,7 @@ public class GAlignFrame extends JInternalFrame
     return this.splitFrame;
   }
 
-  protected void showComplement_actionPerformed(boolean state)
+  protected void showComplement_actionPerformed(boolean complement)
   {
   }
 }

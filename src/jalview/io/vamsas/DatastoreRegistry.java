@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -152,7 +152,8 @@ public class DatastoreRegistry
     return dsregitem;
   }
 
-  protected void finalize()
+  @Override
+  protected void finalize() throws Throwable
   {
     if (dsObjReg != null)
     {
@@ -171,5 +172,6 @@ public class DatastoreRegistry
     {
       dsItemReg.clear();
     }
+    super.finalize();
   }
 }

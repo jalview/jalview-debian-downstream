@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,6 @@ import jalview.datamodel.SequenceGroup;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.util.MessageManager;
 
-import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Vector;
@@ -52,7 +51,7 @@ public abstract class AnnotationRowFilter extends JPanel
 
   protected boolean enableSeqAss = false;
 
-  private jalview.datamodel.AlignmentAnnotation currentAnnotation;
+  private AlignmentAnnotation currentAnnotation;
 
   protected boolean adjusting = false;
 
@@ -161,11 +160,20 @@ public abstract class AnnotationRowFilter extends JPanel
         enableSeqAss = true;
       }
       String label = av.getAlignment().getAlignmentAnnotation()[i].label;
+      // add associated sequence ID if available
+      if (!isSeqAssociated
+              && av.getAlignment().getAlignmentAnnotation()[i].sequenceRef != null)
+      {
+        label = label
+                + "_"
+                + av.getAlignment().getAlignmentAnnotation()[i].sequenceRef
+                        .getName();
+      }
+      // make label unique
       if (!list.contains(label))
       {
         anmap[list.size()] = i;
         list.add(label);
-
       }
       else
       {
@@ -200,7 +208,7 @@ public abstract class AnnotationRowFilter extends JPanel
     seqAssociated.setEnabled(enableSeqAss);
   }
 
-  public void ok_actionPerformed(ActionEvent e)
+  public void ok_actionPerformed()
   {
     try
     {
@@ -210,7 +218,7 @@ public abstract class AnnotationRowFilter extends JPanel
     }
   }
 
-  public void cancel_actionPerformed(ActionEvent e)
+  public void cancel_actionPerformed()
   {
     reset();
     ap.paintAlignment(true);
@@ -222,22 +230,22 @@ public abstract class AnnotationRowFilter extends JPanel
     }
   }
 
-  public void thresholdCheck_actionPerformed(ActionEvent e)
+  public void thresholdCheck_actionPerformed()
   {
     updateView();
   }
 
-  public void annotations_actionPerformed(ActionEvent e)
+  public void annotations_actionPerformed()
   {
     updateView();
   }
 
-  public void threshold_actionPerformed(ActionEvent e)
+  public void threshold_actionPerformed()
   {
     updateView();
   }
 
-  public void thresholdValue_actionPerformed(ActionEvent e)
+  public void thresholdValue_actionPerformed()
   {
     try
     {
@@ -249,7 +257,7 @@ public abstract class AnnotationRowFilter extends JPanel
     }
   }
 
-  public void thresholdIsMin_actionPerformed(ActionEvent actionEvent)
+  public void thresholdIsMin_actionPerformed()
   {
     updateView();
   }
@@ -257,15 +265,14 @@ public abstract class AnnotationRowFilter extends JPanel
   protected void populateThresholdComboBox(JComboBox<String> threshold)
   {
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_no_thereshold"));
+            .getString("label.threshold_feature_no_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_above_thereshold"));
+            .getString("label.threshold_feature_above_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_below_thereshold"));
+            .getString("label.threshold_feature_below_threshold"));
   }
 
-  protected void seqAssociated_actionPerformed(ActionEvent arg0,
-          JComboBox<String> annotations, JCheckBox seqAssociated)
+  protected void seqAssociated_actionPerformed(JComboBox<String> annotations)
   {
     adjusting = true;
     String cursel = (String) annotations.getSelectedItem();
@@ -322,26 +329,25 @@ public abstract class AnnotationRowFilter extends JPanel
     }
   }
 
-  protected boolean colorAlignmContaining(
-          AlignmentAnnotation currentAnnotation, int selectedThresholdItem)
+  protected boolean colorAlignmContaining(AlignmentAnnotation currentAnn,
+          int selectedThresholdOption)
   {
 
     AnnotationColourGradient acg = null;
     if (currentColours.isSelected())
     {
-      acg = new AnnotationColourGradient(currentAnnotation,
-              av.getGlobalColourScheme(), selectedThresholdItem);
+      acg = new AnnotationColourGradient(currentAnn,
+              av.getGlobalColourScheme(), selectedThresholdOption);
     }
     else
     {
-      acg = new AnnotationColourGradient(currentAnnotation,
+      acg = new AnnotationColourGradient(currentAnn,
               minColour.getBackground(), maxColour.getBackground(),
-              selectedThresholdItem);
+              selectedThresholdOption);
     }
     acg.setSeqAssociated(seqAssociated.isSelected());
 
-    if (currentAnnotation.graphMin == 0f
-            && currentAnnotation.graphMax == 0f)
+    if (currentAnn.graphMin == 0f && currentAnn.graphMax == 0f)
     {
       acg.setPredefinedColours(true);
     }
@@ -362,17 +368,17 @@ public abstract class AnnotationRowFilter extends JPanel
 
         if (currentColours.isSelected())
         {
-          sg.cs = new AnnotationColourGradient(currentAnnotation, sg.cs,
-                  selectedThresholdItem);
+          sg.cs = new AnnotationColourGradient(currentAnn, sg.cs,
+                  selectedThresholdOption);
           ((AnnotationColourGradient) sg.cs).setSeqAssociated(seqAssociated
                   .isSelected());
 
         }
         else
         {
-          sg.cs = new AnnotationColourGradient(currentAnnotation,
+          sg.cs = new AnnotationColourGradient(currentAnn,
                   minColour.getBackground(), maxColour.getBackground(),
-                  selectedThresholdItem);
+                  selectedThresholdOption);
           ((AnnotationColourGradient) sg.cs).setSeqAssociated(seqAssociated
                   .isSelected());
         }

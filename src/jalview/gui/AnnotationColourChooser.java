@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -141,7 +141,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       default:
         throw new Error(
                 MessageManager
-                        .getString("error.implementation_error_dont_know_about_thereshold_setting"));
+                        .getString("error.implementation_error_dont_know_about_threshold_setting"));
       }
       thresholdIsMin.setSelected(acg.thresholdIsMinMax);
       thresholdValue.setText("" + acg.getAnnotationThreshold());
@@ -210,7 +210,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        ok_actionPerformed(e);
+        ok_actionPerformed();
       }
     });
     cancel.setOpaque(false);
@@ -220,7 +220,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        cancel_actionPerformed(e);
+        cancel_actionPerformed();
       }
     });
     defColours.setOpaque(false);
@@ -233,7 +233,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent arg0)
       {
-        resetColours_actionPerformed(arg0);
+        resetColours_actionPerformed();
       }
     });
 
@@ -242,7 +242,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        annotations_actionPerformed(e);
+        annotations_actionPerformed();
       }
     });
     getThreshold().addActionListener(new ActionListener()
@@ -250,7 +250,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        threshold_actionPerformed(e);
+        threshold_actionPerformed();
       }
     });
     thresholdValue.addActionListener(new ActionListener()
@@ -258,7 +258,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        thresholdValue_actionPerformed(e);
+        thresholdValue_actionPerformed();
       }
     });
     slider.setPaintLabels(false);
@@ -278,7 +278,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        currentColours_actionPerformed(e);
+        currentColours_actionPerformed();
       }
     });
     thresholdIsMin.setBackground(Color.white);
@@ -290,7 +290,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
-        thresholdIsMin_actionPerformed(actionEvent);
+        thresholdIsMin_actionPerformed();
       }
     });
     seqAssociated.setBackground(Color.white);
@@ -303,7 +303,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
       @Override
       public void actionPerformed(ActionEvent arg0)
       {
-        seqAssociated_actionPerformed(arg0, annotations, seqAssociated);
+        seqAssociated_actionPerformed(annotations);
       }
     });
 
@@ -332,7 +332,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
     this.validate();
   }
 
-  protected void resetColours_actionPerformed(ActionEvent arg0)
+  protected void resetColours_actionPerformed()
   {
     setDefaultMinMax();
     updateView();
@@ -372,6 +372,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
     updateView();
   }
 
+  @Override
   public void reset()
   {
     av.setGlobalColourScheme(oldcs);
@@ -385,6 +386,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
     }
   }
 
+  @Override
   public void valueChanged(boolean updateAllAnnotation)
   {
     if (slider.isEnabled())
@@ -411,7 +413,7 @@ public class AnnotationColourChooser extends AnnotationRowFilter
     this.threshold = threshold;
   }
 
-  public void currentColours_actionPerformed(ActionEvent e)
+  public void currentColours_actionPerformed()
   {
     if (currentColours.isSelected())
     {

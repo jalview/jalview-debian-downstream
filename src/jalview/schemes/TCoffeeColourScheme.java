@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -86,6 +86,10 @@ public class TCoffeeColourScheme extends ResidueColourScheme
     seqMap = new IdentityHashMap<SequenceI, Color[]>();
     AnnotatedCollectionI alcontext = alignment instanceof AlignmentI ? alignment
             : alignment.getContext();
+    if (alcontext == null)
+    {
+      return;
+    }
     int w = 0;
     for (AlignmentAnnotation al : alcontext
             .findAnnotation(TCoffeeScoreFile.TCOFFEE_SCORE))

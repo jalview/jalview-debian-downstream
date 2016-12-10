@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,7 +32,6 @@ import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
 
 import java.io.BufferedReader;
@@ -1638,8 +1637,7 @@ public class AnnotationFile
         else if (key.equalsIgnoreCase("consThreshold"))
         {
           sg.cs.setConservationInc(Integer.parseInt(value));
-          Conservation c = new Conservation("Group",
-                  ResidueProperties.propHash, 3, sg.getSequences(null),
+          Conservation c = new Conservation("Group", sg.getSequences(null),
                   sg.getStartRes(), sg.getEndRes() + 1);
 
           c.calculate();
@@ -1760,6 +1758,10 @@ public class AnnotationFile
    */
   public String printCSVAnnotations(AlignmentAnnotation[] annotations)
   {
+    if (annotations == null)
+    {
+      return "";
+    }
     StringBuffer sp = new StringBuffer();
     for (int i = 0; i < annotations.length; i++)
     {

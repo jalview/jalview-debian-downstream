@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -100,6 +100,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
     });
     SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         textarea.requestFocus();
@@ -143,6 +144,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
     textarea.setText(text);
   }
 
+  @Override
   public void save_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
@@ -173,6 +175,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
     }
   }
 
+  @Override
   public void toggleHtml_actionPerformed(ActionEvent e)
   {
     String txt = textarea.getText();
@@ -187,6 +190,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void copyItem_actionPerformed(ActionEvent e)
   {
     Clipboard c = Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -210,6 +214,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void cancel_actionPerformed(ActionEvent e)
   {
     try
@@ -220,9 +225,11 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
     }
   }
 
+  @Override
   public void textarea_mousePressed(MouseEvent e)
   {
-    if (SwingUtilities.isRightMouseButton(e))
+    // isPopupTrigger is on mousePressed (Mac) or mouseReleased (Windows)
+    if (e.isPopupTrigger())
     {
       JPopupMenu popup = new JPopupMenu(
               MessageManager.getString("action.edit"));
@@ -230,6 +237,7 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
               MessageManager.getString("action.copy"));
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           copyItem_actionPerformed(e);

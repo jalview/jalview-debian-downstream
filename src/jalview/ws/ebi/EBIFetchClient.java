@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.ws.ebi;
 
+import jalview.datamodel.DBRefSource;
 import jalview.util.MessageManager;
 
 import java.io.BufferedInputStream;
@@ -41,9 +42,6 @@ import java.util.StringTokenizer;
  */
 public class EBIFetchClient
 {
-  String format = "default";
-
-  String style = "raw";
 
   /**
    * Creates a new EBIFetchClient object.
@@ -90,22 +88,23 @@ public class EBIFetchClient
    * 
    * @param ids
    *          the query formatted as db:query1;query2;query3
-   * @param f
+   * @param format
    *          the format wanted
-   * @param s
-   *          - unused parameter
+   * @param extension
+   *          for the temporary file to hold response
    * @return the file holding the response
    * @throws OutOfMemoryError
    */
-  public File fetchDataAsFile(String ids, String f, String s)
+
+  public File fetchDataAsFile(String ids, String format, String ext)
           throws OutOfMemoryError
   {
     File outFile = null;
     try
     {
-      outFile = File.createTempFile("jalview", ".xml");
+      outFile = File.createTempFile("jalview", ext);
       outFile.deleteOnExit();
-      fetchData(ids, f, s, outFile);
+      fetchData(ids, format, outFile);
       if (outFile.length() == 0)
       {
         outFile.delete();
@@ -118,81 +117,93 @@ public class EBIFetchClient
   }
 
   /**
-   * Single DB multiple record retrieval
+   * Fetches queries and either saves the response to a file or returns as
+   * string data
    * 
    * @param ids
-   *          db:query1;query2;query3
-   * @param f
-   *          raw/xml
-   * @param s
-   *          not used - remove?
-   * 
-   * @return Raw string array result of query set
+   * @param format
+   * @param outFile
+   * @return
+   * @throws OutOfMemoryError
    */
-  public String[] fetchData(String ids, String f, String s)
+  String[] fetchData(String ids, String format, File outFile)
           throws OutOfMemoryError
   {
-    return fetchData(ids, f, s, null);
+    StringBuilder querystring = new StringBuilder(ids.length());
+    String database = parseIds(ids, querystring);
+    if (database == null)
+    {
+      System.err.println("Invalid Query string : '" + ids + "'");
+      System.err.println("Should be of form 'dbname:q1;q2;q3;q4'");
+      return null;
+    }
+
+    // note: outFile is currently always specified, so return value is null
+    String[] rslt = fetchBatch(querystring.toString(), database, format,
+            outFile);
+
+    return (rslt != null && rslt.length > 0 ? rslt : null);
   }
 
-  public String[] fetchData(String ids, String f, String s, File outFile)
-          throws OutOfMemoryError
+  /**
+   * Parses ids formatted as dbname:q1;q2;q3, returns the dbname and adds
+   * queries as comma-separated items to the querystring. dbname must be
+   * specified for at least one queryId. Returns null if a mixture of different
+   * dbnames is found (ignoring case).
+   * 
+   * @param ids
+   * @param queryString
+   * @return
+   */
+  static String parseIds(String ids, StringBuilder queryString)
   {
-    // Need to split
-    // ids of the form uniprot:25KD_SARPE;ADHR_DROPS;
-    String[] rslts = new String[0];
+    String database = null;
     StringTokenizer queries = new StringTokenizer(ids, ";");
-    String db = null;
-    StringBuffer querystring = null;
-    int nq = 0;
+    boolean appending = queryString.length() > 0;
     while (queries.hasMoreTokens())
     {
       String query = queries.nextToken();
-      int p;
-      if ((p = query.indexOf(':')) > -1)
+      int p = query.indexOf(':');
+      if (p > -1)
       {
-        db = query.substring(0, p);
+        String db = query.substring(0, p);
+        if (database != null && !db.equalsIgnoreCase(database))
+        {
+          /*
+           * different databases mixed in together - invalid
+           */
+          return null;
+        }
+        database = db;
         query = query.substring(p + 1);
       }
-      if (querystring == null)
-      {
-        querystring = new StringBuffer(query);
-        nq++;
-      }
-      else
-      {
-        querystring.append("," + query);
-        nq++;
-      }
+      queryString.append(appending ? "," : "");
+      queryString.append(query);
+      appending = true;
     }
-    if (db == null)
-    {
-      System.err.println("Invalid Query string : '" + ids
-              + "'\nShould be of form 'dbname:q1;q2;q3;q4'");
-      return null;
-    }
-    String[] rslt = fetchBatch(querystring.toString(), db, f, s, outFile);
-    if (rslt != null)
-    {
-      String[] nrslts = new String[rslt.length + rslts.length];
-      System.arraycopy(rslts, 0, nrslts, 0, rslts.length);
-      System.arraycopy(rslt, 0, nrslts, rslts.length, rslt.length);
-      rslts = nrslts;
-    }
-
-    return (rslts.length == 0 ? null : rslts);
+    return database;
   }
 
-  public String[] fetchBatch(String ids, String db, String f, String s,
+  /**
+   * Fetches queries and either saves the response to a file or (if no file
+   * specified) returns as string data
+   * 
+   * @param ids
+   * @param database
+   * @param format
+   * @param outFile
+   * @return
+   * @throws OutOfMemoryError
+   */
+  String[] fetchBatch(String ids, String database, String format,
           File outFile) throws OutOfMemoryError
   {
-    long time = System.currentTimeMillis();
-    // max 200 ids can be added at one time
+    // long time = System.currentTimeMillis();
+    String url = buildUrl(ids, database, format);
+
     try
     {
-      URL rcall = new URL("http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/"
-              + db.toLowerCase() + "/" + ids.toLowerCase()
-              + (f != null ? "/" + f : ""));
+      URL rcall = new URL(url);
 
       InputStream is = new BufferedInputStream(rcall.openStream());
       if (outFile != null)
@@ -220,8 +231,7 @@ public class EBIFetchClient
       }
     } catch (OutOfMemoryError er)
     {
-
-      System.out.println("OUT OF MEMORY DOWNLOADING QUERY FROM " + db
+      System.out.println("OUT OF MEMORY DOWNLOADING QUERY FROM " + database
               + ":\n" + ids);
       throw er;
     } catch (Exception ex)
@@ -231,15 +241,41 @@ public class EBIFetchClient
       {
         return null;
       }
-      System.err.println("Unexpected exception when retrieving from " + db
-              + "\nQuery was : '" + ids + "'");
+      System.err.println("Unexpected exception when retrieving from "
+              + database + "\nQuery was : '" + ids + "'");
       ex.printStackTrace(System.err);
       return null;
     } finally
     {
-      // System.err.println("Took " + (System.currentTimeMillis() - time)
-      // / 1000 + " secs for one call.");
+      // System.err.println("EBIFetch took " + (System.currentTimeMillis() -
+      // time) + " ms");
     }
     return null;
+  }
+
+  /**
+   * Constructs the URL to fetch from
+   * 
+   * @param ids
+   * @param database
+   * @param format
+   * @return
+   */
+  static String buildUrl(String ids, String database, String format)
+  {
+    String url;
+    if (database.equalsIgnoreCase(DBRefSource.EMBL)
+            || database.equalsIgnoreCase(DBRefSource.EMBLCDS))
+    {
+      url = "http://www.ebi.ac.uk/ena/data/view/" + ids.toLowerCase()
+              + (format != null ? "&" + format : "");
+    }
+    else
+    {
+      url = "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/"
+              + database.toLowerCase() + "/" + ids.toLowerCase()
+              + (format != null ? "/" + format : "");
+    }
+    return url;
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -47,11 +47,13 @@ public class ClustalFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
   }
 
+  @Override
   public void parse() throws IOException
   {
     int i = 0;
@@ -193,6 +195,7 @@ public class ClustalFile extends AlignFile
     }
   }
 
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());
@@ -233,7 +236,7 @@ public class ClustalFile extends AlignFile
     maxid++;
 
     int len = 60;
-    int nochunks = (max / len) + 1;
+    int nochunks = (max / len) + (max % len > 0 ? 1 : 0);
 
     for (i = 0; i < nochunks; i++)
     {

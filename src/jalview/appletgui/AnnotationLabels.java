@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -162,6 +162,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     return row;
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
@@ -261,6 +262,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
 
   boolean resizePanel = false;
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
     resizePanel = evt.getY() < 10 && evt.getX() < 14;
@@ -306,6 +308,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     dragCancelled = true;
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     if (dragCancelled)
@@ -365,10 +368,12 @@ public class AnnotationLabels extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     if (!resizePanel && !dragCancelled)
@@ -400,6 +405,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     ap.annotationPanel.repaint();
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
     if (evt.getY() < 10 && evt.getX() < 14)
@@ -409,6 +415,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
     dragCancelled = false;
@@ -427,6 +434,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     repaint();
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     oldY = evt.getY();
@@ -522,6 +530,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
             final AlignmentAnnotation aaa = aa[selectedRow];
             cbmi.addItemListener(new ItemListener()
             {
+              @Override
               public void itemStateChanged(ItemEvent e)
               {
                 if (aaa.groupRef != null)
@@ -545,6 +554,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       aa[selectedRow].groupRef.isShowConsensusHistogram());
               chist.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -564,6 +574,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       aa[selectedRow].groupRef.isShowSequenceLogo());
               cprofl.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -585,6 +596,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       aa[selectedRow].groupRef.isNormaliseSequenceLogo());
               cprofn.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -608,6 +620,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       av.isShowConsensusHistogram());
               chist.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -631,6 +644,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       av.isShowSequenceLogo());
               cprof.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -655,6 +669,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                       av.isNormaliseSequenceLogo());
               cprofn.addItemListener(new ItemListener()
               {
+                @Override
                 public void itemStateChanged(ItemEvent e)
                 {
                   // TODO: pass on reference
@@ -697,11 +712,47 @@ public class AnnotationLabels extends Panel implements ActionListener,
             // todo: make the ap scroll to the selection - not necessary, first
             // click highlights/scrolls, second selects
             ap.seqPanel.ap.idPanel.highlightSearchResults(null);
-            ap.av.setSelectionGroup(// new SequenceGroup(
-            aa[selectedRow].groupRef); // );
-            ap.av.sendSelection();
+            // process modifiers
+            SequenceGroup sg = ap.av.getSelectionGroup();
+            if (sg == null
+                    || sg == aa[selectedRow].groupRef
+                    || !(jalview.util.Platform.isControlDown(evt) || evt
+                            .isShiftDown()))
+            {
+              if (jalview.util.Platform.isControlDown(evt)
+                      || evt.isShiftDown())
+              {
+                // clone a new selection group from the associated group
+                ap.av.setSelectionGroup(new SequenceGroup(
+                        aa[selectedRow].groupRef));
+              }
+              else
+              {
+                // set selection to the associated group so it can be edited
+                ap.av.setSelectionGroup(aa[selectedRow].groupRef);
+              }
+            }
+            else
+            {
+              // modify current selection with associated group
+              int remainToAdd = aa[selectedRow].groupRef.getSize();
+              for (SequenceI sgs : aa[selectedRow].groupRef.getSequences())
+              {
+                if (jalview.util.Platform.isControlDown(evt))
+                {
+                  sg.addOrRemove(sgs, --remainToAdd == 0);
+                }
+                else
+                {
+                  // notionally, we should also add intermediate sequences from
+                  // last added sequence ?
+                  sg.addSequence(sgs, --remainToAdd == 0);
+                }
+              }
+            }
             ap.paintAlignment(false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
+            ap.av.sendSelection();
           }
           else
           {
@@ -728,7 +779,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
               // we make a copy rather than edit the current selection if no
               // modifiers pressed
               // see Enhancement JAL-1557
-              if (!(evt.isControlDown() || evt.isShiftDown()))
+              if (!(jalview.util.Platform.isControlDown(evt) || evt
+                      .isShiftDown()))
               {
                 sg = new SequenceGroup(sg);
                 sg.clear();
@@ -736,7 +788,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
               }
               else
               {
-                if (evt.isControlDown())
+                if (jalview.util.Platform.isControlDown(evt))
                 {
                   sg.addOrRemove(aa[selectedRow].sequenceRef, true);
                 }
@@ -794,11 +846,13 @@ public class AnnotationLabels extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     int w = getSize().width;

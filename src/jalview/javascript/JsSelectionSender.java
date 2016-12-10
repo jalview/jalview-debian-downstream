@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -50,7 +50,6 @@ public class JsSelectionSender extends JSFunctionExec implements
     try
     {
       String setid = "";
-      String viewid = "";
       AlignFrame src = _af;
       if (source != null)
       {
@@ -82,19 +81,16 @@ public class JsSelectionSender extends JSFunctionExec implements
           end = seqsel.getEndRes();
         }
       }
-      if (colsel != null && colsel.size() > 0)
+      if (colsel != null && !colsel.isEmpty())
       {
         if (end == -1)
         {
           end = colsel.getMax() + 1;
         }
         cols = new String[colsel.getSelected().size()];
-        int d = 0, r = -1;
         for (int i = 0; i < cols.length; i++)
         {
-          cols[i] = ""
-                  + (1 + ((Integer) colsel.getSelected().elementAt(i))
-                          .intValue());
+          cols[i] = "" + (1 + colsel.getSelected().get(i).intValue());
         }
       }
       else

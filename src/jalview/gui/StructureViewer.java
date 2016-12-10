@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -136,14 +136,16 @@ public class StructureViewer
   protected JalviewStructureDisplayI viewStructures(ViewerType viewerType,
           PDBEntry[] pdbs, SequenceI[][] seqsForPdbs, AlignmentPanel ap)
   {
+    PDBEntry[] pdbsForFile = getUniquePdbFiles(pdbs);
     JalviewStructureDisplayI sview = null;
     if (viewerType.equals(ViewerType.JMOL))
     {
-      sview = new AppJmol(ap, pdbs, ap.av.collateForPDB(pdbs));
+      sview = new AppJmol(ap, pdbsForFile, ap.av.collateForPDB(pdbsForFile));
     }
     else if (viewerType.equals(ViewerType.CHIMERA))
     {
-      sview = new ChimeraViewFrame(pdbs, ap.av.collateForPDB(pdbs), ap);
+      sview = new ChimeraViewFrame(pdbsForFile,
+              ap.av.collateForPDB(pdbsForFile), ap);
     }
     else
     {
@@ -151,6 +153,36 @@ public class StructureViewer
               + getViewerType().toString());
     }
     return sview;
+  }
+
+  /**
+   * Convert the array of PDBEntry into an array with no filename repeated
+   * 
+   * @param pdbs
+   * @return
+   */
+  static PDBEntry[] getUniquePdbFiles(PDBEntry[] pdbs)
+  {
+    if (pdbs == null)
+    {
+      return null;
+    }
+    List<PDBEntry> uniques = new ArrayList<PDBEntry>();
+    List<String> filesSeen = new ArrayList<String>();
+    for (PDBEntry entry : pdbs)
+    {
+      String file = entry.getFile();
+      if (file == null)
+      {
+        uniques.add(entry);
+      }
+      else if (!filesSeen.contains(file))
+      {
+        uniques.add(entry);
+        filesSeen.add(file);
+      }
+    }
+    return uniques.toArray(new PDBEntry[uniques.size()]);
   }
 
   protected JalviewStructureDisplayI viewStructures(ViewerType viewerType,

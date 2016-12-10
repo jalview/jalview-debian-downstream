@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,8 +21,7 @@
 package jalview.schemes;
 
 import jalview.analysis.Conservation;
-
-import java.util.Hashtable;
+import jalview.datamodel.ProfilesI;
 
 /**
  * Colourscheme that takes its colours from some other colourscheme
@@ -41,7 +40,7 @@ public class FollowerColourScheme extends ResidueColourScheme
   }
 
   @Override
-  public void setConsensus(Hashtable[] consensus)
+  public void setConsensus(ProfilesI consensus)
   {
     if (colourScheme != null)
     {

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.api.ComplexAlignFile;
 import jalview.api.FeatureRenderer;
+import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
 import jalview.bin.BuildDetails;
 import jalview.datamodel.AlignmentAnnotation;
@@ -39,13 +40,14 @@ import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.json.binding.biojson.v1.AlignmentAnnotationPojo;
 import jalview.json.binding.biojson.v1.AlignmentPojo;
+import jalview.json.binding.biojson.v1.AnnotationDisplaySettingPojo;
 import jalview.json.binding.biojson.v1.AnnotationPojo;
-import jalview.json.binding.biojson.v1.JalviewBioJsColorSchemeMapper;
+import jalview.json.binding.biojson.v1.ColourSchemeMapper;
 import jalview.json.binding.biojson.v1.SequenceFeaturesPojo;
 import jalview.json.binding.biojson.v1.SequenceGrpPojo;
 import jalview.json.binding.biojson.v1.SequencePojo;
-import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.UserColourScheme;
 import jalview.viewmodel.seqfeatures.FeaturesDisplayed;
 
 import java.awt.Color;
@@ -63,8 +65,6 @@ import org.json.simple.parser.JSONParser;
 
 public class JSONFile extends AlignFile implements ComplexAlignFile
 {
-  private ColourSchemeI colourScheme;
-
   private static String version = new BuildDetails().getVersion();
 
   private String webstartUrl = "http://www.jalview.org/services/launchApp";
@@ -75,7 +75,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 
   public static final String FILE_DESC = "JSON";
 
-  private String globalColorScheme;
+  private String globalColourScheme;
 
   private boolean showSeqFeatures;
 
@@ -92,6 +92,8 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
   private List<String> hiddenSeqRefs;
 
   private ArrayList<SequenceI> hiddenSequences;
+
+  private final static String TCOFFEE_SCORE = "TCoffeeScore";
 
   public JSONFile()
   {
@@ -183,7 +185,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
         jsonSeqPojo.setSeq(seq.getSequenceAsString());
         jsonAlignmentPojo.getSeqs().add(jsonSeqPojo);
       }
-      jsonAlignmentPojo.setGlobalColorScheme(globalColorScheme);
+      jsonAlignmentPojo.setGlobalColorScheme(globalColourScheme);
       jsonAlignmentPojo.getAppSettings().put("application", application);
       jsonAlignmentPojo.getAppSettings().put("version", version);
       jsonAlignmentPojo.getAppSettings().put("webStartUrl", webstartUrl);
@@ -211,6 +213,16 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
       {
         jsonAlignmentPojo
                 .setAlignAnnotation(annotationToJsonPojo(annotations));
+      }
+      else
+      {
+        // These color schemes require annotation, disable them if annotations
+        // are not exported
+        if (globalColourScheme.equalsIgnoreCase("RNA Helices")
+                || globalColourScheme.equalsIgnoreCase("T-COFFEE SCORES"))
+        {
+          jsonAlignmentPojo.setGlobalColorScheme("None");
+        }
       }
 
       if (exportSettings.isExportFeatures())
@@ -363,6 +375,26 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
       AlignmentAnnotationPojo alignAnnotPojo = new AlignmentAnnotationPojo();
       alignAnnotPojo.setDescription(annot.description);
       alignAnnotPojo.setLabel(annot.label);
+      if (!Double.isNaN(annot.score))
+      {
+        alignAnnotPojo.setScore(annot.score);
+      }
+      alignAnnotPojo.setCalcId(annot.getCalcId());
+      alignAnnotPojo.setGraphType(annot.graph);
+
+      AnnotationDisplaySettingPojo annotSetting = new AnnotationDisplaySettingPojo();
+      annotSetting.setBelowAlignment(annot.belowAlignment);
+      annotSetting.setCentreColLabels(annot.centreColLabels);
+      annotSetting.setScaleColLabel(annot.scaleColLabel);
+      annotSetting.setShowAllColLabels(annot.showAllColLabels);
+      annotSetting.setVisible(annot.visible);
+      annotSetting.setHasIcon(annot.hasIcons);
+      alignAnnotPojo.setAnnotationSettings(annotSetting);
+      SequenceI refSeq = annot.sequenceRef;
+      if (refSeq != null)
+      {
+        alignAnnotPojo.setSequenceRef(String.valueOf(refSeq.hashCode()));
+      }
       for (Annotation annotation : annot.annotations)
       {
         AnnotationPojo annotationPojo = new AnnotationPojo();
@@ -372,12 +404,28 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
           annotationPojo.setValue(annotation.value);
           annotationPojo
                   .setSecondaryStructure(annotation.secondaryStructure);
-          annotationPojo.setDisplayCharacter(annotation.displayCharacter);
+          String displayChar = annotation.displayCharacter == null ? null
+                  : annotation.displayCharacter;
+          // System.out.println("--------------------->[" + displayChar + "]");
+          annotationPojo.setDisplayCharacter(displayChar);
+          if (annotation.colour != null)
+          {
+            annotationPojo.setColour(jalview.util.Format
+                    .getHexString(annotation.colour));
+          }
           alignAnnotPojo.getAnnotations().add(annotationPojo);
         }
         else
         {
-          alignAnnotPojo.getAnnotations().add(annotationPojo);
+          if (annot.getCalcId() != null
+                  && annot.getCalcId().equalsIgnoreCase(TCOFFEE_SCORE))
+          {
+            // do nothing
+          }
+          else
+          {
+            alignAnnotPojo.getAnnotations().add(annotationPojo);
+          }
         }
       }
       jsonAnnotations.add(alignAnnotPojo);
@@ -405,11 +453,10 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 
       if (jvSettingsJsonObj != null)
       {
-        String jsColourScheme = (String) jvSettingsJsonObj
+        globalColourScheme = (String) jvSettingsJsonObj
                 .get("globalColorScheme");
         Boolean showFeatures = Boolean.valueOf(jvSettingsJsonObj.get(
                 "showSeqFeatures").toString());
-        setColourScheme(getJalviewColorScheme(jsColourScheme));
         setShowSeqFeatures(showFeatures);
         parseHiddenSeqRefsAsList(jvSettingsJsonObj);
         parseHiddenCols(jvSettingsJsonObj);
@@ -435,6 +482,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
         seqs.add(seq);
         seqMap.put(seqUniqueId, seq);
       }
+
       parseFeatures(jsonSeqArray);
 
       for (Iterator<JSONObject> seqGrpIter = seqGrpJsonArray.iterator(); seqGrpIter
@@ -472,10 +520,10 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
             }
           }
         }
-        ColourSchemeI grpColourScheme = getJalviewColorScheme(colourScheme);
-        SequenceGroup seqGrp = new SequenceGroup(grpSeqs, grpName,
-                grpColourScheme, displayBoxes, displayText, colourText,
-                startRes, endRes);
+        SequenceGroup seqGrp = new SequenceGroup(grpSeqs, grpName, null,
+                displayBoxes, displayText, colourText, startRes, endRes);
+        seqGrp.cs = ColourSchemeMapper.getJalviewColourScheme(colourScheme,
+                seqGrp);
         seqGrp.setShowNonconserved(showNonconserved);
         seqGrp.setDescription(description);
         this.seqGroups.add(seqGrp);
@@ -503,13 +551,20 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
                     .valueOf(annot.get("value").toString());
             String desc = annot.get("description") == null ? null : annot
                     .get("description").toString();
-
-            char ss = annot.get("secondaryStructure") == null ? ' ' : annot
+            char ss = annot.get("secondaryStructure") == null
+                    || annot.get("secondaryStructure").toString()
+                            .equalsIgnoreCase("u0000") ? ' ' : annot
                     .get("secondaryStructure").toString().charAt(0);
             String displayChar = annot.get("displayCharacter") == null ? ""
                     : annot.get("displayCharacter").toString();
 
             annotations[count] = new Annotation(displayChar, desc, ss, val);
+            if (annot.get("colour") != null)
+            {
+              Color color = UserColourScheme.getColourFromString(annot.get(
+                      "colour").toString());
+              annotations[count].colour = color;
+            }
           }
           ++count;
         }
@@ -517,9 +572,65 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
         AlignmentAnnotation alignAnnot = new AlignmentAnnotation(alAnnot
                 .get("label").toString(), alAnnot.get("description")
                 .toString(), annotations);
-        this.annotations.add(alignAnnot);
-      }
+        alignAnnot.graph = (alAnnot.get("graphType") == null) ? 0 : Integer
+                .valueOf(alAnnot.get("graphType").toString());
 
+        JSONObject diplaySettings = (JSONObject) alAnnot
+                .get("annotationSettings");
+        if (diplaySettings != null)
+        {
+
+          alignAnnot.scaleColLabel = (diplaySettings.get("scaleColLabel") == null) ? false
+                  : Boolean.valueOf(diplaySettings.get("scaleColLabel")
+                          .toString());
+          alignAnnot.showAllColLabels = (diplaySettings
+                  .get("showAllColLabels") == null) ? true : Boolean
+                  .valueOf(diplaySettings.get("showAllColLabels")
+                          .toString());
+          alignAnnot.centreColLabels = (diplaySettings
+                  .get("centreColLabels") == null) ? true
+                  : Boolean.valueOf(diplaySettings.get("centreColLabels")
+                          .toString());
+          alignAnnot.belowAlignment = (diplaySettings.get("belowAlignment") == null) ? false
+                  : Boolean.valueOf(diplaySettings.get("belowAlignment")
+                          .toString());
+          alignAnnot.visible = (diplaySettings.get("visible") == null) ? true
+                  : Boolean.valueOf(diplaySettings.get("visible")
+                          .toString());
+          alignAnnot.hasIcons = (diplaySettings.get("hasIcon") == null) ? true
+                  : Boolean.valueOf(diplaySettings.get("hasIcon")
+                          .toString());
+
+        }
+        if (alAnnot.get("score") != null)
+        {
+          alignAnnot.score = Double
+                  .valueOf(alAnnot.get("score").toString());
+        }
+
+        String calcId = (alAnnot.get("calcId") == null) ? "" : alAnnot.get(
+                "calcId").toString();
+        alignAnnot.setCalcId(calcId);
+        String seqHash = (alAnnot.get("sequenceRef") != null) ? alAnnot
+                .get("sequenceRef").toString() : null;
+
+        Sequence sequence = (seqHash != null) ? seqMap.get(seqHash) : null;
+        if (sequence != null)
+        {
+          alignAnnot.sequenceRef = sequence;
+          sequence.addAlignmentAnnotation(alignAnnot);
+          if (alignAnnot.label.equalsIgnoreCase("T-COFFEE"))
+          {
+            alignAnnot.createSequenceMapping(sequence, sequence.getStart(),
+                    false);
+            sequence.addAlignmentAnnotation(alignAnnot);
+            alignAnnot.adjustForAlignment();
+          }
+        }
+        alignAnnot.validateRangeAndDisplay();
+        this.annotations.add(alignAnnot);
+
+      }
     } catch (Exception e)
     {
       e.printStackTrace();
@@ -599,40 +710,15 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     }
   }
 
-  public static ColourSchemeI getJalviewColorScheme(
-          String bioJsColourSchemeName)
+  @Override
+  public String getGlobalColourScheme()
   {
-    ColourSchemeI jalviewColor = null;
-    for (JalviewBioJsColorSchemeMapper cs : JalviewBioJsColorSchemeMapper
-            .values())
-    {
-      if (cs.getBioJsName().equalsIgnoreCase(bioJsColourSchemeName))
-      {
-        jalviewColor = cs.getJvColourScheme();
-        break;
-      }
-    }
-    return jalviewColor;
+    return globalColourScheme;
   }
 
-  public String getGlobalColorScheme()
+  public void setGlobalColorScheme(String globalColourScheme)
   {
-    return globalColorScheme;
-  }
-
-  public void setGlobalColorScheme(String globalColorScheme)
-  {
-    this.globalColorScheme = globalColorScheme;
-  }
-
-  public ColourSchemeI getColourScheme()
-  {
-    return colourScheme;
-  }
-
-  public void setColourScheme(ColourSchemeI colourScheme)
-  {
-    this.colourScheme = colourScheme;
+    this.globalColourScheme = globalColourScheme;
   }
 
   @Override
@@ -646,8 +732,13 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     this.displayedFeatures = displayedFeatures;
   }
 
+  @Override
   public void configureForView(AlignmentViewPanel avpanel)
   {
+    if (avpanel == null)
+    {
+      return;
+    }
     super.configureForView(avpanel);
     AlignViewportI viewport = avpanel.getAlignViewport();
     AlignmentI alignment = viewport.getAlignment();
@@ -657,24 +748,24 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     fr = avpanel.cloneFeatureRenderer();
 
     // Add non auto calculated annotation to AlignFile
-    for (AlignmentAnnotation annot : annots)
+    if (annots != null)
     {
-      if (annot != null && !annot.autoCalculated)
+      for (AlignmentAnnotation annot : annots)
       {
-        if (!annot.visible)
+        if (annot != null && !annot.autoCalculated)
         {
-          continue;
+          annotations.add(annot);
         }
-        annotations.add(annot);
       }
     }
-    globalColorScheme = ColourSchemeProperty.getColourName(viewport
+    globalColourScheme = ColourSchemeProperty.getColourName(viewport
             .getGlobalColourScheme());
     setDisplayedFeatures(viewport.getFeaturesDisplayed());
     showSeqFeatures = viewport.isShowSequenceFeatures();
 
   }
 
+  @Override
   public boolean isShowSeqFeatures()
   {
     return showSeqFeatures;
@@ -695,6 +786,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     return hiddenColumns;
   }
 
+  @Override
   public ColumnSelection getColumnSelection()
   {
     return columnSelection;
@@ -705,6 +797,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     this.columnSelection = columnSelection;
   }
 
+  @Override
   public SequenceI[] getHiddenSequences()
   {
     if (hiddenSequences == null || hiddenSequences.isEmpty())
@@ -783,5 +876,20 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     {
       this.exportJalviewSettings = exportJalviewSettings;
     }
+  }
+
+  /**
+   * Returns a descriptor for suitable feature display settings with
+   * <ul>
+   * <li>ResNums or insertions features visible</li>
+   * <li>insertions features coloured red</li>
+   * <li>ResNum features coloured by label</li>
+   * <li>Insertions displayed above (on top of) ResNums</li>
+   * </ul>
+   */
+  @Override
+  public FeatureSettingsModelI getFeatureColourScheme()
+  {
+    return new PDBFeatureSettings();
   }
 }

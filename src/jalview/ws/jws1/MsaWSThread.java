@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.ws.jws1;
 import jalview.analysis.AlignSeq;
 import jalview.bin.Cache;
 import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
 import jalview.datamodel.AlignmentView;
 import jalview.datamodel.ColumnSelection;
@@ -147,6 +148,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
      * 
      * @return true if getAlignment will return a valid alignment result.
      */
+    @Override
     public boolean hasResults()
     {
       if (subjobComplete && result != null && result.isFinished()
@@ -273,6 +275,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
      * 
      * @return boolean true if job can be submitted.
      */
+    @Override
     public boolean hasValidInput()
     {
       if (seqs.getSeqs() != null)
@@ -285,7 +288,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
 
   String alTitle; // name which will be used to form new alignment window.
 
-  Alignment dataset; // dataset to which the new alignment will be
+  AlignmentI dataset; // dataset to which the new alignment will be
 
   // associated.
 
@@ -327,7 +330,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
   MsaWSThread(ext.vamsas.MuscleWS server, String wsUrl,
           WebserviceInfo wsinfo, jalview.gui.AlignFrame alFrame,
           String wsname, String title, AlignmentView _msa, boolean subgaps,
-          boolean presorder, Alignment seqset)
+          boolean presorder, AlignmentI seqset)
   {
     this(server, wsUrl, wsinfo, alFrame, _msa, wsname, subgaps, presorder);
     OutputHeader = wsInfo.getProgressText();
@@ -359,11 +362,13 @@ class MsaWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public boolean isCancellable()
   {
     return true;
   }
 
+  @Override
   public void cancelJob()
   {
     if (!jobComplete && jobs != null)
@@ -430,11 +435,13 @@ class MsaWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public void pollJob(AWsJob job) throws Exception
   {
     ((MsaWSJob) job).result = server.getResult(((MsaWSJob) job).getJobId());
   }
 
+  @Override
   public void StartJob(AWsJob job)
   {
     if (!(job instanceof MsaWSJob))
@@ -521,6 +528,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
     return msa;
   }
 
+  @Override
   public void parseResult()
   {
     int results = 0; // number of result sets received
@@ -571,6 +579,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       wsInfo.showResultsNewFrame
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(true);
@@ -579,6 +588,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
       wsInfo.mergeResults
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(false);
@@ -660,8 +670,8 @@ class MsaWSThread extends JWS1Thread implements WSClientI
 
             while (j < l)
             {
-              if (((AlignmentOrder) alorders.get(i))
-                      .equals(((AlignmentOrder) alorders.get(j))))
+              if (((AlignmentOrder) alorders.get(i)).equals((alorders
+                      .get(j))))
               {
                 alorders.remove(j);
                 l--;
@@ -704,6 +714,7 @@ class MsaWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public boolean canMergeResults()
   {
     return false;

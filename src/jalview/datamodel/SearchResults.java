@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,26 +21,26 @@
 package jalview.datamodel;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /**
  * Holds a list of search result matches, where each match is a contiguous
  * stretch of a single sequence.
  * 
- * @author gmcarstairs
+ * @author gmcarstairs amwaterhouse
  *
  */
-public class SearchResults
+public class SearchResults implements SearchResultsI
 {
 
-  private List<Match> matches = new ArrayList<Match>();
+  private List<SearchResultMatchI> matches = new ArrayList<SearchResultMatchI>();
 
   /**
    * One match consists of a sequence reference, start and end positions.
    * Discontiguous ranges in a sequence require two or more Match objects.
    */
-  public class Match
+  public class Match implements SearchResultMatchI
   {
     SequenceI sequence;
 
@@ -55,7 +55,10 @@ public class SearchResults
     int end;
 
     /**
-     * Constructor
+     * create a Match on a range of sequence. Match always holds region in
+     * forwards order, even if given in reverse order (such as from a mapping to
+     * a reverse strand); this avoids trouble for routines that highlight search
+     * results etc
      * 
      * @param seq
      *          a sequence
@@ -67,47 +70,67 @@ public class SearchResults
     public Match(SequenceI seq, int start, int end)
     {
       sequence = seq;
-      this.start = start;
-      this.end = end;
+
+      /*
+       * always hold in forwards order, even if given in reverse order
+       * (such as from a mapping to a reverse strand); this avoids
+       * trouble for routines that highlight search results etc
+       */
+      if (start <= end)
+      {
+        this.start = start;
+        this.end = end;
+      }
+      else
+      {
+        // TODO: JBP could mark match as being specified in reverse direction
+        // for use
+        // by caller ? e.g. visualizing reverse strand highlight
+        this.start = end;
+        this.end = start;
+      }
     }
 
+    /* (non-Javadoc)
+     * @see jalview.datamodel.SearchResultMatchI#getSequence()
+     */
+    @Override
     public SequenceI getSequence()
     {
       return sequence;
     }
 
+    /* (non-Javadoc)
+     * @see jalview.datamodel.SearchResultMatchI#getStart()
+     */
+    @Override
     public int getStart()
     {
       return start;
     }
 
+    /* (non-Javadoc)
+     * @see jalview.datamodel.SearchResultMatchI#getEnd()
+     */
+    @Override
     public int getEnd()
     {
       return end;
     }
 
     /**
-     * Returns the string of characters in the matched region, prefixed by the
-     * start position, e.g. "12CGT" or "208K"
+     * Returns a representation as "seqid/start-end"
      */
     @Override
     public String toString()
     {
-      final int from = Math.max(start - 1, 0);
-      String startPosition = String.valueOf(from);
-      return startPosition + getCharacters();
-    }
-
-    /**
-     * Returns the string of characters in the matched region.
-     */
-    public String getCharacters()
-    {
-      char[] chars = sequence.getSequence();
-      // convert start/end to base 0 (with bounds check)
-      final int from = Math.max(start - 1, 0);
-      final int to = Math.min(end, chars.length + 1);
-      return String.valueOf(Arrays.copyOfRange(chars, from, to));
+      StringBuilder sb = new StringBuilder();
+      if (sequence != null)
+      {
+        sb.append(sequence.getName()).append("/");
+      }
+      sb.append(start).append("-").append(end);
+      return sb.toString();
     }
 
     public void setSequence(SequenceI seq)
@@ -136,46 +159,38 @@ public class SearchResults
     @Override
     public boolean equals(Object obj)
     {
-      if (obj == null || !(obj instanceof Match))
+      if (obj == null || !(obj instanceof SearchResultMatchI))
       {
         return false;
       }
-      Match m = (Match) obj;
-      return (this.sequence == m.sequence && this.start == m.start && this.end == m.end);
+      SearchResultMatchI m = (SearchResultMatchI) obj;
+      return (sequence == m.getSequence() && start == m.getStart() && end == m
+              .getEnd());
     }
   }
 
-  /**
-   * This method replaces the old search results which merely held an alignment
-   * index of search matches. This broke when sequences were moved around the
-   * alignment
-   * 
-   * @param seq
-   *          Sequence
-   * @param start
-   *          int
-   * @param end
-   *          int
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#addResult(jalview.datamodel.SequenceI, int, int)
    */
-  public void addResult(SequenceI seq, int start, int end)
+  @Override
+  public SearchResultMatchI addResult(SequenceI seq, int start, int end)
   {
-    matches.add(new Match(seq, start, end));
+    Match m = new Match(seq, start, end);
+    matches.add(m);
+    return m;
   }
 
-  /**
-   * Quickly check if the given sequence is referred to in the search results
-   * 
-   * @param sequence
-   *          (specific alignment sequence or a dataset sequence)
-   * @return true if the results involve sequence
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#involvesSequence(jalview.datamodel.SequenceI)
    */
+  @Override
   public boolean involvesSequence(SequenceI sequence)
   {
     SequenceI ds = sequence.getDatasetSequence();
-    for (Match m : matches)
+    for (SearchResultMatchI _m : matches)
     {
-      if (m.sequence != null
-              && (m.sequence == sequence || m.sequence == ds))
+      SequenceI matched = _m.getSequence();
+      if (matched != null && (matched == sequence || matched == ds))
       {
         return true;
       }
@@ -183,11 +198,10 @@ public class SearchResults
     return false;
   }
 
-  /**
-   * This Method returns the search matches which lie between the start and end
-   * points of the sequence in question. It is optimised for returning objects
-   * for drawing on SequenceCanvas
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#getResults(jalview.datamodel.SequenceI, int, int)
    */
+  @Override
   public int[] getResults(SequenceI sequence, int start, int end)
   {
     if (matches.isEmpty())
@@ -199,8 +213,11 @@ public class SearchResults
     int[] tmp = null;
     int resultLength, matchStart = 0, matchEnd = 0;
     boolean mfound;
-    for (Match m : matches)
+    Match m;
+    for (SearchResultMatchI _m : matches)
     {
+      m = (Match) _m;
+
       mfound = false;
       if (m.sequence == sequence)
       {
@@ -255,97 +272,76 @@ public class SearchResults
     return result;
   }
 
+  @Override
+  public int markColumns(SequenceCollectionI sqcol, BitSet bs)
+  {
+    int count = 0;
+    BitSet mask = new BitSet();
+    for (SequenceI s : sqcol.getSequences())
+    {
+      int[] cols = getResults(s, sqcol.getStartRes(), sqcol.getEndRes());
+      if (cols != null)
+      {
+        for (int pair = 0; pair < cols.length; pair += 2)
+        {
+          mask.set(cols[pair], cols[pair + 1] + 1);
+        }
+      }
+    }
+    // compute columns that were newly selected
+    BitSet original = (BitSet) bs.clone();
+    original.and(mask);
+    count = mask.cardinality() - original.cardinality();
+    // and mark ranges not already marked
+    bs.or(mask);
+    return count;
+  }
+
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#getSize()
+   */
+  @Override
   public int getSize()
   {
     return matches.size();
   }
 
-  public SequenceI getResultSequence(int index)
-  {
-    return matches.get(index).sequence;
-  }
-
-  /**
-   * Returns the start position of the i'th match in the search results.
-   * 
-   * @param i
-   * @return
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#isEmpty()
    */
-  public int getResultStart(int i)
-  {
-    return matches.get(i).start;
-  }
-
-  /**
-   * Returns the end position of the i'th match in the search results.
-   * 
-   * @param i
-   * @return
-   */
-  public int getResultEnd(int i)
-  {
-    return matches.get(i).end;
-  }
-
-  /**
-   * Returns true if no search result matches are held.
-   * 
-   * @return
-   */
+  @Override
   public boolean isEmpty()
   {
     return matches.isEmpty();
   }
 
-  /**
-   * Returns the list of matches.
-   * 
-   * @return
+  /* (non-Javadoc)
+   * @see jalview.datamodel.SearchResultsI#getResults()
    */
-  public List<Match> getResults()
+  @Override
+  public List<SearchResultMatchI> getResults()
   {
     return matches;
   }
 
   /**
-   * Return the results as a string of characters (bases) prefixed by start
-   * position(s). Meant for use when the context ensures that all matches are to
-   * regions of the same sequence (otherwise the result is meaningless).
+   * Return the results as a list of matches [seq1/from-to, seq2/from-to, ...]
    * 
    * @return
    */
   @Override
   public String toString()
   {
-    StringBuilder result = new StringBuilder(256);
-    for (Match m : matches)
-    {
-      result.append(m.toString());
-    }
-    return result.toString();
+    return matches == null ? "" : matches.toString();
   }
 
   /**
-   * Return the results as a string of characters (bases). Meant for use when
-   * the context ensures that all matches are to regions of the same sequence
-   * (otherwise the result is meaningless).
-   * 
-   * @return
-   */
-  public String getCharacters()
-  {
-    StringBuilder result = new StringBuilder(256);
-    for (Match m : matches)
-    {
-      result.append(m.getCharacters());
-    }
-    return result.toString();
-  }
-
-  /**
-   * Hashcode is has derived from the list of matches. This ensures that when
-   * two SearchResults objects satisfy the test for equals(), then they have the
+   * Hashcode is derived from the list of matches. This ensures that when two
+   * SearchResults objects satisfy the test for equals(), then they have the
    * same hashcode.
+   * 
+   * @see Match#hashCode()
+   * @see java.util.AbstractList#hashCode()
    */
   @Override
   public int hashCode()
@@ -360,11 +356,11 @@ public class SearchResults
   @Override
   public boolean equals(Object obj)
   {
-    if (obj == null || !(obj instanceof SearchResults))
+    if (obj == null || !(obj instanceof SearchResultsI))
     {
       return false;
     }
-    SearchResults sr = (SearchResults) obj;
-    return ((ArrayList<Match>) this.matches).equals(sr.matches);
+    SearchResultsI sr = (SearchResultsI) obj;
+    return matches.equals(sr.getResults());
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,6 @@
 package jalview.workers;
 
 import jalview.analysis.StructureFrequency;
-import jalview.api.AlignCalcWorkerI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.AlignmentAnnotation;
@@ -31,8 +30,7 @@ import jalview.datamodel.SequenceI;
 
 import java.util.Hashtable;
 
-public class StrucConsensusThread extends AlignCalcWorker implements
-        AlignCalcWorkerI
+public class StrucConsensusThread extends AlignCalcWorker
 {
   public StrucConsensusThread(AlignViewportI alignViewport,
           AlignmentViewPanel alignPanel)
@@ -96,12 +94,15 @@ public class StrucConsensusThread extends AlignCalcWorker implements
               .getAlignmentAnnotation();
       AlignmentAnnotation rnaStruc = null;
       // select rna struct to use for calculation
-      for (int i = 0; i < aa.length; i++)
+      if (aa != null)
       {
-        if (aa[i].visible && aa[i].isRNA() && aa[i].isValidStruc())
+        for (int i = 0; i < aa.length; i++)
         {
-          rnaStruc = aa[i];
-          break;
+          if (aa[i].visible && aa[i].isRNA() && aa[i].isValidStruc())
+          {
+            rnaStruc = aa[i];
+            break;
+          }
         }
       }
       // check to see if its valid
@@ -128,7 +129,7 @@ public class StrucConsensusThread extends AlignCalcWorker implements
       updateResultAnnotation(true);
     } catch (OutOfMemoryError error)
     {
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
 
       // consensus = null;
       // hconsensus = null;

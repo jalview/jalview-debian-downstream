@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,6 @@ import jalview.util.ShiftList;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
 /**
  * Transient object compactly representing a 'view' of an alignment - with
@@ -69,13 +68,51 @@ public class AlignmentView
    */
   private class ScGroup
   {
-    public Vector seqs;
+    public List<SeqCigar> seqs;
 
     public SequenceGroup sg;
 
     ScGroup()
     {
-      seqs = new Vector();
+      seqs = new ArrayList<SeqCigar>();
+    }
+
+    /**
+     * @param seq
+     * @return true if seq was not a member before and was added to group
+     */
+    public boolean add(SeqCigar seq)
+    {
+      if (!seq.isMemberOf(this))
+      {
+        seqs.add(seq);
+        seq.setGroupMembership(this);
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
+
+    /**
+     * 
+     * @param seq
+     * @return true if seq was a member and was removed from group
+     */
+    public boolean remove(SeqCigar seq)
+    {
+      if (seq.removeGroupMembership(this))
+      {
+        seqs.remove(seq);
+        return true;
+      }
+      return false;
+    }
+
+    public int size()
+    {
+      return seqs.size();
     }
   }
 
@@ -83,7 +120,7 @@ public class AlignmentView
    * vector of selected seqCigars. This vector is also referenced by each
    * seqCigar contained in it.
    */
-  private Vector selected;
+  private ScGroup selected;
 
   /**
    * Construct an alignmentView from a live jalview alignment view. Note -
@@ -124,7 +161,7 @@ public class AlignmentView
     if (selection != null && selection.getSize() > 0)
     {
       List<SequenceI> sel = selection.getSequences(null);
-      this.selected = new Vector();
+      this.selected = new ScGroup();
       selseqs = selection
               .getSequencesInOrder(alignment, selectedRegionOnly);
     }
@@ -194,8 +231,7 @@ public class AlignmentView
         if (selection != null && selection.getSize() > 0
                 && !selectedRegionOnly)
         {
-          sequences[csi].setGroupMembership(selected);
-          selected.addElement(sequences[csi]);
+          selected.add(sequences[csi]);
         }
         if (seqsets != null)
         {
@@ -203,9 +239,8 @@ public class AlignmentView
           {
             if ((seqsets.get(sg)).contains(selseqs[i]))
             {
-              sequences[csi].setGroupMembership(sgrps[sg]);
               sgrps[sg].sg.deleteSequence(selseqs[i], false);
-              sgrps[sg].seqs.addElement(sequences[csi]);
+              sgrps[sg].add(sequences[csi]);
               if (!addedgps[sg])
               {
                 if (scGroups == null)
@@ -242,8 +277,7 @@ public class AlignmentView
     if (!seqcigararray.isSeqCigarArray())
     {
       throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_can_only_make_alignmnet_from_cigararray"));
+              "Implementation Error - can only make an alignment view from a CigarArray of sequences.");
     }
     // contigs = seqcigararray.applyDeletions();
     contigs = seqcigararray.getDeletedRegions();
@@ -1073,10 +1107,10 @@ public class AlignmentView
                 + sgr.sg.getEndRes());
         for (int s = 0; s < sgr.seqs.size(); s++)
         {
-          if (!((SeqCigar) sgr.seqs.elementAt(s)).isMemberOf(sgr))
+          // JBPnote this should be a unit test for ScGroup
+          if (!sgr.seqs.get(s).isMemberOf(sgr))
           {
-            os.println("** WARNING: sequence "
-                    + ((SeqCigar) sgr.seqs.elementAt(s)).toString()
+            os.println("** WARNING: sequence " + sgr.seqs.get(s).toString()
                     + " is not marked as member of group.");
           }
         }

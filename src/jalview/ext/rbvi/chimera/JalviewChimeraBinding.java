@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -40,6 +40,7 @@ import jalview.util.MessageManager;
 import java.awt.Color;
 import java.net.BindException;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +64,9 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
 
   private static final String ALPHACARBON = "CA";
 
+  private List<String> chainNames = new ArrayList<String>();
+
+  private Hashtable<String, String> chainFile = new Hashtable<String, String>();
   /*
    * Object through which we talk to Chimera
    */
@@ -101,16 +105,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
 
   private String lastCommand;
 
-  private boolean loadedInline;
-
-  /**
-   * current set of model filenames loaded
-   */
-  String[] modelFileNames = null;
-
-  String lastMousedOverAtomSpec;
-
-  private List<String> lastReply;
+  String lastHighlightCommand;
 
   /*
    * incremented every time a load notification is successfully handled -
@@ -200,10 +195,9 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * @param protocol
    */
   public JalviewChimeraBinding(StructureSelectionManager ssm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String[][] chains,
-          String protocol)
+          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String protocol)
   {
-    super(ssm, pdbentry, sequenceIs, chains, protocol);
+    super(ssm, pdbentry, sequenceIs, protocol);
     viewer = new ChimeraManager(
             new ext.edu.ucsf.rbvi.strucviz2.StructureManager(true));
   }
@@ -253,11 +247,14 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     boolean first = true;
     for (String chain : toshow)
     {
+      int modelNumber = getModelNoForChain(chain);
+      String showChainCmd = modelNumber == -1 ? "" : modelNumber + ":."
+              + chain.split(":")[1];
       if (!first)
       {
         cmd.append(",");
       }
-      cmd.append(":.").append(chain);
+      cmd.append(showChainCmd);
       first = false;
     }
 
@@ -266,7 +263,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
      * window, but it looks more helpful not to (easier to relate chains to the
      * whole)
      */
-    final String command = "~display #*; ~ribbon #*; ribbon "
+    final String command = "~display #*; ~ribbon #*; ribbon :"
             + cmd.toString();
     sendChimeraCommand(command, false);
   }
@@ -617,7 +614,8 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     if (lastCommand == null || !lastCommand.equals(command))
     {
       // trim command or it may never find a match in the replyLog!!
-      lastReply = viewer.sendChimeraCommand(command.trim(), logResponse);
+      List<String> lastReply = viewer.sendChimeraCommand(command.trim(),
+              logResponse);
       if (logResponse && debug)
       {
         log("Response from command ('" + command + "') was:\n" + lastReply);
@@ -715,17 +713,6 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   // End StructureListener
   // //////////////////////////
 
-  public Color getColour(int atomIndex, int pdbResNum, String chain,
-          String pdbfile)
-  {
-    if (getModelNum(pdbfile) < 0)
-    {
-      return null;
-    }
-    log("get model / residue colour attribute unimplemented");
-    return null;
-  }
-
   /**
    * returns the current featureRenderer that should be used to colour the
    * structures
@@ -777,30 +764,9 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     {
       return new String[0];
     }
-    // if (modelFileNames == null)
-    // {
-    // Collection<ChimeraModel> chimodels = viewer.getChimeraModels();
-    // _modelFileNameMap = new int[chimodels.size()];
-    // int j = 0;
-    // for (ChimeraModel chimodel : chimodels)
-    // {
-    // String mdlName = chimodel.getModelName();
-    // }
-    // modelFileNames = new String[j];
-    // // System.arraycopy(mset, 0, modelFileNames, 0, j);
-    // }
 
     return chimeraMaps.keySet().toArray(
             modelFileNames = new String[chimeraMaps.size()]);
-  }
-
-  /**
-   * map from string to applet
-   */
-  public Map getRegistryInfo()
-  {
-    // TODO Auto-generated method stub
-    return null;
   }
 
   /**
@@ -815,22 +781,22 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
           AlignmentViewPanel alignment);
 
   /**
-   * Construct and send a command to highlight zero, one or more atoms.
-   * 
-   * <pre>
-   * Done by generating a command like (to 'highlight' position 44)
-   *   show #0:44.C
-   * </pre>
+   * Construct and send a command to highlight zero, one or more atoms. We do
+   * this by sending an "rlabel" command to show the residue label at that
+   * position.
    */
   @Override
   public void highlightAtoms(List<AtomSpec> atoms)
   {
-    if (atoms == null)
+    if (atoms == null || atoms.size() == 0)
     {
       return;
     }
-    StringBuilder atomSpecs = new StringBuilder();
+
+    StringBuilder cmd = new StringBuilder(128);
     boolean first = true;
+    boolean found = false;
+
     for (AtomSpec atom : atoms)
     {
       int pdbResNum = atom.getPdbResNum();
@@ -839,39 +805,46 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       List<ChimeraModel> cms = chimeraMaps.get(pdbfile);
       if (cms != null && !cms.isEmpty())
       {
-        /*
-         * Formatting as #0:34.A,#1:33.A doesn't work as desired, so instead we
-         * concatenate multiple 'show' commands
-         */
-        atomSpecs.append(first ? "" : ";show ");
+        if (first)
+        {
+          cmd.append("rlabel #").append(cms.get(0).getModelNumber())
+                  .append(":");
+        }
+        else
+        {
+          cmd.append(",");
+        }
         first = false;
-        atomSpecs.append("#" + cms.get(0).getModelNumber());
-        atomSpecs.append(":" + pdbResNum);
+        cmd.append(pdbResNum);
         if (!chain.equals(" "))
         {
-          atomSpecs.append("." + chain);
+          cmd.append(".").append(chain);
         }
+        found = true;
       }
     }
-    String atomSpec = atomSpecs.toString();
+    String command = cmd.toString();
 
     /*
-     * Avoid repeated commands for the same residue
+     * avoid repeated commands for the same residue
      */
-    if (atomSpec.equals(lastMousedOverAtomSpec))
+    if (command.equals(lastHighlightCommand))
     {
       return;
     }
 
-    StringBuilder command = new StringBuilder(32);
-    viewerCommandHistory(false);
-    if (atomSpec.length() > 0)
+    /*
+     * unshow the label for the previous residue
+     */
+    if (lastHighlightCommand != null)
     {
-      command.append("show ").append(atomSpec);
-      viewer.sendChimeraCommand(command.toString(), false);
+      viewer.sendChimeraCommand("~" + lastHighlightCommand, false);
     }
-    viewerCommandHistory(true);
-    this.lastMousedOverAtomSpec = atomSpec;
+    if (found)
+    {
+      viewer.sendChimeraCommand(command, false);
+    }
+    this.lastHighlightCommand = command;
   }
 
   /**
@@ -994,6 +967,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    */
   public abstract void refreshGUI();
 
+  @Override
   public void setLoadingFromArchive(boolean loadingFromArchive)
   {
     this.loadingFromArchive = loadingFromArchive;
@@ -1004,6 +978,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * @return true if Chimeral is still restoring state or loading is still going
    *         on (see setFinsihedLoadingFromArchive)
    */
+  @Override
   public boolean isLoadingFromArchive()
   {
     return loadingFromArchive && !loadingFinished;
@@ -1015,6 +990,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * 
    * @param finishedLoading
    */
+  @Override
   public void setFinishedLoadingFromArchive(boolean finishedLoading)
   {
     loadingFinished = finishedLoading;
@@ -1085,28 +1061,6 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * 
    * @return
    */
-  public List<String> getChainNames()
-  {
-    List<String> names = new ArrayList<String>();
-    String[][] allNames = getChains();
-    if (allNames != null)
-    {
-      for (String[] chainsForPdb : allNames)
-      {
-        if (chainsForPdb != null)
-        {
-          for (String chain : chainsForPdb)
-          {
-            if (chain != null && !names.contains(chain))
-            {
-              names.add(chain);
-            }
-          }
-        }
-      }
-    }
-    return names;
-  }
 
   /**
    * Send a 'focus' command to Chimera to recentre the visible display
@@ -1114,5 +1068,60 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   public void focusView()
   {
     sendChimeraCommand("focus", false);
+  }
+
+  /**
+   * Send a 'show' command for all atoms in the currently selected columns
+   * 
+   * TODO: pull up to abstract structure viewer interface
+   * 
+   * @param vp
+   */
+  public void highlightSelection(AlignmentViewPanel vp)
+  {
+    List<Integer> cols = vp.getAlignViewport().getColumnSelection()
+            .getSelected();
+    AlignmentI alignment = vp.getAlignment();
+    StructureSelectionManager sm = getSsm();
+    for (SequenceI seq : alignment.getSequences())
+    {
+      /*
+       * convert selected columns into sequence positions
+       */
+      int[] positions = new int[cols.size()];
+      int i = 0;
+      for (Integer col : cols)
+      {
+        positions[i++] = seq.findPosition(col);
+      }
+      sm.highlightStructure(this, seq, positions);
+    }
+  }
+
+
+  @Override
+  public List<String> getChainNames()
+  {
+    return chainNames;
+  }
+
+  public Hashtable<String, String> getChainFile()
+  {
+    return chainFile;
+  }
+
+  public List<ChimeraModel> getChimeraModelByChain(String chain)
+  {
+    return chimeraMaps.get(chainFile.get(chain));
+  }
+
+  public int getModelNoForChain(String chain)
+  {
+    List<ChimeraModel> foundModels = getChimeraModelByChain(chain);
+    if (foundModels != null && !foundModels.isEmpty())
+    {
+      return foundModels.get(0).getModelNumber();
+    }
+    return -1;
   }
 }

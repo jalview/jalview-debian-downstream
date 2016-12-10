@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,7 +24,15 @@ import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.Profile;
+import jalview.datamodel.ProfileI;
+import jalview.datamodel.Profiles;
+import jalview.datamodel.ProfilesI;
+import jalview.datamodel.ResidueCount;
+import jalview.datamodel.ResidueCount.SymbolCounts;
 import jalview.datamodel.SequenceI;
+import jalview.ext.android.SparseIntArray;
+import jalview.util.Comparison;
 import jalview.util.Format;
 import jalview.util.MappingUtils;
 import jalview.util.QuickSort;
@@ -32,7 +40,6 @@ import jalview.util.QuickSort;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Takes in a vector or array of sequences and column start and column end and
@@ -45,19 +52,7 @@ import java.util.Set;
  */
 public class AAFrequency
 {
-  private static final int TO_UPPER_CASE = 'A' - 'a'; // -32
-
-  public static final String MAXCOUNT = "C";
-
-  public static final String MAXRESIDUE = "R";
-
-  public static final String PID_GAPS = "G";
-
-  public static final String PID_NOGAPS = "N";
-
   public static final String PROFILE = "P";
-
-  public static final String ENCODED_CHARS = "E";
 
   /*
    * Quick look-up of String value of char 'A' to 'Z'
@@ -72,13 +67,13 @@ public class AAFrequency
     }
   }
 
-  public static final Hashtable[] calculate(List<SequenceI> list,
+  public static final ProfilesI calculate(List<SequenceI> list,
           int start, int end)
   {
     return calculate(list, start, end, false);
   }
 
-  public static final Hashtable[] calculate(List<SequenceI> sequences,
+  public static final ProfilesI calculate(List<SequenceI> sequences,
           int start, int end, boolean profile)
   {
     SequenceI[] seqs = new SequenceI[sequences.size()];
@@ -88,307 +83,262 @@ public class AAFrequency
       for (int i = 0; i < sequences.size(); i++)
       {
         seqs[i] = sequences.get(i);
-        if (seqs[i].getLength() > width)
+        int length = seqs[i].getLength();
+        if (length > width)
         {
-          width = seqs[i].getLength();
+          width = length;
         }
       }
-
-      Hashtable[] reply = new Hashtable[width];
 
       if (end >= width)
       {
         end = width;
       }
 
-      calculate(seqs, start, end, reply, profile);
+      ProfilesI reply = calculate(seqs, width, start, end, profile);
       return reply;
     }
   }
 
-  public static final void calculate(SequenceI[] sequences, int start,
-          int end, Hashtable[] result, boolean profile)
+  /**
+   * Calculate the consensus symbol(s) for each column in the given range.
+   * 
+   * @param sequences
+   * @param width
+   *          the full width of the alignment
+   * @param start
+   *          start column (inclusive, base zero)
+   * @param end
+   *          end column (exclusive)
+   * @param saveFullProfile
+   *          if true, store all symbol counts
+   */
+  public static final ProfilesI calculate(final SequenceI[] sequences,
+          int width, int start, int end, boolean saveFullProfile)
   {
-    Hashtable residueHash;
-    int maxCount, nongap, i, j, v;
-    int jSize = sequences.length;
-    String maxResidue;
-    char c = '-';
-    float percentage;
+    // long now = System.currentTimeMillis();
+    int seqCount = sequences.length;
+    boolean nucleotide = false;
+    int nucleotideCount = 0;
+    int peptideCount = 0;
 
-    int[] values = new int[255];
+    ProfileI[] result = new ProfileI[width];
 
-    char[] seq;
-
-    for (i = start; i < end; i++)
+    for (int column = start; column < end; column++)
     {
-      residueHash = new Hashtable();
-      maxCount = 0;
-      maxResidue = "";
-      nongap = 0;
-      values = new int[255];
-
-      for (j = 0; j < jSize; j++)
+      /*
+       * Apply a heuristic to detect nucleotide data (which can
+       * be counted in more compact arrays); here we test for
+       * more than 90% nucleotide; recheck every 10 columns in case
+       * of misleading data e.g. highly conserved Alanine in peptide!
+       * Mistakenly guessing nucleotide has a small performance cost,
+       * as it will result in counting in sparse arrays.
+       * Mistakenly guessing peptide has a small space cost, 
+       * as it will use a larger than necessary array to hold counts. 
+       */
+      if (nucleotideCount > 100 && column % 10 == 0)
       {
-        if (sequences[j] == null)
+        nucleotide = (9 * peptideCount < nucleotideCount);
+      }
+      ResidueCount residueCounts = new ResidueCount(nucleotide);
+
+      for (int row = 0; row < seqCount; row++)
+      {
+        if (sequences[row] == null)
         {
           System.err
                   .println("WARNING: Consensus skipping null sequence - possible race condition.");
           continue;
         }
-        seq = sequences[j].getSequence();
-        if (seq.length > i)
+        char[] seq = sequences[row].getSequence();
+        if (seq.length > column)
         {
-          c = seq[i];
-
-          if (c == '.' || c == ' ')
+          char c = seq[column];
+          residueCounts.add(c);
+          if (Comparison.isNucleotide(c))
           {
-            c = '-';
+            nucleotideCount++;
           }
-
-          if (c == '-')
+          else if (!Comparison.isGap(c))
           {
-            values['-']++;
-            continue;
+            peptideCount++;
           }
-          else if ('a' <= c && c <= 'z')
-          {
-            c += TO_UPPER_CASE;
-          }
-
-          nongap++;
-          values[c]++;
-
         }
         else
         {
-          values['-']++;
+          /*
+           * count a gap if the sequence doesn't reach this column
+           */
+          residueCounts.addGap();
         }
       }
-      if (jSize == 1)
-      {
-        maxResidue = String.valueOf(c);
-        maxCount = 1;
-      }
-      else
-      {
-        for (v = 'A'; v <= 'Z'; v++)
-        {
-          // TODO why ignore values[v] == 1?
-          if (values[v] < 1 /* 2 */|| values[v] < maxCount)
-          {
-            continue;
-          }
 
-          if (values[v] > maxCount)
-          {
-            maxResidue = CHARS[v - 'A'];
-          }
-          else if (values[v] == maxCount)
-          {
-            maxResidue += CHARS[v - 'A'];
-          }
-          maxCount = values[v];
-        }
-      }
-      if (maxResidue.length() == 0)
-      {
-        maxResidue = "-";
-      }
-      if (profile)
-      {
-        // TODO use a 1-dimensional array with jSize, nongap in [0] and [1]
-        residueHash.put(PROFILE, new int[][] { values,
-            new int[] { jSize, nongap } });
-      }
-      residueHash.put(MAXCOUNT, new Integer(maxCount));
-      residueHash.put(MAXRESIDUE, maxResidue);
+      int maxCount = residueCounts.getModalCount();
+      String maxResidue = residueCounts.getResiduesForCount(maxCount);
+      int gapCount = residueCounts.getGapCount();
+      ProfileI profile = new Profile(seqCount, gapCount, maxCount,
+              maxResidue);
 
-      percentage = ((float) maxCount * 100) / jSize;
-      residueHash.put(PID_GAPS, new Float(percentage));
-
-      if (nongap > 0)
+      if (saveFullProfile)
       {
-        // calculate for non-gapped too
-        percentage = ((float) maxCount * 100) / nongap;
+        profile.setCounts(residueCounts);
       }
-      residueHash.put(PID_NOGAPS, new Float(percentage));
 
-      result[i] = residueHash;
+      result[column] = profile;
     }
+    return new Profiles(result);
+    // long elapsed = System.currentTimeMillis() - now;
+    // System.out.println(elapsed);
   }
 
   /**
-   * Compute all or part of the annotation row from the given consensus
-   * hashtable
+   * Make an estimate of the profile size we are going to compute i.e. how many
+   * different characters may be present in it. Overestimating has a cost of
+   * using more memory than necessary. Underestimating has a cost of needing to
+   * extend the SparseIntArray holding the profile counts.
    * 
-   * @param consensus
-   *          - pre-allocated annotation row
-   * @param hconsensus
-   * @param iStart
-   * @param width
-   * @param ignoreGapsInConsensusCalculation
-   * @param includeAllConsSymbols
-   * @param nseq
+   * @param profileSizes
+   *          counts of sizes of profiles so far encountered
+   * @return
    */
-  public static void completeConsensus(AlignmentAnnotation consensus,
-          Hashtable[] hconsensus, int iStart, int width,
-          boolean ignoreGapsInConsensusCalculation,
-          boolean includeAllConsSymbols, long nseq)
+  static int estimateProfileSize(SparseIntArray profileSizes)
   {
-    completeConsensus(consensus, hconsensus, iStart, width,
-            ignoreGapsInConsensusCalculation, includeAllConsSymbols, null,
-            nseq);
+    if (profileSizes.size() == 0)
+    {
+      return 4;
+    }
+
+    /*
+     * could do a statistical heuristic here e.g. 75%ile
+     * for now just return the largest value
+     */
+    return profileSizes.keyAt(profileSizes.size() - 1);
   }
 
   /**
    * Derive the consensus annotations to be added to the alignment for display.
    * This does not recompute the raw data, but may be called on a change in
-   * display options, such as 'show logo', which may in turn result in a change
-   * in the derived values.
+   * display options, such as 'ignore gaps', which may in turn result in a
+   * change in the derived values.
    * 
    * @param consensus
    *          the annotation row to add annotations to
-   * @param hconsensus
+   * @param profiles
    *          the source consensus data
-   * @param iStart
-   *          start column
-   * @param width
-   *          end column
-   * @param ignoreGapsInConsensusCalculation
-   *          if true, use the consensus calculated ignoring gaps
-   * @param includeAllConsSymbols
+   * @param startCol
+   *          start column (inclusive)
+   * @param endCol
+   *          end column (exclusive)
+   * @param ignoreGaps
+   *          if true, normalise residue percentages ignoring gaps
+   * @param showSequenceLogo
    *          if true include all consensus symbols, else just show modal
    *          residue
-   * @param alphabet
    * @param nseq
    *          number of sequences
    */
   public static void completeConsensus(AlignmentAnnotation consensus,
-          Hashtable[] hconsensus, int iStart, int width,
-          boolean ignoreGapsInConsensusCalculation,
-          boolean includeAllConsSymbols, char[] alphabet, long nseq)
+          ProfilesI profiles, int startCol, int endCol, boolean ignoreGaps,
+          boolean showSequenceLogo, long nseq)
   {
+    // long now = System.currentTimeMillis();
     if (consensus == null || consensus.annotations == null
-            || consensus.annotations.length < width)
+            || consensus.annotations.length < endCol)
     {
-      // called with a bad alignment annotation row - wait for it to be
-      // initialised properly
+      /*
+       * called with a bad alignment annotation row 
+       * wait for it to be initialised properly
+       */
       return;
     }
 
-    final Format fmt = getPercentageFormat(nseq);
-
-    for (int i = iStart; i < width; i++)
+    for (int i = startCol; i < endCol; i++)
     {
-      Hashtable hci;
-      if (i >= hconsensus.length || ((hci = hconsensus[i]) == null))
+      ProfileI profile = profiles.get(i);
+      if (profile == null)
       {
-        // happens if sequences calculated over were shorter than alignment
-        // width
+        /*
+         * happens if sequences calculated over were 
+         * shorter than alignment width
+         */
         consensus.annotations[i] = null;
-        continue;
+        return;
       }
-      Float fv = (Float) hci
-              .get(ignoreGapsInConsensusCalculation ? PID_NOGAPS : PID_GAPS);
-      if (fv == null)
+
+      final int dp = getPercentageDp(nseq);
+
+      float value = profile.getPercentageIdentity(ignoreGaps);
+
+      String description = getTooltip(profile, value, showSequenceLogo,
+              ignoreGaps, dp);
+
+      String modalResidue = profile.getModalResidue();
+      if ("".equals(modalResidue))
       {
-        consensus.annotations[i] = null;
-        // data has changed below us .. give up and
-        continue;
+        modalResidue = "-";
       }
-      float value = fv.floatValue();
-      String maxRes = hci.get(AAFrequency.MAXRESIDUE).toString();
-      StringBuilder mouseOver = new StringBuilder(64);
-      if (maxRes.length() > 1)
+      else if (modalResidue.length() > 1)
       {
-        mouseOver.append("[").append(maxRes).append("] ");
-        maxRes = "+";
+        modalResidue = "+";
       }
-      else
-      {
-        mouseOver.append(hci.get(AAFrequency.MAXRESIDUE) + " ");
-      }
-      int[][] profile = (int[][]) hci.get(AAFrequency.PROFILE);
-      if (profile != null && includeAllConsSymbols)
-      {
-        int sequenceCount = profile[1][0];
-        int nonGappedCount = profile[1][1];
-        int normalisedBy = ignoreGapsInConsensusCalculation ? nonGappedCount
-                : sequenceCount;
-        mouseOver.setLength(0);
-        if (alphabet != null)
-        {
-          for (int c = 0; c < alphabet.length; c++)
-          {
-            float tval = profile[0][alphabet[c]] * 100f / normalisedBy;
-            mouseOver
-                    .append(((c == 0) ? "" : "; "))
-                    .append(alphabet[c])
-                    .append(" ")
-                    .append(((fmt != null) ? fmt.form(tval) : ((int) tval)))
-                    .append("%");
-          }
-        }
-        else
-        {
-          // TODO do this sort once only in calculate()?
-          // char[][] ca = new char[profile[0].length][];
-          char[] ca = new char[profile[0].length];
-          float[] vl = new float[profile[0].length];
-          for (int c = 0; c < ca.length; c++)
-          {
-            ca[c] = (char) c;
-            // ca[c] = new char[]
-            // { (char) c };
-            vl[c] = profile[0][c];
-          }
-          QuickSort.sort(vl, ca);
-          for (int p = 0, c = ca.length - 1; profile[0][ca[c]] > 0; c--)
-          {
-            final char residue = ca[c];
-            if (residue != '-')
-            {
-              float tval = profile[0][residue] * 100f / normalisedBy;
-              mouseOver
-                      .append((((p == 0) ? "" : "; ")))
-                      .append(residue)
-                      .append(" ")
-                      .append(((fmt != null) ? fmt.form(tval)
-                              : ((int) tval))).append("%");
-              p++;
-            }
-          }
-        }
-      }
-      else
-      {
-        mouseOver.append(
-                (((fmt != null) ? fmt.form(value) : ((int) value))))
-                .append("%");
-      }
-      consensus.annotations[i] = new Annotation(maxRes,
-              mouseOver.toString(), ' ', value);
+      consensus.annotations[i] = new Annotation(modalResidue, description,
+              ' ', value);
     }
+    // long elapsed = System.currentTimeMillis() - now;
+    // System.out.println(-elapsed);
   }
 
   /**
-   * Returns a Format designed to show all significant figures for profile
-   * percentages. For less than 100 sequences, returns null (the integer
-   * percentage value will be displayed). For 100-999 sequences, returns "%3.1f"
+   * Returns a tooltip showing either
+   * <ul>
+   * <li>the full profile (percentages of all residues present), if
+   * showSequenceLogo is true, or</li>
+   * <li>just the modal (most common) residue(s), if showSequenceLogo is false</li>
+   * </ul>
+   * Percentages are as a fraction of all sequence, or only ungapped sequences
+   * if ignoreGaps is true.
    * 
-   * @param nseq
+   * @param profile
+   * @param pid
+   * @param showSequenceLogo
+   * @param ignoreGaps
+   * @param dp
+   *          the number of decimal places to format percentages to
    * @return
    */
-  protected static Format getPercentageFormat(long nseq)
+  static String getTooltip(ProfileI profile, float pid,
+          boolean showSequenceLogo, boolean ignoreGaps, int dp)
   {
-    int scale = 0;
-    while (nseq >= 10)
+    ResidueCount counts = profile.getCounts();
+
+    String description = null;
+    if (counts != null && showSequenceLogo)
     {
-      scale++;
-      nseq /= 10;
+      int normaliseBy = ignoreGaps ? profile.getNonGapped() : profile
+              .getHeight();
+      description = counts.getTooltip(normaliseBy, dp);
     }
-    return scale <= 1 ? null : new Format("%3." + (scale - 1) + "f");
+    else
+    {
+      StringBuilder sb = new StringBuilder(64);
+      String maxRes = profile.getModalResidue();
+      if (maxRes.length() > 1)
+      {
+        sb.append("[").append(maxRes).append("]");
+      }
+      else
+      {
+        sb.append(maxRes);
+      }
+      if (maxRes.length() > 0)
+      {
+        sb.append(" ");
+        Format.appendPercentage(sb, pid, dp);
+        sb.append("%");
+      }
+      description = sb.toString();
+    }
+    return description;
   }
 
   /**
@@ -400,46 +350,46 @@ public class AAFrequency
    * in descending order of percentage value
    * </pre>
    * 
-   * @param hconsensus
-   *          the data table from which to extract and sort values
+   * @param profile
+   *          the data object from which to extract and sort values
    * @param ignoreGaps
    *          if true, only non-gapped values are included in percentage
    *          calculations
    * @return
    */
-  public static int[] extractProfile(Hashtable hconsensus,
+  public static int[] extractProfile(ProfileI profile,
           boolean ignoreGaps)
   {
     int[] rtnval = new int[64];
-    int[][] profile = (int[][]) hconsensus.get(AAFrequency.PROFILE);
-    if (profile == null)
+    ResidueCount counts = profile.getCounts();
+    if (counts == null)
     {
       return null;
     }
-    char[] ca = new char[profile[0].length];
-    float[] vl = new float[profile[0].length];
-    for (int c = 0; c < ca.length; c++)
-    {
-      ca[c] = (char) c;
-      vl[c] = profile[0][c];
-    }
-    QuickSort.sort(vl, ca);
+
+    SymbolCounts symbolCounts = counts.getSymbolCounts();
+    char[] symbols = symbolCounts.symbols;
+    int[] values = symbolCounts.values;
+    QuickSort.sort(values, symbols);
     int nextArrayPos = 2;
     int totalPercentage = 0;
-    int distinctValuesCount = 0;
-    final int divisor = profile[1][ignoreGaps ? 1 : 0];
-    for (int c = ca.length - 1; profile[0][ca[c]] > 0; c--)
+    final int divisor = ignoreGaps ? profile.getNonGapped() : profile
+            .getHeight();
+
+    /*
+     * traverse the arrays in reverse order (highest counts first)
+     */
+    for (int i = symbols.length - 1; i >= 0; i--)
     {
-      if (ca[c] != '-')
-      {
-        rtnval[nextArrayPos++] = ca[c];
-        final int percentage = (int) (profile[0][ca[c]] * 100f / divisor);
-        rtnval[nextArrayPos++] = percentage;
-        totalPercentage += percentage;
-        distinctValuesCount++;
-      }
+      int theChar = symbols[i];
+      int charCount = values[i];
+
+      rtnval[nextArrayPos++] = theChar;
+      final int percentage = (charCount * 100) / divisor;
+      rtnval[nextArrayPos++] = percentage;
+      totalPercentage += percentage;
     }
-    rtnval[0] = distinctValuesCount;
+    rtnval[0] = symbols.length;
     rtnval[1] = totalPercentage;
     int[] result = new int[rtnval.length + 1];
     result[0] = AlignmentAnnotation.SEQUENCE_PROFILE;
@@ -520,7 +470,7 @@ public class AAFrequency
           Hashtable[] hconsensus)
   {
     final char gapCharacter = alignment.getGapCharacter();
-    Set<AlignedCodonFrame> mappings = alignment.getCodonFrames();
+    List<AlignedCodonFrame> mappings = alignment.getCodonFrames();
     if (mappings == null || mappings.isEmpty())
     {
       return;
@@ -541,12 +491,16 @@ public class AAFrequency
         {
           continue;
         }
-        char[] codon = MappingUtils.findCodonFor(seq, col, mappings);
-        int codonEncoded = CodingUtils.encodeCodon(codon);
-        if (codonEncoded >= 0)
+        List<char[]> codons = MappingUtils
+                .findCodonsFor(seq, col, mappings);
+        for (char[] codon : codons)
         {
-          codonCounts[codonEncoded + 2]++;
-          ungappedCount++;
+          int codonEncoded = CodingUtils.encodeCodon(codon);
+          if (codonEncoded >= 0)
+          {
+            codonCounts[codonEncoded + 2]++;
+            ungappedCount++;
+          }
         }
       }
       codonCounts[1] = ungappedCount;
@@ -621,8 +575,11 @@ public class AAFrequency
       String modalCodon = String.valueOf(CodingUtils
               .decodeCodon(modalCodonEncoded));
       if (sortedCodonCounts.length > 1
-              && sortedCodonCounts[codons.length - 2] == modalCodonEncoded)
+              && sortedCodonCounts[codons.length - 2] == sortedCodonCounts[codons.length - 1])
       {
+        /*
+         * two or more codons share the modal count
+         */
         modalCodon = "+";
       }
       float pid = sortedCodonCounts[sortedCodonCounts.length - 1] * 100
@@ -641,7 +598,7 @@ public class AAFrequency
       StringBuilder samePercent = new StringBuilder();
       String percent = null;
       String lastPercent = null;
-      Format fmt = getPercentageFormat(nseqs);
+      int percentDecPl = getPercentageDp(nseqs);
 
       for (int j = codons.length - 1; j >= 0; j--)
       {
@@ -663,7 +620,9 @@ public class AAFrequency
         final int pct = codonCount * 100 / totalCount;
         String codon = String
                 .valueOf(CodingUtils.decodeCodon(codonEncoded));
-        percent = fmt == null ? Integer.toString(pct) : fmt.form(pct);
+        StringBuilder sb = new StringBuilder();
+        Format.appendPercentage(sb, pct, percentDecPl);
+        percent = sb.toString();
         if (showProfileLogo || codonCount == modalCodonCount)
         {
           if (percent.equals(lastPercent) && j > 0)
@@ -688,5 +647,24 @@ public class AAFrequency
       consensusAnnotation.annotations[col] = new Annotation(modalCodon,
               mouseOver.toString(), ' ', pid);
     }
+  }
+
+  /**
+   * Returns the number of decimal places to show for profile percentages. For
+   * less than 100 sequences, returns zero (the integer percentage value will be
+   * displayed). For 100-999 sequences, returns 1, for 1000-9999 returns 2, etc.
+   * 
+   * @param nseq
+   * @return
+   */
+  protected static int getPercentageDp(long nseq)
+  {
+    int scale = 0;
+    while (nseq >= 100)
+    {
+      scale++;
+      nseq /= 10;
+    }
+    return scale;
   }
 }

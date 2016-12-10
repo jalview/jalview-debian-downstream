@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,6 @@ package jalview.api;
 
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.ColourSchemeI;
 
 /**
  * This interface should be implemented by complex file parser with the ability
@@ -44,7 +43,7 @@ public interface ComplexAlignFile
    * 
    * @return
    */
-  public ColourSchemeI getColourScheme();
+  public String getGlobalColourScheme();
 
   /**
    * Retrieves the Column selection/hidden column from a complex file parser

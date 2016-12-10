@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 package jalview.util;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
@@ -52,9 +53,9 @@ public class ParseHtmlBodyAndLinks
     return htmlContent;
   }
 
-  ArrayList<String> links = new ArrayList<String>();
+  List<String> links = new ArrayList<String>();
 
-  StringBuffer sb = new StringBuffer();
+  String content;
 
   /**
    * result of parsing description - with or without HTML tags
@@ -64,7 +65,7 @@ public class ParseHtmlBodyAndLinks
   public String getContent()
   {
 
-    return sb.toString();
+    return content;
   }
 
   /**
@@ -72,12 +73,19 @@ public class ParseHtmlBodyAndLinks
    * 
    * @return
    */
-  public ArrayList<String> getLinks()
+  public List<String> getLinks()
   {
     return links;
   }
 
   /**
+   * Parses the given html and
+   * <ul>
+   * <li>extracts any 'href' links to a list of "displayName|url" strings,
+   * retrievable by #getLinks</li>
+   * <li>extracts the remaining text (with %LINK% placeholders replacing hrefs),
+   * retrievable by #getContent</li>
+   * </ul>
    * 
    * @param description
    *          - html or text content to be parsed
@@ -89,6 +97,7 @@ public class ParseHtmlBodyAndLinks
   public ParseHtmlBodyAndLinks(String description, boolean removeHTML,
           String newline)
   {
+    StringBuilder sb = new StringBuilder(description.length());
     if (description == null || description.length() == 0)
     {
       htmlContent = false;
@@ -105,7 +114,7 @@ public class ParseHtmlBodyAndLinks
     String tag = null;
     while (st.hasMoreElements())
     {
-      token = st.nextToken("&>");
+      token = st.nextToken(">");
       if (token.equalsIgnoreCase("html") || token.startsWith("/"))
       {
         continue;
@@ -135,18 +144,6 @@ public class ParseHtmlBodyAndLinks
       {
         sb.append(newline);
       }
-      else if (token.startsWith("lt;"))
-      {
-        sb.append("<" + token.substring(3));
-      }
-      else if (token.startsWith("gt;"))
-      {
-        sb.append(">" + token.substring(3));
-      }
-      else if (token.startsWith("amp;"))
-      {
-        sb.append("&" + token.substring(4));
-      }
       else
       {
         sb.append(token);
@@ -156,11 +153,18 @@ public class ParseHtmlBodyAndLinks
     {
       // instead of parsing the html into plaintext
       // clean the description ready for embedding in html
-      sb = new StringBuffer(LEFT_ANGLE_BRACKET_PATTERN.matcher(description)
-              .replaceAll("&lt;"));
-
+      sb = new StringBuilder(LEFT_ANGLE_BRACKET_PATTERN
+              .matcher(description).replaceAll("&lt;"));
     }
+    content = translateEntities(sb.toString());
+  }
 
+  private String translateEntities(String s)
+  {
+    s = s.replaceAll("&amp;", "&");
+    s = s.replaceAll("&lt;", "<");
+    s = s.replaceAll("&gt;", ">");
+    return s;
   }
 
   /**
@@ -171,7 +175,7 @@ public class ParseHtmlBodyAndLinks
    */
   public String getNonHtmlContent()
   {
-    return isHtmlContent() ? sb.toString() : orig;
+    return isHtmlContent() ? content : orig;
   }
 
 }

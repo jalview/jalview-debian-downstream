@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.jbgui.GAlignFrame;
 import jalview.jbgui.GSplitFrame;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.Platform;
 import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.Component;
@@ -36,6 +37,8 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.beans.PropertyVetoException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map.Entry;
 
 import javax.swing.AbstractAction;
@@ -60,6 +63,16 @@ import javax.swing.event.InternalFrameEvent;
  */
 public class SplitFrame extends GSplitFrame implements SplitContainerI
 {
+  private static final int WINDOWS_INSETS_WIDTH = 28; // tbc
+
+  private static final int MAC_INSETS_WIDTH = 28;
+
+  private static final int WINDOWS_INSETS_HEIGHT = 50; // tbc
+
+  private static final int MAC_INSETS_HEIGHT = 50;
+
+  private static final int DESKTOP_DECORATORS_HEIGHT = 65;
+
   private static final long serialVersionUID = 1L;
 
   public SplitFrame(GAlignFrame top, GAlignFrame bottom)
@@ -81,12 +94,19 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     ((AlignFrame) getTopFrame()).getViewport().setCodingComplement(
             ((AlignFrame) getBottomFrame()).getViewport());
 
-    int width = ((AlignFrame) getTopFrame()).getWidth();
-    // about 50 pixels for the SplitFrame's title bar etc
+    /*
+     * estimate width and height of SplitFrame; this.getInsets() doesn't seem to
+     * give the full additional size (a few pixels short)
+     */
+    int widthFudge = Platform.isAMac() ? MAC_INSETS_WIDTH
+            : WINDOWS_INSETS_WIDTH;
+    int heightFudge = Platform.isAMac() ? MAC_INSETS_HEIGHT
+            : WINDOWS_INSETS_HEIGHT;
+    int width = ((AlignFrame) getTopFrame()).getWidth() + widthFudge;
     int height = ((AlignFrame) getTopFrame()).getHeight()
-            + ((AlignFrame) getBottomFrame()).getHeight() + 50;
-    // about 65 pixels for Desktop decorators on Windows
-    height = Math.min(height, Desktop.instance.getHeight() - 65);
+            + ((AlignFrame) getBottomFrame()).getHeight() + DIVIDER_SIZE
+            + heightFudge;
+    height = fitHeightToDesktop(height);
     setSize(width, height);
 
     adjustLayout();
@@ -98,6 +118,28 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     addKeyBindings();
 
     addCommandListeners();
+  }
+
+  /**
+   * Reduce the height if too large to fit in the Desktop. Also adjust the
+   * divider location in proportion.
+   * 
+   * @param height
+   *          in pixels
+   * @return original or reduced height
+   */
+  public int fitHeightToDesktop(int height)
+  {
+    // allow about 65 pixels for Desktop decorators on Windows
+
+    int newHeight = Math.min(height, Desktop.instance.getHeight()
+            - DESKTOP_DECORATORS_HEIGHT);
+    if (newHeight != height)
+    {
+      int oldDividerLocation = getDividerLocation();
+      setDividerLocation(oldDividerLocation * newHeight / height);
+    }
+    return newHeight;
   }
 
   /**
@@ -152,6 +194,46 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
       vs.setCharWidth(scale * cdna.getViewStyle().getCharWidth());
       protein.setViewStyle(vs);
     }
+  }
+
+  /**
+   * Adjust the divider for a sensible split of the real estate (for example,
+   * when many transcripts are shown with a single protein). This should only be
+   * called after the split pane has been laid out (made visible) so it has a
+   * height.
+   */
+  protected void adjustDivider()
+  {
+    final AlignViewport topViewport = ((AlignFrame) getTopFrame()).viewport;
+    final AlignViewport bottomViewport = ((AlignFrame) getBottomFrame()).viewport;
+    final AlignmentI topAlignment = topViewport.getAlignment();
+    final AlignmentI bottomAlignment = bottomViewport.getAlignment();
+    boolean topAnnotations = topViewport.isShowAnnotation();
+    boolean bottomAnnotations = bottomViewport.isShowAnnotation();
+    // TODO need number of visible sequences here, not #sequences - how?
+    int topCount = topAlignment.getHeight();
+    int bottomCount = bottomAlignment.getHeight();
+    int topCharHeight = topViewport.getViewStyle().getCharHeight();
+    int bottomCharHeight = bottomViewport.getViewStyle().getCharHeight();
+
+    /*
+     * estimate ratio of (topFrameContent / bottomFrameContent)
+     */
+    int insets = Platform.isAMac() ? MAC_INSETS_HEIGHT
+            : WINDOWS_INSETS_HEIGHT;
+    // allow 3 'rows' for scale, scrollbar, status bar
+    int topHeight = insets + (3 + topCount) * topCharHeight
+            + (topAnnotations ? topViewport.calcPanelHeight() : 0);
+    int bottomHeight = insets + (3 + bottomCount) * bottomCharHeight
+            + (bottomAnnotations ? bottomViewport.calcPanelHeight() : 0);
+    double ratio = ((double) topHeight) / (topHeight + bottomHeight);
+
+    /*
+     * limit to 0.2 <= ratio <= 0.8 to avoid concealing all sequences
+     */
+    ratio = Math.min(ratio, 0.8d);
+    ratio = Math.max(ratio, 0.2d);
+    setRelativeDividerLocation(ratio);
   }
 
   /**
@@ -256,6 +338,7 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
         actioned = true;
         e.consume();
       }
+      break;
     default:
     }
     return actioned;
@@ -629,6 +712,18 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
       ((AlignFrame) getTopFrame()).alignPanel.setVisible(show);
     }
     super.setComplementVisible(alignFrame, show);
+  }
+
+  /**
+   * return the AlignFrames held by this container
+   * 
+   * @return { Top alignFrame (Usually CDS), Bottom AlignFrame (Usually
+   *         Protein)}
+   */
+  public List<AlignFrame> getAlignFrames()
+  {
+    return Arrays.asList(new AlignFrame[] { (AlignFrame) getTopFrame(),
+        (AlignFrame) getBottomFrame() });
   }
 
   /**

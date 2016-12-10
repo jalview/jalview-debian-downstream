@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.datamodel;
 
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 /**
@@ -31,6 +32,22 @@ import java.util.Vector;
  */
 public class SequenceFeature
 {
+  private static final String STATUS = "status";
+
+  private static final String STRAND = "STRAND";
+
+  // private key for Phase designed not to conflict with real GFF data
+  private static final String PHASE = "!Phase";
+
+  // private key for ENA location designed not to conflict with real GFF data
+  private static final String LOCATION = "!Location";
+
+  /*
+   * ATTRIBUTES is reserved for the GFF 'column 9' data, formatted as
+   * name1=value1;name2=value2,value3;...etc
+   */
+  private static final String ATTRIBUTES = "ATTRIBUTES";
+
   public int begin;
 
   public int end;
@@ -41,7 +58,11 @@ public class SequenceFeature
 
   public String description;
 
-  public Hashtable otherDetails;
+  /*
+   * a map of key-value pairs; may be populated from GFF 'column 9' data,
+   * other data sources (e.g. GenBank file), or programmatically
+   */
+  public Map<String, Object> otherDetails;
 
   public Vector<String> links;
 
@@ -54,9 +75,9 @@ public class SequenceFeature
   }
 
   /**
-   * Constructs a duplicate feature. Note: Uses clone on the otherDetails so
-   * only shallow copies are made of additional properties and method will
-   * silently fail if unclonable objects are found in the hash.
+   * Constructs a duplicate feature. Note: Uses makes a shallow copy of the
+   * otherDetails map, so the new and original SequenceFeature may reference the
+   * same objects in the map.
    * 
    * @param cpy
    */
@@ -83,10 +104,11 @@ public class SequenceFeature
       {
         try
         {
-          otherDetails = (Hashtable) cpy.otherDetails.clone();
+          otherDetails = (Map<String, Object>) ((HashMap<String, Object>) cpy.otherDetails)
+                  .clone();
         } catch (Exception e)
         {
-          // Uncloneable objects in the otherDetails - don't complain
+          // ignore
         }
       }
       if (cpy.links != null && cpy.links.size() > 0)
@@ -100,42 +122,145 @@ public class SequenceFeature
     }
   }
 
+  /**
+   * Constructor including a Status value
+   * 
+   * @param type
+   * @param desc
+   * @param status
+   * @param begin
+   * @param end
+   * @param featureGroup
+   */
   public SequenceFeature(String type, String desc, String status,
           int begin, int end, String featureGroup)
   {
+    this(type, desc, begin, end, featureGroup);
+    setStatus(status);
+  }
+
+  /**
+   * Constructor
+   * 
+   * @param type
+   * @param desc
+   * @param begin
+   * @param end
+   * @param featureGroup
+   */
+  SequenceFeature(String type, String desc, int begin, int end,
+          String featureGroup)
+  {
     this.type = type;
     this.description = desc;
-    setValue("status", status);
     this.begin = begin;
     this.end = end;
     this.featureGroup = featureGroup;
   }
 
+  /**
+   * Constructor including a score value
+   * 
+   * @param type
+   * @param desc
+   * @param begin
+   * @param end
+   * @param score
+   * @param featureGroup
+   */
   public SequenceFeature(String type, String desc, int begin, int end,
           float score, String featureGroup)
   {
-    this.type = type;
-    this.description = desc;
-    this.begin = begin;
-    this.end = end;
+    this(type, desc, begin, end, featureGroup);
     this.score = score;
-    this.featureGroup = featureGroup;
   }
 
-  public boolean equals(SequenceFeature sf)
+  /**
+   * Two features are considered equal if they have the same type, group,
+   * description, start, end, phase, strand, and (if present) 'Name', ID' and
+   * 'Parent' attributes.
+   * 
+   * Note we need to check Parent to distinguish the same exon occurring in
+   * different transcripts (in Ensembl GFF). This allows assembly of transcript
+   * sequences from their component exon regions.
+   */
+  @Override
+  public boolean equals(Object o)
   {
-    if (begin != sf.begin || end != sf.end || score != sf.score)
+    return equals(o, false);
+  }
+
+  /**
+   * Overloaded method allows the equality test to optionally ignore the
+   * 'Parent' attribute of a feature. This supports avoiding adding many
+   * superficially duplicate 'exon' or CDS features to genomic or protein
+   * sequence.
+   * 
+   * @param o
+   * @param ignoreParent
+   * @return
+   */
+  public boolean equals(Object o, boolean ignoreParent)
+  {
+    if (o == null || !(o instanceof SequenceFeature))
     {
       return false;
     }
 
-    if (!(type + description + featureGroup).equals(sf.type
-            + sf.description + sf.featureGroup))
+    SequenceFeature sf = (SequenceFeature) o;
+    boolean sameScore = Float.isNaN(score) ? Float.isNaN(sf.score)
+            : score == sf.score;
+    if (begin != sf.begin || end != sf.end || !sameScore)
     {
       return false;
     }
 
+    if (getStrand() != sf.getStrand())
+    {
+      return false;
+    }
+
+    if (!(type + description + featureGroup + getPhase()).equals(sf.type
+            + sf.description + sf.featureGroup + sf.getPhase()))
+    {
+      return false;
+    }
+    if (!equalAttribute(getValue("ID"), sf.getValue("ID")))
+    {
+      return false;
+    }
+    if (!equalAttribute(getValue("Name"), sf.getValue("Name")))
+    {
+      return false;
+    }
+    if (!ignoreParent)
+    {
+      if (!equalAttribute(getValue("Parent"), sf.getValue("Parent")))
+      {
+        return false;
+      }
+    }
     return true;
+  }
+
+  /**
+   * Returns true if both values are null, are both non-null and equal
+   * 
+   * @param att1
+   * @param att2
+   * @return
+   */
+  protected static boolean equalAttribute(Object att1, Object att2)
+  {
+    if (att1 == null && att2 == null)
+    {
+      return true;
+    }
+    if (att1 != null)
+    {
+      return att1.equals(att2);
+    }
+    return att2.equals(att1);
   }
 
   /**
@@ -229,7 +354,7 @@ public class SequenceFeature
   }
 
   /**
-   * Used for getting values which are not in the basic set. eg STRAND, FRAME
+   * Used for getting values which are not in the basic set. eg STRAND, PHASE
    * for GFF file
    * 
    * @param key
@@ -248,6 +373,20 @@ public class SequenceFeature
   }
 
   /**
+   * Returns a property value for the given key if known, else the specified
+   * default value
+   * 
+   * @param key
+   * @param defaultValue
+   * @return
+   */
+  public Object getValue(String key, Object defaultValue)
+  {
+    Object value = getValue(key);
+    return value == null ? defaultValue : value;
+  }
+
+  /**
    * Used for setting values which are not in the basic set. eg STRAND, FRAME
    * for GFF file
    * 
@@ -262,7 +401,7 @@ public class SequenceFeature
     {
       if (otherDetails == null)
       {
-        otherDetails = new Hashtable();
+        otherDetails = new HashMap<String, Object>();
       }
 
       otherDetails.put(key, value);
@@ -275,20 +414,22 @@ public class SequenceFeature
    */
   public void setStatus(String status)
   {
-    setValue("status", status);
+    setValue(STATUS, status);
   }
 
   public String getStatus()
   {
-    if (otherDetails != null)
-    {
-      String stat = (String) otherDetails.get("status");
-      if (stat != null)
-      {
-        return new String(stat);
-      }
-    }
-    return null;
+    return (String) getValue(STATUS);
+  }
+
+  public void setAttributes(String attr)
+  {
+    setValue(ATTRIBUTES, attr);
+  }
+
+  public String getAttributes()
+  {
+    return (String) getValue(ATTRIBUTES);
   }
 
   public void setPosition(int pos)
@@ -302,23 +443,109 @@ public class SequenceFeature
     return begin;
   }
 
+  /**
+   * Return 1 for forward strand ('+' in GFF), -1 for reverse strand ('-' in
+   * GFF), and 0 for unknown or not (validly) specified
+   * 
+   * @return
+   */
   public int getStrand()
   {
-    String str;
-    if (otherDetails == null
-            || (str = otherDetails.get("STRAND").toString()) == null)
+    int strand = 0;
+    if (otherDetails != null)
     {
-      return 0;
+      Object str = otherDetails.get(STRAND);
+      if ("-".equals(str))
+      {
+        strand = -1;
+      }
+      else if ("+".equals(str))
+      {
+        strand = 1;
+      }
     }
-    if (str.equals("-"))
-    {
-      return -1;
-    }
-    if (str.equals("+"))
-    {
-      return 1;
-    }
-    return 0;
+    return strand;
   }
 
+  /**
+   * Set the value of strand
+   * 
+   * @param strand
+   *          should be "+" for forward, or "-" for reverse
+   */
+  public void setStrand(String strand)
+  {
+    setValue(STRAND, strand);
+  }
+
+  public void setPhase(String phase)
+  {
+    setValue(PHASE, phase);
+  }
+
+  public String getPhase()
+  {
+    return (String) getValue(PHASE);
+  }
+
+  /**
+   * Sets the 'raw' ENA format location specifier e.g. join(12..45,89..121)
+   * 
+   * @param loc
+   */
+  public void setEnaLocation(String loc)
+  {
+    setValue(LOCATION, loc);
+  }
+
+  /**
+   * Gets the 'raw' ENA format location specifier e.g. join(12..45,89..121)
+   * 
+   * @param loc
+   */
+  public String getEnaLocation()
+  {
+    return (String) getValue(LOCATION);
+  }
+
+  /**
+   * Readable representation, for debug only, not guaranteed not to change
+   * between versions
+   */
+  @Override
+  public String toString()
+  {
+    return String.format("%d %d %s %s", getBegin(), getEnd(), getType(),
+            getDescription());
+  }
+
+  /**
+   * Overridden to ensure that whenever two objects are equal, they have the
+   * same hashCode
+   */
+  @Override
+  public int hashCode()
+  {
+    String s = getType() + getDescription() + getFeatureGroup()
+            + getValue("ID") + getValue("Name") + getValue("Parent")
+            + getPhase();
+    return s.hashCode() + getBegin() + getEnd() + (int) getScore()
+            + getStrand();
+  }
+
+  /**
+   * Answers true if the feature's start/end values represent two related
+   * positions, rather than ends of a range. Such features may be visualised or
+   * reported differently to features on a range.
+   */
+  public boolean isContactFeature()
+  {
+    // TODO abstract one day to a FeatureType class
+    if ("disulfide bond".equalsIgnoreCase(type)
+            || "disulphide bond".equalsIgnoreCase(type))
+    {
+      return true;
+    }
+    return false;
+  }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -59,13 +59,19 @@ public class SeqsetUtils
         sfeat.addElement(sfarray[i]);
       }
     }
-    sqinfo.put("SeqFeatures", sfeat);
-    sqinfo.put("PdbId",
-            (seq.getAllPDBEntries() != null) ? seq.getAllPDBEntries()
-                    : new Vector<PDBEntry>());
-    sqinfo.put("datasetSequence",
-            (seq.getDatasetSequence() != null) ? seq.getDatasetSequence()
-                    : new Sequence("THISISAPLACEHOLDER", ""));
+    if (seq.getDatasetSequence() == null)
+    {
+      sqinfo.put("SeqFeatures", sfeat);
+      sqinfo.put("PdbId",
+              (seq.getAllPDBEntries() != null) ? seq.getAllPDBEntries()
+                      : new Vector<PDBEntry>());
+    }
+    else
+    {
+      sqinfo.put("datasetSequence",
+              (seq.getDatasetSequence() != null) ? seq.getDatasetSequence()
+                      : new Sequence("THISISAPLACEHOLDER", ""));
+    }
     return sqinfo;
   }
 
@@ -129,6 +135,11 @@ public class SeqsetUtils
             && !(seqds.getName().equals("THISISAPLACEHOLDER") && seqds
                     .getLength() == 0))
     {
+      if (sfeatures != null)
+      {
+        System.err
+                .println("Implementation error: setting dataset sequence for a sequence which has sequence features.\n\tDataset sequence features will not be visible.");
+      }
       sq.setDatasetSequence(seqds);
     }
 

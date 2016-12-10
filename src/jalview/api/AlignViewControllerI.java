@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,8 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.api;
+
+import java.util.List;
 
 /**
  * prototype abstract controller for a Jalview alignment view
@@ -62,7 +64,7 @@ public interface AlignViewControllerI
    * @return true if operation affected state
    */
   boolean markColumnsContainingFeatures(boolean invert,
-          boolean extendCurrent, boolean clearColumns, String featureType);
+          boolean extendCurrent, boolean toggle, String featureType);
 
   /**
    * sort the alignment or current selection by average score over the given set
@@ -71,7 +73,7 @@ public interface AlignViewControllerI
    * @param typ
    *          list of feature names or null to use currently displayed features
    */
-  void sortAlignmentByFeatureScore(String[] typ);
+  void sortAlignmentByFeatureScore(List<String> typ);
 
   /**
    * sort the alignment or current selection by distribution of the given set of
@@ -80,7 +82,7 @@ public interface AlignViewControllerI
    * @param typ
    *          list of feature names or null to use currently displayed features
    */
-  void sortAlignmentByFeatureDensity(String[] typ);
+  void sortAlignmentByFeatureDensity(List<String> typ);
 
   /**
    * add a features file of some kind to the current view
@@ -94,5 +96,17 @@ public interface AlignViewControllerI
    */
   public boolean parseFeaturesFile(String file, String protocol,
           boolean relaxedIdMatching);
+
+  /**
+   * mark columns containing highlighted regions (e.g. from search, structure
+   * highlight, or a mouse over event in another viewer)
+   * 
+   * @param invert
+   * @param extendCurrent
+   * @param toggle
+   * @return
+   */
+  boolean markHighlightedColumns(boolean invert, boolean extendCurrent,
+          boolean toggle);
 
 }

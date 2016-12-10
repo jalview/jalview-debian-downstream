@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,6 +43,11 @@ public class AnnotationPojo
   @Attributes(required = false, description = "Value of the annotation")
   private float value;
 
+  @Attributes(
+    required = false,
+    description = "Colour of the annotation position in hex string.")
+  private String colour;
+
   public String getDisplayCharacter()
   {
     return displayCharacter;
@@ -81,6 +86,16 @@ public class AnnotationPojo
   public void setValue(float value)
   {
     this.value = value;
+  }
+
+  public String getColour()
+  {
+    return colour;
+  }
+
+  public void setColour(String colour)
+  {
+    this.colour = colour;
   }
 
 }

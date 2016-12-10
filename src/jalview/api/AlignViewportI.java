@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,8 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.datamodel.CigarArray;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.ProfilesI;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
@@ -53,6 +55,18 @@ public interface AlignViewportI extends ViewStyleI
    */
   public int calcPanelHeight();
 
+  /**
+   * Answers true if the viewport has at least one column selected
+   * 
+   * @return
+   */
+  boolean hasSelectedColumns();
+
+  /**
+   * Answers true if the viewport has at least one hidden column
+   * 
+   * @return
+   */
   boolean hasHiddenColumns();
 
   boolean isValidCharWidth();
@@ -69,7 +83,7 @@ public interface AlignViewportI extends ViewStyleI
 
   ColumnSelection getColumnSelection();
 
-  Hashtable[] getSequenceConsensusHash();
+  ProfilesI getSequenceConsensusHash();
 
   /**
    * Get consensus data table for the cDNA complement of this alignment (if any)
@@ -110,6 +124,11 @@ public interface AlignViewportI extends ViewStyleI
   boolean isClosed();
 
   /**
+   * Dispose of all references or resources held by the viewport
+   */
+  void dispose();
+
+  /**
    * get the associated calculation thread manager for the view
    * 
    * @return
@@ -127,7 +146,7 @@ public interface AlignViewportI extends ViewStyleI
    * 
    * @param hconsensus
    */
-  void setSequenceConsensusHash(Hashtable[] hconsensus);
+  void setSequenceConsensusHash(ProfilesI hconsensus);
 
   /**
    * Set the cDNA complement consensus for the viewport
@@ -235,11 +254,31 @@ public interface AlignViewportI extends ViewStyleI
    * This method returns the visible alignment as text, as seen on the GUI, ie
    * if columns are hidden they will not be returned in the result. Use this for
    * calculating trees, PCA, redundancy etc on views which contain hidden
-   * columns.
-   * 
+   * columns. This method doesn't exclude hidden sequences from the output.
+   *
+   * @param selectedRegionOnly
+   *          - determines if only the selected region or entire alignment is
+   *          exported
    * @return String[]
    */
   String[] getViewAsString(boolean selectedRegionOnly);
+
+  /**
+   * This method returns the visible alignment as text, as seen on the GUI, ie
+   * if columns are hidden they will not be returned in the result. Use this for
+   * calculating trees, PCA, redundancy etc on views which contain hidden
+   * columns.
+   * 
+   * @param selectedRegionOnly
+   *          - determines if only the selected region or entire alignment is
+   *          exported
+   * @param isExportHiddenSeqs
+   *          - determines if hidden sequences would be exported or not.
+   * 
+   * @return String[]
+   */
+  String[] getViewAsString(boolean selectedRegionOnly,
+          boolean isExportHiddenSeqs);
 
   void setSelectionGroup(SequenceGroup sg);
 
@@ -375,4 +414,35 @@ public interface AlignViewportI extends ViewStyleI
    * Set whether view should scroll to show the highlighted region of a sequence
    */
   void setFollowHighlight(boolean b);
+
+  public void applyFeaturesStyle(FeatureSettingsModelI featureSettings);
+
+  /**
+   * check if current selection group is defined on the view, or is simply a
+   * temporary group.
+   * 
+   * @return true if group is defined on the alignment
+   */
+  boolean isSelectionDefinedGroup();
+
+  /**
+   * 
+   * @return true if there are search results on the view
+   */
+  boolean hasSearchResults();
+
+  /**
+   * set the search results for the view
+   * 
+   * @param results
+   *          - or null to clear current results
+   */
+  void setSearchResults(SearchResultsI results);
+
+  /**
+   * get search results for this view (if any)
+   * 
+   * @return search results or null
+   */
+  SearchResultsI getSearchResults();
 }

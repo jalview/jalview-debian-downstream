@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -127,6 +127,11 @@ public class Grouping
         }
       }
     }
+
+    /*
+     * get selected columns (in the order they were selected);
+     * note this could include right-to-left ranges
+     */
     int[] spos = new int[cs.getSelected().size()];
     int width = -1;
     int i = 0;
@@ -134,7 +139,7 @@ public class Grouping
     {
       spos[i++] = pos.intValue();
     }
-    ;
+
     for (i = 0; i < sequences.length; i++)
     {
       int slen = sequences[i].getLength();

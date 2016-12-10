@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -176,6 +176,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
      * 
      * @return true if getAlignment will return a valid alignment result.
      */
+    @Override
     public boolean hasResults()
     {
       if (subjobComplete
@@ -316,6 +317,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
      * 
      * @return boolean true if job can be submitted.
      */
+    @Override
     public boolean hasValidInput()
     {
       // TODO: get attributes for this MsaWS instance to check if it can do two
@@ -436,7 +438,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
 
   String alTitle; // name which will be used to form new alignment window.
 
-  Alignment dataset; // dataset to which the new alignment will be
+  AlignmentI dataset; // dataset to which the new alignment will be
 
   // associated.
 
@@ -479,7 +481,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           String wsUrl, WebserviceInfo wsinfo,
           jalview.gui.AlignFrame alFrame, String wsname, String title,
           AlignmentView _msa, boolean subgaps, boolean presorder,
-          Alignment seqset)
+          AlignmentI seqset)
   {
     this(server2, wsUrl, wsinfo, alFrame, _msa, wsname, subgaps, presorder);
     OutputHeader = wsInfo.getProgressText();
@@ -530,11 +532,13 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     return validInput;
   }
 
+  @Override
   public boolean isCancellable()
   {
     return true;
   }
 
+  @Override
   public void cancelJob()
   {
     if (!jobComplete && jobs != null)
@@ -605,6 +609,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     }
   }
 
+  @Override
   public void pollJob(AWsJob job) throws Exception
   {
     // TODO: investigate if we still need to cast here in J1.6
@@ -650,6 +655,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     return changed;
   }
 
+  @Override
   public void StartJob(AWsJob job)
   {
     Exception lex = null;
@@ -775,6 +781,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     }
   }
 
+  @Override
   public void parseResult()
   {
     long progbar = System.currentTimeMillis();
@@ -889,6 +896,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       wsInfo.showResultsNewFrame
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(true);
@@ -897,6 +905,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       wsInfo.mergeResults
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(false);
@@ -1023,6 +1032,10 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       // becomes null if the alignment window was closed before the alignment
       // job finished.
       AlignmentI copyComplement = new Alignment(complement);
+      // todo should this be done by copy constructor?
+      copyComplement.setGapCharacter(complement.getGapCharacter());
+      // share the same dataset (and the mappings it holds)
+      copyComplement.setDataset(complement.getDataset());
       copyComplement.alignAs(al);
       if (copyComplement.getHeight() > 0)
       {
@@ -1101,6 +1114,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     }
   }
 
+  @Override
   public boolean canMergeResults()
   {
     return false;

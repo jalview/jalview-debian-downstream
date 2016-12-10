@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,8 +21,10 @@
 package jalview.ws.jws1;
 
 import jalview.analysis.AlignSeq;
+import jalview.api.FeatureColourI;
 import jalview.bin.Cache;
 import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
@@ -34,7 +36,9 @@ import jalview.ws.AWsJob;
 import jalview.ws.JobStateSummary;
 import jalview.ws.WSClientI;
 
+import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.Vector;
 
 import vamsas.objects.simple.MsaResult;
@@ -150,6 +154,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
      * 
      * @return true if getAlignment will return a valid alignment result.
      */
+    @Override
     public boolean hasResults()
     {
       if (subjobComplete
@@ -168,7 +173,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
      * 
      * @return null or { Alignment(+features and annotation), NewickFile)}
      */
-    public Object[] getAlignment(Alignment dataset, Hashtable featureColours)
+    public Object[] getAlignment(AlignmentI dataset,
+            Map<String, FeatureColourI> featureColours)
     {
 
       if (result != null && result.isFinished())
@@ -285,6 +291,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
      * 
      * @return boolean true if job can be submitted.
      */
+    @Override
     public boolean hasValidInput()
     {
       if (seqs.getSeqs() != null)
@@ -297,7 +304,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
 
   String alTitle; // name which will be used to form new alignment window.
 
-  Alignment dataset; // dataset to which the new alignment will be
+  AlignmentI dataset; // dataset to which the new alignment will be
 
   // associated.
 
@@ -339,7 +346,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
   SeqSearchWSThread(ext.vamsas.SeqSearchI server, String wsUrl,
           WebserviceInfo wsinfo, jalview.gui.AlignFrame alFrame,
           String wsname, String title, AlignmentView _msa, String db,
-          Alignment seqset)
+          AlignmentI seqset)
   {
     this(server, wsUrl, wsinfo, alFrame, _msa, wsname, db);
     OutputHeader = wsInfo.getProgressText();
@@ -371,11 +378,13 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public boolean isCancellable()
   {
     return true;
   }
 
+  @Override
   public void cancelJob()
   {
     if (!jobComplete && jobs != null)
@@ -442,12 +451,14 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public void pollJob(AWsJob job) throws Exception
   {
     ((SeqSearchWSJob) job).result = server.getResult(((SeqSearchWSJob) job)
             .getJobId());
   }
 
+  @Override
   public void StartJob(AWsJob job)
   {
     if (!(job instanceof SeqSearchWSJob))
@@ -534,6 +545,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     return msa;
   }
 
+  @Override
   public void parseResult()
   {
     int results = 0; // number of result sets received
@@ -577,6 +589,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       wsInfo.showResultsNewFrame
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(true);
@@ -585,6 +598,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       wsInfo.mergeResults
               .addActionListener(new java.awt.event.ActionListener()
               {
+                @Override
                 public void actionPerformed(java.awt.event.ActionEvent evt)
                 {
                   displayResults(false);
@@ -610,7 +624,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     // NewickFile nf[] = new NewickFile[jobs.length];
     for (int j = 0; j < jobs.length; j++)
     {
-      Hashtable featureColours = new Hashtable();
+      Map<String, FeatureColourI> featureColours = new HashMap<String, FeatureColourI>();
       Alignment al = null;
       NewickFile nf = null;
       if (jobs[j].hasResults())
@@ -662,6 +676,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     }
   }
 
+  @Override
   public boolean canMergeResults()
   {
     return false;

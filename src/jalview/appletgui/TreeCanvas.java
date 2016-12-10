@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,7 +29,6 @@ import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequenceNode;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
 import jalview.util.Format;
 import jalview.util.MappingUtils;
@@ -122,13 +121,13 @@ public class TreeCanvas extends Panel implements MouseListener,
     tree.findHeight(tree.getTopNode());
 
     // Now have to calculate longest name based on the leaves
-    Vector leaves = tree.findLeaves(tree.getTopNode(), new Vector());
+    Vector<SequenceNode> leaves = tree.findLeaves(tree.getTopNode());
     boolean has_placeholders = false;
     longestName = "";
 
     for (int i = 0; i < leaves.size(); i++)
     {
-      SequenceNode lf = (SequenceNode) leaves.elementAt(i);
+      SequenceNode lf = leaves.elementAt(i);
 
       if (lf.isPlaceholder())
       {
@@ -525,13 +524,11 @@ public class TreeCanvas extends Panel implements MouseListener,
       }
       else
       {
-        Vector leaves = new Vector();
-        tree.findLeaves(highlightNode, leaves);
+        Vector<SequenceNode> leaves = tree.findLeaves(highlightNode);
 
         for (int i = 0; i < leaves.size(); i++)
         {
-          SequenceI seq = (SequenceI) ((SequenceNode) leaves.elementAt(i))
-                  .element();
+          SequenceI seq = (SequenceI) leaves.elementAt(i).element();
           treeSelectionChanged(seq);
         }
       }
@@ -628,16 +625,15 @@ public class TreeCanvas extends Panel implements MouseListener,
 
       Color col = new Color((int) (Math.random() * 255),
               (int) (Math.random() * 255), (int) (Math.random() * 255));
-      setColor((SequenceNode) tree.getGroups().elementAt(i), col.brighter());
+      setColor(tree.getGroups().elementAt(i), col.brighter());
 
-      Vector l = tree.findLeaves(
-              (SequenceNode) tree.getGroups().elementAt(i), new Vector());
+      Vector<SequenceNode> l = tree.findLeaves(tree.getGroups()
+              .elementAt(i));
 
-      Vector sequences = new Vector();
+      Vector<SequenceI> sequences = new Vector<SequenceI>();
       for (int j = 0; j < l.size(); j++)
       {
-        SequenceI s1 = (SequenceI) ((SequenceNode) l.elementAt(j))
-                .element();
+        SequenceI s1 = (SequenceI) l.elementAt(j).element();
         if (!sequences.contains(s1))
         {
           sequences.addElement(s1);
@@ -680,8 +676,7 @@ public class TreeCanvas extends Panel implements MouseListener,
       if (av.getGlobalColourScheme() != null
               && av.getGlobalColourScheme().conservationApplied())
       {
-        Conservation c = new Conservation("Group",
-                ResidueProperties.propHash, 3, sg.getSequences(null),
+        Conservation c = new Conservation("Group", sg.getSequences(null),
                 sg.getStartRes(), sg.getEndRes());
 
         c.calculate();

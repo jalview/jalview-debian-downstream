@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,12 @@
  */
 package jalview.datamodel;
 
-public class DBRefEntry
+import jalview.api.DBRefEntryI;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class DBRefEntry implements DBRefEntryI
 {
   String source = "", version = "", accessionId = "";
 
@@ -60,13 +65,14 @@ public class DBRefEntry
     this.map = map;
   }
 
-  public DBRefEntry(DBRefEntry entry)
+  public DBRefEntry(DBRefEntryI entry)
   {
-    this(
-            (entry.source == null ? "" : new String(entry.source)),
-            (entry.version == null ? "" : new String(entry.version)),
-            (entry.accessionId == null ? "" : new String(entry.accessionId)),
-            (entry.map == null ? null : new Mapping(entry.map)));
+    this((entry.getSource() == null ? "" : new String(entry.getSource())),
+            (entry.getVersion() == null ? "" : new String(
+                    entry.getVersion())),
+            (entry.getAccessionId() == null ? "" : new String(
+                    entry.getAccessionId())),
+            (entry.getMap() == null ? null : new Mapping(entry.getMap())));
   }
 
   @Override
@@ -93,13 +99,95 @@ public class DBRefEntry
   }
 
   /**
+   * Answers true if this object is either equivalent to, or can be 'improved'
+   * by, the given entry. Specifically, answers true if
+   * <ul>
+   * <li>source and accession are identical (ignoring case)</li>
+   * <li>version is identical (ignoring case), or this version is of the format
+   * "someSource:0", in which case the version for the other entry replaces it</li>
+   * <li>mappings are not compared but if this entry has no mapping, replace
+   * with that for the other entry</li>
+   * </ul>
+   * 
+   * @param other
+   * @return
+   */
+  @Override
+  public boolean updateFrom(DBRefEntryI other)
+  {
+    if (other == null)
+    {
+      return false;
+    }
+    if (other == this)
+    {
+      return true;
+    }
+
+    /*
+     * source must either match or be both null
+     */
+    String otherSource = other.getSource();
+    if ((source == null && otherSource != null)
+            || (source != null && otherSource == null)
+            || (source != null && !source.equalsIgnoreCase(otherSource)))
+    {
+      return false;
+    }
+
+    /*
+     * accession id must either match or be both null
+     */
+    String otherAccession = other.getAccessionId();
+    if ((accessionId == null && otherAccession != null)
+            || (accessionId != null && otherAccession == null)
+            || (accessionId != null && !accessionId
+                    .equalsIgnoreCase(otherAccession)))
+    {
+      return false;
+    }
+
+    /*
+     * if my version is null, "0" or "source:0" then replace with other version,
+     * otherwise the versions have to match
+     */
+    String otherVersion = other.getVersion();
+
+    if ((version == null || version.equals("0") || version.endsWith(":0"))
+            && otherVersion != null)
+    {
+      setVersion(otherVersion);
+    }
+    else
+    {
+      if (version != null
+              && (otherVersion == null || !version
+                      .equalsIgnoreCase(otherVersion)))
+      {
+        return false;
+      }
+    }
+
+    /*
+     * if I have no mapping, take that of the other dbref
+     */
+    if (map == null)
+    {
+      setMap(other.getMap());
+    }
+    return true;
+  }
+
+  /**
    * test for similar DBRef attributes, except for the map object.
    * 
    * @param entry
    * @return true if source, accession and version are equal with those of entry
    */
-  public boolean equalRef(DBRefEntry entry)
+  @Override
+  public boolean equalRef(DBRefEntryI entry)
   {
+    // TODO is this method and equals() not needed?
     if (entry == null)
     {
       return false;
@@ -108,63 +196,56 @@ public class DBRefEntry
     {
       return true;
     }
-    if ((source != null && entry.source != null && source
-            .equalsIgnoreCase(entry.source))
-            && (accessionId != null && entry.accessionId != null && accessionId
-                    .equalsIgnoreCase(entry.accessionId))
-            && (version != null && entry.version != null && version
-                    .equalsIgnoreCase(entry.version)))
+    if (entry != null
+            && (source != null && entry.getSource() != null && source
+                    .equalsIgnoreCase(entry.getSource()))
+            && (accessionId != null && entry.getAccessionId() != null && accessionId
+                    .equalsIgnoreCase(entry.getAccessionId()))
+            && (version != null && entry.getVersion() != null && version
+                    .equalsIgnoreCase(entry.getVersion())))
     {
       return true;
     }
     return false;
   }
 
+  @Override
   public String getSource()
   {
     return source;
   }
 
+  @Override
   public String getVersion()
   {
     return version;
   }
 
+  @Override
   public String getAccessionId()
   {
     return accessionId;
   }
 
-  /**
-   * @param accessionId
-   *          the accessionId to set
-   */
+  @Override
   public void setAccessionId(String accessionId)
   {
     this.accessionId = accessionId;
   }
 
-  /**
-   * @param source
-   *          the source to set
-   */
+  @Override
   public void setSource(String source)
   {
     this.source = source;
   }
 
-  /**
-   * @param version
-   *          the version to set
-   */
+  @Override
   public void setVersion(String version)
   {
     this.version = version;
   }
 
-  /**
-   * @return the map
-   */
+  @Override
   public Mapping getMap()
   {
     return map;
@@ -194,8 +275,61 @@ public class DBRefEntry
             + ((accessionId != null) ? accessionId : "");
   }
 
+  @Override
   public String toString()
   {
     return getSrcAccString();
+  }
+
+  @Override
+  public boolean isPrimaryCandidate()
+  {
+    /*
+     * if a map is present, unless it is 1:1 and has no SequenceI mate, it cannot be a primary reference.  
+     */
+    if (map != null)
+    {
+      if (map.getTo() != null)
+      {
+        return false;
+      }
+      if (map.getMap().getFromRatio() != map.getMap().getToRatio()
+              || map.getMap().getFromRatio() != 1)
+      {
+        return false;
+      }
+      // check map is between identical single contiguous ranges
+      List<int[]> fromRanges = map.getMap().getFromRanges();
+      List<int[]> toRanges = map.getMap().getToRanges();
+      if (fromRanges.size() != 1 || toRanges.size() != 1)
+      {
+        return false;
+      }
+      if (fromRanges.get(0)[0] != toRanges.get(0)[0]
+              || fromRanges.get(0)[1] != toRanges.get(0)[1])
+      {
+        return false;
+      }
+    }
+    if (version == null)
+    {
+      // no version string implies the reference has not been verified at all.
+      return false;
+    }
+    // tricky - this test really needs to search the sequence's set of dbrefs to
+    // see if there is a primary reference that derived this reference.
+    String ucv = version.toUpperCase();
+    for (String primsrc : Arrays.asList(DBRefSource.allSources()))
+    {
+      if (ucv.startsWith(primsrc.toUpperCase()))
+      {
+        // by convention, many secondary references inherit the primary
+        // reference's
+        // source string as a prefix for any version information from the
+        // secondary reference.
+        return false;
+      }
+    }
+    return true;
   }
 }

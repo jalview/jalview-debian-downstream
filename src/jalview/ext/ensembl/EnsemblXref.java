@@ -1,0 +1,224 @@
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
+package jalview.ext.ensembl;
+
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.DBRefEntry;
+import jalview.util.DBRefUtils;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+/**
+ * A class to fetch cross-references from Ensembl by calling the /xrefs REST
+ * service
+ * 
+ * @author gmcarstairs
+ * @see http://rest.ensembl.org/documentation/info/xref_id
+ */
+class EnsemblXref extends EnsemblRestClient
+{
+
+  private static final String GO_GENE_ONTOLOGY = "GO";
+
+  private String dbName = "ENSEMBL (xref)";
+
+  /**
+   * Constructor given the target domain to fetch data from
+   * 
+   * @param d
+   */
+  public EnsemblXref(String d, String dbSource, String version)
+  {
+    super(d);
+    dbName = dbSource;
+    xrefVersion = dbSource + ":" + version;
+
+  }
+
+  @Override
+  public String getDbName()
+  {
+    return dbName;
+  }
+
+  @Override
+  public AlignmentI getSequenceRecords(String queries) throws Exception
+  {
+    return null;
+  }
+
+  @Override
+  protected URL getUrl(List<String> ids) throws MalformedURLException
+  {
+    return getUrl(ids.get(0));
+  }
+
+  @Override
+  protected boolean useGetRequest()
+  {
+    return true;
+  }
+
+  @Override
+  protected String getRequestMimeType(boolean multipleIds)
+  {
+    return "application/json";
+  }
+
+  @Override
+  protected String getResponseMimeType()
+  {
+    return "application/json";
+  }
+
+  /**
+   * Calls the Ensembl xrefs REST endpoint and retrieves any cross-references
+   * ("primary_id") for the given identifier (Ensembl accession id) and database
+   * names. The "dbname" returned by Ensembl is canonicalised to Jalview's
+   * standard version, and a DBRefEntry constructed. Currently takes all
+   * identifiers apart from GO terms and synonyms.
+   * 
+   * @param identifier
+   *          an Ensembl stable identifier
+   * @return
+   */
+  public List<DBRefEntry> getCrossReferences(String identifier)
+  {
+    List<DBRefEntry> result = new ArrayList<DBRefEntry>();
+    List<String> ids = new ArrayList<String>();
+    ids.add(identifier);
+
+    BufferedReader br = null;
+    try
+    {
+      URL url = getUrl(identifier);
+      if (url != null)
+      {
+        br = getHttpResponse(url, ids);
+      }
+      return (parseResponse(br));
+    } catch (IOException e)
+    {
+      // ignore
+    } finally
+    {
+      if (br != null)
+      {
+        try
+        {
+          br.close();
+        } catch (IOException e)
+        {
+          // ignore
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Parses "primary_id" and "dbname" values from the JSON response and
+   * constructs a DBRefEntry. Returns a list of the DBRefEntry created. Note we
+   * don't parse "synonyms" as they appear to be either redirected or obsolete
+   * in Uniprot.
+   * 
+   * @param br
+   * @return
+   * @throws IOException
+   */
+  protected List<DBRefEntry> parseResponse(BufferedReader br)
+          throws IOException
+  {
+    JSONParser jp = new JSONParser();
+    List<DBRefEntry> result = new ArrayList<DBRefEntry>();
+    try
+    {
+      JSONArray responses = (JSONArray) jp.parse(br);
+      Iterator rvals = responses.iterator();
+      while (rvals.hasNext())
+      {
+        JSONObject val = (JSONObject) rvals.next();
+        String dbName = val.get("dbname").toString();
+        if (dbName.equals(GO_GENE_ONTOLOGY))
+        {
+          continue;
+        }
+        String id = val.get("primary_id").toString();
+        if (dbName != null && id != null)
+        {
+          dbName = DBRefUtils.getCanonicalName(dbName);
+          DBRefEntry dbref = new DBRefEntry(dbName, getXRefVersion(), id);
+          result.add(dbref);
+        }
+      }
+    } catch (ParseException e)
+    {
+      // ignore
+    }
+    return result;
+  }
+
+  private String xrefVersion = "ENSEMBL:0";
+
+  /**
+   * version string for Xrefs - for 2.10, hardwired for ENSEMBL:0
+   * 
+   * @return
+   */
+  public String getXRefVersion()
+  {
+    return xrefVersion;
+  }
+
+  /**
+   * Returns the URL for the REST endpoint to fetch all cross-references for an
+   * identifier. Note this may return protein cross-references for nucleotide.
+   * Filter the returned list as required.
+   * 
+   * @param identifier
+   * @return
+   */
+  protected URL getUrl(String identifier)
+  {
+    String url = getDomain() + "/xrefs/id/" + identifier
+            + "?content-type=application/json&all_levels=1";
+    try
+    {
+      return new URL(url);
+    } catch (MalformedURLException e)
+    {
+      return null;
+    }
+  }
+
+}

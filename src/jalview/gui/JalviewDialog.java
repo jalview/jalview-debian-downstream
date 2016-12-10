@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -59,6 +59,7 @@ public abstract class JalviewDialog extends JPanel
       new Thread(new Runnable()
       {
 
+        @Override
         public void run()
         {
           frame.setVisible(true);
@@ -95,6 +96,7 @@ public abstract class JalviewDialog extends JPanel
     ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         okPressed();
@@ -105,6 +107,7 @@ public abstract class JalviewDialog extends JPanel
     cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancelPressed();

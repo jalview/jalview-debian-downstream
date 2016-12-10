@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.gui;
 
+import jalview.analysis.Conservation;
+import jalview.api.FeatureColourI;
 import jalview.api.ViewStyleI;
 import jalview.api.structures.JalviewStructureDisplayI;
 import jalview.bin.Cache;
@@ -71,7 +73,7 @@ import jalview.schemabinding.version2.Viewport;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.GraduatedColor;
+import jalview.schemes.FeatureColour;
 import jalview.schemes.ResidueColourScheme;
 import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
@@ -79,6 +81,7 @@ import jalview.structure.StructureSelectionManager;
 import jalview.structures.models.AAStructureBindingModel;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
+import jalview.util.StringUtils;
 import jalview.util.jarInputStreamProvider;
 import jalview.viewmodel.AlignmentViewport;
 import jalview.viewmodel.seqfeatures.FeatureRendererSettings;
@@ -90,6 +93,7 @@ import jalview.ws.params.ArgumentI;
 import jalview.ws.params.AutoCalcSetting;
 import jalview.ws.params.WsParamSetI;
 
+import java.awt.Color;
 import java.awt.Rectangle;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -105,6 +109,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,7 +121,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.Vector;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -163,7 +167,9 @@ public class Jalview2XML
    */
   Map<String, SequenceI> seqRefIds = null;
 
-  Vector frefedSequence = null;
+  Map<String, SequenceI> incompleteSeqs = null;
+
+  List<SeqFref> frefedSequence = null;
 
   boolean raiseGUI = true; // whether errors are raised in dialog boxes or not
 
@@ -218,6 +224,10 @@ public class Jalview2XML
       {
         seqsToIds.clear();
       }
+      if (incompleteSeqs != null)
+      {
+        incompleteSeqs.clear();
+      }
       // seqRefIds = null;
       // seqsToIds = null;
     }
@@ -240,6 +250,14 @@ public class Jalview2XML
     {
       seqRefIds = new HashMap<String, SequenceI>();
     }
+    if (incompleteSeqs == null)
+    {
+      incompleteSeqs = new HashMap<String, SequenceI>();
+    }
+    if (frefedSequence == null)
+    {
+      frefedSequence = new ArrayList<SeqFref>();
+    }
   }
 
   public Jalview2XML()
@@ -251,77 +269,184 @@ public class Jalview2XML
     this.raiseGUI = raiseGUI;
   }
 
+  /**
+   * base class for resolving forward references to sequences by their ID
+   * 
+   * @author jprocter
+   *
+   */
+  abstract class SeqFref
+  {
+    String sref;
+
+    String type;
+
+    public SeqFref(String _sref, String type)
+    {
+      sref = _sref;
+      this.type = type;
+    }
+
+    public String getSref()
+    {
+      return sref;
+    }
+
+    public SequenceI getSrefSeq()
+    {
+      return seqRefIds.get(sref);
+    }
+
+    public boolean isResolvable()
+    {
+      return seqRefIds.get(sref) != null;
+    }
+
+    public SequenceI getSrefDatasetSeq()
+    {
+      SequenceI sq = seqRefIds.get(sref);
+      if (sq != null)
+      {
+        while (sq.getDatasetSequence() != null)
+        {
+          sq = sq.getDatasetSequence();
+        }
+      }
+      return sq;
+    }
+
+    /**
+     * @return true if the forward reference was fully resolved
+     */
+    abstract boolean resolve();
+
+    @Override
+    public String toString()
+    {
+      return type + " reference to " + sref;
+    }
+  }
+
+  /**
+   * create forward reference for a mapping
+   * 
+   * @param sref
+   * @param _jmap
+   * @return
+   */
+  public SeqFref newMappingRef(final String sref,
+          final jalview.datamodel.Mapping _jmap)
+  {
+    SeqFref fref = new SeqFref(sref, "Mapping")
+    {
+      public jalview.datamodel.Mapping jmap = _jmap;
+
+      @Override
+      boolean resolve()
+      {
+        SequenceI seq = getSrefDatasetSeq();
+        if (seq == null)
+        {
+          return false;
+        }
+        jmap.setTo(seq);
+        return true;
+      }
+    };
+    return fref;
+  }
+
+  public SeqFref newAlcodMapRef(final String sref,
+          final AlignedCodonFrame _cf, final jalview.datamodel.Mapping _jmap)
+  {
+
+    SeqFref fref = new SeqFref(sref, "Codon Frame")
+    {
+      AlignedCodonFrame cf = _cf;
+
+      public jalview.datamodel.Mapping mp = _jmap;
+
+      @Override
+      public boolean isResolvable()
+      {
+        return super.isResolvable() && mp.getTo() != null;
+      };
+
+      @Override
+      boolean resolve()
+      {
+        SequenceI seq = getSrefDatasetSeq();
+        if (seq == null)
+        {
+          return false;
+        }
+        cf.addMap(seq, mp.getTo(), mp.getMap());
+        return true;
+      }
+    };
+    return fref;
+  }
+
   public void resolveFrefedSequences()
   {
-    if (frefedSequence.size() > 0)
+    Iterator<SeqFref> nextFref = frefedSequence.iterator();
+    int toresolve = frefedSequence.size();
+    int unresolved = 0, failedtoresolve = 0;
+    while (nextFref.hasNext())
     {
-      int r = 0, rSize = frefedSequence.size();
-      while (r < rSize)
+      SeqFref ref = nextFref.next();
+      if (ref.isResolvable())
       {
-        Object[] ref = (Object[]) frefedSequence.elementAt(r);
-        if (ref != null)
+        try
         {
-          String sref = (String) ref[0];
-          if (seqRefIds.containsKey(sref))
+          if (ref.resolve())
           {
-            if (ref[1] instanceof jalview.datamodel.Mapping)
-            {
-              SequenceI seq = seqRefIds.get(sref);
-              while (seq.getDatasetSequence() != null)
-              {
-                seq = seq.getDatasetSequence();
-              }
-              ((jalview.datamodel.Mapping) ref[1]).setTo(seq);
-            }
-            else
-            {
-              if (ref[1] instanceof jalview.datamodel.AlignedCodonFrame)
-              {
-                SequenceI seq = seqRefIds.get(sref);
-                while (seq.getDatasetSequence() != null)
-                {
-                  seq = seq.getDatasetSequence();
-                }
-                if (ref[2] != null
-                        && ref[2] instanceof jalview.datamodel.Mapping)
-                {
-                  jalview.datamodel.Mapping mp = (jalview.datamodel.Mapping) ref[2];
-                  ((jalview.datamodel.AlignedCodonFrame) ref[1]).addMap(
-                          seq, mp.getTo(), mp.getMap());
-                }
-                else
-                {
-                  System.err
-                          .println("IMPLEMENTATION ERROR: Unimplemented forward sequence references for AlcodonFrames involving "
-                                  + ref[2].getClass() + " type objects.");
-                }
-              }
-              else
-              {
-                System.err
-                        .println("IMPLEMENTATION ERROR: Unimplemented forward sequence references for "
-                                + ref[1].getClass() + " type objects.");
-              }
-            }
-            frefedSequence.remove(r);
-            rSize--;
+            nextFref.remove();
           }
           else
           {
-            System.err
-                    .println("IMPLEMENTATION WARNING: Unresolved forward reference for hash string "
-                            + ref[0]
-                            + " with objecttype "
-                            + ref[1].getClass());
-            r++;
+            failedtoresolve++;
           }
-        }
-        else
+        } catch (Exception x)
         {
-          // empty reference
-          frefedSequence.remove(r);
-          rSize--;
+          System.err
+                  .println("IMPLEMENTATION ERROR: Failed to resolve forward reference for sequence "
+                          + ref.getSref());
+          x.printStackTrace();
+          failedtoresolve++;
         }
+      }
+      else
+      {
+        unresolved++;
+      }
+    }
+    if (unresolved > 0)
+    {
+      System.err.println("Jalview Project Import: There were " + unresolved
+              + " forward references left unresolved on the stack.");
+    }
+    if (failedtoresolve > 0)
+    {
+      System.err.println("SERIOUS! " + failedtoresolve
+              + " resolvable forward references failed to resolve.");
+    }
+    if (incompleteSeqs != null && incompleteSeqs.size() > 0)
+    {
+      System.err.println("Jalview Project Import: There are "
+              + incompleteSeqs.size()
+              + " sequences which may have incomplete metadata.");
+      if (incompleteSeqs.size() < 10)
+      {
+        for (SequenceI s : incompleteSeqs.values())
+        {
+          System.err.println(s.toString());
+        }
+      }
+      else
+      {
+        System.err
+                .println("Too many to report. Skipping output of incomplete sequences.");
       }
     }
   }
@@ -394,7 +519,20 @@ public class Jalview2XML
     {
       return;
     }
+    saveAllFrames(Arrays.asList(frames), jout);
+  }
 
+  /**
+   * core method for storing state for a set of AlignFrames.
+   * 
+   * @param frames
+   *          - frames involving all data to be exported (including containing
+   *          splitframes)
+   * @param jout
+   *          - project output stream
+   */
+  private void saveAllFrames(List<AlignFrame> frames, JarOutputStream jout)
+  {
     Hashtable<String, AlignFrame> dsses = new Hashtable<String, AlignFrame>();
 
     /*
@@ -414,9 +552,9 @@ public class Jalview2XML
       List<String> viewIds = new ArrayList<String>();
 
       // REVERSE ORDER
-      for (int i = frames.length - 1; i > -1; i--)
+      for (int i = frames.size() - 1; i > -1; i--)
       {
-        AlignFrame af = frames[i];
+        AlignFrame af = frames.get(i);
         // skip ?
         if (skipList != null
                 && skipList
@@ -519,30 +657,20 @@ public class Jalview2XML
   {
     try
     {
-      int ap = 0;
-      int apSize = af.alignPanels.size();
       FileOutputStream fos = new FileOutputStream(jarFile);
       JarOutputStream jout = new JarOutputStream(fos);
-      Hashtable<String, AlignFrame> dsses = new Hashtable<String, AlignFrame>();
-      List<String> viewIds = new ArrayList<String>();
+      List<AlignFrame> frames = new ArrayList<AlignFrame>();
 
-      for (AlignmentPanel apanel : af.alignPanels)
+      // resolve splitframes
+      if (af.getViewport().getCodingComplement() != null)
       {
-        String jfileName = apSize == 1 ? fileName : fileName + ap;
-        ap++;
-        if (!jfileName.endsWith(".xml"))
-        {
-          jfileName = jfileName + ".xml";
-        }
-        saveState(apanel, jfileName, jout, viewIds);
-        String dssid = getDatasetIdRef(af.getViewport().getAlignment()
-                .getDataset());
-        if (!dsses.containsKey(dssid))
-        {
-          dsses.put(dssid, af);
-        }
+        frames = ((SplitFrame) af.getSplitViewContainer()).getAlignFrames();
       }
-      writeDatasetFor(dsses, fileName, jout);
+      else
+      {
+        frames.add(af);
+      }
+      saveAllFrames(frames, jout);
       try
       {
         jout.flush();
@@ -633,11 +761,15 @@ public class Jalview2XML
     object.setVersion(jalview.bin.Cache.getDefault("VERSION",
             "Development Build"));
 
-    jalview.datamodel.AlignmentI jal = av.getAlignment();
+    /**
+     * rjal is full height alignment, jal is actual alignment with full metadata
+     * but excludes hidden sequences.
+     */
+    jalview.datamodel.AlignmentI rjal = av.getAlignment(), jal = rjal;
 
     if (av.hasHiddenRows())
     {
-      jal = jal.getHiddenSequences().getFullAlignment();
+      rjal = jal.getHiddenSequences().getFullAlignment();
     }
 
     SequenceSet vamsasSet = new SequenceSet();
@@ -654,6 +786,7 @@ public class Jalview2XML
       {
         // switch jal and the dataset
         jal = jal.getDataset();
+        rjal = jal;
       }
     }
     if (jal.getProperties() != null)
@@ -671,38 +804,42 @@ public class Jalview2XML
 
     JSeq jseq;
     Set<String> calcIdSet = new HashSet<String>();
-
+    // record the set of vamsas sequence XML POJO we create.
+    HashMap<String, Sequence> vamsasSetIds = new HashMap<String, Sequence>();
     // SAVE SEQUENCES
-    for (int i = 0; i < jal.getHeight(); i++)
+    for (final SequenceI jds : rjal.getSequences())
     {
-      final SequenceI jds = jal.getSequenceAt(i);
       final SequenceI jdatasq = jds.getDatasetSequence() == null ? jds
               : jds.getDatasetSequence();
       String id = seqHash(jds);
-
-      if (seqRefIds.get(id) != null)
+      if (vamsasSetIds.get(id) == null)
       {
-        // This happens for two reasons: 1. multiple views are being serialised.
-        // 2. the hashCode has collided with another sequence's code. This DOES
-        // HAPPEN! (PF00072.15.stk does this)
-        // JBPNote: Uncomment to debug writing out of files that do not read
-        // back in due to ArrayOutOfBoundExceptions.
-        // System.err.println("vamsasSeq backref: "+id+"");
-        // System.err.println(jds.getName()+"
-        // "+jds.getStart()+"-"+jds.getEnd()+" "+jds.getSequenceAsString());
-        // System.err.println("Hashcode: "+seqHash(jds));
-        // SequenceI rsq = (SequenceI) seqRefIds.get(id + "");
-        // System.err.println(rsq.getName()+"
-        // "+rsq.getStart()+"-"+rsq.getEnd()+" "+rsq.getSequenceAsString());
-        // System.err.println("Hashcode: "+seqHash(rsq));
+        if (seqRefIds.get(id) != null && !storeDS)
+        {
+          // This happens for two reasons: 1. multiple views are being
+          // serialised.
+          // 2. the hashCode has collided with another sequence's code. This
+          // DOES
+          // HAPPEN! (PF00072.15.stk does this)
+          // JBPNote: Uncomment to debug writing out of files that do not read
+          // back in due to ArrayOutOfBoundExceptions.
+          // System.err.println("vamsasSeq backref: "+id+"");
+          // System.err.println(jds.getName()+"
+          // "+jds.getStart()+"-"+jds.getEnd()+" "+jds.getSequenceAsString());
+          // System.err.println("Hashcode: "+seqHash(jds));
+          // SequenceI rsq = (SequenceI) seqRefIds.get(id + "");
+          // System.err.println(rsq.getName()+"
+          // "+rsq.getStart()+"-"+rsq.getEnd()+" "+rsq.getSequenceAsString());
+          // System.err.println("Hashcode: "+seqHash(rsq));
+        }
+        else
+        {
+          vamsasSeq = createVamsasSequence(id, jds);
+          vamsasSet.addSequence(vamsasSeq);
+          vamsasSetIds.put(id, vamsasSeq);
+          seqRefIds.put(id, jds);
+        }
       }
-      else
-      {
-        vamsasSeq = createVamsasSequence(id, jds);
-        vamsasSet.addSequence(vamsasSeq);
-        seqRefIds.put(id, jds);
-      }
-
       jseq = new JSeq();
       jseq.setStart(jds.getStart());
       jseq.setEnd(jds.getEnd());
@@ -714,26 +851,33 @@ public class Jalview2XML
         // Store any sequences this sequence represents
         if (av.hasHiddenRows())
         {
+          // use rjal, contains the full height alignment
           jseq.setHidden(av.getAlignment().getHiddenSequences()
                   .isHidden(jds));
 
-          if (av.isHiddenRepSequence(jal.getSequenceAt(i)))
+          if (av.isHiddenRepSequence(jds))
           {
             jalview.datamodel.SequenceI[] reps = av
-                    .getRepresentedSequences(jal.getSequenceAt(i))
-                    .getSequencesInOrder(jal);
+                    .getRepresentedSequences(jds).getSequencesInOrder(rjal);
 
             for (int h = 0; h < reps.length; h++)
             {
-              if (reps[h] != jal.getSequenceAt(i))
+              if (reps[h] != jds)
               {
-                jseq.addHiddenSequences(jal.findIndex(reps[h]));
+                jseq.addHiddenSequences(rjal.findIndex(reps[h]));
               }
             }
           }
         }
+        // mark sequence as reference - if it is the reference for this view
+        if (jal.hasSeqrep())
+        {
+          jseq.setViewreference(jds == jal.getSeqrep());
+        }
       }
 
+      // TODO: omit sequence features from each alignment view's XML dump if we
+      // are storing dataset
       if (jds.getSequenceFeatures() != null)
       {
         jalview.datamodel.SequenceFeature[] sf = jds.getSequenceFeatures();
@@ -761,10 +905,11 @@ public class Jalview2XML
           if (sf[index].otherDetails != null)
           {
             String key;
-            Enumeration keys = sf[index].otherDetails.keys();
-            while (keys.hasMoreElements())
+            Iterator<String> keys = sf[index].otherDetails.keySet()
+                    .iterator();
+            while (keys.hasNext())
             {
-              key = keys.nextElement().toString();
+              key = keys.next();
               OtherData keyValue = new OtherData();
               keyValue.setKey(key);
               keyValue.setValue(sf[index].otherDetails.get(key).toString());
@@ -847,17 +992,16 @@ public class Jalview2XML
             }
           }
 
-          if (entry.getProperty() != null && !entry.getProperty().isEmpty())
+          Enumeration<String> props = entry.getProperties();
+          if (props.hasMoreElements())
           {
             PdbentryItem item = new PdbentryItem();
-            Hashtable properties = entry.getProperty();
-            Enumeration en2 = properties.keys();
-            while (en2.hasMoreElements())
+            while (props.hasMoreElements())
             {
               Property prop = new Property();
-              String key = en2.nextElement().toString();
+              String key = props.nextElement();
               prop.setName(key);
-              prop.setValue(properties.get(key).toString());
+              prop.setValue(entry.getProperty(key).toString());
               item.addProperty(prop);
             }
             pdb.addPdbentryItem(item);
@@ -877,16 +1021,17 @@ public class Jalview2XML
       jal = av.getAlignment();
     }
     // SAVE MAPPINGS
-    if (jal.getCodonFrames() != null)
+    // FOR DATASET
+    if (storeDS && jal.getCodonFrames() != null)
     {
-      Set<AlignedCodonFrame> jac = jal.getCodonFrames();
+      List<AlignedCodonFrame> jac = jal.getCodonFrames();
       for (AlignedCodonFrame acf : jac)
       {
         AlcodonFrame alc = new AlcodonFrame();
-        vamsasSet.addAlcodonFrame(alc);
         if (acf.getProtMappings() != null
                 && acf.getProtMappings().length > 0)
         {
+          boolean hasMap = false;
           SequenceI[] dnas = acf.getdnaSeqs();
           jalview.datamodel.Mapping[] pmaps = acf.getProtMappings();
           for (int m = 0; m < pmaps.length; m++)
@@ -896,9 +1041,14 @@ public class Jalview2XML
             alcmap.setMapping(createVamsasMapping(pmaps[m], dnas[m], null,
                     false));
             alc.addAlcodMap(alcmap);
+            hasMap = true;
+          }
+          if (hasMap)
+          {
+            vamsasSet.addAlcodonFrame(alc);
           }
         }
-
+        // TODO: delete this ? dead code from 2.8.3->2.9 ?
         // {
         // AlcodonFrame alc = new AlcodonFrame();
         // vamsasSet.addAlcodonFrame(alc);
@@ -1092,15 +1242,26 @@ public class Jalview2XML
       view.setViewName(av.viewName);
       view.setGatheredViews(av.isGatherViewsHere());
 
-      Rectangle position = ap.av.getExplodedGeometry();
-      if (position == null)
+      Rectangle size = ap.av.getExplodedGeometry();
+      Rectangle position = size;
+      if (size == null)
       {
-        position = ap.alignFrame.getBounds();
+        size = ap.alignFrame.getBounds();
+        if (av.getCodingComplement() != null)
+        {
+          position = ((SplitFrame) ap.alignFrame.getSplitViewContainer())
+                  .getBounds();
+        }
+        else
+        {
+          position = size;
+        }
       }
       view.setXpos(position.x);
       view.setYpos(position.y);
-      view.setWidth(position.width);
-      view.setHeight(position.height);
+
+      view.setWidth(size.width);
+      view.setHeight(size.height);
 
       view.setStartRes(av.startRes);
       view.setStartSeq(av.startSeq);
@@ -1182,82 +1343,53 @@ public class Jalview2XML
                 .getFeatureRenderer().getRenderOrder()
                 .toArray(new String[0]);
 
-        Vector settingsAdded = new Vector();
-        Object gstyle = null;
-        GraduatedColor gcol = null;
+        Vector<String> settingsAdded = new Vector<String>();
         if (renderOrder != null)
         {
-          for (int ro = 0; ro < renderOrder.length; ro++)
+          for (String featureType : renderOrder)
           {
-            gstyle = ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                    .getFeatureStyle(renderOrder[ro]);
+            FeatureColourI fcol = ap.getSeqPanel().seqCanvas
+                    .getFeatureRenderer().getFeatureStyle(featureType);
             Setting setting = new Setting();
-            setting.setType(renderOrder[ro]);
-            if (gstyle instanceof GraduatedColor)
+            setting.setType(featureType);
+            if (!fcol.isSimpleColour())
             {
-              gcol = (GraduatedColor) gstyle;
-              setting.setColour(gcol.getMaxColor().getRGB());
-              setting.setMincolour(gcol.getMinColor().getRGB());
-              setting.setMin(gcol.getMin());
-              setting.setMax(gcol.getMax());
-              setting.setColourByLabel(gcol.isColourByLabel());
-              setting.setAutoScale(gcol.isAutoScale());
-              setting.setThreshold(gcol.getThresh());
-              setting.setThreshstate(gcol.getThreshType());
+              setting.setColour(fcol.getMaxColour().getRGB());
+              setting.setMincolour(fcol.getMinColour().getRGB());
+              setting.setMin(fcol.getMin());
+              setting.setMax(fcol.getMax());
+              setting.setColourByLabel(fcol.isColourByLabel());
+              setting.setAutoScale(fcol.isAutoScaled());
+              setting.setThreshold(fcol.getThreshold());
+              // -1 = No threshold, 0 = Below, 1 = Above
+              setting.setThreshstate(fcol.isAboveThreshold() ? 1 : (fcol
+                      .isBelowThreshold() ? 0 : -1));
             }
             else
             {
-              setting.setColour(ap.getSeqPanel().seqCanvas
-                      .getFeatureRenderer().getColour(renderOrder[ro])
-                      .getRGB());
+              setting.setColour(fcol.getColour().getRGB());
             }
 
             setting.setDisplay(av.getFeaturesDisplayed().isVisible(
-                    renderOrder[ro]));
+                    featureType));
             float rorder = ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                    .getOrder(renderOrder[ro]);
+                    .getOrder(featureType);
             if (rorder > -1)
             {
               setting.setOrder(rorder);
             }
             fs.addSetting(setting);
-            settingsAdded.addElement(renderOrder[ro]);
+            settingsAdded.addElement(featureType);
           }
         }
 
-        // Make sure we save none displayed feature settings
-        Iterator en = ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                .getFeatureColours().keySet().iterator();
-        while (en.hasNext())
-        {
-          String key = en.next().toString();
-          if (settingsAdded.contains(key))
-          {
-            continue;
-          }
-
-          Setting setting = new Setting();
-          setting.setType(key);
-          setting.setColour(ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                  .getColour(key).getRGB());
-
-          setting.setDisplay(false);
-          float rorder = ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                  .getOrder(key);
-          if (rorder > -1)
-          {
-            setting.setOrder(rorder);
-          }
-          fs.addSetting(setting);
-          settingsAdded.addElement(key);
-        }
         // is groups actually supposed to be a map here ?
-        en = ap.getSeqPanel().seqCanvas.getFeatureRenderer()
-                .getFeatureGroups().iterator();
-        Vector groupsAdded = new Vector();
+        Iterator<String> en = ap.getSeqPanel().seqCanvas
+                .getFeatureRenderer().getFeatureGroups().iterator();
+        Vector<String> groupsAdded = new Vector<String>();
         while (en.hasNext())
         {
-          String grp = en.next().toString();
+          String grp = en.next();
           if (groupsAdded.contains(grp))
           {
             continue;
@@ -1271,7 +1403,6 @@ public class Jalview2XML
           groupsAdded.addElement(grp);
         }
         jms.setFeatureSettings(fs);
-
       }
 
       if (av.hasHiddenColumns())
@@ -1937,16 +2068,17 @@ public class Jalview2XML
     if (jds.getDatasetSequence() != null)
     {
       vamsasSeq.setDsseqid(seqHash(jds.getDatasetSequence()));
-      if (jds.getDatasetSequence().getDBRef() != null)
-      {
-        dbrefs = jds.getDatasetSequence().getDBRef();
-      }
     }
     else
     {
-      vamsasSeq.setDsseqid(id); // so we can tell which sequences really are
+      // seqId==dsseqid so we can tell which sequences really are
       // dataset sequences only
-      dbrefs = jds.getDBRef();
+      vamsasSeq.setDsseqid(id);
+      dbrefs = jds.getDBRefs();
+      if (parentseq == null)
+      {
+        parentseq = jds;
+      }
     }
     if (dbrefs != null)
     {
@@ -1998,38 +2130,32 @@ public class Jalview2XML
       if (jmp.getTo() != null)
       {
         MappingChoice mpc = new MappingChoice();
-        if (recurse
-                && (parentseq != jmp.getTo() || parentseq
-                        .getDatasetSequence() != jmp.getTo()))
+
+        // check/create ID for the sequence referenced by getTo()
+
+        String jmpid = "";
+        SequenceI ps = null;
+        if (parentseq != jmp.getTo()
+                && parentseq.getDatasetSequence() != jmp.getTo())
         {
-          mpc.setSequence(createVamsasSequence(false, seqHash(jmp.getTo()),
-                  jmp.getTo(), jds));
+          // chaining dbref rather than a handshaking one
+          jmpid = seqHash(ps = jmp.getTo());
         }
         else
         {
-          String jmpid = "";
-          SequenceI ps = null;
-          if (parentseq != jmp.getTo()
-                  && parentseq.getDatasetSequence() != jmp.getTo())
-          {
-            // chaining dbref rather than a handshaking one
-            jmpid = seqHash(ps = jmp.getTo());
-          }
-          else
-          {
-            jmpid = seqHash(ps = parentseq);
-          }
-          mpc.setDseqFor(jmpid);
-          if (!seqRefIds.containsKey(mpc.getDseqFor()))
-          {
-            jalview.bin.Cache.log.debug("creatign new DseqFor ID");
-            seqRefIds.put(mpc.getDseqFor(), ps);
-          }
-          else
-          {
-            jalview.bin.Cache.log.debug("reusing DseqFor ID");
-          }
+          jmpid = seqHash(ps = parentseq);
         }
+        mpc.setDseqFor(jmpid);
+        if (!seqRefIds.containsKey(mpc.getDseqFor()))
+        {
+          jalview.bin.Cache.log.debug("creatign new DseqFor ID");
+          seqRefIds.put(mpc.getDseqFor(), ps);
+        }
+        else
+        {
+          jalview.bin.Cache.log.debug("reusing DseqFor ID");
+        }
+
         mp.setMappingChoice(mpc);
       }
     }
@@ -2167,6 +2293,7 @@ public class Jalview2XML
       {
         SwingUtilities.invokeAndWait(new Runnable()
         {
+          @Override
           public void run()
           {
             setLoadingFinishedForNewStructureViewers();
@@ -2237,14 +2364,10 @@ public class Jalview2XML
     }
     if (seqRefIds == null)
     {
-      seqRefIds = new HashMap<String, SequenceI>();
+      initSeqRefs();
     }
-    if (frefedSequence == null)
-    {
-      frefedSequence = new Vector();
-    }
-
     AlignFrame af = null, _af = null;
+    IdentityHashMap<AlignmentI, AlignmentI> importedDatasets = new IdentityHashMap<AlignmentI, AlignmentI>();
     Map<String, AlignFrame> gatherToThisFrame = new HashMap<String, AlignFrame>();
     final String file = jprovider.getFilename();
     try
@@ -2272,13 +2395,24 @@ public class Jalview2XML
           if (true) // !skipViewport(object))
           {
             _af = loadFromObject(object, file, true, jprovider);
-            if (object.getJalviewModelSequence().getViewportCount() > 0)
+            if (_af != null
+                    && object.getJalviewModelSequence().getViewportCount() > 0)
             {
-              af = _af;
-              if (af.viewport.isGatherViewsHere())
+              if (af == null)
               {
-                gatherToThisFrame.put(af.viewport.getSequenceSetId(), af);
+                // store a reference to the first view
+                af = _af;
               }
+              if (_af.viewport.isGatherViewsHere())
+              {
+                // if this is a gathered view, keep its reference since
+                // after gathering views, only this frame will remain
+                af = _af;
+                gatherToThisFrame.put(_af.viewport.getSequenceSetId(), _af);
+              }
+              // Save dataset to register mappings once all resolved
+              importedDatasets.put(af.viewport.getAlignment().getDataset(),
+                      af.viewport.getAlignment().getDataset());
             }
           }
           entryCount++;
@@ -2334,11 +2468,6 @@ public class Jalview2XML
       e.printStackTrace();
     }
 
-    if (Desktop.instance != null)
-    {
-      Desktop.instance.stopLoading();
-    }
-
     /*
      * Regather multiple views (with the same sequence set id) to the frame (if
      * any) that is flagged as the one to gather to, i.e. convert them to tabbed
@@ -2352,11 +2481,24 @@ public class Jalview2XML
     }
 
     restoreSplitFrames();
-
+    for (AlignmentI ds : importedDatasets.keySet())
+    {
+      if (ds.getCodonFrames() != null)
+      {
+        StructureSelectionManager.getStructureSelectionManager(
+                Desktop.instance).registerMappings(ds.getCodonFrames());
+      }
+    }
     if (errorMessage != null)
     {
       reportErrors();
     }
+
+    if (Desktop.instance != null)
+    {
+      Desktop.instance.stopLoading();
+    }
+
     return af;
   }
 
@@ -2401,6 +2543,8 @@ public class Jalview2XML
           SplitFrame sf = createSplitFrame(dnaFrame, af);
           addedToSplitFrames.add(dnaFrame);
           addedToSplitFrames.add(af);
+          dnaFrame.setMenusForViewport();
+          af.setMenusForViewport();
           if (af.viewport.isGatherViewsHere())
           {
             gatherTo.add(sf);
@@ -2422,6 +2566,7 @@ public class Jalview2XML
         Viewport view = candidate.getKey();
         Desktop.addInternalFrame(af, view.getTitle(), view.getWidth(),
                 view.getHeight());
+        af.setMenusForViewport();
         System.err.println("Failed to restore view " + view.getTitle()
                 + " to split frame");
       }
@@ -2453,6 +2598,11 @@ public class Jalview2XML
     int width = (int) dnaFrame.getBounds().getWidth();
     int height = (int) (dnaFrame.getBounds().getHeight()
             + proteinFrame.getBounds().getHeight() + 50);
+
+    /*
+     * SplitFrame location is saved to both enclosed frames
+     */
+    splitFrame.setLocation(dnaFrame.getX(), dnaFrame.getY());
     Desktop.addInternalFrame(splitFrame, title, width, height);
 
     /*
@@ -2520,14 +2670,16 @@ public class Jalview2XML
    * @param pdbId
    * @return
    */
-  String loadPDBFile(jarInputStreamProvider jprovider, String pdbId)
+  String loadPDBFile(jarInputStreamProvider jprovider, String pdbId,
+          String origFile)
   {
     if (alreadyLoadedPDB.containsKey(pdbId))
     {
       return alreadyLoadedPDB.get(pdbId).toString();
     }
 
-    String tempFile = copyJarEntry(jprovider, pdbId, "jalview_pdb");
+    String tempFile = copyJarEntry(jprovider, pdbId, "jalview_pdb",
+            origFile);
     if (tempFile != null)
     {
       alreadyLoadedPDB.put(pdbId, tempFile);
@@ -2544,14 +2696,26 @@ public class Jalview2XML
    * @param prefix
    *          a prefix for the temporary file name, must be at least three
    *          characters long
+   * @param origFile
+   *          null or original file - so new file can be given the same suffix
+   *          as the old one
    * @return
    */
   protected String copyJarEntry(jarInputStreamProvider jprovider,
-          String jarEntryName, String prefix)
+          String jarEntryName, String prefix, String origFile)
   {
     BufferedReader in = null;
     PrintWriter out = null;
-
+    String suffix = ".tmp";
+    if (origFile == null)
+    {
+      origFile = jarEntryName;
+    }
+    int sfpos = origFile.lastIndexOf(".");
+    if (sfpos > -1 && sfpos < (origFile.length() - 3))
+    {
+      suffix = "." + origFile.substring(sfpos + 1);
+    }
     try
     {
       JarInputStream jin = jprovider.getJarInputStream();
@@ -2569,7 +2733,7 @@ public class Jalview2XML
       if (entry != null)
       {
         in = new BufferedReader(new InputStreamReader(jin, UTF_8));
-        File outFile = File.createTempFile(prefix, ".tmp");
+        File outFile = File.createTempFile(prefix, suffix);
         outFile.deleteOnExit();
         out = new PrintWriter(new FileOutputStream(outFile));
         String data;
@@ -2657,34 +2821,69 @@ public class Jalview2XML
     // LOAD SEQUENCES
 
     List<SequenceI> hiddenSeqs = null;
-    jalview.datamodel.Sequence jseq;
 
     List<SequenceI> tmpseqs = new ArrayList<SequenceI>();
 
     boolean multipleView = false;
-
+    SequenceI referenceseqForView = null;
     JSeq[] jseqs = object.getJalviewModelSequence().getJSeq();
     int vi = 0; // counter in vamsasSeq array
     for (int i = 0; i < jseqs.length; i++)
     {
       String seqId = jseqs[i].getId();
 
-      if (seqRefIds.get(seqId) != null)
+      SequenceI tmpSeq = seqRefIds.get(seqId);
+      if (tmpSeq != null)
       {
-        tmpseqs.add(seqRefIds.get(seqId));
-        multipleView = true;
+        if (!incompleteSeqs.containsKey(seqId))
+        {
+          // may not need this check, but keep it for at least 2.9,1 release
+          if (tmpSeq.getStart() != jseqs[i].getStart()
+                  || tmpSeq.getEnd() != jseqs[i].getEnd())
+          {
+            System.err
+                    .println("Warning JAL-2154 regression: updating start/end for sequence "
+                            + tmpSeq.toString() + " to " + jseqs[i]);
+          }
+        }
+        else
+        {
+          incompleteSeqs.remove(seqId);
+        }
+        if (vamsasSeq.length > vi && vamsasSeq[vi].getId().equals(seqId))
+        {
+          // most likely we are reading a dataset XML document so
+          // update from vamsasSeq section of XML for this sequence
+          tmpSeq.setName(vamsasSeq[vi].getName());
+          tmpSeq.setDescription(vamsasSeq[vi].getDescription());
+          tmpSeq.setSequence(vamsasSeq[vi].getSequence());
+          vi++;
+        }
+        else
+        {
+          // reading multiple views, so vamsasSeq set is a subset of JSeq
+          multipleView = true;
+        }
+        tmpSeq.setStart(jseqs[i].getStart());
+        tmpSeq.setEnd(jseqs[i].getEnd());
+        tmpseqs.add(tmpSeq);
       }
       else
       {
-        jseq = new jalview.datamodel.Sequence(vamsasSeq[vi].getName(),
+        tmpSeq = new jalview.datamodel.Sequence(vamsasSeq[vi].getName(),
                 vamsasSeq[vi].getSequence());
-        jseq.setDescription(vamsasSeq[vi].getDescription());
-        jseq.setStart(jseqs[i].getStart());
-        jseq.setEnd(jseqs[i].getEnd());
-        jseq.setVamsasId(uniqueSetSuffix + seqId);
-        seqRefIds.put(vamsasSeq[vi].getId(), jseq);
-        tmpseqs.add(jseq);
+        tmpSeq.setDescription(vamsasSeq[vi].getDescription());
+        tmpSeq.setStart(jseqs[i].getStart());
+        tmpSeq.setEnd(jseqs[i].getEnd());
+        tmpSeq.setVamsasId(uniqueSetSuffix + seqId);
+        seqRefIds.put(vamsasSeq[vi].getId(), tmpSeq);
+        tmpseqs.add(tmpSeq);
         vi++;
+      }
+
+      if (jseqs[i].hasViewreference() && jseqs[i].getViewreference())
+      {
+        referenceseqForView = tmpseqs.get(tmpseqs.size() - 1);
       }
 
       if (jseqs[i].getHidden())
@@ -2694,9 +2893,8 @@ public class Jalview2XML
           hiddenSeqs = new ArrayList<SequenceI>();
         }
 
-        hiddenSeqs.add(seqRefIds.get(seqId));
+        hiddenSeqs.add(tmpSeq);
       }
-
     }
 
     // /
@@ -2705,8 +2903,44 @@ public class Jalview2XML
     SequenceI[] orderedSeqs = tmpseqs
             .toArray(new SequenceI[tmpseqs.size()]);
 
-    Alignment al = new Alignment(orderedSeqs);
+    AlignmentI al = null;
+    // so we must create or recover the dataset alignment before going further
+    // ///////////////////////////////
+    if (vamsasSet.getDatasetId() == null || vamsasSet.getDatasetId() == "")
+    {
+      // older jalview projects do not have a dataset - so creat alignment and
+      // dataset
+      al = new Alignment(orderedSeqs);
+      al.setDataset(null);
+    }
+    else
+    {
+      boolean isdsal = object.getJalviewModelSequence().getViewportCount() == 0;
+      if (isdsal)
+      {
+        // we are importing a dataset record, so
+        // recover reference to an alignment already materialsed as dataset
+        al = getDatasetFor(vamsasSet.getDatasetId());
+      }
+      if (al == null)
+      {
+        // materialse the alignment
+        al = new Alignment(orderedSeqs);
+      }
+      if (isdsal)
+      {
+        addDatasetRef(vamsasSet.getDatasetId(), al);
+      }
 
+      // finally, verify all data in vamsasSet is actually present in al
+      // passing on flag indicating if it is actually a stored dataset
+      recoverDatasetFor(vamsasSet, al, isdsal);
+    }
+
+    if (referenceseqForView != null)
+    {
+      al.setSeqrep(referenceseqForView);
+    }
     // / Add the alignment properties
     for (int i = 0; i < vamsasSet.getSequenceSetPropertiesCount(); i++)
     {
@@ -2714,22 +2948,6 @@ public class Jalview2XML
       al.setProperty(ssp.getKey(), ssp.getValue());
     }
 
-    // /
-    // SequenceFeatures are added to the DatasetSequence,
-    // so we must create or recover the dataset before loading features
-    // ///////////////////////////////
-    if (vamsasSet.getDatasetId() == null || vamsasSet.getDatasetId() == "")
-    {
-      // older jalview projects do not have a dataset id.
-      al.setDataset(null);
-    }
-    else
-    {
-      // recover dataset - passing on flag indicating if this a 'viewless'
-      // sequence set (a.k.a. a stored dataset for the project)
-      recoverDatasetFor(vamsasSet, al, object.getJalviewModelSequence()
-              .getViewportCount() == 0);
-    }
     // ///////////////////////////////
 
     Hashtable pdbloaded = new Hashtable(); // TODO nothing writes to this??
@@ -2737,6 +2955,12 @@ public class Jalview2XML
     {
       // load sequence features, database references and any associated PDB
       // structures for the alignment
+      //
+      // prior to 2.10, this part would only be executed the first time a
+      // sequence was encountered, but not afterwards.
+      // now, for 2.10 projects, this is also done if the xml doc includes
+      // dataset sequences not actually present in any particular view.
+      //
       for (int i = 0; i < vamsasSeq.length; i++)
       {
         if (jseqs[i].getFeaturesCount() > 0)
@@ -2763,13 +2987,17 @@ public class Jalview2XML
               }
 
             }
-
-            al.getSequenceAt(i).getDatasetSequence().addSequenceFeature(sf);
+            // adds feature to datasequence's feature set (since Jalview 2.10)
+            al.getSequenceAt(i).addSequenceFeature(sf);
           }
         }
         if (vamsasSeq[i].getDBRefCount() > 0)
         {
-          addDBRefs(al.getSequenceAt(i).getDatasetSequence(), vamsasSeq[i]);
+          // adds dbrefs to datasequence's set (since Jalview 2.10)
+          addDBRefs(
+                  al.getSequenceAt(i).getDatasetSequence() == null ? al.getSequenceAt(i)
+                          : al.getSequenceAt(i).getDatasetSequence(),
+                  vamsasSeq[i]);
         }
         if (jseqs[i].getPdbidsCount() > 0)
         {
@@ -2780,29 +3008,49 @@ public class Jalview2XML
             entry.setId(ids[p].getId());
             if (ids[p].getType() != null)
             {
-              if (ids[p].getType().equalsIgnoreCase("PDB"))
+              if (PDBEntry.Type.getType(ids[p].getType()) != null)
               {
-                entry.setType(PDBEntry.Type.PDB);
+                entry.setType(PDBEntry.Type.getType(ids[p].getType()));
               }
               else
               {
                 entry.setType(PDBEntry.Type.FILE);
               }
             }
-            if (ids[p].getFile() != null)
+            // jprovider is null when executing 'New View'
+            if (ids[p].getFile() != null && jprovider != null)
             {
               if (!pdbloaded.containsKey(ids[p].getFile()))
               {
-                entry.setFile(loadPDBFile(jprovider, ids[p].getId()));
+                entry.setFile(loadPDBFile(jprovider, ids[p].getId(),
+                        ids[p].getFile()));
               }
               else
               {
                 entry.setFile(pdbloaded.get(ids[p].getId()).toString());
               }
             }
+            if (ids[p].getPdbentryItem() != null)
+            {
+              for (PdbentryItem item : ids[p].getPdbentryItem())
+              {
+                for (Property pr : item.getProperty())
+                {
+                  entry.setProperty(pr.getName(), pr.getValue());
+                }
+              }
+            }
             StructureSelectionManager.getStructureSelectionManager(
                     Desktop.instance).registerPDBEntry(entry);
-            al.getSequenceAt(i).getDatasetSequence().addPDBId(entry);
+            // adds PDBEntry to datasequence's set (since Jalview 2.10)
+            if (al.getSequenceAt(i).getDatasetSequence() != null)
+            {
+              al.getSequenceAt(i).getDatasetSequence().addPDBId(entry);
+            }
+            else
+            {
+              al.getSequenceAt(i).addPDBId(entry);
+            }
           }
         }
       }
@@ -2831,20 +3079,20 @@ public class Jalview2XML
             if (maps[m].getMapping() != null)
             {
               mapping = addMapping(maps[m].getMapping());
-            }
-            if (dnaseq != null)
-            {
-              cf.addMap(dnaseq, mapping.getTo(), mapping.getMap());
-            }
-            else
-            {
-              // defer to later
-              frefedSequence.add(new Object[] { maps[m].getDnasq(), cf,
-                  mapping });
+              if (dnaseq != null && mapping.getTo() != null)
+              {
+                cf.addMap(dnaseq, mapping.getTo(), mapping.getMap());
+              }
+              else
+              {
+                // defer to later
+                frefedSequence.add(newAlcodMapRef(maps[m].getDnasq(), cf,
+                        mapping));
+              }
             }
           }
+          al.addCodonFrame(cf);
         }
-        al.addCodonFrame(cf);
       }
     }
 
@@ -3153,9 +3401,8 @@ public class Jalview2XML
         }
         if (jGroup.getConsThreshold() != 0)
         {
-          jalview.analysis.Conservation c = new jalview.analysis.Conservation(
-                  "All", ResidueProperties.propHash, 3,
-                  sg.getSequences(null), 0, sg.getWidth() - 1);
+          Conservation c = new Conservation("All", sg.getSequences(null),
+                  0, sg.getWidth() - 1);
           c.calculate();
           c.verdict(false, 25);
           sg.cs.setConservation(c);
@@ -3250,8 +3497,8 @@ public class Jalview2XML
      * indicate that annotation colours are applied across all groups (pre
      * Jalview 2.8.1 behaviour)
      */
-    boolean doGroupAnnColour = isVersionStringLaterThan("2.8.1",
-            object.getVersion());
+    boolean doGroupAnnColour = Jalview2XML.isVersionStringLaterThan(
+            "2.8.1", object.getVersion());
 
     AlignmentPanel ap = null;
     boolean isnewview = true;
@@ -3344,7 +3591,7 @@ public class Jalview2XML
           String rnaTitle = ss.getTitle();
           String sessionState = ss.getViewerState();
           String tempStateFile = copyJarEntry(jprovider, sessionState,
-                  "varna");
+                  "varna", null);
           RnaModel rna = new RnaModel(rnaTitle, ann, seq, null, gapped);
           appVarna.addModelSession(rna, rnaTitle, tempStateFile);
         }
@@ -3519,7 +3766,8 @@ public class Jalview2XML
             // Originally : ids[p].getFile()
             // : TODO: verify external PDB file recovery still works in normal
             // jalview project load
-            jpdb.setFile(loadPDBFile(jprovider, ids[p].getId()));
+            jpdb.setFile(loadPDBFile(jprovider, ids[p].getId(),
+                    ids[p].getFile()));
             jpdb.setId(ids[p].getId());
 
             int x = structureState.getXpos();
@@ -3530,7 +3778,8 @@ public class Jalview2XML
             // Probably don't need to do this anymore...
             // Desktop.desktop.getComponentAt(x, y);
             // TODO: NOW: check that this recovers the PDB file correctly.
-            String pdbFile = loadPDBFile(jprovider, ids[p].getId());
+            String pdbFile = loadPDBFile(jprovider, ids[p].getId(),
+                    ids[p].getFile());
             jalview.datamodel.SequenceI seq = seqRefIds.get(jseqs[i]
                     .getId() + "");
             if (sviewid == null)
@@ -3690,7 +3939,7 @@ public class Jalview2XML
      */
     String viewerJarEntryName = getViewerJarEntryName(data.getViewId());
     chimeraSessionFile = copyJarEntry(jprovider, viewerJarEntryName,
-            "chimera");
+            "chimera", null);
 
     Set<Entry<File, StructureData>> fileData = data.getFileData()
             .entrySet();
@@ -3771,6 +4020,11 @@ public class Jalview2XML
         // filename
         // translation differently.
         StructureData filedat = oldFiles.get(new File(oldfilenam));
+        if (filedat == null)
+        {
+          String reformatedOldFilename = oldfilenam.replaceAll("/", "\\\\");
+          filedat = oldFiles.get(new File(reformatedOldFilename));
+        }
         newFileLoc.append(Platform.escapeString(filedat.getFilePath()));
         pdbfilenames.add(filedat.getFilePath());
         pdbids.add(filedat.getPdbId());
@@ -4029,18 +4283,22 @@ public class Jalview2XML
   }
 
   /**
+   * Answers true if 'version' is equal to or later than 'supported', where each
+   * is formatted as major/minor versions like "2.8.3" or "2.3.4b1" for bugfix
+   * changes. Development and test values for 'version' are leniently treated
+   * i.e. answer true.
    * 
    * @param supported
    *          - minimum version we are comparing against
    * @param version
-   *          - version of data being processsed.
-   * @return true if version is development/null or evaluates to the same or
-   *         later X.Y.Z (where X,Y,Z are like [0-9]+b?[0-9]*)
+   *          - version of data being processsed
+   * @return
    */
-  protected boolean isVersionStringLaterThan(String supported,
+  public static boolean isVersionStringLaterThan(String supported,
           String version)
   {
-    if (version == null || version.equalsIgnoreCase("DEVELOPMENT BUILD")
+    if (supported == null || version == null
+            || version.equalsIgnoreCase("DEVELOPMENT BUILD")
             || version.equalsIgnoreCase("Test")
             || version.equalsIgnoreCase("AUTOMATED BUILD"))
     {
@@ -4051,38 +4309,8 @@ public class Jalview2XML
     }
     else
     {
-      StringTokenizer currentV = new StringTokenizer(supported, "."), fileV = new StringTokenizer(
-              version, ".");
-      while (currentV.hasMoreTokens() && fileV.hasMoreTokens())
-      {
-        // convert b to decimal to catch bugfix releases within a series
-        String curT = currentV.nextToken().toLowerCase().replace('b', '.');
-        String fileT = fileV.nextToken().toLowerCase().replace('b', '.');
-        try
-        {
-          if (Float.valueOf(curT) > Float.valueOf(fileT))
-          {
-            // current version is newer than the version that wrote the file
-            return false;
-          }
-        } catch (NumberFormatException nfe)
-        {
-          System.err
-                  .println("** WARNING: Version comparison failed for tokens ("
-                          + curT
-                          + ") and ("
-                          + fileT
-                          + ")\n** Current: '"
-                          + supported + "' and Version: '" + version + "'");
-        }
-      }
-      if (currentV.hasMoreElements())
-      {
-        // fileV has no minor version but identical series to current
-        return false;
-      }
+      return StringUtils.compareVersions(version, supported, "b") >= 0;
     }
-    return true;
   }
 
   Vector<JalviewStructureDisplayI> newStructureViewers = null;
@@ -4110,7 +4338,7 @@ public class Jalview2XML
   }
 
   AlignFrame loadViewport(String file, JSeq[] JSEQ,
-          List<SequenceI> hiddenSeqs, Alignment al,
+          List<SequenceI> hiddenSeqs, AlignmentI al,
           JalviewModelSequence jms, Viewport view, String uniqueSeqSetId,
           String viewId, List<JvAnnotRow> autoAlan)
   {
@@ -4124,6 +4352,12 @@ public class Jalview2XML
     {
       af.viewport.setSequenceColour(af.viewport.getAlignment()
               .getSequenceAt(i), new java.awt.Color(JSEQ[i].getColour()));
+    }
+
+    if (al.hasSeqrep())
+    {
+      af.getViewport().setColourByReferenceSeq(true);
+      af.getViewport().setDisplayReferenceSeq(true);
     }
 
     af.viewport.setGatherViewsHere(view.getGatheredViews());
@@ -4152,24 +4386,24 @@ public class Jalview2XML
     {
       for (int s = 0; s < JSEQ.length; s++)
       {
-        jalview.datamodel.SequenceGroup hidden = new jalview.datamodel.SequenceGroup();
-
+        SequenceGroup hidden = new SequenceGroup();
+        boolean isRepresentative = false;
         for (int r = 0; r < JSEQ[s].getHiddenSequencesCount(); r++)
         {
-          hidden.addSequence(
-                  al.getSequenceAt(JSEQ[s].getHiddenSequences(r)), false);
+          isRepresentative = true;
+          SequenceI sequenceToHide = al.getSequenceAt(JSEQ[s]
+                  .getHiddenSequences(r));
+          hidden.addSequence(sequenceToHide, false);
+          // remove from hiddenSeqs list so we don't try to hide it twice
+          hiddenSeqs.remove(sequenceToHide);
         }
-        af.viewport.hideRepSequences(al.getSequenceAt(s), hidden);
+        if (isRepresentative)
+        {
+          SequenceI representativeSequence = al.getSequenceAt(s);
+          hidden.addSequence(representativeSequence, false);
+          af.viewport.hideRepSequences(representativeSequence, hidden);
+        }
       }
-
-      // jalview.datamodel.SequenceI[] hseqs = new
-      // jalview.datamodel.SequenceI[hiddenSeqs
-      // .size()];
-      //
-      // for (int s = 0; s < hiddenSeqs.size(); s++)
-      // {
-      // hseqs[s] = (jalview.datamodel.SequenceI) hiddenSeqs.elementAt(s);
-      // }
 
       SequenceI[] hseqs = hiddenSeqs.toArray(new SequenceI[hiddenSeqs
               .size()]);
@@ -4329,25 +4563,33 @@ public class Jalview2XML
       af.viewport.setFeaturesDisplayed(fdi = new FeaturesDisplayed());
       String[] renderOrder = new String[jms.getFeatureSettings()
               .getSettingCount()];
-      Hashtable featureGroups = new Hashtable();
-      Hashtable featureColours = new Hashtable();
-      Hashtable featureOrder = new Hashtable();
+      Map<String, FeatureColourI> featureColours = new Hashtable<String, FeatureColourI>();
+      Map<String, Float> featureOrder = new Hashtable<String, Float>();
 
       for (int fs = 0; fs < jms.getFeatureSettings().getSettingCount(); fs++)
       {
         Setting setting = jms.getFeatureSettings().getSetting(fs);
         if (setting.hasMincolour())
         {
-          GraduatedColor gc = setting.hasMin() ? new GraduatedColor(
-                  new java.awt.Color(setting.getMincolour()),
-                  new java.awt.Color(setting.getColour()),
-                  setting.getMin(), setting.getMax()) : new GraduatedColor(
-                  new java.awt.Color(setting.getMincolour()),
-                  new java.awt.Color(setting.getColour()), 0, 1);
+          FeatureColourI gc = setting.hasMin() ? new FeatureColour(
+                  new Color(setting.getMincolour()), new Color(
+                          setting.getColour()), setting.getMin(),
+                  setting.getMax()) : new FeatureColour(new Color(
+                  setting.getMincolour()), new Color(setting.getColour()),
+                  0, 1);
           if (setting.hasThreshold())
           {
-            gc.setThresh(setting.getThreshold());
-            gc.setThreshType(setting.getThreshstate());
+            gc.setThreshold(setting.getThreshold());
+            int threshstate = setting.getThreshstate();
+            // -1 = None, 0 = Below, 1 = Above threshold
+            if (threshstate == 0)
+            {
+              gc.setBelowThreshold(true);
+            }
+            else if (threshstate == 1)
+            {
+              gc.setAboveThreshold(true);
+            }
           }
           gc.setAutoScaled(true); // default
           if (setting.hasAutoScale())
@@ -4363,8 +4605,8 @@ public class Jalview2XML
         }
         else
         {
-          featureColours.put(setting.getType(),
-                  new java.awt.Color(setting.getColour()));
+          featureColours.put(setting.getType(), new FeatureColour(
+                  new Color(setting.getColour())));
         }
         renderOrder[fs] = setting.getType();
         if (setting.hasOrder())
@@ -4381,7 +4623,7 @@ public class Jalview2XML
           fdi.setVisible(setting.getType());
         }
       }
-      Hashtable fgtable = new Hashtable();
+      Map<String, Boolean> fgtable = new Hashtable<String, Boolean>();
       for (int gs = 0; gs < jms.getFeatureSettings().getGroupCount(); gs++)
       {
         Group grp = jms.getFeatureSettings().getGroup(gs);
@@ -4424,7 +4666,7 @@ public class Jalview2XML
       }
     }
     af.setMenusFromViewport(af.viewport);
-
+    af.setTitle(view.getTitle());
     // TODO: we don't need to do this if the viewport is aready visible.
     /*
      * Add the AlignFrame to the desktop (it may be 'gathered' later), unless it
@@ -4449,7 +4691,7 @@ public class Jalview2XML
   }
 
   private ColourSchemeI constructAnnotationColour(
-          AnnotationColours viewAnnColour, AlignFrame af, Alignment al,
+          AnnotationColours viewAnnColour, AlignFrame af, AlignmentI al,
           JalviewModelSequence jms, boolean checkGroupAnnColour)
   {
     boolean propagateAnnColour = false;
@@ -4573,7 +4815,7 @@ public class Jalview2XML
     return cs;
   }
 
-  private void reorderAutoannotation(AlignFrame af, Alignment al,
+  private void reorderAutoannotation(AlignFrame af, AlignmentI al,
           List<JvAnnotRow> autoAlan)
   {
     // copy over visualization settings for autocalculated annotation in the
@@ -4728,10 +4970,11 @@ public class Jalview2XML
     }
   }
 
-  private void recoverDatasetFor(SequenceSet vamsasSet, Alignment al,
+  private void recoverDatasetFor(SequenceSet vamsasSet, AlignmentI al,
           boolean ignoreUnrefed)
   {
-    jalview.datamodel.Alignment ds = getDatasetFor(vamsasSet.getDatasetId());
+    jalview.datamodel.AlignmentI ds = getDatasetFor(vamsasSet
+            .getDatasetId());
     Vector dseqs = null;
     if (ds == null)
     {
@@ -4741,7 +4984,7 @@ public class Jalview2XML
     for (int i = 0, iSize = vamsasSet.getSequenceCount(); i < iSize; i++)
     {
       Sequence vamsasSeq = vamsasSet.getSequence(i);
-      ensureJalviewDatasetSequence(vamsasSeq, ds, dseqs, ignoreUnrefed);
+      ensureJalviewDatasetSequence(vamsasSeq, ds, dseqs, ignoreUnrefed, i);
     }
     // create a new dataset
     if (ds == null)
@@ -4768,17 +5011,28 @@ public class Jalview2XML
    *          dataset alignment
    * @param dseqs
    *          vector to add new dataset sequence to
+   * @param ignoreUnrefed
+   *          - when true, don't create new sequences from vamsasSeq if it's id
+   *          doesn't already have an asssociated Jalview sequence.
+   * @param vseqpos
+   *          - used to reorder the sequence in the alignment according to the
+   *          vamsasSeq array ordering, to preserve ordering of dataset
    */
   private void ensureJalviewDatasetSequence(Sequence vamsasSeq,
-          AlignmentI ds, Vector dseqs, boolean ignoreUnrefed)
+          AlignmentI ds, Vector dseqs, boolean ignoreUnrefed, int vseqpos)
   {
     // JBP TODO: Check this is called for AlCodonFrames to support recovery of
     // xRef Codon Maps
     SequenceI sq = seqRefIds.get(vamsasSeq.getId());
+    boolean reorder = false;
     SequenceI dsq = null;
     if (sq != null && sq.getDatasetSequence() != null)
     {
       dsq = sq.getDatasetSequence();
+    }
+    else
+    {
+      reorder = true;
     }
     if (sq == null && ignoreUnrefed)
     {
@@ -4875,21 +5129,50 @@ public class Jalview2XML
         // + (post ? "appended" : ""));
       }
     }
+    else
+    {
+      // sequence refs are identical. We may need to update the existing dataset
+      // alignment with this one, though.
+      if (ds != null && dseqs == null)
+      {
+        int opos = ds.findIndex(dsq);
+        SequenceI tseq = null;
+        if (opos != -1 && vseqpos != opos)
+        {
+          // remove from old position
+          ds.deleteSequence(dsq);
+        }
+        if (vseqpos < ds.getHeight())
+        {
+          if (vseqpos != opos)
+          {
+            // save sequence at destination position
+            tseq = ds.getSequenceAt(vseqpos);
+            ds.replaceSequenceAt(vseqpos, dsq);
+            ds.addSequence(tseq);
+          }
+        }
+        else
+        {
+          ds.addSequence(dsq);
+        }
+      }
+    }
   }
 
   /*
    * TODO use AlignmentI here and in related methods - needs
    * AlignmentI.getDataset() changed to return AlignmentI instead of Alignment
    */
-  Hashtable<String, Alignment> datasetIds = null;
+  Hashtable<String, AlignmentI> datasetIds = null;
 
-  IdentityHashMap<Alignment, String> dataset2Ids = null;
+  IdentityHashMap<AlignmentI, String> dataset2Ids = null;
 
-  private Alignment getDatasetFor(String datasetId)
+  private AlignmentI getDatasetFor(String datasetId)
   {
     if (datasetIds == null)
     {
-      datasetIds = new Hashtable<String, Alignment>();
+      datasetIds = new Hashtable<String, AlignmentI>();
       return null;
     }
     if (datasetIds.containsKey(datasetId))
@@ -4899,11 +5182,11 @@ public class Jalview2XML
     return null;
   }
 
-  private void addDatasetRef(String datasetId, Alignment dataset)
+  private void addDatasetRef(String datasetId, AlignmentI dataset)
   {
     if (datasetIds == null)
     {
-      datasetIds = new Hashtable<String, Alignment>();
+      datasetIds = new Hashtable<String, AlignmentI>();
     }
     datasetIds.put(datasetId, dataset);
   }
@@ -4914,7 +5197,7 @@ public class Jalview2XML
    * @param dataset
    * @return
    */
-  private String getDatasetIdRef(Alignment dataset)
+  private String getDatasetIdRef(AlignmentI dataset)
   {
     if (dataset.getDataset() != null)
     {
@@ -4926,7 +5209,7 @@ public class Jalview2XML
       // make a new datasetId and record it
       if (dataset2Ids == null)
       {
-        dataset2Ids = new IdentityHashMap<Alignment, String>();
+        dataset2Ids = new IdentityHashMap<AlignmentI, String>();
       }
       else
       {
@@ -4994,7 +5277,7 @@ public class Jalview2XML
         }
         else
         {
-          frefedSequence.add(new Object[] { dsfor, jmap });
+          frefedSequence.add(newMappingRef(dsfor, jmap));
         }
       }
       else
@@ -5032,6 +5315,7 @@ public class Jalview2XML
           djs.setEnd(jmap.getMap().getToHighest());
           djs.setVamsasId(uniqueSetSuffix + sqid);
           jmap.setTo(djs);
+          incompleteSeqs.put(sqid, djs);
           seqRefIds.put(sqid, djs);
 
         }

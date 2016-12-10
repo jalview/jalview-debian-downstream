@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,13 @@
  */
 package jalview.ws.dbsources;
 
-import jalview.ws.seqfetcher.DbSourceProxy;
-
 /**
  * flyweight class specifying retrieval of Seed alignments from PFAM
  * 
  * @author JimP
  * 
  */
-public class PfamSeed extends Pfam implements DbSourceProxy
+public class PfamSeed extends Pfam
 {
   public PfamSeed()
   {
@@ -40,9 +38,10 @@ public class PfamSeed extends Pfam implements DbSourceProxy
    * 
    * @see jalview.ws.dbsources.Pfam#getPFAMURL()
    */
+  @Override
   protected String getXFAMURL()
   {
-    return "http://pfam.sanger.ac.uk/family/alignment/download/format?alnType=seed&format=stockholm&order=t&case=l&gaps=default&entry=";
+    return "http://pfam.xfam.org/family/alignment/download/format?alnType=seed&format=stockholm&order=t&case=l&gaps=default&entry=";
   }
 
   /*
@@ -50,16 +49,19 @@ public class PfamSeed extends Pfam implements DbSourceProxy
    * 
    * @see jalview.ws.seqfetcher.DbSourceProxy#getDbName()
    */
+  @Override
   public String getDbName()
   {
     return "PFAM (Seed)";
   }
 
+  @Override
   public String getDbSource()
   {
     return jalview.datamodel.DBRefSource.PFAM; // archetype source
   }
 
+  @Override
   public String getTestQuery()
   {
     return "PF03760";

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  *
  * This file is part of Jalview.
  *
@@ -26,6 +26,9 @@ import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
+import jalview.datamodel.PDBEntry.Type;
+import jalview.ext.jmol.JmolParser;
+import jalview.structure.StructureImportSettings;
 import jalview.util.MessageManager;
 
 import java.io.File;
@@ -86,7 +89,7 @@ public class AppletFormatAdapter
   public static final String[] READABLE_FORMATS = new String[] { "BLC",
       "CLUSTAL", "FASTA", "MSF", "PileUp", "PIR", "PFAM", "STH", "PDB",
       "JnetFile", "RNAML", PhylipFile.FILE_DESC, JSONFile.FILE_DESC,
-      IdentifyFile.GFF3File, "HTML" };
+      IdentifyFile.FeaturesFile, "HTML", "mmCIF" };
 
   /**
    * List of readable format file extensions by application in order
@@ -95,7 +98,7 @@ public class AppletFormatAdapter
   public static final String[] READABLE_EXTENSIONS = new String[] {
       "fa, fasta, mfa, fastq", "aln", "pfam", "msf", "pir", "blc", "amsa",
       "sto,stk", "xml,rnaml", PhylipFile.FILE_EXT, JSONFile.FILE_EXT,
-      ".gff2,gff3", "jar,jvp", HtmlFile.FILE_EXT };
+      ".gff2,gff3", "jar,jvp", HtmlFile.FILE_EXT, "cif" };
 
   /**
    * List of readable formats by application in order corresponding to
@@ -103,8 +106,8 @@ public class AppletFormatAdapter
    */
   public static final String[] READABLE_FNAMES = new String[] { "Fasta",
       "Clustal", "PFAM", "MSF", "PIR", "BLC", "AMSA", "Stockholm", "RNAML",
-      PhylipFile.FILE_DESC, JSONFile.FILE_DESC, IdentifyFile.GFF3File,
-      "Jalview", HtmlFile.FILE_DESC };
+      PhylipFile.FILE_DESC, JSONFile.FILE_DESC, IdentifyFile.FeaturesFile,
+      "Jalview", HtmlFile.FILE_DESC, "mmCIF" };
 
   /**
    * List of valid format strings for use by callers of the formatSequences
@@ -277,10 +280,35 @@ public class AppletFormatAdapter
       }
       else if (format.equals("PDB"))
       {
-        alignFile = new MCview.PDBfile(annotFromStructure,
-                localSecondaryStruct, serviceSecondaryStruct, inFile, type);
-        // Uncomment to test Jmol data based PDB processing: JAL-1213
-        // afile = new jalview.ext.jmol.PDBFileWithJmol(inFile, type);
+        // TODO obtain config value from preference settings.
+        // Set value to 'true' to test PDB processing with Jmol: JAL-1213
+        boolean isParseWithJMOL = StructureImportSettings
+                .getDefaultPDBFileParser().equalsIgnoreCase(
+                        StructureImportSettings.StructureParser.JMOL_PARSER
+                                .toString());
+        if (isParseWithJMOL)
+        {
+          StructureImportSettings.addSettings(annotFromStructure,
+                  localSecondaryStruct, serviceSecondaryStruct);
+          alignFile = new jalview.ext.jmol.JmolParser(inFile, type);
+        }
+        else
+        {
+          StructureImportSettings.addSettings(annotFromStructure,
+                  localSecondaryStruct, serviceSecondaryStruct);
+          StructureImportSettings.setShowSeqFeatures(true);
+          alignFile = new MCview.PDBfile(annotFromStructure,
+                  localSecondaryStruct, serviceSecondaryStruct, inFile,
+                  type);
+        }
+        ((StructureFile) alignFile).setDbRefType(format);
+      }
+      else if (format.equalsIgnoreCase("mmCIF"))
+      {
+        StructureImportSettings.addSettings(annotFromStructure,
+                localSecondaryStruct, serviceSecondaryStruct);
+        alignFile = new jalview.ext.jmol.JmolParser(inFile, type);
+        ((StructureFile) alignFile).setDbRefType(format);
       }
       else if (format.equals("STH"))
       {
@@ -306,9 +334,9 @@ public class AppletFormatAdapter
       {
         alignFile = new RnamlFile(inFile, type);
       }
-      else if (format.equals(IdentifyFile.GFF3File))
+      else if (format.equals(IdentifyFile.FeaturesFile))
       {
-        alignFile = new Gff3File(inFile, type);
+        alignFile = new FeaturesFile(true, inFile, type);
       }
       return buildAlignmentFrom(alignFile);
     } catch (Exception e)
@@ -407,8 +435,28 @@ public class AppletFormatAdapter
       }
       else if (format.equals("PDB"))
       {
-        alignFile = new MCview.PDBfile(annotFromStructure,
-                localSecondaryStruct, serviceSecondaryStruct, source);
+        // TODO obtain config value from preference settings
+        boolean isParseWithJMOL = false;
+        if (isParseWithJMOL)
+        {
+          StructureImportSettings.addSettings(annotFromStructure,
+                  localSecondaryStruct, serviceSecondaryStruct);
+          alignFile = new JmolParser(source);
+        }
+        else
+        {
+          StructureImportSettings.setShowSeqFeatures(true);
+          alignFile = new MCview.PDBfile(annotFromStructure,
+                  localSecondaryStruct, serviceSecondaryStruct, source);
+        }
+        ((StructureFile) alignFile).setDbRefType(Type.PDB);
+      }
+      else if (format.equalsIgnoreCase("mmCIF"))
+      {
+        StructureImportSettings.addSettings(annotFromStructure,
+                localSecondaryStruct, serviceSecondaryStruct);
+        alignFile = new JmolParser(source);
+        ((StructureFile) alignFile).setDbRefType(Type.MMCIF);
       }
       else if (format.equals("STH"))
       {
@@ -426,9 +474,9 @@ public class AppletFormatAdapter
       {
         alignFile = new PhylipFile(source);
       }
-      else if (format.equals(IdentifyFile.GFF3File))
+      else if (format.equals(IdentifyFile.FeaturesFile))
       {
-        alignFile = new Gff3File(inFile, type);
+        alignFile = new FeaturesFile(inFile, type);
       }
       else if (format.equals(JSONFile.FILE_DESC))
       {
@@ -669,7 +717,7 @@ public class AppletFormatAdapter
           long memf = -r.totalMemory() + r.freeMemory();
           long t1 = -System.currentTimeMillis();
           AlignmentI al = afa.readFile(args[i], FILE,
-                  new IdentifyFile().Identify(args[i], FILE));
+                  new IdentifyFile().identify(args[i], FILE));
           t1 += System.currentTimeMillis();
           System.gc();
           memf += r.totalMemory() - r.freeMemory();
@@ -835,7 +883,7 @@ public class AppletFormatAdapter
     {
       try
       {
-        String idformat = new jalview.io.IdentifyFile().Identify(file,
+        String idformat = new jalview.io.IdentifyFile().identify(file,
                 protocol);
         if (idformat == null)
         {

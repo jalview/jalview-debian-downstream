@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,6 +41,7 @@ import jalview.schemes.ZappoColourScheme;
 import jalview.structures.models.AAStructureBindingModel;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
+import jalview.ws.dbsources.Pdb;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -49,7 +50,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.BufferedReader;
@@ -66,10 +66,10 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JColorChooser;
 import javax.swing.JInternalFrame;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
+import javax.swing.SwingUtilities;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.event.MenuEvent;
@@ -77,6 +77,13 @@ import javax.swing.event.MenuListener;
 
 public class AppJmol extends StructureViewerBase
 {
+  // ms to wait for Jmol to load files
+  private static final int JMOL_LOAD_TIMEOUT = 20000;
+
+  private static final String SPACE = " ";
+
+  private static final String BACKSLASH = "\"";
+
   AppJmolBinding jmb;
 
   JPanel scriptWindow;
@@ -122,7 +129,7 @@ public class AppJmol extends StructureViewerBase
     // / TODO: check if protocol is needed to be set, and if chains are
     // autodiscovered.
     jmb = new AppJmolBinding(this, ap.getStructureSelectionManager(),
-            pdbentrys, seqs, null, null);
+            pdbentrys, seqs, null);
 
     jmb.setLoadingFromArchive(true);
     addAlignmentPanel(ap);
@@ -292,7 +299,7 @@ public class AppJmol extends StructureViewerBase
   {
     progressBar = ap.alignFrame;
     jmb = new AppJmolBinding(this, ap.getStructureSelectionManager(),
-            pdbentrys, seqs, null, null);
+            pdbentrys, seqs, null);
     addAlignmentPanel(ap);
     useAlignmentPanelForColourbyseq(ap);
     if (pdbentrys.length > 1)
@@ -303,12 +310,10 @@ public class AppJmol extends StructureViewerBase
     jmb.setColourBySequence(true);
     setSize(400, 400); // probably should be a configurable/dynamic default here
     initMenus();
-    worker = null;
-    {
-      addingStructures = false;
-      worker = new Thread(this);
-      worker.start();
-    }
+    addingStructures = false;
+    worker = new Thread(this);
+    worker.start();
+
     this.addInternalFrameListener(new InternalFrameAdapter()
     {
       @Override
@@ -375,66 +380,24 @@ public class AppJmol extends StructureViewerBase
       scriptWindow.setVisible(false);
     }
 
-    jmb.allocateViewer(renderPanel, true, "", null, null, "", scriptWindow,
-            null);
+    jmb.allocateViewer(renderPanel, true, "", null, null, "",
+            scriptWindow, null);
     // jmb.newJmolPopup("Jmol");
     if (command == null)
     {
       command = "";
     }
     jmb.evalStateCommand(command);
+    jmb.evalStateCommand("set hoverDelay=0.1");
     jmb.setFinishedInit(true);
   }
 
-  void setChainMenuItems(Vector<String> chains)
-  {
-    chainMenu.removeAll();
-    if (chains == null)
-    {
-      return;
-    }
-    JMenuItem menuItem = new JMenuItem(
-            MessageManager.getString("label.all"));
-    menuItem.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent evt)
-      {
-        allChainsSelected = true;
-        for (int i = 0; i < chainMenu.getItemCount(); i++)
-        {
-          if (chainMenu.getItem(i) instanceof JCheckBoxMenuItem)
-          {
-            ((JCheckBoxMenuItem) chainMenu.getItem(i)).setSelected(true);
-          }
-        }
-        centerViewer();
-        allChainsSelected = false;
-      }
-    });
 
-    chainMenu.add(menuItem);
-
-    for (String chain : chains)
-    {
-      menuItem = new JCheckBoxMenuItem(chain, true);
-      menuItem.addItemListener(new ItemListener()
-      {
-        public void itemStateChanged(ItemEvent evt)
-        {
-          if (!allChainsSelected)
-          {
-            centerViewer();
-          }
-        }
-      });
-
-      chainMenu.add(menuItem);
-    }
-  }
 
   boolean allChainsSelected = false;
 
-  void centerViewer()
+  @Override
+  void showSelectedChains()
   {
     Vector<String> toshow = new Vector<String>();
     for (int i = 0; i < chainMenu.getItemCount(); i++)
@@ -451,6 +414,7 @@ public class AppJmol extends StructureViewerBase
     jmb.centerViewer(toshow);
   }
 
+  @Override
   public void closeViewer(boolean closeExternalViewer)
   {
     // Jmol does not use an external viewer
@@ -467,18 +431,172 @@ public class AppJmol extends StructureViewerBase
     jmb = null;
   }
 
+  @Override
   public void run()
   {
     _started = true;
-    String pdbid = "";
-    // todo - record which pdbids were successfuly imported.
-    StringBuffer errormsgs = new StringBuffer(), files = new StringBuffer();
     try
     {
-      String[] curfiles = jmb.getPdbFile(); // files currently in viewer
+      List<String> files = fetchPdbFiles();
+      if (files.size() > 0)
+      {
+        showFilesInViewer(files);
+      }
+    } finally
+    {
+      _started = false;
+      worker = null;
+    }
+  }
+
+  /**
+   * Either adds the given files to a structure viewer or opens a new viewer to
+   * show them
+   * 
+   * @param files
+   *          list of absolute paths to structure files
+   */
+  void showFilesInViewer(List<String> files)
+  {
+    long lastnotify = jmb.getLoadNotifiesHandled();
+    StringBuilder fileList = new StringBuilder();
+    for (String s : files)
+    {
+      fileList.append(SPACE).append(BACKSLASH)
+              .append(Platform.escapeString(s)).append(BACKSLASH);
+    }
+    String filesString = fileList.toString();
+
+    if (!addingStructures)
+    {
+      try
+      {
+        initJmol("load FILES " + filesString);
+      } catch (OutOfMemoryError oomerror)
+      {
+        new OOMWarning("When trying to open the Jmol viewer!", oomerror);
+        Cache.log.debug("File locations are " + filesString);
+      } catch (Exception ex)
+      {
+        Cache.log.error("Couldn't open Jmol viewer!", ex);
+      }
+    }
+    else
+    {
+      StringBuilder cmd = new StringBuilder();
+      cmd.append("loadingJalviewdata=true\nload APPEND ");
+      cmd.append(filesString);
+      cmd.append("\nloadingJalviewdata=null");
+      final String command = cmd.toString();
+      lastnotify = jmb.getLoadNotifiesHandled();
+
+      try
+      {
+        jmb.evalStateCommand(command);
+      } catch (OutOfMemoryError oomerror)
+      {
+        new OOMWarning("When trying to add structures to the Jmol viewer!",
+                oomerror);
+        Cache.log.debug("File locations are " + filesString);
+      } catch (Exception ex)
+      {
+        Cache.log.error("Couldn't add files to Jmol viewer!", ex);
+      }
+    }
+
+    // need to wait around until script has finished
+    int waitMax = JMOL_LOAD_TIMEOUT;
+    int waitFor = 35;
+    int waitTotal = 0;
+    while (addingStructures ? lastnotify >= jmb.getLoadNotifiesHandled()
+            : !(jmb.isFinishedInit() && jmb.getPdbFile() != null && jmb
+                    .getPdbFile().length == files.size()))
+    {
+      try
+      {
+        Cache.log.debug("Waiting around for jmb notify.");
+        Thread.sleep(waitFor);
+        waitTotal += waitFor;
+      } catch (Exception e)
+      {
+      }
+      if (waitTotal > waitMax)
+      {
+        System.err
+                .println("Timed out waiting for Jmol to load files after "
+                        + waitTotal + "ms");
+//        System.err.println("finished: " + jmb.isFinishedInit()
+//                + "; loaded: " + Arrays.toString(jmb.getPdbFile())
+//                + "; files: " + files.toString());
+        jmb.getPdbFile();
+        break;
+      }
+    }
+
+    // refresh the sequence colours for the new structure(s)
+    for (AlignmentPanel ap : _colourwith)
+    {
+      jmb.updateColours(ap);
+    }
+    // do superposition if asked to
+    if (Cache.getDefault("AUTOSUPERIMPOSE", true) && alignAddedStructures)
+    {
+      alignAddedStructures();
+    }
+    addingStructures = false;
+  }
+
+  /**
+   * Queues a thread to align structures with Jalview alignments
+   */
+  void alignAddedStructures()
+  {
+    javax.swing.SwingUtilities.invokeLater(new Runnable()
+    {
+      @Override
+      public void run()
+      {
+        if (jmb.viewer.isScriptExecuting())
+        {
+          SwingUtilities.invokeLater(this);
+          try
+          {
+            Thread.sleep(5);
+          } catch (InterruptedException q)
+          {
+          }
+          return;
+        }
+        else
+        {
+          alignStructs_withAllAlignPanels();
+        }
+      }
+    });
+    alignAddedStructures = false;
+  }
+
+  /**
+   * Retrieves and saves as file any modelled PDB entries for which we do not
+   * already have a file saved. Returns a list of absolute paths to structure
+   * files which were either retrieved, or already stored but not modelled in
+   * the structure viewer (i.e. files to add to the viewer display).
+   * 
+   * @return
+   */
+  List<String> fetchPdbFiles()
+  {
+    // todo - record which pdbids were successfully imported.
+    StringBuilder errormsgs = new StringBuilder();
+
+    List<String> files = new ArrayList<String>();
+    String pdbid = "";
+    try
+    {
+      String[] filesInViewer = jmb.getPdbFile();
       // TODO: replace with reference fetching/transfer code (validate PDBentry
       // as a DBRef?)
-      jalview.ws.dbsources.Pdb pdbclient = new jalview.ws.dbsources.Pdb();
+      Pdb pdbclient = new Pdb();
       for (int pi = 0; pi < jmb.getPdbCount(); pi++)
       {
         String file = jmb.getPdbEntry(pi).getFile();
@@ -502,12 +620,15 @@ public class AppJmol extends StructureViewerBase
           } catch (Exception ex)
           {
             ex.printStackTrace();
-            errormsgs.append("'" + pdbid + "'");
-          }
-          if (progressBar != null)
+            errormsgs.append("'").append(pdbid).append("'");
+          } finally
           {
-            progressBar.setProgressBar(
-                    MessageManager.getString("label.state_completed"), hdl);
+            if (progressBar != null)
+            {
+              progressBar.setProgressBar(
+                      MessageManager.getString("label.state_completed"),
+                      hdl);
+            }
           }
           if (pdbseq != null)
           {
@@ -516,22 +637,21 @@ public class AppJmol extends StructureViewerBase
             file = new File(pdbseq.getSequenceAt(0).getAllPDBEntries()
                     .elementAt(0).getFile()).getAbsolutePath();
             jmb.getPdbEntry(pi).setFile(file);
-
-            files.append(" \"" + Platform.escapeString(file) + "\"");
+            files.add(file);
           }
           else
           {
-            errormsgs.append("'" + pdbid + "' ");
+            errormsgs.append("'").append(pdbid).append("' ");
           }
         }
         else
         {
-          if (curfiles != null && curfiles.length > 0)
+          if (filesInViewer != null && filesInViewer.length > 0)
           {
             addingStructures = true; // already files loaded.
-            for (int c = 0; c < curfiles.length; c++)
+            for (int c = 0; c < filesInViewer.length; c++)
             {
-              if (curfiles[c].equals(file))
+              if (filesInViewer[c].equals(file))
               {
                 file = null;
                 break;
@@ -540,7 +660,7 @@ public class AppJmol extends StructureViewerBase
           }
           if (file != null)
           {
-            files.append(" \"" + Platform.escapeString(file) + "\"");
+            files.add(file);
           }
         }
       }
@@ -550,113 +670,18 @@ public class AppJmol extends StructureViewerBase
     } catch (Exception ex)
     {
       ex.printStackTrace();
-      errormsgs.append("When retrieving pdbfiles : current was: '" + pdbid
-              + "'");
+      errormsgs.append("When retrieving pdbfiles : current was: '")
+              .append(pdbid).append("'");
     }
     if (errormsgs.length() > 0)
     {
-
       JOptionPane.showInternalMessageDialog(Desktop.desktop, MessageManager
               .formatMessage("label.pdb_entries_couldnt_be_retrieved",
                       new String[] { errormsgs.toString() }),
               MessageManager.getString("label.couldnt_load_file"),
               JOptionPane.ERROR_MESSAGE);
-
     }
-    long lastnotify = jmb.getLoadNotifiesHandled();
-    if (files.length() > 0)
-    {
-      if (!addingStructures)
-      {
-
-        try
-        {
-          initJmol("load FILES " + files.toString());
-        } catch (OutOfMemoryError oomerror)
-        {
-          new OOMWarning("When trying to open the Jmol viewer!", oomerror);
-          Cache.log.debug("File locations are " + files);
-        } catch (Exception ex)
-        {
-          Cache.log.error("Couldn't open Jmol viewer!", ex);
-        }
-      }
-      else
-      {
-        StringBuffer cmd = new StringBuffer();
-        cmd.append("loadingJalviewdata=true\nload APPEND ");
-        cmd.append(files.toString());
-        cmd.append("\nloadingJalviewdata=null");
-        final String command = cmd.toString();
-        cmd = null;
-        lastnotify = jmb.getLoadNotifiesHandled();
-
-        try
-        {
-          jmb.evalStateCommand(command);
-        } catch (OutOfMemoryError oomerror)
-        {
-          new OOMWarning(
-                  "When trying to add structures to the Jmol viewer!",
-                  oomerror);
-          Cache.log.debug("File locations are " + files);
-        } catch (Exception ex)
-        {
-          Cache.log.error("Couldn't add files to Jmol viewer!", ex);
-        }
-      }
-
-      // need to wait around until script has finished
-      while (addingStructures ? lastnotify >= jmb.getLoadNotifiesHandled()
-              : (!jmb.isFinishedInit() && jmb.getPdbFile() != null && jmb
-                      .getPdbFile().length != jmb.getPdbCount()))
-      {
-        try
-        {
-          Cache.log.debug("Waiting around for jmb notify.");
-          Thread.sleep(35);
-        } catch (Exception e)
-        {
-        }
-      }
-
-      // refresh the sequence colours for the new structure(s)
-      for (AlignmentPanel ap : _colourwith)
-      {
-        jmb.updateColours(ap);
-      }
-      // do superposition if asked to
-      if (Cache.getDefault("AUTOSUPERIMPOSE", true) && alignAddedStructures)
-      {
-        javax.swing.SwingUtilities.invokeLater(new Runnable()
-        {
-          public void run()
-          {
-            if (jmb.viewer.isScriptExecuting())
-            {
-              javax.swing.SwingUtilities.invokeLater(this);
-              try
-              {
-                Thread.sleep(5);
-              } catch (InterruptedException q)
-              {
-              }
-              ;
-              return;
-            }
-            else
-            {
-              alignStructs_withAllAlignPanels();
-            }
-          }
-        });
-        alignAddedStructures = false;
-      }
-      addingStructures = false;
-
-    }
-    _started = false;
-    worker = null;
+    return files;
   }
 
   @Override
@@ -752,20 +777,20 @@ public class AppJmol extends StructureViewerBase
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from view",
-              width, height, null, null);
+              width, height, null, null, null, 0, false);
     }
     else if (type == jalview.util.ImageMaker.TYPE.EPS)
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from view",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
     }
     else
     {
 
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
     }
 
     if (im.getGraphics() != null)
@@ -1003,7 +1028,7 @@ public class AppJmol extends StructureViewerBase
       repaint();
       return;
     }
-    setChainMenuItems(jmb.chainNames);
+    setChainMenuItems(jmb.getChainNames());
 
     this.setTitle(jmb.getViewerTitle());
     if (jmb.getPdbFile().length > 1 && jmb.getSequence().length > 1)
@@ -1069,6 +1094,7 @@ public class AppJmol extends StructureViewerBase
 
   }
 
+  @Override
   public void setJalviewColourScheme(ColourSchemeI ucs)
   {
     jmb.setJalviewColourScheme(ucs);

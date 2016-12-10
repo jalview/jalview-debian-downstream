@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.schemes;
 
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
+import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.SequenceGroup;
 
 import java.awt.event.ActionEvent;
@@ -77,16 +78,20 @@ public class RNAHelicesColourChooser
     adjusting = true;
     Vector list = new Vector();
     int index = 1;
-    for (int i = 0; i < av.getAlignment().getAlignmentAnnotation().length; i++)
+    AlignmentAnnotation[] anns = av.getAlignment().getAlignmentAnnotation();
+    if (anns != null)
     {
-      String label = av.getAlignment().getAlignmentAnnotation()[i].label;
-      if (!list.contains(label))
+      for (int i = 0; i < anns.length; i++)
       {
-        list.addElement(label);
-      }
-      else
-      {
-        list.addElement(label + "_" + (index++));
+        String label = anns[i].label;
+        if (!list.contains(label))
+        {
+          list.addElement(label);
+        }
+        else
+        {
+          list.addElement(label + "_" + (index++));
+        }
       }
     }
 

@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -75,23 +75,31 @@
       </p>
       <p>
         This menu appears if the alignment contains any <a
-          href="../features/annotationsFormat.html"
-        >sequence associated alignment annotation</a> with associated
-        score values. Each entry is the label for a distinct group of
-        sequence associated annotation scores which can be used for
-        sorting.
+          href="../features/annotationsFormat.html">sequence
+          associated alignment annotation</a> with associated score values.
+        Each entry is the label for a distinct group of sequence
+        associated annotation scores which can be used for sorting.
       </p>
   </ul>
+  <p>
+    <strong>Sorting according to sequence features</strong><br />
+    Additional sort operations for alignments containing sequence
+    features are provided in the <strong><a
+      href="../features/featuresettings.html#sortbyfeature">Feature
+        Settings</a></strong> dialog, opened via <strong>View&#8594;Feature
+      Settings...</strong>
   <p>
     <strong>Reversing the Order</strong>
   </p>
   <p>Selecting any item from the Sort menu will sort sequences in an
     ascending order according to the property defining the sort. If the
     same sort is re-applied, the sequences will be sorted in the inverse
-    order. In the case of trees and alignment orderings, Jalview will
-    remember your last choice for sorting the alignment and only apply
-    the inverse ordering if you select the same tree or alignment
-    ordering item again.</p>
+    order. In both cases, for sequences which are equivalent under the
+    sort operation, their order will be preserved (since version 2.10).
+    In the case of trees and alignment orderings, Jalview will remember
+    your last choice for sorting the alignment and only apply the
+    inverse ordering if you select the same tree or alignment ordering
+    item again.</p>
 
 </body>
 </html>

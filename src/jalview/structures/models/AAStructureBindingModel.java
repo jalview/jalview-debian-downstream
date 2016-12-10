@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -51,6 +51,10 @@ public abstract class AAStructureBindingModel extends
 
   private StructureSelectionManager ssm;
 
+  /*
+   * distinct PDB entries (pdb files) associated
+   * with sequences
+   */
   private PDBEntry[] pdbEntry;
 
   /*
@@ -73,6 +77,11 @@ public abstract class AAStructureBindingModel extends
   private boolean nucleotide;
 
   private boolean finishedInit = false;
+
+  /**
+   * current set of model filenames loaded in the Jmol instance
+   */
+  protected String[] modelFileNames = null;
 
   /**
    * Data bean class to simplify parameterisation in superposeStructures
@@ -126,19 +135,14 @@ public abstract class AAStructureBindingModel extends
    * @param protocol
    */
   public AAStructureBindingModel(StructureSelectionManager ssm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String[][] chains,
+          PDBEntry[] pdbentry, SequenceI[][] sequenceIs,
           String protocol)
   {
     this.ssm = ssm;
     this.sequence = sequenceIs;
     this.nucleotide = Comparison.isNucleotide(sequenceIs);
-    this.chains = chains;
     this.pdbEntry = pdbentry;
     this.protocol = protocol;
-    if (chains == null)
-    {
-      this.chains = new String[pdbentry.length][];
-    }
   }
 
   public StructureSelectionManager getSsm()
@@ -239,24 +243,21 @@ public abstract class AAStructureBindingModel extends
     // TODO: give a more informative title when multiple structures are
     // displayed.
     StringBuilder title = new StringBuilder(64);
-    final PDBEntry pdbEntry = getPdbEntry(0);
+    final PDBEntry pdbe = getPdbEntry(0);
     title.append(viewerName + " view for " + getSequence()[0][0].getName()
-            + ":" + pdbEntry.getId());
+            + ":" + pdbe.getId());
 
     if (verbose)
     {
-      if (pdbEntry.getProperty() != null)
+      String method = (String) pdbe.getProperty("method");
+      if (method != null)
       {
-        if (pdbEntry.getProperty().get("method") != null)
-        {
-          title.append(" Method: ");
-          title.append(pdbEntry.getProperty().get("method"));
-        }
-        if (pdbEntry.getProperty().get("chains") != null)
-        {
-          title.append(" Chain:");
-          title.append(pdbEntry.getProperty().get("chains"));
-        }
+        title.append(" Method: ").append(method);
+      }
+      String chain = (String) pdbe.getProperty("chains");
+      if (chain != null)
+      {
+        title.append(" Chain:").append(chain);
       }
     }
     return title.toString();
@@ -521,6 +522,10 @@ public abstract class AAStructureBindingModel extends
   {
     int refStructure = -1;
     String[] files = getPdbFile();
+    if (files == null)
+    {
+      return -1;
+    }
     for (int pdbfnum = 0; pdbfnum < files.length; pdbfnum++)
     {
       StructureMapping[] mappings = getSsm().getMapping(files[pdbfnum]);
@@ -565,7 +570,11 @@ public abstract class AAStructureBindingModel extends
             }
             structures[pdbfnum].pdbId = mapping.getPdbId();
             structures[pdbfnum].isRna = theSequence.getRNA() != null;
-            // move on to next pdb file
+
+            /*
+             * move on to next pdb file (ignore sequences for other chains
+             * for the same structure)
+             */
             s = seqCountForPdbFile;
             break;
           }
@@ -598,6 +607,10 @@ public abstract class AAStructureBindingModel extends
       for (String file : files)
       {
         notLoaded = file;
+        if (file == null)
+        {
+          continue;
+        }
         try
         {
           StructureMapping[] sm = getSsm().getMapping(file);
@@ -633,7 +646,10 @@ public abstract class AAStructureBindingModel extends
         {
           for (SequenceI s : seqs)
           {
-            if (s == seq)
+            if (s == seq
+                    || (s.getDatasetSequence() != null && s
+                            .getDatasetSequence() == seq
+                            .getDatasetSequence()))
             {
               return true;
             }
@@ -653,4 +669,12 @@ public abstract class AAStructureBindingModel extends
   {
     this.finishedInit = fi;
   }
+
+  /**
+   * Returns a list of chains mapped in this viewer.
+   * 
+   * @return
+   */
+  public abstract List<String> getChainNames();
+
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,24 +20,24 @@
  */
 package jalview.ws;
 
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.DBRefSource;
-import jalview.datamodel.SequenceI;
+import jalview.ext.ensembl.EnsemblGene;
+import jalview.ext.ensembl.EnsemblGenomes;
+import jalview.ws.dbsources.EmblCdsSource;
+import jalview.ws.dbsources.EmblSource;
+import jalview.ws.dbsources.Pdb;
+import jalview.ws.dbsources.PfamFull;
+import jalview.ws.dbsources.PfamSeed;
+import jalview.ws.dbsources.RfamSeed;
+import jalview.ws.dbsources.Uniprot;
 import jalview.ws.dbsources.das.api.jalviewSourceI;
 import jalview.ws.seqfetcher.ASequenceFetcher;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.Vector;
 
 /**
- * This is the the concrete implementation of the sequence retrieval interface
- * and abstract class in jalview.ws.seqfetcher. This implements the run-time
- * discovery of sequence database clients, and provides a hardwired main for
- * testing all registered handlers.
+ * This implements the run-time discovery of sequence database clients.
  * 
  */
 public class SequenceFetcher extends ASequenceFetcher
@@ -55,16 +55,16 @@ public class SequenceFetcher extends ASequenceFetcher
 
   public SequenceFetcher(boolean addDas)
   {
-    addDBRefSourceImpl(jalview.ws.dbsources.EmblSource.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.EmblCdsSouce.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.Uniprot.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.UnprotName.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.Pdb.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.PfamFull.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.PfamSeed.class);
-    // ensures Seed alignment is 'default' for PFAM
-    addDBRefSourceImpl(jalview.ws.dbsources.RfamFull.class);
-    addDBRefSourceImpl(jalview.ws.dbsources.RfamSeed.class);
+    addDBRefSourceImpl(EnsemblGene.class);
+    addDBRefSourceImpl(EnsemblGenomes.class);
+    addDBRefSourceImpl(EmblSource.class);
+    addDBRefSourceImpl(EmblCdsSource.class);
+    addDBRefSourceImpl(Uniprot.class);
+    addDBRefSourceImpl(Pdb.class);
+    addDBRefSourceImpl(PfamFull.class);
+    addDBRefSourceImpl(PfamSeed.class);
+    addDBRefSourceImpl(RfamSeed.class);
+
     if (addDas)
     {
       registerDasSequenceSources();
@@ -87,7 +87,7 @@ public class SequenceFetcher extends ASequenceFetcher
       {
         // Skip the alignment databases for the moment - they're not useful for
         // verifying a single sequence against its reference source
-        if (dbs.isA(DBRefSource.ALIGNMENTDB))
+        if (dbs.isAlignmentSource())
         {
           skip = true;
         }
@@ -147,283 +147,6 @@ public class SequenceFetcher extends ASequenceFetcher
       srcs[i] = sorted[j];
     }
     return srcs;
-  }
-
-  /**
-   * return plaintext databse list suitable for using in a GUI element
-   */
-  public String[] _getOrderedSupportedSources()
-  {
-    String[] srcs = this.getSupportedDb();
-    ArrayList dassrc = new ArrayList(), nondas = new ArrayList();
-    for (int i = 0; i < srcs.length; i++)
-    {
-      for (DbSourceProxy dbs : getSourceProxy(srcs[i]))
-      {
-        String nm = dbs.getDbName();
-        if (getSourceProxy(srcs[i]) instanceof jalview.ws.dbsources.das.datamodel.DasSequenceSource)
-        {
-          if (nm.startsWith("das:"))
-          {
-            nm = nm.substring(4);
-          }
-          dassrc.add(new String[] { srcs[i], nm.toUpperCase() });
-        }
-        else
-        {
-          nondas.add(new String[] { srcs[i], nm.toUpperCase() });
-        }
-      }
-    }
-    Object[] sorted = nondas.toArray();
-    String[] tosort = new String[sorted.length];
-    nondas.clear();
-    for (int j = 0; j < sorted.length; j++)
-    {
-      tosort[j] = ((String[]) sorted[j])[1];
-    }
-    jalview.util.QuickSort.sort(tosort, sorted);
-    int i = 0;
-    // construct array with all sources listed
-    srcs = new String[sorted.length + dassrc.size()];
-    for (int j = sorted.length - 1; j >= 0; j--, i++)
-    {
-      srcs[i] = ((String[]) sorted[j])[0];
-      sorted[j] = null;
-    }
-
-    sorted = dassrc.toArray();
-    tosort = new String[sorted.length];
-    dassrc.clear();
-    for (int j = 0; j < sorted.length; j++)
-    {
-      tosort[j] = ((String[]) sorted[j])[1];
-    }
-    jalview.util.QuickSort.sort(tosort, sorted);
-    for (int j = sorted.length - 1; j >= 0; j--, i++)
-    {
-      srcs[i] = ((String[]) sorted[j])[0];
-      sorted[j] = null;
-    }
-    return srcs;
-  }
-
-  /**
-   * simple run method to test dbsources.
-   * 
-   * @param argv
-   */
-  public static void main(String[] argv)
-  {
-    AlignmentI ds = null;
-    Vector noProds = new Vector();
-    String usage = "SequenceFetcher.main [-nodas] [<DBNAME> [<ACCNO>]]\n"
-            + "With no arguments, all DbSources will be queried with their test Accession number.\n"
-            + "With one argument, the argument will be resolved to one or more db sources and each will be queried with their test accession only.\n"
-            + "If given two arguments, SequenceFetcher will try to find the DbFetcher corresponding to <DBNAME> and retrieve <ACCNO> from it.\n"
-            + "The -nodas option will exclude DAS sources from the database fetchers Jalview will try to use.";
-    boolean withDas = true;
-    if (argv != null && argv.length > 0
-            && argv[0].toLowerCase().startsWith("-nodas"))
-    {
-      withDas = false;
-      String targs[] = new String[argv.length - 1];
-      System.arraycopy(argv, 1, targs, 0, targs.length);
-      argv = targs;
-    }
-    if (argv != null && argv.length > 0)
-    {
-      List<DbSourceProxy> sps = new SequenceFetcher(withDas)
-              .getSourceProxy(argv[0]);
-
-      if (sps != null)
-      {
-        for (DbSourceProxy sp : sps)
-        {
-          AlignmentI al = null;
-          try
-          {
-            al = sp.getSequenceRecords(argv.length > 1 ? argv[1] : sp
-                    .getTestQuery());
-          } catch (Exception e)
-          {
-            e.printStackTrace();
-            System.err.println("Error when retrieving "
-                    + (argv.length > 1 ? argv[1] : sp.getTestQuery())
-                    + " from " + argv[0] + "\nUsage: " + usage);
-          }
-          SequenceI[] prod = al.getSequencesArray();
-          if (al != null)
-          {
-            for (int p = 0; p < prod.length; p++)
-            {
-              System.out.println("Prod " + p + ": "
-                      + prod[p].getDisplayId(true) + " : "
-                      + prod[p].getDescription());
-            }
-          }
-        }
-        return;
-      }
-      else
-      {
-        System.err.println("Can't resolve " + argv[0]
-                + " as a database name. Allowed values are :\n"
-                + new SequenceFetcher().getSupportedDb());
-      }
-      System.out.println(usage);
-      return;
-    }
-    ASequenceFetcher sfetcher = new SequenceFetcher(withDas);
-    String[] dbSources = sfetcher.getSupportedDb();
-    for (int dbsource = 0; dbsource < dbSources.length; dbsource++)
-    {
-      String db = dbSources[dbsource];
-      // skip me
-      if (db.equals(DBRefSource.PDB))
-      {
-        continue;
-      }
-      for (DbSourceProxy sp : sfetcher.getSourceProxy(db))
-      {
-        System.out.println("Source: " + sp.getDbName() + " (" + db
-                + "): retrieving test:" + sp.getTestQuery());
-        AlignmentI al = null;
-        try
-        {
-          al = sp.getSequenceRecords(sp.getTestQuery());
-          if (al != null && al.getHeight() > 0
-                  && sp.getDbSourceProperties() != null)
-          {
-            boolean dna = sp.getDbSourceProperties().containsKey(
-                    DBRefSource.DNACODINGSEQDB)
-                    || sp.getDbSourceProperties().containsKey(
-                            DBRefSource.DNASEQDB)
-                    || sp.getDbSourceProperties().containsKey(
-                            DBRefSource.CODINGSEQDB);
-            // try and find products
-            String types[] = jalview.analysis.CrossRef
-                    .findSequenceXrefTypes(dna, al.getSequencesArray());
-            if (types != null)
-            {
-              System.out.println("Xref Types for: "
-                      + (dna ? "dna" : "prot"));
-              for (int t = 0; t < types.length; t++)
-              {
-                System.out.println("Type: " + types[t]);
-                SequenceI[] prod = jalview.analysis.CrossRef
-                        .findXrefSequences(al.getSequencesArray(), dna,
-                                types[t]).getSequencesArray();
-                System.out.println("Found "
-                        + ((prod == null) ? "no" : "" + prod.length)
-                        + " products");
-                if (prod != null)
-                {
-                  for (int p = 0; p < prod.length; p++)
-                  {
-                    System.out.println("Prod " + p + ": "
-                            + prod[p].getDisplayId(true));
-                  }
-                }
-              }
-            }
-            else
-            {
-              noProds.addElement((dna ? new Object[] { al, al }
-                      : new Object[] { al }));
-            }
-
-          }
-        } catch (Exception ex)
-        {
-          System.out.println("ERROR:Failed to retrieve test query.");
-          ex.printStackTrace(System.out);
-        }
-
-        if (al == null)
-        {
-          System.out.println("ERROR:No alignment retrieved.");
-          StringBuffer raw = sp.getRawRecords();
-          if (raw != null)
-          {
-            System.out.println(raw.toString());
-          }
-          else
-          {
-            System.out.println("ERROR:No Raw results.");
-          }
-        }
-        else
-        {
-          System.out.println("Retrieved " + al.getHeight() + " sequences.");
-          for (int s = 0; s < al.getHeight(); s++)
-          {
-            SequenceI sq = al.getSequenceAt(s);
-            while (sq.getDatasetSequence() != null)
-            {
-              sq = sq.getDatasetSequence();
-
-            }
-            if (ds == null)
-            {
-              ds = new Alignment(new SequenceI[] { sq });
-
-            }
-            else
-            {
-              ds.addSequence(sq);
-            }
-          }
-        }
-        System.out.flush();
-        System.err.flush();
-
-      }
-      if (noProds.size() > 0)
-      {
-        Enumeration ts = noProds.elements();
-        while (ts.hasMoreElements())
-
-        {
-          Object[] typeSq = (Object[]) ts.nextElement();
-          boolean dna = (typeSq.length > 1);
-          AlignmentI al = (AlignmentI) typeSq[0];
-          System.out.println("Trying getProducts for "
-                  + al.getSequenceAt(0).getDisplayId(true));
-          System.out.println("Search DS Xref for: "
-                  + (dna ? "dna" : "prot"));
-          // have a bash at finding the products amongst all the retrieved
-          // sequences.
-          SequenceI[] seqs = al.getSequencesArray();
-          Alignment prodal = jalview.analysis.CrossRef.findXrefSequences(
-                  seqs, dna, null, ds);
-          System.out.println("Found "
-                  + ((prodal == null) ? "no" : "" + prodal.getHeight())
-                  + " products");
-          if (prodal != null)
-          {
-            SequenceI[] prod = prodal.getSequencesArray(); // note
-            // should
-            // test
-            // rather
-            // than
-            // throw
-            // away
-            // codon
-            // mapping
-            // (if
-            // present)
-            for (int p = 0; p < prod.length; p++)
-            {
-              System.out.println("Prod " + p + ": "
-                      + prod[p].getDisplayId(true));
-            }
-          }
-        }
-
-      }
-
-    }
   }
 
   /**

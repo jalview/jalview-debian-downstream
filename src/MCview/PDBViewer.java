@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -62,7 +62,6 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButtonMenuItem;
-import javax.swing.SwingUtilities;
 
 public class PDBViewer extends JInternalFrame implements Runnable
 {
@@ -129,29 +128,29 @@ public class PDBViewer extends JInternalFrame implements Runnable
       worker.start();
     }
 
-    if (pdbentry.getProperty() != null)
+    String method = (String) pdbentry.getProperty("method");
+    if (method != null)
     {
-      if (pdbentry.getProperty().get("method") != null)
-      {
-        title.append(" Method: ");
-        title.append(pdbentry.getProperty().get("method"));
-      }
-      if (pdbentry.getProperty().get("chains") != null)
-      {
-        title.append(" Chain:");
-        title.append(pdbentry.getProperty().get("chains"));
-      }
+      title.append(" Method: ");
+      title.append(method);
+    }
+    String ch = (String) pdbentry.getProperty("chains");
+    if (ch != null)
+    {
+      title.append(" Chain:");
+      title.append(ch);
     }
     Desktop.addInternalFrame(this, title.toString(), 400, 400);
   }
 
+  @Override
   public void run()
   {
     try
     {
       EBIFetchClient ebi = new EBIFetchClient();
       String query = "pdb:" + pdbentry.getId();
-      pdbentry.setFile(ebi.fetchDataAsFile(query, "default", "raw")
+      pdbentry.setFile(ebi.fetchDataAsFile(query, "default", ".xml")
               .getAbsolutePath());
 
       if (pdbentry.getFile() != null)
@@ -169,6 +168,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
   {
     this.addKeyListener(new KeyAdapter()
     {
+      @Override
       public void keyPressed(KeyEvent evt)
       {
         pdbcanvas.keyPressed(evt);
@@ -183,6 +183,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     png.setText("PNG");
     png.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         png_actionPerformed(e);
@@ -191,6 +192,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     eps.setText("EPS");
     eps.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         eps_actionPerformed(e);
@@ -199,6 +201,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     mapping.setText(MessageManager.getString("label.view_mapping"));
     mapping.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         mapping_actionPerformed(e);
@@ -207,6 +210,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     wire.setText(MessageManager.getString("label.wireframe"));
     wire.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         wire_actionPerformed(e);
@@ -216,6 +220,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     depth.setText(MessageManager.getString("label.depthcue"));
     depth.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         depth_actionPerformed(e);
@@ -225,6 +230,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     zbuffer.setText(MessageManager.getString("label.z_buffering"));
     zbuffer.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         zbuffer_actionPerformed(e);
@@ -233,6 +239,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     charge.setText(MessageManager.getString("label.charge_cysteine"));
     charge.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         charge_actionPerformed(e);
@@ -241,6 +248,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     chain.setText(MessageManager.getString("action.by_chain"));
     chain.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         chain_actionPerformed(e);
@@ -250,6 +258,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     seqButton.setText(MessageManager.getString("action.by_sequence"));
     seqButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         seqButton_actionPerformed(e);
@@ -259,6 +268,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     allchains.setText(MessageManager.getString("label.show_all_chains"));
     allchains.addItemListener(new ItemListener()
     {
+      @Override
       public void itemStateChanged(ItemEvent e)
       {
         allchains_itemStateChanged(e);
@@ -267,6 +277,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     zappo.setText(MessageManager.getString("label.zappo"));
     zappo.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         zappo_actionPerformed(e);
@@ -275,6 +286,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     taylor.setText(MessageManager.getString("label.taylor"));
     taylor.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         taylor_actionPerformed(e);
@@ -283,6 +295,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     hydro.setText(MessageManager.getString("label.hydrophobicity"));
     hydro.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         hydro_actionPerformed(e);
@@ -291,6 +304,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     helix.setText(MessageManager.getString("label.helix_propensity"));
     helix.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         helix_actionPerformed(e);
@@ -299,6 +313,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     strand.setText(MessageManager.getString("label.strand_propensity"));
     strand.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         strand_actionPerformed(e);
@@ -307,6 +322,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     turn.setText(MessageManager.getString("label.turn_propensity"));
     turn.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         turn_actionPerformed(e);
@@ -315,6 +331,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     buried.setText(MessageManager.getString("label.buried_index"));
     buried.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         buried_actionPerformed(e);
@@ -323,6 +340,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     user.setText(MessageManager.getString("action.user_defined"));
     user.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         user_actionPerformed(e);
@@ -333,6 +351,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
             .setText(MessageManager.getString("action.background_colour"));
     background.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         background_actionPerformed(e);
@@ -341,6 +360,7 @@ public class PDBViewer extends JInternalFrame implements Runnable
     savePDB.setText(MessageManager.getString("label.pdb_file"));
     savePDB.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         savePDB_actionPerformed(e);
@@ -391,41 +411,59 @@ public class PDBViewer extends JInternalFrame implements Runnable
         radioItem.setName("USER_DEFINED");
         radioItem.addMouseListener(new MouseAdapter()
         {
+          @Override
           public void mousePressed(MouseEvent evt)
           {
-            if (evt.isControlDown()
-                    || SwingUtilities.isRightMouseButton(evt))
+            if (evt.isPopupTrigger()) // Mac
             {
-              radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+              offerRemoval(radioItem);
+            }
+          }
 
-              int option = JOptionPane.showInternalConfirmDialog(
-                      jalview.gui.Desktop.desktop,
-                      MessageManager
-                              .getString("label.remove_from_default_list"),
-                      MessageManager
-                              .getString("label.remove_user_defined_colour"),
-                      JOptionPane.YES_NO_OPTION);
-              if (option == JOptionPane.YES_OPTION)
+          @Override
+          public void mouseReleased(MouseEvent evt)
+          {
+            if (evt.isPopupTrigger()) // Windows
+            {
+              offerRemoval(radioItem);
+            }
+          }
+
+          /**
+           * @param radioItem
+           */
+          void offerRemoval(final JRadioButtonMenuItem radioItem)
+          {
+            radioItem.removeActionListener(radioItem.getActionListeners()[0]);
+
+            int option = JOptionPane.showInternalConfirmDialog(
+                    jalview.gui.Desktop.desktop, MessageManager
+                            .getString("label.remove_from_default_list"),
+                    MessageManager
+                            .getString("label.remove_user_defined_colour"),
+                    JOptionPane.YES_NO_OPTION);
+            if (option == JOptionPane.YES_OPTION)
+            {
+              jalview.gui.UserDefinedColours
+                      .removeColourFromDefaults(radioItem.getText());
+              coloursMenu.remove(radioItem);
+            }
+            else
+            {
+              radioItem.addActionListener(new ActionListener()
               {
-                jalview.gui.UserDefinedColours
-                        .removeColourFromDefaults(radioItem.getText());
-                coloursMenu.remove(radioItem);
-              }
-              else
-              {
-                radioItem.addActionListener(new ActionListener()
+                @Override
+                public void actionPerformed(ActionEvent evt)
                 {
-                  public void actionPerformed(ActionEvent evt)
-                  {
-                    user_actionPerformed(evt);
-                  }
-                });
-              }
+                  user_actionPerformed(evt);
+                }
+              });
             }
           }
         });
         radioItem.addActionListener(new ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent evt)
           {
             user_actionPerformed(evt);
@@ -525,20 +563,20 @@ public class PDBViewer extends JInternalFrame implements Runnable
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from view",
-              width, height, null, null);
+              width, height, null, null, null, 0, false);
     }
     else if (type == jalview.util.ImageMaker.TYPE.EPS)
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from view",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
     }
     else
     {
 
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
     }
 
     if (im.getGraphics() != null)

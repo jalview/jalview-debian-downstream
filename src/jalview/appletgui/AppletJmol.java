@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,7 @@ import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.io.AppletFormatAdapter;
 import jalview.io.FileParse;
+import jalview.io.StructureFile;
 import jalview.schemes.BuriedColourScheme;
 import jalview.schemes.HelixColourScheme;
 import jalview.schemes.HydrophobicColourScheme;
@@ -59,7 +60,6 @@ import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 
@@ -180,7 +180,7 @@ public class AppletJmol extends EmbmenuFrame implements
     this.ap = ap;
     jmb = new AppletJmolBinding(this, ap.getStructureSelectionManager(),
             new PDBEntry[] { pdbentry }, new SequenceI[][] { seq },
-            new String[][] { chains }, protocol);
+            protocol);
     jmb.setColourBySequence(true);
     if (pdbentry.getId() == null || pdbentry.getId().length() < 1)
     {
@@ -204,7 +204,7 @@ public class AppletJmol extends EmbmenuFrame implements
     String alreadyMapped = StructureSelectionManager
             .getStructureSelectionManager(ap.av.applet)
             .alreadyMappedToFile(pdbentry.getId());
-    MCview.PDBfile reader = null;
+    StructureFile reader = null;
     if (alreadyMapped != null)
     {
       reader = StructureSelectionManager.getStructureSelectionManager(
@@ -283,16 +283,14 @@ public class AppletJmol extends EmbmenuFrame implements
 
     this.addWindowListener(new WindowAdapter()
     {
+      @Override
       public void windowClosing(WindowEvent evt)
       {
         closeViewer();
       }
     });
-    if (pdbentry.getProperty() == null)
-    {
-      pdbentry.setProperty(new Hashtable());
-      pdbentry.getProperty().put("protocol", protocol);
-    }
+    pdbentry.setProperty("protocol", protocol);
+
     if (pdbentry.getFile() != null)
     {
       // import structure data from pdbentry.getFile based on given protocol
@@ -371,7 +369,7 @@ public class AppletJmol extends EmbmenuFrame implements
     jmb.loadInline(string);
   }
 
-  void setChainMenuItems(Vector<String> chains)
+  void setChainMenuItems(List<String> chains)
   {
     chainMenu.removeAll();
 
@@ -415,6 +413,7 @@ public class AppletJmol extends EmbmenuFrame implements
     this.setVisible(false);
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == mappingMenuItem)
@@ -535,6 +534,7 @@ public class AppletJmol extends EmbmenuFrame implements
     jmb.setColourBySequence(itm == seqColour);
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == jmolColour)
@@ -553,6 +553,7 @@ public class AppletJmol extends EmbmenuFrame implements
     }
   }
 
+  @Override
   public void keyPressed(KeyEvent evt)
   {
     if (evt.getKeyCode() == KeyEvent.VK_ENTER && scriptWindow.isVisible())
@@ -564,10 +565,12 @@ public class AppletJmol extends EmbmenuFrame implements
 
   }
 
+  @Override
   public void keyTyped(KeyEvent evt)
   {
   }
 
+  @Override
   public void keyReleased(KeyEvent evt)
   {
   }
@@ -585,7 +588,7 @@ public class AppletJmol extends EmbmenuFrame implements
       repaint();
       return;
     }
-    setChainMenuItems(jmb.chainNames);
+    setChainMenuItems(jmb.getChainNames());
     jmb.colourBySequence(ap);
 
     setTitle(jmb.getViewerTitle());
@@ -641,11 +644,13 @@ public class AppletJmol extends EmbmenuFrame implements
   {
     Dimension currentSize = new Dimension();
 
+    @Override
     public void update(Graphics g)
     {
       paint(g);
     }
 
+    @Override
     public void paint(Graphics g)
     {
       currentSize = this.getSize();

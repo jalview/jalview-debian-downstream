@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.analysis.AAFrequency;
 import jalview.analysis.AlignmentAnnotationUtils;
 import jalview.analysis.AlignmentUtils;
 import jalview.analysis.Conservation;
+import jalview.bin.Cache;
 import jalview.commands.ChangeCaseCommand;
 import jalview.commands.EditCommand;
 import jalview.commands.EditCommand.Action;
@@ -48,7 +49,6 @@ import jalview.schemes.HydrophobicColourScheme;
 import jalview.schemes.NucleotideColourScheme;
 import jalview.schemes.PIDColourScheme;
 import jalview.schemes.PurinePyrimidineColourScheme;
-import jalview.schemes.ResidueProperties;
 import jalview.schemes.StrandColourScheme;
 import jalview.schemes.TaylorColourScheme;
 import jalview.schemes.TurnColourScheme;
@@ -63,6 +63,7 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
@@ -88,10 +89,6 @@ import javax.swing.JRadioButtonMenuItem;
  */
 public class PopupMenu extends JPopupMenu
 {
-  private static final String ALL_ANNOTATIONS = "All";
-
-  private static final String COMMA = ",";
-
   JMenu groupMenu = new JMenu();
 
   JMenuItem groupName = new JMenuItem();
@@ -176,12 +173,6 @@ public class PopupMenu extends JPopupMenu
 
   JMenu pdbMenu = new JMenu();
 
-  JMenuItem pdbFromFile = new JMenuItem();
-
-  JMenuItem enterPDB = new JMenuItem();
-
-  JMenuItem discoverPDB = new JMenuItem();
-
   JMenu outputMenu = new JMenu();
 
   JMenu seqShowAnnotationsMenu = new JMenu();
@@ -222,7 +213,7 @@ public class PopupMenu extends JPopupMenu
    * @param seq
    *          DOCUMENT ME!
    */
-  public PopupMenu(final AlignmentPanel ap, Sequence seq, Vector links)
+  public PopupMenu(final AlignmentPanel ap, Sequence seq, List<String> links)
   {
     this(ap, seq, links, null);
   }
@@ -235,7 +226,7 @@ public class PopupMenu extends JPopupMenu
    * @param groupLinks
    */
   public PopupMenu(final AlignmentPanel ap, final SequenceI seq,
-          Vector links, Vector groupLinks)
+          List<String> links, List<String> groupLinks)
   {
     // /////////////////////////////////////////////////////////
     // If this is activated from the sequence panel, the user may want to
@@ -483,8 +474,6 @@ public class PopupMenu extends JPopupMenu
 
     if (sg != null && sg.getSize() > 0)
     {
-      groupName.setText(MessageManager.formatMessage("label.name_param",
-              new Object[] { sg.getName() }));
       groupName.setText(MessageManager
               .getString("label.edit_name_and_description_current_group"));
 
@@ -614,125 +603,66 @@ public class PopupMenu extends JPopupMenu
 
     if (links != null && links.size() > 0)
     {
-
-      JMenu linkMenu = new JMenu(MessageManager.getString("action.link"));
-      Vector linkset = new Vector();
-      for (int i = 0; i < links.size(); i++)
-      {
-        String link = links.elementAt(i).toString();
-        UrlLink urlLink = null;
-        try
-        {
-          urlLink = new UrlLink(link);
-        } catch (Exception foo)
-        {
-          jalview.bin.Cache.log.error("Exception for URLLink '" + link
-                  + "'", foo);
-          continue;
-        }
-        ;
-        if (!urlLink.isValid())
-        {
-          jalview.bin.Cache.log.error(urlLink.getInvalidMessage());
-          continue;
-        }
-        final String label = urlLink.getLabel();
-        if (seq != null && urlLink.isDynamic())
-        {
-
-          // collect matching db-refs
-          DBRefEntry[] dbr = jalview.util.DBRefUtils.selectRefs(
-                  seq.getDBRef(), new String[] { urlLink.getTarget() });
-          // collect id string too
-          String id = seq.getName();
-          String descr = seq.getDescription();
-          if (descr != null && descr.length() < 1)
-          {
-            descr = null;
-          }
-
-          if (dbr != null)
-          {
-            for (int r = 0; r < dbr.length; r++)
-            {
-              if (id != null && dbr[r].getAccessionId().equals(id))
-              {
-                // suppress duplicate link creation for the bare sequence ID
-                // string with this link
-                id = null;
-              }
-              // create Bare ID link for this RUL
-              String[] urls = urlLink.makeUrls(dbr[r].getAccessionId(),
-                      true);
-              if (urls != null)
-              {
-                for (int u = 0; u < urls.length; u += 2)
-                {
-                  if (!linkset.contains(urls[u] + "|" + urls[u + 1]))
-                  {
-                    linkset.addElement(urls[u] + "|" + urls[u + 1]);
-                    addshowLink(linkMenu, label + "|" + urls[u],
-                            urls[u + 1]);
-                  }
-                }
-              }
-            }
-          }
-          if (id != null)
-          {
-            // create Bare ID link for this RUL
-            String[] urls = urlLink.makeUrls(id, true);
-            if (urls != null)
-            {
-              for (int u = 0; u < urls.length; u += 2)
-              {
-                if (!linkset.contains(urls[u] + "|" + urls[u + 1]))
-                {
-                  linkset.addElement(urls[u] + "|" + urls[u + 1]);
-                  addshowLink(linkMenu, label, urls[u + 1]);
-                }
-              }
-            }
-          }
-          // Create urls from description but only for URL links which are regex
-          // links
-          if (descr != null && urlLink.getRegexReplace() != null)
-          {
-            // create link for this URL from description where regex matches
-            String[] urls = urlLink.makeUrls(descr, true);
-            if (urls != null)
-            {
-              for (int u = 0; u < urls.length; u += 2)
-              {
-                if (!linkset.contains(urls[u] + "|" + urls[u + 1]))
-                {
-                  linkset.addElement(urls[u] + "|" + urls[u + 1]);
-                  addshowLink(linkMenu, label, urls[u + 1]);
-                }
-              }
-            }
-          }
-        }
-        else
-        {
-          if (!linkset.contains(label + "|" + urlLink.getUrl_prefix()))
-          {
-            linkset.addElement(label + "|" + urlLink.getUrl_prefix());
-            // Add a non-dynamic link
-            addshowLink(linkMenu, label, urlLink.getUrl_prefix());
-          }
-        }
-      }
-      if (sequence != null)
-      {
-        sequenceMenu.add(linkMenu);
-      }
-      else
-      {
-        add(linkMenu);
-      }
+      addFeatureLinks(seq, links);
     }
   }
+
+  /**
+   * Adds a 'Link' menu item with a sub-menu item for each hyperlink provided.
+   * 
+   * @param seq
+   * @param links
+   */
+  void addFeatureLinks(final SequenceI seq, List<String> links)
+  {
+    JMenu linkMenu = new JMenu(MessageManager.getString("action.link"));
+    Map<String, List<String>> linkset = new LinkedHashMap<String, List<String>>();
+
+    for (String link : links)
+    {
+      UrlLink urlLink = null;
+      try
+      {
+        urlLink = new UrlLink(link);
+      } catch (Exception foo)
+      {
+        Cache.log.error("Exception for URLLink '" + link + "'", foo);
+        continue;
+      }
+
+      if (!urlLink.isValid())
+      {
+        Cache.log.error(urlLink.getInvalidMessage());
+        continue;
+      }
+
+      urlLink.createLinksFromSeq(seq, linkset);
+    }
+
+    addshowLinks(linkMenu, linkset.values());
+
+    // disable link menu if there are no valid entries
+    if (linkMenu.getItemCount() > 0)
+    {
+      linkMenu.setEnabled(true);
+    }
+    else
+    {
+      linkMenu.setEnabled(false);
+    }
+
+    if (sequence != null)
+    {
+      sequenceMenu.add(linkMenu);
+    }
+    else
+    {
+      add(linkMenu);
+    }
+
+  }
+
+
 
   /**
    * Add annotation types to 'Show annotations' and/or 'Hide annotations' menus.
@@ -755,7 +685,8 @@ public class PopupMenu extends JPopupMenu
     showMenu.removeAll();
     hideMenu.removeAll();
 
-    final List<String> all = Arrays.asList(ALL_ANNOTATIONS);
+    final List<String> all = Arrays.asList(new String[] { MessageManager
+            .getString("label.all") });
     addAnnotationTypeToShowHide(showMenu, forSequences, "", all, true, true);
     addAnnotationTypeToShowHide(hideMenu, forSequences, "", all, true,
             false);
@@ -861,7 +792,7 @@ public class PopupMenu extends JPopupMenu
     showOrHideMenu.add(item);
   }
 
-  private void buildGroupURLMenu(SequenceGroup sg, Vector groupLinks)
+  private void buildGroupURLMenu(SequenceGroup sg, List<String> groupLinks)
   {
 
     // TODO: usability: thread off the generation of group url content so root
@@ -870,19 +801,15 @@ public class PopupMenu extends JPopupMenu
     // ID/regex match URLs
     groupLinksMenu = new JMenu(
             MessageManager.getString("action.group_link"));
+    // three types of url that might be created.
     JMenu[] linkMenus = new JMenu[] { null,
         new JMenu(MessageManager.getString("action.ids")),
         new JMenu(MessageManager.getString("action.sequences")),
-        new JMenu(MessageManager.getString("action.ids_sequences")) }; // three
-                                                                       // types
-                                                                       // of url
-                                                                       // that
-                                                                       // might
-                                                                       // be
-    // created.
+        new JMenu(MessageManager.getString("action.ids_sequences")) };
+
     SequenceI[] seqs = ap.av.getSelectionAsNewSequence();
     String[][] idandseqs = GroupUrlLink.formStrings(seqs);
-    Hashtable commonDbrefs = new Hashtable();
+    Hashtable<String, Object[]> commonDbrefs = new Hashtable<String, Object[]>();
     for (int sq = 0; sq < seqs.length; sq++)
     {
 
@@ -896,13 +823,13 @@ public class PopupMenu extends JPopupMenu
       {
         sqi = sqi.getDatasetSequence();
       }
-      DBRefEntry[] dbr = sqi.getDBRef();
+      DBRefEntry[] dbr = sqi.getDBRefs();
       if (dbr != null && dbr.length > 0)
       {
         for (int d = 0; d < dbr.length; d++)
         {
           String src = dbr[d].getSource(); // jalview.util.DBRefUtils.getCanonicalName(dbr[d].getSource()).toUpperCase();
-          Object[] sarray = (Object[]) commonDbrefs.get(src);
+          Object[] sarray = commonDbrefs.get(src);
           if (sarray == null)
           {
             sarray = new Object[2];
@@ -927,30 +854,28 @@ public class PopupMenu extends JPopupMenu
     // now create group links for all distinct ID/sequence sets.
     boolean addMenu = false; // indicates if there are any group links to give
                              // to user
-    for (int i = 0; i < groupLinks.size(); i++)
+    for (String link : groupLinks)
     {
-      String link = groupLinks.elementAt(i).toString();
       GroupUrlLink urlLink = null;
       try
       {
         urlLink = new GroupUrlLink(link);
       } catch (Exception foo)
       {
-        jalview.bin.Cache.log.error("Exception for GroupURLLink '" + link
-                + "'", foo);
+        Cache.log.error("Exception for GroupURLLink '" + link + "'", foo);
         continue;
       }
       ;
       if (!urlLink.isValid())
       {
-        jalview.bin.Cache.log.error(urlLink.getInvalidMessage());
+        Cache.log.error(urlLink.getInvalidMessage());
         continue;
       }
       final String label = urlLink.getLabel();
       boolean usingNames = false;
       // Now see which parts of the group apply for this URL
       String ltarget = urlLink.getTarget(); // jalview.util.DBRefUtils.getCanonicalName(urlLink.getTarget());
-      Object[] idset = (Object[]) commonDbrefs.get(ltarget.toUpperCase());
+      Object[] idset = commonDbrefs.get(ltarget.toUpperCase());
       String[] seqstr, ids; // input to makeUrl
       if (idset != null)
       {
@@ -1013,6 +938,15 @@ public class PopupMenu extends JPopupMenu
     }
   }
 
+  private void addshowLinks(JMenu linkMenu, Collection<List<String>> linkset)
+  {
+    for (List<String> linkstrset : linkset)
+    {
+      // split linkstr into label and url
+      addshowLink(linkMenu, linkstrset.get(1), linkstrset.get(3));
+    }
+  }
+
   /**
    * add a show URL menu item to the given linkMenu
    * 
@@ -1068,7 +1002,7 @@ public class PopupMenu extends JPopupMenu
             new Object[] { urlgenerator.getUrl_prefix(),
                 urlgenerator.getNumberInvolved(urlstub) }));
     // TODO: put in info about what is being sent.
-    item.addActionListener(new java.awt.event.ActionListener()
+    item.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
@@ -1082,7 +1016,7 @@ public class PopupMenu extends JPopupMenu
             try
             {
               showLink(urlgenerator.constructFrom(urlstub));
-            } catch (UrlStringTooLongException e)
+            } catch (UrlStringTooLongException e2)
             {
             }
           }
@@ -1102,7 +1036,6 @@ public class PopupMenu extends JPopupMenu
    */
   private void jbInit() throws Exception
   {
-    groupMenu.setText(MessageManager.getString("label.group"));
     groupMenu.setText(MessageManager.getString("label.selection"));
     groupName.setText(MessageManager.getString("label.name"));
     groupName.addActionListener(new java.awt.event.ActionListener()
@@ -1284,36 +1217,6 @@ public class PopupMenu extends JPopupMenu
         changeCase(e);
       }
     });
-    pdbMenu.setText(MessageManager
-            .getString("label.associate_structure_with_sequence"));
-    pdbFromFile.setText(MessageManager.getString("label.from_file"));
-    pdbFromFile.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        pdbFromFile_actionPerformed();
-      }
-    });
-
-    enterPDB.setText(MessageManager.getString("label.enter_pdb_id"));
-    enterPDB.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        enterPDB_actionPerformed();
-      }
-    });
-    discoverPDB.setText(MessageManager.getString("label.discover_pdb_ids"));
-    discoverPDB.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        discoverPDB_actionPerformed();
-      }
-    });
     outputMenu.setText(MessageManager.getString("label.out_to_textbox")
             + "...");
     seqShowAnnotationsMenu.setText(MessageManager
@@ -1483,13 +1386,10 @@ public class PopupMenu extends JPopupMenu
     editMenu.add(upperCase);
     editMenu.add(lowerCase);
     editMenu.add(toggle);
-    pdbMenu.add(pdbFromFile);
     // JBPNote: These shouldn't be added here - should appear in a generic
     // 'apply web service to this sequence menu'
     // pdbMenu.add(RNAFold);
     // pdbMenu.add(ContraFold);
-    pdbMenu.add(enterPDB);
-    pdbMenu.add(discoverPDB);
     jMenu1.add(groupName);
     jMenu1.add(colourMenu);
     jMenu1.add(showBoxes);
@@ -1777,7 +1677,7 @@ public class PopupMenu extends JPopupMenu
   public void createSequenceDetailsReport(SequenceI[] sequences)
   {
     CutAndPasteHtmlTransfer cap = new CutAndPasteHtmlTransfer();
-    StringBuffer contents = new StringBuffer();
+    StringBuilder contents = new StringBuilder(128);
     for (SequenceI seq : sequences)
     {
       contents.append("<p><h2>"
@@ -1792,7 +1692,6 @@ public class PopupMenu extends JPopupMenu
                       seq,
                       true,
                       true,
-                      false,
                       (ap.getSeqPanel().seqCanvas.fr != null) ? ap
                               .getSeqPanel().seqCanvas.fr.getMinMax()
                               : null);
@@ -2080,9 +1979,8 @@ public class PopupMenu extends JPopupMenu
     if (conservationMenuItem.isSelected())
     {
       // JBPNote: Conservation name shouldn't be i18n translated
-      Conservation c = new Conservation("Group",
-              ResidueProperties.propHash, 3, sg.getSequences(ap.av
-                      .getHiddenRepSequences()), sg.getStartRes(),
+      Conservation c = new Conservation("Group", sg.getSequences(ap.av
+              .getHiddenRepSequences()), sg.getStartRes(),
               sg.getEndRes() + 1);
 
       c.calculate();
@@ -2307,28 +2205,7 @@ public class PopupMenu extends JPopupMenu
 
   void hideSequences(boolean representGroup)
   {
-    SequenceGroup sg = ap.av.getSelectionGroup();
-    if (sg == null || sg.getSize() < 1)
-    {
-      ap.av.hideSequence(new SequenceI[] { sequence });
-      return;
-    }
-
-    ap.av.setSelectionGroup(null);
-
-    if (representGroup)
-    {
-      ap.av.hideRepSequences(sequence, sg);
-
-      return;
-    }
-
-    int gsize = sg.getSize();
-    SequenceI[] hseqs = sg.getSequences().toArray(new SequenceI[gsize]);
-
-    ap.av.hideSequence(hseqs);
-    // refresh(); TODO: ? needed ?
-    ap.av.sendSelection();
+    ap.av.hideSequences(sequence, representGroup);
   }
 
   public void copy_actionPerformed()
@@ -2398,66 +2275,6 @@ public class PopupMenu extends JPopupMenu
 
     cap.setText(new FormatAdapter(ap).formatSequences(e.getActionCommand(),
             ap, true));
-  }
-
-  public void pdbFromFile_actionPerformed()
-  {
-    jalview.io.JalviewFileChooser chooser = new jalview.io.JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
-    chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle(MessageManager.formatMessage(
-            "label.select_pdb_file_for",
-            new Object[] { sequence.getDisplayId(false) }));
-    chooser.setToolTipText(MessageManager.formatMessage(
-            "label.load_pdb_file_associate_with_sequence",
-            new Object[] { sequence.getDisplayId(false) }));
-
-    int value = chooser.showOpenDialog(null);
-
-    if (value == jalview.io.JalviewFileChooser.APPROVE_OPTION)
-    {
-      String choice = chooser.getSelectedFile().getPath();
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", choice);
-      new AssociatePdbFileWithSeq().associatePdbWithSeq(choice,
-              jalview.io.AppletFormatAdapter.FILE, sequence, true,
-              Desktop.instance);
-    }
-
-  }
-
-  public void enterPDB_actionPerformed()
-  {
-    String id = JOptionPane.showInternalInputDialog(Desktop.desktop,
-            MessageManager.getString("label.enter_pdb_id"),
-            MessageManager.getString("label.enter_pdb_id"),
-            JOptionPane.QUESTION_MESSAGE);
-
-    if (id != null && id.length() > 0)
-    {
-      PDBEntry entry = new PDBEntry();
-      entry.setId(id.toUpperCase());
-      sequence.getDatasetSequence().addPDBId(entry);
-    }
-  }
-
-  public void discoverPDB_actionPerformed()
-  {
-
-    final SequenceI[] sequences = ((ap.av.getSelectionGroup() == null) ? new SequenceI[]
-    { sequence }
-            : ap.av.getSequenceSelection());
-    Thread discpdb = new Thread(new Runnable()
-    {
-      @Override
-      public void run()
-      {
-
-        new jalview.ws.DBRefFetcher(sequences, ap.alignFrame)
-                .fetchDBRefs(false);
-      }
-
-    });
-    discpdb.start();
   }
 
   public void sequenceFeature_actionPerformed()

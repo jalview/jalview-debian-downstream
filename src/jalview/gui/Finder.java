@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.gui;
 
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultMatchI;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.jbgui.GFinder;
@@ -67,7 +68,7 @@ public class Finder extends GFinder
 
   int resIndex = -1;
 
-  SearchResults searchResults;
+  SearchResultsI searchResults;
 
   /**
    * Creates a new Finder object with no associated viewport or panel.
@@ -109,6 +110,7 @@ public class Finder extends GFinder
             KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "Cancel");
     getRootPane().getActionMap().put("Cancel", new AbstractAction()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         escapeActionPerformed();
@@ -130,6 +132,7 @@ public class Finder extends GFinder
    * 
    * @param e
    */
+  @Override
   public void findNext_actionPerformed(ActionEvent e)
   {
     if (getFocusedViewport())
@@ -143,6 +146,7 @@ public class Finder extends GFinder
    * 
    * @param e
    */
+  @Override
   public void findAll_actionPerformed(ActionEvent e)
   {
     if (getFocusedViewport())
@@ -198,19 +202,22 @@ public class Finder extends GFinder
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void createNewGroup_actionPerformed(ActionEvent e)
   {
     SequenceI[] seqs = new SequenceI[searchResults.getSize()];
     SequenceFeature[] features = new SequenceFeature[searchResults
             .getSize()];
 
-    for (int i = 0; i < searchResults.getSize(); i++)
+    int i = 0;
+    for (SearchResultMatchI match : searchResults.getResults())
     {
-      seqs[i] = searchResults.getResultSequence(i).getDatasetSequence();
+      seqs[i] = match.getSequence().getDatasetSequence();
 
       features[i] = new SequenceFeature(textfield.getText().trim(),
-              "Search Results", null, searchResults.getResultStart(i),
-              searchResults.getResultEnd(i), "Search Results");
+              "Search Results", null, match.getStart(), match.getEnd(),
+              "Search Results");
+      i++;
     }
 
     if (ap.getSeqPanel().seqCanvas.getFeatureRenderer().amendFeatures(seqs,
@@ -256,7 +263,7 @@ public class Finder extends GFinder
 
     searchResults = finder.getSearchResults(); // find(regex,
     // caseSensitive.isSelected(), )
-    Vector idMatch = finder.getIdMatch();
+    Vector<SequenceI> idMatch = finder.getIdMatch();
     boolean haveResults = false;
     // set or reset the GUI
     if ((idMatch.size() > 0))

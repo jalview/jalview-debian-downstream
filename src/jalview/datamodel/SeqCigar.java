@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -68,10 +68,49 @@ public class SeqCigar extends CigarSimple
   }
 
   /**
+   * 
+   * @param column
+   * @return position in sequence for column (or -1 if no match state exists)
+   */
+  public int findPosition(int column)
+  {
+    int w = 0, ew, p = refseq.findPosition(start);
+    if (column < 0)
+    {
+      return -1;
+    }
+    if (range != null)
+    {
+      for (int i = 0; i < length; i++)
+      {
+        if (operation[i] == M || operation[i] == D)
+        {
+          p += range[i];
+        }
+        if (operation[i] == M || operation[i] == I)
+        {
+          ew = w + range[i];
+          if (column < ew)
+          {
+            if (operation[i] == I)
+            {
+              return -1;
+            }
+            return p - (ew - column);
+          }
+          w = ew;
+        }
+      }
+    }
+    return -1;
+  }
+
+  /**
    * Returns sequence as a string with cigar operations applied to it
    * 
    * @return String
    */
+  @Override
   public String getSequenceString(char GapChar)
   {
     return (length == 0) ? "" : (String) getSequenceAndDeletions(

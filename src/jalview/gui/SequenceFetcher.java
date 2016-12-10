@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,18 @@
  */
 package jalview.gui;
 
+import jalview.api.FeatureSettingsModelI;
+import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.DBRefSource;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
-import jalview.io.FormatAdapter;
-import jalview.io.IdentifyFile;
+import jalview.fts.service.pdb.PDBFTSPanel;
+import jalview.fts.service.uniprot.UniprotFTSPanel;
+import jalview.io.gff.SequenceOntologyI;
 import jalview.util.DBRefUtils;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 import jalview.ws.dbsources.das.api.DasSourceRegistryI;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
@@ -40,6 +43,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -53,8 +57,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.tree.DefaultMutableTreeNode;
-
-import com.stevesoft.pat.Regex;
 
 public class SequenceFetcher extends JPanel implements Runnable
 {
@@ -114,7 +116,10 @@ public class SequenceFetcher extends JPanel implements Runnable
 
   private static Thread initingThread = null;
 
-  int debounceTrap = 0;
+  public JTextArea getTextArea()
+  {
+    return textArea;
+  }
 
   /**
    * Blocking method that initialises and returns the shared instance of the
@@ -160,11 +165,10 @@ public class SequenceFetcher extends JPanel implements Runnable
       }
     }
     if (sfetch == null
-            || dasRegistry != jalview.bin.Cache.getDasSourceRegistry()
-            || lastDasSourceRegistry != (jalview.bin.Cache
-                    .getDasSourceRegistry().getDasRegistryURL() + jalview.bin.Cache
-                    .getDasSourceRegistry().getLocalSourceString())
-                    .hashCode())
+            || dasRegistry != Cache.getDasSourceRegistry()
+            || lastDasSourceRegistry != (Cache.getDasSourceRegistry()
+                    .getDasRegistryURL() + Cache.getDasSourceRegistry()
+                    .getLocalSourceString()).hashCode())
     {
       _initingFetcher = true;
       initingThread = Thread.currentThread();
@@ -177,7 +181,7 @@ public class SequenceFetcher extends JPanel implements Runnable
                 .getString("status.init_sequence_database_fetchers"),
                 Thread.currentThread().hashCode());
       }
-      dasRegistry = jalview.bin.Cache.getDasSourceRegistry();
+      dasRegistry = Cache.getDasSourceRegistry();
       dasRegistry.refreshSources();
 
       jalview.ws.SequenceFetcher sf = new jalview.ws.SequenceFetcher();
@@ -196,8 +200,19 @@ public class SequenceFetcher extends JPanel implements Runnable
 
   private IProgressIndicator progressIndicator;
 
+  private volatile boolean _isConstructing = false;
+
+  private List<AlignFrame> newAlframes = null;
+
   public SequenceFetcher(IProgressIndicator guiIndic)
   {
+    this(guiIndic, null, null);
+  }
+
+  public SequenceFetcher(IProgressIndicator guiIndic,
+          final String selectedDb, final String queryString)
+  {
+    this._isConstructing = true;
     this.progressIndicator = guiIndic;
     final SequenceFetcher us = this;
     // launch initialiser thread
@@ -209,7 +224,8 @@ public class SequenceFetcher extends JPanel implements Runnable
       {
         if (getSequenceFetcherSingleton(progressIndicator) != null)
         {
-          us.initGui(progressIndicator);
+          us.initGui(progressIndicator, selectedDb, queryString);
+          us._isConstructing = false;
         }
         else
         {
@@ -236,6 +252,32 @@ public class SequenceFetcher extends JPanel implements Runnable
     sf.start();
   }
 
+  /**
+   * blocking call which creates a new sequence fetcher panel, configures it and
+   * presses the OK button with the given database and query.
+   * 
+   * @param database
+   * @param query
+   */
+  public static List<AlignFrame> fetchAndShow(String database, String query)
+  {
+    final SequenceFetcher sf = new SequenceFetcher(Desktop.instance,
+            database, query);
+    while (sf._isConstructing)
+    {
+      try
+      {
+        Thread.sleep(50);
+      } catch (Exception q)
+      {
+        return Collections.emptyList();
+      }
+    }
+    sf.newAlframes = new ArrayList<AlignFrame>();
+    sf.run();
+    return sf.newAlframes;
+  }
+
   private class DatabaseAuthority extends DefaultMutableTreeNode
   {
 
@@ -247,11 +289,57 @@ public class SequenceFetcher extends JPanel implements Runnable
   };
 
   /**
+   * initialise the database and query for this fetcher panel
+   * 
+   * @param selectedDb
+   *          - string that should correspond to a sequence fetcher
+   * @param queryString
+   *          - string that will be entered in the query dialog
+   * @return true if UI was configured with valid database and query string
+   */
+  protected boolean setInitialQuery(String selectedDb, String queryString)
+  {
+    if (selectedDb == null || selectedDb.trim().length() == 0)
+    {
+      return false;
+    }
+    try
+    {
+      List<DbSourceProxy> sp = sfetch.getSourceProxy(selectedDb);
+      for (DbSourceProxy sourcep : sp)
+      {
+        if (sourcep.getTier() == 0)
+        {
+          database.selection = Arrays
+                  .asList(new DbSourceProxy[] { sourcep });
+          break;
+        }
+      }
+      if (database.selection == null || database.selection.size() == 0)
+      {
+        System.err.println("Ignoring fetch parameter db='" + selectedDb
+                + "'");
+        return false;
+      }
+      textArea.setText(queryString);
+    } catch (Exception q)
+    {
+      System.err.println("Ignoring fetch parameter db='" + selectedDb
+              + "' and query='" + queryString + "'");
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * called by thread spawned by constructor
    * 
    * @param guiWindow
+   * @param queryString
+   * @param selectedDb
    */
-  private void initGui(IProgressIndicator guiWindow)
+  private void initGui(IProgressIndicator guiWindow, String selectedDb,
+          String queryString)
   {
     this.guiWindow = guiWindow;
     if (guiWindow instanceof AlignFrame)
@@ -262,6 +350,16 @@ public class SequenceFetcher extends JPanel implements Runnable
     try
     {
       jbInit();
+      /*
+       * configure the UI with any query parameters we were called with
+       */
+      if (!setInitialQuery(selectedDb, queryString))
+      {
+        /*
+         * none provided, so show the database chooser
+         */
+        database.waitForInput();
+      }
     } catch (Exception ex)
     {
       ex.printStackTrace();
@@ -269,13 +367,13 @@ public class SequenceFetcher extends JPanel implements Runnable
 
     frame = new JInternalFrame();
     frame.setContentPane(this);
-    if (new jalview.util.Platform().isAMac())
+    if (Platform.isAMac())
     {
-      Desktop.addInternalFrame(frame, getFrameTitle(), 400, 240);
+      Desktop.addInternalFrame(frame, getFrameTitle(), false, 400, 240);
     }
     else
     {
-      Desktop.addInternalFrame(frame, getFrameTitle(), 400, 180);
+      Desktop.addInternalFrame(frame, getFrameTitle(), false, 400, 180);
     }
   }
 
@@ -358,25 +456,45 @@ public class SequenceFetcher extends JPanel implements Runnable
     jPanel1.add(example);
     jPanel1.add(clear);
     jPanel1.add(close);
-    jPanel3.add(jPanel2, java.awt.BorderLayout.CENTER);
     jPanel2.setLayout(borderLayout3);
-    databaseButt = database.getDatabaseSelectorButton();
+    databaseButt = /*database.getDatabaseSelectorButton();
+                   final JButton viewdbs =*/new JButton(
+            MessageManager.getString("action.select_ddbb"));
+    databaseButt.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent arg0)
+      {
+        hidePanel();
+        database.showDialog();
+      }
+    });
     databaseButt.setFont(JvSwingUtils.getLabelFont());
     database.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        debounceTrap++;
         String currentSelection = database.getSelectedItem();
-        if (!currentSelection.equalsIgnoreCase("pdb"))
+        if (currentSelection == null)
         {
-          otherSourceAction();
+          close_actionPerformed(null);
         }
-        if (currentSelection.equalsIgnoreCase("pdb")
-                && (database.action == KeyEvent.VK_ENTER || ((debounceTrap % 2) == 0)))
+
+        showPanel();
+
+        if ("pdb".equalsIgnoreCase(currentSelection))
         {
           pdbSourceAction();
+        }
+        else if ("uniprot".equalsIgnoreCase(currentSelection))
+        {
+          uniprotSourceAction();
+        }
+        else
+        {
+          otherSourceAction();
         }
         database.action = -1;
       }
@@ -395,13 +513,19 @@ public class SequenceFetcher extends JPanel implements Runnable
     this.add(jPanel3, java.awt.BorderLayout.CENTER);
     this.add(jPanel2, java.awt.BorderLayout.NORTH);
     jScrollPane1.getViewport().add(textArea);
-
   }
 
   private void pdbSourceAction()
   {
     databaseButt.setText(database.getSelectedItem());
-    new PDBSearchPanel(this);
+    new PDBFTSPanel(this);
+    frame.dispose();
+  }
+
+  private void uniprotSourceAction()
+  {
+    databaseButt.setText(database.getSelectedItem());
+    new UniprotFTSPanel(this);
     frame.dispose();
   }
 
@@ -518,30 +642,34 @@ public class SequenceFetcher extends JPanel implements Runnable
       resetDialog();
       return;
     }
+    // TODO: Refactor to GUI independent code and write tests.
     // indicate if successive sources should be merged into one alignment.
     boolean addToLast = false;
-    ArrayList<String> aresultq = new ArrayList<String>(), presultTitle = new ArrayList<String>();
-    ArrayList<AlignmentI> presult = new ArrayList<AlignmentI>(), aresult = new ArrayList<AlignmentI>();
+    List<String> aresultq = new ArrayList<String>();
+    List<String> presultTitle = new ArrayList<String>();
+    List<AlignmentI> presult = new ArrayList<AlignmentI>();
+    List<AlignmentI> aresult = new ArrayList<AlignmentI>();
     Iterator<DbSourceProxy> proxies = database.getSelectedSources()
             .iterator();
     String[] qries;
-    List<String> nextfetch = Arrays.asList(qries = textArea.getText()
+    List<String> nextFetch = Arrays.asList(qries = textArea.getText()
             .split(";"));
     Iterator<String> en = Arrays.asList(new String[0]).iterator();
     int nqueries = qries.length;
-    while (proxies.hasNext() && (en.hasNext() || nextfetch.size() > 0))
+
+    FeatureSettingsModelI preferredFeatureColours = null;
+    while (proxies.hasNext() && (en.hasNext() || nextFetch.size() > 0))
     {
-      if (!en.hasNext() && nextfetch.size() > 0)
+      if (!en.hasNext() && nextFetch.size() > 0)
       {
-        en = nextfetch.iterator();
-        nqueries = nextfetch.size();
+        en = nextFetch.iterator();
+        nqueries = nextFetch.size();
         // save the remaining queries in the original array
-        qries = nextfetch.toArray(new String[nqueries]);
-        nextfetch = new ArrayList<String>();
+        qries = nextFetch.toArray(new String[nqueries]);
+        nextFetch = new ArrayList<String>();
       }
 
       DbSourceProxy proxy = proxies.next();
-      boolean isAliSource = false;
       try
       {
         // update status
@@ -552,136 +680,27 @@ public class SequenceFetcher extends JPanel implements Runnable
                             Integer.valueOf(nqueries).toString(),
                             proxy.getDbName() }), Thread.currentThread()
                         .hashCode());
-        isAliSource = proxy.isA(DBRefSource.ALIGNMENTDB);
-        if (proxy.getAccessionSeparator() == null)
+        if (proxy.getMaximumQueryCount() == 1)
         {
+          /*
+           * proxy only handles one accession id at a time
+           */
           while (en.hasNext())
           {
-            String item = en.next();
-            try
+            String acc = en.next();
+            if (!fetchSingleAccession(proxy, acc, aresultq, aresult))
             {
-              if (aresult != null)
-              {
-                try
-                {
-                  // give the server a chance to breathe
-                  Thread.sleep(5);
-                } catch (Exception e)
-                {
-                  //
-                }
-
-              }
-
-              AlignmentI indres = null;
-              try
-              {
-                indres = proxy.getSequenceRecords(item);
-              } catch (OutOfMemoryError oome)
-              {
-                new OOMWarning("fetching " + item + " from "
-                        + proxy.getDbName(), oome, this);
-              }
-              if (indres != null)
-              {
-                aresultq.add(item);
-                aresult.add(indres);
-              }
-              else
-              {
-                nextfetch.add(item);
-              }
-            } catch (Exception e)
-            {
-              jalview.bin.Cache.log.info("Error retrieving " + item
-                      + " from " + proxy.getDbName(), e);
-              nextfetch.add(item);
+              nextFetch.add(acc);
             }
           }
         }
         else
         {
-          StringBuffer multiacc = new StringBuffer();
-          ArrayList<String> tosend = new ArrayList<String>();
-          while (en.hasNext())
-          {
-            String nel = en.next();
-            tosend.add(nel);
-            multiacc.append(nel);
-            if (en.hasNext())
-            {
-              multiacc.append(proxy.getAccessionSeparator());
-            }
-          }
-          try
-          {
-            AlignmentI rslt;
-            SequenceI[] rs;
-            List<String> nores = new ArrayList<String>();
-            rslt = proxy.getSequenceRecords(multiacc.toString());
-            if (rslt == null || rslt.getHeight() == 0)
-            {
-              // no results - pass on all queries to next source
-              nextfetch.addAll(tosend);
-            }
-            else
-            {
-              aresultq.add(multiacc.toString());
-              aresult.add(rslt);
-
-              rs = rslt.getSequencesArray();
-              // search for each query in the dbrefs associated with each
-              // sequence
-              // returned.
-              // ones we do not find will be used to query next source (if any)
-              for (String q : tosend)
-              {
-                DBRefEntry dbr = new DBRefEntry(), found[] = null;
-                dbr.setSource(proxy.getDbSource());
-                dbr.setVersion(null);
-                if (proxy.getAccessionValidator() != null)
-                {
-                  Regex vgr = proxy.getAccessionValidator();
-                  vgr.search(q);
-                  if (vgr.numSubs() > 0)
-                  {
-                    dbr.setAccessionId(vgr.stringMatched(1));
-                  }
-                  else
-                  {
-                    dbr.setAccessionId(vgr.stringMatched());
-                  }
-                }
-                else
-                {
-                  dbr.setAccessionId(q);
-                }
-                boolean rfound = false;
-                for (int r = 0; r < rs.length; r++)
-                {
-                  if (rs[r] != null
-                          && (found = DBRefUtils.searchRefs(
-                                  rs[r].getDBRef(), dbr)) != null
-                          && found.length > 0)
-                  {
-                    rfound = true;
-                    rs[r] = null;
-                    continue;
-                  }
-                }
-                if (!rfound)
-                {
-                  nextfetch.add(q);
-                }
-              }
-            }
-          } catch (OutOfMemoryError oome)
-          {
-            new OOMWarning("fetching " + multiacc + " from "
-                    + database.getSelectedItem(), oome, this);
-          }
+          /*
+           * proxy can fetch multiple accessions at one time
+           */
+          fetchMultipleAccessions(proxy, en, aresultq, aresult, nextFetch);
         }
-
       } catch (Exception e)
       {
         showErrorMessage("Error retrieving " + textArea.getText()
@@ -694,7 +713,6 @@ public class SequenceFetcher extends JPanel implements Runnable
         e.printStackTrace();
       } catch (OutOfMemoryError e)
       {
-        // resets dialog box - so we don't use OOMwarning here.
         showErrorMessage("Out of Memory when retrieving "
                 + textArea.getText()
                 + " from "
@@ -707,11 +725,19 @@ public class SequenceFetcher extends JPanel implements Runnable
                 + " from " + database.getSelectedItem());
         e.printStackTrace();
       }
+
       // Stack results ready for opening in alignment windows
       if (aresult != null && aresult.size() > 0)
       {
+        FeatureSettingsModelI proxyColourScheme = proxy
+                .getFeatureColourScheme();
+        if (proxyColourScheme != null)
+        {
+          preferredFeatureColours = proxyColourScheme;
+        }
+
         AlignmentI ar = null;
-        if (isAliSource)
+        if (proxy.isAlignmentSource())
         {
           addToLast = false;
           // new window for each result
@@ -741,7 +767,6 @@ public class SequenceFetcher extends JPanel implements Runnable
             {
               ar.append(aresult.remove(0));
             }
-            ;
           }
           addToLast = true;
           presult.add(ar);
@@ -760,18 +785,19 @@ public class SequenceFetcher extends JPanel implements Runnable
     // process results
     while (presult.size() > 0)
     {
-      parseResult(presult.remove(0), presultTitle.remove(0), null);
+      parseResult(presult.remove(0), presultTitle.remove(0), null,
+              preferredFeatureColours);
     }
     // only remove visual delay after we finished parsing.
     guiWindow.setProgressBar(null, Thread.currentThread().hashCode());
-    if (nextfetch.size() > 0)
+    if (nextFetch.size() > 0)
     {
       StringBuffer sb = new StringBuffer();
       sb.append("Didn't retrieve the following "
-              + (nextfetch.size() == 1 ? "query" : nextfetch.size()
+              + (nextFetch.size() == 1 ? "query" : nextFetch.size()
                       + " queries") + ": \n");
       int l = sb.length(), lr = 0;
-      for (String s : nextfetch)
+      for (String s : nextFetch)
       {
         if (l != sb.length())
         {
@@ -788,33 +814,157 @@ public class SequenceFetcher extends JPanel implements Runnable
     resetDialog();
   }
 
-  AlignmentI parseResult(String result, String title)
+  /**
+   * Tries to fetch one or more accession ids from the database proxy
+   * 
+   * @param proxy
+   * @param accessions
+   *          the queries to fetch
+   * @param aresultq
+   *          a successful queries list to add to
+   * @param aresult
+   *          a list of retrieved alignments to add to
+   * @param nextFetch
+   *          failed queries are added to this list
+   * @throws Exception
+   */
+  void fetchMultipleAccessions(DbSourceProxy proxy,
+          Iterator<String> accessions, List<String> aresultq,
+          List<AlignmentI> aresult, List<String> nextFetch)
+          throws Exception
   {
-    String format = new IdentifyFile().Identify(result, "Paste");
-    AlignmentI sequences = null;
-    if (FormatAdapter.isValidFormat(format))
+    StringBuilder multiacc = new StringBuilder();
+    List<String> tosend = new ArrayList<String>();
+    while (accessions.hasNext())
     {
-      sequences = null;
+      String nel = accessions.next();
+      tosend.add(nel);
+      multiacc.append(nel);
+      if (accessions.hasNext())
+      {
+        multiacc.append(proxy.getAccessionSeparator());
+      }
+    }
+
+    try
+    {
+      String query = multiacc.toString();
+      AlignmentI rslt = proxy.getSequenceRecords(query);
+      if (rslt == null || rslt.getHeight() == 0)
+      {
+        // no results - pass on all queries to next source
+        nextFetch.addAll(tosend);
+      }
+      else
+      {
+        aresultq.add(query);
+        aresult.add(rslt);
+        if (tosend.size() > 1)
+        {
+          checkResultForQueries(rslt, tosend, nextFetch, proxy);
+        }
+      }
+    } catch (OutOfMemoryError oome)
+    {
+      new OOMWarning("fetching " + multiacc + " from "
+              + database.getSelectedItem(), oome, this);
+    }
+  }
+
+  /**
+   * Query for a single accession id via the database proxy
+   * 
+   * @param proxy
+   * @param accession
+   * @param aresultq
+   *          a list of successful queries to add to
+   * @param aresult
+   *          a list of retrieved alignments to add to
+   * @return true if the fetch was successful, else false
+   */
+  boolean fetchSingleAccession(DbSourceProxy proxy, String accession,
+          List<String> aresultq, List<AlignmentI> aresult)
+  {
+    boolean success = false;
+    try
+    {
+      if (aresult != null)
+      {
+        try
+        {
+          // give the server a chance to breathe
+          Thread.sleep(5);
+        } catch (Exception e)
+        {
+          //
+        }
+      }
+
+      AlignmentI indres = null;
       try
       {
-        sequences = new FormatAdapter().readFile(result.toString(),
-                "Paste", format);
-      } catch (Exception ex)
+        indres = proxy.getSequenceRecords(accession);
+      } catch (OutOfMemoryError oome)
       {
+        new OOMWarning("fetching " + accession + " from "
+                + proxy.getDbName(), oome, this);
       }
-
-      if (sequences != null)
+      if (indres != null)
       {
-        return parseResult(sequences, title, format);
+        aresultq.add(accession);
+        aresult.add(indres);
+        success = true;
       }
-    }
-    else
+    } catch (Exception e)
     {
-      showErrorMessage("Error retrieving " + textArea.getText() + " from "
-              + database.getSelectedItem());
+      Cache.log.info(
+              "Error retrieving " + accession + " from "
+                      + proxy.getDbName(), e);
     }
+    return success;
+  }
 
-    return null;
+  /**
+   * Checks which of the queries were successfully retrieved by searching the
+   * DBRefs of the retrieved sequences for a match. Any not found are added to
+   * the 'nextFetch' list.
+   * 
+   * @param rslt
+   * @param queries
+   * @param nextFetch
+   * @param proxy
+   */
+  void checkResultForQueries(AlignmentI rslt, List<String> queries,
+          List<String> nextFetch, DbSourceProxy proxy)
+  {
+    SequenceI[] rs = rslt.getSequencesArray();
+
+    for (String q : queries)
+    {
+      DBRefEntry dbr = new DBRefEntry();
+      dbr.setSource(proxy.getDbSource());
+      dbr.setVersion(null);
+      String accId = proxy.getAccessionIdFromQuery(q);
+      dbr.setAccessionId(accId);
+      boolean rfound = false;
+      for (int r = 0; r < rs.length; r++)
+      {
+        if (rs[r] != null)
+        {
+          List<DBRefEntry> found = DBRefUtils.searchRefs(rs[r].getDBRefs(),
+                  accId);
+          if (!found.isEmpty())
+          {
+            rfound = true;
+            break;
+          }
+        }
+      }
+      if (!rfound)
+      {
+        nextFetch.add(q);
+      }
+    }
   }
 
   /**
@@ -828,7 +978,8 @@ public class SequenceFetcher extends JPanel implements Runnable
   }
 
   AlignmentI parseResult(AlignmentI al, String title,
-          String currentFileFormat)
+          String currentFileFormat,
+          FeatureSettingsModelI preferredFeatureColours)
   {
 
     if (al != null && al.getHeight() > 0)
@@ -866,6 +1017,19 @@ public class SequenceFetcher extends JPanel implements Runnable
 
           }
         }
+
+        if (preferredFeatureColours != null)
+        {
+          af.getViewport().applyFeaturesStyle(preferredFeatureColours);
+        }
+        if (Cache.getDefault("HIDE_INTRONS", true))
+        {
+          af.hideFeatureColumns(SequenceOntologyI.EXON, false);
+        }
+        if (newAlframes != null)
+        {
+          newAlframes.add(af);
+        }
         Desktop.addInternalFrame(af, title, AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
 
@@ -874,8 +1038,7 @@ public class SequenceFetcher extends JPanel implements Runnable
 
         try
         {
-          af.setMaximum(jalview.bin.Cache.getDefault("SHOW_FULLSCREEN",
-                  false));
+          af.setMaximum(Cache.getDefault("SHOW_FULLSCREEN", false));
         } catch (Exception ex)
         {
         }
@@ -911,5 +1074,23 @@ public class SequenceFetcher extends JPanel implements Runnable
   public void setProgressIndicator(IProgressIndicator progressIndicator)
   {
     this.progressIndicator = progressIndicator;
+  }
+
+  /**
+   * Make this panel visible (after a selection has been made in the database
+   * chooser)
+   */
+  void showPanel()
+  {
+    frame.setVisible(true);
+  }
+
+  /**
+   * Hide this panel (on clicking the database button to open the database
+   * chooser)
+   */
+  void hidePanel()
+  {
+    frame.setVisible(false);
   }
 }

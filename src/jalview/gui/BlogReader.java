@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,6 +41,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -285,6 +286,7 @@ public class BlogReader extends JPanel
   /**
    * check if the news panel's container is visible
    */
+  @Override
   public boolean isVisible()
   {
     if (parent == null)
@@ -312,6 +314,7 @@ public class BlogReader extends JPanel
           xf.setContentPane(me);
           xf.addWindowListener(new WindowAdapter()
           {
+            @Override
             public void windowClosing(WindowEvent e)
             {
               ActionEvent actionEvent = new ActionEvent(this,
@@ -320,6 +323,7 @@ public class BlogReader extends JPanel
               exitAction.actionPerformed(actionEvent);
             }
 
+            @Override
             public void windowOpened(WindowEvent e)
             {
             }
@@ -367,9 +371,9 @@ public class BlogReader extends JPanel
               + " and lastDate is " + lastDate);
       for (Item i : (List<Item>) chan.getItems())
       {
+        Date published = i.getPublishDate();
         boolean isread = lastDate == null ? false
-                : (i.getPublishDate() != null && !lastDate.before(i
-                        .getPublishDate()));
+                : (published != null && !lastDate.before(published));
 
         if (!updating || updateItems)
         {
@@ -379,11 +383,11 @@ public class BlogReader extends JPanel
         {
           i.setRead(isread);
         }
-        if (i.getPublishDate() != null && !i.isRead())
+        if (published != null && !i.isRead())
         {
-          if (earliest == null || earliest.after(i.getPublishDate()))
+          if (earliest == null || earliest.after(published))
           {
-            earliest = i.getPublishDate();
+            earliest = published;
           }
         }
       }
@@ -420,11 +424,9 @@ public class BlogReader extends JPanel
       }
       if (lastDate != null)
       {
-        jalview.bin.Cache.setDateProperty("JALVIEW_NEWS_RSS_LASTMODIFIED",
-                lastDate);
-        jalview.bin.Cache.log.debug("Saved last read date as "
-                + jalview.bin.Cache.date_format.format(lastDate));
-
+        String formatted = Cache.setDateProperty(
+                "JALVIEW_NEWS_RSS_LASTMODIFIED", lastDate);
+        Cache.log.debug("Saved last read date as " + formatted);
       }
     }
   }
@@ -472,6 +474,7 @@ public class BlogReader extends JPanel
 
     listItems.addMouseListener(new java.awt.event.MouseAdapter()
     {
+      @Override
       public void mouseClicked(MouseEvent e)
       {
         listItems_mouseClicked(e);
@@ -497,6 +500,7 @@ public class BlogReader extends JPanel
     }
     textDescription.addHyperlinkListener(new HyperlinkListener()
     {
+      @Override
       public void hyperlinkUpdate(HyperlinkEvent e)
       {
         if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED)
@@ -508,6 +512,7 @@ public class BlogReader extends JPanel
 
     listItems.addListSelectionListener(new ListSelectionListener()
     {
+      @Override
       public void valueChanged(ListSelectionEvent e)
       {
         if (e.getValueIsAdjusting() == false)
@@ -537,6 +542,7 @@ public class BlogReader extends JPanel
       _listItems = listItems;
     }
 
+    @Override
     public void actionPerformed(ActionEvent e)
     {
       Object o = _listItems.getSelectedValue();
@@ -550,6 +556,7 @@ public class BlogReader extends JPanel
       }
     }
 
+    @Override
     public void update(Object o)
     {
       setEnabled(true);
@@ -754,11 +761,10 @@ public class BlogReader extends JPanel
     lastread.set(1983, 01, 01);
     while (lastread.before(today))
     {
-      Cache.setDateProperty("JALVIEW_NEWS_RSS_LASTMODIFIED",
-              lastread.getTime());
+      String formattedDate = Cache.setDateProperty(
+              "JALVIEW_NEWS_RSS_LASTMODIFIED", lastread.getTime());
       BlogReader me = new BlogReader();
-      System.out.println("Set last date to "
-              + jalview.bin.Cache.date_format.format(lastread.getTime()));
+      System.out.println("Set last date to " + formattedDate);
       if (me.isNewsNew())
       {
         Cache.log.debug("There is news to read.");
@@ -810,6 +816,7 @@ class ChannelsRenderer extends DefaultListCellRenderer
   private final static Icon _icon = new ImageIcon(
           Main.class.getResource("image/ComposeMail16.gif"));
 
+  @Override
   public Component getListCellRendererComponent(JList list, Object value,
           int index, boolean isSelected, boolean cellHasFocus)
   {
@@ -837,6 +844,7 @@ class ItemsRenderer extends DefaultListCellRenderer
   private final static Icon _icon = new ImageIcon(
           Main.class.getResource("image/ComposeMail16.gif"));
 
+  @Override
   public Component getListCellRendererComponent(JList list, Object value,
           int index, boolean isSelected, boolean cellHasFocus)
   {

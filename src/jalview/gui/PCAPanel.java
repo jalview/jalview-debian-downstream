@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 package jalview.gui;
 
 import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SeqCigar;
@@ -139,8 +140,8 @@ public class PCAPanel extends GPCAPanel implements Runnable,
       {
         // create an entry for this score matrix for use in PCA
         JCheckBoxMenuItem jm = new JCheckBoxMenuItem();
-        jm.setText(MessageManager
-                .getStringOrReturn("label.score_model", sm));
+        jm.setText(MessageManager.getStringOrReturn("label.score_model_",
+                sm));
         jm.setSelected(pcaModel.getScore_matrix().equals(sm));
         if ((ResidueProperties.scoreMatrices.get(sm).isDNA() && ResidueProperties.scoreMatrices
                 .get(sm).isProtein())
@@ -167,6 +168,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     }
   }
 
+  @Override
   public void bgcolour_actionPerformed(ActionEvent e)
   {
     Color col = JColorChooser.showDialog(this,
@@ -183,6 +185,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void run()
   {
     long progId = System.currentTimeMillis();
@@ -288,6 +291,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void xCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
@@ -299,6 +303,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void yCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
@@ -310,11 +315,13 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void zCombobox_actionPerformed(ActionEvent e)
   {
     doDimensionChange();
   }
 
+  @Override
   public void outputValues_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
@@ -330,17 +337,20 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     }
   }
 
+  @Override
   public void showLabels_actionPerformed(ActionEvent e)
   {
     rc.showLabels(showLabels.getState());
   }
 
+  @Override
   public void print_actionPerformed(ActionEvent e)
   {
     PCAPrinter printer = new PCAPrinter();
     printer.start();
   }
 
+  @Override
   public void originalSeqData_actionPerformed(ActionEvent e)
   {
     // this was cut'n'pasted from the equivalent TreePanel method - we should
@@ -374,8 +384,8 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     {
       // AlignmentOrder origorder = new AlignmentOrder(alAndColsel[0]);
 
-      Alignment al = new Alignment((SequenceI[]) alAndColsel[0]);
-      Alignment dataset = (av != null && av.getAlignment() != null) ? av
+      AlignmentI al = new Alignment((SequenceI[]) alAndColsel[0]);
+      AlignmentI dataset = (av != null && av.getAlignment() != null) ? av
               .getAlignment().getDataset() : null;
       if (dataset != null)
       {
@@ -414,6 +424,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
 
   class PCAPrinter extends Thread implements Printable
   {
+    @Override
     public void run()
     {
       PrinterJob printJob = PrinterJob.getPrinterJob();
@@ -433,6 +444,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
       }
     }
 
+    @Override
     public int print(Graphics pg, PageFormat pf, int pi)
             throws PrinterException
     {
@@ -462,6 +474,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void eps_actionPerformed(ActionEvent e)
   {
     makePCAImage(jalview.util.ImageMaker.TYPE.EPS);
@@ -473,6 +486,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void png_actionPerformed(ActionEvent e)
   {
     makePCAImage(jalview.util.ImageMaker.TYPE.PNG);
@@ -489,19 +503,19 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from PCA",
-              width, height, null, null);
+              width, height, null, null, null, 0, false);
     }
     else if (type == jalview.util.ImageMaker.TYPE.EPS)
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from PCA",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
     }
     else
     {
       im = new jalview.util.ImageMaker(this,
               jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
-              width, height, null, this.getTitle());
+              width, height, null, this.getTitle(), null, 0, false);
 
     }
 
@@ -517,6 +531,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     }
   }
 
+  @Override
   public void viewMenu_menuSelected()
   {
     buildAssociatedViewMenu();
@@ -552,6 +567,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
       buttonGroup.add(item);
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent evt)
         {
           rc.applyToAllViews = false;
@@ -571,6 +587,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     itemf.setSelected(rc.applyToAllViews);
     itemf.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent evt)
       {
         rc.applyToAllViews = itemf.isSelected();
@@ -587,6 +604,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * jalview.jbgui.GPCAPanel#outputPoints_actionPerformed(java.awt.event.ActionEvent
    * )
    */
+  @Override
   protected void outputPoints_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
@@ -612,6 +630,7 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * jalview.jbgui.GPCAPanel#outputProjPoints_actionPerformed(java.awt.event
    * .ActionEvent)
    */
+  @Override
   protected void outputProjPoints_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();

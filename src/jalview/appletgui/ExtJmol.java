@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -49,11 +49,11 @@ public class ExtJmol extends JalviewJmolBinding
   private AlignmentPanel ap;
 
   protected ExtJmol(jalview.appletgui.AlignFrame alframe,
-          PDBEntry[] pdbentry, SequenceI[][] seq, String[][] chains,
+          PDBEntry[] pdbentry, SequenceI[][] seq,
           String protocol)
   {
     super(alframe.alignPanel.getStructureSelectionManager(), pdbentry, seq,
-            chains, protocol);
+            protocol);
   }
 
   public ExtJmol(Viewer viewer, AlignmentPanel alignPanel,
@@ -64,6 +64,7 @@ public class ExtJmol extends JalviewJmolBinding
     notifyFileLoaded(null, null, null, null, 0);
   }
 
+  @Override
   public void updateColours(Object source)
   {
 
@@ -71,6 +72,7 @@ public class ExtJmol extends JalviewJmolBinding
 
   }
 
+  @Override
   public void showUrl(String arg0)
   {
     showUrl(arg0, "jmol");
@@ -126,6 +128,7 @@ public class ExtJmol extends JalviewJmolBinding
     // ignore
   }
 
+  @Override
   public void selectionChanged(BS arg0)
   {
     System.out.println(arg0);

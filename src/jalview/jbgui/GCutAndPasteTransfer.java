@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -103,6 +103,7 @@ public class GCutAndPasteTransfer extends JInternalFrame
     ok.setText(MessageManager.getString("label.new_window"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ok_actionPerformed(e);
@@ -111,6 +112,7 @@ public class GCutAndPasteTransfer extends JInternalFrame
     cancel.setText(MessageManager.getString("action.close"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancel_actionPerformed(e);
@@ -124,6 +126,7 @@ public class GCutAndPasteTransfer extends JInternalFrame
                     .getMenuShortcutKeyMask(), false));
     selectAll.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         selectAll_actionPerformed(e);
@@ -136,6 +139,7 @@ public class GCutAndPasteTransfer extends JInternalFrame
                     .getMenuShortcutKeyMask(), false));
     save.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         save_actionPerformed(e);
@@ -152,15 +156,23 @@ public class GCutAndPasteTransfer extends JInternalFrame
     textarea.setFont(new java.awt.Font("Monospaced", Font.PLAIN, 12));
     textarea.addMouseListener(new java.awt.event.MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
-        textarea_mousePressed(e);
+        textarea_mousePressed(e); // on Mac
+      }
+
+      @Override
+      public void mouseReleased(MouseEvent e)
+      {
+        textarea_mousePressed(e); // on Windows
       }
     });
     editMenu.setText(MessageManager.getString("action.edit"));
     pasteMenu.setText(MessageManager.getString("action.paste"));
     pasteMenu.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         pasteMenu_actionPerformed(e);
@@ -169,6 +181,7 @@ public class GCutAndPasteTransfer extends JInternalFrame
     copyItem.setText(MessageManager.getString("action.copy"));
     copyItem.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         copyItem_actionPerformed(e);

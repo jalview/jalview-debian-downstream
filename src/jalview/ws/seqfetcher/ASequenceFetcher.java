@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.ws.seqfetcher;
 
+import jalview.api.FeatureSettingsModelI;
+import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.SequenceI;
@@ -27,10 +29,11 @@ import jalview.util.DBRefUtils;
 import jalview.util.MessageManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
@@ -39,70 +42,102 @@ import java.util.Vector;
 public class ASequenceFetcher
 {
 
-  /**
+  /*
    * set of databases we can retrieve entries from
    */
-  protected Hashtable<String, Map<String, DbSourceProxy>> FETCHABLEDBS;
+  protected Hashtable<String, Map<String, DbSourceProxy>> fetchableDbs;
 
-  public ASequenceFetcher()
+  /*
+   * comparator to sort by tier (0/1/2) and name
+   */
+  private Comparator<DbSourceProxy> proxyComparator;
+
+  /**
+   * Constructor
+   */
+  protected ASequenceFetcher()
   {
     super();
+
+    /*
+     * comparator to sort proxies by tier and name
+     */
+    proxyComparator = new Comparator<DbSourceProxy>()
+    {
+      @Override
+      public int compare(DbSourceProxy o1, DbSourceProxy o2)
+      {
+        /*
+         * Tier 0 precedes 1 precedes 2
+         */
+        int compared = Integer.compare(o1.getTier(), o2.getTier());
+        if (compared == 0)
+        {
+          // defend against NullPointer - should never happen
+          String o1Name = o1.getDbName();
+          String o2Name = o2.getDbName();
+          if (o1Name != null && o2Name != null)
+          {
+            compared = o1Name.compareToIgnoreCase(o2Name);
+          }
+        }
+        return compared;
+      }
+    };
   }
 
   /**
-   * get list of supported Databases
+   * get array of supported Databases
    * 
    * @return database source string for each database - only the latest version
    *         of a source db is bound to each source.
    */
   public String[] getSupportedDb()
   {
-    if (FETCHABLEDBS == null)
+    if (fetchableDbs == null)
     {
       return null;
     }
-    String[] sf = new String[FETCHABLEDBS.size()];
-    Enumeration e = FETCHABLEDBS.keys();
-    int i = 0;
-    while (e.hasMoreElements())
-    {
-      sf[i++] = (String) e.nextElement();
-    }
-    ;
+    String[] sf = fetchableDbs.keySet().toArray(
+            new String[fetchableDbs.size()]);
     return sf;
   }
 
   public boolean isFetchable(String source)
   {
-    Enumeration e = FETCHABLEDBS.keys();
-    while (e.hasMoreElements())
+    for (String db : fetchableDbs.keySet())
     {
-      String db = (String) e.nextElement();
-      if (source.compareToIgnoreCase(db) == 0)
+      if (source.equalsIgnoreCase(db))
       {
         return true;
       }
     }
-    jalview.bin.Cache.log.warn("isFetchable doesn't know about '" + source
-            + "'");
+    Cache.log.warn("isFetchable doesn't know about '" + source + "'");
     return false;
   }
 
-  public SequenceI[] getSequences(jalview.datamodel.DBRefEntry[] refs)
+  /**
+   * Fetch sequences for the given cross-references
+   * 
+   * @param refs
+   * @param dna
+   *          if true, only fetch from nucleotide data sources, else peptide
+   * @return
+   */
+  public SequenceI[] getSequences(List<DBRefEntry> refs, boolean dna)
   {
-    SequenceI[] ret = null;
-    Vector<SequenceI> rseqs = new Vector();
-    Hashtable<String, List<String>> queries = new Hashtable();
-    for (int r = 0; r < refs.length; r++)
+    Vector<SequenceI> rseqs = new Vector<SequenceI>();
+    Hashtable<String, List<String>> queries = new Hashtable<String, List<String>>();
+    for (DBRefEntry ref : refs)
     {
-      if (!queries.containsKey(refs[r].getSource()))
+      if (!queries.containsKey(ref.getSource()))
       {
-        queries.put(refs[r].getSource(), new ArrayList<String>());
+        queries.put(ref.getSource(), new ArrayList<String>());
       }
-      List<String> qset = queries.get(refs[r].getSource());
-      if (!qset.contains(refs[r].getAccessionId()))
+      List<String> qset = queries.get(ref.getSource());
+      if (!qset.contains(ref.getAccessionId()))
       {
-        qset.add(refs[r].getAccessionId());
+        qset.add(ref.getAccessionId());
       }
     }
     Enumeration<String> e = queries.keys();
@@ -118,22 +153,22 @@ public class ASequenceFetcher
                 "Don't know how to fetch from this database :" + db));
         continue;
       }
-      Iterator<DbSourceProxy> fetchers = getSourceProxy(db).iterator();
+
       Stack<String> queriesLeft = new Stack<String>();
-      // List<String> queriesFailed = new ArrayList<String>();
       queriesLeft.addAll(query);
-      while (fetchers.hasNext())
+
+      List<DbSourceProxy> proxies = getSourceProxy(db);
+      for (DbSourceProxy fetcher : proxies)
       {
         List<String> queriesMade = new ArrayList<String>();
-        HashSet queriesFound = new HashSet<String>();
+        HashSet<String> queriesFound = new HashSet<String>();
         try
         {
-          DbSourceProxy fetcher = fetchers.next();
-          boolean doMultiple = fetcher.getAccessionSeparator() != null; // No
-          // separator
-          // - no
-          // Multiple
-          // Queries
+          if (fetcher.isDnaCoding() != dna)
+          {
+            continue; // wrong sort of data
+          }
+          boolean doMultiple = fetcher.getMaximumQueryCount() > 1;
           while (!queriesLeft.isEmpty())
           {
             StringBuffer qsb = new StringBuffer();
@@ -152,8 +187,7 @@ public class ASequenceFetcher
             try
             {
               // create a fetcher and go to it
-              seqset = fetcher.getSequenceRecords(qsb.toString()); // ,
-              // queriesFailed);
+              seqset = fetcher.getSequenceRecords(qsb.toString());
             } catch (Exception ex)
             {
               System.err.println("Failed to retrieve the following from "
@@ -170,15 +204,12 @@ public class ASequenceFetcher
                 for (int is = 0; is < seqs.length; is++)
                 {
                   rseqs.addElement(seqs[is]);
-                  DBRefEntry[] frefs = DBRefUtils.searchRefs(seqs[is]
-                          .getDBRef(), new DBRefEntry(db, null, null));
-                  if (frefs != null)
+                  List<DBRefEntry> frefs = DBRefUtils.searchRefs(seqs[is]
+                          .getDBRefs(), new DBRefEntry(db, null, null));
+                  for (DBRefEntry dbr : frefs)
                   {
-                    for (DBRefEntry dbr : frefs)
-                    {
-                      queriesFound.add(dbr.getAccessionId());
-                      queriesMade.remove(dbr.getAccessionId());
-                    }
+                    queriesFound.add(dbr.getAccessionId());
+                    queriesMade.remove(dbr.getAccessionId());
                   }
                   seqs[is] = null;
                 }
@@ -220,24 +251,24 @@ public class ASequenceFetcher
         {
           System.out.println("# Adding " + queriesMade.size()
                   + " ids back to queries list for searching again (" + db
-                  + ".");
+                  + ")");
           queriesLeft.addAll(queriesMade);
         }
       }
     }
+
+    SequenceI[] result = null;
     if (rseqs.size() > 0)
     {
-      ret = new SequenceI[rseqs.size()];
-      Enumeration sqs = rseqs.elements();
+      result = new SequenceI[rseqs.size()];
       int si = 0;
-      while (sqs.hasMoreElements())
+      for (SequenceI s : rseqs)
       {
-        SequenceI s = (SequenceI) sqs.nextElement();
-        ret[si++] = s;
+        result[si++] = s;
         s.updatePDBIds();
       }
     }
-    return ret;
+    return result;
   }
 
   public void reportStdError(String db, List<String> queriesMade,
@@ -261,50 +292,32 @@ public class ASequenceFetcher
   }
 
   /**
-   * Retrieve an instance of the proxy for the given source
+   * Returns a list of proxies for the given source
    * 
    * @param db
    *          database source string TODO: add version string/wildcard for
    *          retrieval of specific DB source/version combinations.
-   * @return an instance of DbSourceProxy for that db.
+   * @return a list of DbSourceProxy for the db
    */
   public List<DbSourceProxy> getSourceProxy(String db)
   {
-    List<DbSourceProxy> dbs;
-    Map<String, DbSourceProxy> dblist = FETCHABLEDBS.get(db);
+    db = DBRefUtils.getCanonicalName(db);
+    Map<String, DbSourceProxy> dblist = fetchableDbs.get(db);
     if (dblist == null)
     {
       return new ArrayList<DbSourceProxy>();
     }
-    ;
-    if (dblist.size() > 1)
-    {
-      DbSourceProxy[] l = dblist.values().toArray(new DbSourceProxy[0]);
-      int i = 0;
-      String[] nm = new String[l.length];
-      // make sure standard dbs appear first, followed by reference das sources,
-      // followed by anything else.
-      for (DbSourceProxy s : l)
-      {
-        nm[i++] = "" + s.getTier() + s.getDbName().toLowerCase();
-      }
-      jalview.util.QuickSort.sort(nm, l);
-      dbs = new ArrayList<DbSourceProxy>();
-      for (i = l.length - 1; i >= 0; i--)
-      {
-        dbs.add(l[i]);
-      }
-    }
-    else
-    {
-      dbs = new ArrayList<DbSourceProxy>(dblist.values());
-    }
+
+    /*
+     * sort so that primary sources precede secondary
+     */
+    List<DbSourceProxy> dbs = new ArrayList<DbSourceProxy>(dblist.values());
+    Collections.sort(dbs, proxyComparator);
     return dbs;
   }
 
   /**
-   * constructs and instance of the proxy and registers it as a valid
-   * dbrefsource
+   * constructs an instance of the proxy and registers it as a valid dbrefsource
    * 
    * @param dbSourceProxy
    *          reference for class implementing
@@ -312,7 +325,7 @@ public class ASequenceFetcher
    */
   protected void addDBRefSourceImpl(
           Class<? extends DbSourceProxy> dbSourceProxy)
-          throws java.lang.IllegalArgumentException
+          throws IllegalArgumentException
   {
     DbSourceProxy proxy = null;
     try
@@ -343,47 +356,19 @@ public class ASequenceFetcher
   {
     if (proxy != null)
     {
-      if (FETCHABLEDBS == null)
+      if (fetchableDbs == null)
       {
-        FETCHABLEDBS = new Hashtable<String, Map<String, DbSourceProxy>>();
+        fetchableDbs = new Hashtable<String, Map<String, DbSourceProxy>>();
       }
-      Map<String, DbSourceProxy> slist = FETCHABLEDBS.get(proxy
+      Map<String, DbSourceProxy> slist = fetchableDbs.get(proxy
               .getDbSource());
       if (slist == null)
       {
-        FETCHABLEDBS.put(proxy.getDbSource(),
+        fetchableDbs.put(proxy.getDbSource(),
                 slist = new Hashtable<String, DbSourceProxy>());
       }
       slist.put(proxy.getDbName(), proxy);
     }
-  }
-
-  /**
-   * test if the database handler for dbName contains the given dbProperty when
-   * a dbName resolves to a set of proxies - this method will return the result
-   * of the test for the first instance. TODO implement additional method to
-   * query all sources for a db to find one with a particular property
-   * 
-   * @param dbName
-   * @param dbProperty
-   * @return true if proxy has the given property
-   */
-  public boolean hasDbSourceProperty(String dbName, String dbProperty)
-  {
-    // TODO: decide if invalidDbName exception is thrown here.
-
-    List<DbSourceProxy> proxies = getSourceProxy(dbName);
-    if (proxies != null)
-    {
-      for (DbSourceProxy proxy : proxies)
-      {
-        if (proxy.getDbSourceProperties() != null)
-        {
-          return proxy.getDbSourceProperties().containsKey(dbProperty);
-        }
-      }
-    }
-    return false;
   }
 
   /**
@@ -394,7 +379,7 @@ public class ASequenceFetcher
    */
   public String[] getDbInstances(Class class1)
   {
-    if (!jalview.ws.seqfetcher.DbSourceProxy.class.isAssignableFrom(class1))
+    if (!DbSourceProxy.class.isAssignableFrom(class1))
     {
       throw new Error(
               MessageManager
@@ -402,17 +387,17 @@ public class ASequenceFetcher
                               "error.implementation_error_dbinstance_must_implement_interface",
                               new String[] { class1.toString() }));
     }
-    if (FETCHABLEDBS == null)
+    if (fetchableDbs == null)
     {
       return null;
     }
     String[] sources = null;
-    Vector src = new Vector();
-    Enumeration dbs = FETCHABLEDBS.keys();
+    Vector<String> src = new Vector<String>();
+    Enumeration<String> dbs = fetchableDbs.keys();
     while (dbs.hasMoreElements())
     {
-      String dbn = (String) dbs.nextElement();
-      for (DbSourceProxy dbp : FETCHABLEDBS.get(dbn).values())
+      String dbn = dbs.nextElement();
+      for (DbSourceProxy dbp : fetchableDbs.get(dbn).values())
       {
         if (class1.isAssignableFrom(dbp.getClass()))
         {
@@ -429,7 +414,7 @@ public class ASequenceFetcher
 
   public DbSourceProxy[] getDbSourceProxyInstances(Class class1)
   {
-    ArrayList<DbSourceProxy> prlist = new ArrayList<DbSourceProxy>();
+    List<DbSourceProxy> prlist = new ArrayList<DbSourceProxy>();
     for (String fetchable : getSupportedDb())
     {
       for (DbSourceProxy pr : getSourceProxy(fetchable))
@@ -447,4 +432,28 @@ public class ASequenceFetcher
     return prlist.toArray(new DbSourceProxy[0]);
   }
 
+  /**
+   * Returns a preferred feature colouring scheme for the given source, or null
+   * if none is defined.
+   * 
+   * @param source
+   * @return
+   */
+  public FeatureSettingsModelI getFeatureColourScheme(String source)
+  {
+    /*
+     * return the first non-null colour scheme for any proxy for
+     * this database source
+     */
+    for (DbSourceProxy proxy : getSourceProxy(source))
+    {
+      FeatureSettingsModelI preferredColours = proxy
+              .getFeatureColourScheme();
+      if (preferredColours != null)
+      {
+        return preferredColours;
+      }
+    }
+    return null;
+  }
 }

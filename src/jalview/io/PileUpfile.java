@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -76,11 +76,13 @@ public class PileUpfile extends MSFfile
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());
   }
 
+  @Override
   public String print(SequenceI[] s)
   {
     StringBuffer out = new StringBuffer("PileUp");
@@ -141,12 +143,7 @@ public class PileUpfile extends MSFfile
 
     int len = 50;
 
-    int nochunks = (max / len) + 1;
-
-    if ((max % len) == 0)
-    {
-      nochunks--;
-    }
+    int nochunks = (max / len) + (max % len > 0 ? 1 : 0);
 
     for (i = 0; i < nochunks; i++)
     {

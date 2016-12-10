@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,9 +21,15 @@
 package jalview.datamodel;
 
 import jalview.analysis.AlignSeq;
+import jalview.api.DBRefEntryI;
+import jalview.util.Comparison;
+import jalview.util.DBRefUtils;
+import jalview.util.MapList;
 import jalview.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Vector;
@@ -182,12 +188,13 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   /**
-   * Creates a new Sequence object with new features, DBRefEntries,
-   * AlignmentAnnotations, and PDBIds but inherits any existing dataset sequence
-   * reference.
+   * Creates a new Sequence object with new AlignmentAnnotations but inherits
+   * any existing dataset sequence reference. If non exists, everything is
+   * copied.
    * 
    * @param seq
-   *          DOCUMENT ME!
+   *          if seq is a dataset sequence, behaves like a plain old copy
+   *          constructor
    */
   public Sequence(SequenceI seq)
   {
@@ -210,28 +217,44 @@ public class Sequence extends ASequence implements SequenceI
 
   }
 
+  /**
+   * does the heavy lifting when cloning a dataset sequence, or coping data from
+   * dataset to a new derived sequence.
+   * 
+   * @param seq
+   *          - source of attributes.
+   * @param alAnnotation
+   *          - alignment annotation present on seq that should be copied onto
+   *          this sequence
+   */
   protected void initSeqFrom(SequenceI seq,
           AlignmentAnnotation[] alAnnotation)
   {
-    initSeqAndName(seq.getName(), seq.getSequence(), seq.getStart(),
-            seq.getEnd());
-    description = seq.getDescription();
-    if (seq.getSequenceFeatures() != null)
     {
-      SequenceFeature[] sf = seq.getSequenceFeatures();
-      for (int i = 0; i < sf.length; i++)
-      {
-        addSequenceFeature(new SequenceFeature(sf[i]));
-      }
+      char[] oseq = seq.getSequence();
+      initSeqAndName(seq.getName(), Arrays.copyOf(oseq, oseq.length),
+              seq.getStart(), seq.getEnd());
     }
-    setDatasetSequence(seq.getDatasetSequence());
-    if (datasetSequence == null && seq.getDBRef() != null)
+    description = seq.getDescription();
+    if (seq != datasetSequence)
     {
-      // only copy DBRefs if we really are a dataset sequence
-      DBRefEntry[] dbr = seq.getDBRef();
+      setDatasetSequence(seq.getDatasetSequence());
+    }
+    if (datasetSequence == null && seq.getDBRefs() != null)
+    {
+      // only copy DBRefs and seqfeatures if we really are a dataset sequence
+      DBRefEntry[] dbr = seq.getDBRefs();
       for (int i = 0; i < dbr.length; i++)
       {
         addDBRef(new DBRefEntry(dbr[i]));
+      }
+      if (seq.getSequenceFeatures() != null)
+      {
+        SequenceFeature[] sf = seq.getSequenceFeatures();
+        for (int i = 0; i < sf.length; i++)
+        {
+          addSequenceFeature(new SequenceFeature(sf[i]));
+        }
       }
     }
     if (seq.getAnnotation() != null)
@@ -261,28 +284,43 @@ public class Sequence extends ASequence implements SequenceI
     }
     if (seq.getAllPDBEntries() != null)
     {
-      Vector ids = seq.getAllPDBEntries();
-      Enumeration e = ids.elements();
-      while (e.hasMoreElements())
+      Vector<PDBEntry> ids = seq.getAllPDBEntries();
+      for (PDBEntry pdb : ids)
       {
-        this.addPDBId(new PDBEntry((PDBEntry) e.nextElement()));
+        this.addPDBId(new PDBEntry(pdb));
       }
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param v
-   *          DOCUMENT ME!
-   */
+  @Override
   public void setSequenceFeatures(SequenceFeature[] features)
   {
-    sequenceFeatures = features;
+    if (datasetSequence == null)
+    {
+      sequenceFeatures = features;
+    }
+    else
+    {
+      if (datasetSequence.getSequenceFeatures() != features
+              && datasetSequence.getSequenceFeatures() != null
+              && datasetSequence.getSequenceFeatures().length > 0)
+      {
+        new Exception(
+                "Warning: JAL-2046 side effect ? Possible implementation error: overwriting dataset sequence features by setting sequence features on alignment")
+                .printStackTrace();
+      }
+      datasetSequence.setSequenceFeatures(features);
+    }
   }
 
+  @Override
   public synchronized void addSequenceFeature(SequenceFeature sf)
   {
+    if (sequenceFeatures == null && datasetSequence != null)
+    {
+      datasetSequence.addSequenceFeature(sf);
+      return;
+    }
     if (sequenceFeatures == null)
     {
       sequenceFeatures = new SequenceFeature[0];
@@ -303,10 +341,15 @@ public class Sequence extends ASequence implements SequenceI
     sequenceFeatures = temp;
   }
 
+  @Override
   public void deleteFeature(SequenceFeature sf)
   {
     if (sequenceFeatures == null)
     {
+      if (datasetSequence != null)
+      {
+        datasetSequence.deleteFeature(sf);
+      }
       return;
     }
 
@@ -352,6 +395,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return
    */
+  @Override
   public SequenceFeature[] getSequenceFeatures()
   {
     SequenceFeature[] features = sequenceFeatures;
@@ -367,28 +411,25 @@ public class Sequence extends ASequence implements SequenceI
     return features;
   }
 
-  public void addPDBId(PDBEntry entry)
+  @Override
+  public boolean addPDBId(PDBEntry entry)
   {
     if (pdbIds == null)
     {
       pdbIds = new Vector<PDBEntry>();
+      pdbIds.add(entry);
+      return true;
     }
-    if (pdbIds.contains(entry))
-    {
-      updatePDBEntry(pdbIds.get(pdbIds.indexOf(entry)), entry);
-    }
-    else
-    {
-      pdbIds.addElement(entry);
-    }
-  }
 
-  private static void updatePDBEntry(PDBEntry oldEntry, PDBEntry newEntry)
-  {
-    if (newEntry.getFile() != null)
+    for (PDBEntry pdbe : pdbIds)
     {
-      oldEntry.setFile(newEntry.getFile());
+      if (pdbe.updateFrom(entry))
+      {
+        return false;
+      }
     }
+    pdbIds.addElement(entry);
+    return true;
   }
 
   /**
@@ -411,7 +452,7 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public Vector<PDBEntry> getAllPDBEntries()
   {
-    return pdbIds;
+    return pdbIds == null ? new Vector<PDBEntry>() : pdbIds;
   }
 
   /**
@@ -419,6 +460,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String getDisplayId(boolean jvsuffix)
   {
     StringBuffer result = new StringBuffer(name);
@@ -436,6 +478,7 @@ public class Sequence extends ASequence implements SequenceI
    * @param name
    *          DOCUMENT ME!
    */
+  @Override
   public void setName(String name)
   {
     this.name = name;
@@ -447,6 +490,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String getName()
   {
     return this.name;
@@ -458,6 +502,7 @@ public class Sequence extends ASequence implements SequenceI
    * @param start
    *          DOCUMENT ME!
    */
+  @Override
   public void setStart(int start)
   {
     this.start = start;
@@ -468,6 +513,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public int getStart()
   {
     return this.start;
@@ -479,6 +525,7 @@ public class Sequence extends ASequence implements SequenceI
    * @param end
    *          DOCUMENT ME!
    */
+  @Override
   public void setEnd(int end)
   {
     this.end = end;
@@ -489,6 +536,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public int getEnd()
   {
     return this.end;
@@ -499,6 +547,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public int getLength()
   {
     return this.sequence.length;
@@ -510,22 +559,26 @@ public class Sequence extends ASequence implements SequenceI
    * @param seq
    *          DOCUMENT ME!
    */
+  @Override
   public void setSequence(String seq)
   {
     this.sequence = seq.toCharArray();
     checkValidRange();
   }
 
+  @Override
   public String getSequenceAsString()
   {
     return new String(sequence);
   }
 
+  @Override
   public String getSequenceAsString(int start, int end)
   {
     return new String(getSequence(start, end));
   }
 
+  @Override
   public char[] getSequence()
   {
     return sequence;
@@ -536,6 +589,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @see jalview.datamodel.SequenceI#getSequence(int, int)
    */
+  @Override
   public char[] getSequence(int start, int end)
   {
     if (start < 0)
@@ -589,16 +643,15 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns the character of the aligned sequence at the given position (base
+   * zero), or space if the position is not within the sequence's bounds
    * 
-   * @param i
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
+   * @return
    */
+  @Override
   public char getCharAt(int i)
   {
-    if (i < sequence.length)
+    if (i >= 0 && i < sequence.length)
     {
       return sequence[i];
     }
@@ -614,6 +667,7 @@ public class Sequence extends ASequence implements SequenceI
    * @param desc
    *          DOCUMENT ME!
    */
+  @Override
   public void setDescription(String desc)
   {
     this.description = desc;
@@ -624,6 +678,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String getDescription()
   {
     return this.description;
@@ -634,6 +689,7 @@ public class Sequence extends ASequence implements SequenceI
    * 
    * @see jalview.datamodel.SequenceI#findIndex(int)
    */
+  @Override
   public int findIndex(int pos)
   {
     // returns the alignment position for a residue
@@ -686,6 +742,7 @@ public class Sequence extends ASequence implements SequenceI
    * @return int[SequenceI.getEnd()-SequenceI.getStart()+1] or null if no
    *         residues in SequenceI object
    */
+  @Override
   public int[] gapMap()
   {
     String seq = jalview.analysis.AlignSeq.extractGaps(
@@ -885,18 +942,28 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   @Override
-  public void setDBRef(DBRefEntry[] dbref)
-  {
-    dbrefs = dbref;
-  }
-
-  @Override
-  public DBRefEntry[] getDBRef()
+  public void setDBRefs(DBRefEntry[] dbref)
   {
     if (dbrefs == null && datasetSequence != null
             && this != datasetSequence)
     {
-      return datasetSequence.getDBRef();
+      datasetSequence.setDBRefs(dbref);
+      return;
+    }
+    dbrefs = dbref;
+    if (dbrefs != null)
+    {
+      DBRefUtils.ensurePrimaries(this);
+    }
+  }
+
+  @Override
+  public DBRefEntry[] getDBRefs()
+  {
+    if (dbrefs == null && datasetSequence != null
+            && this != datasetSequence)
+    {
+      return datasetSequence.getDBRefs();
     }
     return dbrefs;
   }
@@ -904,39 +971,56 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public void addDBRef(DBRefEntry entry)
   {
+    if (datasetSequence != null)
+    {
+      datasetSequence.addDBRef(entry);
+      return;
+    }
+
     if (dbrefs == null)
     {
       dbrefs = new DBRefEntry[0];
     }
 
-    int i, iSize = dbrefs.length;
-
-    for (i = 0; i < iSize; i++)
+    for (DBRefEntryI dbr : dbrefs)
     {
-      if (dbrefs[i].equalRef(entry))
+      if (dbr.updateFrom(entry))
       {
-        if (entry.getMap() != null)
-        {
-          if (dbrefs[i].getMap() == null)
-          {
-            // overwrite with 'superior' entry that contains a mapping.
-            dbrefs[i] = entry;
-          }
-        }
+        /*
+         * found a dbref that either matched, or could be
+         * updated from, the new entry - no need to add it
+         */
         return;
       }
     }
 
-    DBRefEntry[] temp = new DBRefEntry[iSize + 1];
-    System.arraycopy(dbrefs, 0, temp, 0, iSize);
+    /*
+     * extend the array to make room for one more
+     */
+    // TODO use an ArrayList instead
+    int j = dbrefs.length;
+    DBRefEntry[] temp = new DBRefEntry[j + 1];
+    System.arraycopy(dbrefs, 0, temp, 0, j);
     temp[temp.length - 1] = entry;
 
     dbrefs = temp;
+
+    DBRefUtils.ensurePrimaries(this);
   }
 
   @Override
   public void setDatasetSequence(SequenceI seq)
   {
+    if (seq == this)
+    {
+      throw new IllegalArgumentException(
+              "Implementation Error: self reference passed to SequenceI.setDatasetSequence");
+    }
+    if (seq != null && seq.getDatasetSequence() != null)
+    {
+      throw new IllegalArgumentException(
+              "Implementation error: cascading dataset sequences are not allowed.");
+    }
     datasetSequence = seq;
   }
 
@@ -973,6 +1057,7 @@ public class Sequence extends ASequence implements SequenceI
     annotation.setSequenceRef(this);
   }
 
+  @Override
   public void removeAlignmentAnnotation(AlignmentAnnotation annotation)
   {
     if (this.annotation != null)
@@ -1008,56 +1093,80 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public SequenceI deriveSequence()
   {
-    SequenceI seq = new Sequence(this);
-    if (datasetSequence != null)
-    {
-      // duplicate current sequence with same dataset
-      seq.setDatasetSequence(datasetSequence);
-    }
-    else
+    Sequence seq = null;
+    if (datasetSequence == null)
     {
       if (isValidDatasetSequence())
       {
         // Use this as dataset sequence
+        seq = new Sequence(getName(), "", 1, -1);
         seq.setDatasetSequence(this);
+        seq.initSeqFrom(this, getAnnotation());
+        return seq;
       }
       else
       {
         // Create a new, valid dataset sequence
-        SequenceI ds = seq;
-        ds.setSequence(AlignSeq.extractGaps(
-                jalview.util.Comparison.GapChars, new String(sequence)));
-        setDatasetSequence(ds);
-        ds.setSequenceFeatures(getSequenceFeatures());
-        seq = this; // and return this sequence as the derived sequence.
+        createDatasetSequence();
       }
     }
-    return seq;
+    return new Sequence(this);
   }
+
+  private boolean _isNa;
+
+  private long _seqhash = 0;
+
+  /**
+   * Answers false if the sequence is more than 85% nucleotide (ACGTU), else
+   * true
+   */
+  @Override
+  public boolean isProtein()
+  {
+    if (datasetSequence != null)
+    {
+      return datasetSequence.isProtein();
+    }
+    if (_seqhash != sequence.hashCode())
+    {
+      _seqhash = sequence.hashCode();
+      _isNa = Comparison.isNucleotide(this);
+    }
+    return !_isNa;
+  };
 
   /*
    * (non-Javadoc)
    * 
    * @see jalview.datamodel.SequenceI#createDatasetSequence()
    */
+  @Override
   public SequenceI createDatasetSequence()
   {
     if (datasetSequence == null)
     {
-      datasetSequence = new Sequence(getName(), AlignSeq.extractGaps(
+      Sequence dsseq = new Sequence(getName(), AlignSeq.extractGaps(
               jalview.util.Comparison.GapChars, getSequenceAsString()),
               getStart(), getEnd());
-      datasetSequence.setSequenceFeatures(getSequenceFeatures());
-      datasetSequence.setDescription(getDescription());
-      setSequenceFeatures(null);
-      // move database references onto dataset sequence
-      datasetSequence.setDBRef(getDBRef());
-      setDBRef(null);
-      datasetSequence.setPDBId(getAllPDBEntries());
-      setPDBId(null);
+
+      datasetSequence = dsseq;
+
+      dsseq.setDescription(description);
+      // move features and database references onto dataset sequence
+      dsseq.sequenceFeatures = sequenceFeatures;
+      sequenceFeatures = null;
+      dsseq.dbrefs = dbrefs;
+      dbrefs = null;
+      // TODO: search and replace any references to this sequence with
+      // references to the dataset sequence in Mappings on dbref
+      dsseq.pdbIds = pdbIds;
+      pdbIds = null;
       datasetSequence.updatePDBIds();
       if (annotation != null)
       {
+        // annotation is cloned rather than moved, to preserve what's currently
+        // on the alignment
         for (AlignmentAnnotation aa : annotation)
         {
           AlignmentAnnotation _aa = new AlignmentAnnotation(aa);
@@ -1078,6 +1187,7 @@ public class Sequence extends ASequence implements SequenceI
    * jalview.datamodel.SequenceI#setAlignmentAnnotation(AlignmmentAnnotation[]
    * annotations)
    */
+  @Override
   public void setAlignmentAnnotation(AlignmentAnnotation[] annotations)
   {
     if (annotation != null)
@@ -1141,46 +1251,22 @@ public class Sequence extends ASequence implements SequenceI
     {
       return false;
     }
-    Vector newpdb = new Vector();
-    for (int i = 0; i < dbrefs.length; i++)
+    boolean added = false;
+    for (DBRefEntry dbr : dbrefs)
     {
-      if (DBRefSource.PDB.equals(dbrefs[i].getSource()))
+      if (DBRefSource.PDB.equals(dbr.getSource()))
       {
-        PDBEntry pdbe = new PDBEntry();
-        pdbe.setId(dbrefs[i].getAccessionId());
-        if (pdbIds == null || pdbIds.size() == 0)
-        {
-          newpdb.addElement(pdbe);
-        }
-        else
-        {
-          Enumeration en = pdbIds.elements();
-          boolean matched = false;
-          while (!matched && en.hasMoreElements())
-          {
-            PDBEntry anentry = (PDBEntry) en.nextElement();
-            if (anentry.getId().equals(pdbe.getId()))
-            {
-              matched = true;
-            }
-          }
-          if (!matched)
-          {
-            newpdb.addElement(pdbe);
-          }
-        }
+        /*
+         * 'Add' any PDB dbrefs as a PDBEntry - add is only performed if the
+         * PDB id is not already present in a 'matching' PDBEntry
+         * Constructor parses out a chain code if appended to the accession id
+         * (a fudge used to 'store' the chain code in the DBRef)
+         */
+        PDBEntry pdbe = new PDBEntry(dbr);
+        added |= addPDBId(pdbe);
       }
     }
-    if (newpdb.size() > 0)
-    {
-      Enumeration en = newpdb.elements();
-      while (en.hasMoreElements())
-      {
-        addPDBId((PDBEntry) en.nextElement());
-      }
-      return true;
-    }
-    return false;
+    return added;
   }
 
   @Override
@@ -1226,7 +1312,7 @@ public class Sequence extends ASequence implements SequenceI
       }
     }
     // transfer database references
-    DBRefEntry[] entryRefs = entry.getDBRef();
+    DBRefEntry[] entryRefs = entry.getDBRefs();
     if (entryRefs != null)
     {
       for (int r = 0; r < entryRefs.length; r++)
@@ -1250,6 +1336,7 @@ public class Sequence extends ASequence implements SequenceI
    * @return The index (zero-based) on this sequence in the MSA. It returns
    *         {@code -1} if this information is not available.
    */
+  @Override
   public int getIndex()
   {
     return index;
@@ -1263,16 +1350,19 @@ public class Sequence extends ASequence implements SequenceI
    *          position for this sequence. This value is zero-based (zero for
    *          this first sequence)
    */
+  @Override
   public void setIndex(int value)
   {
     index = value;
   }
 
+  @Override
   public void setRNA(RNA r)
   {
     rna = r;
   }
 
+  @Override
   public RNA getRNA()
   {
     return rna;
@@ -1297,6 +1387,7 @@ public class Sequence extends ASequence implements SequenceI
     return result;
   }
 
+  @Override
   public String toString()
   {
     return getDisplayId(false);
@@ -1305,12 +1396,15 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public PDBEntry getPDBEntry(String pdbIdStr)
   {
-    if (getDatasetSequence() == null
-            || getDatasetSequence().getAllPDBEntries() == null)
+    if (getDatasetSequence() != null)
+    {
+      return getDatasetSequence().getPDBEntry(pdbIdStr);
+    }
+    if (pdbIds == null)
     {
       return null;
     }
-    List<PDBEntry> entries = getDatasetSequence().getAllPDBEntries();
+    List<PDBEntry> entries = getAllPDBEntries();
     for (PDBEntry entry : entries)
     {
       if (entry.getId().equalsIgnoreCase(pdbIdStr))
@@ -1319,6 +1413,66 @@ public class Sequence extends ASequence implements SequenceI
       }
     }
     return null;
+  }
+
+  @Override
+  public List<DBRefEntry> getPrimaryDBRefs()
+  {
+    if (datasetSequence != null)
+    {
+      return datasetSequence.getPrimaryDBRefs();
+    }
+    if (dbrefs == null || dbrefs.length == 0)
+    {
+      return Collections.emptyList();
+    }
+    synchronized (dbrefs)
+    {
+      List<DBRefEntry> primaries = new ArrayList<DBRefEntry>();
+      DBRefEntry[] tmp = new DBRefEntry[1];
+      for (DBRefEntry ref : dbrefs)
+      {
+        if (!ref.isPrimaryCandidate())
+        {
+          continue;
+        }
+        if (ref.hasMap())
+        {
+          MapList mp = ref.getMap().getMap();
+          if (mp.getFromLowest() > start || mp.getFromHighest() < end)
+          {
+            // map only involves a subsequence, so cannot be primary
+            continue;
+          }
+        }
+        // whilst it looks like it is a primary ref, we also sanity check type
+        if (DBRefUtils.getCanonicalName(DBRefSource.PDB).equals(
+                DBRefUtils.getCanonicalName(ref.getSource())))
+        {
+          // PDB dbrefs imply there should be a PDBEntry associated
+          // TODO: tighten PDB dbrefs
+          // formally imply Jalview has actually downloaded and
+          // parsed the pdb file. That means there should be a cached file
+          // handle on the PDBEntry, and a real mapping between sequence and
+          // extracted sequence from PDB file
+          PDBEntry pdbentry = getPDBEntry(ref.getAccessionId());
+          if (pdbentry != null && pdbentry.getFile() != null)
+          {
+            primaries.add(ref);
+          }
+          continue;
+        }
+        // check standard protein or dna sources
+        tmp[0] = ref;
+        DBRefEntry[] res = DBRefUtils.selectDbRefs(!isProtein(), tmp);
+        if (res != null && res[0] == tmp[0])
+        {
+          primaries.add(ref);
+          continue;
+        }
+      }
+      return primaries;
+    }
   }
 
 }

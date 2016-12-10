@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,6 +32,8 @@ import java.awt.Graphics;
 
 public class SequenceRenderer implements jalview.api.SequenceRenderer
 {
+  final static int CHAR_TO_UPPER = 'A' - 'a';
+
   AlignViewport av;
 
   FontMetrics fm;
@@ -67,6 +69,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     this.renderGaps = renderGaps;
   }
 
+  @Override
   public Color getResidueBoxColour(SequenceI seq, int i)
   {
     allGroups = av.getAlignment().findAllGroups(seq);
@@ -256,7 +259,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
         }
         if (currentSequenceGroup.getShowNonconserved())
         {
-          s = getDisplayChar(srep, i, s, '.');
+          s = getDisplayChar(srep, i, s, '.', currentSequenceGroup);
         }
       }
       else
@@ -280,7 +283,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
         }
         if (av.getShowUnconserved())
         {
-          s = getDisplayChar(srep, i, s, '.');
+          s = getDisplayChar(srep, i, s, '.', null);
 
         }
       }
@@ -312,20 +315,43 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
 
   }
 
-  private char getDisplayChar(final boolean usesrep, int position, char s,
-          char c)
+  /**
+   * Returns 'conservedChar' to represent the given position if the sequence
+   * character at that position is equal to the consensus (ignoring case), else
+   * returns the sequence character
+   * 
+   * @param usesrep
+   * @param position
+   * @param sequenceChar
+   * @param conservedChar
+   * @return
+   */
+  private char getDisplayChar(final boolean usesrep, int position,
+          char sequenceChar, char conservedChar, SequenceGroup currentGroup)
   {
     // TODO - use currentSequenceGroup rather than alignment
     // currentSequenceGroup.getConsensus()
-    char conschar = (usesrep) ? av.getAlignment().getSeqrep()
-            .getCharAt(position)
-            : av.getAlignmentConsensusAnnotation().annotations[position].displayCharacter
-                    .charAt(0);
-    if (!jalview.util.Comparison.isGap(conschar) && s == conschar)
+    char conschar = (usesrep) ? (currentGroup == null
+            || position < currentGroup.getStartRes()
+            || position > currentGroup.getEndRes() ? av.getAlignment()
+            .getSeqrep().getCharAt(position)
+            : (currentGroup.getSeqrep() != null ? currentGroup.getSeqrep()
+                    .getCharAt(position) : av.getAlignment().getSeqrep()
+                    .getCharAt(position)))
+            : (currentGroup != null && currentGroup.getConsensus() != null
+                    && position >= currentGroup.getStartRes()
+                    && position <= currentGroup.getEndRes() && currentGroup
+                    .getConsensus().annotations.length > position) ? currentGroup
+                    .getConsensus().annotations[position].displayCharacter
+                    .charAt(0)
+                    : av.getAlignmentConsensusAnnotation().annotations[position].displayCharacter
+                            .charAt(0);
+    if (!jalview.util.Comparison.isGap(conschar)
+            && (sequenceChar == conschar || sequenceChar + CHAR_TO_UPPER == conschar))
     {
-      s = c;
+      sequenceChar = conservedChar;
     }
-    return s;
+    return sequenceChar;
   }
 
   boolean inCurrentSequenceGroup(int res)

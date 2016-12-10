@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,12 +22,14 @@ package jalview.io;
 
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 import jalview.util.Format;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
-import java.util.Vector;
 
 /**
  * DOCUMENT ME!
@@ -67,23 +69,23 @@ public class MSFfile extends AlignFile
   }
 
   /**
-   * DOCUMENT ME!
+   * Read and parse MSF sequence data
    */
+  @Override
   public void parse() throws IOException
   {
-    int i = 0;
     boolean seqFlag = false;
-    String key = new String();
-    Vector headers = new Vector();
-    Hashtable seqhash = new Hashtable();
-    String line;
+    List<String> headers = new ArrayList<String>();
+    Hashtable<String, StringBuilder> seqhash = new Hashtable<String, StringBuilder>();
 
     try
     {
+      String line;
       while ((line = nextLine()) != null)
       {
         StringTokenizer str = new StringTokenizer(line);
 
+        String key = null;
         while (str.hasMoreTokens())
         {
           String inStr = str.nextToken();
@@ -92,31 +94,31 @@ public class MSFfile extends AlignFile
           if (inStr.indexOf("Name:") != -1)
           {
             key = str.nextToken();
-            headers.addElement(key);
+            headers.add(key);
           }
 
-          // if line has // set SeqFlag to 1 so we know sequences are coming
+          // if line has // set SeqFlag so we know sequences are coming
           if (inStr.indexOf("//") != -1)
           {
             seqFlag = true;
           }
 
           // Process lines as sequence lines if seqFlag is set
-          if ((inStr.indexOf("//") == -1) && (seqFlag == true))
+          if ((inStr.indexOf("//") == -1) && seqFlag)
           {
-            // seqeunce id is the first field
+            // sequence id is the first field
             key = inStr;
 
-            StringBuffer tempseq;
+            StringBuilder tempseq;
 
             // Get sequence from hash if it exists
             if (seqhash.containsKey(key))
             {
-              tempseq = (StringBuffer) seqhash.get(key);
+              tempseq = seqhash.get(key);
             }
             else
             {
-              tempseq = new StringBuffer();
+              tempseq = new StringBuilder(64);
               seqhash.put(key, tempseq);
             }
 
@@ -124,7 +126,8 @@ public class MSFfile extends AlignFile
             while (str.hasMoreTokens())
             {
               // append the word to the sequence
-              tempseq.append(str.nextToken());
+              String sequenceBlock = str.nextToken();
+              tempseq.append(sequenceBlock);
             }
           }
         }
@@ -138,11 +141,11 @@ public class MSFfile extends AlignFile
     this.noSeqs = headers.size();
 
     // Add sequences to the hash
-    for (i = 0; i < headers.size(); i++)
+    for (int i = 0; i < headers.size(); i++)
     {
-      if (seqhash.get(headers.elementAt(i)) != null)
+      if (seqhash.get(headers.get(i)) != null)
       {
-        String head = headers.elementAt(i).toString();
+        String head = headers.get(i);
         String seq = seqhash.get(head).toString();
 
         if (maxLength < head.length())
@@ -150,8 +153,11 @@ public class MSFfile extends AlignFile
           maxLength = head.length();
         }
 
-        // Replace ~ with a sensible gap character
-        seq = seq.replace('~', '-');
+        /*
+         * replace ~ (leading/trailing positions) with the gap character;
+         * use '.' as this is the internal gap character required by MSF
+         */
+        seq = seq.replace('~', '.');
 
         Sequence newSeq = parseId(head);
 
@@ -162,7 +168,7 @@ public class MSFfile extends AlignFile
       else
       {
         System.err.println("MSFFile Parser: Can't find sequence for "
-                + headers.elementAt(i));
+                + headers.get(i));
       }
     }
   }
@@ -210,15 +216,16 @@ public class MSFfile extends AlignFile
    * 
    * @return DOCUMENT ME!
    */
-  public String print(SequenceI[] seqs)
+  public String print(SequenceI[] sqs)
   {
 
-    boolean is_NA = jalview.util.Comparison.isNucleotide(seqs);
+    boolean is_NA = Comparison.isNucleotide(sqs);
 
-    SequenceI[] s = new SequenceI[seqs.length];
+    SequenceI[] s = new SequenceI[sqs.length];
 
-    StringBuffer out = new StringBuffer("!!" + (is_NA ? "NA" : "AA")
-            + "_MULTIPLE_ALIGNMENT 1.0");
+    StringBuilder out = new StringBuilder(256);
+    out.append("!!").append(is_NA ? "NA" : "AA")
+            .append("_MULTIPLE_ALIGNMENT 1.0");
     // TODO: JBPNote : Jalview doesn't remember NA or AA yet.
     out.append(newline);
     out.append(newline);
@@ -226,14 +233,15 @@ public class MSFfile extends AlignFile
     int maxid = 0;
     int i = 0;
 
-    while ((i < seqs.length) && (seqs[i] != null))
+    while ((i < sqs.length) && (sqs[i] != null))
     {
-      // Replace all internal gaps with . and external spaces with ~
-      s[i] = new Sequence(seqs[i].getName(), seqs[i].getSequenceAsString()
-              .replace('-', '.'), seqs[i].getStart(), seqs[i].getEnd());
+      /*
+       * modify to MSF format: uses '.' for internal gaps, 
+       * and '~' for leading or trailing gaps
+       */
+      String seqString = sqs[i].getSequenceAsString().replace('-', '.');
 
-      StringBuffer sb = new StringBuffer();
-      sb.append(s[i].getSequence());
+      StringBuilder sb = new StringBuilder(seqString);
 
       for (int ii = 0; ii < sb.length(); ii++)
       {
@@ -258,12 +266,12 @@ public class MSFfile extends AlignFile
           break;
         }
       }
+      s[i] = new Sequence(sqs[i].getName(), sb.toString(),
+              sqs[i].getStart(), sqs[i].getEnd());
 
-      s[i].setSequence(sb.toString());
-
-      if (s[i].getSequence().length > max)
+      if (sb.length() > max)
       {
-        max = s[i].getSequence().length;
+        max = sb.length();
       }
 
       i++;
@@ -343,12 +351,7 @@ public class MSFfile extends AlignFile
     out.append(newline);
     int len = 50;
 
-    int nochunks = (max / len) + 1;
-
-    if ((max % len) == 0)
-    {
-      nochunks--;
-    }
+    int nochunks = (max / len) + (max % len > 0 ? 1 : 0);
 
     for (i = 0; i < nochunks; i++)
     {
@@ -410,6 +413,7 @@ public class MSFfile extends AlignFile
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public String print()
   {
     return print(getSeqsAsArray());

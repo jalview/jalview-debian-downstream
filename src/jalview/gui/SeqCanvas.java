@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,9 +21,11 @@
 package jalview.gui;
 
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.ScaleRenderer;
+import jalview.renderer.ScaleRenderer.ScaleMark;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -59,8 +61,6 @@ public class SeqCanvas extends JComponent
   int imgHeight;
 
   AlignViewport av;
-
-  SearchResults searchResults = null;
 
   boolean fastPaint = false;
 
@@ -122,24 +122,26 @@ public class SeqCanvas extends JComponent
   private void drawNorthScale(Graphics g, int startx, int endx, int ypos)
   {
     updateViewport();
-    int scalestartx = startx - (startx % 10) + 10;
-
-    g.setColor(Color.black);
-    // NORTH SCALE
-    for (int i = scalestartx; i < endx; i += 10)
+    for (ScaleMark mark : new ScaleRenderer().calculateMarks(av, startx,
+            endx))
     {
-      int value = i;
-      if (av.hasHiddenColumns())
+      int mpos = mark.column; // (i - startx - 1)
+      if (mpos < 0)
       {
-        value = av.getColumnSelection().adjustForHiddenColumns(value);
+        continue;
       }
+      String mstring = mark.text;
 
-      g.drawString(String.valueOf(value), (i - startx - 1) * charWidth,
-              ypos - (charHeight / 2));
-
-      g.drawLine(((i - startx - 1) * charWidth) + (charWidth / 2),
-              (ypos + 2) - (charHeight / 2), ((i - startx - 1) * charWidth)
-                      + (charWidth / 2), ypos - 2);
+      if (mark.major)
+      {
+        if (mstring != null)
+        {
+          g.drawString(mstring, mpos * charWidth, ypos - (charHeight / 2));
+        }
+        g.drawLine((mpos * charWidth) + (charWidth / 2), (ypos + 2)
+                - (charHeight / 2), (mpos * charWidth) + (charWidth / 2),
+                ypos - 2);
+      }
     }
   }
 
@@ -335,6 +337,7 @@ public class SeqCanvas extends JComponent
    */
 
   // Set this to false to force a full panel paint
+  @Override
   public void paintComponent(Graphics g)
   {
     updateViewport();
@@ -682,10 +685,17 @@ public class SeqCanvas extends JComponent
         g1.translate(-screenY * charWidth, 0);
         screenY += blockEnd - blockStart + 1;
         blockStart = hideEnd + 1;
+
+        if (screenY > (endRes - startRes))
+        {
+          // already rendered last block
+          return;
+        }
       }
 
       if (screenY <= (endRes - startRes))
       {
+        // remaining visible region to render
         blockEnd = blockStart + (endRes - startRes) - screenY;
         g1.translate(screenY * charWidth, 0);
         draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
@@ -728,10 +738,10 @@ public class SeqCanvas extends JComponent
 
       // / Highlight search Results once all sequences have been drawn
       // ////////////////////////////////////////////////////////
-      if (searchResults != null)
+      if (av.hasSearchResults())
       {
-        int[] visibleResults = searchResults.getResults(nextSeq, startRes,
-                endRes);
+        int[] visibleResults = av.getSearchResults().getResults(nextSeq,
+                startRes, endRes);
         if (visibleResults != null)
         {
           for (int r = 0; r < visibleResults.length; r += 2)
@@ -953,11 +963,11 @@ public class SeqCanvas extends JComponent
    * @param results
    *          DOCUMENT ME!
    */
-  public void highlightSearchResults(SearchResults results)
+  public void highlightSearchResults(SearchResultsI results)
   {
     img = null;
 
-    searchResults = results;
+    av.setSearchResults(results);
 
     repaint();
   }

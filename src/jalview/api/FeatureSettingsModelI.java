@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,76 @@
  */
 package jalview.api;
 
-public interface FeatureSettingsModelI
+import java.util.Comparator;
+
+/**
+ * An interface that describes the settings configurable in the Feature Settings
+ * dialog.
+ * 
+ * @author gmcarstairs
+ */
+public interface FeatureSettingsModelI extends Comparator<String>
 {
+
+  // note Java 8 will allow default implementations of these methods in the
+  // interface, simplifying instantiating classes
+
+  /**
+   * Answers true if the specified feature type is displayed
+   * 
+   * @param type
+   * @return
+   */
+  boolean isFeatureDisplayed(String type);
+
+  /**
+   * Answers true if the specified feature group is displayed
+   * 
+   * @param group
+   * @return
+   */
+  boolean isGroupDisplayed(String group);
+
+  /**
+   * Returns the colour (or graduated colour) for the feature type, or null if
+   * not known
+   * 
+   * @param type
+   * @return
+   */
+  FeatureColourI getFeatureColour(String type);
+
+  /**
+   * Returns the transparency value, from 0 (fully transparent) to 1 (fully
+   * opaque)
+   * 
+   * @return
+   */
+  float getTransparency();
+
+  /**
+   * Returns -1 if feature1 is displayed before (below) feature 2, +1 if
+   * feature2 is displayed after (on top of) feature1, or 0 if we don't care.
+   * 
+   * <br>
+   * Note that this is the opposite ordering to how features are displayed in
+   * the feature settings dialogue. FeatureRendererModel.setFeaturePriority
+   * takes care of converting between the two.
+   * 
+   * @param feature1
+   * @param feature2
+   * @return
+   */
+  @Override
+  int compare(String feature1, String feature2);
+
+  /**
+   * Answers true if features should be initially sorted so that features with a
+   * shorter average length are displayed on top of those with a longer average
+   * length
+   * 
+   * @return
+   */
+  boolean optimiseOrder();
 
 }

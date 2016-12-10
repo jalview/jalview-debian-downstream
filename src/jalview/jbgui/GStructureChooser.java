@@ -22,24 +22,30 @@
 package jalview.jbgui;
 
 import jalview.datamodel.SequenceI;
+import jalview.fts.api.FTSDataColumnI;
+import jalview.fts.core.FTSDataColumnPreferences;
+import jalview.fts.core.FTSDataColumnPreferences.PreferenceSource;
+import jalview.fts.service.pdb.PDBFTSRestClient;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.Desktop;
 import jalview.gui.JvSwingUtils;
-import jalview.jbgui.PDBDocFieldPreferences.PreferenceSource;
 import jalview.util.MessageManager;
-import jalview.ws.dbsources.PDBRestClient;
-import jalview.ws.dbsources.PDBRestClient.PDBDocField;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -57,6 +63,8 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.InternalFrameEvent;
+import javax.swing.table.TableColumn;
 
 @SuppressWarnings("serial")
 /**
@@ -67,6 +75,12 @@ import javax.swing.event.DocumentListener;
 public abstract class GStructureChooser extends JPanel implements
         ItemListener
 {
+  protected JPanel statusPanel = new JPanel();
+
+  public JLabel statusBar = new JLabel();
+
+  private JPanel pnl_actionsAndStatus = new JPanel(new BorderLayout());
+
   protected String frameTitle = MessageManager
           .getString("label.structure_chooser");
 
@@ -148,8 +162,70 @@ public abstract class GStructureChooser extends JPanel implements
 
   protected static final String VIEWS_LOCAL_PDB = "VIEWS_LOCAL_PDB";
 
-  protected JTable tbl_summary = new JTable()
+  protected JTable tbl_local_pdb = new JTable();
+
+  protected JScrollPane scrl_localPDB = new JScrollPane(tbl_local_pdb);
+
+  protected JTabbedPane pnl_filter = new JTabbedPane();
+
+  protected FTSDataColumnPreferences pdbDocFieldPrefs = new FTSDataColumnPreferences(
+          PreferenceSource.STRUCTURE_CHOOSER,
+          PDBFTSRestClient.getInstance());
+
+  protected FTSDataColumnI[] previousWantedFields;
+
+  protected static Map<String, Integer> tempUserPrefs = new HashMap<String, Integer>();
+
+  private JTable tbl_summary = new JTable()
   {
+    private boolean inLayout;
+
+    @Override
+    public boolean getScrollableTracksViewportWidth()
+    {
+      return hasExcessWidth();
+
+    }
+
+    @Override
+    public void doLayout()
+    {
+      if (hasExcessWidth())
+      {
+        autoResizeMode = AUTO_RESIZE_SUBSEQUENT_COLUMNS;
+      }
+      inLayout = true;
+      super.doLayout();
+      inLayout = false;
+      autoResizeMode = AUTO_RESIZE_OFF;
+    }
+
+    protected boolean hasExcessWidth()
+    {
+      return getPreferredSize().width < getParent().getWidth();
+    }
+
+    @Override
+    public void columnMarginChanged(ChangeEvent e)
+    {
+      if (isEditing())
+      {
+        removeEditor();
+      }
+      TableColumn resizingColumn = getTableHeader().getResizingColumn();
+      // Need to do this here, before the parent's
+      // layout manager calls getPreferredSize().
+      if (resizingColumn != null && autoResizeMode == AUTO_RESIZE_OFF
+              && !inLayout)
+      {
+        resizingColumn.setPreferredWidth(resizingColumn.getWidth());
+        String colHeader = resizingColumn.getHeaderValue().toString();
+        tempUserPrefs.put(colHeader, resizingColumn.getWidth());
+      }
+      resizeAndRepaint();
+    }
+
+    @Override
     public String getToolTipText(MouseEvent evt)
     {
       String toolTipText = null;
@@ -159,10 +235,14 @@ public abstract class GStructureChooser extends JPanel implements
 
       try
       {
+        if (getValueAt(rowIndex, colIndex) == null)
+        {
+          return null;
+        }
         toolTipText = getValueAt(rowIndex, colIndex).toString();
       } catch (Exception e)
       {
-        e.printStackTrace();
+        // e.printStackTrace();
       }
       toolTipText = (toolTipText == null ? null
               : (toolTipText.length() > 500 ? JvSwingUtils.wrapTooltip(
@@ -174,17 +254,6 @@ public abstract class GStructureChooser extends JPanel implements
   };
 
   protected JScrollPane scrl_foundStructures = new JScrollPane(tbl_summary);
-
-  protected JTable tbl_local_pdb = new JTable();
-
-  protected JScrollPane scrl_localPDB = new JScrollPane(tbl_local_pdb);
-
-  private JTabbedPane pnl_filter = new JTabbedPane();
-
-  private PDBDocFieldPreferences pdbDocFieldPrefs = new PDBDocFieldPreferences(
-          PreferenceSource.STRUCTURE_CHOOSER);
-
-  protected PDBDocField[] previousWantedFields;
 
   public GStructureChooser()
   {
@@ -207,39 +276,156 @@ public abstract class GStructureChooser extends JPanel implements
    */
   private void jbInit() throws Exception
   {
+    Integer width = tempUserPrefs.get("structureChooser.width") == null ? 800
+            : tempUserPrefs.get("structureChooser.width");
+    Integer height = tempUserPrefs.get("structureChooser.height") == null ? 400
+            : tempUserPrefs.get("structureChooser.height");
     tbl_summary.setAutoCreateRowSorter(true);
     tbl_summary.getTableHeader().setReorderingAllowed(false);
+    tbl_summary.addMouseListener(new MouseAdapter()
+    {
+      @Override
+      public void mouseClicked(MouseEvent e)
+      {
+        validateSelections();
+      }
+
+      @Override
+      public void mouseReleased(MouseEvent e)
+      {
+        validateSelections();
+      }
+    });
+    tbl_summary.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        validateSelections();
+        switch (evt.getKeyCode())
+        {
+        case KeyEvent.VK_ESCAPE: // escape key
+          mainFrame.dispose();
+          break;
+        case KeyEvent.VK_ENTER: // enter key
+          if (btn_view.isEnabled())
+          {
+            ok_ActionPerformed();
+          }
+          break;
+        case KeyEvent.VK_TAB: // tab key
+          if (evt.isShiftDown())
+          {
+            pnl_filter.requestFocus();
+          }
+          else
+          {
+            btn_view.requestFocus();
+          }
+          evt.consume();
+          break;
+        default:
+          return;
+        }
+      }
+    });
     tbl_local_pdb.setAutoCreateRowSorter(true);
     tbl_local_pdb.getTableHeader().setReorderingAllowed(false);
     tbl_local_pdb.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseClicked(MouseEvent e)
       {
-        updateCurrentView();
+        validateSelections();
       }
 
+      @Override
       public void mouseReleased(MouseEvent e)
       {
-        updateCurrentView();
+        validateSelections();
       }
     });
-
+    tbl_local_pdb.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        validateSelections();
+        switch (evt.getKeyCode())
+        {
+        case KeyEvent.VK_ESCAPE: // escape key
+          mainFrame.dispose();
+          break;
+        case KeyEvent.VK_ENTER: // enter key
+          if (btn_view.isEnabled())
+          {
+            ok_ActionPerformed();
+          }
+          break;
+        case KeyEvent.VK_TAB: // tab key
+          if (evt.isShiftDown())
+          {
+            cmb_filterOption.requestFocus();
+          }
+          else
+          {
+            if (btn_view.isEnabled())
+            {
+              btn_view.requestFocus();
+            }
+            else
+            {
+              btn_cancel.requestFocus();
+            }
+          }
+          evt.consume();
+          break;
+        default:
+          return;
+        }
+      }
+    });
     btn_view.setFont(new java.awt.Font("Verdana", 0, 12));
     btn_view.setText(MessageManager.getString("action.view"));
     btn_view.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ok_ActionPerformed();
       }
     });
+    btn_view.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+          ok_ActionPerformed();
+        }
+      }
+    });
+
     btn_cancel.setFont(new java.awt.Font("Verdana", 0, 12));
     btn_cancel.setText(MessageManager.getString("action.cancel"));
     btn_cancel.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        mainFrame.dispose();
+        closeAction(pnl_filter.getHeight());
+      }
+    });
+    btn_cancel.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+          closeAction(pnl_filter.getHeight());
+        }
       }
     });
 
@@ -248,17 +434,27 @@ public abstract class GStructureChooser extends JPanel implements
     btn_pdbFromFile.setText(btn_title + "              ");
     btn_pdbFromFile.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         pdbFromFile_actionPerformed();
       }
     });
+    btn_pdbFromFile.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+          pdbFromFile_actionPerformed();
+        }
+      }
+    });
 
-    scrl_foundStructures.setPreferredSize(new Dimension(500, 300));
-    scrl_foundStructures
-            .setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    scrl_foundStructures.setPreferredSize(new Dimension(width, height));
 
-    scrl_localPDB.setPreferredSize(new Dimension(500, 300));
+    scrl_localPDB.setPreferredSize(new Dimension(width, height));
     scrl_localPDB
             .setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -266,9 +462,8 @@ public abstract class GStructureChooser extends JPanel implements
     chk_invertFilter.setFont(new java.awt.Font("Verdana", 0, 12));
     chk_rememberSettings.setFont(new java.awt.Font("Verdana", 0, 12));
     chk_rememberSettings.setVisible(false);
-
-    txt_search.setToolTipText(MessageManager
-            .getString("label.enter_pdb_id"));
+    txt_search.setToolTipText(JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.enter_pdb_id")));
     cmb_filterOption.setToolTipText(MessageManager
             .getString("info.select_filter_option"));
     txt_search.getDocument().addDocumentListener(new DocumentListener()
@@ -321,18 +516,23 @@ public abstract class GStructureChooser extends JPanel implements
             .getString("label.configure_displayed_columns");
     ChangeListener changeListener = new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent changeEvent)
       {
         JTabbedPane sourceTabbedPane = (JTabbedPane) changeEvent
                 .getSource();
         int index = sourceTabbedPane.getSelectedIndex();
+        btn_view.setVisible(true);
+        btn_cancel.setVisible(true);
         if (sourceTabbedPane.getTitleAt(index).equals(configureCols))
         {
           btn_view.setEnabled(false);
           btn_cancel.setEnabled(false);
-          previousWantedFields = PDBDocFieldPreferences
+          btn_view.setVisible(false);
+          btn_cancel.setVisible(false);
+          previousWantedFields = pdbDocFieldPrefs
                   .getStructureSummaryFields().toArray(
-                          new PDBRestClient.PDBDocField[0]);
+                          new FTSDataColumnI[0]);
         }
         if (sourceTabbedPane.getTitleAt(index)
                 .equals(foundStructureSummary))
@@ -350,7 +550,7 @@ public abstract class GStructureChooser extends JPanel implements
       }
     };
     pnl_filter.addChangeListener(changeListener);
-    pnl_filter.setPreferredSize(new Dimension(500, 300));
+    pnl_filter.setPreferredSize(new Dimension(width, height));
     pnl_filter.add(foundStructureSummary, scrl_foundStructures);
     pnl_filter.add(configureCols, pdbDocFieldPrefs);
 
@@ -364,12 +564,46 @@ public abstract class GStructureChooser extends JPanel implements
     this.setLayout(mainLayout);
     this.add(pnl_main, java.awt.BorderLayout.NORTH);
     this.add(pnl_switchableViews, java.awt.BorderLayout.CENTER);
-    this.add(pnl_actions, java.awt.BorderLayout.SOUTH);
+    // this.add(pnl_actions, java.awt.BorderLayout.SOUTH);
+    statusPanel.setLayout(new GridLayout());
+    pnl_actionsAndStatus.add(pnl_actions, BorderLayout.CENTER);
+    pnl_actionsAndStatus.add(statusPanel, BorderLayout.SOUTH);
+    statusPanel.add(statusBar, null);
+    this.add(pnl_actionsAndStatus, java.awt.BorderLayout.SOUTH);
 
+    mainFrame
+            .addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
+            {
+              @Override
+              public void internalFrameClosing(InternalFrameEvent e)
+              {
+                closeAction(pnl_filter.getHeight());
+              }
+            });
     mainFrame.setVisible(true);
     mainFrame.setContentPane(this);
     mainFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-    Desktop.addInternalFrame(mainFrame, frameTitle, 800, 400);
+    Integer x = tempUserPrefs.get("structureChooser.x");
+    Integer y = tempUserPrefs.get("structureChooser.y");
+    if (x != null && y != null)
+    {
+      mainFrame.setLocation(x, y);
+    }
+    Desktop.addInternalFrame(mainFrame, frameTitle, width, height);
+  }
+
+  protected void closeAction(int preferredHeight)
+  {
+    // System.out.println(">>>>>>>>>> closing internal frame!!!");
+    // System.out.println("width : " + mainFrame.getWidth());
+    // System.out.println("heigh : " + mainFrame.getHeight());
+    // System.out.println("x : " + mainFrame.getX());
+    // System.out.println("y : " + mainFrame.getY());
+    tempUserPrefs.put("structureChooser.width", pnl_filter.getWidth());
+    tempUserPrefs.put("structureChooser.height", preferredHeight);
+    tempUserPrefs.put("structureChooser.x", mainFrame.getX());
+    tempUserPrefs.put("structureChooser.y", mainFrame.getY());
+    mainFrame.dispose();
   }
 
   public boolean wantedFieldsUpdated()
@@ -379,9 +613,10 @@ public abstract class GStructureChooser extends JPanel implements
       return true;
     }
 
-    return Arrays.equals(PDBDocFieldPreferences.getStructureSummaryFields()
-            .toArray(new PDBRestClient.PDBDocField[0]),
-            previousWantedFields) ? false : true;
+    FTSDataColumnI[] currentWantedFields = pdbDocFieldPrefs
+            .getStructureSummaryFields().toArray(new FTSDataColumnI[0]);
+    return Arrays.equals(currentWantedFields, previousWantedFields) ? false
+            : true;
 
   }
 
@@ -445,6 +680,7 @@ public abstract class GStructureChooser extends JPanel implements
       this.view = view;
     }
 
+    @Override
     public String toString()
     {
       return this.name;
@@ -477,6 +713,7 @@ public abstract class GStructureChooser extends JPanel implements
       this.sequence = seq;
     }
 
+    @Override
     public String toString()
     {
       return name;
@@ -553,16 +790,17 @@ public abstract class GStructureChooser extends JPanel implements
     }
   }
 
+  public JTable getResultTable()
+  {
+    return tbl_summary;
+  }
+
   public JComboBox<FilterOption> getCmbFilterOption()
   {
     return cmb_filterOption;
   }
 
   protected abstract void stateChanged(ItemEvent e);
-
-  protected abstract void updateCurrentView();
-
-  protected abstract void populateFilterComboBox();
 
   protected abstract void ok_ActionPerformed();
 

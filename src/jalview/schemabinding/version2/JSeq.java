@@ -72,6 +72,16 @@ public class JSeq implements java.io.Serializable
   private boolean _has_hidden;
 
   /**
+   * Field _viewreference.
+   */
+  private boolean _viewreference;
+
+  /**
+   * keeps track of state for field: _viewreference
+   */
+  private boolean _has_viewreference;
+
+  /**
    * Field _featuresList.
    */
   private java.util.Vector _featuresList;
@@ -253,6 +263,13 @@ public class JSeq implements java.io.Serializable
   public void deleteStart()
   {
     this._has_start = false;
+  }
+
+  /**
+     */
+  public void deleteViewreference()
+  {
+    this._has_viewreference = false;
   }
 
   /**
@@ -549,6 +566,16 @@ public class JSeq implements java.io.Serializable
   }
 
   /**
+   * Returns the value of field 'viewreference'.
+   * 
+   * @return the value of field 'Viewreference'.
+   */
+  public boolean getViewreference()
+  {
+    return this._viewreference;
+  }
+
+  /**
    * Method hasColour.
    * 
    * @return true if at least one Colour has been added
@@ -589,6 +616,16 @@ public class JSeq implements java.io.Serializable
   }
 
   /**
+   * Method hasViewreference.
+   * 
+   * @return true if at least one Viewreference has been added
+   */
+  public boolean hasViewreference()
+  {
+    return this._has_viewreference;
+  }
+
+  /**
    * Returns the value of field 'hidden'.
    * 
    * @return the value of field 'Hidden'.
@@ -613,6 +650,16 @@ public class JSeq implements java.io.Serializable
       return false;
     }
     return true;
+  }
+
+  /**
+   * Returns the value of field 'viewreference'.
+   * 
+   * @return the value of field 'Viewreference'.
+   */
+  public boolean isViewreference()
+  {
+    return this._viewreference;
   }
 
   /**
@@ -1001,6 +1048,18 @@ public class JSeq implements java.io.Serializable
   {
     this._start = start;
     this._has_start = true;
+  }
+
+  /**
+   * Sets the value of field 'viewreference'.
+   * 
+   * @param viewreference
+   *          the value of field 'viewreference'.
+   */
+  public void setViewreference(final boolean viewreference)
+  {
+    this._viewreference = viewreference;
+    this._has_viewreference = true;
   }
 
   /**

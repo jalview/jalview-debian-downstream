@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -386,7 +386,7 @@ public class Sequencemapping extends Rangetype
   private void matchConjugateDBRefs(SequenceI from, SequenceI to,
           jalview.util.MapList smap)
   {
-    if (from.getDBRef() == null && to.getDBRef() == null)
+    if (from.getDBRefs() == null && to.getDBRefs() == null)
     {
       if (jalview.bin.Cache.log.isDebugEnabled())
       {
@@ -400,11 +400,11 @@ public class Sequencemapping extends Rangetype
       jalview.bin.Cache.log.debug("Matching conjugate refs for "
               + from.getName() + " and " + to.getName());
     }
-    jalview.datamodel.DBRefEntry[] fdb = from.getDBRef();
+    jalview.datamodel.DBRefEntry[] fdb = from.getDBRefs();
     jalview.datamodel.DBRefEntry[] tdb = new jalview.datamodel.DBRefEntry[to
-            .getDBRef().length];
-    int tdblen = to.getDBRef().length;
-    System.arraycopy(to.getDBRef(), 0, tdb, 0, tdblen);
+            .getDBRefs().length];
+    int tdblen = to.getDBRefs().length;
+    System.arraycopy(to.getDBRefs(), 0, tdb, 0, tdblen);
     Vector matched = new Vector();
     jalview.util.MapList smapI = smap.getInverse();
     for (int f = 0; f < fdb.length; f++)

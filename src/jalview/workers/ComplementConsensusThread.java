@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -96,12 +96,23 @@ public class ComplementConsensusThread extends ConsensusThread
    * @param consensusData
    *          the computed consensus data
    */
-  @Override
   protected void deriveConsensus(AlignmentAnnotation consensusAnnotation,
           Hashtable[] consensusData)
   {
     AAFrequency.completeCdnaConsensus(consensusAnnotation, consensusData,
             alignViewport.isShowSequenceLogo(), getSequences().length);
+  }
+
+  @Override
+  public void updateResultAnnotation(boolean immediate)
+  {
+    AlignmentAnnotation consensus = getConsensusAnnotation();
+    Hashtable[] hconsensus = getViewportConsensus();
+    if (immediate || !calcMan.isWorking(this) && consensus != null
+            && hconsensus != null)
+    {
+      deriveConsensus(consensus, hconsensus);
+    }
   }
 
 }

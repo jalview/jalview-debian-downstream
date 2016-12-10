@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,8 +37,8 @@ public class Help
 {
   public enum HelpId
   {
-    Home("home"), SequenceFeatureSettings("seqfeatures.settings"), StructureViewer(
-            "viewingpdbs");
+    Home("home"), SequenceFeatureSettings("seqfeatures.settings"),
+    StructureViewer("viewingpdbs");
 
     private String id;
 

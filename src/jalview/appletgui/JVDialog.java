@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,6 +28,8 @@ import java.awt.Frame;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class JVDialog extends Dialog implements ActionListener
 {
@@ -56,6 +58,20 @@ public class JVDialog extends Dialog implements ActionListener
             width, height);
   }
 
+  public JVDialog(Frame owner, Panel mainPanel, String title,
+          boolean modal, int width, int height)
+  {
+    super(owner, title, modal);
+    this.owner = owner;
+
+    height += owner.getInsets().top + getInsets().bottom;
+
+    setBounds(owner.getBounds().x + (owner.getSize().width - width) / 2,
+            owner.getBounds().y + (owner.getSize().height - height) / 2,
+            width, height);
+    setMainPanel(mainPanel);
+  }
+
   void setMainPanel(Panel panel)
   {
     add(panel, BorderLayout.NORTH);
@@ -66,8 +82,16 @@ public class JVDialog extends Dialog implements ActionListener
     buttonPanel.add(cancel);
     ok.addActionListener(this);
     cancel.addActionListener(this);
-
     add(buttonPanel, BorderLayout.SOUTH);
+
+    addWindowListener(new WindowAdapter()
+    {
+      public void windowClosing(WindowEvent ev)
+      {
+        setVisible(false);
+        dispose();
+      }
+    });
 
     pack();
 
@@ -81,6 +105,7 @@ public class JVDialog extends Dialog implements ActionListener
     }
 
     setVisible(false);
+    dispose();
   }
 
 }

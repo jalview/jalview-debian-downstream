@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -122,7 +122,7 @@ public class SequenceAnnotationWSClient extends Jws2Client
         }
         // reinstate worker if it was blacklisted (might have happened due to
         // invalid parameters)
-        alignFrame.getViewport().getCalcManager().workerMayRun(worker);
+        alignFrame.getViewport().getCalcManager().enableWorker(worker);
         worker.updateParameters(this.preset, paramset);
       }
     }

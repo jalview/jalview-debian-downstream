@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,7 +41,8 @@ public interface AlignmentI extends AnnotatedCollectionI
    * 
    * Calculates the maximum width of the alignment, including gaps.
    * 
-   * @return Greatest sequence length within alignment.
+   * @return Greatest sequence length within alignment, or -1 if no sequences
+   *         present
    */
   @Override
   int getWidth();
@@ -107,11 +108,14 @@ public interface AlignmentI extends AnnotatedCollectionI
    * Used to set a particular index of the alignment with the given sequence.
    * 
    * @param i
-   *          Index of sequence to be updated.
+   *          Index of sequence to be updated. if i>length, sequence will be
+   *          added to end, with no intervening positions.
    * @param seq
-   *          New sequence to be inserted.
+   *          New sequence to be inserted. The existing sequence at position i
+   *          will be replaced.
+   * @return existing sequence (or null if i>current length)
    */
-  void setSequenceAt(int i, SequenceI seq);
+  SequenceI replaceSequenceAt(int i, SequenceI seq);
 
   /**
    * Deletes a sequence from the alignment
@@ -305,7 +309,7 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @return Alignment containing dataset sequences or null of this is a
    *         dataset.
    */
-  Alignment getDataset();
+  AlignmentI getDataset();
 
   /**
    * Set the associated dataset for the alignment, or create one.
@@ -313,7 +317,7 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @param dataset
    *          The dataset alignment or null to construct one.
    */
-  void setDataset(Alignment dataset);
+  void setDataset(AlignmentI dataset);
 
   /**
    * pads sequences with gaps (to ensure the set looks like an alignment)
@@ -375,12 +379,12 @@ public interface AlignmentI extends AnnotatedCollectionI
    * 
    * @return
    */
-  Set<AlignedCodonFrame> getCodonFrames();
+  List<AlignedCodonFrame> getCodonFrames();
 
   /**
-   * Set the codon frame mappings (replacing any existing set).
+   * Set the codon frame mappings (replacing any existing list).
    */
-  void setCodonFrames(Set<AlignedCodonFrame> acfs);
+  void setCodonFrames(List<AlignedCodonFrame> acfs);
 
   /**
    * get codon frames involving sequenceI
@@ -422,7 +426,7 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @param results
    * @return -1 or index of sequence in alignment
    */
-  int findIndex(SearchResults results);
+  int findIndex(SearchResultsI results);
 
   /**
    * append sequences and annotation from another alignment object to this one.
@@ -524,4 +528,32 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @return
    */
   public boolean hasValidSequence();
+
+  /**
+   * Update any mappings to 'virtual' sequences to compatible real ones, if
+   * present in the added sequences. Returns a count of mappings updated.
+   * 
+   * @param seqs
+   * @return
+   */
+  int realiseMappings(List<SequenceI> seqs);
+
+  /**
+   * Returns the first AlignedCodonFrame that has a mapping between the given
+   * dataset sequences
+   * 
+   * @param mapFrom
+   * @param mapTo
+   * @return
+   */
+  AlignedCodonFrame getMapping(SequenceI mapFrom, SequenceI mapTo);
+
+  /**
+   * Calculate the visible start and end index of an alignment. The result is
+   * returned an int array where: int[0] = startIndex, and int[1] = endIndex.
+   * 
+   * @param hiddenCols
+   * @return
+   */
+  public int[] getVisibleStartAndEndIndex(List<int[]> hiddenCols);
 }

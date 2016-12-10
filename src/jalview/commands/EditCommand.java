@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -1220,10 +1220,15 @@ public class EditCommand implements CommandI
         for (SequenceI seq : e.getSequences())
         {
           SequenceI ds = seq.getDatasetSequence();
-          SequenceI preEdit = result.get(ds);
-          if (preEdit == null)
+          // SequenceI preEdit = result.get(ds);
+          if (!result.containsKey(ds))
           {
-            preEdit = new Sequence("", seq.getSequenceAsString());
+            /*
+             * copy sequence including start/end (but don't use copy constructor
+             * as we don't need annotations)
+             */
+            SequenceI preEdit = new Sequence("", seq.getSequenceAsString(),
+                    seq.getStart(), seq.getEnd());
             preEdit.setDatasetSequence(ds);
             result.put(ds, preEdit);
           }
@@ -1236,10 +1241,10 @@ public class EditCommand implements CommandI
      * Work backwards through the edit list, deriving the sequences before each
      * was applied. The final result is the sequence set before any edits.
      */
-    Iterator<Edit> edits = new ReverseListIterator<Edit>(getEdits());
-    while (edits.hasNext())
+    Iterator<Edit> editList = new ReverseListIterator<Edit>(getEdits());
+    while (editList.hasNext())
     {
-      Edit oldEdit = edits.next();
+      Edit oldEdit = editList.next();
       Action action = oldEdit.getAction();
       int position = oldEdit.getPosition();
       int number = oldEdit.getNumber();
@@ -1250,7 +1255,8 @@ public class EditCommand implements CommandI
         SequenceI preEdit = result.get(ds);
         if (preEdit == null)
         {
-          preEdit = new Sequence("", seq.getSequenceAsString());
+          preEdit = new Sequence("", seq.getSequenceAsString(),
+                  seq.getStart(), seq.getEnd());
           preEdit.setDatasetSequence(ds);
           result.put(ds, preEdit);
         }

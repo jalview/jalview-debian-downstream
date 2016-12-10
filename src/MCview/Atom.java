@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -81,7 +81,7 @@ public class Atom
     chain = str.substring(21, 22);
 
     resNumber = Integer.parseInt(str.substring(22, 26).trim());
-    resNumIns = str.substring(22, 27);
+    resNumIns = str.substring(22, 27).trim();
     insCode = str.substring(26, 27).charAt(0);
     this.x = (new Float(str.substring(30, 38).trim()).floatValue());
     this.y = (new Float(str.substring(38, 46).trim()).floatValue());
@@ -107,6 +107,24 @@ public class Atom
       tfactor = 1f;
       // see note above: tfacset=false;
     }
+  }
+
+  @Override
+  public boolean equals(Object that)
+  {
+    if (this == that || that == null)
+    {
+      return true;
+    }
+    if (that instanceof Atom)
+    {
+      Atom other = (Atom) that;
+      return other.resName.equals(this.resName)
+              && other.resNumber == this.resNumber
+              && other.resNumIns.equals(this.resNumIns)
+              && other.chain.equals(this.chain);
+    }
+    return false;
   }
 
   public Atom(float x, float y, float z)

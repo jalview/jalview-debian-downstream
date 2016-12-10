@@ -1,7 +1,6 @@
 /*
-
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.8.2)
- * Copyright (C) 2014 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,18 +21,23 @@
 
 package jalview.gui;
 
+import jalview.bin.Jalview;
 import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.fts.api.FTSData;
+import jalview.fts.api.FTSDataColumnI;
+import jalview.fts.api.FTSRestClientI;
+import jalview.fts.core.FTSRestRequest;
+import jalview.fts.core.FTSRestResponse;
+import jalview.fts.service.pdb.PDBFTSRestClient;
 import jalview.jbgui.GStructureChooser;
-import jalview.jbgui.PDBDocFieldPreferences;
+import jalview.structure.StructureMapping;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
-import jalview.ws.dbsources.PDBRestClient;
-import jalview.ws.dbsources.PDBRestClient.PDBDocField;
-import jalview.ws.uimodel.PDBRestRequest;
-import jalview.ws.uimodel.PDBRestResponse;
-import jalview.ws.uimodel.PDBRestResponse.PDBResponseSummary;
+import jalview.ws.DBRefFetcher;
+import jalview.ws.sifts.SiftsSettings;
 
 import java.awt.event.ItemEvent;
 import java.util.ArrayList;
@@ -41,6 +45,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.Vector;
 
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -55,25 +62,28 @@ import javax.swing.table.AbstractTableModel;
  *
  */
 @SuppressWarnings("serial")
-public class StructureChooser extends GStructureChooser
+public class StructureChooser extends GStructureChooser implements
+        IProgressIndicator
 {
-  private boolean structuresDiscovered = false;
-
   private SequenceI selectedSequence;
 
   private SequenceI[] selectedSequences;
 
   private IProgressIndicator progressIndicator;
 
-  private Collection<PDBResponseSummary> discoveredStructuresSet;
+  private Collection<FTSData> discoveredStructuresSet;
 
-  private PDBRestRequest lastPdbRequest;
+  private FTSRestRequest lastPdbRequest;
 
-  private PDBRestClient pdbRestCleint;
+  private FTSRestClientI pdbRestCleint;
 
   private String selectedPdbFileName;
 
   private boolean isValidPBDEntry;
+
+  private boolean cachedPDBExists;
+
+  private static int MAX_QLENGHT = 7820;
 
   public StructureChooser(SequenceI[] selectedSeqs, SequenceI selectedSeq,
           AlignmentPanel ap)
@@ -90,6 +100,13 @@ public class StructureChooser extends GStructureChooser
    */
   public void init()
   {
+    if (!Jalview.isHeadlessMode())
+    {
+      progressBar = new ProgressBar(this.statusPanel, this.statusBar);
+    }
+
+    // ensure a filter option is in force for search
+    populateFilterComboBox(true, cachedPDBExists);
     Thread discoverPDBStructuresThread = new Thread(new Runnable()
     {
       @Override
@@ -104,7 +121,8 @@ public class StructureChooser extends GStructureChooser
                 .getString("status.searching_for_pdb_structures"),
                 startTime);
         fetchStructuresMetaData();
-        populateFilterComboBox();
+        // revise filter options if no results were found
+        populateFilterComboBox(isStructuresDiscovered(), cachedPDBExists);
         updateProgressIndicator(null, startTime);
         mainFrame.setVisible(true);
         updateCurrentView();
@@ -136,22 +154,26 @@ public class StructureChooser extends GStructureChooser
   public void fetchStructuresMetaData()
   {
     long startTime = System.currentTimeMillis();
-    Collection<PDBDocField> wantedFields = PDBDocFieldPreferences
+    pdbRestCleint = PDBFTSRestClient.getInstance();
+    Collection<FTSDataColumnI> wantedFields = pdbDocFieldPrefs
             .getStructureSummaryFields();
 
-    discoveredStructuresSet = new LinkedHashSet<PDBResponseSummary>();
+    discoveredStructuresSet = new LinkedHashSet<FTSData>();
     HashSet<String> errors = new HashSet<String>();
     for (SequenceI seq : selectedSequences)
     {
-      PDBRestRequest pdbRequest = new PDBRestRequest();
+      FTSRestRequest pdbRequest = new FTSRestRequest();
       pdbRequest.setAllowEmptySeq(false);
       pdbRequest.setResponseSize(500);
-      pdbRequest.setFieldToSearchBy("(text:");
+      pdbRequest.setFieldToSearchBy("(");
+      FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
+              .getSelectedItem());
+      pdbRequest.setFieldToSortBy(selectedFilterOpt.getValue(),
+              !chk_invertFilter.isSelected());
       pdbRequest.setWantedFields(wantedFields);
       pdbRequest.setSearchTerm(buildQuery(seq) + ")");
       pdbRequest.setAssociatedSequence(seq);
-      pdbRestCleint = new PDBRestClient();
-      PDBRestResponse resultList;
+      FTSRestResponse resultList;
       try
       {
         resultList = pdbRestCleint.executeRequest(pdbRequest);
@@ -175,9 +197,9 @@ public class StructureChooser extends GStructureChooser
     if (discoveredStructuresSet != null
             && !discoveredStructuresSet.isEmpty())
     {
-      tbl_summary.setModel(PDBRestResponse.getTableModel(lastPdbRequest,
-              discoveredStructuresSet));
-      structuresDiscovered = true;
+      getResultTable().setModel(
+              FTSRestResponse.getTableModel(lastPdbRequest,
+                      discoveredStructuresSet));
       noOfStructuresFound = discoveredStructuresSet.size();
       mainFrame.setTitle(MessageManager.formatMessage(
               "label.structure_chooser_no_of_structures",
@@ -219,7 +241,7 @@ public class StructureChooser extends GStructureChooser
         }
       }
     }
-
+    cachedPDBExists = !entries.isEmpty();
     PDBEntryTableModel tableModelx = new PDBEntryTableModel(entries);
     tbl_local_pdb.setModel(tableModelx);
   }
@@ -234,60 +256,97 @@ public class StructureChooser extends GStructureChooser
 
   public static String buildQuery(SequenceI seq)
   {
-    HashSet<String> seqRefs = new LinkedHashSet<String>();
-    String seqName = seq.getName();
-    String[] names = seqName.toLowerCase().split("\\|");
-    for (String name : names)
-    {
-      // System.out.println("Found name : " + name);
-      name.trim();
-      if (isValidSeqName(name))
-      {
-        seqRefs.add(name);
-      }
-    }
+    boolean isPDBRefsFound = false;
+    boolean isUniProtRefsFound = false;
+    StringBuilder queryBuilder = new StringBuilder();
+    Set<String> seqRefs = new LinkedHashSet<String>();
 
-    if (seq.getAllPDBEntries() != null)
+    if (seq.getAllPDBEntries() != null
+            && queryBuilder.length() < MAX_QLENGHT)
     {
       for (PDBEntry entry : seq.getAllPDBEntries())
       {
         if (isValidSeqName(entry.getId()))
         {
-          seqRefs.add(entry.getId());
+          queryBuilder.append("pdb_id:")
+                  .append(entry.getId().toLowerCase()).append(" OR ");
+          isPDBRefsFound = true;
         }
       }
     }
 
-    if (seq.getDBRef() != null && seq.getDBRef().length != 0)
+    if (seq.getDBRefs() != null && seq.getDBRefs().length != 0)
     {
-      int count = 0;
-      for (DBRefEntry dbRef : seq.getDBRef())
+      for (DBRefEntry dbRef : seq.getDBRefs())
       {
-        if (isValidSeqName(getDBRefId(dbRef)))
+        if (isValidSeqName(getDBRefId(dbRef))
+                && queryBuilder.length() < MAX_QLENGHT)
         {
-          seqRefs.add(getDBRefId(dbRef));
-        }
-        ++count;
-        if (count > 10)
-        {
-          break;
+          if (dbRef.getSource().equalsIgnoreCase(DBRefSource.UNIPROT))
+          {
+            queryBuilder.append("uniprot_accession:")
+                    .append(getDBRefId(dbRef)).append(" OR ");
+            queryBuilder.append("uniprot_id:").append(getDBRefId(dbRef))
+                    .append(" OR ");
+            isUniProtRefsFound = true;
+          }
+          else if (dbRef.getSource().equalsIgnoreCase(DBRefSource.PDB))
+          {
+
+            queryBuilder.append("pdb_id:")
+                    .append(getDBRefId(dbRef).toLowerCase()).append(" OR ");
+            isPDBRefsFound = true;
+          }
+          else
+          {
+            seqRefs.add(getDBRefId(dbRef));
+          }
         }
       }
     }
 
-    StringBuilder queryBuilder = new StringBuilder();
-    for (String seqRef : seqRefs)
+    if (!isPDBRefsFound && !isUniProtRefsFound)
     {
-      queryBuilder.append("text:").append(seqRef).append(" OR ");
-    }
-    int endIndex = queryBuilder.lastIndexOf(" OR ");
+      String seqName = seq.getName();
+      seqName = sanitizeSeqName(seqName);
+      String[] names = seqName.toLowerCase().split("\\|");
+      for (String name : names)
+      {
+        // System.out.println("Found name : " + name);
+        name.trim();
+        if (isValidSeqName(name))
+        {
+          seqRefs.add(name);
+        }
+      }
 
+      for (String seqRef : seqRefs)
+      {
+        queryBuilder.append("text:").append(seqRef).append(" OR ");
+      }
+    }
+
+    int endIndex = queryBuilder.lastIndexOf(" OR ");
     if (queryBuilder.toString().length() < 6)
     {
       return null;
     }
-    String query = queryBuilder.toString().substring(5, endIndex);
+    String query = queryBuilder.toString().substring(0, endIndex);
     return query;
+  }
+
+  /**
+   * Remove the following special characters from input string +, -, &, !, (, ),
+   * {, }, [, ], ^, ", ~, *, ?, :, \
+   * 
+   * @param seqName
+   * @return
+   */
+  static String sanitizeSeqName(String seqName)
+  {
+    Objects.requireNonNull(seqName);
+    return seqName.replaceAll("\\[\\d*\\]", "")
+            .replaceAll("[^\\dA-Za-z|_]", "").replaceAll("\\s+", "+");
   }
 
   /**
@@ -340,24 +399,40 @@ public class StructureChooser extends GStructureChooser
       public void run()
       {
         long startTime = System.currentTimeMillis();
+        pdbRestCleint = PDBFTSRestClient.getInstance();
         lbl_loading.setVisible(true);
-        Collection<PDBDocField> wantedFields = PDBDocFieldPreferences
+        Collection<FTSDataColumnI> wantedFields = pdbDocFieldPrefs
                 .getStructureSummaryFields();
-        Collection<PDBResponseSummary> filteredResponse = new HashSet<PDBResponseSummary>();
+        Collection<FTSData> filteredResponse = new HashSet<FTSData>();
         HashSet<String> errors = new HashSet<String>();
+
         for (SequenceI seq : selectedSequences)
         {
-          PDBRestRequest pdbRequest = new PDBRestRequest();
-          pdbRequest.setAllowEmptySeq(false);
-          pdbRequest.setResponseSize(1);
-          pdbRequest.setFieldToSearchBy("(text:");
-          pdbRequest.setFieldToSortBy(fieldToFilterBy,
-                  !chk_invertFilter.isSelected());
-          pdbRequest.setSearchTerm(buildQuery(seq) + ")");
-          pdbRequest.setWantedFields(wantedFields);
-          pdbRequest.setAssociatedSequence(seq);
-          pdbRestCleint = new PDBRestClient();
-          PDBRestResponse resultList;
+          FTSRestRequest pdbRequest = new FTSRestRequest();
+          if (fieldToFilterBy.equalsIgnoreCase("uniprot_coverage"))
+          {
+            pdbRequest.setAllowEmptySeq(false);
+            pdbRequest.setResponseSize(1);
+            pdbRequest.setFieldToSearchBy("(");
+            pdbRequest.setSearchTerm(buildQuery(seq) + ")");
+            pdbRequest.setWantedFields(wantedFields);
+            pdbRequest.setAssociatedSequence(seq);
+            pdbRequest.setFacet(true);
+            pdbRequest.setFacetPivot(fieldToFilterBy + ",entry_entity");
+            pdbRequest.setFacetPivotMinCount(1);
+          }
+          else
+          {
+            pdbRequest.setAllowEmptySeq(false);
+            pdbRequest.setResponseSize(1);
+            pdbRequest.setFieldToSearchBy("(");
+            pdbRequest.setFieldToSortBy(fieldToFilterBy,
+                    !chk_invertFilter.isSelected());
+            pdbRequest.setSearchTerm(buildQuery(seq) + ")");
+            pdbRequest.setWantedFields(wantedFields);
+            pdbRequest.setAssociatedSequence(seq);
+          }
+          FTSRestResponse resultList;
           try
           {
             resultList = pdbRestCleint.executeRequest(pdbRequest);
@@ -380,14 +455,21 @@ public class StructureChooser extends GStructureChooser
         if (!filteredResponse.isEmpty())
         {
           final int filterResponseCount = filteredResponse.size();
-          Collection<PDBResponseSummary> reorderedStructuresSet = new LinkedHashSet<PDBResponseSummary>();
+          Collection<FTSData> reorderedStructuresSet = new LinkedHashSet<FTSData>();
           reorderedStructuresSet.addAll(filteredResponse);
           reorderedStructuresSet.addAll(discoveredStructuresSet);
-          tbl_summary.setModel(PDBRestResponse.getTableModel(
-                  lastPdbRequest, reorderedStructuresSet));
+          getResultTable().setModel(
+                  FTSRestResponse.getTableModel(lastPdbRequest,
+                          reorderedStructuresSet));
 
+          FTSRestResponse.configureTableColumn(getResultTable(),
+                  wantedFields, tempUserPrefs);
+          getResultTable().getColumn("Ref Sequence").setPreferredWidth(120);
+          getResultTable().getColumn("Ref Sequence").setMinWidth(100);
+          getResultTable().getColumn("Ref Sequence").setMaxWidth(200);
           // Update table selection model here
-          tbl_summary.addRowSelectionInterval(0, filterResponseCount - 1);
+          getResultTable().addRowSelectionInterval(0,
+                  filterResponseCount - 1);
           mainFrame.setTitle(MessageManager.formatMessage(
                   "label.structure_chooser_filter_time", totalTime));
         }
@@ -421,6 +503,7 @@ public class StructureChooser extends GStructureChooser
   /**
    * Handles action event for btn_pdbFromFile
    */
+  @Override
   public void pdbFromFile_actionPerformed()
   {
     jalview.io.JalviewFileChooser chooser = new jalview.io.JalviewFileChooser(
@@ -446,29 +529,42 @@ public class StructureChooser extends GStructureChooser
    * Populates the filter combo-box options dynamically depending on discovered
    * structures
    */
-  protected void populateFilterComboBox()
+  protected void populateFilterComboBox(boolean haveData,
+          boolean cachedPDBExists)
   {
-    if (isStructuresDiscovered())
+    /*
+     * temporarily suspend the change listener behaviour
+     */
+    cmb_filterOption.removeItemListener(this);
+
+    cmb_filterOption.removeAllItems();
+    if (haveData)
     {
       cmb_filterOption.addItem(new FilterOption("Best Quality",
-              PDBDocField.OVERALL_QUALITY.getCode(), VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Best UniProt Coverage",
-              PDBDocField.UNIPROT_COVERAGE.getCode(), VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Highest Resolution",
-              PDBDocField.RESOLUTION.getCode(), VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Highest Protein Chain",
-              PDBDocField.PROTEIN_CHAIN_COUNT.getCode(), VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Highest Bound Molecules",
-              PDBDocField.BOUND_MOLECULE_COUNT.getCode(), VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Highest Polymer Residues",
-              PDBDocField.POLYMER_RESIDUE_COUNT.getCode(), VIEWS_FILTER));
+              "overall_quality", VIEWS_FILTER));
+      cmb_filterOption.addItem(new FilterOption("Best Resolution",
+              "resolution", VIEWS_FILTER));
+      cmb_filterOption.addItem(new FilterOption("Most Protein Chain",
+              "number_of_protein_chains", VIEWS_FILTER));
+      cmb_filterOption.addItem(new FilterOption("Most Bound Molecules",
+              "number_of_bound_molecules", VIEWS_FILTER));
+      cmb_filterOption.addItem(new FilterOption("Most Polymer Residues",
+              "number_of_polymer_residues", VIEWS_FILTER));
     }
     cmb_filterOption.addItem(new FilterOption("Enter PDB Id", "-",
             VIEWS_ENTER_ID));
     cmb_filterOption.addItem(new FilterOption("From File", "-",
             VIEWS_FROM_FILE));
-    cmb_filterOption.addItem(new FilterOption("Cached PDB Entries", "-",
-            VIEWS_LOCAL_PDB));
+    FilterOption cachedOption = new FilterOption("Cached PDB Entries", "-",
+            VIEWS_LOCAL_PDB);
+    cmb_filterOption.addItem(cachedOption);
+
+    if (/*!haveData &&*/cachedPDBExists)
+    {
+      cmb_filterOption.setSelectedItem(cachedOption);
+    }
+
+    cmb_filterOption.addItemListener(this);
   }
 
   /**
@@ -504,6 +600,7 @@ public class StructureChooser extends GStructureChooser
    * Validates user selection and activates the view button if all parameters
    * are correct
    */
+  @Override
   public void validateSelections()
   {
     FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
@@ -512,7 +609,7 @@ public class StructureChooser extends GStructureChooser
     String currentView = selectedFilterOpt.getView();
     if (currentView == VIEWS_FILTER)
     {
-      if (tbl_summary.getSelectedRows().length > 0)
+      if (getResultTable().getSelectedRows().length > 0)
       {
         btn_view.setEnabled(true);
       }
@@ -636,139 +733,228 @@ public class StructureChooser extends GStructureChooser
   @Override
   public void ok_ActionPerformed()
   {
-    FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
-            .getSelectedItem());
-    String currentView = selectedFilterOpt.getView();
-    if (currentView == VIEWS_FILTER)
-    {
-      int pdbIdColIndex = tbl_summary.getColumn(
-              PDBRestClient.PDBDocField.PDB_ID.getName()).getModelIndex();
-      int refSeqColIndex = tbl_summary.getColumn("Ref Sequence")
-              .getModelIndex();
-      int[] selectedRows = tbl_summary.getSelectedRows();
-      PDBEntry[] pdbEntriesToView = new PDBEntry[selectedRows.length];
-      int count = 0;
-      ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
-      for (int row : selectedRows)
-      {
-        String pdbIdStr = tbl_summary.getValueAt(row, pdbIdColIndex)
-                .toString();
-        SequenceI selectedSeq = (SequenceI) tbl_summary.getValueAt(row,
-                refSeqColIndex);
-        selectedSeqsToView.add(selectedSeq);
-        PDBEntry pdbEntry = selectedSeq.getPDBEntry(pdbIdStr);
-        if (pdbEntry == null)
-        {
-          pdbEntry = new PDBEntry();
-          pdbEntry.setId(pdbIdStr);
-          pdbEntry.setType(PDBEntry.Type.PDB);
-          selectedSeq.getDatasetSequence().addPDBId(pdbEntry);
-        }
-        pdbEntriesToView[count++] = pdbEntry;
-      }
-      SequenceI[] selectedSeqs = selectedSeqsToView
-              .toArray(new SequenceI[selectedSeqsToView.size()]);
-      launchStructureViewer(ap.getStructureSelectionManager(),
-              pdbEntriesToView, ap, selectedSeqs);
-    }
-    else if (currentView == VIEWS_LOCAL_PDB)
-    {
-      int[] selectedRows = tbl_local_pdb.getSelectedRows();
-      PDBEntry[] pdbEntriesToView = new PDBEntry[selectedRows.length];
-      int count = 0;
-      int pdbIdColIndex = tbl_local_pdb.getColumn(
-              PDBRestClient.PDBDocField.PDB_ID.getName()).getModelIndex();
-      int refSeqColIndex = tbl_local_pdb.getColumn("Ref Sequence")
-              .getModelIndex();
-      ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
-      for (int row : selectedRows)
-      {
-        PDBEntry pdbEntry = (PDBEntry) tbl_local_pdb.getValueAt(row,
-                pdbIdColIndex);
-        pdbEntriesToView[count++] = pdbEntry;
-        SequenceI selectedSeq = (SequenceI) tbl_local_pdb.getValueAt(row,
-                refSeqColIndex);
-        selectedSeqsToView.add(selectedSeq);
-      }
-      SequenceI[] selectedSeqs = selectedSeqsToView
-              .toArray(new SequenceI[selectedSeqsToView.size()]);
-      launchStructureViewer(ap.getStructureSelectionManager(),
-              pdbEntriesToView, ap, selectedSeqs);
-    }
-    else if (currentView == VIEWS_ENTER_ID)
-    {
-      SequenceI userSelectedSeq = ((AssociateSeqOptions) idInputAssSeqPanel
-              .getCmb_assSeq().getSelectedItem()).getSequence();
-      if (userSelectedSeq != null)
-      {
-        selectedSequence = userSelectedSeq;
-      }
-
-      String pdbIdStr = txt_search.getText();
-      PDBEntry pdbEntry = selectedSequence.getPDBEntry(pdbIdStr);
-      if (pdbEntry == null)
-      {
-        pdbEntry = new PDBEntry();
-        pdbEntry.setId(pdbIdStr);
-        pdbEntry.setType(PDBEntry.Type.PDB);
-        selectedSequence.getDatasetSequence().addPDBId(pdbEntry);
-      }
-
-      PDBEntry[] pdbEntriesToView = new PDBEntry[] { pdbEntry };
-      launchStructureViewer(ap.getStructureSelectionManager(),
-              pdbEntriesToView, ap, new SequenceI[] { selectedSequence });
-    }
-    else if (currentView == VIEWS_FROM_FILE)
-    {
-      SequenceI userSelectedSeq = ((AssociateSeqOptions) fileChooserAssSeqPanel
-              .getCmb_assSeq().getSelectedItem()).getSequence();
-      if (userSelectedSeq != null)
-      {
-        selectedSequence = userSelectedSeq;
-      }
-      PDBEntry fileEntry = new AssociatePdbFileWithSeq()
-              .associatePdbWithSeq(selectedPdbFileName,
-                      jalview.io.AppletFormatAdapter.FILE,
-                      selectedSequence, true, Desktop.instance);
-
-      launchStructureViewer(ap.getStructureSelectionManager(),
-              new PDBEntry[] { fileEntry }, ap,
-              new SequenceI[] { selectedSequence });
-    }
-    mainFrame.dispose();
-  }
-
-  private void launchStructureViewer(final StructureSelectionManager ssm,
-          final PDBEntry[] pdbEntriesToView,
-          final AlignmentPanel alignPanel, final SequenceI[] sequences)
-  {
-    final StructureViewer sViewer = new StructureViewer(ssm);
+    final long progressSessionId = System.currentTimeMillis();
+    final StructureSelectionManager ssm = ap.getStructureSelectionManager();
+    final int preferredHeight = pnl_filter.getHeight();
+    ssm.setProgressIndicator(this);
+    ssm.setProgressSessionId(progressSessionId);
     new Thread(new Runnable()
     {
+      @Override
       public void run()
       {
-        if (pdbEntriesToView.length > 1)
+        FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
+                .getSelectedItem());
+        String currentView = selectedFilterOpt.getView();
+        if (currentView == VIEWS_FILTER)
         {
-          ArrayList<SequenceI[]> seqsMap = new ArrayList<SequenceI[]>();
-          for (SequenceI seq : sequences)
+          int pdbIdColIndex = getResultTable().getColumn("PDB Id")
+                  .getModelIndex();
+          int refSeqColIndex = getResultTable().getColumn("Ref Sequence")
+                  .getModelIndex();
+          int[] selectedRows = getResultTable().getSelectedRows();
+          PDBEntry[] pdbEntriesToView = new PDBEntry[selectedRows.length];
+          int count = 0;
+          ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
+          for (int row : selectedRows)
           {
-            seqsMap.add(new SequenceI[] { seq });
+            String pdbIdStr = getResultTable().getValueAt(row,
+                    pdbIdColIndex).toString();
+            SequenceI selectedSeq = (SequenceI) getResultTable()
+                    .getValueAt(row, refSeqColIndex);
+            selectedSeqsToView.add(selectedSeq);
+            PDBEntry pdbEntry = selectedSeq.getPDBEntry(pdbIdStr);
+            if (pdbEntry == null)
+            {
+              pdbEntry = getFindEntry(pdbIdStr,
+                      selectedSeq.getAllPDBEntries());
+            }
+            if (pdbEntry == null)
+            {
+              pdbEntry = new PDBEntry();
+              pdbEntry.setId(pdbIdStr);
+              pdbEntry.setType(PDBEntry.Type.PDB);
+              selectedSeq.getDatasetSequence().addPDBId(pdbEntry);
+            }
+            pdbEntriesToView[count++] = pdbEntry;
           }
-          SequenceI[][] collatedSeqs = seqsMap.toArray(new SequenceI[0][0]);
-          sViewer.viewStructures(pdbEntriesToView, collatedSeqs, alignPanel);
+          SequenceI[] selectedSeqs = selectedSeqsToView
+                  .toArray(new SequenceI[selectedSeqsToView.size()]);
+          launchStructureViewer(ssm, pdbEntriesToView, ap, selectedSeqs);
         }
-        else
+        else if (currentView == VIEWS_LOCAL_PDB)
         {
-          sViewer.viewStructures(pdbEntriesToView[0], sequences, alignPanel);
+          int[] selectedRows = tbl_local_pdb.getSelectedRows();
+          PDBEntry[] pdbEntriesToView = new PDBEntry[selectedRows.length];
+          int count = 0;
+          int pdbIdColIndex = tbl_local_pdb.getColumn("PDB Id")
+                  .getModelIndex();
+          int refSeqColIndex = tbl_local_pdb.getColumn("Ref Sequence")
+                  .getModelIndex();
+          ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
+          for (int row : selectedRows)
+          {
+            PDBEntry pdbEntry = (PDBEntry) tbl_local_pdb.getValueAt(row,
+                    pdbIdColIndex);
+            pdbEntriesToView[count++] = pdbEntry;
+            SequenceI selectedSeq = (SequenceI) tbl_local_pdb.getValueAt(
+                    row, refSeqColIndex);
+            selectedSeqsToView.add(selectedSeq);
+          }
+          SequenceI[] selectedSeqs = selectedSeqsToView
+                  .toArray(new SequenceI[selectedSeqsToView.size()]);
+          launchStructureViewer(ssm, pdbEntriesToView, ap, selectedSeqs);
         }
+        else if (currentView == VIEWS_ENTER_ID)
+        {
+          SequenceI userSelectedSeq = ((AssociateSeqOptions) idInputAssSeqPanel
+                  .getCmb_assSeq().getSelectedItem()).getSequence();
+          if (userSelectedSeq != null)
+          {
+            selectedSequence = userSelectedSeq;
+          }
+
+          String pdbIdStr = txt_search.getText();
+          PDBEntry pdbEntry = selectedSequence.getPDBEntry(pdbIdStr);
+          if (pdbEntry == null)
+          {
+            pdbEntry = new PDBEntry();
+            if (pdbIdStr.split(":").length > 1)
+            {
+              pdbEntry.setId(pdbIdStr.split(":")[0]);
+              pdbEntry.setChainCode(pdbIdStr.split(":")[1].toUpperCase());
+            }
+            else
+            {
+              pdbEntry.setId(pdbIdStr);
+            }
+            pdbEntry.setType(PDBEntry.Type.PDB);
+            selectedSequence.getDatasetSequence().addPDBId(pdbEntry);
+          }
+
+          PDBEntry[] pdbEntriesToView = new PDBEntry[] { pdbEntry };
+          launchStructureViewer(ssm, pdbEntriesToView, ap,
+                  new SequenceI[] { selectedSequence });
+        }
+        else if (currentView == VIEWS_FROM_FILE)
+        {
+          SequenceI userSelectedSeq = ((AssociateSeqOptions) fileChooserAssSeqPanel
+                  .getCmb_assSeq().getSelectedItem()).getSequence();
+          if (userSelectedSeq != null)
+          {
+            selectedSequence = userSelectedSeq;
+          }
+          PDBEntry fileEntry = new AssociatePdbFileWithSeq()
+                  .associatePdbWithSeq(selectedPdbFileName,
+                          jalview.io.AppletFormatAdapter.FILE,
+                          selectedSequence, true, Desktop.instance);
+
+          launchStructureViewer(ssm, new PDBEntry[] { fileEntry }, ap,
+                  new SequenceI[] { selectedSequence });
+        }
+        closeAction(preferredHeight);
       }
     }).start();
+  }
+
+  private PDBEntry getFindEntry(String id, Vector<PDBEntry> pdbEntries)
+  {
+    Objects.requireNonNull(id);
+    Objects.requireNonNull(pdbEntries);
+    PDBEntry foundEntry = null;
+    for (PDBEntry entry : pdbEntries)
+    {
+      if (entry.getId().equalsIgnoreCase(id))
+      {
+        return entry;
+      }
+    }
+    return foundEntry;
+  }
+
+  private void launchStructureViewer(StructureSelectionManager ssm,
+          final PDBEntry[] pdbEntriesToView,
+          final AlignmentPanel alignPanel, SequenceI[] sequences)
+  {
+    ssm.setProgressBar(MessageManager
+            .getString("status.launching_3d_structure_viewer"));
+    final StructureViewer sViewer = new StructureViewer(ssm);
+
+    if (SiftsSettings.isMapWithSifts())
+    {
+      List<SequenceI> seqsWithoutSourceDBRef = new ArrayList<SequenceI>();
+      int p = 0;
+      // TODO: skip PDBEntry:Sequence pairs where PDBEntry doesn't look like a
+      // real PDB ID. For moment, we can also safely do this if there is already
+      // a known mapping between the PDBEntry and the sequence.
+      for (SequenceI seq : sequences)
+      {
+        PDBEntry pdbe = pdbEntriesToView[p++];
+        if (pdbe != null && pdbe.getFile() != null)
+        {
+          StructureMapping[] smm = ssm.getMapping(pdbe.getFile());
+          if (smm != null && smm.length > 0)
+          {
+            for (StructureMapping sm : smm)
+            {
+              if (sm.getSequence() == seq)
+              {
+                continue;
+              }
+            }
+          }
+        }
+        if (seq.getPrimaryDBRefs().size() == 0)
+        {
+          seqsWithoutSourceDBRef.add(seq);
+          continue;
+        }
+      }
+      if (!seqsWithoutSourceDBRef.isEmpty())
+      {
+        int y = seqsWithoutSourceDBRef.size();
+        ssm.setProgressBar(null);
+        ssm.setProgressBar(MessageManager.formatMessage(
+                "status.fetching_dbrefs_for_sequences_without_valid_refs",
+                y));
+        SequenceI[] seqWithoutSrcDBRef = new SequenceI[y];
+        int x = 0;
+        for (SequenceI fSeq : seqsWithoutSourceDBRef)
+        {
+          seqWithoutSrcDBRef[x++] = fSeq;
+        }
+        DBRefFetcher dbRefFetcher = new DBRefFetcher(seqWithoutSrcDBRef);
+        dbRefFetcher.fetchDBRefs(true);
+      }
+    }
+    if (pdbEntriesToView.length > 1)
+    {
+      ArrayList<SequenceI[]> seqsMap = new ArrayList<SequenceI[]>();
+      for (SequenceI seq : sequences)
+      {
+        seqsMap.add(new SequenceI[] { seq });
+      }
+      SequenceI[][] collatedSeqs = seqsMap.toArray(new SequenceI[0][0]);
+      ssm.setProgressBar(null);
+      ssm.setProgressBar(MessageManager
+              .getString("status.fetching_3d_structures_for_selected_entries"));
+      sViewer.viewStructures(pdbEntriesToView, collatedSeqs, alignPanel);
+    }
+    else
+    {
+      ssm.setProgressBar(null);
+      ssm.setProgressBar(MessageManager.formatMessage(
+              "status.fetching_3d_structures_for",
+              pdbEntriesToView[0].getId()));
+      sViewer.viewStructures(pdbEntriesToView[0], sequences, alignPanel);
+    }
   }
 
   /**
    * Populates the combo-box used in associating manually fetched structures to
    * a unique sequence when more than one sequence selection is made.
    */
+  @Override
   public void populateCmbAssociateSeqOptions(
           JComboBox<AssociateSeqOptions> cmb_assSeq, JLabel lbl_associateSeq)
   {
@@ -795,15 +981,11 @@ public class StructureChooser extends GStructureChooser
 
   public boolean isStructuresDiscovered()
   {
-    return structuresDiscovered;
+    return discoveredStructuresSet != null
+            && !discoveredStructuresSet.isEmpty();
   }
 
-  public void setStructuresDiscovered(boolean structuresDiscovered)
-  {
-    this.structuresDiscovered = structuresDiscovered;
-  }
-
-  public Collection<PDBResponseSummary> getDiscoveredStructuresSet()
+  public Collection<FTSData> getDiscoveredStructuresSet()
   {
     return discoveredStructuresSet;
   }
@@ -813,23 +995,27 @@ public class StructureChooser extends GStructureChooser
   {
     new Thread()
     {
+      @Override
       public void run()
       {
         errorWarning.setLength(0);
         isValidPBDEntry = false;
         if (txt_search.getText().length() > 0)
         {
-          List<PDBDocField> wantedFields = new ArrayList<PDBDocField>();
-          wantedFields.add(PDBDocField.PDB_ID);
-          PDBRestRequest pdbRequest = new PDBRestRequest();
+          String searchTerm = txt_search.getText().toLowerCase();
+          searchTerm = searchTerm.split(":")[0];
+          // System.out.println(">>>>> search term : " + searchTerm);
+          List<FTSDataColumnI> wantedFields = new ArrayList<FTSDataColumnI>();
+          FTSRestRequest pdbRequest = new FTSRestRequest();
           pdbRequest.setAllowEmptySeq(false);
           pdbRequest.setResponseSize(1);
           pdbRequest.setFieldToSearchBy("(pdb_id:");
           pdbRequest.setWantedFields(wantedFields);
-          pdbRequest.setSearchTerm(txt_search.getText() + ")");
+          pdbRequest.setSearchTerm(searchTerm + ")");
           pdbRequest.setAssociatedSequence(selectedSequence);
-          pdbRestCleint = new PDBRestClient();
-          PDBRestResponse resultList;
+          pdbRestCleint = PDBFTSRestClient.getInstance();
+          wantedFields.add(pdbRestCleint.getPrimaryKeyColumn());
+          FTSRestResponse resultList;
           try
           {
             resultList = pdbRestCleint.executeRequest(pdbRequest);
@@ -968,5 +1154,25 @@ public class StructureChooser extends GStructureChooser
       return pdbEntry;
     }
 
+  }
+
+  private IProgressIndicator progressBar;
+
+  @Override
+  public void setProgressBar(String message, long id)
+  {
+    progressBar.setProgressBar(message, id);
+  }
+
+  @Override
+  public void registerHandler(long id, IProgressIndicatorHandler handler)
+  {
+    progressBar.registerHandler(id, handler);
+  }
+
+  @Override
+  public boolean operationInProgress()
+  {
+    return progressBar.operationInProgress();
   }
 }

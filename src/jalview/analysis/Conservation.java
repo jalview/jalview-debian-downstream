@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,36 +22,52 @@ package jalview.analysis;
 
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.ResidueCount;
+import jalview.datamodel.ResidueCount.SymbolCounts;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
+import jalview.schemes.ResidueProperties;
+import jalview.util.Comparison;
 
 import java.awt.Color;
-import java.util.Enumeration;
-import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 import java.util.Vector;
 
 /**
  * Calculates conservation values for a given set of sequences
- * 
- * @author $author$
- * @version $Revision$
  */
 public class Conservation
 {
+  /*
+   * need to have a minimum of 3% of sequences with a residue
+   * for it to be included in the conservation calculation
+   */
+  private static final int THRESHOLD_PERCENT = 3;
+
+  private static final int TOUPPERCASE = 'a' - 'A';
+
   SequenceI[] sequences;
 
   int start;
 
   int end;
 
-  Vector seqNums; // vector of int vectors where first is sequence checksum
+  Vector<int[]> seqNums; // vector of int vectors where first is sequence
+                         // checksum
 
   int maxLength = 0; // used by quality calcs
 
   boolean seqNumsChanged = false; // updated after any change via calcSeqNum;
 
-  Hashtable[] total;
+  /*
+   * a map per column with {property, conservation} where conservation value is
+   * 1 (property is conserved), 0 (absence of property is conserved) or -1
+   * (property is not conserved i.e. column has residues with and without it)
+   */
+  Map<String, Integer>[] total;
 
   boolean canonicaliseAa = true; // if true then conservation calculation will
 
@@ -60,34 +76,29 @@ public class Conservation
   // symbol
 
   /** Stores calculated quality values */
-  public Vector quality;
+  private Vector<Double> quality;
 
   /** Stores maximum and minimum values of quality values */
-  public Double[] qualityRange = new Double[2];
+  private double[] qualityRange = new double[2];
 
-  String consString = "";
+  private Sequence consSequence;
 
-  Sequence consSequence;
+  /*
+   * percentage of residues in a column to qualify for counting conservation
+   */
+  private int threshold;
 
-  Hashtable propHash;
+  private String name = "";
 
-  int threshold;
-
-  String name = "";
-
-  int[][] cons2;
+  private int[][] cons2;
 
   private String[] consSymbs;
 
   /**
-   * Creates a new Conservation object.
+   * Constructor using default threshold of 3%
    * 
    * @param name
    *          Name of conservation
-   * @param propHash
-   *          hash of properties for each symbol
-   * @param threshold
-   *          to count the residues in residueHash(). commonly used value is 3
    * @param sequences
    *          sequences to be used in calculation
    * @param start
@@ -95,11 +106,31 @@ public class Conservation
    * @param end
    *          end residue position
    */
-  public Conservation(String name, Hashtable propHash, int threshold,
+  public Conservation(String name, List<SequenceI> sequences, int start,
+          int end)
+  {
+    this(name, THRESHOLD_PERCENT, sequences, start, end);
+  }
+
+  /**
+   * Constructor
+   * 
+   * @param name
+   *          Name of conservation
+   * @param threshold
+   *          percentage of sequences at or below which property conservation is
+   *          ignored
+   * @param sequences
+   *          sequences to be used in calculation
+   * @param start
+   *          start column position
+   * @param end
+   *          end column position
+   */
+  public Conservation(String name, int threshold,
           List<SequenceI> sequences, int start, int end)
   {
     this.name = name;
-    this.propHash = propHash;
     this.threshold = threshold;
     this.start = start;
     this.end = end;
@@ -151,7 +182,7 @@ public class Conservation
         seqNums.addElement(new int[sq.length() + 1]);
       }
 
-      if (sq.hashCode() != ((int[]) seqNums.elementAt(i))[0])
+      if (sq.hashCode() != seqNums.elementAt(i)[0])
       {
         int j;
         int len;
@@ -193,178 +224,221 @@ public class Conservation
    */
   public void calculate()
   {
-    Hashtable resultHash, ht;
-    int thresh, j, jSize = sequences.length;
-    int[] values; // Replaces residueHash
-    String type, res = null;
-    char c;
-    Enumeration enumeration2;
+    int height = sequences.length;
 
-    total = new Hashtable[maxLength];
+    total = new Map[maxLength];
 
-    for (int i = start; i <= end; i++)
+    for (int column = start; column <= end; column++)
     {
-      values = new int[255];
+      ResidueCount values = countResidues(column);
 
-      for (j = 0; j < jSize; j++)
+      /*
+       * percentage count at or below which we ignore residues
+       */
+      int thresh = (threshold * height) / 100;
+
+      /*
+       * check observed residues in column and record whether each 
+       * physico-chemical property is conserved (+1), absence conserved (0),
+       * or not conserved (-1)
+       * Using TreeMap means properties are displayed in alphabetical order
+       */
+      Map<String, Integer> resultHash = new TreeMap<String, Integer>();
+      SymbolCounts symbolCounts = values.getSymbolCounts();
+      char[] symbols = symbolCounts.symbols;
+      int[] counts = symbolCounts.values;
+      for (int j = 0; j < symbols.length; j++)
       {
-        if (sequences[j].getLength() > i)
+        char c = symbols[j];
+        if (counts[j] > thresh)
         {
-          c = sequences[j].getCharAt(i);
-
-          if (canonicaliseAa)
-          { // lookup the base aa code symbol
-            c = (char) jalview.schemes.ResidueProperties.aaIndex[sequences[j]
-                    .getCharAt(i)];
-            if (c > 20)
-            {
-              c = '-';
-            }
-            else
-            {
-              // recover canonical aa symbol
-              c = jalview.schemes.ResidueProperties.aa[c].charAt(0);
-            }
-          }
-          else
-          {
-            // original behaviour - operate on ascii symbols directly
-            // No need to check if its a '-'
-            if (c == '.' || c == ' ')
-            {
-              c = '-';
-            }
-
-            if (!canonicaliseAa && 'a' <= c && c <= 'z')
-            {
-              c -= (32); // 32 = 'a' - 'A'
-            }
-          }
-          values[c]++;
-        }
-        else
-        {
-          values['-']++;
+          recordConservation(resultHash, String.valueOf(c));
         }
       }
-
-      // What is the count threshold to count the residues in residueHash()
-      thresh = (threshold * (jSize)) / 100;
-
-      // loop over all the found residues
-      resultHash = new Hashtable();
-      for (char v = '-'; v < 'Z'; v++)
+      if (values.getGapCount() > thresh)
       {
-
-        if (values[v] > thresh)
-        {
-          res = String.valueOf(v);
-
-          // Now loop over the properties
-          enumeration2 = propHash.keys();
-
-          while (enumeration2.hasMoreElements())
-          {
-            type = (String) enumeration2.nextElement();
-            ht = (Hashtable) propHash.get(type);
-
-            // Have we ticked this before?
-            if (!resultHash.containsKey(type))
-            {
-              if (ht.containsKey(res))
-              {
-                resultHash.put(type, ht.get(res));
-              }
-              else
-              {
-                resultHash.put(type, ht.get("-"));
-              }
-            }
-            else if (((Integer) resultHash.get(type)).equals(ht.get(res)) == false)
-            {
-              resultHash.put(type, new Integer(-1));
-            }
-          }
-        }
+        recordConservation(resultHash, "-");
       }
 
       if (total.length > 0)
       {
-        total[i - start] = resultHash;
+        total[column - start] = resultHash;
       }
     }
   }
 
-  /*****************************************************************************
-   * count conservation for the j'th column of the alignment
+  /**
+   * Updates the conservation results for an observed residue
    * 
-   * @return { gap count, conserved residue count}
+   * @param resultMap
+   *          a map of {property, conservation} where conservation value is +1
+   *          (all residues have the property), 0 (no residue has the property)
+   *          or -1 (some do, some don't)
+   * @param res
    */
-  public int[] countConsNGaps(int j)
+  protected static void recordConservation(Map<String, Integer> resultMap,
+          String res)
   {
-    int count = 0;
-    int cons = 0;
-    int nres = 0;
-    int[] r = new int[2];
-    char f = '$';
-    int i, iSize = sequences.length;
-    char c;
-
-    for (i = 0; i < iSize; i++)
+    res = res.toUpperCase();
+    for (Entry<String, Map<String, Integer>> property : ResidueProperties.propHash
+            .entrySet())
     {
-      if (j >= sequences[i].getLength())
-      {
-        count++;
-        continue;
-      }
+      String propertyName = property.getKey();
+      Integer residuePropertyValue = property.getValue().get(res);
 
-      c = sequences[i].getCharAt(j); // gaps do not have upper/lower case
-
-      if (jalview.util.Comparison.isGap((c)))
+      if (!resultMap.containsKey(propertyName))
       {
-        count++;
+        /*
+         * first time we've seen this residue - note whether it has this property
+         */
+        if (residuePropertyValue != null)
+        {
+          resultMap.put(propertyName, residuePropertyValue);
+        }
+        else
+        {
+          /*
+           * unrecognised residue - use default value for property
+           */
+          resultMap.put(propertyName, property.getValue().get("-"));
+        }
       }
       else
       {
-        nres++;
-
-        if (nres == 1)
+        Integer currentResult = resultMap.get(propertyName);
+        if (currentResult.intValue() != -1
+                && !currentResult.equals(residuePropertyValue))
         {
-          f = c;
-          cons++;
+          /*
+           * property is unconserved - residues seen both with and without it
+           */
+          resultMap.put(propertyName, Integer.valueOf(-1));
         }
-        else if (f == c)
+      }
+    }
+  }
+
+  /**
+   * Counts residues (upper-cased) and gaps in the given column
+   * 
+   * @param column
+   * @return
+   */
+  protected ResidueCount countResidues(int column)
+  {
+    ResidueCount values = new ResidueCount(false);
+
+    for (int row = 0; row < sequences.length; row++)
+    {
+      if (sequences[row].getLength() > column)
+      {
+        char c = sequences[row].getCharAt(column);
+        if (canonicaliseAa)
         {
-          cons++;
+          int index = ResidueProperties.aaIndex[c];
+          c = index > 20 ? '-' : ResidueProperties.aa[index].charAt(0);
+        }
+        else
+        {
+          c = toUpperCase(c);
+        }
+        if (Comparison.isGap(c))
+        {
+          values.addGap();
+        }
+        else
+        {
+          values.add(c);
+        }
+      }
+      else
+      {
+        values.addGap();
+      }
+    }
+    return values;
+  }
+
+  /**
+   * Counts conservation and gaps for a column of the alignment
+   * 
+   * @return { 1 if fully conserved, else 0, gap count }
+   */
+  public int[] countConservationAndGaps(int column)
+  {
+    int gapCount = 0;
+    boolean fullyConserved = true;
+    int iSize = sequences.length;
+
+    if (iSize == 0)
+    {
+      return new int[] { 0, 0 };
+    }
+
+    char lastRes = '0';
+    for (int i = 0; i < iSize; i++)
+    {
+      if (column >= sequences[i].getLength())
+      {
+        gapCount++;
+        continue;
+      }
+
+      char c = sequences[i].getCharAt(column); // gaps do not have upper/lower case
+
+      if (Comparison.isGap((c)))
+      {
+        gapCount++;
+      }
+      else
+      {
+        c = toUpperCase(c);
+        if (lastRes == '0')
+        {
+          lastRes = c;
+        }
+        if (c != lastRes)
+        {
+          fullyConserved = false;
         }
       }
     }
 
-    r[0] = (nres == cons) ? 1 : 0;
-    r[1] = count;
-
+    int[] r = new int[] { fullyConserved ? 1 : 0, gapCount };
     return r;
+  }
+
+  /**
+   * Returns the upper-cased character if between 'a' and 'z', else the
+   * unchanged value
+   * 
+   * @param c
+   * @return
+   */
+  char toUpperCase(char c)
+  {
+    if ('a' <= c && c <= 'z')
+    {
+      c -= TOUPPERCASE;
+    }
+    return c;
   }
 
   /**
    * Calculates the conservation sequence
    * 
-   * @param consflag
-   *          if true, poitiveve conservation; false calculates negative
-   *          conservation
-   * @param percentageGaps
-   *          commonly used value is 25
+   * @param positiveOnly
+   *          if true, calculate positive conservation; else calculate both
+   *          positive and negative conservation
+   * @param maxPercentageGaps
+   *          the percentage of gaps in a column, at or above which no
+   *          conservation is asserted
    */
-  public void verdict(boolean consflag, float percentageGaps)
+  public void verdict(boolean positiveOnly, float maxPercentageGaps)
   {
-    StringBuffer consString = new StringBuffer();
-    String type;
-    Integer result;
-    int[] gapcons;
-    int totGaps, count;
-    float pgaps;
-    Hashtable resultHash;
-    Enumeration enumeration;
+    // TODO call this at the end of calculate(), should not be a public method
+
+    StringBuilder consString = new StringBuilder(end);
 
     // NOTE THIS SHOULD CHECK IF THE CONSEQUENCE ALREADY
     // EXISTS AND NOT OVERWRITE WITH '-', BUT THIS CASE
@@ -376,50 +450,50 @@ public class Conservation
     consSymbs = new String[end - start + 1];
     for (int i = start; i <= end; i++)
     {
-      gapcons = countConsNGaps(i);
-      totGaps = gapcons[1];
-      pgaps = ((float) totGaps * 100) / sequences.length;
-      consSymbs[i - start] = new String();
+      int[] gapcons = countConservationAndGaps(i);
+      boolean fullyConserved = gapcons[0] == 1;
+      int totGaps = gapcons[1];
+      float pgaps = (totGaps * 100f) / sequences.length;
 
-      if (percentageGaps > pgaps)
+      if (maxPercentageGaps > pgaps)
       {
-        resultHash = total[i - start];
-        // Now find the verdict
-        count = 0;
-        enumeration = resultHash.keys();
-
-        while (enumeration.hasMoreElements())
+        Map<String, Integer> resultHash = total[i - start];
+        int count = 0;
+        StringBuilder positives = new StringBuilder(64);
+        StringBuilder negatives = new StringBuilder(32);
+        for (String type : resultHash.keySet())
         {
-          type = (String) enumeration.nextElement();
-          result = (Integer) resultHash.get(type);
-          // Do we want to count +ve conservation or +ve and -ve cons.?
-          if (consflag)
+          int result = resultHash.get(type).intValue();
+          if (result == -1)
           {
-            if (result.intValue() == 1)
-            {
-              consSymbs[i - start] = type + " " + consSymbs[i - start];
-              count++;
-            }
+            /*
+             * not conserved (present or absent)
+             */
+            continue;
           }
-          else
+          count++;
+          if (result == 1)
           {
-            if (result.intValue() != -1)
-            {
-              {
-                if (result.intValue() == 0)
-                {
-                  consSymbs[i - start] = consSymbs[i - start] + " !" + type;
-                }
-                else
-                {
-                  consSymbs[i - start] = type + " " + consSymbs[i - start];
-                }
-              }
-
-              count++;
-            }
+            /*
+             * positively conserved property (all residues have it)
+             */
+            positives.append(positives.length() == 0 ? "" : " ");
+            positives.append(type);
+          }
+          if (result == 0 && !positiveOnly)
+          {
+            /*
+             * absense of property is conserved (all residues lack it)
+             */
+            negatives.append(negatives.length() == 0 ? "" : " ");
+            negatives.append("!").append(type);
           }
         }
+        if (negatives.length() > 0)
+        {
+          positives.append(" ").append(negatives);
+        }
+        consSymbs[i - start] = positives.toString();
 
         if (count < 10)
         {
@@ -427,7 +501,7 @@ public class Conservation
         }
         else
         {
-          consString.append((gapcons[0] == 1) ? "*" : "+");
+          consString.append(fullyConserved ? "*" : "+");
         }
       }
       else
@@ -460,7 +534,7 @@ public class Conservation
    */
   private void percentIdentity2()
   {
-    seqNums = new Vector();
+    seqNums = new Vector<int[]>();
     // calcSeqNum(s);
     int i = 0, iSize = sequences.length;
     // Do we need to calculate this again?
@@ -487,7 +561,7 @@ public class Conservation
 
       while (j < sequences.length)
       {
-        sqnum = (int[]) seqNums.elementAt(j);
+        sqnum = seqNums.elementAt(j);
 
         for (i = 1; i < sqnum.length; i++)
         {
@@ -517,17 +591,17 @@ public class Conservation
   /**
    * Calculates the quality of the set of sequences
    * 
-   * @param start
+   * @param startRes
    *          Start residue
-   * @param end
+   * @param endRes
    *          End residue
    */
-  public void findQuality(int start, int end)
+  public void findQuality(int startRes, int endRes)
   {
-    quality = new Vector();
+    quality = new Vector<Double>();
 
     double max = -10000;
-    int[][] BLOSUM62 = jalview.schemes.ResidueProperties.getBLOSUM62();
+    int[][] BLOSUM62 = ResidueProperties.getBLOSUM62();
 
     // Loop over columns // JBPNote Profiling info
     // long ts = System.currentTimeMillis();
@@ -542,10 +616,10 @@ public class Conservation
 
     for (l = 0; l < size; l++)
     {
-      lengths[l] = ((int[]) seqNums.elementAt(l)).length - 1;
+      lengths[l] = seqNums.elementAt(l).length - 1;
     }
 
-    for (j = start; j <= end; j++)
+    for (j = startRes; j <= endRes; j++)
     {
       bigtot = 0;
 
@@ -569,8 +643,10 @@ public class Conservation
       {
         tot = 0;
         xx = new double[24];
-        seqNum = (j < lengths[k]) ? ((int[]) seqNums.elementAt(k))[j + 1]
-                : 23; // Sequence, or gap at the end
+        seqNum = (j < lengths[k]) ? seqNums.elementAt(k)[j + 1] : 23; // Sequence,
+                                                                      // or gap
+                                                                      // at the
+                                                                      // end
 
         // This is a loop over r
         for (i = 0; i < 23; i++)
@@ -603,9 +679,9 @@ public class Conservation
 
     double newmax = -10000;
 
-    for (j = start; j <= end; j++)
+    for (j = startRes; j <= endRes; j++)
     {
-      tmp = ((Double) quality.elementAt(j)).doubleValue();
+      tmp = quality.elementAt(j).doubleValue();
       tmp = ((max - tmp) * (size - cons2[j][23])) / size;
 
       // System.out.println(tmp+ " " + j);
@@ -618,12 +694,12 @@ public class Conservation
     }
 
     // System.out.println("Quality " + s);
-    qualityRange[0] = new Double(0);
-    qualityRange[1] = new Double(newmax);
+    qualityRange[0] = 0D;
+    qualityRange[1] = newmax;
   }
 
   /**
-   * complete the given consensus and quuality annotation rows. Note: currently
+   * Complete the given consensus and quuality annotation rows. Note: currently
    * this method will enlarge the given annotation row if it is too small,
    * otherwise will leave its length unchanged.
    * 
@@ -661,7 +737,7 @@ public class Conservation
 
     char c;
 
-    if (conservation.annotations != null
+    if (conservation != null && conservation.annotations != null
             && conservation.annotations.length < alWidth)
     {
       conservation.annotations = new Annotation[alWidth];
@@ -669,17 +745,17 @@ public class Conservation
 
     if (quality2 != null)
     {
-      quality2.graphMax = qualityRange[1].floatValue();
+      quality2.graphMax = (float) qualityRange[1];
       if (quality2.annotations != null
               && quality2.annotations.length < alWidth)
       {
         quality2.annotations = new Annotation[alWidth];
       }
-      qmin = qualityRange[0].floatValue();
-      qmax = qualityRange[1].floatValue();
+      qmin = (float) qualityRange[0];
+      qmax = (float) qualityRange[1];
     }
 
-    for (int i = 0; i < alWidth; i++)
+    for (int i = istart; i < alWidth; i++)
     {
       float value = 0;
 
@@ -698,20 +774,23 @@ public class Conservation
         value = 10;
       }
 
-      float vprop = value - min;
-      vprop /= max;
-      int consp = i - start;
-      String conssym = (value > 0 && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
-              : "";
-      conservation.annotations[i] = new Annotation(String.valueOf(c),
-              conssym, ' ', value, new Color(minR + (maxR * vprop), minG
-                      + (maxG * vprop), minB + (maxB * vprop)));
+      if (conservation != null)
+      {
+        float vprop = value - min;
+        vprop /= max;
+        int consp = i - start;
+        String conssym = (value > 0 && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
+                : "";
+        conservation.annotations[i] = new Annotation(String.valueOf(c),
+                conssym, ' ', value, new Color(minR + (maxR * vprop), minG
+                        + (maxG * vprop), minB + (maxB * vprop)));
+      }
 
       // Quality calc
       if (quality2 != null)
       {
-        value = ((Double) quality.elementAt(i)).floatValue();
-        vprop = value - qmin;
+        value = quality.elementAt(i).floatValue();
+        float vprop = value - qmin;
         vprop /= qmax;
         quality2.annotations[i] = new Annotation(" ",
                 String.valueOf(value), ' ', value, new Color(minR
@@ -726,49 +805,27 @@ public class Conservation
    * 
    * @param name
    *          - name of conservation
-   * @param consHash
-   *          - hash table of properties for each amino acid (normally
-   *          ResidueProperties.propHash)
-   * @param threshold
-   *          - minimum number of conserved residues needed to indicate
-   *          conservation (typically 3)
    * @param seqs
    * @param start
    *          first column in calculation window
    * @param end
    *          last column in calculation window
-   * @param posOrNeg
-   *          positive (true) or negative (false) conservation
-   * @param consPercGaps
+   * @param positiveOnly
+   *          calculate positive (true) or positive and negative (false)
+   *          conservation
+   * @param maxPercentGaps
    *          percentage of gaps tolerated in column
    * @param calcQuality
    *          flag indicating if alignment quality should be calculated
    * @return Conservation object ready for use in visualization
    */
   public static Conservation calculateConservation(String name,
-          Hashtable consHash, int threshold, List<SequenceI> seqs,
-          int start, int end, boolean posOrNeg, int consPercGaps,
-          boolean calcQuality)
+          List<SequenceI> seqs, int start, int end, boolean positiveOnly,
+          int maxPercentGaps, boolean calcQuality)
   {
-    Conservation cons = new Conservation(name, consHash, threshold, seqs,
-            start, end);
-    return calculateConservation(cons, posOrNeg, consPercGaps, calcQuality);
-  }
-
-  /**
-   * @param b
-   *          positive (true) or negative (false) conservation
-   * @param consPercGaps
-   *          percentage of gaps tolerated in column
-   * @param calcQuality
-   *          flag indicating if alignment quality should be calculated
-   * @return Conservation object ready for use in visualization
-   */
-  public static Conservation calculateConservation(Conservation cons,
-          boolean b, int consPercGaps, boolean calcQuality)
-  {
+    Conservation cons = new Conservation(name, seqs, start, end);
     cons.calculate();
-    cons.verdict(b, consPercGaps);
+    cons.verdict(positiveOnly, maxPercentGaps);
 
     if (calcQuality)
     {
@@ -776,5 +833,25 @@ public class Conservation
     }
 
     return cons;
+  }
+
+  /**
+   * Returns the computed tooltip (annotation description) for a given column.
+   * The tip is empty if the conservation score is zero, otherwise holds the
+   * conserved properties (and, optionally, properties whose absence is
+   * conserved).
+   * 
+   * @param column
+   * @return
+   */
+  String getTooltip(int column)
+  {
+    char[] sequence = getConsSequence().getSequence();
+    char val = column < sequence.length ? sequence[column] : '-';
+    boolean hasConservation = val != '-' && val != '0';
+    int consp = column - start;
+    String tip = (hasConservation && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
+            : "";
+    return tip;
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,10 +41,9 @@ public class AppJmolBinding extends JalviewJmolBinding
   private FeatureRenderer fr = null;
 
   public AppJmolBinding(AppJmol appJmol, StructureSelectionManager sSm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String[][] chains,
-          String protocol)
+          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String protocol)
   {
-    super(sSm, pdbentry, sequenceIs, chains, protocol);
+    super(sSm, pdbentry, sequenceIs, protocol);
     appJmolWindow = appJmol;
   }
 
@@ -113,6 +112,7 @@ public class AppJmolBinding extends JalviewJmolBinding
     // appJmolWindow.repaint();
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         appJmolWindow.updateTitleAndMenus();
@@ -121,6 +121,7 @@ public class AppJmolBinding extends JalviewJmolBinding
     });
   }
 
+  @Override
   public void updateColours(Object source)
   {
     AlignmentPanel ap = (AlignmentPanel) source;
@@ -144,6 +145,7 @@ public class AppJmolBinding extends JalviewJmolBinding
     // msWalltime);
   }
 
+  @Override
   public void showUrl(String url)
   {
     showUrl(url, "jmol");

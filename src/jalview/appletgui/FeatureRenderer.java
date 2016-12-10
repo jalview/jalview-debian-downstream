@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,11 +20,14 @@
  */
 package jalview.appletgui;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.AnnotationColourGradient;
-import jalview.schemes.GraduatedColor;
+import jalview.io.FeaturesFile;
+import jalview.schemes.FeatureColour;
+import jalview.schemes.UserColourScheme;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
 
@@ -43,6 +46,8 @@ import java.awt.TextArea;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.Hashtable;
 
 /**
@@ -63,15 +68,11 @@ public class FeatureRenderer extends
    * Creates a new FeatureRenderer object.
    * 
    * @param av
-   *          DOCUMENT ME!
    */
   public FeatureRenderer(AlignmentViewport av)
   {
-    super();
-    this.av = av;
+    super(av);
 
-    setTransparencyAvailable(!System.getProperty("java.version")
-            .startsWith("1.1"));
   }
 
   static String lastFeatureAdded;
@@ -97,51 +98,35 @@ public class FeatureRenderer extends
     /**
      * render a feature style in the amend feature dialog box
      */
-    public void updateColor(Object newcol)
+    public void updateColor(FeatureColourI newcol)
     {
-
-      Color bg, col = null;
-      GraduatedColor gcol = null;
+      Color bg = null;
       String vlabel = "";
-      if (newcol instanceof Color)
+      if (newcol.isSimpleColour())
       {
-        isGcol = false;
-        col = (Color) newcol;
-        gcol = null;
-      }
-      else if (newcol instanceof GraduatedColor)
-      {
-        isGcol = true;
-        gcol = (GraduatedColor) newcol;
-        col = null;
+        bg = newcol.getColour();
+        setBackground(bg);
       }
       else
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_colour_for_mycheckbox"));
-      }
-      if (col != null)
-      {
-        setBackground(bg = col);
-      }
-      else
-      {
-        if (gcol.getThreshType() != AnnotationColourGradient.NO_THRESHOLD)
+        if (newcol.isAboveThreshold())
         {
-          vlabel += " "
-                  + ((gcol.getThreshType() == AnnotationColourGradient.ABOVE_THRESHOLD) ? "(>)"
-                          : "(<)");
+          vlabel += " (>)";
         }
-        if (isColourByLabel = gcol.isColourByLabel())
+        else if (newcol.isBelowThreshold())
+        {
+          vlabel += " (<)";
+        }
+
+        if (isColourByLabel = newcol.isColourByLabel())
         {
           setBackground(bg = Color.white);
           vlabel += " (by Label)";
         }
         else
         {
-          setBackground(bg = gcol.getMinColor());
-          maxCol = gcol.getMaxColor();
+          setBackground(bg = newcol.getMinColour());
+          maxCol = newcol.getMaxColour();
         }
       }
       label = vlabel;
@@ -154,6 +139,7 @@ public class FeatureRenderer extends
       super(null);
     }
 
+    @Override
     public void paint(Graphics g)
     {
       Dimension d = getSize();
@@ -227,6 +213,7 @@ public class FeatureRenderer extends
 
       overlaps.addItemListener(new java.awt.event.ItemListener()
       {
+        @Override
         public void itemStateChanged(java.awt.event.ItemEvent e)
         {
           int index = overlaps.getSelectedIndex();
@@ -239,18 +226,19 @@ public class FeatureRenderer extends
             start.setText(features[index].getBegin() + "");
             end.setText(features[index].getEnd() + "");
 
-            SearchResults highlight = new SearchResults();
+            SearchResultsI highlight = new SearchResults();
             highlight.addResult(sequences[0], features[index].getBegin(),
                     features[index].getEnd());
 
             ap.seqPanel.seqCanvas.highlightSearchResults(highlight);
 
           }
-          Object col = getFeatureStyle(name.getText());
+          FeatureColourI col = getFeatureStyle(name.getText());
           if (col == null)
           {
-            col = new jalview.schemes.UserColourScheme()
+            Color generatedColour = UserColourScheme
                     .createColourFromName(name.getText());
+            col = new FeatureColour(generatedColour);
           }
 
           colourPanel.updateColor(col);
@@ -264,23 +252,24 @@ public class FeatureRenderer extends
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label("Name: ", Label.RIGHT));
+    tmp.add(new Label(MessageManager.getString("label.name:"), Label.RIGHT));
     tmp.add(name);
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label("Group: ", Label.RIGHT));
+    tmp.add(new Label(MessageManager.getString("label.group:"), Label.RIGHT));
     tmp.add(source);
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label("Colour: ", Label.RIGHT));
+    tmp.add(new Label(MessageManager.getString("label.colour"), Label.RIGHT));
     tmp.add(colourPanel);
 
     bigPanel.add(panel, BorderLayout.NORTH);
 
     panel = new Panel();
-    panel.add(new Label("Description: ", Label.RIGHT));
+    panel.add(new Label(MessageManager.getString("label.description:"),
+            Label.RIGHT));
     panel.add(new ScrollPane().add(description));
 
     if (!newFeatures)
@@ -288,9 +277,11 @@ public class FeatureRenderer extends
       bigPanel.add(panel, BorderLayout.SOUTH);
 
       panel = new Panel();
-      panel.add(new Label(" Start:", Label.RIGHT));
+      panel.add(new Label(MessageManager.getString("label.start"),
+              Label.RIGHT));
       panel.add(start);
-      panel.add(new Label("  End:", Label.RIGHT));
+      panel.add(new Label(MessageManager.getString("label.end"),
+              Label.RIGHT));
       panel.add(end);
       bigPanel.add(panel, BorderLayout.CENTER);
     }
@@ -344,6 +335,7 @@ public class FeatureRenderer extends
       dialog.buttonPanel.add(deleteButton, 1);
       deleteButton.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent evt)
         {
           deleteFeature = true;
@@ -357,20 +349,16 @@ public class FeatureRenderer extends
     start.setText(features[0].getBegin() + "");
     end.setText(features[0].getEnd() + "");
     description.setText(features[0].getDescription());
-    Color col = getColour(name.getText());
-    if (col == null)
-    {
-      col = new jalview.schemes.UserColourScheme()
-              .createColourFromName(name.getText());
-    }
-    Object fcol = getFeatureStyle(name.getText());
+    // lookup (or generate) the feature colour
+    FeatureColourI fcol = getFeatureStyle(name.getText());
     // simply display the feature color in a box
     colourPanel.updateColor(fcol);
     dialog.setResizable(true);
     // TODO: render the graduated color in the box.
-    colourPanel.addMouseListener(new java.awt.event.MouseAdapter()
+    colourPanel.addMouseListener(new MouseAdapter()
     {
-      public void mousePressed(java.awt.event.MouseEvent evt)
+      @Override
+      public void mousePressed(MouseEvent evt)
       {
         if (!colourPanel.isGcol)
         {
@@ -378,15 +366,14 @@ public class FeatureRenderer extends
         }
         else
         {
-          FeatureColourChooser fcc = new FeatureColourChooser(
-                  ap.alignFrame, name.getText());
+          new FeatureColourChooser(ap.alignFrame, name.getText());
           dialog.transferFocus();
         }
       }
     });
     dialog.setVisible(true);
 
-    jalview.io.FeaturesFile ffile = new jalview.io.FeaturesFile();
+    FeaturesFile ffile = new FeaturesFile();
 
     if (dialog.accept)
     {
@@ -415,7 +402,7 @@ public class FeatureRenderer extends
         if (!colourPanel.isGcol)
         {
           // update colour - otherwise its already done.
-          setColour(sf.type, colourPanel.getBackground());
+          setColour(sf.type, new FeatureColour(colourPanel.getBackground()));
         }
         try
         {
@@ -455,7 +442,7 @@ public class FeatureRenderer extends
         {
           setGroupVisibility(lastFeatureGroupAdded, true);
         }
-        setColour(lastFeatureAdded, newColour); // was fcol
+        setColour(lastFeatureAdded, new FeatureColour(newColour)); // was fcol
         setVisible(lastFeatureAdded);
         findAllFeatures(false); // different to original applet behaviour ?
         // findAllFeatures();

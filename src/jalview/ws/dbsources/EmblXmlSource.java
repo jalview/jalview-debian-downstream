@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,14 +29,15 @@ import jalview.util.MessageManager;
 import jalview.ws.ebi.EBIFetchClient;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class EmblXmlSource extends EbiFileRetrievedProxy
 {
-
-  /**
-   * Last properly parsed embl file.
+  /*
+   * JAL-1856 Embl returns this text for query not found
    */
-  public EmblFile efile = null;
+  private static final String EMBL_NOT_FOUND_REPLY = "ERROR 12 No entries found.";
 
   public EmblXmlSource()
   {
@@ -62,7 +63,8 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
     try
     {
       reply = dbFetch.fetchDataAsFile(
-              emprefx.toLowerCase() + ":" + query.trim(), "emblxml", null);
+              emprefx.toLowerCase() + ":" + query.trim(), "display=xml",
+              ".xml");
     } catch (Exception e)
     {
       stopQuery();
@@ -88,71 +90,50 @@ public abstract class EmblXmlSource extends EbiFileRetrievedProxy
   public AlignmentI getEmblSequenceRecords(String emprefx, String query,
           File reply) throws Exception
   {
-    SequenceI seqs[] = null;
-    StringBuffer result = new StringBuffer();
+    EmblFile efile = null;
+    List<SequenceI> seqs = new ArrayList<SequenceI>();
+
     if (reply != null && reply.exists())
     {
-      efile = null;
       file = reply.getAbsolutePath();
-      if (reply.length() > 25)
+      if (reply.length() > EMBL_NOT_FOUND_REPLY.length())
       {
         efile = EmblFile.getEmblFile(reply);
       }
-      else
-      {
-        result.append(MessageManager.formatMessage(
-                "label.no_embl_record_found",
-                new String[] { emprefx.toLowerCase(), query.trim() }));
-      }
     }
-    if (efile != null)
+
+    /*
+     * invalid accession gets a reply with no <entry> elements, text content of
+     * EmbFile reads something like (e.g.) this ungrammatical phrase
+     * Entry: <acc> display type is either not supported or entry is not found.
+     */
+    List<SequenceI> peptides = new ArrayList<SequenceI>();
+    if (efile != null && efile.getEntries() != null)
     {
       for (EmblEntry entry : efile.getEntries())
       {
-        SequenceI[] seqparts = entry.getSequences(false, true, emprefx);
-        // TODO: use !fetchNa,!fetchPeptide here instead - see todo in EmblEntry
-        if (seqparts != null)
+        SequenceI seq = entry.getSequence(emprefx, peptides);
+        if (seq != null)
         {
-          SequenceI[] newseqs = null;
-          int si = 0;
-          if (seqs == null)
-          {
-            newseqs = new SequenceI[seqparts.length];
-          }
-          else
-          {
-            newseqs = new SequenceI[seqs.length + seqparts.length];
-
-            for (; si < seqs.length; si++)
-            {
-              newseqs[si] = seqs[si];
-              seqs[si] = null;
-            }
-          }
-          for (int j = 0; j < seqparts.length; si++, j++)
-          {
-            newseqs[si] = seqparts[j].deriveSequence();
-            // place DBReferences on dataset and refer
-          }
-          seqs = newseqs;
-
+          seqs.add(seq.deriveSequence());
+          // place DBReferences on dataset and refer
         }
       }
     }
-    else
-    {
-      result = null;
-    }
+
     AlignmentI al = null;
-    if (seqs != null && seqs.length > 0)
+    if (!seqs.isEmpty())
     {
-      al = new Alignment(seqs);
-      result.append(MessageManager.formatMessage(
-              "label.embl_successfully_parsed", new String[] { emprefx }));
-      results = result;
+      al = new Alignment(seqs.toArray(new SequenceI[seqs.size()]));
     }
     stopQuery();
     return al;
+  }
+
+  @Override
+  public boolean isDnaCoding()
+  {
+    return true;
   }
 
 }

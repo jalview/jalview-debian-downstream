@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -131,8 +131,9 @@ public class SliderPanel extends Panel implements ActionListener,
       pid = (SliderPanel) PIDSlider.getComponent(0);
       pid.cs = cs;
     }
-    PIDSlider.setTitle(MessageManager
-            .formatMessage("label.percentage_identity_thereshold",
+    PIDSlider
+            .setTitle(MessageManager.formatMessage(
+                    "label.percentage_identity_threshold",
                     new String[] { source }));
 
     if (ap.av.getAlignment().getGroups() != null)

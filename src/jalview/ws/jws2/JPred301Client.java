@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.ws.jws2;
 
-import jalview.api.AlignCalcWorkerI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.gui.AlignFrame;
@@ -43,9 +42,7 @@ import compbio.data.sequence.JpredAlignment;
 import compbio.metadata.Argument;
 
 public class JPred301Client extends JabawsMsaInterfaceAlignCalcWorker
-        implements AlignCalcWorkerI
 {
-
   /**
    * 
    * @return default args for this service when run as dynamic web service
@@ -87,6 +84,7 @@ public class JPred301Client extends JabawsMsaInterfaceAlignCalcWorker
     return (seqs.size() > 1);
   }
 
+  @Override
   public String getServiceActionText()
   {
     return "calculating consensus secondary structure prediction using JPred service";
@@ -112,6 +110,7 @@ public class JPred301Client extends JabawsMsaInterfaceAlignCalcWorker
    * update the consensus annotation from the sequence profile data using
    * current visualization settings.
    */
+  @Override
   public void updateResultAnnotation(boolean immediate)
   {
     if (immediate || !calcMan.isWorking(this) && msascoreset != null)

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -69,7 +69,7 @@ public class Dna
 
   final private int dnaWidth;
 
-  final private Alignment dataset;
+  final private AlignmentI dataset;
 
   /*
    * Working variables for the translation.
@@ -208,13 +208,13 @@ public class Dna
     for (int gd = 0; gd < selection.length; gd++)
     {
       SequenceI dna = selection[gd];
-      DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRef(),
+      DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRefs(),
               jalview.datamodel.DBRefSource.DNACODINGDBS);
       if (dnarefs != null)
       {
         // intersect with pep
         List<DBRefEntry> mappedrefs = new ArrayList<DBRefEntry>();
-        DBRefEntry[] refs = dna.getDBRef();
+        DBRefEntry[] refs = dna.getDBRefs();
         for (int d = 0; d < refs.length; d++)
         {
           if (refs[d].getMap() != null && refs[d].getMap().getMap() != null
@@ -773,7 +773,7 @@ public class Dna
   {
     SequenceFeature[] sfs = dna.getSequenceFeatures();
     Boolean fgstate;
-    DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRef(),
+    DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRefs(),
             DBRefSource.DNACODINGDBS);
     if (dnarefs != null)
     {
@@ -805,5 +805,165 @@ public class Dna
         }
       }
     }
+  }
+
+  /**
+   * Returns an alignment consisting of the reversed (and optionally
+   * complemented) sequences set in this object's constructor
+   * 
+   * @param complement
+   * @return
+   */
+  public AlignmentI reverseCdna(boolean complement)
+  {
+    int sSize = selection.size();
+    List<SequenceI> reversed = new ArrayList<SequenceI>();
+    for (int s = 0; s < sSize; s++)
+    {
+      SequenceI newseq = reverseSequence(selection.get(s).getName(),
+              seqstring[s], complement);
+
+      if (newseq != null)
+      {
+        reversed.add(newseq);
+      }
+    }
+
+    SequenceI[] newseqs = reversed.toArray(new SequenceI[reversed.size()]);
+    AlignmentI al = new Alignment(newseqs);
+    ((Alignment) al).createDatasetAlignment();
+    return al;
+  }
+
+  /**
+   * Returns a reversed, and optionally complemented, sequence. The new
+   * sequence's name is the original name with "|rev" or "|revcomp" appended.
+   * aAcCgGtT and DNA ambiguity codes are complemented, any other characters are
+   * left unchanged.
+   * 
+   * @param seq
+   * @param complement
+   * @return
+   */
+  public static SequenceI reverseSequence(String seqName, String sequence,
+          boolean complement)
+  {
+    String newName = seqName + "|rev" + (complement ? "comp" : "");
+    char[] originalSequence = sequence.toCharArray();
+    int length = originalSequence.length;
+    char[] reversedSequence = new char[length];
+    int bases = 0;
+    for (int i = 0; i < length; i++)
+    {
+      char c = complement ? getComplement(originalSequence[i])
+              : originalSequence[i];
+      reversedSequence[length - i - 1] = c;
+      if (!Comparison.isGap(c))
+      {
+        bases++;
+      }
+    }
+    SequenceI reversed = new Sequence(newName, reversedSequence, 1, bases);
+    return reversed;
+  }
+
+  /**
+   * Returns dna complement (preserving case) for aAcCgGtTuU. Ambiguity codes
+   * are treated as on http://reverse-complement.com/. Anything else is left
+   * unchanged.
+   * 
+   * @param c
+   * @return
+   */
+  public static char getComplement(char c)
+  {
+    char result = c;
+    switch (c)
+    {
+    case '-':
+    case '.':
+    case ' ':
+      break;
+    case 'a':
+      result = 't';
+      break;
+    case 'A':
+      result = 'T';
+      break;
+    case 'c':
+      result = 'g';
+      break;
+    case 'C':
+      result = 'G';
+      break;
+    case 'g':
+      result = 'c';
+      break;
+    case 'G':
+      result = 'C';
+      break;
+    case 't':
+      result = 'a';
+      break;
+    case 'T':
+      result = 'A';
+      break;
+    case 'u':
+      result = 'a';
+      break;
+    case 'U':
+      result = 'A';
+      break;
+    case 'r':
+      result = 'y';
+      break;
+    case 'R':
+      result = 'Y';
+      break;
+    case 'y':
+      result = 'r';
+      break;
+    case 'Y':
+      result = 'R';
+      break;
+    case 'k':
+      result = 'm';
+      break;
+    case 'K':
+      result = 'M';
+      break;
+    case 'm':
+      result = 'k';
+      break;
+    case 'M':
+      result = 'K';
+      break;
+    case 'b':
+      result = 'v';
+      break;
+    case 'B':
+      result = 'V';
+      break;
+    case 'v':
+      result = 'b';
+      break;
+    case 'V':
+      result = 'B';
+      break;
+    case 'd':
+      result = 'h';
+      break;
+    case 'D':
+      result = 'H';
+      break;
+    case 'h':
+      result = 'd';
+      break;
+    case 'H':
+      result = 'D';
+      break;
+    }
+
+    return result;
   }
 }

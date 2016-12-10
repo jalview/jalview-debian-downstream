@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.ws.dbsources;
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
+import jalview.io.FormatAdapter;
 import jalview.ws.seqfetcher.DbSourceProxyImpl;
 
 /**
@@ -40,10 +41,12 @@ public abstract class Xfam extends DbSourceProxyImpl
 
   protected abstract String getXFAMURL();
 
+  @Override
   public abstract String getDbVersion();
 
   abstract String getXfamSource();
 
+  @Override
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
     // TODO: this is not a perfect implementation. We need to be able to add
@@ -51,9 +54,9 @@ public abstract class Xfam extends DbSourceProxyImpl
     // retrieved.
     startQuery();
     // TODO: trap HTTP 404 exceptions and return null
-    AlignmentI rcds = new jalview.io.FormatAdapter().readFile(getXFAMURL()
-            + queries.trim().toUpperCase(), jalview.io.FormatAdapter.URL,
-            "STH");
+    AlignmentI rcds = new FormatAdapter().readFile(getXFAMURL()
+            + queries.trim().toUpperCase() + getXFAMURLSUFFIX(),
+            jalview.io.FormatAdapter.URL, "STH");
     for (int s = 0, sNum = rcds.getHeight(); s < sNum; s++)
     {
       rcds.getSequenceAt(s).addDBRef(new DBRefEntry(getXfamSource(),
@@ -68,6 +71,25 @@ public abstract class Xfam extends DbSourceProxyImpl
     }
     stopQuery();
     return rcds;
+  }
+
+  /**
+   * Pfam and Rfam provide alignments
+   */
+  @Override
+  public boolean isAlignmentSource()
+  {
+    return true;
+  }
+
+  /**
+   * default suffix to append the retrieval URL for this source.
+   * 
+   * @return "" for most Xfam sources
+   */
+  public String getXFAMURLSUFFIX()
+  {
+    return "";
   }
 
 }

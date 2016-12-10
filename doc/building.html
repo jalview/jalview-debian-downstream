@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,13 +26,12 @@
 <p>
 You will need the following (hopefully):<br>
 <ul>
-<li>Java development kit (JDK1.6 is the recommended platform for developing with Jalview, although JDK1.7 seems to work too!).</li>
-<li>Ant (we think 1.5.4 is quite sufficient to use the simple build
-file supplied, and it seems to work with later versions e.g. 1.7).</li>
+<li>Java development kit (JDK1.8 is now the recommended platform for developing with Jalview.</li>
+<li>Ant (1.7 or later will be needed for some of the jarsigning tools).</li>
 </ul>
 With any luck, after setting your paths and JAVA_HOME correctly, you
 just need to change to the Jalview directory and run ant (this works
-from JBuilder and eclipse too, but NetBeans is a bit trickier).
+from eclipse too, but NetBeans is a bit trickier).
 <pre>
    ant
 </pre>
@@ -46,23 +45,24 @@ build target in ant to make the signed jar files in a directory called
 dist. But first you need to make your own key:
 <p><strong>Making your own key</strong></p>
 
-<p>The ant 'makefulldist' target assumes that a keystore exists in a
-directory 'keys'. To make a key accessible using the default settings
-in the build.xml file then make the keys directory and add the
-jarsigner key with the following :
-</p>
-<pre>
-mkdir keys
-keytool -genkey -keystore keys/.keystore -keypass alignmentisfun
--storepass alignmentisfun -alias jalview
- (you will have to answer some personal questions here)
-ant makedist
- (should eventually generate a Jalview.jnlp file
-  in ./dist along with a set of signed jars using the jalview
-  key)
-</pre>
-
-	<p>
+  <p>The ant 'makefulldist' target assumes that a keystore exists in
+    a directory 'keys'. To make a key accessible using the default
+    settings in the build.xml file then make the keys directory and add
+    the jarsigner key with the following :</p>
+  <pre>mkdir keys</pre>
+  <pre>keytool -genkey -keystore keys/.keystore -keypass alignmentisfun
+  -storepass alignmentisfun -sigalg SHA1withRSA -keyalg RSA -alias jalview</pre>
+  <em>(you will have to answer some personal questions here)</em>
+  <pre>ant makedist -DWebStartLocation="file://.pathtojalviewsource./dist" -Dapplication.codebase="*"</pre>
+  <p>This should eventually generate a jalview.jnlp file in ./dist
+    along with a set of signed jars using the jalview key). In order to
+    test locally via webstart you'll now need to add 'file:/' to your
+    java webstart security exception list. Then:</p>
+  <pre>javaws file://.pathtojalviewsource./dist/jalview.jnlp</pre>
+  <p>Please remember to remove that entry afterwards, since it will leave
+  your system vulnerable to malicious code.
+  </p>
+  <p>
 		<strong>Building the JalviewLite applet<br>
 		</strong> The JalviewLite applet is compiled using a subset of the packages in
 		the src directory (specifically: MCView, and jalview.{datamodel,

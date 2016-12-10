@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,7 +25,7 @@ import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceI;
 import jalview.structure.StructureSelectionManager;
 
@@ -68,7 +68,8 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
   // this value is set false when selection area being dragged
   boolean fastPaint = true;
 
-  public void finalize()
+  @Override
+  public void finalize() throws Throwable
   {
     alignFrame = null;
     av = null;
@@ -80,6 +81,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
     annotationPanel = null;
     annotationPanelHolder = null;
     annotationSpaceFillerHolder = null;
+    super.finalize();
   }
 
   public AlignmentPanel(AlignFrame af, final AlignViewport av)
@@ -121,6 +123,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
 
     addComponentListener(new ComponentAdapter()
     {
+      @Override
       public void componentResized(ComponentEvent evt)
       {
         setScrollValues(av.getStartRes(), av.getStartSeq());
@@ -146,6 +149,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
     final AlignmentPanel ap = this;
     av.addPropertyChangeListener(new java.beans.PropertyChangeListener()
     {
+      @Override
       public void propertyChange(java.beans.PropertyChangeEvent evt)
       {
         if (evt.getPropertyName().equals("alignment"))
@@ -289,7 +293,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    * Highlight the given results on the alignment.
    * 
    */
-  public void highlightSearchResults(SearchResults results)
+  public void highlightSearchResults(SearchResultsI results)
   {
     scrollToPosition(results);
     seqPanel.seqCanvas.highlightSearchResults(results);
@@ -302,7 +306,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    * @param results
    * @return false if results were not found
    */
-  public boolean scrollToPosition(SearchResults results)
+  public boolean scrollToPosition(SearchResultsI results)
   {
     return scrollToPosition(results, true);
   }
@@ -316,10 +320,10 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    *          - when set, the overview will be recalculated (takes longer)
    * @return false if results were not found
    */
-  public boolean scrollToPosition(SearchResults results,
+  public boolean scrollToPosition(SearchResultsI results,
           boolean redrawOverview)
   {
-    return scrollToPosition(results, redrawOverview, false);
+    return scrollToPosition(results, 0, redrawOverview, false);
   }
 
   /**
@@ -331,7 +335,8 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    *          - when set, the overview will be recalculated (takes longer)
    * @return false if results were not found
    */
-  public boolean scrollToPosition(SearchResults results,
+  public boolean scrollToPosition(SearchResultsI results,
+          int verticalOffset,
           boolean redrawOverview, boolean centre)
   {
     // do we need to scroll the panel?
@@ -343,6 +348,10 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
       {
         return false;
       }
+      /*
+       * allow for offset of target sequence (actually scroll to one above it)
+       */
+
       SequenceI seq = alignment.getSequenceAt(seqIndex);
       int[] r = results.getResults(seq, 0, alignment.getWidth());
       if (r == null)
@@ -387,6 +396,11 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
       {
         return false;
       }
+
+      /*
+       * allow for offset of target sequence (actually scroll to one above it)
+       */
+      seqIndex = Math.max(0, seqIndex - verticalOffset);
       return scrollTo(start, end, seqIndex, false, redrawOverview);
     }
     return true;
@@ -415,6 +429,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
     {
       start = ostart;
     }
+
     if (!av.getWrapAlignment())
     {
       /*
@@ -538,6 +553,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    * automatically adjust annotation panel height for new annotation whilst
    * ensuring the alignment is still visible.
    */
+  @Override
   public void adjustAnnotationHeight()
   {
     // TODO: display vertical annotation scrollbar if necessary
@@ -770,6 +786,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
 
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     int oldX = av.getStartRes();
@@ -896,14 +913,14 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
    * @param seqOffset
    *          the number of visible sequences to show above the mapped region
    */
-  protected void scrollToCentre(SearchResults sr, int seqOffset)
+  protected void scrollToCentre(SearchResultsI sr, int seqOffset)
   {
     /*
      * To avoid jumpy vertical scrolling (if some sequences are gapped or not
      * mapped), we can make the scroll-to location a sequence above the one
      * actually mapped.
      */
-    SequenceI mappedTo = sr.getResultSequence(0);
+    SequenceI mappedTo = sr.getResults().get(0).getSequence();
     List<SequenceI> seqs = av.getAlignment().getSequences();
 
     /*
@@ -925,16 +942,14 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
     {
       return; // failsafe, shouldn't happen
     }
-    sequenceIndex = Math.max(0, sequenceIndex - seqOffset);
-    sr.getResults().get(0)
-            .setSequence(av.getAlignment().getSequenceAt(sequenceIndex));
 
     /*
      * Scroll to position but centring the target residue. Also set a state flag
      * to prevent adjustmentValueChanged performing this recursively.
      */
     setFollowingComplementScroll(true);
-    scrollToPosition(sr, true, true);
+    // this should be scrollToPosition(sr,verticalOffset,
+    scrollToPosition(sr, seqOffset, true, true);
   }
 
   private void sendViewPosition()
@@ -947,6 +962,7 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
   /**
    * Repaint the alignment and annotations, and, optionally, any overview window
    */
+  @Override
   public void paintAlignment(boolean updateOverview)
   {
     final AnnotationSorter sorter = new AnnotationSorter(getAlignment(),
@@ -969,11 +985,13 @@ public class AlignmentPanel extends Panel implements AdjustmentListener,
     }
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     invalidate();

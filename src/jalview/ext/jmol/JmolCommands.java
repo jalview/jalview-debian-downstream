@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -64,7 +64,9 @@ public class JmolCommands
       ArrayList<String> str = new ArrayList<String>();
 
       if (mapping == null || mapping.length < 1)
+      {
         continue;
+      }
 
       int lastPos = -1;
       for (int s = 0; s < sequence[pdbfnum].length; s++)
@@ -85,14 +87,18 @@ public class JmolCommands
               int pos = mapping[m].getPDBResNum(asp.findPosition(r));
 
               if (pos < 1 || pos == lastPos)
+              {
                 continue;
+              }
 
               lastPos = pos;
 
               Color col = sr.getResidueBoxColour(sequence[pdbfnum][s], r);
 
               if (fr != null)
+              {
                 col = fr.findFeatureColour(col, sequence[pdbfnum][s], r);
+              }
               String newSelcom = (mapping[m].getChain() != " " ? ":"
                       + mapping[m].getChain() : "")
                       + "/"
@@ -125,7 +131,7 @@ public class JmolCommands
               command.append("select " + pos);
               command.append(newSelcom);
             }
-            break;
+            // break;
           }
         }
       }

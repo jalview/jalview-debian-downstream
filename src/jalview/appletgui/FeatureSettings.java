@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,11 +20,10 @@
  */
 package jalview.appletgui;
 
+import jalview.api.FeatureColourI;
 import jalview.api.FeatureSettingsControllerI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceFeature;
-import jalview.schemes.AnnotationColourGradient;
-import jalview.schemes.GraduatedColor;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -57,9 +56,10 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 public class FeatureSettings extends Panel implements ItemListener,
@@ -94,14 +94,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     transparency = new Scrollbar(Scrollbar.HORIZONTAL,
             100 - (int) (fr.getTransparency() * 100), 1, 1, 100);
 
-    if (fr.isTransparencyAvailable())
-    {
-      transparency.addAdjustmentListener(this);
-    }
-    else
-    {
-      transparency.setEnabled(false);
-    }
+    transparency.addAdjustmentListener(this);
 
     java.net.URL url = getClass().getResource("/images/link.gif");
     if (url != null)
@@ -133,17 +126,8 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     Panel tPanel = new Panel(new BorderLayout());
 
-    if (fr.isTransparencyAvailable())
-    {
-      tPanel.add(transparency, BorderLayout.CENTER);
-      tPanel.add(new Label("Transparency"), BorderLayout.EAST);
-    }
-    else
-    {
-      tPanel.add(
-              new Label("Transparency not available in this web browser"),
-              BorderLayout.CENTER);
-    }
+    tPanel.add(transparency, BorderLayout.CENTER);
+    tPanel.add(new Label("Transparency"), BorderLayout.EAST);
 
     lowerPanel.add(tPanel, BorderLayout.SOUTH);
 
@@ -165,6 +149,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     final FeatureSettings me = this;
     frame.addWindowListener(new WindowAdapter()
     {
+      @Override
       public void windowClosing(WindowEvent e)
       {
         if (me.av.featureSettings == me)
@@ -185,6 +170,7 @@ public class FeatureSettings extends Panel implements ItemListener,
             width, height);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     g.setColor(Color.black);
@@ -198,12 +184,12 @@ public class FeatureSettings extends Panel implements ItemListener,
             60);
   }
 
-  protected void popupSort(final MyCheckbox check, final Hashtable minmax,
-          int x, int y)
+  protected void popupSort(final MyCheckbox check,
+          final Map<String, float[][]> minmax, int x, int y)
   {
     final String type = check.type;
-    final Object typeCol = fr.getFeatureStyle(type);
-    java.awt.PopupMenu men = new PopupMenu(MessageManager.formatMessage(
+    final FeatureColourI typeCol = fr.getFeatureStyle(type);
+    PopupMenu men = new PopupMenu(MessageManager.formatMessage(
             "label.settings_for_type", new String[] { type }));
     java.awt.MenuItem scr = new MenuItem(
             MessageManager.getString("label.sort_by_score"));
@@ -212,10 +198,11 @@ public class FeatureSettings extends Panel implements ItemListener,
     scr.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc
-                .sortAlignmentByFeatureScore(new String[] { type });
+        me.ap.alignFrame.avc.sortAlignmentByFeatureScore(Arrays
+                .asList(new String[] { type }));
       }
 
     });
@@ -224,17 +211,19 @@ public class FeatureSettings extends Panel implements ItemListener,
     dens.addActionListener(new ActionListener()
     {
 
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc
-                .sortAlignmentByFeatureDensity(new String[] { type });
+        me.ap.alignFrame.avc.sortAlignmentByFeatureDensity(Arrays
+                .asList(new String[] { type }));
       }
 
     });
     men.add(dens);
+
     if (minmax != null)
     {
-      final Object typeMinMax = minmax.get(type);
+      final float[][] typeMinMax = minmax.get(type);
       /*
        * final java.awt.CheckboxMenuItem chb = new
        * java.awt.CheckboxMenuItem("Vary Height"); // this is broken at the
@@ -247,20 +236,21 @@ public class FeatureSettings extends Panel implements ItemListener,
        * 
        * }); men.add(chb);
        */
-      if (typeMinMax != null && ((float[][]) typeMinMax)[0] != null)
+      if (typeMinMax != null && typeMinMax[0] != null)
       {
         // graduated colourschemes for those where minmax exists for the
         // positional features
         MenuItem mxcol = new MenuItem(
-                (typeCol instanceof Color) ? "Graduated Colour"
+                (typeCol.isSimpleColour()) ? "Graduated Colour"
                         : "Single Colour");
         men.add(mxcol);
         mxcol.addActionListener(new ActionListener()
         {
 
+          @Override
           public void actionPerformed(ActionEvent e)
           {
-            if (typeCol instanceof Color)
+            if (typeCol.isSimpleColour())
             {
               new FeatureColourChooser(me, type);
               // write back the current colour object to update the table
@@ -268,14 +258,64 @@ public class FeatureSettings extends Panel implements ItemListener,
             }
             else
             {
-              new UserDefinedColours(me, check.type,
-                      ((GraduatedColor) typeCol));
+              new UserDefinedColours(me, check.type, typeCol);
             }
           }
 
         });
       }
     }
+
+    MenuItem selectContaining = new MenuItem(
+            MessageManager.getString("label.select_columns_containing"));
+    selectContaining.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        me.ap.alignFrame.avc.markColumnsContainingFeatures(false, false,
+                false, type);
+      }
+    });
+    men.add(selectContaining);
+
+    MenuItem selectNotContaining = new MenuItem(
+            MessageManager.getString("label.select_columns_not_containing"));
+    selectNotContaining.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        me.ap.alignFrame.avc.markColumnsContainingFeatures(true, false,
+                false, type);
+      }
+    });
+    men.add(selectNotContaining);
+
+    MenuItem hideContaining = new MenuItem(
+            MessageManager.getString("label.hide_columns_containing"));
+    hideContaining.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        hideFeatureColumns(type, true);
+      }
+    });
+    men.add(hideContaining);
+
+    MenuItem hideNotContaining = new MenuItem(
+            MessageManager.getString("label.hide_columns_not_containing"));
+    hideNotContaining.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        hideFeatureColumns(type, false);
+      }
+    });
+    men.add(hideNotContaining);
+
     this.featurePanel.add(men);
     men.show(this.featurePanel, x, y);
   }
@@ -312,9 +352,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     for (String group : fr.getFeatureGroups())
     {
       boolean vis = fr.checkGroupVisibility(group, false);
-      Checkbox check = new MyCheckbox(group, vis,
-              (fr.featureLinks != null && fr.featureLinks
-                      .containsKey(group)));
+      Checkbox check = new MyCheckbox(group, vis, false);
       check.addMouseListener(this);
       check.setFont(new Font("Serif", Font.BOLD, 12));
       check.addItemListener(groupItemListener);
@@ -334,7 +372,7 @@ public class FeatureSettings extends Panel implements ItemListener,
   {
     SequenceFeature[] tmpfeatures;
     String group = null, type;
-    Vector visibleChecks = new Vector();
+    Vector<String> visibleChecks = new Vector<String>();
     AlignmentI alignment = av.getAlignment();
     for (int i = 0; i < alignment.getHeight(); i++)
     {
@@ -400,7 +438,7 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     // now add checkboxes which should be visible,
     // if they have not already been added
-    Enumeration en = visibleChecks.elements();
+    Enumeration<String> en = visibleChecks.elements();
 
     while (en.hasMoreElements())
     {
@@ -452,10 +490,7 @@ public class FeatureSettings extends Panel implements ItemListener,
         selected = true;
       }
 
-      check = new MyCheckbox(
-              type,
-              selected,
-              (fr.featureLinks != null && fr.featureLinks.containsKey(type)),
+      check = new MyCheckbox(type, selected, false,
               fr.getFeatureStyle(type));
 
       check.addMouseListener(this);
@@ -474,6 +509,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     for (int i = 0; i < featurePanel.getComponentCount(); i++)
@@ -486,6 +522,7 @@ public class FeatureSettings extends Panel implements ItemListener,
 
   private ItemListener groupItemListener = new ItemListener()
   {
+    @Override
     public void itemStateChanged(ItemEvent evt)
     {
       Checkbox source = (Checkbox) evt.getSource();
@@ -500,6 +537,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     };
   };
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     selectionChanged();
@@ -533,22 +571,7 @@ public class FeatureSettings extends Panel implements ItemListener,
 
   boolean dragging = false;
 
-  public void mousePressed(MouseEvent evt)
-  {
-
-    selectedCheck = (MyCheckbox) evt.getSource();
-
-    if (fr.featureLinks != null
-            && fr.featureLinks.containsKey(selectedCheck.type))
-    {
-      if (evt.getX() > selectedCheck.stringWidth + 20)
-      {
-        evt.consume();
-      }
-    }
-
-  }
-
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     if (((Component) evt.getSource()).getParent() != featurePanel)
@@ -558,6 +581,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     dragging = true;
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     if (((Component) evt.getSource()).getParent() != featurePanel)
@@ -610,19 +634,9 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
   }
 
-  public void setUserColour(String feature, Object originalColour)
+  public void setUserColour(String feature, FeatureColourI originalColour)
   {
-    if (originalColour instanceof Color
-            || originalColour instanceof GraduatedColor)
-    {
-      fr.setColour(feature, originalColour);
-    }
-    else
-    {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_unsupported_feature_colour_object"));
-    }
+    fr.setColour(feature, originalColour);
     refreshTable();
   }
 
@@ -633,30 +647,23 @@ public class FeatureSettings extends Panel implements ItemListener,
     ap.paintAlignment(true);
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
     MyCheckbox check = (MyCheckbox) evt.getSource();
     if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) != 0)
     {
       this.popupSort(check, fr.getMinMax(), evt.getX(), evt.getY());
-    }
-    if (fr.featureLinks != null && fr.featureLinks.containsKey(check.type))
-    {
-      if (evt.getX() > check.stringWidth + 20)
-      {
-        evt.consume();
-        String link = fr.featureLinks.get(check.type).toString();
-        ap.alignFrame.showURL(link.substring(link.indexOf("|") + 1),
-                link.substring(0, link.indexOf("|")));
-      }
     }
 
     if (check.getParent() != featurePanel)
@@ -666,10 +673,10 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     if (evt.getClickCount() > 1)
     {
-      Object fcol = fr.getFeatureStyle(check.type);
-      if (fcol instanceof Color)
+      FeatureColourI fcol = fr.getFeatureStyle(check.type);
+      if (fcol.isSimpleColour())
       {
-        new UserDefinedColours(this, check.type, (Color) fcol);
+        new UserDefinedColours(this, check.type, fcol.getColour());
       }
       else
       {
@@ -680,10 +687,12 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     fr.setTransparency((100 - transparency.getValue()) / 100f);
@@ -699,49 +708,34 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     boolean hasLink;
 
-    GraduatedColor gcol;
+    FeatureColourI col;
 
-    Color col;
-
-    public void updateColor(Object newcol)
+    public void updateColor(FeatureColourI newcol)
     {
-      if (newcol instanceof Color)
+      col = newcol;
+      if (col.isSimpleColour())
       {
-        col = (Color) newcol;
-        gcol = null;
-      }
-      else if (newcol instanceof GraduatedColor)
-      {
-        gcol = (GraduatedColor) newcol;
-        col = null;
-      }
-      else
-      {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_colour_for_mycheckbox"));
-      }
-      if (col != null)
-      {
-        setBackground(col);
+        setBackground(col.getColour());
       }
       else
       {
         String vlabel = type;
-        if (gcol.getThreshType() != AnnotationColourGradient.NO_THRESHOLD)
+        if (col.isAboveThreshold())
         {
-          vlabel += " "
-                  + ((gcol.getThreshType() == AnnotationColourGradient.ABOVE_THRESHOLD) ? "(>)"
-                          : "(<)");
+          vlabel += " (>)";
         }
-        if (gcol.isColourByLabel())
+        else if (col.isBelowThreshold())
+        {
+          vlabel += " (<)";
+        }
+        if (col.isColourByLabel())
         {
           setBackground(Color.white);
           vlabel += " (by Label)";
         }
         else
         {
-          setBackground(gcol.getMinColor());
+          setBackground(col.getMinColour());
         }
         this.setLabel(vlabel);
       }
@@ -758,18 +752,19 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
 
     public MyCheckbox(String type, boolean selected, boolean b,
-            Object featureStyle)
+            FeatureColourI featureStyle)
     {
       this(type, selected, b);
       updateColor(featureStyle);
     }
 
+    @Override
     public void paint(Graphics g)
     {
       Dimension d = getSize();
-      if (gcol != null)
+      if (col != null)
       {
-        if (gcol.isColourByLabel())
+        if (col.isColourByLabel())
         {
           g.setColor(Color.white);
           g.fillRect(d.width / 2, 0, d.width / 2, d.height);
@@ -785,9 +780,9 @@ public class FeatureSettings extends Panel implements ItemListener,
            */
 
         }
-        else
+        else if (col.isGraduatedColour())
         {
-          Color maxCol = gcol.getMaxColor();
+          Color maxCol = col.getMaxColour();
           g.setColor(maxCol);
           g.fillRect(d.width / 2, 0, d.width / 2, d.height);
 
@@ -800,6 +795,32 @@ public class FeatureSettings extends Panel implements ItemListener,
                 (getSize().height - linkImage.getHeight(this)) / 2, this);
       }
     }
+  }
+
+  /**
+   * Hide columns containing (or not containing) a given feature type
+   * 
+   * @param type
+   * @param columnsContaining
+   */
+  void hideFeatureColumns(final String type, boolean columnsContaining)
+  {
+    if (ap.alignFrame.avc.markColumnsContainingFeatures(columnsContaining,
+            false, false, type))
+    {
+      if (ap.alignFrame.avc.markColumnsContainingFeatures(
+              !columnsContaining, false, false, type))
+      {
+        ap.alignFrame.viewport.hideSelectedColumns();
+      }
+    }
+  }
+
+  @Override
+  public void mousePressed(MouseEvent e)
+  {
+    // TODO Auto-generated method stub
+
   }
 
 }

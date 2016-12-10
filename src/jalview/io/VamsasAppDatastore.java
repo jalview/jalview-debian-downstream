@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,7 +43,6 @@ import java.util.Hashtable;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.Vector;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
@@ -1433,7 +1432,7 @@ public class VamsasAppDatastore
         // to the align frames.
         boolean gathered = false;
         String newviewid = null;
-        Set<AlignedCodonFrame> mappings = av.getAlignment()
+        List<AlignedCodonFrame> mappings = av.getAlignment()
                 .getCodonFrames();
         for (int i = 0; i < views.length; i++)
         {
@@ -2732,7 +2731,7 @@ public class VamsasAppDatastore
 
       }
       // Store any sequence mappings.
-      Set<AlignedCodonFrame> cframes = av.getAlignment().getCodonFrames();
+      List<AlignedCodonFrame> cframes = av.getAlignment().getCodonFrames();
       if (cframes != null)
       {
         for (AlignedCodonFrame acf : cframes)

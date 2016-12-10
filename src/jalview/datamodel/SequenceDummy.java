@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.datamodel;
 
-public class SequenceDummy extends Sequence implements SequenceI
+public class SequenceDummy extends Sequence
 {
   public SequenceDummy(String sequenceId)
   {
@@ -49,5 +49,15 @@ public class SequenceDummy extends Sequence implements SequenceI
   public boolean isDummy()
   {
     return dummy;
+  }
+
+  /**
+   * Always suppress /start-end for display name as we don't know it
+   */
+  @Override
+  public String getDisplayId(boolean jvsuffix)
+  {
+    // required for correct behaviour of SequenceIdMatcher
+    return super.getDisplayId(false);
   }
 }

@@ -1,3 +1,35 @@
+/* vim: set ts=2: */
+/**
+ * Copyright (c) 2006 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions, and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions, and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *   3. Redistributions must acknowledge that this software was
+ *      originally developed by the UCSF Computer Graphics Laboratory
+ *      under support by the NIH National Center for Research Resources,
+ *      grant P41-RR01081.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 package ext.edu.ucsf.rbvi.strucviz2;
 
 import java.awt.Color;
@@ -60,10 +92,25 @@ public abstract class ChimUtils
    */
   // invoked by openModel in ChimeraManager
   // line: #1, chain A: hiv-1 protease
+  // line: Model 0 (filename)
   public static int[] parseOpenedModelNumber(String inputLine)
   {
     int hash = inputLine.indexOf('#');
-    int space = inputLine.indexOf(',', hash);
+    int space = -1;
+    if (hash == (-1))
+    {
+      hash = inputLine.indexOf("Model");
+      if (hash >= 0)
+      {
+        hash = hash + 5;
+      }
+      space = inputLine.indexOf(' ', hash + 1);
+    }
+    else
+    {
+      space = inputLine.indexOf(',', hash);
+    }
+
     int decimal = inputLine.substring(hash + 1, space).indexOf('.');
     // model number is between hash+1 and space
     int modelNumber = -1;
@@ -93,7 +140,9 @@ public abstract class ChimUtils
   {
     int start = inputLine.indexOf("name ");
     if (start < 0)
+    {
       return null;
+    }
     // Might get a quoted string (don't understand why, but there you have it)
     if (inputLine.startsWith("\"", start + 5))
     {
@@ -104,7 +153,9 @@ public abstract class ChimUtils
         return inputLine.substring(start, end);
       }
       else
+      {
         return inputLine.substring(start);
+      }
     }
     else
     {
@@ -176,12 +227,18 @@ public abstract class ChimUtils
     {
       String[] subSplit = split[0].substring(1).split("\\.");
       if (subSplit.length > 0)
+      {
         model = Integer.parseInt(subSplit[0]);
+      }
       else
+      {
         model = Integer.parseInt(split[0].substring(1));
+      }
 
       if (subSplit.length > 1)
+      {
         submodel = Integer.parseInt(subSplit[1]);
+      }
     } catch (Exception e)
     {
       // ignore
@@ -258,7 +315,9 @@ public abstract class ChimUtils
   {
     if (atom.equals("C") || atom.equals("CA") || atom.equals("N")
             || atom.equals("O") || atom.equals("H"))
+    {
       return true;
+    }
     return false;
   }
 
@@ -449,7 +508,9 @@ public abstract class ChimUtils
       }
       else
       {
+        // length > 1, so we probably have a file name with "." in it
         logger.info("Could not parse model identifier: " + modelID);
+        resKeyParts[0] = modelID;
       }
     }
   }
@@ -547,8 +608,7 @@ public abstract class ChimUtils
       // }
 
       // System.out.println("model = " + model + " chain = " + chain +
-      // " residue = " +
-      // residue);
+      // " residue = " + residue);
       if (model != null)
       {
         List<ChimeraModel> models = chimeraManager.getChimeraModels(model,
@@ -594,13 +654,19 @@ public abstract class ChimUtils
       }
 
       if (chimeraResidue != null)
+      {
         return chimeraResidue;
+      }
 
       if (chimeraChain != null)
+      {
         return chimeraChain;
+      }
 
       if (chimeraModel != null)
+      {
         return chimeraModel;
+      }
 
     } catch (Exception ex)
     {
@@ -709,13 +775,19 @@ public abstract class ChimUtils
       }
 
       if (chimeraResidue != null)
+      {
         return chimeraResidue;
+      }
 
       if (chimeraChain != null)
+      {
         return chimeraChain;
+      }
 
       if (chimeraModel != null)
+      {
         return chimeraModel;
+      }
 
     } catch (Exception ex)
     {
@@ -736,7 +808,9 @@ public abstract class ChimUtils
   public static String findStructures(String residueList)
   {
     if (residueList == null)
+    {
       return null;
+    }
     String[] residues = residueList.split(",");
     Map<String, String> structureNameMap = new HashMap<String, String>();
     for (int i = 0; i < residues.length; i++)
@@ -748,15 +822,21 @@ public abstract class ChimUtils
       }
     }
     if (structureNameMap.isEmpty())
+    {
       return null;
+    }
 
     String structure = null;
     for (String struct : structureNameMap.keySet())
     {
       if (structure == null)
+      {
         structure = new String();
+      }
       else
+      {
         structure = structure.concat(",");
+      }
       structure = structure.concat(struct);
     }
     return structure;
@@ -798,7 +878,9 @@ public abstract class ChimUtils
         {
           resRange = resRange.concat("-");
           if (chain != null && range[res].indexOf('.') == -1)
+          {
             range[res] = range[res].concat("." + chain);
+          }
         }
 
         if (res == 0 && range.length >= 2 && range[res].indexOf('.') > 0)
@@ -887,8 +969,10 @@ public abstract class ChimUtils
   public static String toFullName(String aaType)
   {
     if (!aaNames.containsKey(aaType))
+    {
       return aaType;
-    String[] ids = ((String) aaNames.get(aaType)).split(" ");
+    }
+    String[] ids = aaNames.get(aaType).split(" ");
     return ids[2].replace('_', ' ');
   }
 
@@ -902,8 +986,10 @@ public abstract class ChimUtils
   public static String toSingleLetter(String aaType)
   {
     if (!aaNames.containsKey(aaType))
+    {
       return aaType;
-    String[] ids = ((String) aaNames.get(aaType)).split(" ");
+    }
+    String[] ids = aaNames.get(aaType).split(" ");
     return ids[0];
   }
 
@@ -917,8 +1003,10 @@ public abstract class ChimUtils
   public static String toThreeLetter(String aaType)
   {
     if (!aaNames.containsKey(aaType))
+    {
       return aaType;
-    String[] ids = ((String) aaNames.get(aaType)).split(" ");
+    }
+    String[] ids = aaNames.get(aaType).split(" ");
     return ids[1];
   }
 
@@ -932,10 +1020,14 @@ public abstract class ChimUtils
   public static String toSMILES(String aaType)
   {
     if (!aaNames.containsKey(aaType))
+    {
       return null;
-    String[] ids = ((String) aaNames.get(aaType)).split(" ");
+    }
+    String[] ids = aaNames.get(aaType).split(" ");
     if (ids.length < 4)
+    {
       return null;
+    }
     return ids[3];
   }
 

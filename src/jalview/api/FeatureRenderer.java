@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -60,17 +60,15 @@ public interface FeatureRenderer
    * @param ft
    * @return display style for a feature
    */
-  Object getFeatureStyle(String ft);
+  FeatureColourI getFeatureStyle(String ft);
 
   /**
    * update the feature style for a particular feature
    * 
    * @param ft
    * @param ggc
-   *          - currently allows java.awt.Color and
-   *          jalview.schemes.GraduatedColor
    */
-  void setColour(String ft, Object ggc);
+  void setColour(String ft, FeatureColourI ggc);
 
   AlignViewportI getViewport();
 
@@ -85,7 +83,7 @@ public interface FeatureRenderer
    * 
    * @return
    */
-  Map<String, Object> getFeatureColours();
+  Map<String, FeatureColourI> getFeatureColours();
 
   /**
    * query the alignment view to find all features
@@ -100,7 +98,7 @@ public interface FeatureRenderer
    * 
    * @return
    */
-  Map<String, Object> getDisplayedFeatureCols();
+  Map<String, FeatureColourI> getDisplayedFeatureCols();
 
   /**
    * get all registered groups
@@ -134,7 +132,8 @@ public interface FeatureRenderer
   void setGroupVisibility(String group, boolean visible);
 
   /**
-   * locate features at a particular position on the given sequence
+   * Returns features at the specified position on the given sequence.
+   * Non-positional features are not included.
    * 
    * @param sequence
    * @param res
@@ -143,25 +142,19 @@ public interface FeatureRenderer
   List<SequenceFeature> findFeaturesAtRes(SequenceI sequence, int res);
 
   /**
+   * get current displayed types, in ordering of rendering (on top last)
    * 
-   * @return true if the rendering platform supports transparency
-   */
-  boolean isTransparencyAvailable();
-
-  /**
-   * get current displayed types
-   * 
-   * @return
+   * @return a (possibly empty) list of feature types
    */
 
-  String[] getDisplayedFeatureTypes();
+  List<String> getDisplayedFeatureTypes();
 
   /**
    * get current displayed groups
    * 
-   * @return
+   * @return a (possibly empty) list of feature groups
    */
-  String[] getDisplayedFeatureGroups();
+  List<String> getDisplayedFeatureGroups();
 
   /**
    * display all features of these types

@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,10 +35,10 @@ td {
     <strong>Colouring above a percentage identity threshold</strong>
   </p>
   <p>Selecting this option causes the colour scheme to be applied to
-    only those residues that occur in that column more than a certain
-    percentage of the time. For instance selecting the threshold to be
-    100 will only colour those columns with 100 % identity. This
-    threshold option can be applied to the Zappo, Taylor, Hydrophobicity
-    and User colour schemes.</p>
+    only those residues that occur in that column at least a certain
+    percentage of the time. For instance, selecting the threshold to be
+    100 will only colour those columns with 100% identity, and selecting 50 will shade residues appearing in least 50% of the rows (or sequences) in each column.</p>
+   <p>The percentage calculation may include or exclude gaps in the column, depending on the option selected for the <a href="../calculations/consensus.html">consensus calculation</a>.</p>
+   <p>With a threshold of 0, colouring is unchanged.</p>
 </body>
 </html>

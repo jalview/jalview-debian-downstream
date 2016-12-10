@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -30,10 +30,15 @@ import jalview.structures.models.AAStructureBindingModel;
 import jalview.util.MessageManager;
 
 import java.awt.Component;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
@@ -75,6 +80,8 @@ public abstract class StructureViewerBase extends GStructureViewer
   protected boolean addingStructures = false;
 
   protected Thread worker = null;
+
+  protected boolean allChainsSelected = false;
 
   /**
    * 
@@ -152,6 +159,7 @@ public abstract class StructureViewerBase extends GStructureViewer
     this.ap = alp;
   }
 
+  @Override
   public AlignmentPanel[] getAllAlignmentPanels()
   {
     AlignmentPanel[] t, list = new AlignmentPanel[0];
@@ -291,6 +299,7 @@ public abstract class StructureViewerBase extends GStructureViewer
         // queue.
         new Thread(new Runnable()
         {
+          @Override
           public void run()
           {
             while (worker != null && worker.isAlive() && _started)
@@ -492,4 +501,55 @@ public abstract class StructureViewerBase extends GStructureViewer
     }
     return finished;
   }
+
+  void setChainMenuItems(List<String> chainNames)
+  {
+    chainMenu.removeAll();
+    if (chainNames == null || chainNames.isEmpty())
+    {
+      return;
+    }
+    JMenuItem menuItem = new JMenuItem(
+            MessageManager.getString("label.all"));
+    menuItem.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent evt)
+      {
+        allChainsSelected = true;
+        for (int i = 0; i < chainMenu.getItemCount(); i++)
+        {
+          if (chainMenu.getItem(i) instanceof JCheckBoxMenuItem)
+          {
+            ((JCheckBoxMenuItem) chainMenu.getItem(i)).setSelected(true);
+          }
+        }
+        showSelectedChains();
+        allChainsSelected = false;
+      }
+    });
+
+    chainMenu.add(menuItem);
+
+    for (String chain : chainNames)
+    {
+      menuItem = new JCheckBoxMenuItem(chain, true);
+      menuItem.addItemListener(new ItemListener()
+      {
+        @Override
+        public void itemStateChanged(ItemEvent evt)
+        {
+          if (!allChainsSelected)
+          {
+            showSelectedChains();
+          }
+        }
+      });
+
+      chainMenu.add(menuItem);
+    }
+  }
+
+  abstract void showSelectedChains();
+
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,17 @@
  */
 package jalview.datamodel;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Defines internal constants for unambiguous annotation of DbRefEntry source
  * strings and describing the data retrieved from external database sources (see
- * jalview.ws.DbSourcProxy)
+ * jalview.ws.DbSourcProxy) <br/>
+ * TODO: replace with ontology to allow recognition of particular attributes
+ * (e.g. protein coding, alignment (ortholog db, paralog db, domain db),
+ * genomic, transcriptomic, 3D structure providing (PDB, MODBASE, etc) ..).
  * 
  * @author JimP
  * 
@@ -33,12 +40,12 @@ public class DBRefSource
   /**
    * UNIPROT Accession Number
    */
-  public static String UNIPROT = "UNIPROT";
+  public static final String UNIPROT = "UNIPROT";
 
   /**
    * UNIPROT Entry Name
    */
-  public static String UP_NAME = "UNIPROT_NAME".toUpperCase();
+  public static final String UP_NAME = "UNIPROT_NAME".toUpperCase();
 
   /**
    * Uniprot Knowledgebase/TrEMBL as served from EMBL protein products.
@@ -51,27 +58,27 @@ public class DBRefSource
   /**
    * PDB Entry Code
    */
-  public static String PDB = "PDB";
+  public static final String PDB = "PDB";
 
   /**
    * EMBL ID
    */
-  public static String EMBL = "EMBL";
+  public static final String EMBL = "EMBL";
 
   /**
    * EMBLCDS ID
    */
-  public static String EMBLCDS = "EMBLCDS";
+  public static final String EMBLCDS = "EMBLCDS";
 
   /**
    * PFAM ID
    */
-  public static String PFAM = "PFAM";
+  public static final String PFAM = "PFAM";
 
   /**
    * RFAM ID
    */
-  public static String RFAM = "RFAM";
+  public static final String RFAM = "RFAM";
 
   /**
    * GeneDB ID
@@ -79,62 +86,39 @@ public class DBRefSource
   public static final String GENEDB = "GeneDB".toUpperCase();
 
   /**
+   * Ensembl
+   */
+  public static final String ENSEMBL = "ENSEMBL";
+
+  public static final String ENSEMBLGENOMES = "ENSEMBLGENOMES";
+
+  /**
    * List of databases whose sequences might have coding regions annotated
    */
-  public static final String[] DNACODINGDBS = { EMBL, EMBLCDS, GENEDB };
+  public static final String[] DNACODINGDBS = { EMBL, EMBLCDS, GENEDB,
+      ENSEMBL };
 
-  public static final String[] CODINGDBS = { EMBLCDS, GENEDB };
+  public static final String[] CODINGDBS = { EMBLCDS, GENEDB, ENSEMBL };
 
-  public static final String[] PROTEINDBS = { UNIPROT, PDB, UNIPROTKB,
-      EMBLCDSProduct };
+  public static final String[] PROTEINDBS = { UNIPROT, UNIPROTKB,
+      EMBLCDSProduct, ENSEMBL }; // Ensembl ENSP* entries are protein
 
-  public static final String[] PROTEINSEQ = { UNIPROT, UNIPROTKB,
-      EMBLCDSProduct };
-
-  public static final String[] PROTEINSTR = { PDB };
-
-  public static final String[] DOMAINDBS = { PFAM, RFAM };
-
-  /**
-   * set of unique DBRefSource property constants. These could be used to
-   * reconstruct the above groupings
-   */
-  public static final Object SEQDB = "SQ";
-
-  /**
-   * database of nucleic acid sequences
-   */
-  public static final Object DNASEQDB = "NASQ";
-
-  /**
-   * database of amino acid sequences
-   */
-  public static final Object PROTSEQDB = "PROTSQ";
-
-  /**
-   * database of cDNA sequences
-   */
-  public static final Object CODINGSEQDB = "CODING";
-
-  /**
-   * database of na sequences with exon annotation
-   */
-  public static final Object DNACODINGSEQDB = "XONCODING";
-
-  /**
-   * DB returns several sequences associated with a protein/nucleotide domain
-   */
-  public static final Object DOMAINDB = "DOMAIN";
-
-  /**
-   * DB query can take multiple accession codes concatenated by a separator.
-   * Value of property indicates maximum number of accession codes to send at a
-   * time.
-   */
-  public static final Object MULTIACC = "MULTIACC";
-
-  /**
-   * DB query returns an alignment for each accession provided.
-   */
-  public static final Object ALIGNMENTDB = "ALIGNMENTS";
+  public static String[] allSources()
+  {
+    List<String> src = new ArrayList<String>();
+    for (Field f : DBRefSource.class.getFields())
+    {
+      if (String.class.equals(f.getType()))
+      {
+        try
+        {
+          src.add((String) f.get(null));
+        } catch (Exception x)
+        {
+          x.printStackTrace();
+        }
+      }
+    }
+    return src.toArray(new String[0]);
+  }
 }

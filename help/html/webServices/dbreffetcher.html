@@ -1,6 +1,6 @@
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,13 +25,15 @@
 <p>
 <p>
   <strong>Discovering Database References for Sequences</strong><br>
-  Database references are associated with a sequence are displayed as a
-  list in the tooltip shown when mousing over its sequence ID. Jalview
-  uses references for the retrieval of <a
-    href="../features/viewingpdbs.html"
-  >PDB structures</a> and <a href="../features/dasfeatures.html">DAS
-    features</a>, and for retrieving sequence cross-references such as the
-  protein products of a DNA sequence.
+  Database references associated with a sequence are displayed as an
+  abbreviated list in the tooltip shown when mousing over its sequence
+  ID, and can be viewed in full via the
+  <a href="../io/exportseqreport.html">Sequence Details</a> window. .
+  Jalview also uses references for the retrieval of
+  <a href="../features/viewingpdbs.html">PDB structures</a> and <a
+    href="../features/dasfeatures.html">DAS features</a>, and for
+  retrieving sequence cross-references such as the protein products of a
+  DNA sequence.
 </p>
 <p>
   <strong>Initiating reference retrieval</strong><br> The
@@ -64,13 +66,13 @@
 <p>
   <strong>The Sequence Identification Process</strong><br> The
   method of accession id discovery is derived from the method which
-  earlier Jalview versions used for Uniprot sequence feature retrieval,
-  and was originally restricted to the identification of valid Uniprot
+  earlier Jalview versions used for UniProt sequence feature retrieval,
+  and was originally restricted to the identification of valid UniProt
   accessions.<br> Essentially, Jalview will try to retrieve records
   from a subset of the databases accessible by the <a
-    href="../features/seqfetch.html"
-  >sequence fetcher</a> using each sequence's ID string (or each string in
-  the ID separated by the '&#8739;' symbol).
+    href="../features/seqfetch.html">sequence fetcher</a> using each
+  sequence's ID string (or each string in the ID separated by the
+  '&#8739;' symbol).
 </p>
 <p>If a record (or set of records) is retrieved by any query derived
   from the ID string of a sequence, then the sequence is aligned to the

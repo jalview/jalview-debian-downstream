@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -213,11 +213,13 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     AlignmentAnnotation[] aa = ap.av.getAlignment()
             .getAlignmentAnnotation();
 
+    boolean fullRepaint = false;
     if (evt.getActionCommand().equals(ADDNEW))
     {
       AlignmentAnnotation newAnnotation = new AlignmentAnnotation(null,
@@ -230,11 +232,16 @@ public class AnnotationLabels extends JPanel implements MouseListener,
 
       ap.av.getAlignment().addAnnotation(newAnnotation);
       ap.av.getAlignment().setAnnotationIndex(newAnnotation, 0);
+      fullRepaint = true;
     }
     else if (evt.getActionCommand().equals(EDITNAME))
     {
+      String name = aa[selectedRow].label;
       editLabelDescription(aa[selectedRow]);
-      repaint();
+      if (!name.equalsIgnoreCase(aa[selectedRow].label))
+      {
+        fullRepaint = true;
+      }
     }
     else if (evt.getActionCommand().equals(HIDE))
     {
@@ -243,6 +250,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     else if (evt.getActionCommand().equals(DELETE))
     {
       ap.av.getAlignment().deleteAnnotation(aa[selectedRow]);
+      ap.av.getCalcManager().removeWorkerForAnnotation(aa[selectedRow]);
+      fullRepaint = true;
     }
     else if (evt.getActionCommand().equals(SHOWALL))
     {
@@ -253,6 +262,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
           aa[i].visible = true;
         }
       }
+      fullRepaint = true;
     }
     else if (evt.getActionCommand().equals(OUTPUT_TEXT))
     {
@@ -281,18 +291,30 @@ public class AnnotationLabels extends JPanel implements MouseListener,
       aa[selectedRow].scaleColLabel = !aa[selectedRow].scaleColLabel;
     }
 
-    refresh();
+    refresh(fullRepaint);
 
   }
 
   /**
    * Redraw sensibly.
+   * 
+   * @adjustHeight if true, try to recalculate panel height for visible
+   *               annotations
    */
-  protected void refresh()
+  protected void refresh(boolean adjustHeight)
   {
-    ap.validateAnnotationDimensions(false);
+    ap.validateAnnotationDimensions(adjustHeight);
     ap.addNotify();
-    ap.repaint();
+    if (adjustHeight)
+    {
+      // sort, repaint, update overview
+      ap.paintAlignment(true);
+    }
+    else
+    {
+      // lightweight repaint
+      ap.repaint();
+    }
   }
 
   /**
@@ -303,6 +325,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    */
   boolean editLabelDescription(AlignmentAnnotation annotation)
   {
+    // TODO i18n
     EditNameDialog dialog = new EditNameDialog(annotation.label,
             annotation.description, "       Annotation Name ",
             "Annotation Description ", "Edit Annotation Name/Description",
@@ -325,16 +348,283 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     return true;
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     getSelectedRow(evt.getY() - getScrollOffset());
     oldY = evt.getY();
+    if (evt.isPopupTrigger())
+    {
+      showPopupMenu(evt);
+    }
+  }
+
+  /**
+   * Build and show the Pop-up menu at the right-click mouse position
+   * 
+   * @param evt
+   */
+  void showPopupMenu(MouseEvent evt)
+  {
+    evt.consume();
+    final AlignmentAnnotation[] aa = ap.av.getAlignment()
+            .getAlignmentAnnotation();
+
+    JPopupMenu pop = new JPopupMenu(
+            MessageManager.getString("label.annotations"));
+    JMenuItem item = new JMenuItem(ADDNEW);
+    item.addActionListener(this);
+    pop.add(item);
+    if (selectedRow < 0)
+    {
+      if (hasHiddenRows)
+      { // let the user make everything visible again
+        item = new JMenuItem(SHOWALL);
+        item.addActionListener(this);
+        pop.add(item);
+      }
+      pop.show(this, evt.getX(), evt.getY());
+      return;
+    }
+    item = new JMenuItem(EDITNAME);
+    item.addActionListener(this);
+    pop.add(item);
+    item = new JMenuItem(HIDE);
+    item.addActionListener(this);
+    pop.add(item);
+    // JAL-1264 hide all sequence-specific annotations of this type
+    if (selectedRow < aa.length)
+    {
+      if (aa[selectedRow].sequenceRef != null)
+      {
+        final String label = aa[selectedRow].label;
+        JMenuItem hideType = new JMenuItem();
+        String text = MessageManager.getString("label.hide_all") + " "
+                + label;
+        hideType.setText(text);
+        hideType.addActionListener(new ActionListener()
+        {
+          @Override
+          public void actionPerformed(ActionEvent e)
+          {
+            AlignmentUtils.showOrHideSequenceAnnotations(
+                    ap.av.getAlignment(), Collections.singleton(label),
+                    null, false, false);
+            // for (AlignmentAnnotation ann : ap.av.getAlignment()
+            // .getAlignmentAnnotation())
+            // {
+            // if (ann.sequenceRef != null && ann.label != null
+            // && ann.label.equals(label))
+            // {
+            // ann.visible = false;
+            // }
+            // }
+            refresh(true);
+          }
+        });
+        pop.add(hideType);
+      }
+    }
+    item = new JMenuItem(DELETE);
+    item.addActionListener(this);
+    pop.add(item);
+    if (hasHiddenRows)
+    {
+      item = new JMenuItem(SHOWALL);
+      item.addActionListener(this);
+      pop.add(item);
+    }
+    item = new JMenuItem(OUTPUT_TEXT);
+    item.addActionListener(this);
+    pop.add(item);
+    // TODO: annotation object should be typed for autocalculated/derived
+    // property methods
+    if (selectedRow < aa.length)
+    {
+      final String label = aa[selectedRow].label;
+      if (!aa[selectedRow].autoCalculated)
+      {
+        if (aa[selectedRow].graph == AlignmentAnnotation.NO_GRAPH)
+        {
+          // display formatting settings for this row.
+          pop.addSeparator();
+          // av and sequencegroup need to implement same interface for
+          item = new JCheckBoxMenuItem(TOGGLE_LABELSCALE,
+                  aa[selectedRow].scaleColLabel);
+          item.addActionListener(this);
+          pop.add(item);
+        }
+      }
+      else if (label.indexOf("Consensus") > -1)
+      {
+        pop.addSeparator();
+        // av and sequencegroup need to implement same interface for
+        final JCheckBoxMenuItem cbmi = new JCheckBoxMenuItem(
+                MessageManager.getString("label.ignore_gaps_consensus"),
+                (aa[selectedRow].groupRef != null) ? aa[selectedRow].groupRef
+                        .getIgnoreGapsConsensus() : ap.av
+                        .isIgnoreGapsConsensus());
+        final AlignmentAnnotation aaa = aa[selectedRow];
+        cbmi.addActionListener(new ActionListener()
+        {
+          @Override
+          public void actionPerformed(ActionEvent e)
+          {
+            if (aaa.groupRef != null)
+            {
+              // TODO: pass on reference to ap so the view can be updated.
+              aaa.groupRef.setIgnoreGapsConsensus(cbmi.getState());
+              ap.getAnnotationPanel().paint(
+                      ap.getAnnotationPanel().getGraphics());
+            }
+            else
+            {
+              ap.av.setIgnoreGapsConsensus(cbmi.getState(), ap);
+            }
+            ap.alignmentChanged();
+          }
+        });
+        pop.add(cbmi);
+        // av and sequencegroup need to implement same interface for
+        if (aaa.groupRef != null)
+        {
+          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.show_group_histogram"),
+                  aa[selectedRow].groupRef.isShowConsensusHistogram());
+          chist.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              aaa.groupRef.setShowConsensusHistogram(chist.getState());
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(chist);
+          final JCheckBoxMenuItem cprofl = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.show_group_logo"),
+                  aa[selectedRow].groupRef.isShowSequenceLogo());
+          cprofl.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              aaa.groupRef.setshowSequenceLogo(cprofl.getState());
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(cprofl);
+          final JCheckBoxMenuItem cproflnorm = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.normalise_group_logo"),
+                  aa[selectedRow].groupRef.isNormaliseSequenceLogo());
+          cproflnorm.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              aaa.groupRef.setNormaliseSequenceLogo(cproflnorm.getState());
+              // automatically enable logo display if we're clicked
+              aaa.groupRef.setshowSequenceLogo(true);
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(cproflnorm);
+        }
+        else
+        {
+          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.show_histogram"),
+                  av.isShowConsensusHistogram());
+          chist.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              av.setShowConsensusHistogram(chist.getState());
+              ap.alignFrame.setMenusForViewport();
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(chist);
+          final JCheckBoxMenuItem cprof = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.show_logo"),
+                  av.isShowSequenceLogo());
+          cprof.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              av.setShowSequenceLogo(cprof.getState());
+              ap.alignFrame.setMenusForViewport();
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(cprof);
+          final JCheckBoxMenuItem cprofnorm = new JCheckBoxMenuItem(
+                  MessageManager.getString("label.normalise_logo"),
+                  av.isNormaliseSequenceLogo());
+          cprofnorm.addActionListener(new ActionListener()
+          {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+              // TODO: pass on reference
+              // to ap
+              // so the
+              // view
+              // can be
+              // updated.
+              av.setShowSequenceLogo(true);
+              av.setNormaliseSequenceLogo(cprofnorm.getState());
+              ap.alignFrame.setMenusForViewport();
+              ap.repaint();
+              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
+            }
+          });
+          pop.add(cprofnorm);
+        }
+        final JMenuItem consclipbrd = new JMenuItem(COPYCONS_SEQ);
+        consclipbrd.addActionListener(this);
+        pop.add(consclipbrd);
+      }
+    }
+    pop.show(this, evt.getX(), evt.getY());
   }
 
   /**
@@ -343,8 +633,15 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
+    if (evt.isPopupTrigger())
+    {
+      showPopupMenu(evt);
+      return;
+    }
+
     int start = selectedRow;
     getSelectedRow(evt.getY() - getScrollOffset());
     int end = selectedRow;
@@ -377,6 +674,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
     if (evt.getY() < 10)
@@ -392,6 +690,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseExited(MouseEvent evt)
   {
     if (dragEvent == null)
@@ -407,6 +706,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     dragEvent = evt;
@@ -443,6 +743,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
     resizePanel = evt.getY() < 10;
@@ -521,17 +822,12 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
     final AlignmentAnnotation[] aa = ap.av.getAlignment()
             .getAlignmentAnnotation();
-    if (SwingUtilities.isLeftMouseButton(evt))
+    if (!evt.isPopupTrigger() && SwingUtilities.isLeftMouseButton(evt))
     {
       if (selectedRow > -1 && selectedRow < aa.length)
       {
@@ -542,8 +838,45 @@ public class AnnotationLabels extends JPanel implements MouseListener,
             // todo: make the ap scroll to the selection - not necessary, first
             // click highlights/scrolls, second selects
             ap.getSeqPanel().ap.getIdPanel().highlightSearchResults(null);
-            ap.av.setSelectionGroup(// new SequenceGroup(
-            aa[selectedRow].groupRef); // );
+            // process modifiers
+            SequenceGroup sg = ap.av.getSelectionGroup();
+            if (sg == null
+                    || sg == aa[selectedRow].groupRef
+                    || !(jalview.util.Platform.isControlDown(evt) || evt
+                            .isShiftDown()))
+            {
+              if (jalview.util.Platform.isControlDown(evt)
+                      || evt.isShiftDown())
+              {
+                // clone a new selection group from the associated group
+                ap.av.setSelectionGroup(new SequenceGroup(
+                        aa[selectedRow].groupRef));
+              }
+              else
+              {
+                // set selection to the associated group so it can be edited
+                ap.av.setSelectionGroup(aa[selectedRow].groupRef);
+              }
+            }
+            else
+            {
+              // modify current selection with associated group
+              int remainToAdd = aa[selectedRow].groupRef.getSize();
+              for (SequenceI sgs : aa[selectedRow].groupRef.getSequences())
+              {
+                if (jalview.util.Platform.isControlDown(evt))
+                {
+                  sg.addOrRemove(sgs, --remainToAdd == 0);
+                }
+                else
+                {
+                  // notionally, we should also add intermediate sequences from
+                  // last added sequence ?
+                  sg.addSequence(sgs, --remainToAdd == 0);
+                }
+              }
+            }
+
             ap.paintAlignment(false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
             ap.av.sendSelection();
@@ -573,7 +906,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               // we make a copy rather than edit the current selection if no
               // modifiers pressed
               // see Enhancement JAL-1557
-              if (!(evt.isControlDown() || evt.isShiftDown()))
+              if (!(jalview.util.Platform.isControlDown(evt) || evt
+                      .isShiftDown()))
               {
                 sg = new SequenceGroup(sg);
                 sg.clear();
@@ -581,7 +915,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               }
               else
               {
-                if (evt.isControlDown())
+                if (jalview.util.Platform.isControlDown(evt))
                 {
                   sg.addOrRemove(aa[selectedRow].sequenceRef, true);
                 }
@@ -601,266 +935,15 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               sg.addSequence(aa[selectedRow].sequenceRef, false);
             }
             ap.av.setSelectionGroup(sg);
-            ap.av.sendSelection();
             ap.paintAlignment(false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
+            ap.av.sendSelection();
           }
 
         }
       }
-    }
-    if (!SwingUtilities.isRightMouseButton(evt))
-    {
       return;
     }
-
-    JPopupMenu pop = new JPopupMenu(
-            MessageManager.getString("label.annotations"));
-    JMenuItem item = new JMenuItem(ADDNEW);
-    item.addActionListener(this);
-    pop.add(item);
-    if (selectedRow < 0)
-    {
-      if (hasHiddenRows)
-      { // let the user make everything visible again
-        item = new JMenuItem(SHOWALL);
-        item.addActionListener(this);
-        pop.add(item);
-      }
-      pop.show(this, evt.getX(), evt.getY());
-      return;
-    }
-    item = new JMenuItem(EDITNAME);
-    item.addActionListener(this);
-    pop.add(item);
-    item = new JMenuItem(HIDE);
-    item.addActionListener(this);
-    pop.add(item);
-    // JAL-1264 hide all sequence-specific annotations of this type
-    if (selectedRow < aa.length)
-    {
-      if (aa[selectedRow].sequenceRef != null)
-      {
-        final String label = aa[selectedRow].label;
-        JMenuItem hideType = new JMenuItem();
-        String text = MessageManager.getString("label.hide_all") + " "
-                + label;
-        hideType.setText(text);
-        hideType.addActionListener(new ActionListener()
-        {
-          @Override
-          public void actionPerformed(ActionEvent e)
-          {
-            AlignmentUtils.showOrHideSequenceAnnotations(
-                    ap.av.getAlignment(), Collections.singleton(label),
-                    null, false, false);
-            // for (AlignmentAnnotation ann : ap.av.getAlignment()
-            // .getAlignmentAnnotation())
-            // {
-            // if (ann.sequenceRef != null && ann.label != null
-            // && ann.label.equals(label))
-            // {
-            // ann.visible = false;
-            // }
-            // }
-            refresh();
-          }
-        });
-        pop.add(hideType);
-      }
-    }
-    item = new JMenuItem(DELETE);
-    item.addActionListener(this);
-    pop.add(item);
-    if (hasHiddenRows)
-    {
-      item = new JMenuItem(SHOWALL);
-      item.addActionListener(this);
-      pop.add(item);
-    }
-    item = new JMenuItem(OUTPUT_TEXT);
-    item.addActionListener(this);
-    pop.add(item);
-    // TODO: annotation object should be typed for autocalculated/derived
-    // property methods
-    if (selectedRow < aa.length)
-    {
-      final String label = aa[selectedRow].label;
-      if (!aa[selectedRow].autoCalculated)
-      {
-        if (aa[selectedRow].graph == AlignmentAnnotation.NO_GRAPH)
-        {
-          // display formatting settings for this row.
-          pop.addSeparator();
-          // av and sequencegroup need to implement same interface for
-          item = new JCheckBoxMenuItem(TOGGLE_LABELSCALE,
-                  aa[selectedRow].scaleColLabel);
-          item.addActionListener(this);
-          pop.add(item);
-        }
-      }
-      else if (label.indexOf("Consensus") > -1)
-      {
-        pop.addSeparator();
-        // av and sequencegroup need to implement same interface for
-        final JCheckBoxMenuItem cbmi = new JCheckBoxMenuItem(
-                MessageManager.getString("label.ignore_gaps_consensus"),
-                (aa[selectedRow].groupRef != null) ? aa[selectedRow].groupRef
-                        .getIgnoreGapsConsensus() : ap.av
-                        .isIgnoreGapsConsensus());
-        final AlignmentAnnotation aaa = aa[selectedRow];
-        cbmi.addActionListener(new ActionListener()
-        {
-          public void actionPerformed(ActionEvent e)
-          {
-            if (aaa.groupRef != null)
-            {
-              // TODO: pass on reference to ap so the view can be updated.
-              aaa.groupRef.setIgnoreGapsConsensus(cbmi.getState());
-              ap.getAnnotationPanel().paint(
-                      ap.getAnnotationPanel().getGraphics());
-            }
-            else
-            {
-              ap.av.setIgnoreGapsConsensus(cbmi.getState(), ap);
-            }
-          }
-        });
-        pop.add(cbmi);
-        // av and sequencegroup need to implement same interface for
-        if (aaa.groupRef != null)
-        {
-          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_group_histogram"),
-                  aa[selectedRow].groupRef.isShowConsensusHistogram());
-          chist.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setShowConsensusHistogram(chist.getState());
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(chist);
-          final JCheckBoxMenuItem cprofl = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_group_logo"),
-                  aa[selectedRow].groupRef.isShowSequenceLogo());
-          cprofl.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setshowSequenceLogo(cprofl.getState());
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprofl);
-          final JCheckBoxMenuItem cproflnorm = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.normalise_group_logo"),
-                  aa[selectedRow].groupRef.isNormaliseSequenceLogo());
-          cproflnorm.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setNormaliseSequenceLogo(cproflnorm.getState());
-              // automatically enable logo display if we're clicked
-              aaa.groupRef.setshowSequenceLogo(true);
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cproflnorm);
-        }
-        else
-        {
-          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_histogram"),
-                  av.isShowConsensusHistogram());
-          chist.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowConsensusHistogram(chist.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(chist);
-          final JCheckBoxMenuItem cprof = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_logo"),
-                  av.isShowSequenceLogo());
-          cprof.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowSequenceLogo(cprof.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprof);
-          final JCheckBoxMenuItem cprofnorm = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.normalise_logo"),
-                  av.isNormaliseSequenceLogo());
-          cprofnorm.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowSequenceLogo(true);
-              av.setNormaliseSequenceLogo(cprofnorm.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprofnorm);
-        }
-        final JMenuItem consclipbrd = new JMenuItem(COPYCONS_SEQ);
-        consclipbrd.addActionListener(this);
-        pop.add(consclipbrd);
-      }
-    }
-    pop.show(this, evt.getX(), evt.getY());
   }
 
   /**
@@ -893,7 +976,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     List<int[]> hiddenCols = av.getColumnSelection().getHiddenColumns();
     if (hiddenCols != null)
     {
-      alignmentStartEnd = AlignFrame.getStartEnd(alignmentStartEnd,
+      alignmentStartEnd = av.getAlignment().getVisibleStartAndEndIndex(
               hiddenCols);
     }
     String output = new FormatAdapter().formatSequences("Fasta", seqs,
@@ -926,6 +1009,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
    * @param g1
    *          DOCUMENT ME!
    */
+  @Override
   public void paintComponent(Graphics g)
   {
 

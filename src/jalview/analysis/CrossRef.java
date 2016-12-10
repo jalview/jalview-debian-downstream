@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,374 +25,915 @@ import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.DBRefSource;
+import jalview.datamodel.Mapping;
 import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.util.DBRefUtils;
-import jalview.ws.SequenceFetcher;
+import jalview.util.MapList;
+import jalview.ws.SequenceFetcherFactory;
 import jalview.ws.seqfetcher.ASequenceFetcher;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
 
 /**
- * Functions for cross-referencing sequence databases. user must first specify
- * if cross-referencing from protein or dna (set dna==true)
+ * Functions for cross-referencing sequence databases.
  * 
  * @author JimP
  * 
  */
 public class CrossRef
 {
-  /**
-   * Select just the DNA or protein references for a protein or dna sequence
-   * 
-   * @param fromDna
-   *          if true, select references from DNA (i.e. Protein databases), else
-   *          DNA database references
-   * @param refs
-   *          a set of references to select from
-   * @return
+  /*
+   * the dataset of the alignment for which we are searching for 
+   * cross-references; in some cases we may resolve xrefs by 
+   * searching in the dataset
    */
-  public static DBRefEntry[] findXDbRefs(boolean fromDna, DBRefEntry[] refs)
-  {
-    return DBRefUtils.selectRefs(refs, fromDna ? DBRefSource.PROTEINDBS
-            : DBRefSource.DNACODINGDBS);
-    // could attempt to find other cross
-    // refs here - ie PDB xrefs
-    // (not dna, not protein seq)
-  }
-
-  /**
-   * @param dna
-   *          true if seqs are DNA seqs
-   * @param seqs
-   * @return a list of sequence database cross reference source types
-   */
-  public static String[] findSequenceXrefTypes(boolean dna, SequenceI[] seqs)
-  {
-    return findSequenceXrefTypes(dna, seqs, null);
-  }
-
-  /**
-   * Indirect references are references from other sequences from the dataset to
-   * any of the direct DBRefEntrys on the given sequences.
-   * 
-   * @param dna
-   *          true if seqs are DNA seqs
-   * @param seqs
-   * @return a list of sequence database cross reference source types
-   */
-  public static String[] findSequenceXrefTypes(boolean dna,
-          SequenceI[] seqs, AlignmentI dataset)
-  {
-    String[] dbrefs = null;
-    List<String> refs = new ArrayList<String>();
-    for (int s = 0; s < seqs.length; s++)
-    {
-      if (seqs[s] != null)
-      {
-        SequenceI dss = seqs[s];
-        while (dss.getDatasetSequence() != null)
-        {
-          dss = dss.getDatasetSequence();
-        }
-        DBRefEntry[] rfs = findXDbRefs(dna, dss.getDBRef());
-        for (int r = 0; rfs != null && r < rfs.length; r++)
-        {
-          if (!refs.contains(rfs[r].getSource()))
-          {
-            refs.add(rfs[r].getSource());
-          }
-        }
-        if (dataset != null)
-        {
-          // search for references to this sequence's direct references.
-          DBRefEntry[] lrfs = CrossRef
-                  .findXDbRefs(!dna, seqs[s].getDBRef());
-          List<SequenceI> rseqs = new ArrayList<SequenceI>();
-          CrossRef.searchDatasetXrefs(seqs[s], !dna, lrfs, dataset, rseqs,
-                  null); // don't need to specify codon frame for mapping here
-          for (SequenceI rs : rseqs)
-          {
-            DBRefEntry[] xrs = findXDbRefs(dna, rs.getDBRef()); // not used??
-            for (int r = 0; rfs != null && r < rfs.length; r++)
-            {
-              if (!refs.contains(rfs[r].getSource()))
-              {
-                refs.add(rfs[r].getSource());
-              }
-            }
-          }
-        }
-      }
-    }
-    if (refs.size() > 0)
-    {
-      dbrefs = new String[refs.size()];
-      refs.toArray(dbrefs);
-    }
-    return dbrefs;
-  }
+  private AlignmentI dataset;
 
   /*
-   * if (dna) { if (rfs[r].hasMap()) { // most likely this is a protein cross
-   * reference if (!refs.contains(rfs[r].getSource())) {
-   * refs.addElement(rfs[r].getSource()); } } }
+   * the sequences for which we are seeking cross-references
    */
-  public static boolean hasCdnaMap(SequenceI[] seqs)
+  private SequenceI[] fromSeqs;
+
+  /**
+   * matcher built from dataset
+   */
+  SequenceIdMatcher matcher;
+
+  /**
+   * sequences found by cross-ref searches to fromSeqs
+   */
+  List<SequenceI> rseqs;
+
+  /**
+   * Constructor
+   * 
+   * @param seqs
+   *          the sequences for which we are seeking cross-references
+   * @param ds
+   *          the containing alignment dataset (may be searched to resolve
+   *          cross-references)
+   */
+  public CrossRef(SequenceI[] seqs, AlignmentI ds)
   {
-    String[] reftypes = findSequenceXrefTypes(false, seqs);
-    for (int s = 0; s < reftypes.length; s++)
-    {
-      if (reftypes.equals(DBRefSource.EMBLCDS))
-      {
-        return true;
-        // no map
-      }
-    }
-    return false;
+    fromSeqs = seqs;
+    dataset = ds.getDataset() == null ? ds : ds.getDataset();
   }
 
-  public static SequenceI[] getCdnaMap(SequenceI[] seqs)
+  /**
+   * Returns a list of distinct database sources for which sequences have either
+   * <ul>
+   * <li>a (dna-to-protein or protein-to-dna) cross-reference</li>
+   * <li>an indirect cross-reference - a (dna-to-protein or protein-to-dna)
+   * reference from another sequence in the dataset which has a cross-reference
+   * to a direct DBRefEntry on the given sequence</li>
+   * </ul>
+   * 
+   * @param dna
+   *          - when true, cross-references *from* dna returned. When false,
+   *          cross-references *from* protein are returned
+   * @return
+   */
+  public List<String> findXrefSourcesForSequences(boolean dna)
   {
-    Vector cseqs = new Vector();
-    for (int s = 0; s < seqs.length; s++)
+    List<String> sources = new ArrayList<String>();
+    for (SequenceI seq : fromSeqs)
     {
-      DBRefEntry[] cdna = findXDbRefs(true, seqs[s].getDBRef());
-      for (int c = 0; c < cdna.length; c++)
+      if (seq != null)
       {
-        if (cdna[c].getSource().equals(DBRefSource.EMBLCDS))
+        findXrefSourcesForSequence(seq, dna, sources);
+      }
+    }
+    sources.remove(DBRefSource.EMBL); // hack to prevent EMBL xrefs resulting in
+                                      // redundant datasets
+    if (dna)
+    {
+      sources.remove(DBRefSource.ENSEMBL); // hack to prevent Ensembl and
+                                           // EnsemblGenomes xref option shown
+                                           // from cdna panel
+      sources.remove(DBRefSource.ENSEMBLGENOMES);
+    }
+    // redundant datasets
+    return sources;
+  }
+
+  /**
+   * Returns a list of distinct database sources for which a sequence has either
+   * <ul>
+   * <li>a (dna-to-protein or protein-to-dna) cross-reference</li>
+   * <li>an indirect cross-reference - a (dna-to-protein or protein-to-dna)
+   * reference from another sequence in the dataset which has a cross-reference
+   * to a direct DBRefEntry on the given sequence</li>
+   * </ul>
+   * 
+   * @param seq
+   *          the sequence whose dbrefs we are searching against
+   * @param fromDna
+   *          when true, context is DNA - so sources identifying protein
+   *          products will be returned.
+   * @param sources
+   *          a list of sources to add matches to
+   */
+  void findXrefSourcesForSequence(SequenceI seq, boolean fromDna,
+          List<String> sources)
+  {
+    /*
+     * first find seq's xrefs (dna-to-peptide or peptide-to-dna)
+     */
+    DBRefEntry[] rfs = DBRefUtils.selectDbRefs(!fromDna, seq.getDBRefs());
+    addXrefsToSources(rfs, sources);
+    if (dataset != null)
+    {
+      /*
+       * find sequence's direct (dna-to-dna, peptide-to-peptide) xrefs
+       */
+      DBRefEntry[] lrfs = DBRefUtils.selectDbRefs(fromDna, seq.getDBRefs());
+      List<SequenceI> foundSeqs = new ArrayList<SequenceI>();
+
+      /*
+       * find sequences in the alignment which xref one of these DBRefs
+       * i.e. is xref-ed to a common sequence identifier
+       */
+      searchDatasetXrefs(fromDna, seq, lrfs, foundSeqs, null);
+
+      /*
+       * add those sequences' (dna-to-peptide or peptide-to-dna) dbref sources
+       */
+      for (SequenceI rs : foundSeqs)
+      {
+        DBRefEntry[] xrs = DBRefUtils
+                .selectDbRefs(!fromDna, rs.getDBRefs());
+        addXrefsToSources(xrs, sources);
+      }
+    }
+  }
+
+  /**
+   * Helper method that adds the source identifiers of some cross-references to
+   * a (non-redundant) list of database sources
+   * 
+   * @param xrefs
+   * @param sources
+   */
+  void addXrefsToSources(DBRefEntry[] xrefs, List<String> sources)
+  {
+    if (xrefs != null)
+    {
+      for (DBRefEntry ref : xrefs)
+      {
+        /*
+         * avoid duplication e.g. ENSEMBL and Ensembl
+         */
+        String source = DBRefUtils.getCanonicalName(ref.getSource());
+        if (!sources.contains(source))
         {
-          System.err
-                  .println("TODO: unimplemented sequence retrieval for coding region sequence.");
-          // TODO: retrieve CDS dataset sequences
-          // need global dataset sequence retriever/resolver to reuse refs
-          // and construct Mapping entry.
-          // insert gaps in CDS according to peptide gaps.
-          // add gapped sequence to cseqs
+          sources.add(source);
         }
       }
     }
-    if (cseqs.size() > 0)
-    {
-      SequenceI[] rsqs = new SequenceI[cseqs.size()];
-      cseqs.copyInto(rsqs);
-      return rsqs;
-    }
-    return null;
-
   }
 
   /**
+   * Attempts to find cross-references from the sequences provided in the
+   * constructor to the given source database. Cross-references may be found
+   * <ul>
+   * <li>in dbrefs on the sequence which hold a mapping to a sequence
+   * <ul>
+   * <li>provided with a fetched sequence (e.g. ENA translation), or</li>
+   * <li>populated previously after getting cross-references</li>
+   * </ul>
+   * <li>as other sequences in the alignment which share a dbref identifier with
+   * the sequence</li>
+   * <li>by fetching from the remote database</li>
+   * </ul>
+   * The cross-referenced sequences, and mappings to them, are added to the
+   * alignment dataset.
    * 
-   * @param dna
-   * @param seqs
-   * @return
-   */
-  public static Alignment findXrefSequences(SequenceI[] seqs, boolean dna,
-          String source)
-  {
-    return findXrefSequences(seqs, dna, source, null);
-  }
-
-  /**
-   * 
-   * @param seqs
-   * @param dna
    * @param source
-   * @param dataset
-   *          alignment to search for product sequences.
-   * @return products (as dataset sequences)
+   * @return cross-referenced sequences (as dataset sequences)
    */
-  public static Alignment findXrefSequences(SequenceI[] seqs, boolean dna,
-          String source, AlignmentI dataset)
+  public Alignment findXrefSequences(String source, boolean fromDna)
   {
-    List<SequenceI> rseqs = new ArrayList<SequenceI>();
-    Alignment ral = null;
-    AlignedCodonFrame cf = new AlignedCodonFrame(); // nominal width
-    for (int s = 0; s < seqs.length; s++)
+
+    rseqs = new ArrayList<SequenceI>();
+    AlignedCodonFrame cf = new AlignedCodonFrame();
+    matcher = new SequenceIdMatcher(dataset.getSequences());
+
+    for (SequenceI seq : fromSeqs)
     {
-      SequenceI dss = seqs[s];
+      SequenceI dss = seq;
       while (dss.getDatasetSequence() != null)
       {
         dss = dss.getDatasetSequence();
       }
       boolean found = false;
-      DBRefEntry[] xrfs = CrossRef.findXDbRefs(dna, dss.getDBRef());
+      DBRefEntry[] xrfs = DBRefUtils
+              .selectDbRefs(!fromDna, dss.getDBRefs());
+      // ENST & ENSP comes in to both Protein and nucleotide, so we need to
+      // filter them
+      // out later.
       if ((xrfs == null || xrfs.length == 0) && dataset != null)
       {
-        System.out.println("Attempting to find ds Xrefs refs.");
-        DBRefEntry[] lrfs = CrossRef.findXDbRefs(!dna, seqs[s].getDBRef());
-        // less ambiguous would be a 'find primary dbRefEntry' method.
-        // filter for desired source xref here
-        found = CrossRef.searchDatasetXrefs(dss, !dna, lrfs, dataset,
-                rseqs, cf);
+        /*
+         * found no suitable dbrefs on sequence - look for sequences in the
+         * alignment which share a dbref with this one
+         */
+        DBRefEntry[] lrfs = DBRefUtils.selectDbRefs(fromDna,
+                seq.getDBRefs());
+
+        /*
+         * find sequences (except this one!), of complementary type,
+         *  which have a dbref to an accession id for this sequence,
+         *  and add them to the results
+         */
+        found = searchDatasetXrefs(fromDna, dss, lrfs, rseqs, cf);
       }
-      for (int r = 0; xrfs != null && r < xrfs.length; r++)
+      if (xrfs == null && !found)
       {
-        if (source != null && !source.equals(xrfs[r].getSource()))
+        /*
+         * no dbref to source on this sequence or matched
+         * complementary sequence in the dataset 
+         */
+        continue;
+      }
+      List<DBRefEntry> sourceRefs = DBRefUtils.searchRefsForSource(xrfs,
+              source);
+      Iterator<DBRefEntry> refIterator = sourceRefs.iterator();
+      // At this point, if we are retrieving Ensembl, we still don't filter out
+      // ENST when looking for protein crossrefs.
+      while (refIterator.hasNext())
+      {
+        DBRefEntry xref = refIterator.next();
+        found = false;
+        // we're only interested in coding cross-references, not
+        // locus->transcript
+        if (xref.hasMap() && xref.getMap().getMap().isTripletMap())
         {
-          continue;
-        }
-        if (xrfs[r].hasMap())
-        {
-          if (xrfs[r].getMap().getTo() != null)
+          SequenceI mappedTo = xref.getMap().getTo();
+          if (mappedTo != null)
           {
-            SequenceI rsq = new Sequence(xrfs[r].getMap().getTo());
+            /*
+             * dbref contains the sequence it maps to; add it to the
+             * results unless we have done so already (could happen if 
+             * fetching xrefs for sequences which have xrefs in common)
+             * for example: UNIPROT {P0CE19, P0CE20} -> EMBL {J03321, X06707}
+             */
+            found = true;
+            /*
+             * problem: matcher.findIdMatch() is lenient - returns a sequence
+             * with a dbref to the search arg e.g. ENST for ENSP - wrong
+             * but findInDataset() matches ENSP when looking for Uniprot...
+             */
+            SequenceI matchInDataset = findInDataset(xref);
+            if (matchInDataset != null && xref.getMap().getTo() != null
+                    && matchInDataset != xref.getMap().getTo())
+            {
+              System.err
+                      .println("Implementation problem (reopen JAL-2154): CrossRef.findInDataset seems to have recovered a different sequence than the one explicitly mapped for xref."
+                              + "Found:"
+                              + matchInDataset
+                              + "\nExpected:"
+                              + xref.getMap().getTo()
+                              + "\nFor xref:"
+                              + xref);
+            }
+            /*matcher.findIdMatch(mappedTo);*/
+            if (matchInDataset != null)
+            {
+              if (!rseqs.contains(matchInDataset))
+              {
+                rseqs.add(matchInDataset);
+              }
+              // even if rseqs contained matchInDataset - check mappings between
+              // these seqs are added
+              // need to try harder to only add unique mappings
+              if (xref.getMap().getMap().isTripletMap()
+                      && dataset.getMapping(seq, matchInDataset) == null
+                      && cf.getMappingBetween(seq, matchInDataset) == null)
+              {
+                // materialise a mapping for highlighting between these
+                // sequences
+                if (fromDna)
+                {
+                  cf.addMap(dss, matchInDataset, xref.getMap().getMap(),
+                          xref.getMap().getMappedFromId());
+                }
+                else
+                {
+                  cf.addMap(matchInDataset, dss, xref.getMap().getMap()
+                          .getInverse(), xref.getMap().getMappedFromId());
+                }
+              }
+
+              refIterator.remove();
+              continue;
+            }
+            // TODO: need to determine if this should be a deriveSequence
+            SequenceI rsq = new Sequence(mappedTo);
             rseqs.add(rsq);
-            if (xrfs[r].getMap().getMap().getFromRatio() != xrfs[r]
-                    .getMap().getMap().getToRatio())
+            if (xref.getMap().getMap().isTripletMap())
             {
               // get sense of map correct for adding to product alignment.
-              if (dna)
+              if (fromDna)
               {
                 // map is from dna seq to a protein product
-                cf.addMap(dss, rsq, xrfs[r].getMap().getMap());
+                cf.addMap(dss, rsq, xref.getMap().getMap(), xref.getMap()
+                        .getMappedFromId());
               }
               else
               {
                 // map should be from protein seq to its coding dna
-                cf.addMap(rsq, dss, xrfs[r].getMap().getMap().getInverse());
+                cf.addMap(rsq, dss, xref.getMap().getMap().getInverse(),
+                        xref.getMap().getMappedFromId());
               }
             }
-            found = true;
           }
         }
+
+        if (!found)
+        {
+          SequenceI matchedSeq = matcher.findIdMatch(xref.getSource() + "|"
+                  + xref.getAccessionId());
+          // if there was a match, check it's at least the right type of
+          // molecule!
+          if (matchedSeq != null && matchedSeq.isProtein() == fromDna)
+          {
+            if (constructMapping(seq, matchedSeq, xref, cf, fromDna))
+            {
+              found = true;
+            }
+          }
+        }
+
         if (!found)
         {
           // do a bit more work - search for sequences with references matching
           // xrefs on this sequence.
-          if (dataset != null)
-          {
-            found |= searchDataset(dss, xrfs[r], dataset, rseqs, cf); // ,false,!dna);
-            if (found)
-            {
-              xrfs[r] = null; // we've recovered seqs for this one.
-            }
-          }
+          found = searchDataset(fromDna, dss, xref, rseqs, cf, false);
+        }
+        if (found)
+        {
+          refIterator.remove();
         }
       }
-      if (!found)
+
+      /*
+       * fetch from source database any dbrefs we haven't resolved up to here
+       */
+      if (!sourceRefs.isEmpty())
       {
-        if (xrfs != null && xrfs.length > 0)
-        {
-          // Try and get the sequence reference...
-          /*
-           * Ideal world - we ask for a sequence fetcher implementation here if
-           * (jalview.io.RunTimeEnvironment.getSequenceFetcher()) (
-           */
-          ASequenceFetcher sftch = new SequenceFetcher();
-          SequenceI[] retrieved = null;
-          int l = xrfs.length;
-          for (int r = 0; r < xrfs.length; r++)
-          {
-            // filter out any irrelevant or irretrievable references
-            if (xrfs[r] == null
-                    || ((source != null && !source.equals(xrfs[r]
-                            .getSource())) || !sftch.isFetchable(xrfs[r]
-                            .getSource())))
-            {
-              l--;
-              xrfs[r] = null;
-            }
-          }
-          if (l > 0)
-          {
-            System.out
-                    .println("Attempting to retrieve cross referenced sequences.");
-            DBRefEntry[] t = new DBRefEntry[l];
-            l = 0;
-            for (int r = 0; r < xrfs.length; r++)
-            {
-              if (xrfs[r] != null)
-              {
-                t[l++] = xrfs[r];
-              }
-            }
-            xrfs = t;
-            try
-            {
-              retrieved = sftch.getSequences(xrfs); // problem here is we don't
-              // know which of xrfs
-              // resulted in which
-              // retrieved element
-            } catch (Exception e)
-            {
-              System.err
-                      .println("Problem whilst retrieving cross references for Sequence : "
-                              + seqs[s].getName());
-              e.printStackTrace();
-            }
-            if (retrieved != null)
-            {
-              for (int rs = 0; rs < retrieved.length; rs++)
-              {
-                // TODO: examine each sequence for 'redundancy'
-                jalview.datamodel.DBRefEntry[] dbr = retrieved[rs]
-                        .getDBRef();
-                if (dbr != null && dbr.length > 0)
-                {
-                  for (int di = 0; di < dbr.length; di++)
-                  {
-                    // find any entry where we should put in the sequence being
-                    // cross-referenced into the map
-                    jalview.datamodel.Mapping map = dbr[di].getMap();
-                    if (map != null)
-                    {
-                      if (map.getTo() != null && map.getMap() != null)
-                      {
-                        // should search the local dataset to find any existing
-                        // candidates for To !
-                        try
-                        {
-                          // compare ms with dss and replace with dss in mapping
-                          // if map is congruent
-                          SequenceI ms = map.getTo();
-                          int sf = map.getMap().getToLowest();
-                          int st = map.getMap().getToHighest();
-                          SequenceI mappedrg = ms.getSubSequence(sf, st);
-                          SequenceI loc = dss.getSubSequence(sf, st);
-                          if (mappedrg.getLength() > 0
-                                  && mappedrg.getSequenceAsString().equals(
-                                          loc.getSequenceAsString()))
-                          {
-                            System.err
-                                    .println("Mapping updated for retrieved crossreference");
-                            // method to update all refs of existing To on
-                            // retrieved sequence with dss and merge any props
-                            // on To onto dss.
-                            map.setTo(dss);
-                          }
-                        } catch (Exception e)
-                        {
-                          System.err
-                                  .println("Exception when consolidating Mapped sequence set...");
-                          e.printStackTrace(System.err);
-                        }
-                      }
-                    }
-                  }
-                }
-                retrieved[rs].updatePDBIds();
-                rseqs.add(retrieved[rs]);
-              }
-            }
-          }
-        }
+        retrieveCrossRef(sourceRefs, seq, xrfs, fromDna, cf);
       }
     }
+
+    Alignment ral = null;
     if (rseqs.size() > 0)
     {
-      SequenceI[] rsqs = new SequenceI[rseqs.size()];
-      rseqs.toArray(rsqs);
-      ral = new Alignment(rsqs);
-      if (cf != null && cf.getProtMappings() != null)
+      ral = new Alignment(rseqs.toArray(new SequenceI[rseqs.size()]));
+      if (!cf.isEmpty())
       {
-        ral.addCodonFrame(cf);
+        dataset.addCodonFrame(cf);
       }
     }
     return ral;
+  }
+
+  private void retrieveCrossRef(List<DBRefEntry> sourceRefs, SequenceI seq,
+          DBRefEntry[] xrfs, boolean fromDna, AlignedCodonFrame cf)
+  {
+    ASequenceFetcher sftch = SequenceFetcherFactory.getSequenceFetcher();
+    SequenceI[] retrieved = null;
+    SequenceI dss = seq.getDatasetSequence() == null ? seq : seq
+            .getDatasetSequence();
+    // first filter in case we are retrieving crossrefs that have already been
+    // retrieved. this happens for cases where a database record doesn't yield
+    // protein products for CDS
+    removeAlreadyRetrievedSeqs(sourceRefs, fromDna);
+    if (sourceRefs.size() == 0)
+    {
+      // no more work to do! We already had all requested sequence records in
+      // the dataset.
+      return;
+    }
+    try
+    {
+      retrieved = sftch.getSequences(sourceRefs, !fromDna);
+    } catch (Exception e)
+    {
+      System.err
+              .println("Problem whilst retrieving cross references for Sequence : "
+                      + seq.getName());
+      e.printStackTrace();
+    }
+
+    if (retrieved != null)
+    {
+      boolean addedXref = false;
+      List<SequenceI> newDsSeqs = new ArrayList<SequenceI>(), doNotAdd = new ArrayList<SequenceI>();
+
+      for (SequenceI retrievedSequence : retrieved)
+      {
+        // dataset gets contaminated ccwith non-ds sequences. why ??!
+        // try: Ensembl -> Nuc->Ensembl, Nuc->Uniprot-->Protein->EMBL->
+        SequenceI retrievedDss = retrievedSequence.getDatasetSequence() == null ? retrievedSequence
+                : retrievedSequence.getDatasetSequence();
+        addedXref |= importCrossRefSeq(cf, newDsSeqs, doNotAdd, dss,
+                retrievedDss);
+      }
+      if (!addedXref)
+      {
+        // try again, after looking for matching IDs
+        // shouldn't need to do this unless the dbref mechanism has broken.
+        updateDbrefMappings(seq, xrfs, retrieved, cf, fromDna);
+        for (SequenceI retrievedSequence : retrieved)
+        {
+          // dataset gets contaminated ccwith non-ds sequences. why ??!
+          // try: Ensembl -> Nuc->Ensembl, Nuc->Uniprot-->Protein->EMBL->
+          SequenceI retrievedDss = retrievedSequence.getDatasetSequence() == null ? retrievedSequence
+                  : retrievedSequence.getDatasetSequence();
+          addedXref |= importCrossRefSeq(cf, newDsSeqs, doNotAdd, dss,
+                  retrievedDss);
+        }
+      }
+      for (SequenceI newToSeq : newDsSeqs)
+      {
+        if (!doNotAdd.contains(newToSeq)
+                && dataset.findIndex(newToSeq) == -1)
+        {
+          dataset.addSequence(newToSeq);
+          matcher.add(newToSeq);
+        }
+      }
+    }
+  }
+
+  /**
+   * Search dataset for sequences with a primary reference contained in
+   * sourceRefs.
+   * 
+   * @param sourceRefs
+   *          - list of references to filter.
+   * @param fromDna
+   *          - type of sequence to search for matching primary reference.
+   */
+  private void removeAlreadyRetrievedSeqs(List<DBRefEntry> sourceRefs,
+          boolean fromDna)
+  {
+    DBRefEntry[] dbrSourceSet = sourceRefs.toArray(new DBRefEntry[0]);
+    for (SequenceI sq : dataset.getSequences())
+    {
+      boolean dupeFound = false;
+      // !fromDna means we are looking only for nucleotide sequences, not
+      // protein
+      if (sq.isProtein() == fromDna)
+      {
+        for (DBRefEntry dbr : sq.getPrimaryDBRefs())
+        {
+          for (DBRefEntry found : DBRefUtils.searchRefs(dbrSourceSet, dbr))
+          {
+            sourceRefs.remove(found);
+            dupeFound = true;
+          }
+        }
+      }
+      if (dupeFound)
+      {
+        // rebuild the search array from the filtered sourceRefs list
+        dbrSourceSet = sourceRefs.toArray(new DBRefEntry[0]);
+      }
+    }
+  }
+
+  /**
+   * process sequence retrieved via a dbref on source sequence to resolve and
+   * transfer data
+   * 
+   * @param cf
+   * @param sourceSequence
+   * @param retrievedSequence
+   * @return true if retrieveSequence was imported
+   */
+  private boolean importCrossRefSeq(AlignedCodonFrame cf,
+          List<SequenceI> newDsSeqs, List<SequenceI> doNotAdd,
+          SequenceI sourceSequence, SequenceI retrievedSequence)
+  {
+    /**
+     * set when retrievedSequence has been verified as a crossreference for
+     * sourceSequence
+     */
+    boolean imported = false;
+    DBRefEntry[] dbr = retrievedSequence.getDBRefs();
+    if (dbr != null)
+    {
+      for (DBRefEntry dbref : dbr)
+      {
+        SequenceI matched = findInDataset(dbref);
+        if (matched == sourceSequence)
+        {
+          // verified retrieved and source sequence cross-reference each other
+          imported = true;
+        }
+        // find any entry where we should put in the sequence being
+        // cross-referenced into the map
+        Mapping map = dbref.getMap();
+        if (map != null)
+        {
+          if (map.getTo() != null && map.getMap() != null)
+          {
+            if (map.getTo() == sourceSequence)
+            {
+              // already called to import once, and most likely this sequence
+              // already imported !
+              continue;
+            }
+            if (matched == null)
+            {
+              /*
+               * sequence is new to dataset, so save a reference so it can be added. 
+               */
+              newDsSeqs.add(map.getTo());
+              continue;
+            }
+
+            /*
+             * there was a matching sequence in dataset, so now, check to see if we can update the map.getTo() sequence to the existing one.
+             */
+
+            try
+            {
+              // compare ms with dss and replace with dss in mapping
+              // if map is congruent
+              SequenceI ms = map.getTo();
+              // TODO findInDataset requires exact sequence match but
+              // 'congruent' test is only for the mapped part
+              // maybe not a problem in practice since only ENA provide a
+              // mapping and it is to the full protein translation of CDS
+              // matcher.findIdMatch(map.getTo());
+              // TODO addendum: if matched is shorter than getTo, this will fail
+              // - when it should really succeed.
+              int sf = map.getMap().getToLowest();
+              int st = map.getMap().getToHighest();
+              SequenceI mappedrg = ms.getSubSequence(sf, st);
+              if (mappedrg.getLength() > 0
+                      && ms.getSequenceAsString().equals(
+                              matched.getSequenceAsString()))
+              {
+                /*
+                 * sequences were a match, 
+                 */
+                String msg = "Mapping updated from " + ms.getName()
+                        + " to retrieved crossreference "
+                        + matched.getName();
+                System.out.println(msg);
+
+                DBRefEntry[] toRefs = map.getTo().getDBRefs();
+                if (toRefs != null)
+                {
+                  /*
+                   * transfer database refs
+                   */
+                  for (DBRefEntry ref : toRefs)
+                  {
+                    if (dbref.getSrcAccString().equals(
+                            ref.getSrcAccString()))
+                    {
+                      continue; // avoid overwriting the ref on source sequence
+                    }
+                    matched.addDBRef(ref); // add or update mapping
+                  }
+                }
+                doNotAdd.add(map.getTo());
+                map.setTo(matched);
+
+                /*
+                 * give the reverse reference the inverse mapping 
+                 * (if it doesn't have one already)
+                 */
+                setReverseMapping(matched, dbref, cf);
+
+                /*
+                 * copy sequence features as well, avoiding
+                 * duplication (e.g. same variation from two 
+                 * transcripts)
+                 */
+                SequenceFeature[] sfs = ms.getSequenceFeatures();
+                if (sfs != null)
+                {
+                  for (SequenceFeature feat : sfs)
+                  {
+                    /*
+                     * make a flyweight feature object which ignores Parent
+                     * attribute in equality test; this avoids creating many
+                     * otherwise duplicate exon features on genomic sequence
+                     */
+                    SequenceFeature newFeature = new SequenceFeature(feat)
+                    {
+                      @Override
+                      public boolean equals(Object o)
+                      {
+                        return super.equals(o, true);
+                      }
+                    };
+                    matched.addSequenceFeature(newFeature);
+                  }
+                }
+
+              }
+              cf.addMap(retrievedSequence, map.getTo(), map.getMap());
+            } catch (Exception e)
+            {
+              System.err
+                      .println("Exception when consolidating Mapped sequence set...");
+              e.printStackTrace(System.err);
+            }
+          }
+        }
+      }
+    }
+    if (imported)
+    {
+      retrievedSequence.updatePDBIds();
+      rseqs.add(retrievedSequence);
+      if (dataset.findIndex(retrievedSequence) == -1)
+      {
+        dataset.addSequence(retrievedSequence);
+        matcher.add(retrievedSequence);
+      }
+    }
+    return imported;
+  }
+
+  /**
+   * Sets the inverse sequence mapping in the corresponding dbref of the mapped
+   * to sequence (if any). This is used after fetching a cross-referenced
+   * sequence, if the fetched sequence has a mapping to the original sequence,
+   * to set the mapping in the original sequence's dbref.
+   * 
+   * @param mapFrom
+   *          the sequence mapped from
+   * @param dbref
+   * @param mappings
+   */
+  void setReverseMapping(SequenceI mapFrom, DBRefEntry dbref,
+          AlignedCodonFrame mappings)
+  {
+    SequenceI mapTo = dbref.getMap().getTo();
+    if (mapTo == null)
+    {
+      return;
+    }
+    DBRefEntry[] dbrefs = mapTo.getDBRefs();
+    if (dbrefs == null)
+    {
+      return;
+    }
+    for (DBRefEntry toRef : dbrefs)
+    {
+      if (toRef.hasMap() && mapFrom == toRef.getMap().getTo())
+      {
+        /*
+         * found the reverse dbref; update its mapping if null
+         */
+        if (toRef.getMap().getMap() == null)
+        {
+          MapList inverse = dbref.getMap().getMap().getInverse();
+          toRef.getMap().setMap(inverse);
+          mappings.addMap(mapTo, mapFrom, inverse);
+        }
+      }
+    }
+  }
+
+  /**
+   * Returns null or the first sequence in the dataset which is identical to
+   * xref.mapTo, and has a) a primary dbref matching xref, or if none found, the
+   * first one with an ID source|xrefacc
+   * 
+   * @param xref
+   *          with map and mapped-to sequence
+   * @return
+   */
+  SequenceI findInDataset(DBRefEntry xref)
+  {
+    if (xref == null || !xref.hasMap() || xref.getMap().getTo() == null)
+    {
+      return null;
+    }
+    SequenceI mapsTo = xref.getMap().getTo();
+    String name = xref.getAccessionId();
+    String name2 = xref.getSource() + "|" + name;
+    SequenceI dss = mapsTo.getDatasetSequence() == null ? mapsTo : mapsTo
+            .getDatasetSequence();
+    // first check ds if ds is directly referenced
+    if (dataset.findIndex(dss) > -1)
+    {
+      return dss;
+    }
+    DBRefEntry template = new DBRefEntry(xref.getSource(), null,
+            xref.getAccessionId());
+    /**
+     * remember the first ID match - in case we don't find a match to template
+     */
+    SequenceI firstIdMatch = null;
+    for (SequenceI seq : dataset.getSequences())
+    {
+      // first check primary refs.
+      List<DBRefEntry> match = DBRefUtils.searchRefs(seq.getPrimaryDBRefs()
+              .toArray(new DBRefEntry[0]), template);
+      if (match != null && match.size() == 1 && sameSequence(seq, dss))
+      {
+        return seq;
+      }
+      /*
+       * clumsy alternative to using SequenceIdMatcher which currently
+       * returns sequences with a dbref to the matched accession id 
+       * which we don't want
+       */
+      if (firstIdMatch == null
+              && (name.equals(seq.getName()) || seq.getName().startsWith(
+                      name2)))
+      {
+        if (sameSequence(seq, dss))
+        {
+          firstIdMatch = seq;
+        }
+      }
+    }
+    return firstIdMatch;
+  }
+
+  /**
+   * Answers true if seq1 and seq2 contain exactly the same characters (ignoring
+   * case), else false. This method compares the lengths, then each character in
+   * turn, in order to 'fail fast'. For case-sensitive comparison, it would be
+   * possible to use Arrays.equals(seq1.getSequence(), seq2.getSequence()).
+   * 
+   * @param seq1
+   * @param seq2
+   * @return
+   */
+  // TODO move to Sequence / SequenceI
+  static boolean sameSequence(SequenceI seq1, SequenceI seq2)
+  {
+    if (seq1 == seq2)
+    {
+      return true;
+    }
+    if (seq1 == null || seq2 == null)
+    {
+      return false;
+    }
+    char[] c1 = seq1.getSequence();
+    char[] c2 = seq2.getSequence();
+    if (c1.length != c2.length)
+    {
+      return false;
+    }
+    for (int i = 0; i < c1.length; i++)
+    {
+      int diff = c1[i] - c2[i];
+      /*
+       * same char or differ in case only ('a'-'A' == 32)
+       */
+      if (diff != 0 && diff != 32 && diff != -32)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Updates any empty mappings in the cross-references with one to a compatible
+   * retrieved sequence if found, and adds any new mappings to the
+   * AlignedCodonFrame
+   * 
+   * @param mapFrom
+   * @param xrefs
+   * @param retrieved
+   * @param acf
+   */
+  void updateDbrefMappings(SequenceI mapFrom, DBRefEntry[] xrefs,
+          SequenceI[] retrieved, AlignedCodonFrame acf, boolean fromDna)
+  {
+    SequenceIdMatcher idMatcher = new SequenceIdMatcher(retrieved);
+    for (DBRefEntry xref : xrefs)
+    {
+      if (!xref.hasMap())
+      {
+        String targetSeqName = xref.getSource() + "|"
+                + xref.getAccessionId();
+        SequenceI[] matches = idMatcher.findAllIdMatches(targetSeqName);
+        if (matches == null)
+        {
+          return;
+        }
+        for (SequenceI seq : matches)
+        {
+          constructMapping(mapFrom, seq, xref, acf, fromDna);
+        }
+      }
+    }
+  }
+
+  /**
+   * Tries to make a mapping between sequences. If successful, adds the mapping
+   * to the dbref and the mappings collection and answers true, otherwise
+   * answers false. The following methods of making are mapping are tried in
+   * turn:
+   * <ul>
+   * <li>if 'mapTo' holds a mapping to 'mapFrom', take the inverse; this is, for
+   * example, the case after fetching EMBL cross-references for a Uniprot
+   * sequence</li>
+   * <li>else check if the dna translates exactly to the protein (give or take
+   * start and stop codons></li>
+   * <li>else try to map based on CDS features on the dna sequence</li>
+   * </ul>
+   * 
+   * @param mapFrom
+   * @param mapTo
+   * @param xref
+   * @param mappings
+   * @return
+   */
+  boolean constructMapping(SequenceI mapFrom, SequenceI mapTo,
+          DBRefEntry xref, AlignedCodonFrame mappings, boolean fromDna)
+  {
+    MapList mapping = null;
+    SequenceI dsmapFrom = mapFrom.getDatasetSequence() == null ? mapFrom
+            : mapFrom.getDatasetSequence();
+    SequenceI dsmapTo = mapTo.getDatasetSequence() == null ? mapTo : mapTo
+            .getDatasetSequence();
+    /*
+     * look for a reverse mapping, if found make its inverse. 
+     * Note - we do this on dataset sequences only.
+     */
+    if (dsmapTo.getDBRefs() != null)
+    {
+      for (DBRefEntry dbref : dsmapTo.getDBRefs())
+      {
+        String name = dbref.getSource() + "|" + dbref.getAccessionId();
+        if (dbref.hasMap() && dsmapFrom.getName().startsWith(name))
+        {
+          /*
+           * looks like we've found a map from 'mapTo' to 'mapFrom'
+           * - invert it to make the mapping the other way 
+           */
+          MapList reverse = dbref.getMap().getMap().getInverse();
+          xref.setMap(new Mapping(dsmapTo, reverse));
+          mappings.addMap(mapFrom, dsmapTo, reverse);
+          return true;
+        }
+      }
+    }
+
+    if (fromDna)
+    {
+      mapping = AlignmentUtils.mapCdnaToProtein(mapTo, mapFrom);
+    }
+    else
+    {
+      mapping = AlignmentUtils.mapCdnaToProtein(mapFrom, mapTo);
+      if (mapping != null)
+      {
+        mapping = mapping.getInverse();
+      }
+    }
+    if (mapping == null)
+    {
+      return false;
+    }
+    xref.setMap(new Mapping(mapTo, mapping));
+
+    /*
+     * and add a reverse DbRef with the inverse mapping
+     */
+    if (mapFrom.getDatasetSequence() != null && false)
+    // && mapFrom.getDatasetSequence().getSourceDBRef() != null)
+    {
+      // possible need to search primary references... except, why doesn't xref
+      // == getSourceDBRef ??
+      // DBRefEntry dbref = new DBRefEntry(mapFrom.getDatasetSequence()
+      // .getSourceDBRef());
+      // dbref.setMap(new Mapping(mapFrom.getDatasetSequence(), mapping
+      // .getInverse()));
+      // mapTo.addDBRef(dbref);
+    }
+
+    if (fromDna)
+    {
+      AlignmentUtils.computeProteinFeatures(mapFrom, mapTo, mapping);
+      mappings.addMap(mapFrom, mapTo, mapping);
+    }
+    else
+    {
+      mappings.addMap(mapTo, mapFrom, mapping.getInverse());
+    }
+
+    return true;
   }
 
   /**
@@ -400,15 +941,16 @@ public class CrossRef
    * dataset (that is not equal to sequenceI) Identifies matching DBRefEntry
    * based on source and accession string only - Map and Version are nulled.
    * 
+   * @param fromDna
+   *          - true if context was searching from Dna sequences, false if
+   *          context was searching from Protein sequences
    * @param sequenceI
    * @param lrfs
-   * @param dataset
-   * @param rseqs
+   * @param foundSeqs
    * @return true if matches were found.
    */
-  private static boolean searchDatasetXrefs(SequenceI sequenceI,
-          boolean dna, DBRefEntry[] lrfs, AlignmentI dataset,
-          List<SequenceI> rseqs, AlignedCodonFrame cf)
+  private boolean searchDatasetXrefs(boolean fromDna, SequenceI sequenceI,
+          DBRefEntry[] lrfs, List<SequenceI> foundSeqs, AlignedCodonFrame cf)
   {
     boolean found = false;
     if (lrfs == null)
@@ -421,50 +963,44 @@ public class CrossRef
       // add in wildcards
       xref.setVersion(null);
       xref.setMap(null);
-      found = searchDataset(sequenceI, xref, dataset, rseqs, cf, false, dna);
+      found |= searchDataset(fromDna, sequenceI, xref, foundSeqs, cf, false);
     }
     return found;
   }
 
   /**
-   * search a given sequence dataset for references matching cross-references to
-   * the given sequence
+   * Searches dataset for DBRefEntrys matching the given one (xrf) and adds the
+   * associated sequence to rseqs
    * 
-   * @param sequenceI
+   * @param fromDna
+   *          true if context was searching for refs *from* dna sequence, false
+   *          if context was searching for refs *from* protein sequence
+   * @param fromSeq
+   *          a sequence to ignore (start point of search)
    * @param xrf
-   * @param dataset
-   * @param rseqs
-   *          set of unique sequences
-   * @param cf
-   * @return true if one or more unique sequences were found and added
-   */
-  public static boolean searchDataset(SequenceI sequenceI, DBRefEntry xrf,
-          AlignmentI dataset, List<SequenceI> rseqs, AlignedCodonFrame cf)
-  {
-    return searchDataset(sequenceI, xrf, dataset, rseqs, cf, true, false);
-  }
-
-  /**
-   * TODO: generalise to different protein classifications Search dataset for
-   * DBRefEntrys matching the given one (xrf) and add the associated sequence to
-   * rseq.
-   * 
-   * @param sequenceI
-   * @param xrf
-   * @param dataset
-   * @param rseqs
+   *          a cross-reference to try to match
+   * @param foundSeqs
+   *          result list to add to
+   * @param mappings
+   *          a set of sequence mappings to add to
    * @param direct
-   *          - search all references or only subset
-   * @param dna
-   *          search dna or protein xrefs (if direct=false)
+   *          - indicates the type of relationship between returned sequences,
+   *          xrf, and sequenceI that is required.
+   *          <ul>
+   *          <li>direct implies xrf is a primary reference for sequenceI AND
+   *          the sequences to be located (eg a uniprot ID for a protein
+   *          sequence, and a uniprot ref on a transcript sequence).</li>
+   *          <li>indirect means xrf is a cross reference with respect to
+   *          sequenceI or all the returned sequences (eg a genomic reference
+   *          associated with a locus and one or more transcripts)</li>
+   *          </ul>
    * @return true if relationship found and sequence added.
    */
-  public static boolean searchDataset(SequenceI sequenceI, DBRefEntry xrf,
-          AlignmentI dataset, List<SequenceI> rseqs, AlignedCodonFrame cf,
-          boolean direct, boolean dna)
+  boolean searchDataset(boolean fromDna, SequenceI fromSeq, DBRefEntry xrf,
+          List<SequenceI> foundSeqs, AlignedCodonFrame mappings,
+          boolean direct)
   {
     boolean found = false;
-    SequenceI[] typer = new SequenceI[1];
     if (dataset == null)
     {
       return false;
@@ -484,107 +1020,85 @@ public class CrossRef
           if (nxt.getDatasetSequence() != null)
           {
             System.err
-                    .println("Implementation warning: getProducts passed a dataset alignment without dataset sequences in it!");
+                    .println("Implementation warning: CrossRef initialised with a dataset alignment with non-dataset sequences in it! ("
+                            + nxt.getDisplayId(true)
+                            + " has ds reference "
+                            + nxt.getDatasetSequence().getDisplayId(true)
+                            + ")");
           }
-          if (nxt != sequenceI && nxt != sequenceI.getDatasetSequence())
+          if (nxt == fromSeq || nxt == fromSeq.getDatasetSequence())
           {
-            // check if this is the correct sequence type
+            continue;
+          }
+          /*
+           * only look at same molecule type if 'direct', or
+           * complementary type if !direct
+           */
+          {
+            boolean isDna = !nxt.isProtein();
+            if (direct ? (isDna != fromDna) : (isDna == fromDna))
             {
-              typer[0] = nxt;
-              boolean isDna = jalview.util.Comparison.isNucleotide(typer);
-              if ((direct && isDna == dna) || (!direct && isDna != dna))
-              {
-                // skip this sequence because it is same molecule type
-                continue;
-              }
+              // skip this sequence because it is wrong molecule type
+              continue;
             }
+          }
 
-            // look for direct or indirect references in common
-            DBRefEntry[] poss = nxt.getDBRef(), cands = null;
-            if (direct)
+          // look for direct or indirect references in common
+          DBRefEntry[] poss = nxt.getDBRefs();
+          List<DBRefEntry> cands = null;
+
+          // todo: indirect specifies we select either direct references to nxt
+          // that match xrf which is indirect to sequenceI, or indirect
+          // references to nxt that match xrf which is direct to sequenceI
+          cands = DBRefUtils.searchRefs(poss, xrf);
+          // else
+          // {
+          // poss = DBRefUtils.selectDbRefs(nxt.isProtein()!fromDna, poss);
+          // cands = DBRefUtils.searchRefs(poss, xrf);
+          // }
+          if (!cands.isEmpty())
+          {
+            if (foundSeqs.contains(nxt))
             {
-              cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
+              continue;
             }
-            else
+            found = true;
+            foundSeqs.add(nxt);
+            if (mappings != null && !direct)
             {
-              poss = CrossRef.findXDbRefs(dna, poss); //
-              cands = jalview.util.DBRefUtils.searchRefs(poss, xrf);
-            }
-            if (cands != null)
-            {
-              if (!rseqs.contains(nxt))
+              /*
+               * if the matched sequence has mapped dbrefs to
+               * protein product / cdna, add equivalent mappings to
+               * our source sequence
+               */
+              for (DBRefEntry candidate : cands)
               {
-                rseqs.add(nxt);
-                boolean foundmap = cf != null;
-                // don't search if we aren't given a codon map object
-                for (int r = 0; foundmap && r < cands.length; r++)
+                Mapping mapping = candidate.getMap();
+                if (mapping != null)
                 {
-                  if (cands[r].hasMap())
+                  MapList map = mapping.getMap();
+                  if (mapping.getTo() != null
+                          && map.getFromRatio() != map.getToRatio())
                   {
-                    if (cands[r].getMap().getTo() != null
-                            && cands[r].getMap().getMap().getFromRatio() != cands[r]
-                                    .getMap().getMap().getToRatio())
+                    /*
+                     * add a mapping, as from dna to peptide sequence
+                     */
+                    if (map.getFromRatio() == 3)
                     {
-                      foundmap = true;
-                      // get sense of map correct for adding to product
-                      // alignment.
-                      if (dna)
-                      {
-                        // map is from dna seq to a protein product
-                        cf.addMap(sequenceI, nxt, cands[r].getMap()
-                                .getMap());
-                      }
-                      else
-                      {
-                        // map should be from protein seq to its coding dna
-                        cf.addMap(nxt, sequenceI, cands[r].getMap()
-                                .getMap().getInverse());
-                      }
+                      mappings.addMap(nxt, fromSeq, map);
+                    }
+                    else
+                    {
+                      mappings.addMap(nxt, fromSeq, map.getInverse());
                     }
                   }
                 }
-                // TODO: add mapping between sequences if necessary
-                found = true;
               }
             }
-
           }
         }
       }
     }
     return found;
   }
-
-  /**
-   * precalculate different products that can be found for seqs in dataset and
-   * return them.
-   * 
-   * @param dna
-   * @param seqs
-   * @param dataset
-   * @param fake
-   *          - don't actually build lists - just get types
-   * @return public static Object[] buildXProductsList(boolean dna, SequenceI[]
-   *         seqs, AlignmentI dataset, boolean fake) { String types[] =
-   *         jalview.analysis.CrossRef.findSequenceXrefTypes( dna, seqs,
-   *         dataset); if (types != null) { System.out.println("Xref Types for:
-   *         "+(dna ? "dna" : "prot")); for (int t = 0; t < types.length; t++) {
-   *         System.out.println("Type: " + types[t]); SequenceI[] prod =
-   *         jalview.analysis.CrossRef.findXrefSequences(seqs, dna, types[t]);
-   *         System.out.println("Found " + ((prod == null) ? "no" : "" +
-   *         prod.length) + " products"); if (prod!=null) { for (int p=0;
-   *         p<prod.length; p++) { System.out.println("Prod "+p+":
-   *         "+prod[p].getDisplayId(true)); } } } } else {
-   *         System.out.println("Trying getProducts for
-   *         "+al.getSequenceAt(0).getDisplayId(true));
-   *         System.out.println("Search DS Xref for: "+(dna ? "dna" : "prot"));
-   *         // have a bash at finding the products amongst all the retrieved
-   *         sequences. SequenceI[] prod =
-   *         jalview.analysis.CrossRef.findXrefSequences(al
-   *         .getSequencesArray(), dna, null, ds); System.out.println("Found " +
-   *         ((prod == null) ? "no" : "" + prod.length) + " products"); if
-   *         (prod!=null) { // select non-equivalent sequences from dataset list
-   *         for (int p=0; p<prod.length; p++) { System.out.println("Prod "+p+":
-   *         "+prod[p].getDisplayId(true)); } } } }
-   */
 }

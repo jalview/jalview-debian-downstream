@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -113,7 +113,7 @@ public class JalviewLiteURLRetrieve extends Applet
       String format = getParameter("format");
       if (format == null || format.length() == 0)
       {
-        format = new jalview.io.IdentifyFile().Identify(file, protocol);
+        format = new jalview.io.IdentifyFile().identify(file, protocol);
         System.out.println("Format is " + format);
       }
       else

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,10 @@
  */
 package jalview.schemes;
 
-import jalview.analysis.AAFrequency;
+import jalview.datamodel.ProfileI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
 import java.awt.Color;
 
@@ -48,7 +49,7 @@ public class PIDColourScheme extends ResidueColourScheme
       c -= ('a' - 'A');
     }
 
-    if (consensus == null || j >= consensus.length || consensus[j] == null)
+    if (consensus == null || consensus.get(j) == null)
     {
       return Color.white;
     }
@@ -62,25 +63,24 @@ public class PIDColourScheme extends ResidueColourScheme
 
     double sc = 0;
 
-    if (consensus.length <= j)
-    {
-      return Color.white;
-    }
 
-    if ((Integer
-            .parseInt(consensus[j].get(AAFrequency.MAXCOUNT).toString()) != -1)
-            && consensus[j].contains(String.valueOf(c)))
+    /*
+     * test whether this is the consensus (or joint consensus) residue
+     */
+    ProfileI profile = consensus.get(j);
+    boolean matchesConsensus = profile.getModalResidue().contains(
+            String.valueOf(c));
+    if (matchesConsensus)
     {
-      sc = ((Float) consensus[j].get(ignoreGaps)).floatValue();
+      sc = profile.getPercentageIdentity(ignoreGaps);
 
-      if (!jalview.util.Comparison.isGap(c))
+      if (!Comparison.isGap(c))
       {
         for (int i = 0; i < thresholds.length; i++)
         {
           if (sc > thresholds[i])
           {
             currentColour = pidColours[i];
-
             break;
           }
         }

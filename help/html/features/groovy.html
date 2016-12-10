@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,34 +27,23 @@
     <strong>The Groovy Shell</strong>
   </p>
   <p>
-    <a href="http://groovy.codehaus.org/">Groovy</a> is an &quot;<em>agile
-      and dynamic language for the Java platform</em>&quot;. The groovy
-    scripting language makes it extremely easy to programmatically
-    interact with Java programs, in much the same way that Javascript is
-    used to generate and interact with applets and other objects on the
-    page.
+    Groovy (<a href="http://www.groovy-lang.org/">www.groovy-lang.org</a>)
+    is an &quot;<em>agile and dynamic language for the Java
+      platform</em>&quot;. The groovy scripting language makes it extremely
+    easy to programmatically interact with Java programs, in much the
+    same way that Javascript is used to generate and interact with
+    applets and other objects on the page.
   </p>
   <p>
-    <strong><em>Getting Groovy...</em> </strong><br> Jalview Groovy
-    support is only possible if the core groovy jars which include the
-    GroovyShell are present on the CLASSPATH when Jalview is started.
-  </p>
-  <p>
-    The jars are obtained from the <em>embedded</em> directory within
-    the <a href="http://dist.codehaus.org/groovy/distributions">groovy
-      distribution</a>. The easiest way of adding them to the Jalview
-    classpath is to download and build Jalview from its source
-    distribution, and then add the groovy-all-*.jar to the lib directory
-    whose path is given in the java.ext.dirs property.
-  </p>
-  <p>
-    <strong>Opening Jalview's Groovy Console</strong><br>If groovy
-    is available, then the <strong>Tools&#8594;Groovy
-      Console...</strong> menu entry will be available from the Jalview Desktop's
-    drop-down menu. Selecting this will open the <a
-      href="http://groovy.codehaus.org/Groovy+Console"
-    >Groovy Console</a> which allows you to interactively execute Groovy
-    scripts within the Jalview run-time environment.
+    <em>Getting Groovy...</em><br> Jalview comes with an embedded
+    installation of Groovy. Just select <strong>Tools&#8594;Groovy
+      Console...</strong> from the Jalview Desktop's drop-down menu. After a
+    short pause, you should then see the <a
+      href="http://groovy-lang.org/groovyconsole.html">Groovy
+      Console</a> appear. This allows you to interactively execute Groovy
+    scripts whilst Jalview is running. We've also provided a <strong>Calculations&#8594;Execute
+      Groovy Script</strong> button so you can execute the currently loaded
+    groovy script whilst viewing an alignment.
   </p>
   <p>
     <strong>Executing groovy scripts on Jalview startup</strong><br>
@@ -70,14 +59,29 @@
   </p>
   <p>
     <strong>Access to Jalview's functions from Groovy Scripts</strong><br>
-    There is as yet no properly defined scripting interface to Jalview,
-    but all the public methods of the jalview class hierarchy can be
-    called from Groovy scripts. The access point for this is the <strong>Jalview</strong>
-    object defined in the groovy environent which corresponds to the
-  <pre>jalview.gui.Desktop</pre>
-  object which manages all the Jalview windows. Here's an example to get
-  you started:
-  <br>
+    The scripting interface to Jalview is still a work in progress, so
+    we recommend you also take a look at Jalview's source, since all the
+    public methods of the jalview class hierarchy can be called from
+    Groovy scripts. In addition, the following objects are also defined:
+
+
+  
+  <ul>
+    <li><strong>Jalview</strong> - this is bound to <code>jalview.bin.Jalview</code>.<br />Useful
+      methods include:
+      <ul>
+        <li>Jalview.getAlignFrames() - returns a list of
+          jalview.gui.AlignFrame objects</li>
+        <li>Jalview.getCurrentAlignFrame() - returns the alignment
+          window which is currently being looked at by the user</li>
+      </ul></li>
+    <li><strong>currentAlFrame</strong> - this is only defined when
+      running a Groovy script via the -groovy command line argument. It
+      returns the first alignment window created after acting on the
+      other arguments passed on the command line.</li>
+  </ul>
+  <p>
+    <em>A simple script</em><br />
   <ul>
     <li>Getting the title, alignment and first sequence from the
       current alignFrame<br> <pre>
@@ -87,13 +91,26 @@ def alignment = alf[0].viewport.alignment;
 def seq = alignment.getSequenceAt(0);
 </pre>
     </li>
-    <li>When running a groovy script from the command line, the
-      alignment that was just loaded can be referred to like so:<br>
-    <pre>
+    <li>If you wanted to do the same thing from the command line,
+      you can refer to alignment that was just loaded with
+      currentAlFrame:<br> <pre>
 print currentAlFrame.getTitle();</pre>
   </ul>
-  If you have downloaded the InstallAnywhere version of Jalview, you can
-  find additional groovy scripts in the examples/groovy subfolder of the
-  installation directory.
+  <p>
+    <em>Example scripts</em><br />If you have downloaded the
+    InstallAnywhere version of Jalview, you can find additional groovy
+    scripts in the examples/groovy subfolder of the installation
+    directory. The examples are also available at <a
+      href="http://www.jalview.org/examples/groovy">http://www.jalview.org/examples/groovy</a>.
+  </p>
+  <p>
+    <em>Using Groovy to add new Alignment Calculations</em><br />We've
+    simplified the alignment analysis programming interface in Jalview
+    2.10 to make it easy for you to add your own dynamic annotation
+    tracks with Groovy. Have a look at the <a
+      href="../groovy/featureCounter.html">featureCounter.groovy</a>
+    example for more information.
+  </p>
+
 </body>
 </html>

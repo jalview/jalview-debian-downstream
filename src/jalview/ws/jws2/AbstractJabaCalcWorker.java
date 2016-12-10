@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -331,23 +331,23 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
       System.err.println("submission error with " + getServiceActionText()
               + " :");
       x.printStackTrace();
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
     } catch (ResultNotAvailableException x)
     {
       System.err.println("collection error:\nJob ID: " + rslt);
       x.printStackTrace();
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
 
     } catch (OutOfMemoryError error)
     {
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
 
       // consensus = null;
       // hconsensus = null;
       ap.raiseOOMWarning(getServiceActionText(), error);
     } catch (Exception x)
     {
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
 
       // consensus = null;
       // hconsensus = null;

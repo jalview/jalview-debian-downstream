@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.io;
 import jalview.api.AlignExportSettingI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
+import jalview.api.FeatureSettingsModelI;
 import jalview.util.MessageManager;
 
 import java.io.BufferedReader;
@@ -274,6 +275,30 @@ public class FileParse
   }
 
   /**
+   * not for general use, creates a fileParse object for an existing reader with
+   * configurable values for the origin and the type of the source
+   */
+  public FileParse(BufferedReader source, String originString,
+          String typeString)
+  {
+    type = typeString;
+    error = false;
+    inFile = null;
+    dataName = originString;
+    dataIn = source;
+    try
+    {
+      if (dataIn.markSupported())
+      {
+        dataIn.mark(READAHEAD_LIMIT);
+      }
+    } catch (IOException q)
+    {
+
+    }
+  }
+
+  /**
    * Create a datasource for input to Jalview. See AppletFormatAdapter for the
    * types of sources that are handled.
    * 
@@ -457,11 +482,19 @@ public class FileParse
   }
 
   /**
-   * rewinds the datasource the beginning.
+   * Rewinds the datasource to the marked point if possible
+   * 
+   * @param bytesRead
    * 
    */
-  public void reset() throws IOException
+  public void reset(int bytesRead) throws IOException
   {
+    if (bytesRead >= READAHEAD_LIMIT)
+    {
+      System.err.println(String.format(
+              "File reset error: read %d bytes but reset limit is %d",
+              bytesRead, READAHEAD_LIMIT));
+    }
     if (dataIn != null && !error)
     {
       dataIn.reset();
@@ -580,5 +613,16 @@ public class FileParse
       setViewport(avpanel.getAlignViewport());
     }
     // could also set export/import settings
+  }
+
+  /**
+   * Returns the preferred feature colour configuration if there is one, else
+   * null
+   * 
+   * @return
+   */
+  public FeatureSettingsModelI getFeatureColourScheme()
+  {
+    return null;
   }
 }

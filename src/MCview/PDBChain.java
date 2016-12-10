@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,7 +29,9 @@ import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ResidueProperties;
+import jalview.structure.StructureImportSettings;
 import jalview.structure.StructureMapping;
+import jalview.util.Comparison;
 
 import java.awt.Color;
 import java.util.List;
@@ -81,7 +83,7 @@ public class PDBChain
 
   public PDBChain(String pdbid, String id)
   {
-    this.pdbid = pdbid.toLowerCase();
+    this.pdbid = pdbid == null ? pdbid : pdbid.toLowerCase();
     this.id = id;
   }
 
@@ -145,8 +147,14 @@ public class PDBChain
         pdbpos++;
       }
 
-      if (as.astr1.charAt(i) == as.astr2.charAt(i))
+      boolean sameResidue = Comparison.isSameResidue(as.astr1.charAt(i),
+              as.astr2.charAt(i), false);
+      if (sameResidue)
       {
+        if (pdbpos >= residues.size())
+        {
+          continue;
+        }
         Residue res = residues.elementAt(pdbpos);
         for (Atom atom : res.atoms)
         {
@@ -188,9 +196,14 @@ public class PDBChain
       status = PDBChain.IEASTATUS;
     }
     SequenceFeature[] features = sequence.getSequenceFeatures();
+    if (features == null)
+    {
+      return null;
+    }
     for (int i = 0; i < features.length; i++)
     {
-      if (features[i].getFeatureGroup().equals(pdbid))
+      if (features[i].getFeatureGroup() != null
+              && features[i].getFeatureGroup().equals(pdbid))
       {
         SequenceFeature tx = new SequenceFeature(features[i]);
         tx.setBegin(1 + residues.elementAt(tx.getBegin() - offset).atoms
@@ -252,7 +265,7 @@ public class PDBChain
      * If > 99% 'P', flag as nucleotide; note the count doesn't include the last
      * residue
      */
-    if (residues.size() > 0 && (numNa / (residues.size() - 1) > 0.99))
+    if (residues.size() > 1 && (numNa / (residues.size() - 1) > 0.99))
     {
       isNa = true;
     }
@@ -295,11 +308,15 @@ public class PDBChain
     Vector<Annotation> resAnnotation = new Vector<Annotation>();
     int i, iSize = atoms.size() - 1;
     int resNumber = -1;
+    char insCode = ' ';
     for (i = 0; i <= iSize; i++)
     {
       Atom tmp = atoms.elementAt(i);
       resNumber = tmp.resNumber;
+      insCode = tmp.insCode;
+
       int res = resNumber;
+      char ins = insCode;
 
       if (i == 0)
       {
@@ -309,7 +326,7 @@ public class PDBChain
       Vector<Atom> resAtoms = new Vector<Atom>();
       // Add atoms to a vector while the residue number
       // remains the same as the first atom's resNumber (res)
-      while ((resNumber == res) && (i < atoms.size()))
+      while ((resNumber == res) && (ins == insCode) && (i < atoms.size()))
       {
         resAtoms.add(atoms.elementAt(i));
         i++;
@@ -317,6 +334,7 @@ public class PDBChain
         if (i < atoms.size())
         {
           resNumber = atoms.elementAt(i).resNumber;
+          insCode = atoms.elementAt(i).insCode;
         }
         else
         {
@@ -327,51 +345,71 @@ public class PDBChain
       // We need this to keep in step with the outer for i = loop
       i--;
 
-      // Make a new Residue object with the new atoms vector
-      residues.addElement(new Residue(resAtoms, resNumber - 1, count));
-
-      Residue tmpres = residues.lastElement();
-      Atom tmpat = tmpres.atoms.get(0);
-      // Make A new SequenceFeature for the current residue numbering
-      SequenceFeature sf = new SequenceFeature("RESNUM", tmpat.resName
-              + ":" + tmpat.resNumIns + " " + pdbid + id, "", offset
-              + count, offset + count, pdbid);
-      // MCview.PDBChain.PDBFILEFEATURE);
-      resFeatures.addElement(sf);
-      resAnnotation.addElement(new Annotation(tmpat.tfactor));
-      // Keep totting up the sequence
-      if ((symbol = ResidueProperties.getAA3Hash().get(tmpat.resName)) == null)
+      // Add inserted residues as features to the base residue
+      Atom currAtom = resAtoms.get(0);
+      if (currAtom.insCode != ' '
+              && !residues.isEmpty()
+              && residues.lastElement().atoms.get(0).resNumber == currAtom.resNumber)
       {
-        String nucname = tmpat.resName.trim();
-        // use the aaIndex rather than call 'toLower' - which would take a bit
-        // more time.
-        deoxyn = nucname.length() == 2
-                && ResidueProperties.aaIndex[nucname.charAt(0)] == ResidueProperties.aaIndex['D'];
-        if (tmpat.name.equalsIgnoreCase("CA")
-                || ResidueProperties.nucleotideIndex[nucname
-                        .charAt((deoxyn ? 1 : 0))] == -1)
-        {
-          seq.append("X");
-          // System.err.println("PDBReader:Null aa3Hash for " +
-          // tmpat.resName);
-        }
-        else
-        {
-          // nucleotide flag
-          nucleotide = true;
-          seq.append(nucname.charAt((deoxyn ? 1 : 0)));
-        }
+        SequenceFeature sf = new SequenceFeature("INSERTION",
+                currAtom.resName + ":" + currAtom.resNumIns + " " + pdbid
+                        + id, "", offset + count - 1, offset + count - 1,
+                "PDB_INS");
+        resFeatures.addElement(sf);
+        residues.lastElement().atoms.addAll(resAtoms);
       }
       else
       {
-        if (nucleotide)
+
+        // Make a new Residue object with the new atoms vector
+        residues.addElement(new Residue(resAtoms, resNumber - 1, count));
+
+        Residue tmpres = residues.lastElement();
+        Atom tmpat = tmpres.atoms.get(0);
+        // Make A new SequenceFeature for the current residue numbering
+        SequenceFeature sf = new SequenceFeature("RESNUM", tmpat.resName
+                + ":" + tmpat.resNumIns + " " + pdbid + id, "", offset
+                + count, offset + count, pdbid);
+        resFeatures.addElement(sf);
+        resAnnotation.addElement(new Annotation(tmpat.tfactor));
+        // Keep totting up the sequence
+
+        if ((symbol = ResidueProperties.getAA3Hash().get(tmpat.resName)) == null)
         {
-          System.err
-                  .println("Warning: mixed nucleotide and amino acid chain.. its gonna do bad things to you!");
+          String nucname = tmpat.resName.trim();
+          // use the aaIndex rather than call 'toLower' - which would take a bit
+          // more time.
+          deoxyn = nucname.length() == 2
+                  && ResidueProperties.aaIndex[nucname.charAt(0)] == ResidueProperties.aaIndex['D'];
+          if (tmpat.name.equalsIgnoreCase("CA")
+                  || ResidueProperties.nucleotideIndex[nucname
+                          .charAt((deoxyn ? 1 : 0))] == -1)
+          {
+            char r = ResidueProperties
+                    .getSingleCharacterCode(ResidueProperties
+                            .getCanonicalAminoAcid(tmpat.resName));
+            seq.append(r == '0' ? 'X' : r);
+            // System.err.println("PDBReader:Null aa3Hash for " +
+            // tmpat.resName);
+          }
+          else
+          {
+            // nucleotide flag
+            nucleotide = true;
+            seq.append(nucname.charAt((deoxyn ? 1 : 0)));
+          }
         }
-        seq.append(ResidueProperties.aa[((Integer) symbol).intValue()]);
+        else
+        {
+          if (nucleotide)
+          {
+            System.err
+                    .println("Warning: mixed nucleotide and amino acid chain.. its gonna do bad things to you!");
+          }
+          seq.append(ResidueProperties.aa[((Integer) symbol).intValue()]);
+        }
+        count++;
       }
-      count++;
     }
 
     if (id.length() < 1)
@@ -388,10 +426,14 @@ public class PDBChain
 
     // System.out.println("PDB Sequence is :\nSequence = " + seq);
     // System.out.println("No of residues = " + residues.size());
-    for (i = 0, iSize = resFeatures.size(); i < iSize; i++)
+
+    if (StructureImportSettings.isShowSeqFeatures())
     {
-      sequence.addSequenceFeature(resFeatures.elementAt(i));
-      resFeatures.setElementAt(null, i);
+      for (i = 0, iSize = resFeatures.size(); i < iSize; i++)
+      {
+        sequence.addSequenceFeature(resFeatures.elementAt(i));
+        resFeatures.setElementAt(null, i);
+      }
     }
     if (visibleChainAnnotation)
     {
@@ -544,12 +586,13 @@ public class PDBChain
         {
           for (AlignmentAnnotation ana : sequence.getAnnotation())
           {
-            List<AlignmentAnnotation> transfer = sq
+            List<AlignmentAnnotation> transfer = dsq
                     .getAlignmentAnnotations(ana.getCalcId(), ana.label);
             if (transfer == null || transfer.size() == 0)
             {
               ana = new AlignmentAnnotation(ana);
               ana.liftOver(dsq, sqmpping);
+              dsq.addAlignmentAnnotation(ana);
               // mapping.transfer(ana);
             }
             else

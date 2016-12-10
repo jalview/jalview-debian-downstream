@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,6 +32,7 @@ import jalview.util.MessageManager;
 import jalview.util.QuickSort;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -718,13 +719,16 @@ public class AlignmentSorter
   public static void sortByFeature(String featureLabel, String groupLabel,
           int start, int stop, AlignmentI alignment, String method)
   {
-    sortByFeature(featureLabel == null ? null
-            : new String[] { featureLabel }, groupLabel == null ? null
-            : new String[] { groupLabel }, start, stop, alignment, method);
+    sortByFeature(
+            featureLabel == null ? null
+                    : Arrays.asList(new String[] { featureLabel }),
+            groupLabel == null ? null : Arrays
+                    .asList(new String[] { groupLabel }), start, stop,
+            alignment, method);
   }
 
   private static boolean containsIgnoreCase(final String lab,
-          final String[] labs)
+          final List<String> labs)
   {
     if (labs == null)
     {
@@ -734,9 +738,9 @@ public class AlignmentSorter
     {
       return false;
     }
-    for (int q = 0; q < labs.length; q++)
+    for (String label : labs)
     {
-      if (labs[q] != null && lab.equalsIgnoreCase(labs[q]))
+      if (lab.equalsIgnoreCase(label))
       {
         return true;
       }
@@ -744,9 +748,9 @@ public class AlignmentSorter
     return false;
   }
 
-  public static void sortByFeature(String[] featureLabels,
-          String[] groupLabels, int start, int stop, AlignmentI alignment,
-          String method)
+  public static void sortByFeature(List<String> featureLabels,
+          List<String> groupLabels, int start, int stop,
+          AlignmentI alignment, String method)
   {
     if (method != FEATURE_SCORE && method != FEATURE_LABEL
             && method != FEATURE_DENSITY)
@@ -755,20 +759,41 @@ public class AlignmentSorter
               MessageManager
                       .getString("error.implementation_error_sortbyfeature"));
     }
+
     boolean ignoreScore = method != FEATURE_SCORE;
     StringBuffer scoreLabel = new StringBuffer();
     scoreLabel.append(start + stop + method);
     // This doesn't quite work yet - we'd like to have a canonical ordering that
     // can be preserved from call to call
-    for (int i = 0; featureLabels != null && i < featureLabels.length; i++)
+    if (featureLabels != null)
     {
-      scoreLabel.append(featureLabels[i] == null ? "null"
-              : featureLabels[i]);
+      for (String label : featureLabels)
+      {
+        scoreLabel.append(label);
+      }
     }
-    for (int i = 0; groupLabels != null && i < groupLabels.length; i++)
+    if (groupLabels != null)
     {
-      scoreLabel.append(groupLabels[i] == null ? "null" : groupLabels[i]);
+      for (String label : groupLabels)
+      {
+        scoreLabel.append(label);
+      }
     }
+
+    /*
+     * if resorting the same feature, toggle sort order
+     */
+    if (lastSortByFeatureScore == null
+            || !scoreLabel.toString().equals(lastSortByFeatureScore))
+    {
+      sortByFeatureScoreAscending = true;
+    }
+    else
+    {
+      sortByFeatureScoreAscending = !sortByFeatureScoreAscending;
+    }
+    lastSortByFeatureScore = scoreLabel.toString();
+
     SequenceI[] seqs = alignment.getSequencesArray();
 
     boolean[] hasScore = new boolean[seqs.length]; // per sequence score
@@ -855,7 +880,7 @@ public class AlignmentSorter
             labs[l] = (fs[l].getDescription() != null ? fs[l]
                     .getDescription() : fs[l].getType());
           }
-          jalview.util.QuickSort.sort(labs, ((Object[]) feats[i]));
+          QuickSort.sort(labs, ((Object[]) feats[i]));
         }
       }
       if (hasScore[i])
@@ -898,32 +923,27 @@ public class AlignmentSorter
           }
           else
           {
-            int nf = (feats[i] == null) ? 0
-                    : ((SequenceFeature[]) feats[i]).length;
-            // System.err.println("Sorting on Score: seq "+seqs[i].getName()+
-            // " Feats: "+nf+" Score : "+scores[i]);
+            // int nf = (feats[i] == null) ? 0
+            // : ((SequenceFeature[]) feats[i]).length;
+            // // System.err.println("Sorting on Score: seq " +
+            // seqs[i].getName()
+            // + " Feats: " + nf + " Score : " + scores[i]);
           }
         }
       }
-
-      jalview.util.QuickSort.sort(scores, seqs);
+      QuickSort.sortByDouble(scores, seqs, sortByFeatureScoreAscending);
     }
     else if (method == FEATURE_DENSITY)
     {
-
-      // break ties between equivalent numbers for adjacent sequences by adding
-      // 1/Nseq*i on the original order
-      double fr = 0.9 / (1.0 * seqs.length);
       for (int i = 0; i < seqs.length; i++)
       {
-        double nf;
-        scores[i] = (0.05 + fr * i)
-                + (nf = ((feats[i] == null) ? 0.0
-                        : 1.0 * ((SequenceFeature[]) feats[i]).length));
+        int featureCount = feats[i] == null ? 0
+                : ((SequenceFeature[]) feats[i]).length;
+        scores[i] = featureCount;
         // System.err.println("Sorting on Density: seq "+seqs[i].getName()+
-        // " Feats: "+nf+" Score : "+scores[i]);
+        // " Feats: "+featureCount+" Score : "+scores[i]);
       }
-      jalview.util.QuickSort.sort(scores, seqs);
+      QuickSort.sortByDouble(scores, seqs, sortByFeatureScoreAscending);
     }
     else
     {
@@ -933,24 +953,8 @@ public class AlignmentSorter
                 MessageManager.getString("error.not_yet_implemented"));
       }
     }
-    if (lastSortByFeatureScore == null
-            || !scoreLabel.toString().equals(lastSortByFeatureScore))
-    {
-      sortByFeatureScoreAscending = true;
-    }
-    else
-    {
-      sortByFeatureScoreAscending = !sortByFeatureScoreAscending;
-    }
-    if (sortByFeatureScoreAscending)
-    {
-      setOrder(alignment, seqs);
-    }
-    else
-    {
-      setReverseOrder(alignment, seqs);
-    }
-    lastSortByFeatureScore = scoreLabel.toString();
+
+    setOrder(alignment, seqs);
   }
 
 }

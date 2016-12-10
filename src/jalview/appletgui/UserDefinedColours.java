@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,10 @@
  */
 package jalview.appletgui;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.SequenceGroup;
 import jalview.schemes.ColourSchemeI;
-import jalview.schemes.GraduatedColor;
+import jalview.schemes.FeatureColour;
 import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
 import jalview.util.MessageManager;
@@ -59,7 +60,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
   Button selectedButton;
 
-  Vector oldColours = new Vector();
+  Vector<Color> oldColours = new Vector<Color>();
 
   ColourSchemeI oldColourScheme;
 
@@ -75,7 +76,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
   String originalLabel;
 
-  Object originalColour;
+  FeatureColourI originalColour;
 
   int R = 0, G = 0, B = 0;
 
@@ -117,7 +118,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
   public UserDefinedColours(FeatureRenderer fr, Frame alignframe)
   {
     caller = fr;
-    originalColour = fr.colourPanel.getBackground();
+    originalColour = new FeatureColour(fr.colourPanel.getBackground());
     originalLabel = "Feature Colour";
     setForDialog("Select Feature Colour", alignframe);
     setTargetColour(fr.colourPanel.getBackground());
@@ -134,21 +135,21 @@ public class UserDefinedColours extends Panel implements ActionListener,
    * 
    * @param caller
    *          - handles events
-   * @param col1
+   * @param col
    *          - original colour
    * @param alignframe
    *          - the parent Frame for the dialog
    * @param title
    *          - window title
    */
-  public UserDefinedColours(Component caller, Color col1, Frame alignframe,
+  public UserDefinedColours(Component caller, Color col, Frame alignframe,
           String title)
   {
     this.caller = caller;
-    originalColour = col1;
+    originalColour = new FeatureColour(col);
     originalLabel = title;
     setForDialog(title, alignframe);
-    setTargetColour(col1);
+    setTargetColour(col);
     dialog.setVisible(true);
   }
 
@@ -161,7 +162,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
    */
   public UserDefinedColours(Object caller, String label, Color colour)
   {
-    this(caller, label, colour, colour);
+    this(caller, label, new FeatureColour(colour), colour);
   }
 
   /**
@@ -172,13 +173,13 @@ public class UserDefinedColours extends Panel implements ActionListener,
    * @param graduatedColor
    */
   public UserDefinedColours(FeatureSettings me, String type,
-          GraduatedColor graduatedColor)
+          FeatureColourI graduatedColor)
   {
-    this(me, type, graduatedColor, graduatedColor.getMaxColor());
+    this(me, type, graduatedColor, graduatedColor.getMaxColour());
   }
 
-  private UserDefinedColours(Object caller, String label, Object ocolour,
-          Color colour)
+  private UserDefinedColours(Object caller, String label,
+          FeatureColourI ocolour, Color colour)
   {
     this.caller = caller;
     originalColour = ocolour;
@@ -228,6 +229,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     final Object source = evt.getSource();
@@ -257,6 +259,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     if (evt.getSource() == rScroller)
@@ -420,6 +423,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     button.setFont(new java.awt.Font("Verdana", 1, 10));
     button.addMouseListener(new java.awt.event.MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         colourButtonPressed(e);
@@ -451,7 +455,8 @@ public class UserDefinedColours extends Panel implements ActionListener,
     {
       if (caller instanceof FeatureSettings)
       {
-        ((FeatureSettings) caller).setUserColour(originalLabel, getColor());
+        ((FeatureSettings) caller).setUserColour(originalLabel,
+                new FeatureColour(getColor()));
       }
       else if (caller instanceof AnnotationColourChooser)
       {
@@ -468,7 +473,8 @@ public class UserDefinedColours extends Panel implements ActionListener,
       }
       else if (caller instanceof FeatureRenderer)
       {
-        ((FeatureRenderer) caller).colourPanel.updateColor(getColor());
+        ((FeatureRenderer) caller).colourPanel
+                .updateColor(new FeatureColour(getColor()));
       }
       else if (caller instanceof FeatureColourChooser)
       {
@@ -537,12 +543,12 @@ public class UserDefinedColours extends Panel implements ActionListener,
         if (originalLabel.equals("Min Colour"))
         {
           ((AnnotationColourChooser) caller)
-                  .minColour_actionPerformed((Color) originalColour);
+                  .minColour_actionPerformed(originalColour.getColour());
         }
         else
         {
           ((AnnotationColourChooser) caller)
-                  .maxColour_actionPerformed((Color) originalColour);
+                  .maxColour_actionPerformed(originalColour.getColour());
         }
       }
       else if (caller instanceof FeatureRenderer)
@@ -556,12 +562,12 @@ public class UserDefinedColours extends Panel implements ActionListener,
         if (originalLabel.indexOf("inimum") > -1)
         {
           ((FeatureColourChooser) caller)
-                  .minColour_actionPerformed((Color) originalColour);
+                  .minColour_actionPerformed(originalColour.getColour());
         }
         else
         {
           ((FeatureColourChooser) caller)
-                  .maxColour_actionPerformed((Color) originalColour);
+                  .maxColour_actionPerformed(originalColour.getColour());
         }
       }
       if (dialog != null)
@@ -576,7 +582,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
     Color[] newColours = new Color[24];
     for (int i = 0; i < 24; i++)
     {
-      newColours[i] = (Color) oldColours.elementAt(i);
+      newColours[i] = oldColours.elementAt(i);
       buttonPanel.getComponent(i).setBackground(newColours[i]);
     }
 

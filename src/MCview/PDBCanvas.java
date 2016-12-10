@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.datamodel.SequenceI;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.FeatureRenderer;
 import jalview.gui.SequenceRenderer;
+import jalview.io.StructureFile;
 import jalview.structure.AtomSpec;
 import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
@@ -65,7 +66,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
   int my = 0;
 
-  public PDBfile pdb;
+  public StructureFile pdb;
 
   PDBEntry pdbentry;
 
@@ -154,7 +155,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
       if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
       {
-        pdbentry.setFile("INLINE" + pdb.id);
+        pdbentry.setFile("INLINE" + pdb.getId());
       }
 
     } catch (Exception ex)
@@ -168,7 +169,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       errorMessage = "Error loading file: " + pdbentry.getId();
       return;
     }
-    pdbentry.setId(pdb.id);
+    pdbentry.setId(pdb.getId());
 
     ssm.addStructureViewerListener(this);
 
@@ -184,28 +185,32 @@ public class PDBCanvas extends JPanel implements MouseListener,
     // JUST DEAL WITH ONE SEQUENCE FOR NOW
     SequenceI sequence = seq[0];
 
-    for (int i = 0; i < pdb.chains.size(); i++)
+    for (int i = 0; i < pdb.getChains().size(); i++)
     {
 
-      mappingDetails.append("\n\nPDB Sequence is :\nSequence = "
-              + pdb.chains.elementAt(i).sequence.getSequenceAsString());
+      mappingDetails
+              .append("\n\nPDB Sequence is :\nSequence = "
+                      + pdb.getChains().elementAt(i).sequence
+                              .getSequenceAsString());
       mappingDetails.append("\nNo of residues = "
-              + pdb.chains.elementAt(i).residues.size() + "\n\n");
+              + pdb.getChains().elementAt(i).residues.size() + "\n\n");
 
       // Now lets compare the sequences to get
       // the start and end points.
       // Align the sequence to the pdb
       AlignSeq as = new AlignSeq(sequence,
-              pdb.chains.elementAt(i).sequence, "pep");
+              pdb.getChains().elementAt(i).sequence, "pep");
       as.calcScoreMatrix();
       as.traceAlignment();
       PrintStream ps = new PrintStream(System.out)
       {
+        @Override
         public void print(String x)
         {
           mappingDetails.append(x);
         }
 
+        @Override
         public void println()
         {
           mappingDetails.append("\n");
@@ -229,7 +234,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       mappingDetails.append("\nSEQ start/end " + seqstart + " " + seqend);
     }
 
-    mainchain = pdb.chains.elementAt(maxchain);
+    mainchain = pdb.getChains().elementAt(maxchain);
 
     mainchain.pdbstart = pdbstart;
     mainchain.pdbend = pdbend;
@@ -245,6 +250,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     addKeyListener(new KeyAdapter()
     {
+      @Override
       public void keyPressed(KeyEvent evt)
       {
         keyPressed(evt);
@@ -271,7 +277,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     // Sort the bonds by z coord
     visiblebonds = new Vector<Bond>();
 
-    for (PDBChain chain : pdb.chains)
+    for (PDBChain chain : pdb.getChains())
     {
       if (chain.isVisible)
       {
@@ -301,7 +307,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     min[1] = (float) 1e30;
     min[2] = (float) 1e30;
 
-    for (PDBChain chain : pdb.chains)
+    for (PDBChain chain : pdb.getChains())
     {
       if (chain.isVisible)
       {
@@ -432,7 +438,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     int bsize = 0;
 
     // Find centre coordinate
-    for (PDBChain chain : pdb.chains)
+    for (PDBChain chain : pdb.getChains())
     {
       if (chain.isVisible)
       {
@@ -452,6 +458,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     centre[2] = ztot / (2 * (float) bsize);
   }
 
+  @Override
   public void paintComponent(Graphics g)
   {
     super.paintComponent(g);
@@ -541,9 +548,9 @@ public class PDBCanvas extends JPanel implements MouseListener,
     PDBChain chain;
     if (bysequence && pdb != null)
     {
-      for (int ii = 0; ii < pdb.chains.size(); ii++)
+      for (int ii = 0; ii < pdb.getChains().size(); ii++)
       {
-        chain = pdb.chains.elementAt(ii);
+        chain = pdb.getChains().elementAt(ii);
 
         for (int i = 0; i < chain.bonds.size(); i++)
         {
@@ -745,6 +752,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     }
   }
 
+  @Override
   public void mousePressed(MouseEvent e)
   {
     pdbAction = true;
@@ -757,7 +765,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       repaint();
       if (foundchain != -1)
       {
-        PDBChain chain = pdb.chains.elementAt(foundchain);
+        PDBChain chain = pdb.getChains().elementAt(foundchain);
         if (chain == mainchain)
         {
           if (fatom.alignmentMapping != -1)
@@ -789,6 +797,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     dragging = false;
   }
 
+  @Override
   public void mouseMoved(MouseEvent e)
   {
     pdbAction = true;
@@ -805,7 +814,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     PDBChain chain = null;
     if (foundchain != -1)
     {
-      chain = pdb.chains.elementAt(foundchain);
+      chain = pdb.getChains().elementAt(foundchain);
       if (chain == mainchain)
       {
         mouseOverStructure(fatom.resNumber, chain.id);
@@ -824,18 +833,22 @@ public class PDBCanvas extends JPanel implements MouseListener,
     }
   }
 
+  @Override
   public void mouseClicked(MouseEvent e)
   {
   }
 
+  @Override
   public void mouseEntered(MouseEvent e)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent e)
   {
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     int x = evt.getX();
@@ -857,7 +870,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     }
 
     // Alter the bonds
-    for (PDBChain chain : pdb.chains)
+    for (PDBChain chain : pdb.getChains())
     {
       for (Bond tmpBond : chain.bonds)
       {
@@ -885,6 +898,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     repaint();
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     dragging = false;
@@ -894,7 +908,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   void drawLabels(Graphics g)
   {
 
-    for (PDBChain chain : pdb.chains)
+    for (PDBChain chain : pdb.getChains())
     {
       if (chain.isVisible)
       {
@@ -943,9 +957,9 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     foundchain = -1;
 
-    for (int ii = 0; ii < pdb.chains.size(); ii++)
+    for (int ii = 0; ii < pdb.getChains().size(); ii++)
     {
-      PDBChain chain = pdb.chains.elementAt(ii);
+      PDBChain chain = pdb.getChains().elementAt(ii);
       int truex;
       Bond tmpBond = null;
 
@@ -990,7 +1004,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
       if (fatom != null) // )&& chain.ds != null)
       { // dead code? value of chain is either overwritten or discarded
-        chain = pdb.chains.elementAt(foundchain);
+        chain = pdb.getChains().elementAt(foundchain);
       }
     }
 
@@ -1053,9 +1067,9 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
   public void setAllchainsVisible(boolean b)
   {
-    for (int ii = 0; ii < pdb.chains.size(); ii++)
+    for (int ii = 0; ii < pdb.getChains().size(); ii++)
     {
-      PDBChain chain = pdb.chains.elementAt(ii);
+      PDBChain chain = pdb.getChains().elementAt(ii);
       chain.isVisible = b;
     }
     mainchain.isVisible = true;
@@ -1065,6 +1079,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
   // ////////////////////////////////
   // /StructureListener
+  @Override
   public String[] getPdbFile()
   {
     return new String[] { pdbentry.getFile() };
@@ -1169,6 +1184,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     // return new Color(viewer.getAtomArgb(atomIndex));
   }
 
+  @Override
   public void updateColours(Object source)
   {
     colourBySequence();

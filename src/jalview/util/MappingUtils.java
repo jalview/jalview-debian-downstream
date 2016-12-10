@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,19 +31,19 @@ import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResults;
-import jalview.datamodel.SearchResults.Match;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Helper methods for manipulations involving sequence mappings.
@@ -69,7 +69,7 @@ public final class MappingUtils
    */
   protected static void mapCutOrPaste(Edit edit, boolean undo,
           List<SequenceI> targetSeqs, EditCommand result,
-          Set<AlignedCodonFrame> mappings)
+          List<AlignedCodonFrame> mappings)
   {
     Action action = edit.getAction();
     if (undo)
@@ -93,7 +93,7 @@ public final class MappingUtils
    */
   public static EditCommand mapEditCommand(EditCommand command,
           boolean undo, final AlignmentI mapTo, char gapChar,
-          Set<AlignedCodonFrame> mappings)
+          List<AlignedCodonFrame> mappings)
   {
     /*
      * For now, only support mapping from protein edits to cDna
@@ -165,7 +165,7 @@ public final class MappingUtils
           Map<SequenceI, SequenceI> originalSequences,
           final List<SequenceI> targetSeqs,
           Map<SequenceI, SequenceI> targetCopies, char gapChar,
-          EditCommand result, Set<AlignedCodonFrame> mappings)
+          EditCommand result, List<AlignedCodonFrame> mappings)
   {
     Action action = edit.getAction();
 
@@ -195,7 +195,7 @@ public final class MappingUtils
       /*
        * Determine all mappings from this position to mapped sequences.
        */
-      SearchResults sr = buildSearchResults(seq, seqpos, mappings);
+      SearchResultsI sr = buildSearchResults(seq, seqpos, mappings);
 
       if (!sr.isEmpty())
       {
@@ -267,10 +267,10 @@ public final class MappingUtils
    * @param seqmappings
    * @return
    */
-  public static SearchResults buildSearchResults(SequenceI seq, int index,
-          Set<AlignedCodonFrame> seqmappings)
+  public static SearchResultsI buildSearchResults(SequenceI seq, int index,
+          List<AlignedCodonFrame> seqmappings)
   {
-    SearchResults results = new SearchResults();
+    SearchResultsI results = new SearchResults();
     addSearchResults(results, seq, index, seqmappings);
     return results;
   }
@@ -284,8 +284,8 @@ public final class MappingUtils
    * @param index
    * @param seqmappings
    */
-  public static void addSearchResults(SearchResults results, SequenceI seq,
-          int index, Set<AlignedCodonFrame> seqmappings)
+  public static void addSearchResults(SearchResultsI results, SequenceI seq,
+          int index, List<AlignedCodonFrame> seqmappings)
   {
     if (index >= seq.getStart() && index <= seq.getEnd())
     {
@@ -314,7 +314,7 @@ public final class MappingUtils
      */
     boolean targetIsNucleotide = mapTo.isNucleotide();
     AlignViewportI protein = targetIsNucleotide ? mapFrom : mapTo;
-    Set<AlignedCodonFrame> codonFrames = protein.getAlignment()
+    List<AlignedCodonFrame> codonFrames = protein.getAlignment()
             .getCodonFrames();
     /*
      * Copy group name, colours etc, but not sequences or sequence colour scheme
@@ -375,16 +375,17 @@ public final class MappingUtils
               /*
                * Found a sequence mapping. Locate the start/end mapped residues.
                */
-              SearchResults sr = buildSearchResults(selected,
-                      startResiduePos, Collections.singleton(acf));
-              for (Match m : sr.getResults())
+              List<AlignedCodonFrame> mapping = Arrays
+                      .asList(new AlignedCodonFrame[] { acf });
+              SearchResultsI sr = buildSearchResults(selected,
+                      startResiduePos, mapping);
+              for (SearchResultMatchI m : sr.getResults())
               {
                 mappedStartResidue = m.getStart();
                 mappedEndResidue = m.getEnd();
               }
-              sr = buildSearchResults(selected, endResiduePos,
-                      Collections.singleton(acf));
-              for (Match m : sr.getResults())
+              sr = buildSearchResults(selected, endResiduePos, mapping);
+              for (SearchResultMatchI m : sr.getResults())
               {
                 mappedStartResidue = Math.min(mappedStartResidue,
                         m.getStart());
@@ -428,7 +429,7 @@ public final class MappingUtils
    * @return
    */
   public static CommandI mapOrderCommand(OrderCommand command,
-          boolean undo, AlignmentI mapTo, Set<AlignedCodonFrame> mappings)
+          boolean undo, AlignmentI mapTo, List<AlignedCodonFrame> mappings)
   {
     SequenceI[] sortOrder = command.getSequenceOrder(undo);
     List<SequenceI> mappedOrder = new ArrayList<SequenceI>();
@@ -512,7 +513,7 @@ public final class MappingUtils
   {
     boolean targetIsNucleotide = mapTo.isNucleotide();
     AlignViewportI protein = targetIsNucleotide ? mapFrom : mapTo;
-    Set<AlignedCodonFrame> codonFrames = protein.getAlignment()
+    List<AlignedCodonFrame> codonFrames = protein.getAlignment()
             .getCodonFrames();
     ColumnSelection mappedColumns = new ColumnSelection();
 
@@ -523,79 +524,162 @@ public final class MappingUtils
 
     char fromGapChar = mapFrom.getAlignment().getGapCharacter();
 
-    // FIXME allow for hidden columns
-
     /*
      * For each mapped column, find the range of columns that residues in that
      * column map to.
      */
-    for (Object obj : colsel.getSelected())
+    List<SequenceI> fromSequences = mapFrom.getAlignment().getSequences();
+    List<SequenceI> toSequences = mapTo.getAlignment().getSequences();
+
+    for (Integer sel : colsel.getSelected())
     {
-      int col = ((Integer) obj).intValue();
-      int mappedToMin = Integer.MAX_VALUE;
-      int mappedToMax = Integer.MIN_VALUE;
+      mapColumn(sel.intValue(), codonFrames, mappedColumns, fromSequences,
+              toSequences, fromGapChar);
+    }
 
-      /*
-       * For each sequence in the 'from' alignment
-       */
-      for (SequenceI fromSeq : mapFrom.getAlignment().getSequences())
-      {
-        /*
-         * Ignore gaps (unmapped anyway)
-         */
-        if (fromSeq.getCharAt(col) == fromGapChar)
-        {
-          continue;
-        }
-
-        /*
-         * Get the residue position and find the mapped position.
-         */
-        int residuePos = fromSeq.findPosition(col);
-        SearchResults sr = buildSearchResults(fromSeq, residuePos,
-                codonFrames);
-        for (Match m : sr.getResults())
-        {
-          int mappedStartResidue = m.getStart();
-          int mappedEndResidue = m.getEnd();
-          SequenceI mappedSeq = m.getSequence();
-
-          /*
-           * Locate the aligned sequence whose dataset is mappedSeq. TODO a
-           * datamodel that can do this efficiently.
-           */
-          for (SequenceI toSeq : mapTo.getAlignment().getSequences())
-          {
-            if (toSeq.getDatasetSequence() == mappedSeq)
-            {
-              int mappedStartCol = toSeq.findIndex(mappedStartResidue);
-              int mappedEndCol = toSeq.findIndex(mappedEndResidue);
-              mappedToMin = Math.min(mappedToMin, mappedStartCol);
-              mappedToMax = Math.max(mappedToMax, mappedEndCol);
-              // System.out.println(fromSeq.getName() + " mapped to cols "
-              // + mappedStartCol + ":" + mappedEndCol);
-              break;
-              // note: remove break if we ever want to map one to many sequences
-            }
-          }
-        }
-      }
-      /*
-       * Add the range of mapped columns to the mapped selection (converting
-       * base 1 to base 0). Note that this may include intron-only regions which
-       * lie between the start and end ranges of the selection.
-       */
-      for (int i = mappedToMin; i <= mappedToMax; i++)
-      {
-        mappedColumns.addElement(i - 1);
-      }
+    for (int[] hidden : colsel.getHiddenColumns())
+    {
+      mapHiddenColumns(hidden, codonFrames, mappedColumns, fromSequences,
+              toSequences, fromGapChar);
     }
     return mappedColumns;
   }
 
   /**
-   * Returns the mapped codon for a given aligned sequence column position (base
-   * 0).
+   * Helper method that maps a [start, end] hidden column range to its mapped
+   * equivalent
+   * 
+   * @param hidden
+   * @param mappings
+   * @param mappedColumns
+   * @param fromSequences
+   * @param toSequences
+   * @param fromGapChar
+   */
+  protected static void mapHiddenColumns(int[] hidden,
+          List<AlignedCodonFrame> mappings, ColumnSelection mappedColumns,
+          List<SequenceI> fromSequences, List<SequenceI> toSequences,
+          char fromGapChar)
+  {
+    for (int col = hidden[0]; col <= hidden[1]; col++)
+    {
+      int[] mappedTo = findMappedColumns(col, mappings, fromSequences,
+              toSequences, fromGapChar);
+
+      /*
+       * Add the range of hidden columns to the mapped selection (converting
+       * base 1 to base 0).
+       */
+      if (mappedTo != null)
+      {
+        mappedColumns.hideColumns(mappedTo[0] - 1, mappedTo[1] - 1);
+      }
+    }
+  }
+
+  /**
+   * Helper method to map one column selection
+   * 
+   * @param col
+   *          the column number (base 0)
+   * @param mappings
+   *          the sequence mappings
+   * @param mappedColumns
+   *          the mapped column selections to add to
+   * @param fromSequences
+   * @param toSequences
+   * @param fromGapChar
+   */
+  protected static void mapColumn(int col,
+          List<AlignedCodonFrame> mappings, ColumnSelection mappedColumns,
+          List<SequenceI> fromSequences, List<SequenceI> toSequences,
+          char fromGapChar)
+  {
+    int[] mappedTo = findMappedColumns(col, mappings, fromSequences,
+            toSequences, fromGapChar);
+
+    /*
+     * Add the range of mapped columns to the mapped selection (converting
+     * base 1 to base 0). Note that this may include intron-only regions which
+     * lie between the start and end ranges of the selection.
+     */
+    if (mappedTo != null)
+    {
+      for (int i = mappedTo[0]; i <= mappedTo[1]; i++)
+      {
+        mappedColumns.addElement(i - 1);
+      }
+    }
+  }
+
+  /**
+   * Helper method to find the range of columns mapped to from one column.
+   * Returns the maximal range of columns mapped to from all sequences in the
+   * source column, or null if no mappings were found.
+   * 
+   * @param col
+   * @param mappings
+   * @param fromSequences
+   * @param toSequences
+   * @param fromGapChar
+   * @return
+   */
+  protected static int[] findMappedColumns(int col,
+          List<AlignedCodonFrame> mappings, List<SequenceI> fromSequences,
+          List<SequenceI> toSequences, char fromGapChar)
+  {
+    int[] mappedTo = new int[] { Integer.MAX_VALUE, Integer.MIN_VALUE };
+    boolean found = false;
+
+    /*
+     * For each sequence in the 'from' alignment
+     */
+    for (SequenceI fromSeq : fromSequences)
+    {
+      /*
+       * Ignore gaps (unmapped anyway)
+       */
+      if (fromSeq.getCharAt(col) == fromGapChar)
+      {
+        continue;
+      }
+
+      /*
+       * Get the residue position and find the mapped position.
+       */
+      int residuePos = fromSeq.findPosition(col);
+      SearchResultsI sr = buildSearchResults(fromSeq, residuePos, mappings);
+      for (SearchResultMatchI m : sr.getResults())
+      {
+        int mappedStartResidue = m.getStart();
+        int mappedEndResidue = m.getEnd();
+        SequenceI mappedSeq = m.getSequence();
+
+        /*
+         * Locate the aligned sequence whose dataset is mappedSeq. TODO a
+         * datamodel that can do this efficiently.
+         */
+        for (SequenceI toSeq : toSequences)
+        {
+          if (toSeq.getDatasetSequence() == mappedSeq)
+          {
+            int mappedStartCol = toSeq.findIndex(mappedStartResidue);
+            int mappedEndCol = toSeq.findIndex(mappedEndResidue);
+            mappedTo[0] = Math.min(mappedTo[0], mappedStartCol);
+            mappedTo[1] = Math.max(mappedTo[1], mappedEndCol);
+            found = true;
+            break;
+            // note: remove break if we ever want to map one to many sequences
+          }
+        }
+      }
+    }
+    return found ? mappedTo : null;
+  }
+
+  /**
+   * Returns the mapped codon or codons for a given aligned sequence column
+   * position (base 0).
    * 
    * @param seq
    *          an aligned peptide sequence
@@ -603,26 +687,32 @@ public final class MappingUtils
    *          an aligned column position (base 0)
    * @param mappings
    *          a set of codon mappings
-   * @return the bases of the mapped codon in the cDNA dataset sequence, or null
-   *         if not found
+   * @return the bases of the mapped codon(s) in the cDNA dataset sequence(s),
+   *         or an empty list if none found
    */
-  public static char[] findCodonFor(SequenceI seq, int col,
-          Set<AlignedCodonFrame> mappings)
+  public static List<char[]> findCodonsFor(SequenceI seq, int col,
+          List<AlignedCodonFrame> mappings)
   {
+    List<char[]> result = new ArrayList<char[]>();
     int dsPos = seq.findPosition(col);
     for (AlignedCodonFrame mapping : mappings)
     {
       if (mapping.involvesSequence(seq))
       {
-        return mapping.getMappedCodon(seq.getDatasetSequence(), dsPos);
+        List<char[]> codons = mapping.getMappedCodons(
+                seq.getDatasetSequence(), dsPos);
+        if (codons != null)
+        {
+          result.addAll(codons);
+        }
       }
     }
-    return null;
+    return result;
   }
 
   /**
-   * Converts a series of [start, end] ranges into an array of individual
-   * positions.
+   * Converts a series of [start, end] range pairs into an array of individual
+   * positions. This also caters for 'reverse strand' (start > end) cases.
    * 
    * @param ranges
    * @return
@@ -635,17 +725,21 @@ public final class MappingUtils
     int count = 0;
     for (int i = 0; i < ranges.length - 1; i += 2)
     {
-      count += ranges[i + 1] - ranges[i] + 1;
+      count += Math.abs(ranges[i + 1] - ranges[i]) + 1;
     }
 
     int[] result = new int[count];
     int k = 0;
     for (int i = 0; i < ranges.length - 1; i += 2)
     {
-      for (int j = ranges[i]; j <= ranges[i + 1]; j++)
+      int from = ranges[i];
+      final int to = ranges[i + 1];
+      int step = from <= to ? 1 : -1;
+      do
       {
-        result[k++] = j;
-      }
+        result[k++] = from;
+        from += step;
+      } while (from != to + step);
     }
     return result;
   }
@@ -659,7 +753,24 @@ public final class MappingUtils
    * @return
    */
   public static List<AlignedCodonFrame> findMappingsForSequence(
-          SequenceI sequence, Set<AlignedCodonFrame> mappings)
+          SequenceI sequence, List<AlignedCodonFrame> mappings)
+  {
+    return findMappingsForSequenceAndOthers(sequence, mappings, null);
+  }
+
+  /**
+   * Returns a list of any mappings that are from or to the given (aligned or
+   * dataset) sequence, optionally limited to mappings involving one of a given
+   * list of sequences.
+   * 
+   * @param sequence
+   * @param mappings
+   * @param filterList
+   * @return
+   */
+  public static List<AlignedCodonFrame> findMappingsForSequenceAndOthers(
+          SequenceI sequence, List<AlignedCodonFrame> mappings,
+          List<SequenceI> filterList)
   {
     List<AlignedCodonFrame> result = new ArrayList<AlignedCodonFrame>();
     if (sequence == null || mappings == null)
@@ -670,9 +781,157 @@ public final class MappingUtils
     {
       if (mapping.involvesSequence(sequence))
       {
-        result.add(mapping);
+        if (filterList != null)
+        {
+          for (SequenceI otherseq : filterList)
+          {
+            SequenceI otherDataset = otherseq.getDatasetSequence();
+            if (otherseq == sequence
+                    || otherseq == sequence.getDatasetSequence()
+                    || (otherDataset != null && (otherDataset == sequence || otherDataset == sequence
+                            .getDatasetSequence())))
+            {
+              // skip sequences in subset which directly relate to sequence
+              continue;
+            }
+            if (mapping.involvesSequence(otherseq))
+            {
+              // selected a mapping contained in subselect alignment
+              result.add(mapping);
+              break;
+            }
+          }
+        }
+        else
+        {
+          result.add(mapping);
+        }
       }
     }
     return result;
+  }
+
+  /**
+   * Returns the total length of the supplied ranges, which may be as single
+   * [start, end] or multiple [start, end, start, end ...]
+   * 
+   * @param ranges
+   * @return
+   */
+  public static int getLength(List<int[]> ranges)
+  {
+    if (ranges == null)
+    {
+      return 0;
+    }
+    int length = 0;
+    for (int[] range : ranges)
+    {
+      if (range.length % 2 != 0)
+      {
+        System.err.println("Error unbalance start/end ranges: "
+                + ranges.toString());
+        return 0;
+      }
+      for (int i = 0; i < range.length - 1; i += 2)
+      {
+        length += Math.abs(range[i + 1] - range[i]) + 1;
+      }
+    }
+    return length;
+  }
+
+  /**
+   * Answers true if any range includes the given value
+   * 
+   * @param ranges
+   * @param value
+   * @return
+   */
+  public static boolean contains(List<int[]> ranges, int value)
+  {
+    if (ranges == null)
+    {
+      return false;
+    }
+    for (int[] range : ranges)
+    {
+      if (range[1] >= range[0] && value >= range[0] && value <= range[1])
+      {
+        /*
+         * value within ascending range
+         */
+        return true;
+      }
+      if (range[1] < range[0] && value <= range[0] && value >= range[1])
+      {
+        /*
+         * value within descending range
+         */
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Removes a specified number of positions from the start of a ranges list.
+   * For example, could be used to adjust cds ranges to allow for an incomplete
+   * start codon. Subranges are removed completely, or their start positions
+   * adjusted, until the required number of positions has been removed from the
+   * range. Reverse strand ranges are supported. The input array is not
+   * modified.
+   * 
+   * @param removeCount
+   * @param ranges
+   *          an array of [start, end, start, end...] positions
+   * @return a new array with the first removeCount positions removed
+   */
+  public static int[] removeStartPositions(int removeCount,
+          final int[] ranges)
+  {
+    if (removeCount <= 0)
+    {
+      return ranges;
+    }
+
+    int[] copy = Arrays.copyOf(ranges, ranges.length);
+    int sxpos = -1;
+    int cdspos = 0;
+    for (int x = 0; x < copy.length && sxpos == -1; x += 2)
+    {
+      cdspos += Math.abs(copy[x + 1] - copy[x]) + 1;
+      if (removeCount < cdspos)
+      {
+        /*
+         * we have removed enough, time to finish
+         */
+        sxpos = x;
+
+        /*
+         * increment start of first exon, or decrement if reverse strand
+         */
+        if (copy[x] <= copy[x + 1])
+        {
+          copy[x] = copy[x + 1] - cdspos + removeCount + 1;
+        }
+        else
+        {
+          copy[x] = copy[x + 1] + cdspos - removeCount - 1;
+        }
+        break;
+      }
+    }
+
+    if (sxpos > 0)
+    {
+      /*
+       * we dropped at least one entire sub-range - compact the array
+       */
+      int[] nxon = new int[copy.length - sxpos];
+      System.arraycopy(copy, sxpos, nxon, 0, copy.length - sxpos);
+      return nxon;
+    }
+    return copy;
   }
 }

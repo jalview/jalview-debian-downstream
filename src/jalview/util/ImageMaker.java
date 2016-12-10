@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.util;
 
 import jalview.bin.Jalview;
 import jalview.gui.EPSOptions;
+import jalview.gui.IProgressIndicator;
 import jalview.gui.SVGOptions;
 import jalview.io.JalviewFileChooser;
 
@@ -53,11 +54,17 @@ public class ImageMaker
 
   TYPE type;
 
+  private IProgressIndicator pIndicator;
+
+  private long pSessionId;
+
+  private boolean headless;
+
   public enum TYPE
   {
-    EPS("EPS", MessageManager.getString("label.eps_file"), getEPSChooser()), PNG(
-            "PNG", MessageManager.getString("label.png_image"),
-            getPNGChooser()), SVG("SVG", "SVG", getSVGChooser());
+    EPS("EPS", MessageManager.getString("label.eps_file"), getEPSChooser()),
+    PNG("PNG", MessageManager.getString("label.png_image"), getPNGChooser()),
+    SVG("SVG", "SVG", getSVGChooser());
 
     private JalviewFileChooser chooser;
 
@@ -90,12 +97,17 @@ public class ImageMaker
   }
 
   public ImageMaker(Component parent, TYPE type, String title, int width,
-          int height, File file, String fileTitle)
+          int height, File file, String fileTitle,
+          IProgressIndicator pIndicator, long pSessionId, boolean headless)
   {
+    this.pIndicator = pIndicator;
     this.type = type;
-
+    this.pSessionId = pSessionId;
+    this.headless = headless;
     if (file == null)
     {
+      setProgressMessage(MessageManager.formatMessage(
+              "status.waiting_for_user_to_select_output_file", type.name));
       JalviewFileChooser chooser;
       chooser = type.getChooser();
       chooser.setFileView(new jalview.io.JalviewFileView());
@@ -109,6 +121,11 @@ public class ImageMaker
                 .getSelectedFile().getParent());
         file = chooser.getSelectedFile();
       }
+      else
+      {
+        setProgressMessage(MessageManager.formatMessage(
+                "status.cancelled_image_export_operation", type.name));
+      }
     }
 
     if (file != null)
@@ -116,6 +133,9 @@ public class ImageMaker
       try
       {
         out = new FileOutputStream(file);
+        setProgressMessage(null);
+        setProgressMessage(MessageManager.formatMessage(
+                "status.exporting_alignment_as_x_file", type.getName()));
         if (type == TYPE.SVG)
         {
           setupSVG(width, height, fileTitle);
@@ -132,6 +152,9 @@ public class ImageMaker
       } catch (Exception ex)
       {
         System.out.println("Error creating " + type.getName() + " file.");
+
+        setProgressMessage(MessageManager.formatMessage(
+                "info.error_creating_file", type.getName()));
       }
     }
   }
@@ -187,6 +210,8 @@ public class ImageMaker
 
       if (renderStyle == null || eps.cancelled)
       {
+        setProgressMessage(MessageManager.formatMessage(
+                "status.cancelled_image_export_operation", "EPS"));
         return;
       }
     }
@@ -206,6 +231,8 @@ public class ImageMaker
       pg.setAccurateTextMode(accurateText);
 
       graphics = pg;
+      setProgressMessage(MessageManager.formatMessage(
+              "status.export_complete", type.getName()));
     } catch (Exception ex)
     {
     }
@@ -218,6 +245,8 @@ public class ImageMaker
     Graphics2D ig2 = (Graphics2D) graphics;
     ig2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
             RenderingHints.VALUE_ANTIALIAS_ON);
+    setProgressMessage(MessageManager.formatMessage(
+            "status.export_complete", type.getName()));
 
   }
 
@@ -241,16 +270,20 @@ public class ImageMaker
 
       if (renderStyle == null || svgOption.cancelled)
       {
+        setProgressMessage(MessageManager.formatMessage(
+                "status.cancelled_image_export_operation", "SVG"));
         return;
       }
     }
 
-    if (renderStyle.equalsIgnoreCase("lineart"))
+    if (renderStyle.equalsIgnoreCase("Lineart"))
     {
       ig2.setRenderingHint(SVGHints.KEY_DRAW_STRING_TYPE,
               SVGHints.VALUE_DRAW_STRING_TYPE_VECTOR);
     }
 
+    setProgressMessage(MessageManager.formatMessage(
+            "status.export_complete", type.getName()));
     graphics = g2;
   }
 
@@ -278,6 +311,14 @@ public class ImageMaker
             new String[] { "eps" },
             new String[] { "Encapsulated Postscript" },
             "Encapsulated Postscript");
+  }
+
+  private void setProgressMessage(String message)
+  {
+    if (pIndicator != null && !headless)
+    {
+      pIndicator.setProgressBar(message, pSessionId);
+    }
   }
 
   static JalviewFileChooser getSVGChooser()

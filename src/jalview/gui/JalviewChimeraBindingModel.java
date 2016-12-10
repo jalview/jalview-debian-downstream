@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,11 +32,12 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
 
   private FeatureRenderer fr = null;
 
+
   public JalviewChimeraBindingModel(ChimeraViewFrame chimeraViewFrame,
           StructureSelectionManager ssm, PDBEntry[] pdbentry,
-          SequenceI[][] sequenceIs, String[][] chains, String protocol)
+          SequenceI[][] sequenceIs, String protocol)
   {
-    super(ssm, pdbentry, sequenceIs, chains, protocol);
+    super(ssm, pdbentry, sequenceIs, protocol);
     cvf = chimeraViewFrame;
   }
 
@@ -72,6 +73,7 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
   {
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         cvf.updateTitleAndMenus();
@@ -80,6 +82,7 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
     });
   }
 
+  @Override
   public void updateColours(Object source)
   {
     AlignmentPanel ap = (AlignmentPanel) source;
@@ -113,6 +116,7 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
    * Send an asynchronous command to Chimera, in a new thread, optionally with
    * an 'in progress' message in a progress bar somewhere
    */
+  @Override
   protected void sendAsynchronousCommand(final String command,
           final String progressMsg)
   {
@@ -135,4 +139,6 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
     thread.start();
 
   }
+
+
 }

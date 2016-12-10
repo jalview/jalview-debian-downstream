@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,8 @@ package jalview.appletgui;
 
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.SequenceGroup;
+import jalview.renderer.ScaleRenderer;
+import jalview.renderer.ScaleRenderer.ScaleMark;
 import jalview.util.MessageManager;
 
 import java.awt.Color;
@@ -36,6 +38,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.util.List;
 
 public class ScalePanel extends Panel implements MouseMotionListener,
         MouseListener
@@ -70,6 +73,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
 
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     int x = (evt.getX() / av.getCharWidth()) + av.getStartRes();
@@ -88,111 +92,139 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     max = res;
     if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK)
     {
-      PopupMenu pop = new PopupMenu();
-      if (reveal != null)
+      rightMouseButtonPressed(evt, res);
+    }
+    else
+    {
+      leftMouseButtonPressed(evt, res);
+    }
+  }
+
+  /**
+   * Handles left mouse button pressed (selection / clear selections)
+   * 
+   * @param evt
+   * @param res
+   */
+  protected void leftMouseButtonPressed(MouseEvent evt, final int res)
+  {
+    if (!evt.isControlDown() && !evt.isShiftDown())
+    {
+      av.getColumnSelection().clear();
+    }
+
+    av.getColumnSelection().addElement(res);
+    SequenceGroup sg = new SequenceGroup();
+    for (int i = 0; i < av.getAlignment().getSequences().size(); i++)
+    {
+      sg.addSequence(av.getAlignment().getSequenceAt(i), false);
+    }
+
+    sg.setStartRes(res);
+    sg.setEndRes(res);
+    av.setSelectionGroup(sg);
+
+    if (evt.isShiftDown())
+    {
+      int min = Math.min(av.getColumnSelection().getMin(), res);
+      int max = Math.max(av.getColumnSelection().getMax(), res);
+      for (int i = min; i < max; i++)
       {
-        MenuItem item = new MenuItem(
-                MessageManager.getString("label.reveal"));
+        av.getColumnSelection().addElement(i);
+      }
+      sg.setStartRes(min);
+      sg.setEndRes(max);
+    }
+    ap.paintAlignment(true);
+    av.sendSelection();
+  }
+
+  /**
+   * Handles right mouse button press. If pressed in a selected column, opens
+   * context menu for 'Hide Columns'. If pressed on a hidden columns marker,
+   * opens context menu for 'Reveal / Reveal All'. Else does nothing.
+   * 
+   * @param evt
+   * @param res
+   */
+  protected void rightMouseButtonPressed(MouseEvent evt, final int res)
+  {
+    PopupMenu pop = new PopupMenu();
+    if (reveal != null)
+    {
+      MenuItem item = new MenuItem(MessageManager.getString("label.reveal"));
+      item.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          av.showColumn(reveal[0]);
+          reveal = null;
+          ap.paintAlignment(true);
+          if (ap.overviewPanel != null)
+          {
+            ap.overviewPanel.updateOverviewImage();
+          }
+          av.sendSelection();
+        }
+      });
+      pop.add(item);
+
+      if (av.getColumnSelection().hasManyHiddenColumns())
+      {
+        item = new MenuItem(MessageManager.getString("action.reveal_all"));
         item.addActionListener(new ActionListener()
         {
+          @Override
           public void actionPerformed(ActionEvent e)
           {
-            av.showColumn(reveal[0]);
+            av.showAllHiddenColumns();
             reveal = null;
             ap.paintAlignment(true);
             if (ap.overviewPanel != null)
             {
               ap.overviewPanel.updateOverviewImage();
             }
+            av.sendSelection();
           }
         });
         pop.add(item);
-
-        if (av.getColumnSelection().hasManyHiddenColumns())
-        {
-          item = new MenuItem(MessageManager.getString("action.reveal_all"));
-          item.addActionListener(new ActionListener()
-          {
-            public void actionPerformed(ActionEvent e)
-            {
-              av.showAllHiddenColumns();
-              reveal = null;
-              ap.paintAlignment(true);
-              if (ap.overviewPanel != null)
-              {
-                ap.overviewPanel.updateOverviewImage();
-              }
-            }
-          });
-          pop.add(item);
-        }
-        this.add(pop);
-        pop.show(this, evt.getX(), evt.getY());
       }
-      else if (av.getColumnSelection().contains(res))
-      {
-        MenuItem item = new MenuItem(
-                MessageManager.getString("label.hide_columns"));
-        item.addActionListener(new ActionListener()
-        {
-          public void actionPerformed(ActionEvent e)
-          {
-            av.hideColumns(res, res);
-            if (av.getSelectionGroup() != null
-                    && av.getSelectionGroup().getSize() == av
-                            .getAlignment().getHeight())
-            {
-              av.setSelectionGroup(null);
-            }
-
-            ap.paintAlignment(true);
-            if (ap.overviewPanel != null)
-            {
-              ap.overviewPanel.updateOverviewImage();
-            }
-          }
-        });
-        pop.add(item);
-        this.add(pop);
-        pop.show(this, evt.getX(), evt.getY());
-      }
+      this.add(pop);
+      pop.show(this, evt.getX(), evt.getY());
     }
-    else
-    // LEFT MOUSE TO SELECT
+    else if (av.getColumnSelection().contains(res))
     {
-      if (!evt.isControlDown() && !evt.isShiftDown())
+      MenuItem item = new MenuItem(
+              MessageManager.getString("label.hide_columns"));
+      item.addActionListener(new ActionListener()
       {
-        av.getColumnSelection().clear();
-      }
-
-      av.getColumnSelection().addElement(res);
-      SequenceGroup sg = new SequenceGroup();
-      for (int i = 0; i < av.getAlignment().getSequences().size(); i++)
-      {
-        sg.addSequence(av.getAlignment().getSequenceAt(i), false);
-      }
-
-      sg.setStartRes(res);
-      sg.setEndRes(res);
-      av.setSelectionGroup(sg);
-
-      if (evt.isShiftDown())
-      {
-        int min = Math.min(av.getColumnSelection().getMin(), res);
-        int max = Math.max(av.getColumnSelection().getMax(), res);
-        for (int i = min; i < max; i++)
+        @Override
+        public void actionPerformed(ActionEvent e)
         {
-          av.getColumnSelection().addElement(i);
-        }
-        sg.setStartRes(min);
-        sg.setEndRes(max);
-      }
-    }
+          av.hideColumns(res, res);
+          if (av.getSelectionGroup() != null
+                  && av.getSelectionGroup().getSize() == av.getAlignment()
+                          .getHeight())
+          {
+            av.setSelectionGroup(null);
+          }
 
-    ap.paintAlignment(true);
-    av.sendSelection();
+          ap.paintAlignment(true);
+          if (ap.overviewPanel != null)
+          {
+            ap.overviewPanel.updateOverviewImage();
+          }
+          av.sendSelection();
+        }
+      });
+      pop.add(item);
+      this.add(pop);
+      pop.show(this, evt.getX(), evt.getY());
+    }
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     mouseDragging = false;
@@ -232,6 +264,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     av.sendSelection();
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     mouseDragging = true;
@@ -301,6 +334,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     }
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
     if (mouseDragging)
@@ -309,6 +343,7 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     }
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
     if (mouseDragging)
@@ -317,11 +352,13 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     }
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
 
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
     if (!av.hasHiddenColumns())
@@ -346,11 +383,13 @@ public class ScalePanel extends Panel implements MouseMotionListener,
     repaint();
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     drawScale(g, av.getStartRes(), av.getEndRes(), getSize().width,
@@ -369,62 +408,69 @@ public class ScalePanel extends Panel implements MouseMotionListener,
 
     // Fill the selected columns
     ColumnSelection cs = av.getColumnSelection();
-    gg.setColor(new Color(220, 0, 0));
-    int avcharWidth = av.getCharWidth(), avcharHeight = av.getCharHeight();
-    for (int i = 0; i < cs.size(); i++)
+    int avCharWidth = av.getCharWidth();
+    int avcharHeight = av.getCharHeight();
+    if (cs != null)
     {
-      int sel = cs.columnAt(i);
-      if (av.hasHiddenColumns())
+      gg.setColor(new Color(220, 0, 0));
+      boolean hasHiddenColumns = cs.hasHiddenColumns();
+      for (int sel : cs.getSelected())
       {
-        sel = av.getColumnSelection().findColumnPosition(sel);
-      }
+        // TODO: JAL-2001 - provide a fast method to list visible selected in a
+        // given range
+        if (hasHiddenColumns)
+        {
+          if (cs.isVisible(sel))
+          {
+            sel = cs.findColumnPosition(sel);
+          }
+          else
+          {
+            continue;
+          }
+        }
 
-      if ((sel >= startx) && (sel <= endx))
-      {
-        gg.fillRect((sel - startx) * avcharWidth, 0, avcharWidth,
-                getSize().height);
+        if ((sel >= startx) && (sel <= endx))
+        {
+          gg.fillRect((sel - startx) * avCharWidth, 0, avCharWidth,
+                  getSize().height);
+        }
       }
     }
 
     // Draw the scale numbers
     gg.setColor(Color.black);
 
-    int scalestartx = (startx / 10) * 10;
+    int maxX = 0;
+    List<ScaleMark> marks = new ScaleRenderer().calculateMarks(av, startx,
+            endx);
 
     FontMetrics fm = gg.getFontMetrics(av.getFont());
-    int y = avcharHeight - fm.getDescent();
-
-    if ((scalestartx % 10) == 0)
+    int y = avcharHeight;
+    int yOf = fm.getDescent();
+    y -= yOf;
+    for (ScaleMark mark : marks)
     {
-      scalestartx += 5;
-    }
-
-    String string;
-    int maxX = 0;
-
-    for (int i = scalestartx; i < endx; i += 5)
-    {
-      if ((i % 10) == 0)
+      boolean major = mark.major;
+      int mpos = mark.column; // (i - startx - 1)
+      String mstring = mark.text;
+      if (mstring != null)
       {
-        string = String.valueOf(av.getColumnSelection()
-                .adjustForHiddenColumns(i));
-        if ((i - startx - 1) * avcharWidth > maxX)
+        if (mpos * avCharWidth > maxX)
         {
-          gg.drawString(string, (i - startx - 1) * avcharWidth, y);
-          maxX = (i - startx + 1) * avcharWidth + fm.stringWidth(string);
+          gg.drawString(mstring, mpos * avCharWidth, y);
+          maxX = (mpos + 2) * avCharWidth + fm.stringWidth(mstring);
         }
-
-        gg.drawLine(((i - startx - 1) * avcharWidth) + (avcharWidth / 2),
-                y + 2,
-                ((i - startx - 1) * avcharWidth) + (avcharWidth / 2), y
-                        + (fm.getDescent() * 2));
-
+      }
+      if (major)
+      {
+        gg.drawLine((mpos * avCharWidth) + (avCharWidth / 2), y + 2,
+                (mpos * avCharWidth) + (avCharWidth / 2), y + (yOf * 2));
       }
       else
       {
-        gg.drawLine(((i - startx - 1) * avcharWidth) + (avcharWidth / 2), y
-                + fm.getDescent(), ((i - startx - 1) * avcharWidth)
-                + (avcharWidth / 2), y + (fm.getDescent() * 2));
+        gg.drawLine((mpos * avCharWidth) + (avCharWidth / 2), y + yOf,
+                (mpos * avCharWidth) + (avCharWidth / 2), y + (yOf * 2));
       }
     }
 
@@ -434,33 +480,24 @@ public class ScalePanel extends Panel implements MouseMotionListener,
       int res;
       if (av.getShowHiddenMarkers())
       {
-        for (int i = 0; i < av.getColumnSelection().getHiddenColumns()
-                .size(); i++)
+        int widthx = 1 + endx - startx;
+        for (int i = 0; i < cs.getHiddenColumns().size(); i++)
         {
 
-          res = av.getColumnSelection().findHiddenRegionPosition(i)
-                  - startx;
+          res = cs.findHiddenRegionPosition(i) - startx;
 
-          if (res < 0 || res > endx - scalestartx)
+          if (res < 0 || res > widthx)
           {
             continue;
           }
 
-          gg.fillPolygon(new int[] { res * avcharWidth - avcharHeight / 4,
-              res * avcharWidth + avcharHeight / 4, res * avcharWidth },
-                  new int[] { y - avcharHeight / 2, y - avcharHeight / 2,
-                      y + 8 }, 3);
-
+          gg.fillPolygon(new int[] {
+              -1 + res * avCharWidth - avcharHeight / 4,
+              -1 + res * avCharWidth + avcharHeight / 4,
+              -1 + res * avCharWidth }, new int[] { y, y, y + 2 * yOf }, 3);
         }
       }
-
-      if (reveal != null && reveal[0] > startx && reveal[0] < endx)
-      {
-        gg.drawString(MessageManager.getString("label.reveal_columns"),
-                reveal[0] * avcharWidth, 0);
-      }
     }
-
   }
 
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,13 +22,16 @@ package jalview.renderer;
 
 import jalview.analysis.AAFrequency;
 import jalview.analysis.CodingUtils;
+import jalview.analysis.Rna;
 import jalview.analysis.StructureFrequency;
 import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.ProfilesI;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ResidueProperties;
+import jalview.util.Platform;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -43,8 +46,6 @@ import java.awt.image.ImageObserver;
 import java.util.BitSet;
 import java.util.Hashtable;
 
-import com.stevesoft.pat.Regex;
-
 public class AnnotationRenderer
 {
   private static final int UPPER_TO_LOWER = 'a' - 'A'; // 32
@@ -58,86 +59,13 @@ public class AnnotationRenderer
    */
   private final boolean debugRedraw;
 
-  public AnnotationRenderer()
-  {
-    this(false);
-  }
-
-  /**
-   * Create a new annotation Renderer
-   * 
-   * @param debugRedraw
-   *          flag indicating if timing and redraw parameter info should be
-   *          output
-   */
-  public AnnotationRenderer(boolean debugRedraw)
-  {
-    this.debugRedraw = debugRedraw;
-  }
-
-  public void drawStemAnnot(Graphics g, Annotation[] row_annotations,
-          int lastSSX, int x, int y, int iconOffset, int startRes,
-          int column, boolean validRes, boolean validEnd)
-  {
-    g.setColor(STEM_COLOUR);
-    int sCol = (lastSSX / charWidth) + startRes;
-    int x1 = lastSSX;
-    int x2 = (x * charWidth);
-    Regex closeparen = new Regex("(\\))");
-
-    char dc = (column == 0 || row_annotations[column - 1] == null) ? ' '
-            : row_annotations[column - 1].secondaryStructure;
-
-    boolean diffupstream = sCol == 0 || row_annotations[sCol - 1] == null
-            || dc != row_annotations[sCol - 1].secondaryStructure;
-    boolean diffdownstream = !validRes || !validEnd
-            || row_annotations[column] == null
-            || dc != row_annotations[column].secondaryStructure;
-    // System.out.println("Column "+column+" diff up: "+diffupstream+" down:"+diffdownstream);
-    // If a closing base pair half of the stem, display a backward arrow
-    if (column > 0 && ResidueProperties.isCloseParenRNA(dc))
-    {
-
-      if (diffupstream)
-      // if (validRes && column>1 && row_annotations[column-2]!=null &&
-      // dc.equals(row_annotations[column-2].displayCharacter))
-      {
-        g.fillPolygon(new int[] { lastSSX + 5, lastSSX + 5, lastSSX },
-                new int[] { y + iconOffset, y + 14 + iconOffset,
-                    y + 8 + iconOffset }, 3);
-        x1 += 5;
-      }
-      if (diffdownstream)
-      {
-        x2 -= 1;
-      }
-    }
-    else
-    {
-
-      // display a forward arrow
-      if (diffdownstream)
-      {
-        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 }, new int[] {
-            y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset }, 3);
-        x2 -= 5;
-      }
-      if (diffupstream)
-      {
-        x1 += 1;
-      }
-    }
-    // draw arrow body
-    g.fillRect(x1, y + 4 + iconOffset, x2 - x1, 7);
-  }
-
   private int charWidth, endRes, charHeight;
 
   private boolean validCharWidth, hasHiddenColumns;
 
   private FontMetrics fm;
 
-  private final boolean MAC = jalview.util.Platform.isAMac();
+  private final boolean MAC = Platform.isAMac();
 
   boolean av_renderHistogram = true, av_renderProfile = true,
           av_normaliseProfile = false;
@@ -146,7 +74,7 @@ public class AnnotationRenderer
 
   private ColumnSelection columnSelection;
 
-  private Hashtable[] hconsensus;
+  private ProfilesI hconsensus;
 
   private Hashtable[] complementConsensus;
 
@@ -195,7 +123,96 @@ public class AnnotationRenderer
    */
   private boolean canClip = false;
 
-  public void drawNotCanonicalAnnot(Graphics g, Color nonCanColor,
+  public AnnotationRenderer()
+  {
+    this(false);
+  }
+
+  /**
+   * Create a new annotation Renderer
+   * 
+   * @param debugRedraw
+   *          flag indicating if timing and redraw parameter info should be
+   *          output
+   */
+  public AnnotationRenderer(boolean debugRedraw)
+  {
+    this.debugRedraw = debugRedraw;
+  }
+
+  /**
+   * Remove any references and resources when this object is no longer required
+   */
+  public void dispose()
+  {
+    hconsensus = null;
+    complementConsensus = null;
+    hStrucConsensus = null;
+    fadedImage = null;
+    annotationPanel = null;
+  }
+
+  void drawStemAnnot(Graphics g, Annotation[] row_annotations, int lastSSX,
+          int x, int y, int iconOffset, int startRes, int column,
+          boolean validRes, boolean validEnd)
+  {
+    g.setColor(STEM_COLOUR);
+    int sCol = (lastSSX / charWidth) + startRes;
+    int x1 = lastSSX;
+    int x2 = (x * charWidth);
+
+    char dc = (column == 0 || row_annotations[column - 1] == null) ? ' '
+            : row_annotations[column - 1].secondaryStructure;
+
+    boolean diffupstream = sCol == 0 || row_annotations[sCol - 1] == null
+            || dc != row_annotations[sCol - 1].secondaryStructure;
+    boolean diffdownstream = !validRes || !validEnd
+            || row_annotations[column] == null
+            || dc != row_annotations[column].secondaryStructure;
+
+    if (column > 0 && Rna.isClosingParenthesis(dc))
+    {
+      if (diffupstream)
+      // if (validRes && column>1 && row_annotations[column-2]!=null &&
+      // dc.equals(row_annotations[column-2].displayCharacter))
+      {
+        /*
+         * if new annotation with a closing base pair half of the stem, 
+         * display a backward arrow
+         */
+        g.fillPolygon(new int[] { lastSSX + 5, lastSSX + 5, lastSSX },
+                new int[] { y + iconOffset, y + 14 + iconOffset,
+                    y + 8 + iconOffset }, 3);
+        x1 += 5;
+      }
+      if (diffdownstream)
+      {
+        x2 -= 1;
+      }
+    }
+    else
+    {
+      // display a forward arrow
+      if (diffdownstream)
+      {
+        /*
+         * if annotation ending with an opeing base pair half of the stem, 
+         * display a forward arrow
+         */
+        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 }, new int[] {
+            y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset }, 3);
+        x2 -= 5;
+      }
+      if (diffupstream)
+      {
+        x1 += 1;
+      }
+    }
+    // draw arrow body
+    g.fillRect(x1, y + 4 + iconOffset, x2 - x1, 7);
+  }
+
+  void drawNotCanonicalAnnot(Graphics g, Color nonCanColor,
           Annotation[] row_annotations, int lastSSX, int x, int y,
           int iconOffset, int startRes, int column, boolean validRes,
           boolean validEnd)
@@ -206,7 +223,6 @@ public class AnnotationRenderer
     int sCol = (lastSSX / charWidth) + startRes;
     int x1 = lastSSX;
     int x2 = (x * charWidth);
-    Regex closeparen = new Regex("}|]|<|[a-z]");
 
     String dc = (column == 0 || row_annotations[column - 1] == null) ? ""
             : row_annotations[column - 1].displayCharacter;
@@ -218,8 +234,7 @@ public class AnnotationRenderer
             || !dc.equals(row_annotations[column].displayCharacter);
     // System.out.println("Column "+column+" diff up: "+diffupstream+" down:"+diffdownstream);
     // If a closing base pair half of the stem, display a backward arrow
-    if (column > 0 && closeparen.search(dc))// closeletter_b.search(dc)||closeletter_c.search(dc)||closeletter_d.search(dc)||closecrochet.search(dc))
-                                            // )
+    if (column > 0 && Rna.isClosingParenthesis(dc))
     {
 
       if (diffupstream)
@@ -321,7 +336,7 @@ public class AnnotationRenderer
    * @param column
    * @return
    */
-  public int[] getProfileFor(AlignmentAnnotation aa, int column)
+  int[] getProfileFor(AlignmentAnnotation aa, int column)
   {
     // TODO : consider refactoring the global alignment calculation
     // properties/rendering attributes as a global 'alignment group' which holds
@@ -337,7 +352,7 @@ public class AnnotationRenderer
       {
         // TODO? group consensus for cDNA complement
         return AAFrequency.extractProfile(
-                aa.groupRef.consensusData[column],
+                aa.groupRef.consensusData.get(column),
                 aa.groupRef.getIgnoreGapsConsensus());
       }
       // TODO extend annotation row to enable dynamic and static profile data to
@@ -351,7 +366,8 @@ public class AnnotationRenderer
         }
         else
         {
-          return AAFrequency.extractProfile(hconsensus[column],
+          return AAFrequency.extractProfile(
+hconsensus.get(column),
                   av_ignoreGapsConsensus);
         }
       }
@@ -598,14 +614,9 @@ public class AnnotationRenderer
 
               if (columnSelection != null)
               {
-                for (int n = 0; n < columnSelection.size(); n++)
+                if (columnSelection.contains(column))
                 {
-                  int v = columnSelection.columnAt(n);
-
-                  if (v == column)
-                  {
-                    g.fillRect(x * charWidth, y, charWidth, charHeight);
-                  }
+                  g.fillRect(x * charWidth, y, charWidth, charHeight);
                 }
               }
             }
@@ -755,7 +766,7 @@ public class AnnotationRenderer
                             validEnd);
                     break;
                   }
-
+                  // no break if isRNA - falls through to drawNotCanonicalAnnot!
                 case 'E':
                   if (!isRNA)
                   {
@@ -764,6 +775,7 @@ public class AnnotationRenderer
                             validEnd);
                     break;
                   }
+                  // no break if isRNA - fall through to drawNotCanonicalAnnot!
 
                 case '{':
                 case '}':
@@ -871,7 +883,6 @@ public class AnnotationRenderer
         {
           validRes = true;
         }
-
         // x ++;
 
         if (row.hasIcons)
@@ -886,6 +897,7 @@ public class AnnotationRenderer
                       startRes, column, validRes, validEnd);
               break;
             }
+            // no break if isRNA - fall through to drawNotCanonicalAnnot!
 
           case 'E':
             if (!isRNA)
@@ -894,6 +906,7 @@ public class AnnotationRenderer
                       startRes, column, validRes, validEnd);
               break;
             }
+            // no break if isRNA - fall through to drawNotCanonicalAnnot!
 
           case '(':
           case ')': // Stem case for RNA secondary structure
@@ -1074,15 +1087,15 @@ public class AnnotationRenderer
 
   private Color sdNOTCANONICAL_COLOUR;
 
-  public void drawGlyphLine(Graphics g, Annotation[] row, int lastSSX,
-          int x, int y, int iconOffset, int startRes, int column,
+  void drawGlyphLine(Graphics g, Annotation[] row, int lastSSX, int x,
+          int y, int iconOffset, int startRes, int column,
           boolean validRes, boolean validEnd)
   {
     g.setColor(GLYPHLINE_COLOR);
     g.fillRect(lastSSX, y + 6 + iconOffset, (x * charWidth) - lastSSX, 2);
   }
 
-  public void drawSheetAnnot(Graphics g, Annotation[] row,
+  void drawSheetAnnot(Graphics g, Annotation[] row,
 
   int lastSSX, int x, int y, int iconOffset, int startRes, int column,
           boolean validRes, boolean validEnd)
@@ -1106,8 +1119,8 @@ public class AnnotationRenderer
 
   }
 
-  public void drawHelixAnnot(Graphics g, Annotation[] row, int lastSSX,
-          int x, int y, int iconOffset, int startRes, int column,
+  void drawHelixAnnot(Graphics g, Annotation[] row, int lastSSX, int x,
+          int y, int iconOffset, int startRes, int column,
           boolean validRes, boolean validEnd)
   {
     g.setColor(HELIX_COLOUR);
@@ -1166,7 +1179,7 @@ public class AnnotationRenderer
     g.fillRect(x1, y + 4 + iconOffset, x2 - x1, 8);
   }
 
-  public void drawLineGraph(Graphics g, AlignmentAnnotation _aa,
+  void drawLineGraph(Graphics g, AlignmentAnnotation _aa,
           Annotation[] aa_annotations, int sRes, int eRes, int y,
           float min, float max, int graphHeight)
   {
@@ -1259,7 +1272,7 @@ public class AnnotationRenderer
     }
   }
 
-  public void drawBarGraph(Graphics g, AlignmentAnnotation _aa,
+  void drawBarGraph(Graphics g, AlignmentAnnotation _aa,
           Annotation[] aa_annotations, int sRes, int eRes, float min,
           float max, int y, boolean renderHistogram, boolean renderProfile,
           boolean normaliseProfile)
@@ -1390,8 +1403,9 @@ public class AnnotationRenderer
             scl = htn * scale * profl[c++];
             lm = ofont.getLineMetrics(dc, 0, 1, g.getFontMetrics()
                     .getFontRenderContext());
-            g.setFont(ofont.deriveFont(AffineTransform.getScaleInstance(
-                    wdth, scl / lm.getAscent())));
+            Font font = ofont.deriveFont(AffineTransform.getScaleInstance(
+                    wdth, scl / lm.getAscent()));
+            g.setFont(font);
             lm = g.getFontMetrics().getLineMetrics(dc, 0, 1, g);
 
             // Debug - render boxes around characters

@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,9 +28,8 @@
     and the desktop application are able to open URLs as 'popups' in
     your web browser. <br> Double-clicking on the ID of a sequence
     will open the first URL that can be generated from its sequence ID.
-    This is often the SRS site, but you can easily configure your own <a
-      href="#urllinks"
-    >sequence URL links</a>.
+    This is by default the EMBL-EBI site, but you can easily configure your own <a
+      href="#urllinks">sequence URL links</a>.
   </p>
   <p>
     Other links for a sequence either derived from any other configured
@@ -41,20 +40,20 @@
   <p>
     <strong><a name="urllinks">Configuring URL Links</a></strong> <br>URL
     links are defined in the &quot;Connections&quot; tab of the <a
-      href="../features/preferences.html"
-    >Jalview desktop preferences</a>, or specified as <a
-      href="http://www.jalview.org/examples/appletParameters.html#parameters"
-    >applet parameters</a>. <br> By default the item &quot;SRS&quot;
-    is added to this link menu. This link will show a web page in your
-    default browser with the selected sequence id as part of the URL.<br>
+    href="../features/preferences.html">Jalview desktop
+    preferences</a>, or specified as <a
+    href="http://www.jalview.org/examples/appletParameters.html#parameters">applet
+    parameters</a>. <br> By default the item &quot;EMBL-EBI Search&quot; is added
+    to this link menu. This link will show a web page in your default
+    browser with the selected sequence id as part of the URL.<br>
     In the preferences dialog box, click <strong>new</strong> to add a
     new link, and <strong>edit</strong> to modify an existing link, or <strong>delete</strong>
     to remove it.<br> You can name the link, this will be displayed
     on a new menu item under the &quot;Link&quot; menu when you right
     click on a sequence id. <br> The URL string must contain a
-    token that can be replaced with a sequence ID. The simplest token is
+    token that can be replaced with a sequence ID or DB accession ID. The simplest token is
     &quot;$SEQUENCE_ID$&quot;, which will be replaced by the chosen
-    sequence id when you click on it.
+    sequence id when you click on it. 
   </p>
   <p>
     eg.<br> UniRef100 =
@@ -62,15 +61,31 @@
     Swissprot = http://www.expasy.org/uniprot/$SEQUENCE_ID$ <br> <br>
     Links will also be made for any database cross references associated
     with the sequence where the database name exactly matches a URL link
-    name. In this case, the $SEQUENCE_ID$ string will be replaced with
+    name. In this case, the $DB_ACCESSION$ string will be replaced with
     the accession string for the database cross-reference, rather than
-    the sequence ID for the sequence (<em>since Jalview 2.4</em>).
+    the sequence ID for the sequence (<em>since Jalview 2.10.1</em>).
+  </p>
+  <p>
+    <strong><a name="warning">Warning dialog about updating
+        your configured URL links</a></strong><br /> In the desktop
+    prior to Jalview 2.10.1, the only way to configure custom links for
+    a particular database cross-reference for a sequence was to give it
+    a name that
+    <em>exactly</em> matched the database source, and a regular
+    expression for filtering out any spurious matches generated when the
+    custom linked was tested against the Sequence's ID string. Since the
+    introduction of the $DB_ACCESSION$ token, however, $SEQUENCE_ID$
+    will not be used for database cross-reference accession strings, and
+    if you have custom links configured, Jalview will raise a warning
+    message so let you know that you may need to update your links to
+    use $DB_ACCESSION$.
   </p>
   <p>
     <strong>Regular Expression Substitution</strong><br> A url may
     contain a string of the form $SEQUENCE_ID=/<em>regular
-      expression</em>/=$. In this case, the regular expression will be
-    applied to the full sequence ID string and the resulting match will
+    expression</em>/=$ or $DB_ACCESSION=/<em>regular expression</em>/=$. 
+    In this case, the regular expression will be
+    applied to the full sequence ID or DB accession ID string and the resulting match will
     be inserted into the URL. Groups of parentheses can be used to
     specify which regions of the regular expression will be used to
     generate the URL:
@@ -83,7 +98,7 @@
     <em>Please Note:
       <ul>
         <li>The regular expressions supported by Jalview are those
-          provided by the <a href="www.javaregex.com">Stevesoft
+          provided by the <a href="http://www.javaregex.com">Stevesoft
             javaregex package</a>.
         </li>
         <li>Some characters must be escaped when specifying them as

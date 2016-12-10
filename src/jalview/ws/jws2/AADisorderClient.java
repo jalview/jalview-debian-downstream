@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,13 +21,14 @@
 package jalview.ws.jws2;
 
 import jalview.api.AlignCalcWorkerI;
+import jalview.api.FeatureColourI;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.GraphLine;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
-import jalview.schemes.GraduatedColor;
+import jalview.schemes.FeatureColour;
 import jalview.schemes.UserColourScheme;
 import jalview.ws.jws2.jabaws2.Jws2Instance;
 import jalview.ws.params.WsParamSetI;
@@ -46,8 +47,7 @@ import compbio.data.sequence.Score;
 import compbio.data.sequence.ScoreManager.ScoreHolder;
 import compbio.metadata.Argument;
 
-public class AADisorderClient extends JabawsCalcWorker implements
-        AlignCalcWorkerI
+public class AADisorderClient extends JabawsCalcWorker
 {
 
   private static final String THRESHOLD = "THRESHOLD";
@@ -308,8 +308,8 @@ public class AADisorderClient extends JabawsCalcWorker implements
                 annot.description += "<br/>" + threshNote;
               }
               annot.description += "</html>";
-              Color col = new UserColourScheme(typeName)
-                      .createColourFromName(typeName + scr.getMethod());
+              Color col = UserColourScheme.createColourFromName(typeName
+                      + scr.getMethod());
               for (int p = 0, ps = annot.annotations.length; p < ps; p++)
               {
                 if (annot.annotations[p] != null)
@@ -337,13 +337,13 @@ public class AADisorderClient extends JabawsCalcWorker implements
                   .cloneFeatureRenderer();
           for (String ft : fc.keySet())
           {
-            Object gc = fr.getFeatureStyle(ft);
-            if (gc instanceof Color)
+            FeatureColourI gc = fr.getFeatureStyle(ft);
+            if (gc.isSimpleColour())
             {
               // set graduated color as fading to white for minimum, and
               // autoscaling to values on alignment
-              GraduatedColor ggc = new GraduatedColor(Color.white,
-                      (Color) gc, Float.MIN_VALUE, Float.MAX_VALUE);
+              FeatureColourI ggc = new FeatureColour(Color.white,
+                      gc.getColour(), Float.MIN_VALUE, Float.MAX_VALUE);
               ggc.setAutoScaled(true);
               fr.setColour(ft, ggc);
             }

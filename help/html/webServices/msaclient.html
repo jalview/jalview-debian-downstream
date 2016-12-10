@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -39,13 +39,13 @@
       from the input</li>
     <li><em>realignment</em> - where any aligned sequences will be
       used by the service to construct a profile based alignment of the
-      remaining unaligned sequences.</li>
+      remaining unaligned sequences</li>
   </ul>
   <strong>JABAWS Alignment services</strong>
   <br> Most alignment services are provided by the
   <a href="JABAWS.html">JABAWS framework</a>, which allows you to
   customise the precise parameters used when running each alignment
-  prgoram. In addition to the 'Default settings', you may choose from a
+  program. In addition to the 'Default settings', you may choose from a
   range of alignment preset settings, or create your own using the
   <a href="webServicesParams.html">'Edit Settings And Run ..' dialog
     box</a>.
@@ -58,13 +58,13 @@
   <ul>
     <li><a href="http://www.clustal.org/">Clustal Omega and
         Clustal W</a> (version 2.0.12)</li>
-    <li><a href="http://align.bmr.kyushu-u.ac.jp/mafft/software/">Mafft</a>
+    <li><a href="http://mafft.cbrc.jp/alignment/software/">Mafft</a>
       (version 6.8.57b)</li>
     <li><a href="http://www.drive5.com/muscle">Muscle</a> (version
       3.8.31)</li>
     <li><a
-      href="http://www.tcoffee.org/Projects_home_page/t_coffee_home_page.html"
-    >Tcoffee</a> (version 8.99)</li>
+      href="http://www.tcoffee.org/Projects_home_page/t_coffee_home_page.html">Tcoffee</a>
+      (version 8.99)</li>
     <li><a href="http://probcons.stanford.edu/">Probcons</a>
       (version 1.12)</li>
   </ul>
@@ -74,12 +74,11 @@
     <strong>Multiple Alignments of Sequences with hidden
       columns</strong><br> Multiple alignment services are 'column
     separable' analysis operations. If the input contains <a
-      href="../features/hiddenRegions.html"
-    >hidden columns</a> then each visible segment of the input sequence
-    set will be submitted for alignment separately, and the results
-    concatenated (with the hidden regions preserved) once all alignment
-    functions have completed. Each sub-job's state is reported in its
-    own tab:
+      href="../features/hiddenRegions.html">hidden columns</a> then
+    each visible segment of the input sequence set will be submitted for
+    alignment separately, and the results concatenated (with the hidden
+    regions preserved) once all alignment functions have completed. Each
+    sub-job's state is reported in its own tab:
   <p>
   <center>
     <strong>Multiple Multiple Sequence Alignment sub jobs

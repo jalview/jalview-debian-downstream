@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -265,7 +265,8 @@ public class OverviewPanel extends Panel implements Runnable,
   {
     miniMe = null;
     int alwidth = av.getAlignment().getWidth();
-    int alheight = av.getAlignment().getHeight();
+    int alheight = av.getAlignment().getHeight()
+            + av.getAlignment().getHiddenSequences().getSize();
 
     if (av.isShowSequenceFeatures())
     {
@@ -304,6 +305,10 @@ public class OverviewPanel extends Panel implements Runnable,
     AlignmentI alignment = av.getAlignment();
     for (row = 0; row <= sequencesHeight; row++)
     {
+      if (resizeAgain)
+      {
+        break;
+      }
       if ((int) (row * sampleRow) == lastrow)
       {
         sameRow++;
@@ -385,6 +390,10 @@ public class OverviewPanel extends Panel implements Runnable,
     {
       for (col = 0; col < width; col++)
       {
+        if (resizeAgain)
+        {
+          break;
+        }
         lastcol = (int) (col * sampleCol);
         {
           mg.translate(col, sequencesHeight);

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,6 @@ import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -34,6 +33,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -46,6 +47,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
+import javax.swing.ToolTipManager;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -72,7 +74,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
       @Override
       public void actionPerformed(ActionEvent arg0)
       {
-        showDialog(null);
+        showDialog();
       }
     });
     return viewdbs;
@@ -168,6 +170,19 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
         _setSelectionState();
       }
     });
+    dbviews.addMouseListener(new MouseAdapter()
+    {
+
+      @Override
+      public void mousePressed(MouseEvent e)
+      {
+        if (e.getClickCount() == 2)
+        {
+          okPressed();
+          closeDialog();
+        }
+      }
+    });
     JPanel jc = new JPanel(new BorderLayout()), j = new JPanel(
             new FlowLayout());
     jc.add(svp, BorderLayout.CENTER);
@@ -187,6 +202,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     jc.validate();
     // j.setPreferredSize(new Dimension(300,50));
     add(jc, BorderLayout.CENTER);
+    ok.setEnabled(false);
     j.add(ok);
     j.add(cancel);
     add(j, BorderLayout.SOUTH);
@@ -244,6 +260,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     public DbTreeRenderer(JDatabaseTree me)
     {
       us = me;
+      ToolTipManager.sharedInstance().registerComponent(dbviews);
     }
 
     private Component returnLabel(String txt)
@@ -265,19 +282,23 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
         value = vl.getUserObject();
         if (value instanceof DbSourceProxy)
         {
-          val = (((DbSourceProxy) value).getDbName());
+          val = ((DbSourceProxy) value).getDbName();
+          if (((DbSourceProxy) value).getDescription() != null)
+          { // getName()
+            this.setToolTipText(((DbSourceProxy) value).getDescription());
+          }
         }
         else
         {
           if (value instanceof String)
           {
-            val = ((String) value);
+            val = (String) value;
           }
         }
       }
       if (value == null)
       {
-        val = ("");
+        val = "";
       }
       return super.getTreeCellRendererComponent(tree, val, selected,
               expanded, leaf, row, hasFocus);
@@ -302,7 +323,6 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
   protected void okPressed()
   {
     _setSelectionState();
-    closeDialog();
   }
 
   @Override
@@ -314,7 +334,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     closeDialog();
   }
 
-  private void showDialog(Container parent)
+  void showDialog()
   {
     oldselection = selection;
     oldtsel = tsel;
@@ -343,10 +363,12 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     {
       return;
     }
+    ok.setEnabled(false);
     if (dbviews.getSelectionCount() == 0)
     {
       selection = null;
     }
+
     tsel = dbviews.getSelectionPaths();
     boolean forcedFirstChild = false;
     List<DbSourceProxy> srcs = new ArrayList<DbSourceProxy>();
@@ -358,6 +380,10 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
                 .getLastPathComponent();
         if (dmt.getUserObject() != null)
         {
+          /*
+           * enable OK button once a selection has been made
+           */
+          ok.setEnabled(true);
           if (dmt.getUserObject() instanceof DbSourceProxy)
           {
             srcs.add((DbSourceProxy) dmt.getUserObject());
@@ -413,6 +439,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
       }
     }
 
+    dbstatex.setText(" ");
     if (allowMultiSelections)
     {
       dbstatus.setText(MessageManager.formatMessage(
@@ -421,7 +448,6 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
                   (srcs.size() == 1 ? "" : "s"),
                   (srcs.size() > 0 ? " with " + x + " test quer"
                           + (x == 1 ? "y" : "ies") : ".") }));
-      dbstatex.setText(" ");
     }
     else
     {
@@ -433,10 +459,6 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
         {
           dbstatex.setText(MessageManager.formatMessage(
                   "label.example_param", new String[] { qr }));
-        }
-        else
-        {
-          dbstatex.setText(" ");
         }
       }
       else
@@ -549,6 +571,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     {
       action = arg0.getKeyCode();
       okPressed();
+      closeDialog();
     }
     if (!arg0.isConsumed() && arg0.getKeyChar() == KeyEvent.VK_ESCAPE)
     {

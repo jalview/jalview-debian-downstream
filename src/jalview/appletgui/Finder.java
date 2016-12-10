@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.appletgui;
 
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultMatchI;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.util.MessageManager;
@@ -50,7 +51,7 @@ public class Finder extends Panel implements ActionListener
 
   Frame frame;
 
-  SearchResults searchResults;
+  SearchResultsI searchResults;
 
   int seqIndex = 0;
 
@@ -76,6 +77,7 @@ public class Finder extends Panel implements ActionListener
     frame.repaint();
     frame.addWindowListener(new WindowAdapter()
     {
+      @Override
       public void windowClosing(WindowEvent evt)
       {
         ap.highlightSearchResults(null);
@@ -84,6 +86,7 @@ public class Finder extends Panel implements ActionListener
     textfield.requestFocus();
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == textfield)
@@ -114,13 +117,15 @@ public class Finder extends Panel implements ActionListener
     SequenceFeature[] features = new SequenceFeature[searchResults
             .getSize()];
 
-    for (int i = 0; i < searchResults.getSize(); i++)
+    int i = 0;
+    for (SearchResultMatchI match : searchResults.getResults())
     {
-      seqs[i] = searchResults.getResultSequence(i);
+      seqs[i] = match.getSequence().getDatasetSequence();
 
       features[i] = new SequenceFeature(textfield.getText().trim(),
-              "Search Results", null, searchResults.getResultStart(i),
-              searchResults.getResultEnd(i), "Search Results");
+              "Search Results", null, match.getStart(), match.getEnd(),
+              "Search Results");
+      i++;
     }
 
     if (ap.seqPanel.seqCanvas.getFeatureRenderer().amendFeatures(seqs,
@@ -152,7 +157,7 @@ public class Finder extends Panel implements ActionListener
     seqIndex = finder.getSeqIndex();
     resIndex = finder.getResIndex();
     searchResults = finder.getSearchResults();
-    Vector idMatch = finder.getIdMatch();
+    Vector<SequenceI> idMatch = finder.getIdMatch();
     boolean haveResults = false;
     // set or reset the GUI
     if ((idMatch.size() > 0))
@@ -246,6 +251,7 @@ public class Finder extends Panel implements ActionListener
     textfield.setBounds(new Rectangle(40, 17, 133, 21));
     textfield.addKeyListener(new java.awt.event.KeyAdapter()
     {
+      @Override
       public void keyTyped(KeyEvent e)
       {
         textfield_keyTyped(e);

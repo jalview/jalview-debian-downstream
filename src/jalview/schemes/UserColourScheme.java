@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -67,7 +67,7 @@ public class UserColourScheme extends ResidueColourScheme
 
     if (col == null)
     {
-      System.out.println("Unknown colour!! " + colour);
+      System.out.println("Making colour from name: " + colour);
       col = createColourFromName(colour);
     }
 
@@ -99,8 +99,12 @@ public class UserColourScheme extends ResidueColourScheme
     return schemeName;
   }
 
-  public Color getColourFromString(String colour)
+  public static Color getColourFromString(String colour)
   {
+    if (colour == null)
+    {
+      return null;
+    }
     colour = colour.trim();
 
     Color col = null;
@@ -136,7 +140,7 @@ public class UserColourScheme extends ResidueColourScheme
 
   }
 
-  public Color createColourFromName(String name)
+  public static Color createColourFromName(String name)
   {
     int r, g, b;
 

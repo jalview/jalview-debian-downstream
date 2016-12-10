@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -49,7 +49,7 @@ import java.awt.event.TextListener;
 import java.util.Iterator;
 import java.util.Vector;
 
-import javax.swing.JPanel;
+//import javax.swing.JPanel;
 
 //import net.miginfocom.swing.MigLayout;
 
@@ -135,17 +135,22 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     slider.addAdjustmentListener(this);
     slider.addMouseListener(this);
 
-    if (av.getAlignment().getAlignmentAnnotation() == null)
+    AlignmentAnnotation[] anns = av.getAlignment().getAlignmentAnnotation();
+    if (anns == null)
     {
       return;
     }
     setOldColumnSelection(av.getColumnSelection());
     adjusting = true;
-    Vector list = new Vector();
+    Vector<String> list = new Vector<String>();
     int index = 1;
-    for (int i = 0; i < av.getAlignment().getAlignmentAnnotation().length; i++)
+    for (int i = 0; i < anns.length; i++)
     {
-      String label = av.getAlignment().getAlignmentAnnotation()[i].label;
+      String label = anns[i].label;
+      if (anns[i].sequenceRef != null)
+      {
+        label = label + "_" + anns[i].sequenceRef.getName();
+      }
       if (!list.contains(label))
       {
         list.addElement(label);
@@ -241,7 +246,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     actionPanel.add(ok);
     actionPanel.add(cancel);
 
-    JPanel staticPanel = new JPanel();
+    Panel staticPanel = new Panel();
     staticPanel.setLayout(new BorderLayout());
     staticPanel.setBackground(Color.white);
 
@@ -273,6 +278,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     this.validate();
   }
 
+  @Override
   @SuppressWarnings("unchecked")
   public void reset()
   {
@@ -302,6 +308,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     if (!adjusting)
@@ -343,6 +350,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     });
   }
 
+  @Override
   public void valueChanged(boolean updateAllAnnotation)
   {
     if (slider.isEnabled())
@@ -866,6 +874,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     }
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == thresholdValue)

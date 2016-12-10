@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.ws.jws1;
 
-import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
@@ -34,7 +34,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
-import ext.vamsas.MuscleWS;
 import ext.vamsas.MuscleWSServiceLocator;
 import ext.vamsas.MuscleWSSoapBindingStub;
 import ext.vamsas.ServiceHandle;
@@ -72,7 +71,7 @@ public class MsaWSClient extends WS1Client
 
   public MsaWSClient(ext.vamsas.ServiceHandle sh, String altitle,
           jalview.datamodel.AlignmentView msa, boolean submitGaps,
-          boolean preserveOrder, Alignment seqdataset,
+          boolean preserveOrder, AlignmentI seqdataset,
           AlignFrame _alignFrame)
   {
     super();
@@ -109,7 +108,7 @@ public class MsaWSClient extends WS1Client
   }
 
   private void startMsaWSClient(String altitle, AlignmentView msa,
-          boolean submitGaps, boolean preserveOrder, Alignment seqdataset)
+          boolean submitGaps, boolean preserveOrder, AlignmentI seqdataset)
   {
     if (!locateWebService())
     {
@@ -159,7 +158,7 @@ public class MsaWSClient extends WS1Client
 
     try
     {
-      this.server = (MuscleWS) loc.getMuscleWS(new java.net.URL(WsURL));
+      this.server = loc.getMuscleWS(new java.net.URL(WsURL));
       ((MuscleWSSoapBindingStub) this.server).setTimeout(60000); // One minute
       // timeout
     } catch (Exception ex)
@@ -201,6 +200,7 @@ public class MsaWSClient extends WS1Client
     return (WebServiceName.indexOf("lustal") > -1); // cheat!
   }
 
+  @Override
   public void attachWSMenuEntry(JMenu msawsmenu,
           final ServiceHandle serviceHandle, final AlignFrame alignFrame)
   {
@@ -209,6 +209,7 @@ public class MsaWSClient extends WS1Client
     method.setToolTipText(WsURL);
     method.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         AlignmentView msa = alignFrame.gatherSequencesForAlignment();
@@ -228,6 +229,7 @@ public class MsaWSClient extends WS1Client
       methodR.setToolTipText(WsURL);
       methodR.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = alignFrame.gatherSequencesForAlignment();

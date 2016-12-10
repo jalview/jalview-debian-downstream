@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,9 @@
  */
 package jalview.gui;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.GraphLine;
-import jalview.schemes.AnnotationColourGradient;
-import jalview.schemes.GraduatedColor;
+import jalview.schemes.FeatureColour;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -33,7 +33,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Hashtable;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
@@ -52,16 +51,16 @@ public class FeatureColourChooser extends JalviewDialog
   // FeatureSettings fs;
   FeatureRenderer fr;
 
-  private GraduatedColor cs;
+  private FeatureColourI cs;
 
-  private Object oldcs;
+  private FeatureColourI oldcs;
 
   /**
    * 
    * @return the last colour setting selected by user - either oldcs (which may
    *         be a java.awt.Color) or the new GraduatedColor
    */
-  public Object getLastColour()
+  public FeatureColourI getLastColour()
   {
     if (cs == null)
     {
@@ -70,15 +69,15 @@ public class FeatureColourChooser extends JalviewDialog
     return cs;
   }
 
-  Hashtable oldgroupColours;
-
   AlignmentPanel ap;
 
   boolean adjusting = false;
 
-  private float min;
+  final private float min;
 
-  private float max;
+  final private float max;
+
+  final private float scaleFactor;
 
   String type = null;
 
@@ -93,25 +92,28 @@ public class FeatureColourChooser extends JalviewDialog
     this.fr = frender;
     this.type = type;
     ap = fr.ap;
-    initDialogFrame(this, true, block, "Graduated Feature Colour for "
-            + type, 480, 185);
+    String title = MessageManager.formatMessage(
+            "label.graduated_color_for_params", new String[] { type });
+    initDialogFrame(this, true, block, title, 480, 185);
     // frame.setLayer(JLayeredPane.PALETTE_LAYER);
     // Desktop.addInternalFrame(frame, "Graduated Feature Colour for "+type,
     // 480, 145);
 
     slider.addChangeListener(new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
         if (!adjusting)
         {
-          thresholdValue.setText(((float) slider.getValue() / 1000f) + "");
+          thresholdValue.setText((slider.getValue() / scaleFactor) + "");
           valueChanged();
         }
       }
     });
     slider.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseReleased(MouseEvent evt)
       {
         if (ap != null)
@@ -122,36 +124,44 @@ public class FeatureColourChooser extends JalviewDialog
       }
     });
 
-    float mm[] = ((float[][]) fr.getMinMax().get(type))[0];
+    float mm[] = fr.getMinMax().get(type)[0];
     min = mm[0];
     max = mm[1];
+
+    /*
+     * ensure scale factor allows a scaled range with
+     * 10 integer divisions ('ticks'); if we have got here,
+     * we should expect that max != min
+     */
+    scaleFactor = (max == min) ? 1f : 100f / (max - min);
+
     oldcs = fr.getFeatureColours().get(type);
-    if (oldcs instanceof GraduatedColor)
+    if (!oldcs.isSimpleColour())
     {
-      if (((GraduatedColor) oldcs).isAutoScale())
+      if (oldcs.isAutoScaled())
       {
         // update the scale
-        cs = new GraduatedColor((GraduatedColor) oldcs, min, max);
+        cs = new FeatureColour((FeatureColour) oldcs, min, max);
       }
       else
       {
-        cs = new GraduatedColor((GraduatedColor) oldcs);
+        cs = new FeatureColour((FeatureColour) oldcs);
       }
     }
     else
     {
       // promote original color to a graduated color
-      Color bl = Color.black;
-      if (oldcs instanceof Color)
+      Color bl = oldcs.getColour();
+      if (bl == null)
       {
-        bl = (Color) oldcs;
+        bl = Color.BLACK;
       }
       // original colour becomes the maximum colour
-      cs = new GraduatedColor(Color.white, bl, mm[0], mm[1]);
+      cs = new FeatureColour(Color.white, bl, mm[0], mm[1]);
       cs.setColourByLabel(false);
     }
-    minColour.setBackground(oldminColour = cs.getMinColor());
-    maxColour.setBackground(oldmaxColour = cs.getMaxColor());
+    minColour.setBackground(oldminColour = cs.getMinColour());
+    maxColour.setBackground(oldmaxColour = cs.getMaxColour());
     adjusting = true;
 
     try
@@ -161,18 +171,15 @@ public class FeatureColourChooser extends JalviewDialog
     {
     }
     // update the gui from threshold state
-    thresholdIsMin.setSelected(!cs.isAutoScale());
+    thresholdIsMin.setSelected(!cs.isAutoScaled());
     colourByLabel.setSelected(cs.isColourByLabel());
-    if (cs.getThreshType() != AnnotationColourGradient.NO_THRESHOLD)
+    if (cs.hasThreshold())
     {
       // initialise threshold slider and selector
-      threshold
-              .setSelectedIndex(cs.getThreshType() == AnnotationColourGradient.ABOVE_THRESHOLD ? 1
-                      : 2);
+      threshold.setSelectedIndex(cs.isAboveThreshold() ? 1 : 2);
       slider.setEnabled(true);
       thresholdValue.setEnabled(true);
-      threshline = new jalview.datamodel.GraphLine((max - min) / 2f,
-              "Threshold", Color.black);
+      threshline = new GraphLine((max - min) / 2f, "Threshold", Color.black);
 
     }
 
@@ -180,17 +187,6 @@ public class FeatureColourChooser extends JalviewDialog
 
     changeColour();
     waitForInput();
-  }
-
-  public FeatureColourChooser()
-  {
-    try
-    {
-      jbInit();
-    } catch (Exception ex)
-    {
-      ex.printStackTrace();
-    }
   }
 
   private void jbInit() throws Exception
@@ -202,6 +198,7 @@ public class FeatureColourChooser extends JalviewDialog
     minColour.setToolTipText(MessageManager.getString("label.min_colour"));
     minColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         if (minColour.isEnabled())
@@ -216,6 +213,7 @@ public class FeatureColourChooser extends JalviewDialog
     maxColour.setToolTipText(MessageManager.getString("label.max_colour"));
     maxColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         if (maxColour.isEnabled())
@@ -235,6 +233,7 @@ public class FeatureColourChooser extends JalviewDialog
     jPanel2.setBackground(Color.white);
     threshold.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         threshold_actionPerformed(e);
@@ -243,14 +242,15 @@ public class FeatureColourChooser extends JalviewDialog
     threshold.setToolTipText(MessageManager
             .getString("label.threshold_feature_display_by_score"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_no_thereshold")); // index 0
+            .getString("label.threshold_feature_no_threshold")); // index 0
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_above_thereshold")); // index 1
+            .getString("label.threshold_feature_above_threshold")); // index 1
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_below_thereshold")); // index 2
+            .getString("label.threshold_feature_below_threshold")); // index 2
     jPanel3.setLayout(flowLayout2);
     thresholdValue.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         thresholdValue_actionPerformed(e);
@@ -263,7 +263,7 @@ public class FeatureColourChooser extends JalviewDialog
     slider.setOpaque(false);
     slider.setPreferredSize(new Dimension(100, 32));
     slider.setToolTipText(MessageManager
-            .getString("label.adjust_thereshold"));
+            .getString("label.adjust_threshold"));
     thresholdValue.setEnabled(false);
     thresholdValue.setColumns(7);
     jPanel3.setBackground(Color.white);
@@ -274,6 +274,7 @@ public class FeatureColourChooser extends JalviewDialog
             .getString("label.toggle_absolute_relative_display_threshold"));
     thresholdIsMin.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         thresholdIsMin_actionPerformed(actionEvent);
@@ -287,6 +288,7 @@ public class FeatureColourChooser extends JalviewDialog
                     .getString("label.display_features_same_type_different_label_using_different_colour"));
     colourByLabel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent actionEvent)
       {
         colourByLabel_actionPerformed(actionEvent);
@@ -387,56 +389,56 @@ public class FeatureColourChooser extends JalviewDialog
       return;
     }
 
-    int aboveThreshold = AnnotationColourGradient.NO_THRESHOLD;
+    boolean aboveThreshold = false;
+    boolean belowThreshold = false;
     if (threshold.getSelectedIndex() == 1)
     {
-      aboveThreshold = AnnotationColourGradient.ABOVE_THRESHOLD;
+      aboveThreshold = true;
     }
     else if (threshold.getSelectedIndex() == 2)
     {
-      aboveThreshold = AnnotationColourGradient.BELOW_THRESHOLD;
+      belowThreshold = true;
     }
+    boolean hasThreshold = aboveThreshold || belowThreshold;
 
     slider.setEnabled(true);
     thresholdValue.setEnabled(true);
 
-    GraduatedColor acg;
+    FeatureColourI acg;
     if (cs.isColourByLabel())
     {
-      acg = new GraduatedColor(oldminColour, oldmaxColour, min, max);
+      acg = new FeatureColour(oldminColour, oldmaxColour, min, max);
     }
     else
     {
-      acg = new GraduatedColor(oldminColour = minColour.getBackground(),
+      acg = new FeatureColour(oldminColour = minColour.getBackground(),
               oldmaxColour = maxColour.getBackground(), min, max);
 
     }
 
-    if (aboveThreshold == AnnotationColourGradient.NO_THRESHOLD)
+    if (!hasThreshold)
     {
       slider.setEnabled(false);
       thresholdValue.setEnabled(false);
       thresholdValue.setText("");
       thresholdIsMin.setEnabled(false);
     }
-    else if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD
-            && threshline == null)
+    else if (threshline == null)
     {
       // todo visual indication of feature threshold
-      threshline = new jalview.datamodel.GraphLine((max - min) / 2f,
-              "Threshold", Color.black);
+      threshline = new GraphLine((max - min) / 2f, "Threshold", Color.black);
     }
 
-    if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD)
+    if (hasThreshold)
     {
       adjusting = true;
-      acg.setThresh(threshline.value);
+      acg.setThreshold(threshline.value);
 
-      float range = max * 1000f - min * 1000f;
+      float range = (max - min) * scaleFactor;
 
-      slider.setMinimum((int) (min * 1000));
-      slider.setMaximum((int) (max * 1000));
-      slider.setValue((int) (threshline.value * 1000));
+      slider.setMinimum((int) (min * scaleFactor));
+      slider.setMaximum((int) (max * scaleFactor));
+      slider.setValue((int) (threshline.value * scaleFactor));
       thresholdValue.setText(threshline.value + "");
       slider.setMajorTickSpacing((int) (range / 10f));
       slider.setEnabled(true);
@@ -445,18 +447,18 @@ public class FeatureColourChooser extends JalviewDialog
       adjusting = false;
     }
 
-    acg.setThreshType(aboveThreshold);
-    if (thresholdIsMin.isSelected()
-            && aboveThreshold != AnnotationColourGradient.NO_THRESHOLD)
+    acg.setAboveThreshold(aboveThreshold);
+    acg.setBelowThreshold(belowThreshold);
+    if (thresholdIsMin.isSelected() && hasThreshold)
     {
       acg.setAutoScaled(false);
-      if (aboveThreshold == AnnotationColourGradient.ABOVE_THRESHOLD)
+      if (aboveThreshold)
       {
-        acg = new GraduatedColor(acg, threshline.value, max);
+        acg = new FeatureColour((FeatureColour) acg, threshline.value, max);
       }
       else
       {
-        acg = new GraduatedColor(acg, min, threshline.value);
+        acg = new FeatureColour((FeatureColour) acg, min, threshline.value);
       }
     }
     else
@@ -488,6 +490,7 @@ public class FeatureColourChooser extends JalviewDialog
     ap.paintAlignment(false);
   }
 
+  @Override
   protected void raiseClosed()
   {
     if (this.colourEditor != null)
@@ -496,11 +499,13 @@ public class FeatureColourChooser extends JalviewDialog
     }
   }
 
+  @Override
   public void okPressed()
   {
     changeColour();
   }
 
+  @Override
   public void cancelPressed()
   {
     reset();
@@ -533,7 +538,7 @@ public class FeatureColourChooser extends JalviewDialog
     try
     {
       float f = Float.parseFloat(thresholdValue.getText());
-      slider.setValue((int) (f * 1000));
+      slider.setValue((int) (f * scaleFactor));
       threshline.value = f;
     } catch (NumberFormatException ex)
     {
@@ -542,8 +547,8 @@ public class FeatureColourChooser extends JalviewDialog
 
   public void valueChanged()
   {
-    threshline.value = (float) slider.getValue() / 1000f;
-    cs.setThresh(threshline.value);
+    threshline.value = slider.getValue() / scaleFactor;
+    cs.setThreshold(threshline.value);
     changeColour();
     ap.paintAlignment(false);
   }

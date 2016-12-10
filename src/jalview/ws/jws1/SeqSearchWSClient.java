@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.ws.jws1;
 
-import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
@@ -39,7 +39,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
-import ext.vamsas.SeqSearchI;
 import ext.vamsas.SeqSearchServiceLocator;
 import ext.vamsas.SeqSearchServiceSoapBindingStub;
 import ext.vamsas.ServiceHandle;
@@ -77,7 +76,7 @@ public class SeqSearchWSClient extends WS1Client
 
   public SeqSearchWSClient(ext.vamsas.ServiceHandle sh, String altitle,
           jalview.datamodel.AlignmentView msa, String db,
-          Alignment seqdataset, AlignFrame _alignFrame)
+          AlignmentI seqdataset, AlignFrame _alignFrame)
   {
     super();
     alignFrame = _alignFrame;
@@ -128,7 +127,7 @@ public class SeqSearchWSClient extends WS1Client
   }
 
   private void startSeqSearchClient(String altitle, AlignmentView msa,
-          String db, Alignment seqdataset)
+          String db, AlignmentI seqdataset)
   {
     if (!locateWebService())
     {
@@ -173,8 +172,7 @@ public class SeqSearchWSClient extends WS1Client
 
     try
     {
-      this.server = (SeqSearchI) loc.getSeqSearchService(new java.net.URL(
-              WsURL));
+      this.server = loc.getSeqSearchService(new java.net.URL(WsURL));
       ((SeqSearchServiceSoapBindingStub) this.server).setTimeout(60000); // One
       // minute
       // timeout
@@ -241,6 +239,7 @@ public class SeqSearchWSClient extends WS1Client
     return dbs;
   }
 
+  @Override
   public void attachWSMenuEntry(JMenu wsmenu, final ServiceHandle sh,
           final AlignFrame af)
   {
@@ -281,6 +280,7 @@ public class SeqSearchWSClient extends WS1Client
     method.setToolTipText(sh.getEndpointURL());
     method.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         // use same input gatherer as for secondary structure prediction
@@ -305,6 +305,7 @@ public class SeqSearchWSClient extends WS1Client
       final String searchdb = dbs[db];
       method.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = af.gatherSeqOrMsaForSecStrPrediction();

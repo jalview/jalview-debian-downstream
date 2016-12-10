@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,11 +24,11 @@ import jalview.analysis.Rna;
 import jalview.analysis.SecStrConsensus.SimpleBP;
 import jalview.analysis.WUSSParseException;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -79,7 +79,7 @@ public class AlignmentAnnotation
   /** Array of annotations placed in the current coordinate system */
   public Annotation[] annotations;
 
-  public ArrayList<SimpleBP> bps = null;
+  public List<SimpleBP> bps = null;
 
   /**
    * RNA secondary structure contact positions
@@ -102,8 +102,8 @@ public class AlignmentAnnotation
   {
     try
     {
-      _rnasecstr = Rna.GetBasePairs(RNAannot);
-      bps = Rna.GetModeleBP(RNAannot);
+      bps = Rna.getModeleBP(RNAannot);
+      _rnasecstr = Rna.getBasePairs(bps);
       invalidrnastruc = -1;
     } catch (WUSSParseException px)
     {
@@ -245,6 +245,7 @@ public class AlignmentAnnotation
    * 
    * @see java.lang.Object#finalize()
    */
+  @Override
   protected void finalize() throws Throwable
   {
     sequenceRef = null;
@@ -271,7 +272,7 @@ public class AlignmentAnnotation
   // JBPNote: what does this do ?
   public void ConcenStru(CharSequence RNAannot) throws WUSSParseException
   {
-    bps = Rna.GetModeleBP(RNAannot);
+    bps = Rna.getModeleBP(RNAannot);
   }
 
   /**
@@ -484,7 +485,7 @@ public class AlignmentAnnotation
       this(0, annotations.length);
     }
 
-    public AnnotCharSequence(int start, int end)
+    AnnotCharSequence(int start, int end)
     {
       offset = start;
       max = end;
@@ -592,6 +593,7 @@ public class AlignmentAnnotation
     if (annotations == null)
     {
       visible = false; // try to prevent renderer from displaying.
+      invalidrnastruc = -1;
       return; // this is a non-annotation row annotation - ie a sequence score.
     }
 
@@ -957,6 +959,12 @@ public class AlignmentAnnotation
 
   }
 
+  /**
+   * When positional annotation and a sequence reference is present, clears and
+   * resizes the annotations array to the current alignment width, and adds
+   * annotation according to aligned positions of the sequenceRef given by
+   * sequenceMapping.
+   */
   public void adjustForAlignment()
   {
     if (sequenceRef == null)
@@ -980,18 +988,20 @@ public class AlignmentAnnotation
     int position;
     Annotation[] temp = new Annotation[aSize];
     Integer index;
-
-    for (a = sequenceRef.getStart(); a <= sequenceRef.getEnd(); a++)
+    if (sequenceMapping != null)
     {
-      index = new Integer(a);
-      if (sequenceMapping.containsKey(index))
+      for (a = sequenceRef.getStart(); a <= sequenceRef.getEnd(); a++)
       {
-        position = sequenceRef.findIndex(a) - 1;
+        index = new Integer(a);
+        Annotation annot = sequenceMapping.get(index);
+        if (annot != null)
+        {
+          position = sequenceRef.findIndex(a) - 1;
 
-        temp[position] = sequenceMapping.get(index);
+          temp[position] = annot;
+        }
       }
     }
-
     annotations = temp;
   }
 
@@ -1028,11 +1038,11 @@ public class AlignmentAnnotation
   }
 
   /**
-   * Associate this annotion with the aligned residues of a particular sequence.
-   * sequenceMapping will be updated in the following way: null sequenceI -
-   * existing mapping will be discarded but annotations left in mapped
-   * positions. valid sequenceI not equal to current sequenceRef: mapping is
-   * discarded and rebuilt assuming 1:1 correspondence TODO: overload with
+   * Associate this annotation with the aligned residues of a particular
+   * sequence. sequenceMapping will be updated in the following way: null
+   * sequenceI - existing mapping will be discarded but annotations left in
+   * mapped positions. valid sequenceI not equal to current sequenceRef: mapping
+   * is discarded and rebuilt assuming 1:1 correspondence TODO: overload with
    * parameter to specify correspondence between current and new sequenceRef
    * 
    * @param sequenceI
@@ -1296,15 +1306,15 @@ public class AlignmentAnnotation
    * @note caller should add the remapped annotation to newref if they have not
    *       already
    */
-  public void remap(SequenceI newref, int[][] mapping, int from, int to,
-          int idxoffset)
+  public void remap(SequenceI newref, HashMap<Integer, int[]> mapping,
+          int from, int to, int idxoffset)
   {
     if (mapping != null)
     {
       Map<Integer, Annotation> old = sequenceMapping;
       Map<Integer, Annotation> remap = new HashMap<Integer, Annotation>();
       int index = -1;
-      for (int mp[] : mapping)
+      for (int mp[] : mapping.values())
       {
         if (index++ < 0)
         {
@@ -1399,6 +1409,77 @@ public class AlignmentAnnotation
   protected final void setAnnotationId()
   {
     this.annotationId = ANNOTATION_ID_PREFIX + Long.toString(nextId());
+  }
+
+  /**
+   * Returns the match for the last unmatched opening RNA helix pair symbol
+   * preceding the given column, or '(' if nothing found to match.
+   * 
+   * @param column
+   * @return
+   */
+  public String getDefaultRnaHelixSymbol(int column)
+  {
+    String result = "(";
+    if (annotations == null)
+    {
+      return result;
+    }
+
+    /*
+     * for each preceding column, if it contains an open bracket, 
+     * count whether it is still unmatched at column, if so return its pair
+     * (likely faster than the fancy alternative using stacks)
+     */
+    for (int col = column - 1; col >= 0; col--)
+    {
+      Annotation annotation = annotations[col];
+      if (annotation == null)
+      {
+        continue;
+      }
+      String displayed = annotation.displayCharacter;
+      if (displayed == null || displayed.length() != 1)
+      {
+        continue;
+      }
+      char symbol = displayed.charAt(0);
+      if (!Rna.isOpeningParenthesis(symbol))
+      {
+        continue;
+      }
+
+      /*
+       * found an opening bracket symbol
+       * count (closing-opening) symbols of this type that follow it,
+       * up to and excluding the target column; if the count is less
+       * than 1, the opening bracket is unmatched, so return its match
+       */
+      String closer = String.valueOf(Rna
+              .getMatchingClosingParenthesis(symbol));
+      String opener = String.valueOf(symbol);
+      int count = 0;
+      for (int j = col + 1; j < column; j++)
+      {
+        if (annotations[j] != null)
+        {
+          String s = annotations[j].displayCharacter;
+          if (closer.equals(s))
+          {
+            count++;
+          }
+          else if (opener.equals(s))
+          {
+            count--;
+          }
+        }
+      }
+      if (count < 1)
+      {
+        return closer;
+      }
+    }
+    return result;
   }
 
   protected static synchronized long nextId()

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.structure;
 
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceI;
 
 public interface SequenceListener
@@ -27,7 +28,7 @@ public interface SequenceListener
   // TODO remove this? never called on SequenceListener type
   public void mouseOverSequence(SequenceI sequence, int index, int pos);
 
-  public void highlightSequence(jalview.datamodel.SearchResults results);
+  public void highlightSequence(SearchResultsI results);
 
   // TODO remove this? never called
   public void updateColours(SequenceI sequence, int index);

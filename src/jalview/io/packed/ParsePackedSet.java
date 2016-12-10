@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.io.packed;
 
+import jalview.api.FeatureColourI;
 import jalview.datamodel.AlignmentI;
 import jalview.io.AppletFormatAdapter;
 import jalview.io.FileParse;
@@ -30,7 +31,7 @@ import jalview.io.packed.DataProvider.JvDataType;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.List;
 
 public class ParsePackedSet
@@ -66,7 +67,7 @@ public class ParsePackedSet
         String fmt = null;
         try
         {
-          fmt = new IdentifyFile().Identify(src, false);
+          fmt = new IdentifyFile().identify(src, false);
         } catch (Exception ex)
         {
           exerror = ex;
@@ -157,7 +158,7 @@ public class ParsePackedSet
         // if not, create one.
         if (context.featureColours == null)
         {
-          context.featureColours = new Hashtable();
+          context.featureColours = new HashMap<String, FeatureColourI>();
         }
         try
         {

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,7 +25,7 @@ import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
@@ -99,7 +99,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * Flag set while scrolling to follow complementary cDNA/protein scroll. When
    * true, suppresses invoking the same method recursively.
    */
-  private boolean followingComplementScroll;
+  private boolean dontScrollComplement;
+
+  private PropertyChangeListener propertyChangeListener;
 
   /**
    * Creates a new AlignmentPanel object.
@@ -135,8 +137,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
     vscroll.addAdjustmentListener(this);
 
     final AlignmentPanel ap = this;
-    av.addPropertyChangeListener(new PropertyChangeListener()
+    propertyChangeListener = new PropertyChangeListener()
     {
+      @Override
       public void propertyChange(PropertyChangeEvent evt)
       {
         if (evt.getPropertyName().equals("alignment"))
@@ -145,7 +148,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
           alignmentChanged();
         }
       }
-    });
+    };
+    av.addPropertyChangeListener(propertyChangeListener);
     fontChanged();
     adjustAnnotationHeight();
     updateLayout();
@@ -293,7 +297,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * Highlight the given results on the alignment.
    * 
    */
-  public void highlightSearchResults(SearchResults results)
+  public void highlightSearchResults(SearchResultsI results)
   {
     scrollToPosition(results);
     getSeqPanel().seqCanvas.highlightSearchResults(results);
@@ -305,7 +309,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * 
    * @param results
    */
-  public boolean scrollToPosition(SearchResults results)
+  public boolean scrollToPosition(SearchResultsI results)
   {
     return scrollToPosition(results, 0, true, false);
   }
@@ -318,7 +322,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @param redrawOverview
    * @return
    */
-  public boolean scrollToPosition(SearchResults searchResults,
+  public boolean scrollToPosition(SearchResultsI searchResults,
           boolean redrawOverview)
   {
     return scrollToPosition(searchResults, 0, redrawOverview, false);
@@ -338,7 +342,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    *          if true, try to centre the search results horizontally in the view
    * @return false if results were not found
    */
-  public boolean scrollToPosition(SearchResults results,
+  public boolean scrollToPosition(SearchResultsI results,
           int verticalOffset, boolean redrawOverview, boolean centre)
   {
     int startv, endv, starts, ends;
@@ -509,6 +513,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * automatically adjust annotation panel height for new annotation whilst
    * ensuring the alignment is still visible.
    */
+  @Override
   public void adjustAnnotationHeight()
   {
     // TODO: display vertical annotation scrollbar if necessary
@@ -565,6 +570,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
     annotationScroller.setPreferredSize(new Dimension(annotationScroller
             .getWidth(), annotationHeight));
+
+    Dimension e = idPanel.getSize();
+    alabels.setSize(new Dimension(e.width, annotationHeight));
 
     annotationSpaceFillerHolder.setPreferredSize(new Dimension(
             annotationSpaceFillerHolder.getWidth(), annotationHeight));
@@ -729,7 +737,14 @@ public class AlignmentPanel extends GAlignmentPanel implements
       x = 0;
     }
 
+    /*
+     * each scroll adjustment triggers adjustmentValueChanged, which resets the
+     * 'do not scroll complement' flag; ensure it is the same for both
+     * operations
+     */
+    boolean flag = isDontScrollComplement();
     hscroll.setValues(x, hextent, 0, width);
+    setDontScrollComplement(flag);
     vscroll.setValues(y, vextent, 0, height);
   }
 
@@ -739,6 +754,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @param evt
    *          DOCUMENT ME!
    */
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     int oldX = av.getStartRes();
@@ -772,6 +788,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
           // as preference setting
           SwingUtilities.invokeLater(new Runnable()
           {
+            @Override
             public void run()
             {
               setScrollValues(av.getStartRes(), av.getStartSeq());
@@ -828,9 +845,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
      * If there is one, scroll the (Protein/cDNA) complementary alignment to
      * match, unless we are ourselves doing that.
      */
-    if (isFollowingComplementScroll())
+    if (isDontScrollComplement())
     {
-      setFollowingComplementScroll(false);
+      setDontScrollComplement(false);
     }
     else
     {
@@ -842,6 +859,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * Repaint the alignment including the annotations and overview panels (if
    * shown).
    */
+  @Override
   public void paintAlignment(boolean updateOverview)
   {
     final AnnotationSorter sorter = new AnnotationSorter(getAlignment(),
@@ -868,6 +886,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @param g
    *          DOCUMENT ME!
    */
+  @Override
   public void paintComponent(Graphics g)
   {
     invalidate();
@@ -876,6 +895,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
     idPanelHolder.setPreferredSize(d);
     hscrollFillerPanel.setPreferredSize(new Dimension(d.width, 12));
     validate();
+
+    /*
+     * set scroll bar positions; first suppress this being 'followed' in any
+     * complementary split pane
+     */
+    setDontScrollComplement(true);
 
     if (av.getWrapAlignment())
     {
@@ -920,6 +945,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @throws PrinterException
    *           DOCUMENT ME!
    */
+  @Override
   public int print(Graphics pg, PageFormat pf, int pi)
           throws PrinterException
   {
@@ -930,11 +956,11 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
     if (av.getWrapAlignment())
     {
-      return printWrappedAlignment(pg, pwidth, pheight, pi);
+      return printWrappedAlignment(pwidth, pheight, pi, pg);
     }
     else
     {
-      return printUnwrapped(pg, pwidth, pheight, pi);
+      return printUnwrapped(pwidth, pheight, pi, pg, pg);
     }
   }
 
@@ -955,83 +981,102 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @throws PrinterException
    *           DOCUMENT ME!
    */
-  public int printUnwrapped(Graphics pg, int pwidth, int pheight, int pi)
+  /**
+   * Draws the alignment image, including sequence ids, sequences, and
+   * annotation labels and annotations if shown, on either one or two Graphics
+   * context.
+   * 
+   * @param pageWidth
+   * @param pageHeight
+   * @param pi
+   * @param idGraphics
+   *          the graphics context for sequence ids and annotation labels
+   * @param alignmentGraphics
+   *          the graphics context for sequences and annotations (may or may not
+   *          be the same context as idGraphics)
+   * @return
+   * @throws PrinterException
+   */
+  public int printUnwrapped(int pageWidth, int pageHeight, int pi,
+          Graphics idGraphics, Graphics alignmentGraphics)
           throws PrinterException
   {
-    int idWidth = getVisibleIdWidth(false);
+    final int idWidth = getVisibleIdWidth(false);
+
+    /*
+     * Get the horizontal offset to where we draw the sequences.
+     * This is idWidth if using a single Graphics context, else zero.
+     */
+    final int alignmentGraphicsOffset = idGraphics != alignmentGraphics ? 0 : idWidth;
+
     FontMetrics fm = getFontMetrics(av.getFont());
-    int scaleHeight = av.getCharHeight() + fm.getDescent();
+    int charHeight = av.getCharHeight();
+    int scaleHeight = charHeight + fm.getDescent();
 
-    pg.setColor(Color.white);
-    pg.fillRect(0, 0, pwidth, pheight);
-    pg.setFont(av.getFont());
+    idGraphics.setColor(Color.white);
+    idGraphics.fillRect(0, 0, pageWidth, pageHeight);
+    idGraphics.setFont(av.getFont());
 
-    // //////////////////////////////////
-    // / How many sequences and residues can we fit on a printable page?
-    int totalRes = (pwidth - idWidth) / av.getCharWidth();
+    /*
+     * How many sequences and residues can we fit on a printable page?
+     */
+    int totalRes = (pageWidth - idWidth) / av.getCharWidth();
 
-    int totalSeq = (pheight - scaleHeight) / av.getCharHeight() - 1;
+    int totalSeq = (pageHeight - scaleHeight) / charHeight - 1;
 
-    int pagesWide = (av.getAlignment().getWidth() / totalRes) + 1;
+    int alignmentWidth = av.getAlignment().getWidth();
+    int pagesWide = (alignmentWidth / totalRes) + 1;
 
-    // ///////////////////////////
-    // / Only print these sequences and residues on this page
-    int startRes;
+    final int startRes = (pi % pagesWide) * totalRes;
+    int endRes = (startRes + totalRes) - 1;
 
-    // ///////////////////////////
-    // / Only print these sequences and residues on this page
-    int endRes;
-
-    // ///////////////////////////
-    // / Only print these sequences and residues on this page
-    int startSeq;
-
-    // ///////////////////////////
-    // / Only print these sequences and residues on this page
-    int endSeq;
-    startRes = (pi % pagesWide) * totalRes;
-    endRes = (startRes + totalRes) - 1;
-
-    if (endRes > (av.getAlignment().getWidth() - 1))
+    if (endRes > (alignmentWidth - 1))
     {
-      endRes = av.getAlignment().getWidth() - 1;
+      endRes = alignmentWidth - 1;
     }
 
-    startSeq = (pi / pagesWide) * totalSeq;
-    endSeq = startSeq + totalSeq;
+    final int startSeq = (pi / pagesWide) * totalSeq;
+    int endSeq = startSeq + totalSeq;
 
-    if (endSeq > av.getAlignment().getHeight())
+    int alignmentHeight = av.getAlignment().getHeight();
+    if (endSeq > alignmentHeight)
     {
-      endSeq = av.getAlignment().getHeight();
+      endSeq = alignmentHeight;
     }
 
-    int pagesHigh = ((av.getAlignment().getHeight() / totalSeq) + 1)
-            * pheight;
+    int pagesHigh = ((alignmentHeight / totalSeq) + 1)
+            * pageHeight;
 
     if (av.isShowAnnotation())
     {
       pagesHigh += getAnnotationPanel().adjustPanelHeight() + 3;
     }
 
-    pagesHigh /= pheight;
+    pagesHigh /= pageHeight;
 
     if (pi >= (pagesWide * pagesHigh))
     {
       return Printable.NO_SUCH_PAGE;
     }
+    final int alignmentDrawnHeight = (endSeq - startSeq) * charHeight
+            + 3;
 
-    // draw Scale
-    pg.translate(idWidth, 0);
-    getScalePanel().drawScale(pg, startRes, endRes, pwidth - idWidth,
-            scaleHeight);
-    pg.translate(-idWidth, scaleHeight);
+    /*
+     * draw the Scale at horizontal offset, then reset to top left (0, 0)
+     */
+    alignmentGraphics.translate(alignmentGraphicsOffset, 0);
+    getScalePanel().drawScale(alignmentGraphics, startRes, endRes,
+            pageWidth - idWidth, scaleHeight);
+    alignmentGraphics.translate(-alignmentGraphicsOffset, 0);
 
-    // //////////////
-    // Draw the ids
+    /*
+     * Draw the sequence ids, offset for scale height,
+     * then reset to top left (0, 0)
+     */
+    idGraphics.translate(0, scaleHeight);
+    idGraphics.setFont(getIdPanel().getIdCanvas().getIdfont());
     Color currentColor = null;
     Color currentTextColor = null;
-
-    pg.setFont(getIdPanel().getIdCanvas().getIdfont());
 
     SequenceI seq;
     for (int i = startSeq; i < endSeq; i++)
@@ -1040,6 +1085,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
       if ((av.getSelectionGroup() != null)
               && av.getSelectionGroup().getSequences(null).contains(seq))
       {
+        /*
+         * gray out ids of sequences in selection group (if any)
+         */
         currentColor = Color.gray;
         currentTextColor = Color.black;
       }
@@ -1049,45 +1097,58 @@ public class AlignmentPanel extends GAlignmentPanel implements
         currentTextColor = Color.black;
       }
 
-      pg.setColor(currentColor);
-      pg.fillRect(0, (i - startSeq) * av.getCharHeight(), idWidth,
-              av.getCharHeight());
+      idGraphics.setColor(currentColor);
+      idGraphics.fillRect(0, (i - startSeq) * charHeight, idWidth,
+              charHeight);
 
-      pg.setColor(currentTextColor);
+      idGraphics.setColor(currentTextColor);
 
       int xPos = 0;
+      String displayId = seq.getDisplayId(av.getShowJVSuffix());
       if (av.isRightAlignIds())
       {
-        fm = pg.getFontMetrics();
+        fm = idGraphics.getFontMetrics();
         xPos = idWidth
-                - fm.stringWidth(seq.getDisplayId(av.getShowJVSuffix()))
+                - fm.stringWidth(displayId)
                 - 4;
       }
 
-      pg.drawString(seq.getDisplayId(av.getShowJVSuffix()), xPos,
-              (((i - startSeq) * av.getCharHeight()) + av.getCharHeight())
-                      - (av.getCharHeight() / 5));
+      idGraphics.drawString(displayId, xPos,
+              (((i - startSeq) * charHeight) + charHeight)
+                      - (charHeight / 5));
     }
+    idGraphics.setFont(av.getFont());
+    idGraphics.translate(0, -scaleHeight);
 
-    pg.setFont(av.getFont());
+    /*
+     * draw the sequences, offset for scale height, and id width (if using a
+     * single graphics context), then reset to (0, scale height)
+     */
+    alignmentGraphics.translate(alignmentGraphicsOffset, scaleHeight);
+    getSeqPanel().seqCanvas.drawPanel(alignmentGraphics, startRes, endRes,
+            startSeq, endSeq, 0);
+    alignmentGraphics.translate(-alignmentGraphicsOffset, 0);
 
-    // draw main sequence panel
-    pg.translate(idWidth, 0);
-    getSeqPanel().seqCanvas.drawPanel(pg, startRes, endRes, startSeq,
-            endSeq, 0);
-
-    if (av.isShowAnnotation() && (endSeq == av.getAlignment().getHeight()))
+    if (av.isShowAnnotation() && (endSeq == alignmentHeight))
     {
-      // draw annotation - need to offset for current scroll position
-      int offset = -getAlabels().getScrollOffset();
-      pg.translate(0, offset);
-      pg.translate(-idWidth - 3, (endSeq - startSeq) * av.getCharHeight()
-              + 3);
-      getAlabels().drawComponent(pg, idWidth);
-      pg.translate(idWidth + 3, 0);
+      /*
+       * draw annotation labels; drawComponent() translates by
+       * getScrollOffset(), so compensate for that first;
+       * then reset to (0, scale height)
+       */
+      int offset = getAlabels().getScrollOffset();
+      idGraphics.translate(0, -offset);
+      idGraphics.translate(0, alignmentDrawnHeight);
+      getAlabels().drawComponent(idGraphics, idWidth);
+      idGraphics.translate(0, -alignmentDrawnHeight);
+
+      /*
+       * draw the annotations starting at 
+       * (idOffset, alignmentHeight) from (0, scaleHeight)
+       */
+      alignmentGraphics.translate(alignmentGraphicsOffset, alignmentDrawnHeight);
       getAnnotationPanel().renderer.drawComponent(getAnnotationPanel(), av,
-              pg, -1, startRes, endRes + 1);
-      pg.translate(0, -offset);
+              alignmentGraphics, -1, startRes, endRes + 1);
     }
 
     return Printable.PAGE_EXISTS;
@@ -1110,8 +1171,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @throws PrinterException
    *           DOCUMENT ME!
    */
-  public int printWrappedAlignment(Graphics pg, int pwidth, int pheight,
-          int pi) throws PrinterException
+  public int printWrappedAlignment(int pwidth, int pheight, int pi,
+          Graphics pg) throws PrinterException
   {
     int annotationHeight = 0;
     AnnotationLabels labels = null;
@@ -1238,22 +1299,26 @@ public class AlignmentPanel extends GAlignmentPanel implements
     if (onscreen
             || (idwidth = Cache.getIntegerProperty("FIGURE_FIXEDIDWIDTH")) == null)
     {
-      return (getIdPanel().getWidth() > 0 ? getIdPanel().getWidth()
-              : calculateIdWidth().width + 4);
+      int w = getIdPanel().getWidth();
+      return (w > 0 ? w : calculateIdWidth().width + 4);
     }
     return idwidth.intValue() + 4;
   }
 
   void makeAlignmentImage(jalview.util.ImageMaker.TYPE type, File file)
   {
-    long progress = System.currentTimeMillis();
+    int boarderBottomOffset = 5;
+    long pSessionId = System.currentTimeMillis();
     headless = (System.getProperty("java.awt.headless") != null && System
             .getProperty("java.awt.headless").equals("true"));
     if (alignFrame != null && !headless)
     {
-      alignFrame.setProgressBar(MessageManager.formatMessage(
-              "status.saving_file", new Object[] { type.getLabel() }),
-              progress);
+      if (file != null)
+      {
+        alignFrame.setProgressBar(MessageManager.formatMessage(
+                "status.saving_file", new Object[] { type.getLabel() }),
+                pSessionId);
+      }
     }
     try
     {
@@ -1279,26 +1344,30 @@ public class AlignmentPanel extends GAlignmentPanel implements
         }
 
         im = new jalview.util.ImageMaker(this, type, imageAction,
-                aDimension.getWidth(), aDimension.getHeight(), file,
-                imageTitle);
+                aDimension.getWidth(), aDimension.getHeight()
+                        + boarderBottomOffset, file, imageTitle,
+                alignFrame, pSessionId, headless);
+        Graphics graphics = im.getGraphics();
         if (av.getWrapAlignment())
         {
-          if (im.getGraphics() != null)
+          if (graphics != null)
           {
-            printWrappedAlignment(im.getGraphics(), aDimension.getWidth(),
-                    aDimension.getHeight(), 0);
+            printWrappedAlignment(aDimension.getWidth(),
+                    aDimension.getHeight() + boarderBottomOffset, 0,
+                    graphics);
             im.writeImage();
           }
         }
         else
         {
-          if (im.getGraphics() != null)
+          if (graphics != null)
           {
-            printUnwrapped(im.getGraphics(), aDimension.getWidth(),
-                    aDimension.getHeight(), 0);
+            printUnwrapped(aDimension.getWidth(), aDimension.getHeight(),
+                    0, graphics, graphics);
             im.writeImage();
           }
         }
+
       } catch (OutOfMemoryError err)
       {
         // Be noisy here.
@@ -1312,12 +1381,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
       }
     } finally
     {
-      if (alignFrame != null && !headless)
-      {
-        alignFrame.setProgressBar(
-                MessageManager.getString("status.export_complete"),
-                progress);
-      }
+
     }
   }
 
@@ -1384,7 +1448,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
   public void makePNGImageMap(File imgMapFile, String imageName)
   {
-    // /////ONLY WORKS WITH NONE WRAPPED ALIGNMENTS
+    // /////ONLY WORKS WITH NON WRAPPED ALIGNMENTS
     // ////////////////////////////////////////////
     int idWidth = getVisibleIdWidth(false);
     FontMetrics fm = getFontMetrics(av.getFont());
@@ -1398,7 +1462,6 @@ public class AlignmentPanel extends GAlignmentPanel implements
       {
         int s, sSize = av.getAlignment().getHeight(), res, alwidth = av
                 .getAlignment().getWidth(), g, gSize, f, fSize, sy;
-        StringBuffer text = new StringBuffer();
         PrintWriter out = new PrintWriter(new FileWriter(imgMapFile));
         out.println(jalview.io.HTMLOutput.getImageMapHTML());
         out.println("<img src=\"" + imageName
@@ -1414,7 +1477,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
           SequenceGroup[] groups = av.getAlignment().findAllGroups(seq);
           for (res = 0; res < alwidth; res++)
           {
-            text = new StringBuffer();
+            StringBuilder text = new StringBuilder();
             String triplet = null;
             if (av.getAlignment().isNucleotide())
             {
@@ -1438,18 +1501,20 @@ public class AlignmentPanel extends GAlignmentPanel implements
             {
               if (text.length() < 1)
               {
-                text.append("<area shape=\"rect\" coords=\""
-                        + (idWidth + res * av.getCharWidth()) + "," + sy
-                        + "," + (idWidth + (res + 1) * av.getCharWidth())
-                        + "," + (av.getCharHeight() + sy) + "\""
-                        + " onMouseOver=\"toolTip('" + alIndex + " "
-                        + triplet);
+                text.append("<area shape=\"rect\" coords=\"")
+                        .append((idWidth + res * av.getCharWidth()))
+                        .append(",").append(sy).append(",")
+                        .append((idWidth + (res + 1) * av.getCharWidth()))
+                        .append(",").append((av.getCharHeight() + sy))
+                        .append("\"").append(" onMouseOver=\"toolTip('")
+                        .append(alIndex).append(" ").append(triplet);
               }
 
               if (groups[g].getStartRes() < res
                       && groups[g].getEndRes() > res)
               {
-                text.append("<br><em>" + groups[g].getName() + "</em>");
+                text.append("<br><em>").append(groups[g].getName())
+                        .append("</em>");
               }
             }
 
@@ -1457,12 +1522,13 @@ public class AlignmentPanel extends GAlignmentPanel implements
             {
               if (text.length() < 1)
               {
-                text.append("<area shape=\"rect\" coords=\""
-                        + (idWidth + res * av.getCharWidth()) + "," + sy
-                        + "," + (idWidth + (res + 1) * av.getCharWidth())
-                        + "," + (av.getCharHeight() + sy) + "\""
-                        + " onMouseOver=\"toolTip('" + alIndex + " "
-                        + triplet);
+                text.append("<area shape=\"rect\" coords=\"")
+                        .append((idWidth + res * av.getCharWidth()))
+                        .append(",").append(sy).append(",")
+                        .append((idWidth + (res + 1) * av.getCharWidth()))
+                        .append(",").append((av.getCharHeight() + sy))
+                        .append("\"").append(" onMouseOver=\"toolTip('")
+                        .append(alIndex).append(" ").append(triplet);
               }
               fSize = features.length;
               for (f = 0; f < fSize; f++)
@@ -1471,15 +1537,15 @@ public class AlignmentPanel extends GAlignmentPanel implements
                 if ((features[f].getBegin() <= seq.findPosition(res))
                         && (features[f].getEnd() >= seq.findPosition(res)))
                 {
-                  if (features[f].getType().equals("disulfide bond"))
+                  if (features[f].isContactFeature())
                   {
                     if (features[f].getBegin() == seq.findPosition(res)
                             || features[f].getEnd() == seq
                                     .findPosition(res))
                     {
-                      text.append("<br>disulfide bond "
-                              + features[f].getBegin() + ":"
-                              + features[f].getEnd());
+                      text.append("<br>").append(features[f].getType())
+                              .append(" ").append(features[f].getBegin())
+                              .append(":").append(features[f].getEnd());
                     }
                   }
                   else
@@ -1490,13 +1556,13 @@ public class AlignmentPanel extends GAlignmentPanel implements
                             && !features[f].getType().equals(
                                     features[f].getDescription()))
                     {
-                      text.append(" " + features[f].getDescription());
+                      text.append(" ").append(features[f].getDescription());
                     }
 
                     if (features[f].getValue("status") != null)
                     {
-                      text.append(" (" + features[f].getValue("status")
-                              + ")");
+                      text.append(" (").append(features[f].getValue("status"))
+                              .append(")");
                     }
                   }
                 }
@@ -1571,8 +1637,18 @@ public class AlignmentPanel extends GAlignmentPanel implements
     PaintRefresher.RemoveComponent(getSeqPanel().seqCanvas);
     PaintRefresher.RemoveComponent(getIdPanel().getIdCanvas());
     PaintRefresher.RemoveComponent(this);
+
+    /*
+     * try to ensure references are nulled
+     */
+    if (annotationPanel != null)
+    {
+      annotationPanel.dispose();
+    }
+
     if (av != null)
     {
+      av.removePropertyChangeListener(propertyChangeListener);
       jalview.structure.StructureSelectionManager ssm = av
               .getStructureSelectionManager();
       ssm.removeStructureViewerListener(getSeqPanel(), null);
@@ -1580,7 +1656,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
       ssm.removeCommandListener(av);
       ssm.removeStructureViewerListener(getSeqPanel(), null);
       ssm.removeSelectionListener(getSeqPanel());
-      av.setAlignment(null);
+      av.dispose();
       av = null;
     }
     else
@@ -1751,14 +1827,14 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @param verticalOffset
    *          the number of visible sequences to show above the mapped region
    */
-  public void scrollToCentre(SearchResults sr, int verticalOffset)
+  public void scrollToCentre(SearchResultsI sr, int verticalOffset)
   {
     /*
      * To avoid jumpy vertical scrolling (if some sequences are gapped or not
      * mapped), we can make the scroll-to location a sequence above the one
      * actually mapped.
      */
-    SequenceI mappedTo = sr.getResultSequence(0);
+    SequenceI mappedTo = sr.getResults().get(0).getSequence();
     List<SequenceI> seqs = av.getAlignment().getSequences();
 
     /*
@@ -1786,17 +1862,17 @@ public class AlignmentPanel extends GAlignmentPanel implements
   }
 
   /**
-   * Set a flag to say we are scrolling to follow a (cDNA/protein) complement.
+   * Set a flag to say do not scroll any (cDNA/protein) complement.
    * 
    * @param b
    */
-  protected void setFollowingComplementScroll(boolean b)
+  protected void setDontScrollComplement(boolean b)
   {
-    this.followingComplementScroll = b;
+    this.dontScrollComplement = b;
   }
 
-  protected boolean isFollowingComplementScroll()
+  protected boolean isDontScrollComplement()
   {
-    return this.followingComplementScroll;
+    return this.dontScrollComplement;
   }
 }

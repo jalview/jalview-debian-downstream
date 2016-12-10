@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -123,7 +123,7 @@ class JPredThread extends JWS1Thread implements WSClientI
         jalview.bin.Cache.log.debug("Getting associated alignment.");
         // we ignore the returned alignment if we only predicted on a single
         // sequence
-        String format = new jalview.io.IdentifyFile().Identify(
+        String format = new jalview.io.IdentifyFile().identify(
                 result.getAligfile(), "Paste");
 
         if (jalview.io.FormatAdapter.isValidFormat(format))

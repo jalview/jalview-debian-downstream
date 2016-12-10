@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -65,6 +65,19 @@ td {
     Settings&quot; under the &quot;View&quot; menu to change the
     visibility and colour of the new sequence feature.</p>
   <p>
+  <p>
+    <strong>Selecting regions from Search Results</strong>
+  </p>
+  <p>
+    Press 'B' or use the <em>Select Highlighted Columns</em> option from
+    the alignment window's select menu to add columns containing
+    highlighted search results to the alignment window's column
+    selection. Alt-'B' will add all but the highlighted columns, and
+    Ctrl (or Cmd) -B will toggle the column selection for the
+    highlighted region.
+  </p>
+  <p>
+  
     <strong>A quick Regular Expression Guide</strong>
   </p>
   <p>A regular expression is not just a simple text query - although
@@ -73,7 +86,7 @@ td {
     the match. For example, a simple query like &quot;ACDED&quot; would
     match all occurences of that string, but &quot;ACD+ED&quot; matches
     both 'ACDDED' and 'ACDDDDDDDDED'. More usefully, the query
-    &quot;[ILGVMA]{;5,}&quot; would find stretches of small, hydrophobic
+    &quot;[GVATC]{;5,}&quot; would find stretches of small, hydrophobic
     amino acids of at least five residues in length.</p>
   <p>
     The table below describes some of the regular expression syntax:<br>

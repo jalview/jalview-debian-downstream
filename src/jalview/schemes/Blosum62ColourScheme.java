@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,16 +20,19 @@
  */
 package jalview.schemes;
 
-import jalview.analysis.AAFrequency;
 import jalview.datamodel.AnnotatedCollectionI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
 import java.awt.Color;
 import java.util.Map;
 
 public class Blosum62ColourScheme extends ResidueColourScheme
 {
+  private static final Color LIGHT_BLUE = new Color(204, 204, 255);
+  private static final Color DARK_BLUE = new Color(154, 154, 255);
+
   public Blosum62ColourScheme()
   {
     super();
@@ -44,7 +47,7 @@ public class Blosum62ColourScheme extends ResidueColourScheme
       res -= ('a' - 'A');
     }
 
-    if (consensus == null || j >= consensus.length || consensus[j] == null
+    if (consensus == null || consensus.get(j) == null
             || (threshold != 0 && !aboveThreshold(res, j)))
     {
       return Color.white;
@@ -52,14 +55,16 @@ public class Blosum62ColourScheme extends ResidueColourScheme
 
     Color currentColour;
 
-    if (!jalview.util.Comparison.isGap(res))
+    if (!Comparison.isGap(res))
     {
-      String max = (String) consensus[j].get(AAFrequency.MAXRESIDUE);
+      /*
+       * test if this is the consensus (or joint consensus) residue
+       */
+      String max = consensus.get(j).getModalResidue();
 
       if (max.indexOf(res) > -1)
       {
-        // TODO use a constant here?
-        currentColour = new Color(154, 154, 255);
+        currentColour = DARK_BLUE;
       }
       else
       {
@@ -74,8 +79,7 @@ public class Blosum62ColourScheme extends ResidueColourScheme
 
         if (c > 0)
         {
-          // TODO use a constant here?
-          currentColour = new Color(204, 204, 255);
+          currentColour = LIGHT_BLUE;
         }
         else
         {

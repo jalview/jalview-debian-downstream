@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,13 @@
  */
 package jalview.ws.dbsources;
 
-import jalview.ws.seqfetcher.DbSourceProxy;
-
 /**
  * Flyweight class specifying retrieval of Seed family alignments from RFAM
  * 
  * @author Lauren Michelle Lui
  * 
  */
-public class RfamSeed extends Rfam implements DbSourceProxy
+public class RfamSeed extends Rfam
 {
   public RfamSeed()
   {
@@ -40,11 +38,18 @@ public class RfamSeed extends Rfam implements DbSourceProxy
    * 
    * @see jalview.ws.dbsources.Rfam#getRFAMURL()
    */
+  @Override
   protected String getXFAMURL()
   {
-    return "http://rfam.sanger.ac.uk/family/alignment/download/format?alnType=seed&nseLabels=0&format=stockholm&acc=";
+    return "http://rfam.xfam.org/family/";
     // Janelia Farms url
     // "http://rfam.janelia.org/cgi-bin/getalignment?type=seed&fmt=stockholm&acc=";
+  }
+
+  @Override
+  public String getXFAMURLSUFFIX()
+  {
+    return "/alignment";
   }
 
   /*
@@ -52,21 +57,25 @@ public class RfamSeed extends Rfam implements DbSourceProxy
    * 
    * @see jalview.ws.seqfetcher.DbSourceProxy#getDbName()
    */
+  @Override
   public String getDbName()
   {
     return "RFAM (Seed)";
   }
 
+  @Override
   public String getDbSource()
   {
     return getDbName(); // so we have unique DbSource string.
   }
 
+  @Override
   public String getTestQuery()
   {
     return "RF00014";
   } // http://rfam.janelia.org/cgi-bin/getdesc?acc=RF00014
 
+  @Override
   public String getDbVersion()
   {
     return null;

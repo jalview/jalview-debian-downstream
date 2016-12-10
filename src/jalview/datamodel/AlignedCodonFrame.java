@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.datamodel;
 import jalview.util.MapList;
 import jalview.util.MappingUtils;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,23 +34,88 @@ import java.util.List;
 public class AlignedCodonFrame
 {
 
-  /**
-   * tied array of na Sequence objects.
+  /*
+   * Data bean to hold mappings from one sequence to another
    */
-  private SequenceI[] dnaSeqs = null;
+  public class SequenceToSequenceMapping
+  {
+    private SequenceI fromSeq;
 
-  /**
-   * tied array of Mappings to protein sequence Objects and SequenceI[]
-   * aaSeqs=null; MapLists where each maps from the corresponding dnaSeqs
-   * element to corresponding aaSeqs element
-   */
-  private Mapping[] dnaToProt = null;
+    private Mapping mapping;
+
+    SequenceToSequenceMapping(SequenceI from, Mapping map)
+    {
+      this.fromSeq = from;
+      this.mapping = map;
+    }
+
+    /**
+     * Readable representation for debugging only, not guaranteed not to change
+     */
+    @Override
+    public String toString()
+    {
+      return String.format("From %s %s", fromSeq.getName(),
+              mapping.toString());
+    }
+
+    /**
+     * Returns a hashCode derived from the hashcodes of the mappings and fromSeq
+     * 
+     * @see SequenceToSequenceMapping#hashCode()
+     */
+    @Override
+    public int hashCode()
+    {
+      return (fromSeq == null ? 0 : fromSeq.hashCode() * 31)
+              + mapping.hashCode();
+    }
+
+    /**
+     * Answers true if the objects hold the same mapping between the same two
+     * sequences
+     * 
+     * @see Mapping#equals
+     */
+    @Override
+    public boolean equals(Object obj)
+    {
+      if (!(obj instanceof SequenceToSequenceMapping))
+      {
+        return false;
+      }
+      SequenceToSequenceMapping that = (SequenceToSequenceMapping) obj;
+      if (this.mapping == null)
+      {
+        return that.mapping == null;
+      }
+      // TODO: can simplify by asserting fromSeq is a dataset sequence
+      return (this.fromSeq == that.fromSeq || (this.fromSeq != null
+              && that.fromSeq != null
+              && this.fromSeq.getDatasetSequence() != null && this.fromSeq
+              .getDatasetSequence() == that.fromSeq.getDatasetSequence()))
+              && this.mapping.equals(that.mapping);
+    }
+
+    public SequenceI getFromSeq()
+    {
+      return fromSeq;
+    }
+
+    public Mapping getMapping()
+    {
+      return mapping;
+    }
+  }
+
+  private List<SequenceToSequenceMapping> mappings;
 
   /**
    * Constructor
    */
   public AlignedCodonFrame()
   {
+    mappings = new ArrayList<SequenceToSequenceMapping>();
   }
 
   /**
@@ -62,68 +128,93 @@ public class AlignedCodonFrame
    */
   public void addMap(SequenceI dnaseq, SequenceI aaseq, MapList map)
   {
-    int nlen = 1;
-    if (dnaSeqs != null)
-    {
-      nlen = dnaSeqs.length + 1;
-    }
-    SequenceI[] ndna = new SequenceI[nlen];
-    Mapping[] ndtp = new Mapping[nlen];
-    if (dnaSeqs != null)
-    {
-      System.arraycopy(dnaSeqs, 0, ndna, 0, dnaSeqs.length);
-      System.arraycopy(dnaToProt, 0, ndtp, 0, dnaSeqs.length);
-    }
-    dnaSeqs = ndna;
-    dnaToProt = ndtp;
-    nlen--;
-    dnaSeqs[nlen] = (dnaseq.getDatasetSequence() == null) ? dnaseq : dnaseq
-            .getDatasetSequence();
-    Mapping mp = new Mapping(map);
+    addMap(dnaseq, aaseq, map, null);
+  }
+
+  /**
+   * Adds a mapping between the dataset sequences for the associated dna and
+   * protein sequence objects
+   * 
+   * @param dnaseq
+   * @param aaseq
+   * @param map
+   * @param mapFromId
+   */
+  public void addMap(SequenceI dnaseq, SequenceI aaseq, MapList map,
+          String mapFromId)
+  {
     // JBPNote DEBUG! THIS !
     // dnaseq.transferAnnotation(aaseq, mp);
     // aaseq.transferAnnotation(dnaseq, new Mapping(map.getInverse()));
-    mp.to = (aaseq.getDatasetSequence() == null) ? aaseq : aaseq
+
+    SequenceI fromSeq = (dnaseq.getDatasetSequence() == null) ? dnaseq
+            : dnaseq.getDatasetSequence();
+    SequenceI toSeq = (aaseq.getDatasetSequence() == null) ? aaseq : aaseq
             .getDatasetSequence();
-    dnaToProt[nlen] = mp;
+
+    /*
+     * if we already hold a mapping between these sequences, just add to it 
+     * note that 'adding' a duplicate map does nothing; this protects against
+     * creating duplicate mappings in AlignedCodonFrame
+     */
+    for (SequenceToSequenceMapping ssm : mappings)
+    {
+      if (ssm.fromSeq == fromSeq && ssm.mapping.to == toSeq)
+      {
+        ssm.mapping.map.addMapList(map);
+        return;
+      }
+    }
+
+    /*
+     * otherwise, add a new sequence mapping
+     */
+    Mapping mp = new Mapping(toSeq, map);
+    mp.setMappedFromId(mapFromId);
+    mappings.add(new SequenceToSequenceMapping(fromSeq, mp));
   }
 
   public SequenceI[] getdnaSeqs()
   {
-    return dnaSeqs;
+    // TODO return a list instead?
+    // return dnaSeqs;
+    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    for (SequenceToSequenceMapping ssm : mappings)
+    {
+      seqs.add(ssm.fromSeq);
+    }
+    return seqs.toArray(new SequenceI[seqs.size()]);
   }
 
   public SequenceI[] getAaSeqs()
   {
-    if (dnaToProt == null)
+    // TODO not used - remove?
+    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      return null;
+      seqs.add(ssm.mapping.to);
     }
-    SequenceI[] sqs = new SequenceI[dnaToProt.length];
-    for (int sz = 0; sz < dnaToProt.length; sz++)
-    {
-      sqs[sz] = dnaToProt[sz].to;
-    }
-    return sqs;
+    return seqs.toArray(new SequenceI[seqs.size()]);
   }
 
   public MapList[] getdnaToProt()
   {
-    if (dnaToProt == null)
+    List<MapList> maps = new ArrayList<MapList>();
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      return null;
+      maps.add(ssm.mapping.map);
     }
-    MapList[] sqs = new MapList[dnaToProt.length];
-    for (int sz = 0; sz < dnaToProt.length; sz++)
-    {
-      sqs[sz] = dnaToProt[sz].map;
-    }
-    return sqs;
+    return maps.toArray(new MapList[maps.size()]);
   }
 
   public Mapping[] getProtMappings()
   {
-    return dnaToProt;
+    List<Mapping> maps = new ArrayList<Mapping>();
+    for (SequenceToSequenceMapping ssm : mappings)
+    {
+      maps.add(ssm.mapping);
+    }
+    return maps.toArray(new Mapping[maps.size()]);
   }
 
   /**
@@ -135,18 +226,14 @@ public class AlignedCodonFrame
    */
   public Mapping getMappingForSequence(SequenceI seq)
   {
-    if (dnaSeqs == null)
-    {
-      return null;
-    }
     SequenceI seqDs = seq.getDatasetSequence();
     seqDs = seqDs != null ? seqDs : seq;
 
-    for (int ds = 0; ds < dnaSeqs.length; ds++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaSeqs[ds] == seqDs || dnaToProt[ds].to == seqDs)
+      if (ssm.fromSeq == seqDs || ssm.mapping.to == seqDs)
       {
-        return dnaToProt[ds];
+        return ssm.mapping;
       }
     }
     return null;
@@ -161,16 +248,12 @@ public class AlignedCodonFrame
    */
   public SequenceI getAaForDnaSeq(SequenceI dnaSeqRef)
   {
-    if (dnaSeqs == null)
-    {
-      return null;
-    }
     SequenceI dnads = dnaSeqRef.getDatasetSequence();
-    for (int ds = 0; ds < dnaSeqs.length; ds++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaSeqs[ds] == dnaSeqRef || dnaSeqs[ds] == dnads)
+      if (ssm.fromSeq == dnaSeqRef || ssm.fromSeq == dnads)
       {
-        return dnaToProt[ds].to;
+        return ssm.mapping.to;
       }
     }
     return null;
@@ -183,16 +266,12 @@ public class AlignedCodonFrame
    */
   public SequenceI getDnaForAaSeq(SequenceI aaSeqRef)
   {
-    if (dnaToProt == null)
-    {
-      return null;
-    }
     SequenceI aads = aaSeqRef.getDatasetSequence();
-    for (int as = 0; as < dnaToProt.length; as++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaToProt[as].to == aaSeqRef || dnaToProt[as].to == aads)
+      if (ssm.mapping.to == aaSeqRef || ssm.mapping.to == aads)
       {
-        return dnaSeqs[as];
+        return ssm.fromSeq;
       }
     }
     return null;
@@ -222,38 +301,32 @@ public class AlignedCodonFrame
    *          where highlighted regions go
    */
   public void markMappedRegion(SequenceI seq, int index,
-          SearchResults results)
+          SearchResultsI results)
   {
-    if (dnaToProt == null)
-    {
-      return;
-    }
     int[] codon;
     SequenceI ds = seq.getDatasetSequence();
-    for (int mi = 0; mi < dnaToProt.length; mi++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaSeqs[mi] == seq || dnaSeqs[mi] == ds)
+      if (ssm.fromSeq == seq || ssm.fromSeq == ds)
       {
-        // DEBUG System.err.println("dna pos "+index);
-        codon = dnaToProt[mi].map.locateInTo(index, index);
+        codon = ssm.mapping.map.locateInTo(index, index);
         if (codon != null)
         {
           for (int i = 0; i < codon.length; i += 2)
           {
-            results.addResult(dnaToProt[mi].to, codon[i], codon[i + 1]);
+            results.addResult(ssm.mapping.to, codon[i], codon[i + 1]);
           }
         }
       }
-      else if (dnaToProt[mi].to == seq || dnaToProt[mi].to == ds)
+      else if (ssm.mapping.to == seq || ssm.mapping.to == ds)
       {
-        // DEBUG System.err.println("aa pos "+index);
         {
-          codon = dnaToProt[mi].map.locateInFrom(index, index);
+          codon = ssm.mapping.map.locateInFrom(index, index);
           if (codon != null)
           {
             for (int i = 0; i < codon.length; i += 2)
             {
-              results.addResult(dnaSeqs[mi], codon[i], codon[i + 1]);
+              results.addResult(ssm.fromSeq, codon[i], codon[i + 1]);
             }
           }
         }
@@ -282,20 +355,23 @@ public class AlignedCodonFrame
      * Adapted from markMappedRegion().
      */
     MapList ml = null;
-    for (int i = 0; i < dnaToProt.length; i++)
+    int i = 0;
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaSeqs[i] == seq)
+      if (ssm.fromSeq == seq)
       {
         ml = getdnaToProt()[i];
         break;
       }
+      i++;
     }
     return ml == null ? null : ml.locateInFrom(aaPos, aaPos);
   }
 
   /**
    * Convenience method to return the first aligned sequence in the given
-   * alignment whose dataset has a mapping with the given dataset sequence.
+   * alignment whose dataset has a mapping with the given (aligned or dataset)
+   * sequence.
    * 
    * @param seq
    * 
@@ -307,18 +383,16 @@ public class AlignedCodonFrame
     /*
      * Search mapped protein ('to') sequences first.
      */
-    if (this.dnaToProt != null)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      for (int i = 0; i < dnaToProt.length; i++)
+      if (ssm.fromSeq == seq || ssm.fromSeq == seq.getDatasetSequence())
       {
-        if (this.dnaSeqs[i] == seq)
+        for (SequenceI sourceAligned : al.getSequences())
         {
-          for (SequenceI sourceAligned : al.getSequences())
+          if (ssm.mapping.to == sourceAligned.getDatasetSequence()
+                  || ssm.mapping.to == sourceAligned)
           {
-            if (this.dnaToProt[i].to == sourceAligned.getDatasetSequence())
-            {
-              return sourceAligned;
-            }
+            return sourceAligned;
           }
         }
       }
@@ -327,18 +401,16 @@ public class AlignedCodonFrame
     /*
      * Then try mapped dna sequences.
      */
-    if (this.dnaToProt != null)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      for (int i = 0; i < dnaToProt.length; i++)
+      if (ssm.mapping.to == seq
+              || ssm.mapping.to == seq.getDatasetSequence())
       {
-        if (this.dnaToProt[i].to == seq)
+        for (SequenceI sourceAligned : al.getSequences())
         {
-          for (SequenceI sourceAligned : al.getSequences())
+          if (ssm.fromSeq == sourceAligned.getDatasetSequence())
           {
-            if (this.dnaSeqs[i] == sourceAligned.getDatasetSequence())
-            {
-              return sourceAligned;
-            }
+            return sourceAligned;
           }
         }
       }
@@ -348,31 +420,45 @@ public class AlignedCodonFrame
   }
 
   /**
-   * Returns the region in the 'mappedFrom' sequence's dataset that is mapped to
-   * position 'pos' (base 1) in the 'mappedTo' sequence's dataset. The region is
-   * a set of start/end position pairs.
+   * Returns the region in the target sequence's dataset that is mapped to the
+   * given position (base 1) in the query sequence's dataset. The region is a
+   * set of start/end position pairs.
    * 
-   * @param mappedFrom
-   * @param mappedTo
-   * @param pos
+   * @param target
+   * @param query
+   * @param queryPos
    * @return
    */
-  public int[] getMappedRegion(SequenceI mappedFrom, SequenceI mappedTo,
-          int pos)
+  public int[] getMappedRegion(SequenceI target, SequenceI query,
+          int queryPos)
   {
-    SequenceI targetDs = mappedFrom.getDatasetSequence() == null ? mappedFrom
-            : mappedFrom.getDatasetSequence();
-    SequenceI sourceDs = mappedTo.getDatasetSequence() == null ? mappedTo
-            : mappedTo.getDatasetSequence();
-    if (targetDs == null || sourceDs == null || dnaToProt == null)
+    SequenceI targetDs = target.getDatasetSequence() == null ? target
+            : target.getDatasetSequence();
+    SequenceI queryDs = query.getDatasetSequence() == null ? query : query
+            .getDatasetSequence();
+    if (targetDs == null || queryDs == null /*|| dnaToProt == null*/)
     {
       return null;
     }
-    for (int mi = 0; mi < dnaToProt.length; mi++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaSeqs[mi] == targetDs && dnaToProt[mi].to == sourceDs)
+      /*
+       * try mapping from target to query
+       */
+      if (ssm.fromSeq == targetDs && ssm.mapping.to == queryDs)
       {
-        int[] codon = dnaToProt[mi].map.locateInFrom(pos, pos);
+        int[] codon = ssm.mapping.map.locateInFrom(queryPos, queryPos);
+        if (codon != null)
+        {
+          return codon;
+        }
+      }
+      /*
+       * else try mapping from query to target
+       */
+      else if (ssm.fromSeq == queryDs && ssm.mapping.to == targetDs)
+      {
+        int[] codon = ssm.mapping.map.locateInTo(queryPos, queryPos);
         if (codon != null)
         {
           return codon;
@@ -383,8 +469,10 @@ public class AlignedCodonFrame
   }
 
   /**
-   * Returns the DNA codon for the given position (base 1) in a mapped protein
-   * sequence, or null if no mapping is found.
+   * Returns the mapped DNA codons for the given position in a protein sequence,
+   * or null if no mapping is found. Returns a list of (e.g.) ['g', 'c', 't']
+   * codons. There may be more than one codon mapped to the protein if (for
+   * example), there are mappings to cDNA variants.
    * 
    * @param protein
    *          the peptide dataset sequence
@@ -392,63 +480,57 @@ public class AlignedCodonFrame
    *          residue position (base 1) in the peptide sequence
    * @return
    */
-  public char[] getMappedCodon(SequenceI protein, int aaPos)
+  public List<char[]> getMappedCodons(SequenceI protein, int aaPos)
   {
-    if (dnaToProt == null)
-    {
-      return null;
-    }
     MapList ml = null;
-    char[] dnaSeq = null;
-    for (int i = 0; i < dnaToProt.length; i++)
+    SequenceI dnaSeq = null;
+    List<char[]> result = new ArrayList<char[]>();
+
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (dnaToProt[i].to == protein)
+      if (ssm.mapping.to == protein
+              && ssm.mapping.getMap().getFromRatio() == 3)
       {
-        ml = getdnaToProt()[i];
-        dnaSeq = dnaSeqs[i].getSequence();
-        break;
+        ml = ssm.mapping.map;
+        dnaSeq = ssm.fromSeq;
+
+        int[] codonPos = ml.locateInFrom(aaPos, aaPos);
+        if (codonPos == null)
+        {
+          return null;
+        }
+
+        /*
+         * Read off the mapped nucleotides (converting to position base 0)
+         */
+        codonPos = MappingUtils.flattenRanges(codonPos);
+        char[] dna = dnaSeq.getSequence();
+        int start = dnaSeq.getStart();
+        result.add(new char[] { dna[codonPos[0] - start],
+            dna[codonPos[1] - start], dna[codonPos[2] - start] });
       }
     }
-    if (ml == null)
-    {
-      return null;
-    }
-    int[] codonPos = ml.locateInFrom(aaPos, aaPos);
-    if (codonPos == null)
-    {
-      return null;
-    }
-
-    /*
-     * Read off the mapped nucleotides (converting to position base 0)
-     */
-    codonPos = MappingUtils.flattenRanges(codonPos);
-    return new char[] { dnaSeq[codonPos[0] - 1], dnaSeq[codonPos[1] - 1],
-        dnaSeq[codonPos[2] - 1] };
+    return result.isEmpty() ? null : result;
   }
 
   /**
-   * Returns any mappings found which are to (or from) the given sequence, and
-   * to distinct sequences.
+   * Returns any mappings found which are from the given sequence, and to
+   * distinct sequences.
    * 
    * @param seq
    * @return
    */
-  public List<Mapping> getMappingsForSequence(SequenceI seq)
+  public List<Mapping> getMappingsFromSequence(SequenceI seq)
   {
     List<Mapping> result = new ArrayList<Mapping>();
-    if (dnaSeqs == null)
-    {
-      return result;
-    }
     List<SequenceI> related = new ArrayList<SequenceI>();
     SequenceI seqDs = seq.getDatasetSequence();
     seqDs = seqDs != null ? seqDs : seq;
 
-    for (int ds = 0; ds < dnaSeqs.length; ds++)
+    for (SequenceToSequenceMapping ssm : mappings)
     {
-      final Mapping mapping = dnaToProt[ds];
-      if (dnaSeqs[ds] == seqDs || mapping.to == seqDs)
+      final Mapping mapping = ssm.mapping;
+      if (ssm.fromSeq == seqDs)
       {
         if (!related.contains(mapping.to))
         {
@@ -458,5 +540,244 @@ public class AlignedCodonFrame
       }
     }
     return result;
+  }
+
+  /**
+   * Test whether the given sequence is substitutable for one or more dummy
+   * sequences in this mapping
+   * 
+   * @param map
+   * @param seq
+   * @return
+   */
+  public boolean isRealisableWith(SequenceI seq)
+  {
+    return realiseWith(seq, false) > 0;
+  }
+
+  /**
+   * Replace any matchable mapped dummy sequences with the given real one.
+   * Returns the count of sequence mappings instantiated.
+   * 
+   * @param seq
+   * @return
+   */
+  public int realiseWith(SequenceI seq)
+  {
+    return realiseWith(seq, true);
+  }
+
+  /**
+   * Returns the number of mapped dummy sequences that could be replaced with
+   * the given real sequence.
+   * 
+   * @param seq
+   *          a dataset sequence
+   * @param doUpdate
+   *          if true, performs replacements, else only counts
+   * @return
+   */
+  protected int realiseWith(SequenceI seq, boolean doUpdate)
+  {
+    SequenceI ds = seq.getDatasetSequence() != null ? seq
+            .getDatasetSequence() : seq;
+    int count = 0;
+
+    /*
+     * check for replaceable DNA ('map from') sequences
+     */
+    for (SequenceToSequenceMapping ssm : mappings)
+    {
+      SequenceI dna = ssm.fromSeq;
+      if (dna instanceof SequenceDummy
+              && dna.getName().equals(ds.getName()))
+      {
+        Mapping mapping = ssm.mapping;
+        int mapStart = mapping.getMap().getFromLowest();
+        int mapEnd = mapping.getMap().getFromHighest();
+        boolean mappable = couldRealiseSequence(dna, ds, mapStart, mapEnd);
+        if (mappable)
+        {
+          count++;
+          if (doUpdate)
+          {
+            // TODO: new method ? ds.realise(dna);
+            // might want to copy database refs as well
+            ds.setSequenceFeatures(dna.getSequenceFeatures());
+            // dnaSeqs[i] = ds;
+            ssm.fromSeq = ds;
+            System.out.println("Realised mapped sequence " + ds.getName());
+          }
+        }
+      }
+
+      /*
+       * check for replaceable protein ('map to') sequences
+       */
+      Mapping mapping = ssm.mapping;
+      SequenceI prot = mapping.getTo();
+      int mapStart = mapping.getMap().getToLowest();
+      int mapEnd = mapping.getMap().getToHighest();
+      boolean mappable = couldRealiseSequence(prot, ds, mapStart, mapEnd);
+      if (mappable)
+      {
+        count++;
+        if (doUpdate)
+        {
+          // TODO: new method ? ds.realise(dna);
+          // might want to copy database refs as well
+          ds.setSequenceFeatures(dna.getSequenceFeatures());
+          ssm.mapping.setTo(ds);
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Helper method to test whether a 'real' sequence could replace a 'dummy'
+   * sequence in the map. The criteria are that they have the same name, and
+   * that the mapped region overlaps the candidate sequence.
+   * 
+   * @param existing
+   * @param replacement
+   * @param mapStart
+   * @param mapEnd
+   * @return
+   */
+  protected static boolean couldRealiseSequence(SequenceI existing,
+          SequenceI replacement, int mapStart, int mapEnd)
+  {
+    if (existing instanceof SequenceDummy
+            && !(replacement instanceof SequenceDummy)
+            && existing.getName().equals(replacement.getName()))
+    {
+      int start = replacement.getStart();
+      int end = replacement.getEnd();
+      boolean mappingOverlapsSequence = (mapStart >= start && mapStart <= end)
+              || (mapEnd >= start && mapEnd <= end);
+      if (mappingOverlapsSequence)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Change any mapping to the given sequence to be to its dataset sequence
+   * instead. For use when mappings are created before their referenced
+   * sequences are instantiated, for example when parsing GFF data.
+   * 
+   * @param seq
+   */
+  public void updateToDataset(SequenceI seq)
+  {
+    if (seq == null || seq.getDatasetSequence() == null)
+    {
+      return;
+    }
+    SequenceI ds = seq.getDatasetSequence();
+
+    for (SequenceToSequenceMapping ssm : mappings)
+    /*
+     * 'from' sequences
+     */
+    {
+      if (ssm.fromSeq == seq)
+      {
+        ssm.fromSeq = ds;
+      }
+
+      /*
+       * 'to' sequences
+       */
+      if (ssm.mapping.to == seq)
+      {
+        ssm.mapping.to = ds;
+      }
+    }
+  }
+
+  /**
+   * Answers true if this object contains no mappings
+   * 
+   * @return
+   */
+  public boolean isEmpty()
+  {
+    return mappings.isEmpty();
+  }
+
+  /**
+   * Method for debug / inspection purposes only, may change in future
+   */
+  @Override
+  public String toString()
+  {
+    return mappings == null ? "null" : mappings.toString();
+  }
+
+  /**
+   * Returns the first mapping found that is between 'fromSeq' and 'toSeq', or
+   * null if none found
+   * 
+   * @param fromSeq
+   *          aligned or dataset sequence
+   * @param toSeq
+   *          aligned or dataset sequence
+   * @return
+   */
+  public Mapping getMappingBetween(SequenceI fromSeq, SequenceI toSeq)
+  {
+    SequenceI dssFrom = fromSeq.getDatasetSequence() == null ? fromSeq
+            : fromSeq.getDatasetSequence();
+    SequenceI dssTo = toSeq.getDatasetSequence() == null ? toSeq : toSeq
+            .getDatasetSequence();
+
+    for (SequenceToSequenceMapping mapping : mappings)
+    {
+      SequenceI from = mapping.fromSeq;
+      SequenceI to = mapping.mapping.to;
+      if ((from == dssFrom && to == dssTo)
+              || (from == dssTo && to == dssFrom))
+      {
+        return mapping.mapping;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Returns a hashcode derived from the list of sequence mappings
+   * 
+   * @see SequenceToSequenceMapping#hashCode()
+   * @see AbstractList#hashCode()
+   */
+  @Override
+  public int hashCode()
+  {
+    return this.mappings.hashCode();
+  }
+
+  /**
+   * Two AlignedCodonFrame objects are equal if they hold the same ordered list
+   * of mappings
+   * 
+   * @see SequenceToSequenceMapping#
+   */
+  @Override
+  public boolean equals(Object obj)
+  {
+    if (!(obj instanceof AlignedCodonFrame))
+    {
+      return false;
+    }
+    return this.mappings.equals(((AlignedCodonFrame) obj).mappings);
+  }
+
+  public List<SequenceToSequenceMapping> getMappings()
+  {
+    return mappings;
   }
 }

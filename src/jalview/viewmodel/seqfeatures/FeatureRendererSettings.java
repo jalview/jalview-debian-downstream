@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,10 @@
  */
 package jalview.viewmodel.seqfeatures;
 
-import jalview.schemes.GraduatedColor;
+import jalview.api.FeatureColourI;
+import jalview.schemes.FeatureColour;
 
 import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,24 +32,33 @@ public class FeatureRendererSettings implements Cloneable
 {
   String[] renderOrder;
 
-  Map featureGroups;
+  /*
+   * map of {groupName, isDisplayed}
+   */
+  Map<String, Boolean> featureGroups;
 
-  Map featureColours;
+  /*
+   * map of {featureType, colourScheme}
+   */
+  Map<String, FeatureColourI> featureColours;
 
   float transparency;
 
-  Map featureOrder;
+  Map<String, Float> featureOrder;
 
   public FeatureRendererSettings(String[] renderOrder,
-          Hashtable featureGroups, Hashtable featureColours,
-          float transparency, Hashtable featureOrder)
+          Map<String, Boolean> featureGroups,
+          Map<String, FeatureColourI> featureColours, float transparency,
+          Map<String, Float> featureOrder)
   {
     super();
     this.renderOrder = Arrays.copyOf(renderOrder, renderOrder.length);
-    this.featureGroups = new ConcurrentHashMap(featureGroups);
-    this.featureColours = new ConcurrentHashMap(featureColours);
+    this.featureGroups = new ConcurrentHashMap<String, Boolean>(
+            featureGroups);
+    this.featureColours = new ConcurrentHashMap<String, FeatureColourI>(
+            featureColours);
     this.transparency = transparency;
-    this.featureOrder = new ConcurrentHashMap(featureOrder);
+    this.featureOrder = new ConcurrentHashMap<String, Float>(featureOrder);
   }
 
   /**
@@ -61,9 +70,9 @@ public class FeatureRendererSettings implements Cloneable
           jalview.viewmodel.seqfeatures.FeatureRendererModel fr)
   {
     renderOrder = null;
-    featureGroups = new ConcurrentHashMap();
-    featureColours = new ConcurrentHashMap();
-    featureOrder = new ConcurrentHashMap();
+    featureGroups = new ConcurrentHashMap<String, Boolean>();
+    featureColours = new ConcurrentHashMap<String, FeatureColourI>();
+    featureOrder = new ConcurrentHashMap<String, Float>();
     if (fr.renderOrder != null)
     {
       this.renderOrder = new String[fr.renderOrder.length];
@@ -72,26 +81,30 @@ public class FeatureRendererSettings implements Cloneable
     }
     if (fr.featureGroups != null)
     {
-      this.featureGroups = new ConcurrentHashMap(fr.featureGroups);
+      this.featureGroups = new ConcurrentHashMap<String, Boolean>(
+              fr.featureGroups);
     }
     if (fr.featureColours != null)
     {
-      this.featureColours = new ConcurrentHashMap(fr.featureColours);
+      this.featureColours = new ConcurrentHashMap<String, FeatureColourI>(
+              fr.featureColours);
     }
-    Iterator en = fr.featureColours.keySet().iterator();
+    Iterator<String> en = fr.featureColours.keySet().iterator();
     while (en.hasNext())
     {
-      Object next = en.next();
-      Object val = featureColours.get(next);
-      if (val instanceof GraduatedColor)
+      String next = en.next();
+      FeatureColourI val = featureColours.get(next);
+      // if (val instanceof GraduatedColor)
+      if (val.isGraduatedColour() || val.isColourByLabel()) // why this test?
       {
-        featureColours.put(next, new GraduatedColor((GraduatedColor) val));
+        featureColours.put(next, new FeatureColour((FeatureColour) val));
       }
     }
     this.transparency = fr.transparency;
     if (fr.featureOrder != null)
     {
-      this.featureOrder = new ConcurrentHashMap(fr.featureOrder);
+      this.featureOrder = new ConcurrentHashMap<String, Float>(
+              fr.featureOrder);
     }
   }
 }

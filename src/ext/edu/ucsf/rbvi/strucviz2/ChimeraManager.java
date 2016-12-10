@@ -1,3 +1,35 @@
+/* vim: set ts=2: */
+/**
+ * Copyright (c) 2006 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions, and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions, and the following
+ *      disclaimer in the documentation and/or other materials provided
+ *      with the distribution.
+ *   3. Redistributions must acknowledge that this software was
+ *      originally developed by the UCSF Computer Graphics Laboratory
+ *      under support by the NIH National Center for Research Resources,
+ *      grant P41-RR01081.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 package ext.edu.ucsf.rbvi.strucviz2;
 
 import jalview.ws.HttpClientUtils;
@@ -27,6 +59,10 @@ import ext.edu.ucsf.rbvi.strucviz2.port.ListenerThreads;
  */
 public class ChimeraManager
 {
+  private static final int REST_REPLY_TIMEOUT_MS = 15000;
+
+  private static final int CONNECTION_TIMEOUT_MS = 100;
+
   private static final boolean debug = false;
 
   private int chimeraRestPort;
@@ -178,6 +214,7 @@ public class ChimeraManager
   {
     logger.info("chimera open " + modelPath);
     // stopListening();
+    List<ChimeraModel> modelList = getModelList();
     List<String> response = null;
     // TODO: [Optional] Handle modbase models
     if (type == ModelType.MODBASE_MODEL)
@@ -197,76 +234,29 @@ public class ChimeraManager
       logger.warn("Could not open " + modelPath);
       return null;
     }
-    List<ChimeraModel> models = new ArrayList<ChimeraModel>();
-    int[] modelNumbers = null;
-    if (type == ModelType.PDB_MODEL)
-    {
-      for (String line : response)
-      {
-        if (line.startsWith("#"))
-        {
-          modelNumbers = ChimUtils.parseOpenedModelNumber(line);
-          if (modelNumbers != null)
-          {
-            int modelNumber = ChimUtils.makeModelKey(modelNumbers[0],
-                    modelNumbers[1]);
-            if (currentModelsMap.containsKey(modelNumber))
-            {
-              continue;
-            }
-            ChimeraModel newModel = new ChimeraModel(modelName, type,
-                    modelNumbers[0], modelNumbers[1]);
-            currentModelsMap.put(modelNumber, newModel);
-            models.add(newModel);
 
-            //
-            // patch for Jalview - set model name in Chimera
-            // TODO: find a variant that works for sub-models
-            sendChimeraCommand("setattr M name " + modelName + " #"
-                    + modelNumbers[0], false);
-            // end patch for Jalview
-
-            modelNumbers = null;
-          }
-        }
-      }
-    }
-    else
+    // patch for Jalview - set model name in Chimera
+    // TODO: find a variant that works for sub-models
+    for (ChimeraModel newModel : getModelList())
     {
-      // TODO: [Optional] Open smiles from file would fail. Do we need it?
-      // If parsing fails, iterate over all open models to get the right one
-      List<ChimeraModel> openModels = getModelList();
-      for (ChimeraModel openModel : openModels)
+      if (!modelList.contains(newModel))
       {
-        String openModelName = openModel.getModelName();
-        if (openModelName.endsWith("..."))
-        {
-          openModelName = openModelName.substring(0,
-                  openModelName.length() - 3);
-        }
-        if (modelPath.startsWith(openModelName))
-        {
-          openModel.setModelName(modelPath);
-          int modelNumber = ChimUtils
-                  .makeModelKey(openModel.getModelNumber(),
-                          openModel.getSubModelNumber());
-          if (!currentModelsMap.containsKey(modelNumber))
-          {
-            currentModelsMap.put(modelNumber, openModel);
-            models.add(openModel);
-          }
-        }
+        newModel.setModelName(modelName);
+        sendChimeraCommand(
+                "setattr M name " + modelName + " #"
+                        + newModel.getModelNumber(), false);
+        modelList.add(newModel);
       }
     }
 
     // assign color and residues to open models
-    for (ChimeraModel newModel : models)
+    for (ChimeraModel chimeraModel : modelList)
     {
       // get model color
-      Color modelColor = getModelColor(newModel);
+      Color modelColor = getModelColor(chimeraModel);
       if (modelColor != null)
       {
-        newModel.setModelColor(modelColor);
+        chimeraModel.setModelColor(modelColor);
       }
 
       // Get our properties (default color scheme, etc.)
@@ -276,13 +266,13 @@ public class ChimeraManager
       // Create the information we need for the navigator
       if (type != ModelType.SMILES)
       {
-        addResidues(newModel);
+        addResidues(chimeraModel);
       }
     }
 
     sendChimeraCommand("focus", false);
     // startListening(); // see ChimeraListener
-    return models;
+    return modelList;
   }
 
   /**
@@ -775,7 +765,7 @@ public class ChimeraManager
    */
   public List<String> sendChimeraCommand(String command, boolean reply)
   {
-    // System.out.println("chimeradebug>> " + command);
+   // System.out.println("chimeradebug>> " + command);
     if (!isChimeraLaunched() || command == null
             || "".equals(command.trim()))
     {
@@ -828,8 +818,8 @@ public class ChimeraManager
     BufferedReader response = null;
     try
     {
-      response = HttpClientUtils
-              .doHttpUrlPost(restUrl, commands, 100, 5000);
+      response = HttpClientUtils.doHttpUrlPost(restUrl, commands, CONNECTION_TIMEOUT_MS,
+              REST_REPLY_TIMEOUT_MS);
       String line = "";
       while ((line = response.readLine()) != null)
       {

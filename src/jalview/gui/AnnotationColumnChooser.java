@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -178,7 +178,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        ok_actionPerformed(e);
+        ok_actionPerformed();
       }
     });
 
@@ -189,7 +189,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        cancel_actionPerformed(e);
+        cancel_actionPerformed();
       }
     });
 
@@ -201,7 +201,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        threshold_actionPerformed(e);
+        threshold_actionPerformed();
       }
     });
 
@@ -212,7 +212,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        thresholdValue_actionPerformed(e);
+        thresholdValue_actionPerformed();
       }
     });
 
@@ -288,14 +288,15 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     String defaultTtip = MessageManager
             .getString("info.change_threshold_mode_to_enable");
 
-    String threshold = getThreshold().getSelectedItem().toString();
-    if (threshold.equalsIgnoreCase("No Threshold"))
+    String thresh = getThreshold().getSelectedItem().toString();
+    if (thresh.equalsIgnoreCase("No Threshold"))
     {
       thresholdValue.setToolTipText(defaultTtip);
       slider.setToolTipText(defaultTtip);
     }
   }
 
+  @Override
   public void reset()
   {
     if (this.getOldColumnSelection() != null)
@@ -324,6 +325,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
   }
 
+  @Override
   public void valueChanged(boolean updateAllAnnotation)
   {
     if (slider.isEnabled())

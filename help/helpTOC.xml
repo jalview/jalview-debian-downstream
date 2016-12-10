@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"  ?>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,11 +23,6 @@
 <!-- DO NOT WRAP THESE LINES - help2Website relies on each item being on one line! -->
 	<tocitem text="Jalview Documentation" target="home" expand="true">
 			<tocitem text="What's new" target="new" expand="true">
-				<tocitem text="Split Frame View" target="splitframe" />
-				<tocitem text="PDB Sequence Fetcher" target="pdbfetcher" />
-				<tocitem text="PDB Structure Chooser" target="pdbchooser" />
-				<tocitem text="Chimera Viewer" target="chimera" />
-				<tocitem text="Select columns by annotation" target="selectcolbyannot" />
 				<tocitem text="Latest Release Notes" target="release"/>
 		</tocitem>
 		
@@ -49,7 +44,7 @@
 		<tocitem text="Viewing Trees" target="treeviewer" expand="false" />
 		<tocitem text="Fetching Sequences" target="seqfetch" />		
 		
-		<tocitem text="Select columns by annotation" target="selectcolbyannot" />
+		<tocitem text="Select Columns by Annotation" target="selectcolbyannot" />
 		
 		<tocitem text="Nucleic Acid Support" target="nucleicAcids" expand="false">
 			<tocitem text="Viewing RNA structure" target="varna" />
@@ -107,7 +102,7 @@
 			<tocitem text="By RNA Helices" target="colours.rnahelices" />
 		</tocitem>
 		
-		<tocitem text="Calculations" target="calculations" expand="false">
+		<tocitem text="Calculations" expand="false">
 			<tocitem text="Sorting alignments" target="sorting" />
 			<tocitem text="Calculating trees" target="trees" />
 			<tocitem text="Principal Component Analysis" target="pca" />
@@ -127,14 +122,13 @@
 			<tocitem text="Consensus" target="calcs.consensus" />
 			<tocitem text="RNA Structure Consensus" target="calcs.alstrconsensus" />
 			<tocitem text="Annotations File Format" target="annotations.fileformat" />
-			<tocitem text="Select Column by Annotation" target="calcs.annotation" />
+			<tocitem text="Select Columns by Annotation" target="selectcolbyannot" />
 		</tocitem>
 		<tocitem text="3D Structure Data" target="viewingpdbs" expand="false">
 			<tocitem text="PDB Sequence Fetcher" target="pdbfetcher" />
 			<tocitem text="PDB Structure Chooser" target="pdbchooser" />
 			<tocitem text="Jmol Viewer" target="pdbjmol" />
-			<tocitem text="Chimera Viewer" target="chimera" />
-			<tocitem text="Simple PDB Viewer" target="pdbmcviewer" />
+			<tocitem text="Chimera Viewer" target="chimera" />			
 		</tocitem>
 		<tocitem text="Viewing RNA structures" target="varna" expand="false"/>
 		<tocitem text="VAMSAS Data Exchange" target="vamsas">
@@ -151,7 +145,7 @@
 				<tocitem text="Annotations Menu" target="alwAnnotations" />
 				<tocitem text="Format Menu" target="alwFormat" />
 				<tocitem text="Colour Menu" target="alwColour" />
-				<tocitem text="Calculation Menu" target="alwCalc" />
+				<tocitem text="Calculate Menu" target="alwCalc" />
 				<tocitem text="Web Service Menu" target="wsMenu" />
 				<tocitem text="Annotation Panel Menu" target="annotPanelMenu" />
 				<tocitem text="Popup Menu" target="popMenu" />
@@ -159,9 +153,11 @@
 		</tocitem>
 		<tocitem text="Preferences" target="preferences" />
 		<tocitem text="Memory Settings" target="memory" expand="false"/>
+		<tocitem text="Scripting with Groovy" target="groovy">
+			<tocitem text="Groovy Feature Counter example" target="groovy.featurecounter"/>
+		</tocitem>
 		<tocitem text="Command Line" target="commandline" expand="false">
 			<tocitem text="Command Line Arguments" target="clarguments" />
-			<tocitem text="Groovy Shell" target="groovy" />
 		</tocitem>
 		<tocitem text="Privacy" target="privacy" />
 	</tocitem>

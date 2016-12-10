@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,6 @@ package jalview.ws.dbsources;
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefSource;
-import jalview.ws.seqfetcher.DbSourceProxy;
 
 import com.stevesoft.pat.Regex;
 
@@ -30,13 +29,12 @@ import com.stevesoft.pat.Regex;
  * @author JimP
  * 
  */
-public class EmblSource extends EmblXmlSource implements DbSourceProxy
+public class EmblSource extends EmblXmlSource
 {
 
   public EmblSource()
   {
-    addDbSourceProperty(DBRefSource.DNASEQDB);
-    addDbSourceProperty(DBRefSource.CODINGSEQDB);
+    super();
   }
 
   /*
@@ -44,6 +42,7 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionSeparator()
    */
+  @Override
   public String getAccessionSeparator()
   {
     // TODO Auto-generated method stub
@@ -55,9 +54,10 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionValidator()
    */
+  @Override
   public Regex getAccessionValidator()
   {
-    return new com.stevesoft.pat.Regex("^[A-Z]+[0-9]+");
+    return new Regex("^[A-Z]+[0-9]+");
   }
 
   /*
@@ -65,6 +65,7 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getDbSource()
    */
+  @Override
   public String getDbSource()
   {
     return DBRefSource.EMBL;
@@ -75,6 +76,7 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getDbVersion()
    */
+  @Override
   public String getDbVersion()
   {
     // TODO Auto-generated method stub
@@ -86,6 +88,7 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getSequenceRecords(java.lang.String[])
    */
+  @Override
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
     return getEmblSequenceRecords(DBRefSource.EMBL, queries);
@@ -96,6 +99,7 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#isValidReference(java.lang.String)
    */
+  @Override
   public boolean isValidReference(String accession)
   {
     // most embl refs look like ..
@@ -108,11 +112,13 @@ public class EmblSource extends EmblXmlSource implements DbSourceProxy
   /**
    * return LHD_CHICK coding gene
    */
+  @Override
   public String getTestQuery()
   {
     return "X53828";
   }
 
+  @Override
   public String getDbName()
   {
     return "EMBL"; // getDbSource();

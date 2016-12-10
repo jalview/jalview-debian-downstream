@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -45,13 +45,20 @@ import org.json.simple.parser.ParseException;
  * 
  * @author jimp
  * 
- *         History: v1.0 revised from original due to refactoring of
- *         paradise-ubmc.u-strasbg.fr/webservices/annotate3d to
- *         http://arn-ibmc.in2p3.fr/api/compute/2d?tool=rnaview
+ * @version v1.0 revised from original due to refactoring of
+ *          paradise-ubmc.u-strasbg.fr/webservices/annotate3d to
+ *          http://arn-ibmc.in2p3.fr/api/compute/2d?tool=rnaview <br/>
+ *          See also testing URL from fjossinet:<br/>
+ *          http://charn2-ibmc.u-strasbg.fr:8080/api/compute/2d <br/>
+ *          If in doubt, check against the REST client at:
+ *          https://github.com/fjossinet/RNA-Science
+ *          -Toolbox/blob/master/pyrna/restclient.py
  */
 public class Annotate3D
 {
-  private static String twoDtoolsURL = "http://arn-ibmc.in2p3.fr/api/compute/2d";
+  // also test with
+  // "http://charn2-ibmc.u-strasbg.fr:8080/api/compute/2d";
+  private static String twoDtoolsURL = "http://arn-ibmc.in2p3.fr/api/compute/2d?tool=rnaview";
 
   private static ContentHandler createContentHandler()
   {

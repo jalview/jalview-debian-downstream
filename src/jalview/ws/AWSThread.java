@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,8 +31,8 @@ import jalview.gui.WebserviceInfo;
 import jalview.util.MessageManager;
 import jalview.viewmodel.seqfeatures.FeatureRendererSettings;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class AWSThread extends Thread
 {
@@ -60,7 +60,7 @@ public abstract class AWSThread extends Thread
   /**
    * dataset sequence relationships to be propagated onto new results
    */
-  protected Set<AlignedCodonFrame> codonframe = null;
+  protected List<AlignedCodonFrame> codonframe = null;
 
   /**
    * are there jobs still running in this thread.
@@ -98,6 +98,7 @@ public abstract class AWSThread extends Thread
   /**
    * generic web service job/subjob poll loop
    */
+  @Override
   public void run()
   {
     JobStateSummary jstate = null;
@@ -378,11 +379,11 @@ public abstract class AWSThread extends Thread
     WsUrl = wsurl2;
     if (alframe != null)
     {
-      Set<AlignedCodonFrame> cf = alframe.getViewport().getAlignment()
+      List<AlignedCodonFrame> cf = alframe.getViewport().getAlignment()
               .getCodonFrames();
       if (cf != null)
       {
-        codonframe = new LinkedHashSet<AlignedCodonFrame>();
+        codonframe = new ArrayList<AlignedCodonFrame>();
         codonframe.addAll(cf);
       }
     }

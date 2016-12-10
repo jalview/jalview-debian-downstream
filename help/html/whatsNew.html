@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,64 +24,55 @@
 </head>
 <body>
   <p>
-    <strong>What's new ?</strong>
+    <strong>What's new in Jalview 2.10.1 ?</strong>
   </p>
   <p>
-    Jalview 2.9 has been in development since December 2014. In addition
-    to a multitude of bug fixes and minor improvements (both small, and
-    rather big!), it also brings major new capabilities for codon-level
-    analysis of protein alignments and the retrieval and manipulation of
-    structural data.</p><p>For the full list of changes, see the
-    <a href="releases.html#Jalview.2.9">Jalview 2.9 Release Notes</a>.
+    Jalview 2.10.1 was released on 29th November 2016. Full details are
+    in the <a href="releases.html#Jalview.2.10.1">Jalview 2.10.1
+      Release Notes</a>, but the highlights are below. This is also the
+    first release to include contributions from Kira Mour&atilde;o, who
+    joined Jalview's core development team in October 2016.
   </p>
-  <p>
-    <strong>Highlights in Jalview 2.9</strong>
   <ul>
-    <li><strong>Visualisation, editing and analysis of
-        cDNA and Protein alignments</strong><br />A new <a
-      href="features/splitView.html">Split View</a> window allows linked
-      protein and nucleotide sequence alignments to be viewed, edited,
-      and analysed as one. <br />cDNA alignments can also be
-      reconstructed from protein alignments calculated by Jalview's web
-      services, and update in response to edits in the amino acid view.<br />To
-      start experimenting with cDNA/Protein analysis, jut drop a file
-      containing cDNA sequences which code for proteins in an existing
-      alignment, and Jalview will do the rest.</li>
-    <li><strong>Enhanced Integration of UCSF Chimera</strong> <br>Jalview
-      2.9 provides full support for the use of Chimera to view 3D
-      structures linked to alignment views in the Jalview Desktop. We've
-      also included support for saving Chimera sessions in Jalview
-      project files.<br />Jalview and Chimera communicate using local
-      web server connections, which may cause firewall alerts on some
-      systems, but has the advantage of allowing bidirectional
-      communication. Communication between Jalview and Chimera is now
-      much more responsive, and selected regions in Chimera are now
-      shown as highlighted regions in the Jalview desktop.</li>
-    <li><strong>Interactive querying of the PDBe</strong><br />Jalview
-      users can now <a href="features/pdbsequencefetcher.html">browse</a> and <a href="features/viewingpdbs.html">retrieve 3D structure</a> data from the PDB
-      via the <a href="http://www.ebi.ac.uk/pdbe/api/doc/search.html">PDBe
-        Search API</a> (<a href="http://dx.doi.org/10.1093%2Fnar%2Fgkt1180">Gutmanas
-        et al 2014</a>). Developed in collaboration with the PDBe group at
-      EMBL-EBI, the interface allows both structured and free-text
-      queries to be performed, and allows automatic selection of the
-      most relevant structures for an alignment acording to a variety of
-      criteria.</li>
-    <li><strong>Improved support for RNA visualisation</strong><br />Jalview
-      2.9 integrates the latest version of the <a
-      href="features/varna.html">VARNA RNA Viewer</a>, and VARNA views
-      can also now be stored in Jalview projects. We've also dealt with
-      a number of lingering bugs in the VARNA/Jalview interface,
-      including the loss of pseudoknots when RNA secondary structure is
-      shown VARNA.</li>
-    <li><strong>Protein Secondary Structure predictions
-        with JPred4</strong><br />Jalview includes a number of new features for
-      working with secondary structure predictions from the JPred4
-      server. These include new <a href="menus/popupMenu.html#hideinserts">popup menu actions</a> to automatically hide insertions and highlight
-      mutations in an alignment with respect to a <a href="calculations/referenceseq.html">Reference
-        Sequence</a>. Jalview 2.9's new <a href="io/export.html#htmlexport">scrollable
-        SVG HTML export</a> was also developed specifically for the JPred4
-      server.</li>
+    <li><strong>More memory efficient</strong><br />We've slimmed
+      down the consensus analysis data structures used by Jalview so
+      even wider alignments can be worked with.</li>
+    <li><strong>Select highlighted region</strong><br />Press 'B'
+      or use the new menu option in the alignment window's Select menu
+      to mark columns containing highlighted regions generated from
+      structure selections, mouse-overs, or resulting from a Find
+      operation.</li>
+    <li><strong>New custom link mechanism for opening URLs
+        for database cross references.</strong><br /> If you have customised URL
+      links in your Jalview preferences, then you may already have seen
+      the <a href="#warning"> warning dialog (see below).</a></li>
+    <li><strong>New command line export option for BioJS
+        MSAviewer</strong><br />A number of small bugs with the HTML export
+      functions from the Jalview desktop were also fixed.</li>
+    <li><strong>Small but significant changes to the
+        physicochemical properties and consensus calculations</strong><br />Threonine
+      is no longer considered a non-hydrophobic residue in the protein
+      conservation calculation, and minor bugs addressed in PID and
+      consensus colouring.</li>
+    <li><strong>Correct display of disulphide bond
+        features</strong><br /> In linked structure views, Jalview would
+      highlight all residues between in addition to the two linked
+      cysteines. The 'select columns by feature' function in the feature
+      settings would also select all intermediate columns.
   </ul>
 
+  <p>
+    <strong><a name="warning">Warning dialog about updating
+        your configured URL links</a></strong><br /> In the desktop prior to Jalview
+    2.10.1, the only way to configure custom links for a particular
+    database cross-reference for a sequence was to give it a name that <em>exactly</em>
+    matched the database source, and a regular expression for filtering
+    out any spurious matches generated when the custom linked was tested
+    against the Sequence's ID string. Since the introduction of the
+    $DB_ACCESSION$ token, however, $SEQUENCE_ID$ will not be used for
+    database cross-reference accession strings, and if you have custom
+    links configured, Jalview will raise a warning message so let you
+    know that you may need to update your links to use $DB_ACCESSION$.
+  </p>
 </body>
 </html>

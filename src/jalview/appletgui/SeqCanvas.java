@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,9 +21,11 @@
 package jalview.appletgui;
 
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.ScaleRenderer;
+import jalview.renderer.ScaleRenderer.ScaleMark;
 import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.Color;
@@ -47,8 +49,6 @@ public class SeqCanvas extends Panel
   int imgHeight;
 
   AlignViewport av;
-
-  SearchResults searchResults = null;
 
   boolean fastPaint = false;
 
@@ -90,26 +90,29 @@ public class SeqCanvas extends Panel
 
   private void drawNorthScale(Graphics g, int startx, int endx, int ypos)
   {
-    int scalestartx = startx - startx % 10 + 10;
-
+    updateViewport();
     g.setColor(Color.black);
-
-    // NORTH SCALE
-    for (int i = scalestartx; i < endx; i += 10)
+    for (ScaleMark mark : new ScaleRenderer().calculateMarks(av, startx,
+            endx))
     {
-      int value = i;
-      if (av.hasHiddenColumns())
+      int mpos = mark.column; // (i - startx - 1)
+      if (mpos < 0)
       {
-        value = av.getColumnSelection().adjustForHiddenColumns(value);
+        continue;
       }
+      String mstring = mark.text;
 
-      g.drawString(String.valueOf(value), (i - startx - 1) * avcharWidth,
-              ypos - (avcharHeight / 2));
-
-      g.drawLine(((i - startx - 1) * avcharWidth) + (avcharWidth / 2),
-              (ypos + 2) - (avcharHeight / 2),
-              ((i - startx - 1) * avcharWidth) + (avcharWidth / 2),
-              ypos - 2);
+      if (mark.major)
+      {
+        if (mstring != null)
+        {
+          g.drawString(mstring, mpos * avcharWidth, ypos
+                  - (avcharHeight / 2));
+        }
+        g.drawLine((mpos * avcharWidth) + (avcharWidth / 2), (ypos + 2)
+                - (avcharHeight / 2), (mpos * avcharWidth)
+                + (avcharWidth / 2), ypos - 2);
+      }
     }
   }
 
@@ -276,6 +279,7 @@ public class SeqCanvas extends Panel
    * at 0). NOTE 1: The av limits are set in setFont in this class and in the
    * adjustment listener in SeqPanel when the scrollbars move.
    */
+  @Override
   public void update(Graphics g)
   {
     paint(g);
@@ -573,10 +577,17 @@ public class SeqCanvas extends Panel
           g1.translate(-screenY * avcharWidth, 0);
           screenY += blockEnd - blockStart + 1;
           blockStart = hideEnd + 1;
+
+          if (screenY > (endRes - startRes))
+          {
+            // already rendered last block
+            return;
+          }
         }
       }
       if (screenY <= (endRes - startRes))
       {
+        // remaining visible region to render
         blockEnd = blockStart + (endRes - startRes) - screenY;
         g1.translate(screenY * avcharWidth, 0);
         draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
@@ -619,9 +630,10 @@ public class SeqCanvas extends Panel
 
       // / Highlight search Results once all sequences have been drawn
       // ////////////////////////////////////////////////////////
-      if (searchResults != null)
+      if (av.hasSearchResults())
       {
-        int[] visibleResults = searchResults.getResults(nextSeq, startRes,
+        int[] visibleResults = av.getSearchResults().getResults(nextSeq,
+                startRes,
                 endRes);
         if (visibleResults != null)
         {
@@ -830,10 +842,9 @@ public class SeqCanvas extends Panel
     }
   }
 
-  public void highlightSearchResults(SearchResults results)
+  public void highlightSearchResults(SearchResultsI results)
   {
-    searchResults = results;
-
+    av.setSearchResults(results);
     repaint();
   }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,11 @@
  */
 package jalview.jbgui;
 
+import jalview.fts.core.FTSDataColumnPreferences;
+import jalview.fts.core.FTSDataColumnPreferences.PreferenceSource;
+import jalview.fts.service.pdb.PDBFTSRestClient;
 import jalview.gui.JvSwingUtils;
 import jalview.gui.StructureViewer.ViewerType;
-import jalview.jbgui.PDBDocFieldPreferences.PreferenceSource;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -44,6 +46,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -52,6 +55,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
@@ -156,6 +160,12 @@ public class GPreferences extends JPanel
 
   protected JTextField chimeraPath = new JTextField();
 
+  protected ButtonGroup mappingMethod = new ButtonGroup();
+
+  protected JRadioButton siftsMapping = new JRadioButton();
+
+  protected JRadioButton nwMapping = new JRadioButton();
+
   /*
    * Colours tab components
    */
@@ -191,7 +201,7 @@ public class GPreferences extends JPanel
   /*
    * Output tab components
    */
-  protected JComboBox<String> epsRendering = new JComboBox<String>();
+  protected JComboBox<Object> epsRendering = new JComboBox<Object>();
 
   protected JLabel userIdWidthlabel = new JLabel();
 
@@ -509,6 +519,7 @@ public class GPreferences extends JPanel
     newLink.setText(MessageManager.getString("action.new"));
     newLink.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         newLink_actionPerformed(e);
@@ -518,6 +529,7 @@ public class GPreferences extends JPanel
     editLink.setText(MessageManager.getString("action.edit"));
     editLink.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         editLink_actionPerformed(e);
@@ -527,6 +539,7 @@ public class GPreferences extends JPanel
     deleteLink.setText(MessageManager.getString("action.delete"));
     deleteLink.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         deleteLink_actionPerformed(e);
@@ -535,6 +548,7 @@ public class GPreferences extends JPanel
 
     linkURLList.addListSelectionListener(new ListSelectionListener()
     {
+      @Override
       public void valueChanged(ListSelectionEvent e)
       {
         int index = linkURLList.getSelectedIndex();
@@ -544,6 +558,7 @@ public class GPreferences extends JPanel
 
     linkNameList.addListSelectionListener(new ListSelectionListener()
     {
+      @Override
       public void valueChanged(ListSelectionEvent e)
       {
         int index = linkNameList.getSelectedIndex();
@@ -571,6 +586,7 @@ public class GPreferences extends JPanel
 
     defaultBrowser.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseClicked(MouseEvent e)
       {
         if (e.getClickCount() > 1)
@@ -585,6 +601,7 @@ public class GPreferences extends JPanel
     useProxy.setText(MessageManager.getString("label.use_proxy_server"));
     useProxy.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         useProxy_actionPerformed();
@@ -653,6 +670,7 @@ public class GPreferences extends JPanel
     ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ok_actionPerformed(e);
@@ -662,6 +680,7 @@ public class GPreferences extends JPanel
     cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancel_actionPerformed(e);
@@ -693,6 +712,7 @@ public class GPreferences extends JPanel
     minColour.setPreferredSize(new Dimension(40, 20));
     minColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         minColour_actionPerformed(minColour);
@@ -707,6 +727,7 @@ public class GPreferences extends JPanel
     maxColour.setPreferredSize(new Dimension(40, 20));
     maxColour.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         maxColour_actionPerformed(maxColour);
@@ -764,7 +785,7 @@ public class GPreferences extends JPanel
     final int width = 400;
     final int height = 22;
     final int lineSpacing = 25;
-    int ypos = 30;
+    int ypos = 15;
 
     structFromPdb.setFont(LABEL_FONT);
     structFromPdb
@@ -859,13 +880,30 @@ public class GPreferences extends JPanel
     structureTab.add(chimeraPath);
 
     ypos += lineSpacing;
-    // scrl_pdbDocFieldConfig.setPreferredSize(new Dimension(450, 100));
-    // scrl_pdbDocFieldConfig
-    // .setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    // scrl_pdbDocFieldConfig.setBounds();
-    PDBDocFieldPreferences docFieldPref = new PDBDocFieldPreferences(
-            PreferenceSource.PREFERENCES);
-    docFieldPref.setBounds(new Rectangle(10, ypos + 5, 450, 120));
+    nwMapping.setFont(LABEL_FONT);
+    nwMapping.setText(MessageManager.getString("label.nw_mapping"));
+    siftsMapping.setFont(LABEL_FONT);
+    siftsMapping.setText(MessageManager.getString("label.sifts_mapping"));
+    mappingMethod.add(nwMapping);
+    mappingMethod.add(siftsMapping);
+    JPanel mappingPanel = new JPanel();
+    mappingPanel.setFont(LABEL_FONT);
+    TitledBorder mmTitledBorder = new TitledBorder(
+            MessageManager.getString("label.mapping_method"));
+    mmTitledBorder.setTitleFont(LABEL_FONT);
+    mappingPanel.setBorder(mmTitledBorder);
+    mappingPanel.setBounds(new Rectangle(10, ypos, 452, 45));
+    // GridLayout mappingLayout = new GridLayout();
+    mappingPanel.setLayout(new GridLayout());
+    mappingPanel.add(nwMapping);
+    mappingPanel.add(siftsMapping);
+    structureTab.add(mappingPanel);
+
+    ypos += lineSpacing;
+    ypos += lineSpacing;
+    FTSDataColumnPreferences docFieldPref = new FTSDataColumnPreferences(
+            PreferenceSource.PREFERENCES, PDBFTSRestClient.getInstance());
+    docFieldPref.setBounds(new Rectangle(10, ypos, 450, 120));
     structureTab.add(docFieldPref);
 
     return structureTab;
@@ -1018,6 +1056,7 @@ public class GPreferences extends JPanel
     annotations.setBounds(new Rectangle(169, 12, 200, 23));
     annotations.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         annotations_actionPerformed(e);
@@ -1025,6 +1064,7 @@ public class GPreferences extends JPanel
     });
     identity.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         annotations_actionPerformed(e);
@@ -1032,6 +1072,7 @@ public class GPreferences extends JPanel
     });
     showGroupConsensus.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         annotations_actionPerformed(e);
@@ -1045,6 +1086,7 @@ public class GPreferences extends JPanel
             .getString("action.show_unconserved"));
     showUnconserved.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showunconserved_actionPerformed(e);
@@ -1112,6 +1154,7 @@ public class GPreferences extends JPanel
     startupFileTextfield.setBounds(new Rectangle(172, 310, 330, 20));
     startupFileTextfield.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseClicked(MouseEvent e)
       {
         if (e.getClickCount() > 1)
@@ -1193,7 +1236,7 @@ public class GPreferences extends JPanel
             .getString("label.open_overview"));
     openoverv.setHorizontalAlignment(SwingConstants.RIGHT);
     openoverv.setHorizontalTextPosition(SwingConstants.LEFT);
-    openoverv.setText(MessageManager.getString(("label.open_overview")));
+    openoverv.setText(MessageManager.getString("label.open_overview"));
     JPanel jPanel2 = new JPanel();
     jPanel2.setBounds(new Rectangle(7, 17, 158, 310));
     jPanel2.setLayout(new GridLayout(14, 1));

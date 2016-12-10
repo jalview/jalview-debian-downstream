@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -39,7 +39,8 @@ public class JSFunctionExec implements Runnable
     jvlite.setExecutor(this);
   }
 
-  public void finalize()
+  @Override
+  protected void finalize() throws Throwable
   {
     jvlite = null;
     executor = null;
@@ -48,6 +49,7 @@ public class JSFunctionExec implements Runnable
       jsExecQueue.clear();
     }
     jsExecQueue = null;
+    super.finalize();
   }
 
   private Vector jsExecQueue;
@@ -82,6 +84,7 @@ public class JSFunctionExec implements Runnable
     executor = null;
   }
 
+  @Override
   public void run()
   {
     while (jsExecQueue != null)
@@ -164,6 +167,7 @@ public class JSFunctionExec implements Runnable
     final Exception[] jsex = new Exception[1];
     Runnable exec = new Runnable()
     {
+      @Override
       public void run()
       {
         try
@@ -196,7 +200,7 @@ public class JSFunctionExec implements Runnable
             if (jex instanceof netscape.javascript.JSException
                     && jvlite.jsfallbackEnabled)
             {
-              jsex[0] = (netscape.javascript.JSException) jex;
+              jsex[0] = jex;
               if (jvlite.debug)
               {
                 System.err.println("Falling back to javascript: url call");

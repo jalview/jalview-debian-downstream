@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -60,16 +60,18 @@ public class GSequenceLink extends Panel
     nameTB.setBounds(new Rectangle(77, 10, 310, 23));
     nameTB.addKeyListener(new KeyAdapter()
     {
+      @Override
       public void keyTyped(KeyEvent e)
       {
         nameTB_keyTyped(e);
       }
     });
     urlTB.setFont(JvSwingUtils.getLabelFont());
-    urlTB.setText("http://www.");
+    urlTB.setText("http://");
     urlTB.setBounds(new Rectangle(78, 40, 309, 23));
     urlTB.addKeyListener(new KeyAdapter()
     {
+      @Override
       public void keyTyped(KeyEvent e)
       {
         urlTB_keyTyped(e);
@@ -88,7 +90,20 @@ public class GSequenceLink extends Panel
     jLabel3.setBounds(new Rectangle(21, 72, 351, 15));
     jLabel4.setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
     jLabel4.setText(MessageManager.getString("label.use_sequence_id_2"));
-    jLabel4.setBounds(new Rectangle(21, 93, 351, 15));
+    jLabel4.setBounds(new Rectangle(21, 88, 351, 15));
+    jLabel5.setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
+    jLabel5.setText(MessageManager.getString("label.use_sequence_id_3"));
+    jLabel5.setBounds(new Rectangle(21, 106, 351, 15));
+
+    String lastLabel = MessageManager.getString("label.use_sequence_id_4");
+    if (lastLabel.length() > 0)
+    {
+      // e.g. Spanish version has longer text
+      jLabel6.setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
+      jLabel6.setText(lastLabel);
+      jLabel6.setBounds(new Rectangle(21, 122, 351, 15));
+    }
+
     jPanel1.setBorder(BorderFactory.createEtchedBorder());
     jPanel1.setLayout(null);
     jPanel1.add(jLabel1);
@@ -97,11 +112,21 @@ public class GSequenceLink extends Panel
     jPanel1.add(jLabel2);
     jPanel1.add(jLabel3);
     jPanel1.add(jLabel4);
+    jPanel1.add(jLabel5);
+
+    int height = 130;
+    if (lastLabel.length() > 0)
+    {
+      jPanel1.add(jLabel6);
+      height = 146;
+    }
+
     this.add(jPanel1, new GridBagConstraints(0, 0, 1, 1, 1.0, 1.0,
             GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(
-                    5, 4, 6, 5), 390, 130));
+                    5, 4, 6, 5), 390, height));
   }
 
+  @Override
   public void setName(String name)
   {
     nameTB.setText(name);
@@ -112,6 +137,7 @@ public class GSequenceLink extends Panel
     urlTB.setText(url);
   }
 
+  @Override
   public String getName()
   {
     return nameTB.getText();
@@ -148,6 +174,10 @@ public class GSequenceLink extends Panel
   JLabel jLabel3 = new JLabel();
 
   JLabel jLabel4 = new JLabel();
+
+  JLabel jLabel5 = new JLabel();
+
+  JLabel jLabel6 = new JLabel();
 
   JPanel jPanel1 = new JPanel();
 

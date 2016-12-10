@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -114,7 +114,7 @@ public class OptsAndParamsPage
                 .wrapTooltip(
                         true,
                         ((desc == null || desc.trim().length() == 0) ? MessageManager
-                                .getString("label.opt_and_params_further_details ")
+                                .getString("label.opt_and_params_further_details")
                                 : desc)
                                 + "<br><img src=\"" + linkImageURL + "\"/>"));
         enabled.addMouseListener(this);
@@ -130,9 +130,9 @@ public class OptsAndParamsPage
       add(enabled, BorderLayout.NORTH);
       for (Object str : opt.getPossibleValues())
       {
-        val.addItem((String) str);
+        val.addItem(str);
       }
-      val.setSelectedItem((String) opt.getValue());
+      val.setSelectedItem(opt.getValue());
       if (opt.getPossibleValues().size() > 1)
       {
         setLayout(new GridLayout(1, 2));
@@ -145,6 +145,7 @@ public class OptsAndParamsPage
       setInitialValue();
     }
 
+    @Override
     public void actionPerformed(ActionEvent e)
     {
       if (e.getSource() != enabled)
@@ -206,36 +207,41 @@ public class OptsAndParamsPage
       return opt;
     }
 
+    @Override
     public void mouseClicked(MouseEvent e)
     {
-      if (javax.swing.SwingUtilities.isRightMouseButton(e))
+      if (e.isPopupTrigger()) // for Windows
       {
         showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
       }
     }
 
+    @Override
     public void mouseEntered(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mouseExited(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mousePressed(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
+      if (e.isPopupTrigger()) // Mac
+      {
+        showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
+      }
     }
 
+    @Override
     public void mouseReleased(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
     }
 
     public void resetToDefault(boolean setDefaultParams)
@@ -351,7 +357,7 @@ public class OptsAndParamsPage
                                         + linkImageURL
                                         + "\"/>"
                                         + MessageManager
-                                                .getString("label.opt_and_params_further_detail")
+                                                .getString("label.opt_and_params_further_details")
                                         : "")));
       }
 
@@ -412,6 +418,7 @@ public class OptsAndParamsPage
         showDesc.addActionListener(new ActionListener()
         {
 
+          @Override
           public void actionPerformed(ActionEvent e)
           {
             descisvisible = !descisvisible;
@@ -451,6 +458,7 @@ public class OptsAndParamsPage
       validate();
     }
 
+    @Override
     public void actionPerformed(ActionEvent e)
     {
       if (adjusting)
@@ -526,45 +534,53 @@ public class OptsAndParamsPage
       lastVal = null;
     }
 
+    @Override
     public void mouseClicked(MouseEvent e)
     {
-      if (javax.swing.SwingUtilities.isRightMouseButton(e))
+      if (e.isPopupTrigger()) // for Windows
       {
         showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
       }
     }
 
+    @Override
     public void mouseEntered(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mouseExited(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void mousePressed(MouseEvent e)
     {
-      // TODO Auto-generated method stub
-
+      if (e.isPopupTrigger()) // for Mac
+      {
+        showUrlPopUp(this, finfo.toString(), e.getX(), e.getY());
+      }
     }
 
+    @Override
     public void mouseReleased(MouseEvent e)
     {
       // TODO Auto-generated method stub
 
     }
 
+    @Override
     public void stateChanged(ChangeEvent e)
     {
       if (!adjusting)
       {
         valueField.setText(""
-                + ((integ) ? ("" + (int) slider.getValue())
-                        : ("" + (float) (slider.getValue() / 1000f))));
+                + ((integ) ? ("" + slider.getValue()) : ("" + slider
+                        .getValue() / 1000f)));
         checkIfModified();
       }
 

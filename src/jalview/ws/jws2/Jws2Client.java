@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -256,11 +256,8 @@ public abstract class Jws2Client extends jalview.ws.WSClient
       });
       wsmenu.add(aaConEnabled);
       final JMenuItem modifyParams = new JMenuItem(aaui.getAAeditSettings());
-      modifyParams
-              .setToolTipText("<html><p>"
-                      + JvSwingUtils.wrapTooltip(false,
-                              aaui.getAAeditSettingsTooltip() + "</p>")
-                      + "</html>");
+      modifyParams.setToolTipText(JvSwingUtils.wrapTooltip(true,
+              aaui.getAAeditSettingsTooltip()));
       modifyParams.addActionListener(new ActionListener()
       {
 

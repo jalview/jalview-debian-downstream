@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.appletgui;
 
+import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.SequenceGroup;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.schemes.ColourSchemeI;
@@ -96,7 +97,8 @@ public class AnnotationColourChooser extends Panel implements
     slider.addAdjustmentListener(this);
     slider.addMouseListener(this);
 
-    if (av.getAlignment().getAlignmentAnnotation() == null)
+    AlignmentAnnotation[] anns = av.getAlignment().getAlignmentAnnotation();
+    if (anns == null)
     {
       return;
     }
@@ -117,11 +119,15 @@ public class AnnotationColourChooser extends Panel implements
       // seqAssociated.setState(acg.isSeqAssociated());
     }
 
-    Vector list = new Vector();
+    Vector<String> list = new Vector<String>();
     int index = 1;
-    for (int i = 0; i < av.getAlignment().getAlignmentAnnotation().length; i++)
+    for (int i = 0; i < anns.length; i++)
     {
-      String label = av.getAlignment().getAlignmentAnnotation()[i].label;
+      String label = anns[i].label;
+      if (anns[i].sequenceRef != null)
+      {
+        label = label + "_" + anns[i].sequenceRef.getName();
+      }
       if (!list.contains(label))
       {
         list.addElement(label);
@@ -138,11 +144,11 @@ public class AnnotationColourChooser extends Panel implements
     }
 
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_no_thereshold"));
+            .getString("label.threshold_feature_no_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_above_thereshold"));
+            .getString("label.threshold_feature_above_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_below_thereshold"));
+            .getString("label.threshold_feature_below_threshold"));
 
     if (oldcs instanceof AnnotationColourGradient)
     {
@@ -162,7 +168,7 @@ public class AnnotationColourChooser extends Panel implements
       default:
         throw new Error(
                 MessageManager
-                        .getString("error.implementation_error_dont_know_thereshold_annotationcolourgradient"));
+                        .getString("error.implementation_error_dont_know_threshold_annotationcolourgradient"));
       }
       thresholdIsMin.setState(acg.thresholdIsMinMax);
       thresholdValue.setText("" + acg.getAnnotationThreshold());
@@ -309,6 +315,7 @@ public class AnnotationColourChooser extends Panel implements
 
   Checkbox thresholdIsMin = new Checkbox();
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == thresholdValue)
@@ -351,6 +358,7 @@ public class AnnotationColourChooser extends Panel implements
     }
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == currentColours)
@@ -368,6 +376,7 @@ public class AnnotationColourChooser extends Panel implements
     changeColour();
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     if (!adjusting)
@@ -552,23 +561,28 @@ public class AnnotationColourChooser extends Panel implements
 
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     ap.paintAlignment(true);
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }

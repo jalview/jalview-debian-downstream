@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,7 +28,7 @@ public class SequencePojo
     required = true,
     minLength = 3,
     maxLength = 2147483647,
-    description = "Sequence residue characters. An aligned sequence may contain <br>one of the following gap characters â€œ.â€?, â€œ-â€? or â€œ â€?")
+    description = "Sequence residue characters. An aligned sequence may contain <br>one of the following gap characters &#x201c;.&#x201d;, &#x201c;-&#x201d; or &#x201c;&nbsp;&#x201d;")
   private String seq;
 
   @Attributes(required = true, description = "Sequence name")

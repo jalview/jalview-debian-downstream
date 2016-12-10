@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -577,7 +577,8 @@ public class AlignSeq
       }
     }
     int len = 72 - maxid - 1;
-    int nochunks = ((aseq1.length - count) / len) + 1;
+    int nochunks = ((aseq1.length - count) / len)
+            + ((aseq1.length - count) % len > 0 ? 1 : 0);
     pid = 0;
 
     output.append("Score = ").append(score[maxi][maxj]).append(NEWLINE);
@@ -619,7 +620,10 @@ public class AlignSeq
       {
         if ((i + (j * len)) < astr1.length())
         {
-          if (astr1.charAt(i + (j * len)) == astr2.charAt(i + (j * len))
+          boolean sameChar = Comparison.isSameResidue(
+                  astr1.charAt(i + (j * len)), astr2.charAt(i + (j * len)),
+                  false);
+          if (sameChar
                   && !jalview.util.Comparison.isGap(astr1.charAt(i
                           + (j * len))))
           {
@@ -662,9 +666,7 @@ public class AlignSeq
     }
 
     pid = pid / (aseq1.length - count) * 100;
-    output = output.append(new Format("Percentage ID = %2.2f\n\n")
-            .form(pid));
-
+    output = output.append(new Format("Percentage ID = %2.2f\n").form(pid));
     try
     {
       os.print(output.toString());
@@ -948,6 +950,7 @@ public class AlignSeq
   public static void displayMatrix(Graphics g, int[][] mat, int n, int m,
           int psize)
   {
+    // TODO method dosen't seem to be referenced anywhere delete??
     int max = -1000;
     int min = 1000;
 

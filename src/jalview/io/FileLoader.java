@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,9 @@
 package jalview.io;
 
 import jalview.api.ComplexAlignFile;
+import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
+import jalview.api.FeaturesSourceI;
 import jalview.bin.Jalview;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
@@ -31,6 +33,7 @@ import jalview.gui.AlignFrame;
 import jalview.gui.AlignViewport;
 import jalview.gui.Desktop;
 import jalview.gui.Jalview2XML;
+import jalview.json.binding.biojson.v1.ColourSchemeMapper;
 import jalview.schemes.ColourSchemeI;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
@@ -99,6 +102,7 @@ public class FileLoader implements Runnable
 
     SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         loader.start();
@@ -233,6 +237,7 @@ public class FileLoader implements Runnable
     }
   }
 
+  @Override
   public void run()
   {
     String title = protocol.equals(AppletFormatAdapter.PASTE) ? "Copied From Clipboard"
@@ -249,14 +254,14 @@ public class FileLoader implements Runnable
         // just in case the caller didn't identify the file for us
         if (source != null)
         {
-          format = new IdentifyFile().Identify(source, false); // identify
+          format = new IdentifyFile().identify(source, false); // identify
           // stream and
           // rewind rather
           // than close
         }
         else
         {
-          format = new IdentifyFile().Identify(file, protocol);
+          format = new IdentifyFile().identify(file, protocol);
         }
 
       }
@@ -358,8 +363,14 @@ public class FileLoader implements Runnable
             }
           }
 
+          FeatureSettingsModelI proxyColourScheme = source
+                  .getFeatureColourScheme();
           if (viewport != null)
           {
+            if (proxyColourScheme != null)
+            {
+              viewport.applyFeaturesStyle(proxyColourScheme);
+            }
             // append to existing alignment
             viewport.addAlignment(al, title);
           }
@@ -373,31 +384,41 @@ public class FileLoader implements Runnable
                       .getColumnSelection();
               SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
                       .getHiddenSequences();
-              boolean showSeqFeatures = ((ComplexAlignFile) source)
-                      .isShowSeqFeatures();
-              ColourSchemeI cs = ((ComplexAlignFile) source)
-                      .getColourScheme();
+              String colourSchemeName = ((ComplexAlignFile) source)
+                      .getGlobalColourScheme();
               FeaturesDisplayedI fd = ((ComplexAlignFile) source)
                       .getDisplayedFeatures();
               alignFrame = new AlignFrame(al, hiddenSeqs, colSel,
                       AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
-
-              alignFrame.getViewport().setShowSequenceFeatures(
-                      showSeqFeatures);
               alignFrame.getViewport().setFeaturesDisplayed(fd);
-              alignFrame.changeColour(cs);
+              alignFrame.getViewport().setShowSequenceFeatures(
+                      ((ComplexAlignFile) source).isShowSeqFeatures());
+              ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
+                      colourSchemeName, al);
+              if (cs != null)
+              {
+                alignFrame.changeColour(cs);
+              }
             }
             else
             {
               alignFrame = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
                       AlignFrame.DEFAULT_HEIGHT);
+              if (source instanceof FeaturesSourceI)
+              {
+                alignFrame.getViewport().setShowSequenceFeatures(true);
+              }
             }
             // add metadata and update ui
             if (!protocol.equals(AppletFormatAdapter.PASTE))
             {
               alignFrame.setFileName(file, format);
             }
-
+            if (proxyColourScheme != null)
+            {
+              alignFrame.getViewport()
+                      .applyFeaturesStyle(proxyColourScheme);
+            }
             alignFrame.statusBar.setText(MessageManager.formatMessage(
                     "label.successfully_loaded_file",
                     new String[] { title }));
@@ -440,6 +461,7 @@ public class FileLoader implements Runnable
           {
             javax.swing.SwingUtilities.invokeLater(new Runnable()
             {
+              @Override
               public void run()
               {
                 JOptionPane.showInternalMessageDialog(Desktop.desktop,
@@ -466,6 +488,7 @@ public class FileLoader implements Runnable
       {
         javax.swing.SwingUtilities.invokeLater(new Runnable()
         {
+          @Override
           public void run()
           {
             javax.swing.JOptionPane.showInternalMessageDialog(
@@ -487,6 +510,7 @@ public class FileLoader implements Runnable
       {
         javax.swing.SwingUtilities.invokeLater(new Runnable()
         {
+          @Override
           public void run()
           {
             javax.swing.JOptionPane.showInternalMessageDialog(
@@ -545,6 +569,7 @@ public class FileLoader implements Runnable
    * 
    * @see java.lang.Object#finalize()
    */
+  @Override
   protected void finalize() throws Throwable
   {
     source = null;

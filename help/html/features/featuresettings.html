@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -72,23 +72,29 @@
   </p>
   <p>
     <strong><em>Feature settings pop-up menu</em></strong><br> <strong>Right-click</strong>
-    on a feature to open a pop-up menu that allows you to sort the
-    alignment or current selection using that feature type (see below),
-    or toggle the type of colouring used for the feature. Features may
-    be highlighted with either a single colour or a <a
-      href="featureschemes.html"
-    >feature colourscheme</a> based on either the scores associated with
-    that feature or from the feature's description (e.g. to distinguish
-    different names associated with a DOMAIN feature).
+    on a feature to open a pop-up menu that allows you to
+  <ul>
+    <li>Hide, show and select columns containing that feature</li>
+    <li>Sort the alignment or current selection using that feature
+      type (see below)</li>
+    <li>Toggle the type of colouring used for the feature</li>
+  </ul>
+  <p>
+    Features may be highlighted with either a single colour or a <a
+      href="featureschemes.html">feature colourscheme</a> based on
+    either the scores associated with that feature or from the feature's
+    description (e.g. to distinguish different names associated with a
+    DOMAIN feature).
   </p>
   <p>
-    <strong>Ordering alignment by features</strong><br> The 'Seq
-    Sort by Score' and 'Seq Sort by Density' buttons will sort the
-    alignment based on the average score or total number of currently
-    active features and groups on each sequence. To order the alignment
-    using a specific feature type, use the <em>sort by ..</em> entries
-    in the pop-up menu for that type.<br> <em>Feature sorting
-      and graduated feature colouring were introduced in Jalview 2.5</em>
+    <strong><a name="sortbyfeature">Ordering alignment by
+        features</a></strong><br> The 'Seq Sort by Score' and 'Seq Sort by
+    Density' buttons will sort the alignment based on the average score
+    or total number of currently active features and groups on each
+    sequence. To order the alignment using a specific feature type, use
+    the <em>sort by ..</em> entries in the pop-up menu for that type.<br>
+    <em>Feature sorting and graduated feature colouring were
+      introduced in Jalview 2.5</em>
   </p>
 
   <p>
@@ -104,7 +110,7 @@
     the bottom of the list is rendered <em>below</em> a feature higher
     up in the list.<br> <em><strong>You can change
         the order of a feature by dragging it up and down the list with
-        the mouse</strong></em>.
+        the mouse (not applet)</strong></em>.
   </p>
   <p>
     The <strong><em>Optimise order</em></strong> button (currently only
@@ -112,12 +118,11 @@
     ordering based on the average length of each feature type.
   </p>
   <p>
-    The <strong><em>transparency slider setting</em></strong> (currently
-    only available in the application version) controls the visibility
-    of features rendered below other features. Reducing the transparency
-    will mean that features at the top of the list can obscure features
-    lower down, and increasing it allows the user to 'see through' the
-    upper layers of a set of features.
+    The <strong><em>transparency slider setting</em></strong> controls
+    the visibility of features rendered below other features. Reducing
+    the transparency will mean that features at the top of the list can
+    obscure features lower down, and increasing it allows the user to
+    'see through' the upper layers of a set of features.
   </p>
   <p>
     <strong><em>You can save all features, with their

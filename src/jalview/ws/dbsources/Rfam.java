@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.ws.dbsources;
 
-import jalview.ws.seqfetcher.DbSourceProxy;
+import jalview.datamodel.DBRefSource;
 
 import com.stevesoft.pat.Regex;
 
@@ -29,15 +29,12 @@ import com.stevesoft.pat.Regex;
  * 
  * @author Lauren Michelle Lui
  */
-abstract public class Rfam extends Xfam implements DbSourceProxy
+abstract public class Rfam extends Xfam
 {
 
   public Rfam()
   {
     super();
-    // all extensions of this RFAM source base class are DOMAINDB sources
-    addDbSourceProperty(jalview.datamodel.DBRefSource.DOMAINDB);
-    addDbSourceProperty(jalview.datamodel.DBRefSource.ALIGNMENTDB);
   }
 
   /*
@@ -46,6 +43,7 @@ abstract public class Rfam extends Xfam implements DbSourceProxy
    * @see jalview.ws.DbSourceProxy#getAccessionSeparator() Left here for
    * consistency with Pfam class
    */
+  @Override
   public String getAccessionSeparator()
   {
     // TODO Auto-generated method stub
@@ -57,6 +55,7 @@ abstract public class Rfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#getAccessionValidator() * Left here for
    */
+  @Override
   public Regex getAccessionValidator()
   {
     // TODO Auto-generated method stub
@@ -100,6 +99,7 @@ abstract public class Rfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#isValidReference(java.lang.String)
    */
+  @Override
   public boolean isValidReference(String accession)
   {
     return accession.indexOf("RF") == 0;
@@ -110,9 +110,10 @@ abstract public class Rfam extends Xfam implements DbSourceProxy
    * 
    * @see jalview.ws.dbsources.Xfam#getXfamSource()
    */
+  @Override
   public String getXfamSource()
   {
-    return jalview.datamodel.DBRefSource.RFAM;
+    return DBRefSource.RFAM;
   }
 
 }

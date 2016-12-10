@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -321,6 +321,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
     Thread udthread = new Thread(new Runnable()
     {
 
+      @Override
       public void run()
       {
         Cache.log.info("Jalview updating to the Vamsas Session.");
@@ -639,6 +640,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
     final VamsasApplication client = this;
     vclient.addDocumentUpdateHandler(new PropertyChangeListener()
     {
+      @Override
       public void propertyChange(PropertyChangeEvent evt)
       {
         Cache.log.debug("Dealing with document update event.");
@@ -656,6 +658,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
             uk.ac.vamsas.client.Events.DOCUMENT_REQUESTTOCLOSE,
             new PropertyChangeListener()
             {
+              @Override
               public void propertyChange(PropertyChangeEvent evt)
               {
                 if (client.promptUser)
@@ -774,6 +777,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
         {
           String last = null;
 
+          @Override
           public void handleMessage(Message message)
           {
             if (vobj2jv == null)
@@ -998,6 +1002,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
         selecter = new SelectionListener()
         {
 
+          @Override
           public void selection(SequenceGroup seqsel,
                   ColumnSelection colsel, SelectionSource source)
           {
@@ -1065,11 +1070,10 @@ public class VamsasApplication implements SelectionSource, VamsasSource
                   {
                     // gather selected columns outwith the sequence positions
                     // too
-                    for (Object obj : colsel.getSelected())
+                    for (Integer ival : colsel.getSelected())
                     {
-                      int ival = ((Integer) obj).intValue();
                       Pos p = new Pos();
-                      p.setI(ival + 1);
+                      p.setI(ival.intValue() + 1);
                       range.addPos(p);
                     }
                   }

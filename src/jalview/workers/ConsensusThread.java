@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,19 +21,16 @@
 package jalview.workers;
 
 import jalview.analysis.AAFrequency;
-import jalview.api.AlignCalcWorkerI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ColourSchemeI;
 
-import java.util.Hashtable;
-
-public class ConsensusThread extends AlignCalcWorker implements
-        AlignCalcWorkerI
+public class ConsensusThread extends AlignCalcWorker
 {
   public ConsensusThread(AlignViewportI alignViewport,
           AlignmentViewPanel alignPanel)
@@ -98,7 +95,7 @@ public class ConsensusThread extends AlignCalcWorker implements
       }
     } catch (OutOfMemoryError error)
     {
-      calcMan.workerCannotRun(this);
+      calcMan.disableWorker(this);
       ap.raiseOOMWarning("calculating consensus", error);
     } finally
     {
@@ -127,10 +124,11 @@ public class ConsensusThread extends AlignCalcWorker implements
    */
   protected void computeConsensus(AlignmentI alignment)
   {
-    Hashtable[] hconsensus = new Hashtable[alignment.getWidth()];
 
     SequenceI[] aseqs = getSequences();
-    AAFrequency.calculate(aseqs, 0, alignment.getWidth(), hconsensus, true);
+    int width = alignment.getWidth();
+    ProfilesI hconsensus = AAFrequency.calculate(aseqs, width, 0,
+            width, true);
 
     alignViewport.setSequenceConsensusHash(hconsensus);
     setColourSchemeConsensus(hconsensus);
@@ -147,7 +145,7 @@ public class ConsensusThread extends AlignCalcWorker implements
   /**
    * @param hconsensus
    */
-  protected void setColourSchemeConsensus(Hashtable[] hconsensus)
+  protected void setColourSchemeConsensus(ProfilesI hconsensus)
   {
     ColourSchemeI globalColourScheme = alignViewport
             .getGlobalColourScheme();
@@ -180,7 +178,7 @@ public class ConsensusThread extends AlignCalcWorker implements
   public void updateResultAnnotation(boolean immediate)
   {
     AlignmentAnnotation consensus = getConsensusAnnotation();
-    Hashtable[] hconsensus = getViewportConsensus();
+    ProfilesI hconsensus = (ProfilesI) getViewportConsensus();
     if (immediate || !calcMan.isWorking(this) && consensus != null
             && hconsensus != null)
     {
@@ -194,15 +192,18 @@ public class ConsensusThread extends AlignCalcWorker implements
    * 
    * @param consensusAnnotation
    *          the annotation to be populated
-   * @param consensusData
+   * @param hconsensus
    *          the computed consensus data
    */
   protected void deriveConsensus(AlignmentAnnotation consensusAnnotation,
-          Hashtable[] consensusData)
+          ProfilesI hconsensus)
   {
+
     long nseq = getSequences().length;
-    AAFrequency.completeConsensus(consensusAnnotation, consensusData, 0,
-            consensusData.length, alignViewport.isIgnoreGapsConsensus(),
+    AAFrequency.completeConsensus(consensusAnnotation, hconsensus,
+            hconsensus.getStartColumn(),
+            hconsensus.getEndColumn() + 1,
+            alignViewport.isIgnoreGapsConsensus(),
             alignViewport.isShowSequenceLogo(), nseq);
   }
 
@@ -211,8 +212,9 @@ public class ConsensusThread extends AlignCalcWorker implements
    * 
    * @return
    */
-  protected Hashtable[] getViewportConsensus()
+  protected Object getViewportConsensus()
   {
+    // TODO convert ComplementConsensusThread to use Profile
     return alignViewport.getSequenceConsensusHash();
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -72,7 +72,7 @@ public class TextColourChooser
     final JPanel col2 = new JPanel();
     col2.setPreferredSize(new Dimension(40, 20));
     col2.setBorder(BorderFactory.createEtchedBorder());
-    col2.setToolTipText(MessageManager.getString("label.ligth_colour"));
+    col2.setToolTipText(MessageManager.getString("label.light_colour"));
     col2.setBackground(new Color(original2));
     final JPanel bigpanel = new JPanel(new BorderLayout());
     JPanel panel = new JPanel();
@@ -81,7 +81,7 @@ public class TextColourChooser
             new JLabel(
                     "<html>"
                             + MessageManager
-                                    .getString("label.select_dark_light_set_thereshold")
+                                    .getString("label.select_dark_light_set_threshold")
                             + "</html>"), BorderLayout.NORTH);
     panel.add(col1);
     panel.add(slider);
@@ -89,6 +89,7 @@ public class TextColourChooser
 
     col1.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         Color col = JColorChooser.showDialog(bigpanel,
@@ -104,6 +105,7 @@ public class TextColourChooser
 
     col2.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mousePressed(MouseEvent e)
       {
         Color col = JColorChooser.showDialog(bigpanel,
@@ -119,6 +121,7 @@ public class TextColourChooser
 
     slider.addChangeListener(new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
         thresholdChanged(slider.getValue());
@@ -130,7 +133,7 @@ public class TextColourChooser
                     ap,
                     bigpanel,
                     MessageManager
-                            .getString("label.adjunst_foreground_text_colour_thereshold"),
+                            .getString("label.adjunst_foreground_text_colour_threshold"),
                     JOptionPane.OK_CANCEL_OPTION,
                     JOptionPane.QUESTION_MESSAGE, null, null, null);
 

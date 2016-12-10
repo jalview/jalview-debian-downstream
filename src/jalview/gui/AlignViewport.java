@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -18,24 +18,6 @@
  * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
-/*
- * Jalview - A Sequence Alignment Editor and Viewer
- * Copyright (C) 2007 AM Waterhouse, J Procter, G Barton, M Clamp, S Searle
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
- */
 package jalview.gui;
 
 import jalview.analysis.AlignmentUtils;
@@ -43,6 +25,9 @@ import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
 import jalview.analysis.NJTree;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
+import jalview.api.FeatureColourI;
+import jalview.api.FeatureSettingsModelI;
+import jalview.api.FeaturesDisplayedI;
 import jalview.api.ViewStyleI;
 import jalview.bin.Cache;
 import jalview.commands.CommandI;
@@ -52,6 +37,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
@@ -72,7 +58,6 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Set;
 import java.util.Vector;
 
 import javax.swing.JInternalFrame;
@@ -417,10 +402,11 @@ public class AlignViewport extends AlignmentViewport implements
    * @param align
    *          DOCUMENT ME!
    */
+  @Override
   public void setAlignment(AlignmentI align)
   {
     replaceMappings(align);
-    this.alignment = align;
+    super.setAlignment(align);
   }
 
   /**
@@ -461,7 +447,7 @@ public class AlignViewport extends AlignmentViewport implements
     AlignmentI al = getAlignment();
     if (al != null)
     {
-      Set<AlignedCodonFrame> mappings = al.getCodonFrames();
+      List<AlignedCodonFrame> mappings = al.getCodonFrames();
       if (mappings != null)
       {
         StructureSelectionManager ssm = StructureSelectionManager
@@ -482,6 +468,7 @@ public class AlignViewport extends AlignmentViewport implements
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public char getGapCharacter()
   {
     return getAlignment().getGapCharacter();
@@ -499,16 +486,6 @@ public class AlignViewport extends AlignmentViewport implements
     {
       getAlignment().setGapCharacter(gap);
     }
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public ColumnSelection getColumnSelection()
-  {
-    return colSel;
   }
 
   /**
@@ -617,6 +594,7 @@ public class AlignViewport extends AlignmentViewport implements
   /**
    * Send the current selection to be broadcast to any selection listeners.
    */
+  @Override
   public void sendSelection()
   {
     jalview.structure.StructureSelectionManager
@@ -658,39 +636,6 @@ public class AlignViewport extends AlignmentViewport implements
   }
 
   /**
-   * synthesize a column selection if none exists so it covers the given
-   * selection group. if wholewidth is false, no column selection is made if the
-   * selection group covers the whole alignment width.
-   * 
-   * @param sg
-   * @param wholewidth
-   */
-  public void expandColSelection(SequenceGroup sg, boolean wholewidth)
-  {
-    int sgs, sge;
-    if (sg != null
-            && (sgs = sg.getStartRes()) >= 0
-            && sg.getStartRes() <= (sge = sg.getEndRes())
-            && (colSel == null || colSel.getSelected() == null || colSel
-                    .getSelected().size() == 0))
-    {
-      if (!wholewidth && alignment.getWidth() == (1 + sge - sgs))
-      {
-        // do nothing
-        return;
-      }
-      if (colSel == null)
-      {
-        colSel = new ColumnSelection();
-      }
-      for (int cspos = sg.getStartRes(); cspos <= sg.getEndRes(); cspos++)
-      {
-        colSel.addElement(cspos);
-      }
-    }
-  }
-
-  /**
    * Returns the (Desktop) instance of the StructureSelectionManager
    */
   @Override
@@ -711,31 +656,49 @@ public class AlignViewport extends AlignmentViewport implements
     List<SequenceI[]> seqvectors = new ArrayList<SequenceI[]>();
     for (PDBEntry pdb : pdbEntries)
     {
-      List<SequenceI> seqs = new ArrayList<SequenceI>();
+      List<SequenceI> choosenSeqs = new ArrayList<SequenceI>();
       for (SequenceI sq : alignment.getSequences())
       {
-        Vector<PDBEntry> pdbs = sq.getDatasetSequence().getAllPDBEntries();
-        if (pdbs == null)
+        Vector<PDBEntry> pdbRefEntries = sq.getDatasetSequence()
+                .getAllPDBEntries();
+        if (pdbRefEntries == null)
         {
           continue;
         }
-        for (PDBEntry p1 : pdbs)
+        for (PDBEntry pdbRefEntry : pdbRefEntries)
         {
-          if (p1.getId().equals(pdb.getId()))
+          if (pdbRefEntry.getId().equals(pdb.getId()))
           {
-            if (!seqs.contains(sq))
+            if (pdbRefEntry.getChainCode() != null
+                    && pdb.getChainCode() != null)
             {
-              seqs.add(sq);
-              continue;
+              if (pdbRefEntry.getChainCode().equalsIgnoreCase(
+                      pdb.getChainCode())
+                      && !choosenSeqs.contains(sq))
+              {
+                choosenSeqs.add(sq);
+                continue;
+              }
             }
+            else
+            {
+              if (!choosenSeqs.contains(sq))
+              {
+                choosenSeqs.add(sq);
+                continue;
+              }
+            }
+
           }
         }
       }
-      seqvectors.add(seqs.toArray(new SequenceI[seqs.size()]));
+      seqvectors
+              .add(choosenSeqs.toArray(new SequenceI[choosenSeqs.size()]));
     }
     return seqvectors.toArray(new SequenceI[seqvectors.size()][]);
   }
 
+  @Override
   public boolean isNormaliseSequenceLogo()
   {
     return normaliseSequenceLogo;
@@ -750,6 +713,7 @@ public class AlignViewport extends AlignmentViewport implements
    * 
    * @return true if alignment characters should be displayed
    */
+  @Override
   public boolean isValidCharWidth()
   {
     return validCharWidth;
@@ -825,10 +789,10 @@ public class AlignViewport extends AlignmentViewport implements
    * may give the user the option to open a new frame, or split panel, with cDNA
    * and protein linked.
    * 
-   * @param al
+   * @param toAdd
    * @param title
    */
-  public void addAlignment(AlignmentI al, String title)
+  public void addAlignment(AlignmentI toAdd, String title)
   {
     // TODO: promote to AlignViewportI? applet CutAndPasteTransfer is different
 
@@ -841,25 +805,26 @@ public class AlignViewport extends AlignmentViewport implements
     // TODO: create undo object for this JAL-1101
 
     /*
-     * If any cDNA/protein mappings can be made between the alignments, offer to
-     * open a linked alignment with split frame option.
+     * Ensure datasets are created for the new alignment as
+     * mappings operate on dataset sequences
+     */
+    toAdd.setDataset(null);
+
+    /*
+     * Check if any added sequence could be the object of a mapping or
+     * cross-reference; if so, make the mapping explicit 
+     */
+    getAlignment().realiseMappings(toAdd.getSequences());
+
+    /*
+     * If any cDNA/protein mappings exist or can be made between the alignments, 
+     * offer to open a split frame with linked alignments
      */
     if (Cache.getDefault(Preferences.ENABLE_SPLIT_FRAME, true))
     {
-      if (al.getDataset() == null)
+      if (AlignmentUtils.isMappable(toAdd, getAlignment()))
       {
-        // need to create ds seqs
-        for (SequenceI sq : al.getSequences())
-        {
-          if (sq.getDatasetSequence() == null)
-          {
-            sq.createDatasetSequence();
-          }
-        }
-      }
-      if (AlignmentUtils.isMappable(al, getAlignment()))
-      {
-        if (openLinkedAlignment(al, title))
+        if (openLinkedAlignment(toAdd, title))
         {
           return;
         }
@@ -872,9 +837,22 @@ public class AlignViewport extends AlignmentViewport implements
     // TODO: JAL-407 regardless of above - identical sequences (based on ID and
     // provenance) should share the same dataset sequence
 
-    for (int i = 0; i < al.getHeight(); i++)
+    AlignmentI al = getAlignment();
+    String gap = String.valueOf(al.getGapCharacter());
+    for (int i = 0; i < toAdd.getHeight(); i++)
     {
-      getAlignment().addSequence(al.getSequenceAt(i));
+      SequenceI seq = toAdd.getSequenceAt(i);
+      /*
+       * experimental!
+       * - 'align' any mapped sequences as per existing 
+       *    e.g. cdna to genome, domain hit to protein sequence
+       * very experimental! (need a separate menu option for this)
+       * - only add mapped sequences ('select targets from a dataset')
+       */
+      if (true /*AlignmentUtils.alignSequenceAs(seq, al, gap, true, true)*/)
+      {
+        al.addSequence(seq);
+      }
     }
 
     setEndSeq(getAlignment().getHeight());
@@ -926,7 +904,7 @@ public class AlignViewport extends AlignmentViewport implements
      * is a pre-requisite for building mappings.
      */
     al.setDataset(null);
-    AlignmentUtils.mapProteinToCdna(protein, cdna);
+    AlignmentUtils.mapProteinAlignmentToCdna(protein, cdna);
 
     /*
      * Create the AlignFrame for the added alignment. If it is protein, mappings
@@ -1065,14 +1043,14 @@ public class AlignViewport extends AlignmentViewport implements
      * there is no complement, or it is not following highlights, or no mapping
      * is found, the result will be empty.
      */
-    SearchResults sr = new SearchResults();
+    SearchResultsI sr = new SearchResults();
     int verticalOffset = findComplementScrollTarget(sr);
     if (!sr.isEmpty())
     {
       // TODO would like next line without cast but needs more refactoring...
       final AlignmentPanel complementPanel = ((AlignViewport) getCodingComplement())
               .getAlignPanel();
-      complementPanel.setFollowingComplementScroll(true);
+      complementPanel.setDontScrollComplement(true);
       complementPanel.scrollToCentre(sr, verticalOffset);
     }
   }
@@ -1105,6 +1083,70 @@ public class AlignViewport extends AlignmentViewport implements
       }
     }
     return true;
+  }
+
+  /**
+   * Applies the supplied feature settings descriptor to currently known
+   * features. This supports an 'initial configuration' of feature colouring
+   * based on a preset or user favourite. This may then be modified in the usual
+   * way using the Feature Settings dialogue.
+   * 
+   * @param featureSettings
+   */
+  @Override
+  public void applyFeaturesStyle(FeatureSettingsModelI featureSettings)
+  {
+    if (featureSettings == null)
+    {
+      return;
+    }
+
+    FeatureRenderer fr = getAlignPanel().getSeqPanel().seqCanvas
+            .getFeatureRenderer();
+    fr.findAllFeatures(true);
+    List<String> renderOrder = fr.getRenderOrder();
+    FeaturesDisplayedI displayed = fr.getFeaturesDisplayed();
+    displayed.clear();
+    // TODO this clears displayed.featuresRegistered - do we care?
+
+    /*
+     * set feature colour if specified by feature settings
+     * set visibility of all features
+     */
+    for (String type : renderOrder)
+    {
+      FeatureColourI preferredColour = featureSettings
+              .getFeatureColour(type);
+      if (preferredColour != null)
+      {
+        fr.setColour(type, preferredColour);
+      }
+      if (featureSettings.isFeatureDisplayed(type))
+      {
+        displayed.setVisible(type);
+      }
+    }
+
+    /*
+     * set visibility of feature groups
+     */
+    for (String group : fr.getFeatureGroups())
+    {
+      fr.setGroupVisibility(group, featureSettings.isGroupDisplayed(group));
+    }
+
+    /*
+     * order the features
+     */
+    if (featureSettings.optimiseOrder())
+    {
+      // TODO not supported (yet?)
+    }
+    else
+    {
+      fr.orderFeatures(featureSettings);
+    }
+    fr.setTransparency(featureSettings.getTransparency());
   }
 
 }

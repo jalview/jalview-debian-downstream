@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,11 +20,10 @@
  */
 package jalview.ws.seqfetcher;
 
+import jalview.api.FeatureSettingsModelI;
 import jalview.datamodel.AlignmentI;
 import jalview.io.FormatAdapter;
 import jalview.io.IdentifyFile;
-
-import java.util.Hashtable;
 
 /**
  * common methods for implementations of the DbSourceProxy interface.
@@ -34,50 +33,21 @@ import java.util.Hashtable;
  */
 public abstract class DbSourceProxyImpl implements DbSourceProxy
 {
-  public DbSourceProxyImpl()
-  {
-    // default constructor - do nothing probably.
-  }
-
-  private Hashtable props = null;
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.DbSourceProxy#getDbSourceProperties()
-   */
-  public Hashtable getDbSourceProperties()
-  {
-    if (props == null)
-    {
-      props = new Hashtable();
-    }
-    return props;
-  }
-
-  protected void addDbSourceProperty(Object propname)
-  {
-    addDbSourceProperty(propname, propname);
-  }
-
-  protected void addDbSourceProperty(Object propname, Object propvalue)
-  {
-    if (props == null)
-    {
-      props = new Hashtable();
-    }
-    props.put(propname, propvalue);
-  }
 
   boolean queryInProgress = false;
 
   protected StringBuffer results = null;
+
+  public DbSourceProxyImpl()
+  {
+  }
 
   /*
    * (non-Javadoc)
    * 
    * @see jalview.ws.DbSourceProxy#getRawRecords()
    */
+  @Override
   public StringBuffer getRawRecords()
   {
     return results;
@@ -88,6 +58,7 @@ public abstract class DbSourceProxyImpl implements DbSourceProxy
    * 
    * @see jalview.ws.DbSourceProxy#queryInProgress()
    */
+  @Override
   public boolean queryInProgress()
   {
     return queryInProgress;
@@ -121,7 +92,7 @@ public abstract class DbSourceProxyImpl implements DbSourceProxy
   protected AlignmentI parseResult(String result) throws Exception
   {
     AlignmentI sequences = null;
-    String format = new IdentifyFile().Identify(result, "Paste");
+    String format = new IdentifyFile().identify(result, "Paste");
     if (FormatAdapter.isValidFormat(format))
     {
       sequences = new FormatAdapter().readFile(result.toString(), "Paste",
@@ -130,11 +101,58 @@ public abstract class DbSourceProxyImpl implements DbSourceProxy
     return sequences;
   }
 
+  /**
+   * Returns the first accession id in the query (up to the first accession id
+   * separator), or the whole query if there is no separator or it is not found
+   */
   @Override
-  public boolean isA(Object dbsourceproperty)
+  public String getAccessionIdFromQuery(String query)
   {
-    assert (dbsourceproperty != null);
-    return (props == null) ? false : props.containsKey(dbsourceproperty);
+    String sep = getAccessionSeparator();
+    if (sep == null)
+    {
+      return query;
+    }
+    int sepPos = query.indexOf(sep);
+    return sepPos == -1 ? query : query.substring(0, sepPos);
   }
 
+  /**
+   * Default is only one accession id per query - override if more are allowed.
+   */
+  @Override
+  public int getMaximumQueryCount()
+  {
+    return 1;
+  }
+
+  /**
+   * Returns false - override to return true for DNA coding data sources
+   */
+  @Override
+  public boolean isDnaCoding()
+  {
+    return false;
+  }
+
+  /**
+   * Answers false - override as required in subclasses
+   */
+  @Override
+  public boolean isAlignmentSource()
+  {
+    return false;
+  }
+
+  @Override
+  public String getDescription()
+  {
+    return "";
+  }
+
+  @Override
+  public FeatureSettingsModelI getFeatureColourScheme()
+  {
+    return null;
+  }
 }

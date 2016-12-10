@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -34,23 +34,48 @@ import java.util.Set;
 
 public class AlignCalcManager implements AlignCalcManagerI
 {
-  private volatile List<AlignCalcWorkerI> restartable = Collections
-          .synchronizedList(new ArrayList<AlignCalcWorkerI>());
+  /*
+   * list of registered workers
+   */
+  private volatile List<AlignCalcWorkerI> restartable;
 
-  private volatile List<Class> blackList = Collections
-          .synchronizedList(new ArrayList<Class>());
+  /*
+   * types of worker _not_ to run (for example, because they have
+   * previously thrown errors)
+   */
+  private volatile List<Class<? extends AlignCalcWorkerI>> blackList;
 
-  /**
+  /*
    * global record of calculations in progress
    */
-  private volatile Map<Class, AlignCalcWorkerI> inProgress = Collections
-          .synchronizedMap(new Hashtable<Class, AlignCalcWorkerI>());
+  private volatile List<AlignCalcWorkerI> inProgress;
 
-  /**
+  /*
    * record of calculations pending or in progress in the current context
    */
-  private volatile Map<Class, List<AlignCalcWorkerI>> updating = Collections
-          .synchronizedMap(new Hashtable<Class, List<AlignCalcWorkerI>>());
+  private volatile Map<Class<? extends AlignCalcWorkerI>, List<AlignCalcWorkerI>> updating;
+
+  /*
+   * workers that have run to completion so are candidates for visual-only 
+   * update of their results
+   */
+  private HashSet<AlignCalcWorkerI> canUpdate;
+
+  /**
+   * Constructor
+   */
+  public AlignCalcManager()
+  {
+    restartable = Collections
+            .synchronizedList(new ArrayList<AlignCalcWorkerI>());
+    blackList = Collections
+            .synchronizedList(new ArrayList<Class<? extends AlignCalcWorkerI>>());
+    inProgress = Collections
+            .synchronizedList(new ArrayList<AlignCalcWorkerI>());
+    updating = Collections
+            .synchronizedMap(new Hashtable<Class<? extends AlignCalcWorkerI>, List<AlignCalcWorkerI>>());
+    canUpdate = new HashSet<AlignCalcWorkerI>();
+  }
 
   @Override
   public void notifyStart(AlignCalcWorkerI worker)
@@ -69,15 +94,6 @@ public class AlignCalcManager implements AlignCalcManagerI
       {
         upd.add(worker);
       }
-    }
-  }
-
-  @Override
-  public boolean alreadyDoing(AlignCalcWorkerI worker)
-  {
-    synchronized (inProgress)
-    {
-      return inProgress.containsKey(worker.getClass());
     }
   }
 
@@ -108,52 +124,30 @@ public class AlignCalcManager implements AlignCalcManagerI
     }
   }
 
-  // TODO make into api method if needed ?
-  public int numberLive(AlignCalcWorkerI worker)
-  {
-    synchronized (updating)
-    {
-      List<AlignCalcWorkerI> upd = updating.get(worker.getClass());
-      if (upd == null)
-      {
-        return 0;
-      }
-      ;
-      return upd.size();
-    }
-  }
-
   @Override
   public boolean notifyWorking(AlignCalcWorkerI worker)
   {
     synchronized (inProgress)
     {
-      // TODO: decide if we should throw exceptions here if multiple workers
-      // start to work
-      if (inProgress.get(worker.getClass()) != null)
+      if (inProgress.contains(worker))
       {
-        if (false)
-        {
-          System.err
-                  .println("Warning: Multiple workers are running of type "
-                          + worker.getClass());
-        }
-        return false;
+        return false; // worker is already working, so ask caller to wait around
       }
-      inProgress.put(worker.getClass(), worker);
+      else
+      {
+        inProgress.add(worker);
+      }
     }
     return true;
   }
-
-  private final HashSet<AlignCalcWorkerI> canUpdate = new HashSet<AlignCalcWorkerI>();
 
   @Override
   public void workerComplete(AlignCalcWorkerI worker)
   {
     synchronized (inProgress)
     {
-      // System.err.println("Worker "+worker.getClass()+" marked as complete.");
-      inProgress.remove(worker.getClass());
+      // System.err.println("Worker " + worker + " marked as complete.");
+      inProgress.remove(worker);
       List<AlignCalcWorkerI> upd = updating.get(worker.getClass());
       if (upd != null)
       {
@@ -167,7 +161,7 @@ public class AlignCalcManager implements AlignCalcManagerI
   }
 
   @Override
-  public void workerCannotRun(AlignCalcWorkerI worker)
+  public void disableWorker(AlignCalcWorkerI worker)
   {
     synchronized (blackList)
     {
@@ -175,22 +169,24 @@ public class AlignCalcManager implements AlignCalcManagerI
     }
   }
 
-  public boolean isBlackListed(Class workerType)
+  @Override
+  public boolean isDisabled(AlignCalcWorkerI worker)
   {
     synchronized (blackList)
     {
-      return blackList.contains(workerType);
+      return blackList.contains(worker.getClass());
     }
   }
 
   @Override
   public void startWorker(AlignCalcWorkerI worker)
   {
-    // System.err.println("Starting "+worker.getClass());
-    // new Exception("").printStackTrace();
-    Thread tw = new Thread(worker);
-    tw.setName(worker.getClass().toString());
-    tw.start();
+    if (!isDisabled(worker))
+    {
+      Thread tw = new Thread(worker);
+      tw.setName(worker.getClass().toString());
+      tw.start();
+    }
   }
 
   @Override
@@ -199,7 +195,7 @@ public class AlignCalcManager implements AlignCalcManagerI
     synchronized (inProgress)
     {// System.err.println("isWorking : worker "+(worker!=null ?
      // worker.getClass():"null")+ " "+hashCode());
-      return worker != null && inProgress.get(worker.getClass()) == worker;
+      return worker != null && inProgress.contains(worker);
     }
   }
 
@@ -243,7 +239,7 @@ public class AlignCalcManager implements AlignCalcManagerI
   {
     synchronized (inProgress)
     {
-      for (AlignCalcWorkerI worker : inProgress.values())
+      for (AlignCalcWorkerI worker : inProgress)
       {
         if (worker.involves(alignmentAnnotation))
         {
@@ -268,7 +264,8 @@ public class AlignCalcManager implements AlignCalcManagerI
   }
 
   @Override
-  public void updateAnnotationFor(Class workerClass)
+  public void updateAnnotationFor(
+          Class<? extends AlignCalcWorkerI> workerClass)
   {
 
     AlignCalcWorkerI[] workers;
@@ -287,62 +284,35 @@ public class AlignCalcManager implements AlignCalcManagerI
 
   @Override
   public List<AlignCalcWorkerI> getRegisteredWorkersOfClass(
-          Class workerClass)
+          Class<? extends AlignCalcWorkerI> workerClass)
   {
     List<AlignCalcWorkerI> workingClass = new ArrayList<AlignCalcWorkerI>();
-    AlignCalcWorkerI[] workers;
     synchronized (canUpdate)
     {
-      workers = canUpdate.toArray(new AlignCalcWorkerI[canUpdate.size()]);
-    }
-    for (AlignCalcWorkerI worker : workers)
-    {
-      if (workerClass.equals(worker.getClass()))
+      for (AlignCalcWorkerI worker : canUpdate)
       {
-        workingClass.add(worker);
+        if (workerClass.equals(worker.getClass()))
+        {
+          workingClass.add(worker);
+        }
       }
     }
     return (workingClass.size() == 0) ? null : workingClass;
   }
 
   @Override
-  public boolean startRegisteredWorkersOfClass(Class workerClass)
-  {
-    List<AlignCalcWorkerI> workers = getRegisteredWorkersOfClass(workerClass);
-    if (workers == null)
-    {
-      return false;
-    }
-    for (AlignCalcWorkerI worker : workers)
-    {
-      if (!isPending(worker))
-      {
-        startWorker(worker);
-      }
-      else
-      {
-        System.err.println("Pending exists for " + workerClass);
-      }
-    }
-    return true;
-  }
-
-  @Override
-  public void workerMayRun(AlignCalcWorkerI worker)
+  public void enableWorker(AlignCalcWorkerI worker)
   {
     synchronized (blackList)
     {
-      if (blackList.contains(worker.getClass()))
-      {
-        blackList.remove(worker.getClass());
-      }
+      blackList.remove(worker.getClass());
     }
   }
 
   @Override
-  public void removeRegisteredWorkersOfClass(Class typeToRemove)
+  public void removeRegisteredWorkersOfClass(
+          Class<? extends AlignCalcWorkerI> typeToRemove)
   {
-    List<AlignCalcWorkerI> workers = getRegisteredWorkersOfClass(typeToRemove);
     List<AlignCalcWorkerI> removable = new ArrayList<AlignCalcWorkerI>();
     Set<AlignCalcWorkerI> toremovannot = new HashSet<AlignCalcWorkerI>();
     synchronized (restartable)
@@ -381,5 +351,49 @@ public class AlignCalcManager implements AlignCalcManagerI
      * if (isPending(worker)) { worker.abortAndDestroy(); startWorker(worker); }
      * else { System.err.println("Pending exists for " + workerClass); } }
      */
+  }
+
+  /**
+   * Deletes the worker that update the given annotation, provided it is marked
+   * as deletable.
+   */
+  @Override
+  public void removeWorkerForAnnotation(AlignmentAnnotation ann)
+  {
+    /*
+     * first just find those to remove (to avoid
+     * ConcurrentModificationException)
+     */
+    List<AlignCalcWorkerI> toRemove = new ArrayList<AlignCalcWorkerI>();
+    for (AlignCalcWorkerI worker : restartable)
+    {
+      if (worker.involves(ann))
+      {
+        if (worker.isDeletable())
+        {
+          toRemove.add(worker);
+        }
+      }
+    }
+
+    /*
+     * remove all references to deleted workers so any references 
+     * they hold to annotation data can be garbage collected 
+     */
+    for (AlignCalcWorkerI worker : toRemove)
+    {
+      restartable.remove(worker);
+      blackList.remove(worker.getClass());
+      inProgress.remove(worker);
+      canUpdate.remove(worker);
+      synchronized (updating)
+      {
+        List<AlignCalcWorkerI> upd = updating.get(worker.getClass());
+        if (upd != null)
+        {
+          upd.remove(worker);
+        }
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -85,45 +85,6 @@ public abstract class AnnotationRowFilter extends Panel
 
   }
 
-  public Vector getAnnotationItems(boolean isSeqAssociated)
-  {
-    Vector list = new Vector();
-    int index = 1;
-    int[] anmap = new int[av.getAlignment().getAlignmentAnnotation().length];
-    for (int i = 0; i < av.getAlignment().getAlignmentAnnotation().length; i++)
-    {
-      if (av.getAlignment().getAlignmentAnnotation()[i].sequenceRef == null)
-      {
-        if (isSeqAssociated)
-        {
-          continue;
-        }
-      }
-      else
-      {
-        enableSeqAss = true;
-      }
-      String label = av.getAlignment().getAlignmentAnnotation()[i].label;
-      if (!list.contains(label))
-      {
-        anmap[list.size()] = i;
-        list.add(label);
-
-      }
-      else
-      {
-        if (!isSeqAssociated)
-        {
-          anmap[list.size()] = i;
-          list.add(label + "_" + (index++));
-        }
-      }
-    }
-    this.annmap = new int[list.size()];
-    System.arraycopy(anmap, 0, this.annmap, 0, this.annmap.length);
-    return list;
-  }
-
   protected int getSelectedThresholdItem(int indexValue)
   {
     int selectedThresholdItem = -1;
@@ -186,11 +147,11 @@ public abstract class AnnotationRowFilter extends Panel
   protected void populateThresholdComboBox(Choice threshold)
   {
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_no_thereshold"));
+            .getString("label.threshold_feature_no_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_above_thereshold"));
+            .getString("label.threshold_feature_above_threshold"));
     threshold.addItem(MessageManager
-            .getString("label.threshold_feature_below_thereshold"));
+            .getString("label.threshold_feature_below_threshold"));
   }
 
   public jalview.datamodel.AlignmentAnnotation getCurrentAnnotation()

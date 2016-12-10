@@ -1,7 +1,7 @@
 <html>
 <!--
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,10 +24,10 @@
 </head>
 <body>
   <p>
-    <strong>Viewing PDB Structures</strong>
+    <strong>Discovering and Viewing PDB Structures</strong>
   </p>
-  Jalview can be used to view protein structures by following the steps
-  below:
+  Jalview can be used to explore the 3D structures of sequences in an
+  alignment by following the steps below:
   <ol>
     <li>Select the <strong>"3D Structure Data..."</strong> option
       from a sequence's <a href="../menus/popupMenu.html">pop-up
@@ -40,30 +40,43 @@
           pane.
         </li>
         <li>However, if no structure was found, the <a
-          href="structurechooser.html"
-        >Structure Chooser</a> interface will present options for manual
-          association of PDB structures.
+          href="structurechooser.html">Structure Chooser</a> interface
+          will present options for manual association of PDB structures.
         </li>
       </ul>
     </li>
-    <li><strong>Selecting Structures</strong><br /> If structures
-      have been discovered, then some will already be selected according
-      to predefined selection criteria, such as structures with the
-      highest resolution. Use the drop down menu to select structures
-      according to different criteria, or, alternatively, choose
-      structures manually by selecting with the keyboard and mouse.
+    <li><strong>Selecting Structures</strong><br />You can select
+      the structures that you want to open and view by selecting them
+      with the mouse and keyboard.<br />By default, if structures were
+      discovered, then some will already be selected according to the
+      criteria shown in the drop-down menu. The default criteria is
+      'highest resolution', simply choose another to pick structures in
+      a different way.<br />
       <ul>
-        <li><strong>Viewing Cached Structures</strong><br />If you
-          have previously downloaded structures for your sequences, they
-          can be viewed by selecting the <strong>Cached PDB
-            Entries</strong> option from the drop down menu at the top of the
-          dialog box.</li>
+        <li><strong>Viewing Cached Structures</strong><br />If
+          previously downloaded structures are available for your
+          sequences, the structure chooser will automatically offer them
+          via the <strong>Cached PDB Entries</strong> view. If you wish
+          to download new structures, select one of the PDBe selection
+          criteria from the drop-down menu.</li>
       </ul></li>
-    <li>To view selected structures, click the <strong>"View"</strong>
-      button.
-    </li>
+    <li><strong>To view selected structures, click the <strong>"View"</strong>
+        button.
+    </strong><br />
+      <ul>
+        <li>Additional structure data will be downloaded with the
+          EMBL-EBI's dbfetch service</li>
+        <li><a href="siftsmapping.html">SIFTS</a> records will also
+          be downloaded for mapping UniProt protein sequence data to PDB
+          coordinates.</li>
+        <li>A new structure viewer will open, or you will be
+          prompted to add structures to existing viewers (see <a
+          href="#afterviewbutton">below</a> for details).
+        </li>
+      </ul></li>
   </ol>
-
+  <p>
+  <strong>Structure Viewers in the Jalview Desktop</strong><br/>
   The
   <a href="jmol.html">Jmol viewer</a> has been included since Jalview
   2.3. Jalview 2.8.2 included support for
@@ -77,10 +90,19 @@
     the <a href="xsspannotation.html">Annotation from Structure</a> page
     for more information.
   </p>
-
   <p>
-    If a <strong>single</strong> PDB structure is selected, one of the
-    following will happen:
+    <strong><a name="afterviewbutton">After pressing the
+        'View' button in the Structure Chooser</a></strong><br /> The behaviour of
+    the 'View' button depends on the number of structures selected, and
+    whether structure views already exist for the selected structures or
+    aligned sequences.
+  </p>
+  <p>
+    If multiple structures are selected, then Jalview will always create
+    a new structure view. The selected structures will be imported into
+    this view, and superposed with the matched positions from the
+    aligned sequences.<br /> If a <strong>single</strong> PDB structure
+    is selected, one of the following will happen:
   </p>
 
   <ul>
@@ -89,10 +111,10 @@
 
     <li>If another structure is already shown for the current
       alignment, then you will be asked if you want to add and <a
-      href="jmol.html#align"
-    >align this structure</a> to the structure in the existing view. (<em>new
-        feature in Jalview 2.6</em>).
-    </li>
+      href="jmol.html#align"></a> to
+    the structure in the existing view. (<em>new feature in Jalview
+      2.6</em>).
+  </li>
 
     <li>If the structure is already shown, then you will be
       prompted to associate the sequence with an existing view of the
@@ -107,14 +129,15 @@
 
 
   <p>
-    <strong>Importing PDB Entries or files in PDB format</strong><br>
-    You can retrieve sequences from the PDB using the <a
-      href="pdbsequencefetcher.html"
-    >Sequence Fetcher</a>. Any sequences retrieved with this service are
-    automatically associated with their source database entry. For PDB
-    sequences, simply select PDB as the database and enter your known
-    PDB id (appended with ':' and a chain code, if desired).<br>
-    Jalview will also read PDB files directly. Simply load in the file
+    <strong>Retrieving sequences from the PDB</strong><br>You can
+    retrieve sequences from the PDB using the <a
+      href="pdbsequencefetcher.html">Sequence Fetcher</a>. The sequences
+    retrieved with this service are derived directly from the PDB 3D
+    structure data, which can be viewed in the same way above. Secondary
+    structure and temperature factor annotation can also be added. <br />
+
+    <br>Jalview will also read PDB files directly - either in PDB
+    format, or <a href="mmcif.html">mmCIF</a>. Simply load in the file
     as you would an alignment file. The sequences of any protein or
     nucleotide chains will be extracted from the file and viewed in the
     alignment window.
@@ -129,8 +152,8 @@
     desktop, Jalview will give you the option of associating PDB files
     with sequences that have the same filename. This means, for example,
     you can automatically associate PDB files with names like '1gaq.pdb'
-    with sequences that have an ID like '1gaq'. <br />
-    <em>Note: This feature was added in Jalview 2.7</em>
+    with sequences that have an ID like '1gaq'. <br /> <em>Note:
+      This feature was added in Jalview 2.7</em>
   </p>
   <p>
     <em>Note for Jalview applet users:<br> Due to the applet
@@ -150,16 +173,31 @@
       Features"</strong> menu item and the <a href="featuresettings.html">Feature
       Settings dialog box</a>.
   </p>
+  <br />
+  <hr>
+  <p>
+    <strong>Switching between mmCIF and PDB format for
+      downloading files from the PDB</strong><br /> Jalview now employs the <a
+      href="mmcif.html">mmCIF format</a> for importing 3D structure data
+    from flat file and EMBL-PDBe web-service, as recommended by the
+    wwwPDB. If you prefer (for any reason) to download data as PDB files
+    instead, then first close Jalview, and add the following line to
+    your .jalview_properties file:<br />
+    <code> PDB_DOWNLOAD_FORMAT=PDB </code>
+    <br /> When this setting is configured, Jalview will only request
+    PDB format files from EMBL-EBI's PDBe.<br /> <em>mmCIF format
+      file support was added in Jalview 2.10.</em>
+  </p>
 
   <p>
     <em><strong>Outstanding problem with cut'n'pasted
-        files in Jalview 2.6 and Jalview 2.7</strong><br> Structures
-      imported via the cut'n'paste dialog box will not be correctly
-      highlighted or coloured when they are displayed in structure
-      views, especially if they contain more than one PDB structure. See
-      the bug report at http://issues.jalview.org/browse/JAL-623 for
-      news on this problem.</em>
+        files in Jalview 2.6 and Jalview 2.7</strong><br>Structures imported
+      via the cut'n'paste dialog box will not be correctly highlighted
+      or coloured when they are displayed in structure views, especially
+      if they contain more than one PDB structure. See the bug report at
+      http://issues.jalview.org/browse/JAL-623 for news on this problem.</em>
   </p>
+
 </body>
 </html>
 

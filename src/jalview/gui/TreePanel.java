@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -161,6 +161,7 @@ public class TreePanel extends GTreePanel
 
     av.addPropertyChangeListener(new java.beans.PropertyChangeListener()
     {
+      @Override
       public void propertyChange(PropertyChangeEvent evt)
       {
         if (evt.getPropertyName().equals("alignment"))
@@ -196,6 +197,7 @@ public class TreePanel extends GTreePanel
 
   }
 
+  @Override
   public void viewMenu_menuSelected()
   {
     buildAssociatedViewMenu();
@@ -231,6 +233,7 @@ public class TreePanel extends GTreePanel
       buttonGroup.add(item);
       item.addActionListener(new ActionListener()
       {
+        @Override
         public void actionPerformed(ActionEvent evt)
         {
           treeCanvas.applyToAllViews = false;
@@ -249,6 +252,7 @@ public class TreePanel extends GTreePanel
     itemf.setSelected(treeCanvas.applyToAllViews);
     itemf.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent evt)
       {
         treeCanvas.applyToAllViews = itemf.isSelected();
@@ -276,6 +280,7 @@ public class TreePanel extends GTreePanel
       }
     }
 
+    @Override
     public void run()
     {
 
@@ -389,6 +394,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void textbox_actionPerformed(ActionEvent e)
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
@@ -434,6 +440,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void saveAsNewick_actionPerformed(ActionEvent e)
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
@@ -474,12 +481,14 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void printMenu_actionPerformed(ActionEvent e)
   {
     // Putting in a thread avoids Swing painting problems
     treeCanvas.startPrinting();
   }
 
+  @Override
   public void originalSeqData_actionPerformed(ActionEvent e)
   {
     if (!tree.hasOriginalSequenceData())
@@ -511,8 +520,8 @@ public class TreePanel extends GTreePanel
     {
       // AlignmentOrder origorder = new AlignmentOrder(alAndColsel[0]);
 
-      Alignment al = new Alignment((SequenceI[]) alAndColsel[0]);
-      Alignment dataset = (av != null && av.getAlignment() != null) ? av
+      AlignmentI al = new Alignment((SequenceI[]) alAndColsel[0]);
+      AlignmentI dataset = (av != null && av.getAlignment() != null) ? av
               .getAlignment().getDataset() : null;
       if (dataset != null)
       {
@@ -547,6 +556,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void fitToWindow_actionPerformed(ActionEvent e)
   {
     treeCanvas.fitToWindow = fitToWindow.isSelected();
@@ -637,6 +647,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void font_actionPerformed(ActionEvent e)
   {
     if (treeCanvas == null)
@@ -666,6 +677,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void distanceMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setShowDistances(distanceMenu.isSelected());
@@ -677,6 +689,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void bootstrapMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setShowBootstrap(bootstrapMenu.isSelected());
@@ -688,6 +701,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void placeholdersMenu_actionPerformed(ActionEvent e)
   {
     treeCanvas.setMarkPlaceholders(placeholdersMenu.isSelected());
@@ -699,6 +713,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void epsTree_actionPerformed(ActionEvent e)
   {
     boolean accurateText = true;
@@ -772,6 +787,7 @@ public class TreePanel extends GTreePanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void pngTree_actionPerformed(ActionEvent e)
   {
     int width = treeCanvas.getWidth();
@@ -828,6 +844,7 @@ public class TreePanel extends GTreePanel
     tree.applyToNodes(new NodeTransformI()
     {
 
+      @Override
       public void transform(BinaryNode node)
       {
         if (node instanceof SequenceNode
@@ -840,7 +857,7 @@ public class TreePanel extends GTreePanel
           {
             // search dbrefs, features and annotation
             DBRefEntry[] refs = jalview.util.DBRefUtils.selectRefs(
-                    sq.getDBRef(),
+                    sq.getDBRefs(),
                     new String[] { labelClass.toUpperCase() });
             if (refs != null)
             {

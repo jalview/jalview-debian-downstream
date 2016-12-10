@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.9)
- * Copyright (C) 2015 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
+ * Copyright (C) 2016 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,13 +21,15 @@
 package jalview.gui;
 
 import jalview.api.AlignViewportI;
+import jalview.bin.Cache;
 import jalview.commands.EditCommand;
 import jalview.commands.EditCommand.Action;
 import jalview.commands.EditCommand.Edit;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResults;
-import jalview.datamodel.SearchResults.Match;
+import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
@@ -42,6 +44,7 @@ import jalview.structure.VamsasSource;
 import jalview.util.Comparison;
 import jalview.util.MappingUtils;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.BorderLayout;
@@ -54,11 +57,12 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 
 /**
@@ -121,7 +125,7 @@ public class SeqPanel extends JPanel implements MouseListener,
 
   private final SequenceAnnotationReport seqARep;
 
-  StringBuffer tooltipText = new StringBuffer();
+  StringBuilder tooltipText = new StringBuilder();
 
   String tmpString;
 
@@ -129,7 +133,7 @@ public class SeqPanel extends JPanel implements MouseListener,
 
   StructureSelectionManager ssm;
 
-  SearchResults lastSearchResults;
+  SearchResultsI lastSearchResults;
 
   /**
    * Creates a new SeqPanel object.
@@ -509,6 +513,7 @@ public class SeqPanel extends JPanel implements MouseListener,
 
   void insertNucAtCursor(boolean group, String nuc)
   {
+    // TODO not called - delete?
     groupEditing = group;
     startseq = seqCanvas.cursorY;
     lastres = seqCanvas.cursorX;
@@ -579,6 +584,13 @@ public class SeqPanel extends JPanel implements MouseListener,
     mouseDragging = false;
     mouseWheelPressed = false;
 
+    if (evt.isPopupTrigger()) // Windows: mouseReleased
+    {
+      showPopupMenu(evt);
+      evt.consume();
+      return;
+    }
+
     if (!editingSeqs)
     {
       doMouseReleasedDefineMode(evt);
@@ -599,19 +611,20 @@ public class SeqPanel extends JPanel implements MouseListener,
   {
     lastMousePress = evt.getPoint();
 
-    if (javax.swing.SwingUtilities.isMiddleMouseButton(evt))
+    if (SwingUtilities.isMiddleMouseButton(evt))
     {
       mouseWheelPressed = true;
       return;
     }
 
-    if (evt.isShiftDown() || evt.isAltDown() || evt.isControlDown())
+    boolean isControlDown = Platform.isControlDown(evt);
+    if (evt.isShiftDown() || isControlDown)
     {
-      if (evt.isAltDown() || evt.isControlDown())
+      editingSeqs = true;
+      if (isControlDown)
       {
         groupEditing = true;
       }
-      editingSeqs = true;
     }
     else
     {
@@ -664,7 +677,7 @@ public class SeqPanel extends JPanel implements MouseListener,
    * the start of the highlighted region.
    */
   @Override
-  public void highlightSequence(SearchResults results)
+  public void highlightSequence(SearchResultsI results)
   {
     if (results == null || results.equals(lastSearchResults))
     {
@@ -680,7 +693,7 @@ public class SeqPanel extends JPanel implements MouseListener,
        * 
        * @see AlignmentPanel#adjustmentValueChanged
        */
-      ap.setFollowingComplementScroll(true);
+      ap.setDontScrollComplement(true);
       if (ap.scrollToPosition(results, false))
       {
         seqCanvas.revalidate();
@@ -773,7 +786,7 @@ public class SeqPanel extends JPanel implements MouseListener,
       seqARep.appendFeatures(tooltipText, rpos, features,
               this.ap.getSeqPanel().seqCanvas.fr.getMinMax());
     }
-    if (tooltipText.length() == 6) // <html></html>
+    if (tooltipText.length() == 6) // <html>
     {
       setToolTipText(null);
       lastTooltip = null;
@@ -801,6 +814,7 @@ public class SeqPanel extends JPanel implements MouseListener,
    * 
    * @see javax.swing.JComponent#getToolTipLocation(java.awt.event.MouseEvent)
    */
+  @Override
   public Point getToolTipLocation(MouseEvent event)
   {
     int x = event.getX(), w = getWidth();
@@ -821,6 +835,21 @@ public class SeqPanel extends JPanel implements MouseListener,
   String lastTooltip;
 
   /**
+   * set when the current UI interaction has resulted in a change that requires
+   * overview shading to be recalculated. this could be changed to something
+   * more expressive that indicates what actually has changed, so selective
+   * redraws can be applied
+   */
+  private boolean needOverviewUpdate = false; // TODO: refactor to avcontroller
+
+  /**
+   * set if av.getSelectionGroup() refers to a group that is defined on the
+   * alignment view, rather than a transient selection
+   */
+  // private boolean editingDefinedGroup = false; // TODO: refactor to
+  // avcontroller or viewModel
+
+  /**
    * Set status message in alignment panel
    * 
    * @param sequence
@@ -839,7 +868,8 @@ public class SeqPanel extends JPanel implements MouseListener,
      * Sequence number (if known), and sequence name.
      */
     String seqno = seq == -1 ? "" : " " + (seq + 1);
-    text.append("Sequence" + seqno + " ID: " + sequence.getName());
+    text.append("Sequence").append(seqno).append(" ID: ")
+            .append(sequence.getName());
 
     String residue = null;
     /*
@@ -881,7 +911,7 @@ public class SeqPanel extends JPanel implements MouseListener,
    * 
    * @param results
    */
-  private void setStatusMessage(SearchResults results)
+  private void setStatusMessage(SearchResultsI results)
   {
     AlignmentI al = this.av.getAlignment();
     int sequenceIndex = al.findIndex(results);
@@ -890,7 +920,7 @@ public class SeqPanel extends JPanel implements MouseListener,
       return;
     }
     SequenceI ds = al.getSequenceAt(sequenceIndex).getDatasetSequence();
-    for (Match m : results.getResults())
+    for (SearchResultMatchI m : results.getResults())
     {
       SequenceI seq = m.getSequence();
       if (seq.getDatasetSequence() != null)
@@ -904,7 +934,7 @@ public class SeqPanel extends JPanel implements MouseListener,
          * Convert position in sequence (base 1) to sequence character array
          * index (base 0)
          */
-        int start = m.getStart() - 1;
+        int start = m.getStart() - m.getSequence().getStart();
         setStatusMessage(seq, start, sequenceIndex);
         return;
       }
@@ -1170,8 +1200,7 @@ public class SeqPanel extends JPanel implements MouseListener,
           {
             for (int j = 0; j < startres - lastres; j++)
             {
-              if (!jalview.util.Comparison.isGap(groupSeqs[g]
-                      .getCharAt(fixedRight - j)))
+              if (!Comparison.isGap(groupSeqs[g].getCharAt(fixedRight - j)))
               {
                 blank = false;
                 break;
@@ -1233,7 +1262,7 @@ public class SeqPanel extends JPanel implements MouseListener,
               continue;
             }
 
-            if (!jalview.util.Comparison.isGap(groupSeqs[g].getCharAt(j)))
+            if (!Comparison.isGap(groupSeqs[g].getCharAt(j)))
             {
               // Not a gap, block edit not valid
               endEditing();
@@ -1365,7 +1394,7 @@ public class SeqPanel extends JPanel implements MouseListener,
 
       for (blankColumn = fixedColumn; blankColumn > j; blankColumn--)
       {
-        if (jalview.util.Comparison.isGap(seq[s].getCharAt(blankColumn)))
+        if (Comparison.isGap(seq[s].getCharAt(blankColumn)))
         {
           // Theres a space, so break and insert the gap
           break;
@@ -1473,7 +1502,7 @@ public class SeqPanel extends JPanel implements MouseListener,
 
       if (features != null && features.size() > 0)
       {
-        SearchResults highlight = new SearchResults();
+        SearchResultsI highlight = new SearchResults();
         highlight.addResult(sequence, features.get(0).getBegin(), features
                 .get(0).getEnd());
         seqCanvas.highlightSearchResults(highlight);
@@ -1528,9 +1557,10 @@ public class SeqPanel extends JPanel implements MouseListener,
    */
   public void doMousePressedDefineMode(MouseEvent evt)
   {
-    int res = findRes(evt);
-    int seq = findSeq(evt);
+    final int res = findRes(evt);
+    final int seq = findSeq(evt);
     oldSeq = seq;
+    needOverviewUpdate = false;
 
     startWrapBlock = wrappedBlock;
 
@@ -1593,28 +1623,21 @@ public class SeqPanel extends JPanel implements MouseListener,
       }
 
       av.setSelectionGroup(stretchGroup);
-
     }
 
-    if (javax.swing.SwingUtilities.isRightMouseButton(evt))
+    if (evt.isPopupTrigger()) // Mac: mousePressed
     {
-      List<SequenceFeature> allFeatures = ap.getFeatureRenderer()
-              .findFeaturesAtRes(sequence.getDatasetSequence(),
-                      sequence.findPosition(res));
-      Vector links = new Vector();
-      for (SequenceFeature sf : allFeatures)
-      {
-        if (sf.links != null)
-        {
-          for (int j = 0; j < sf.links.size(); j++)
-          {
-            links.addElement(sf.links.elementAt(j));
-          }
-        }
-      }
+      showPopupMenu(evt);
+      return;
+    }
 
-      jalview.gui.PopupMenu pop = new jalview.gui.PopupMenu(ap, null, links);
-      pop.show(this, evt.getX(), evt.getY());
+    /*
+     * defer right-mouse click handling to mouseReleased on Windows
+     * (where isPopupTrigger() will answer true)
+     * NB isRightMouseButton is also true for Cmd-click on Mac
+     */
+    if (SwingUtilities.isRightMouseButton(evt) && !Platform.isAMac())
+    {
       return;
     }
 
@@ -1636,7 +1659,6 @@ public class SeqPanel extends JPanel implements MouseListener,
       sg.setEndRes(res);
       sg.addSequence(sequence, false);
       av.setSelectionGroup(sg);
-
       stretchGroup = sg;
 
       if (av.getConservationSelected())
@@ -1668,6 +1690,37 @@ public class SeqPanel extends JPanel implements MouseListener,
   }
 
   /**
+   * Build and show a pop-up menu at the right-click mouse position
+   * 
+   * @param evt
+   * @param res
+   * @param sequence
+   */
+  void showPopupMenu(MouseEvent evt)
+  {
+    final int res = findRes(evt);
+    final int seq = findSeq(evt);
+    SequenceI sequence = av.getAlignment().getSequenceAt(seq);
+    List<SequenceFeature> allFeatures = ap.getFeatureRenderer()
+            .findFeaturesAtRes(sequence.getDatasetSequence(),
+                    sequence.findPosition(res));
+    List<String> links = new ArrayList<String>();
+    for (SequenceFeature sf : allFeatures)
+    {
+      if (sf.links != null)
+      {
+        for (String link : sf.links)
+        {
+          links.add(link);
+        }
+      }
+    }
+
+    PopupMenu pop = new PopupMenu(ap, null, links);
+    pop.show(this, evt.getX(), evt.getY());
+  }
+
+  /**
    * DOCUMENT ME!
    * 
    * @param evt
@@ -1679,9 +1732,10 @@ public class SeqPanel extends JPanel implements MouseListener,
     {
       return;
     }
-
-    stretchGroup.recalcConservation(); // always do this - annotation has own
-                                       // state
+    // always do this - annotation has own state
+    // but defer colourscheme update until hidden sequences are passed in
+    boolean vischange = stretchGroup.recalcConservation(true);
+    needOverviewUpdate |= vischange && av.isSelectionDefinedGroup();
     if (stretchGroup.cs != null)
     {
       stretchGroup.cs.alignmentChanged(stretchGroup,
@@ -1699,8 +1753,8 @@ public class SeqPanel extends JPanel implements MouseListener,
       }
     }
     PaintRefresher.Refresh(this, av.getSequenceSetId());
-    ap.paintAlignment(true);
-
+    ap.paintAlignment(needOverviewUpdate);
+    needOverviewUpdate = false;
     changeEndRes = false;
     changeStartRes = false;
     stretchGroup = null;
@@ -1754,6 +1808,7 @@ public class SeqPanel extends JPanel implements MouseListener,
       if (res > (stretchGroup.getStartRes() - 1))
       {
         stretchGroup.setEndRes(res);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
     else if (changeStartRes)
@@ -1761,6 +1816,7 @@ public class SeqPanel extends JPanel implements MouseListener,
       if (res < (stretchGroup.getEndRes() + 1))
       {
         stretchGroup.setStartRes(res);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
 
@@ -1794,6 +1850,7 @@ public class SeqPanel extends JPanel implements MouseListener,
       if (stretchGroup.getSequences(null).contains(nextSeq))
       {
         stretchGroup.deleteSequence(seq, false);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
       else
       {
@@ -1803,6 +1860,7 @@ public class SeqPanel extends JPanel implements MouseListener,
         }
 
         stretchGroup.addSequence(nextSeq, false);
+        needOverviewUpdate |= av.isSelectionDefinedGroup();
       }
     }
 
@@ -1944,28 +2002,28 @@ public class SeqPanel extends JPanel implements MouseListener,
 
     // do we want to thread this ? (contention with seqsel and colsel locks, I
     // suspect)
-    // rules are: colsel is copied if there is a real intersection between
-    // sequence selection
+    /*
+     * only copy colsel if there is a real intersection between
+     * sequence selection and this panel's alignment
+     */
     boolean repaint = false;
-    boolean copycolsel = true;
+    boolean copycolsel = false;
 
     SequenceGroup sgroup = null;
     if (seqsel != null && seqsel.getSize() > 0)
     {
       if (av.getAlignment() == null)
       {
-        jalview.bin.Cache.log.warn("alignviewport av SeqSetId="
-                + av.getSequenceSetId() + " ViewId=" + av.getViewId()
+        Cache.log.warn("alignviewport av SeqSetId=" + av.getSequenceSetId()
+                + " ViewId=" + av.getViewId()
                 + " 's alignment is NULL! returning immediately.");
         return;
       }
       sgroup = seqsel.intersect(av.getAlignment(),
               (av.hasHiddenRows()) ? av.getHiddenRepSequences() : null);
-      if ((sgroup == null || sgroup.getSize() == 0)
-              || (colsel == null || colsel.size() == 0))
+      if ((sgroup != null && sgroup.getSize() > 0))
       {
-        // don't copy columns if the region didn't intersect.
-        copycolsel = false;
+        copycolsel = true;
       }
     }
     if (sgroup != null && sgroup.getSize() > 0)
@@ -1983,7 +2041,7 @@ public class SeqPanel extends JPanel implements MouseListener,
     {
       // the current selection is unset or from a previous message
       // so import the new colsel.
-      if (colsel == null || colsel.size() == 0)
+      if (colsel == null || colsel.isEmpty())
       {
         if (av.getColumnSelection() != null)
         {
@@ -2058,7 +2116,6 @@ public class SeqPanel extends JPanel implements MouseListener,
     ColumnSelection cs = MappingUtils.mapColumnSelection(colsel, sourceAv,
             av);
     av.setColumnSelection(cs);
-    av.isColSelChanged(true);
 
     PaintRefresher.Refresh(this, av.getSequenceSetId());
 
