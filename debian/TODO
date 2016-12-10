@@ -31,12 +31,6 @@ The following dependencies appear not to be in Debian:
     [javac] src/jalview/ext/htsjdk/HtsContigDb.java:27: error: package htsjdk.samtools.reference does not exist
     [javac] src/jalview/ext/htsjdk/HtsContigDb.java:28: error: package htsjdk.samtools.util does not exist
     [javac] src/jalview/ext/htsjdk/HtsContigDb.java:54: error: package htsjdk.samtools.reference does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:40: error: package org.biojava.nbio.ontology does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:41: error: package org.biojava.nbio.ontology does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:42: error: package org.biojava.nbio.ontology.Term does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:43: error: package org.biojava.nbio.ontology does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:44: error: package org.biojava.nbio.ontology.io does not exist
-    [javac] src/jalview/ext/so/SequenceOntology.java:45: error: package org.biojava.nbio.ontology.utils does not exist
     [javac] src/jalview/ext/varna/RnaModel.java:26: error: package fr.orsay.lri.varna.models.rna does not exist
     [javac] src/jalview/gui/AppVarna.java:52: error: package fr.orsay.lri.varna does not exist
     [javac] src/jalview/gui/AppVarna.java:53: error: package fr.orsay.lri.varna.exceptions does not exist

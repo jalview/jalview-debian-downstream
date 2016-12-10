@@ -23,7 +23,9 @@ DEB_JARS             := castor-xml commons-logging log4j-1.2 \
 	jswingreader miglayout /usr/share/icedtea-web/plugin.jar \
 	httpmime httpcore apache-mime4j-core httpclient jsearch-indexer \
 	json-simple servlet-api-3.1 jetty9-server javax.ws.rs-api \
-	jersey1-client slf4j-api groovy
+	jersey1-client slf4j-api groovy biojava4-ontology
+
+$(shell mkdir -p lib appletlib)
 
 
 ANT_OPTS             := -Dbuild.sysclasspath=last \
