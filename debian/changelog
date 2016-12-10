@@ -1,8 +1,14 @@
-jalview (2.7.dfsg-6) UNRELEASED; urgency=medium
+jalview (2.10.1.dfsg-1) UNRELEASED; urgency=medium
 
+  * Team upload.
+
+  [ Steffen Moeller ]
   * Reintroduced debian/upstream/edam file
 
- -- Steffen Moeller <moeller@debian.org>  Wed, 22 Jun 2016 21:33:44 +0200
+  [ Ximin Luo ]
+  * New upstream release.
+
+ -- Ximin Luo <infinity0@debian.org>  Sat, 10 Dec 2016 16:06:23 +0100
 
 jalview (2.7.dfsg-5) unstable; urgency=medium
 
