@@ -8,6 +8,9 @@ jalview (2.10.1.dfsg-1) UNRELEASED; urgency=medium
   [ Ximin Luo ]
   * New upstream release.
 
+  [ Andreas Tille ]
+  * d/rules: enforce LC_ALL=C.UTF-8 to cope with UTF-8 characters
+
  -- Ximin Luo <infinity0@debian.org>  Sat, 10 Dec 2016 16:06:23 +0100
 
 jalview (2.7.dfsg-5) unstable; urgency=medium

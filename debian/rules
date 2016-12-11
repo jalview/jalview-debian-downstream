@@ -2,6 +2,7 @@
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
+export LC_ALL=C.UTF-8
 
 VERSION = $(shell dpkg-parsechangelog | egrep '^Version' | \
 	sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
