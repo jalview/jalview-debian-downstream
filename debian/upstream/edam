@@ -22,9 +22,9 @@ scopes:
           - MSF
           - Pileup
           - nbrf/pir
-          #-pfam missing format, needs adding in EDAM
+        # -pfam missing format, needs adding in EDAM
           - BLC
-          #-jalview
+        # -jalview
     outputs:
       - data: Alignment
         formats:
@@ -36,10 +36,10 @@ scopes:
           - MSF
           - Pileup
           - nbrf/pir
-          #-pfam missing format, needs adding in EDAM
+        # -pfam missing format, needs adding in EDAM
           - BLC
-          #-jalview
+        # -jalview
           - png
-          #-imgmap HTML image map format, not in EDAM
+        # -imgmap HTML image map format, not in EDAM
           - EPS
           - svg
