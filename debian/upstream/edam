@@ -17,8 +17,8 @@ scopes:
         formats:
           - FASTA-aln
           - FASTA
-          - Stockholm
-          - Clustalw format
+          - Stockholm format
+          - ClustalW format
           - MSF
           - Pileup
           - nbrf/pir
@@ -29,17 +29,16 @@ scopes:
       - data: Alignment
         formats:
           - FASTA-aln
-          - FASTA-aln
           - FASTA
-          - Stockholm
-          - Clustalw format
+          - Stockholm format
+          - ClustalW format
           - MSF
           - Pileup
           - nbrf/pir
           # -pfam missing format, needs adding in EDAM
           - BLC
           # -jalview
-          - png
+          - PNG
           # -imgmap HTML image map format, not in EDAM
           - EPS
-          - svg
+          - SVG
