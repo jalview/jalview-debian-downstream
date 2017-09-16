@@ -1,0 +1,29 @@
+Reference:
+ - Author: >
+    Andrew M. Waterhouse and James B. Procter and David M. A. Martin and
+    Michèle Clamp and Geoffrey J. Barton
+   Year: 2009
+   Title: >
+    Jalview Version 2-a multiple sequence alignment editor and analysis workbench
+   Journal: Bioinformatics
+   Volume: 25
+   Pages: 1189-1191
+   DOI: 10.1093/bioinformatics/btp033
+   URL: https://academic.oup.com/bioinformatics/article-lookup/doi/10.1093/bioinformatics/btp033
+   PMID: 19151095
+ - Author: Peter V. Troshin and James B. Procter and and Geoffrey J. Barton
+   Year: 2011
+   Title: Java bioinformatics analysis web services for multiple sequence
+    alignment--JABAWS:MSA
+   Journal: Bioinformatics
+   Volume: 27
+   Pages: 2001-2002
+   DOI: 10.1093/bioinformatics/btr304
+   eprint: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129525/pdf/btr304.pdf
+Registry:
+- Name: bio.tools
+   Entry: jalview
+ - Name: RRID
+   Entry: SCR_006459
+ - Name: OMICtools
+   Entry: OMICS_00885

@@ -4,6 +4,9 @@ jalview (2.10.1.dfsg-1) UNRELEASED; urgency=medium
 
   [ Steffen Moeller ]
   * Reintroduced debian/upstream/edam file
+  * Created debian/upstream/metadata
+    - references to papers
+    - references to registries
 
   [ Ximin Luo ]
   * New upstream release.
