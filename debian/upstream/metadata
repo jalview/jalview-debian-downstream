@@ -4,12 +4,15 @@ Reference:
     Michèle Clamp and Geoffrey J. Barton
    Year: 2009
    Title: >
-    Jalview Version 2-a multiple sequence alignment editor and analysis workbench
+    Jalview Version 2-a multiple sequence alignment editor and analysis
+    workbench
    Journal: Bioinformatics
    Volume: 25
    Pages: 1189-1191
    DOI: 10.1093/bioinformatics/btp033
-   URL: https://academic.oup.com/bioinformatics/article-lookup/doi/10.1093/bioinformatics/btp033
+   URL: https://academic.oup.com/bioinformatics/article/25/9/1189/203460
+   ePrint: "https://academic.oup.com/bioinformatics/article-pdf/\
+    25/9/1189/526576/btp033.pdf"
    PMID: 19151095
  - Author: Peter V. Troshin and James B. Procter and and Geoffrey J. Barton
    Year: 2011
@@ -20,9 +23,10 @@ Reference:
    Pages: 2001-2002
    DOI: 10.1093/bioinformatics/btr304
    PMID: 21593132
-   eprint: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129525/pdf/btr304.pdf
+   URL: https://academic.oup.com/bioinformatics/article/27/14/2001/194517
+   ePrint: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3129525/pdf/btr304.pdf
 Registry:
-- Name: bio.tools
+ - Name: bio.tools
    Entry: jalview
  - Name: RRID
    Entry: SCR_006459
