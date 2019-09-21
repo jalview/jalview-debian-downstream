@@ -28,7 +28,9 @@ Reference:
 Registry:
  - Name: bio.tools
    Entry: jalview
- - Name: RRID
+ - Name: SciCrunch
    Entry: SCR_006459
  - Name: OMICtools
    Entry: OMICS_00885
+ - Name: conda:bioconda
+   Entry: jalview
