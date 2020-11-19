@@ -1,36 +1,9 @@
 #!/usr/bin/make -f
 
-# Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+include /usr/share/dpkg/default.mk
+
+export JAVA_HOME=/usr/lib/jvm/default-java
 export LC_ALL=C.UTF-8
 
-VERSION = $(shell dpkg-parsechangelog | egrep '^Version' | \
-	sed -r 's/Version:\s*//' | sed -r 's/^[0-9]+://' | \
-	sed -r 's/(\.dfsg)?-[0-9.]+//')
-
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/class/javahelper.mk
-include /usr/share/cdbs/1/class/ant.mk
-
-JAVA_HOME_DIRS       := /usr/lib/jvm/default-java
-ANT_HOME             := /usr/share/ant
-DEB_ANT_COMPILER     := modern
-DEB_BUILDDIR         := .
-DEB_ANT_CLEAN_TARGET := clean
-DEB_ANT_BUILD_TARGET := makedist
-DEB_JARS             := castor-xml commons-logging log4j-1.2 \
-	castor-core Jmol min-jaba-client axis-jaxrpc commons-discovery \
-	axis jh vamsas-client /usr/share/jmol-applet/JmolApplet.jar \
-	jswingreader miglayout /usr/share/icedtea-web/plugin.jar \
-	httpmime httpcore apache-mime4j-core httpclient jsearch-indexer \
-	json-simple servlet-api-3.1 jetty9-server javax.ws.rs-api \
-	jersey1-client slf4j-api groovy biojava4-ontology
-
-$(shell mkdir -p lib appletlib)
-
-
-ANT_OPTS             := -Dbuild.sysclasspath=last \
-	-DJALVIEW_VERSION=$(VERSION)
-
-clean::
-	rm -Rf dist
+%:
+	dh $@ --with gradle-debian-helper --with javahelper
