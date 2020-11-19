@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,16 +20,6 @@
  */
 package jalview.gui;
 
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.io.SequenceAnnotationReport;
-import jalview.util.MessageManager;
-import jalview.util.Platform;
-import jalview.util.UrlLink;
-import jalview.viewmodel.AlignmentViewport;
-
 import java.awt.BorderLayout;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -37,12 +27,22 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.List;
-import java.util.Vector;
 
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
+
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.gui.SeqPanel.MousePos;
+import jalview.io.SequenceAnnotationReport;
+import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.viewmodel.AlignmentViewport;
+import jalview.viewmodel.ViewportRanges;
 
 /**
  * This panel hosts alignment sequence ids and responds to mouse clicks on them,
@@ -51,8 +51,8 @@ import javax.swing.ToolTipManager;
  * @author $author$
  * @version $Revision$
  */
-public class IdPanel extends JPanel implements MouseListener,
-        MouseMotionListener, MouseWheelListener
+public class IdPanel extends JPanel
+        implements MouseListener, MouseMotionListener, MouseWheelListener
 {
   private IdCanvas idCanvas;
 
@@ -61,8 +61,6 @@ public class IdPanel extends JPanel implements MouseListener,
   protected AlignmentPanel alignPanel;
 
   ScrollThread scrollThread = null;
-
-  String linkImageURL;
 
   int offy;
 
@@ -84,8 +82,7 @@ public class IdPanel extends JPanel implements MouseListener,
     this.av = av;
     alignPanel = parent;
     setIdCanvas(new IdCanvas(av));
-    linkImageURL = getClass().getResource("/images/link.gif").toString();
-    seqAnnotReport = new SequenceAnnotationReport(linkImageURL);
+    seqAnnotReport = new SequenceAnnotationReport(true);
     setLayout(new BorderLayout());
     add(getIdCanvas(), BorderLayout.CENTER);
     addMouseListener(this);
@@ -95,26 +92,46 @@ public class IdPanel extends JPanel implements MouseListener,
   }
 
   /**
-   * Respond to mouse movement by constructing tooltip text for the sequence id
-   * under the mouse.
+   * Responds to mouse movement by setting tooltip text for the sequence id
+   * under the mouse (or possibly annotation label, when in wrapped mode)
    * 
    * @param e
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseMoved(MouseEvent e)
   {
     SeqPanel sp = alignPanel.getSeqPanel();
-    int seq = Math.max(0, sp.findSeq(e));
-    if (seq > -1 && seq < av.getAlignment().getHeight())
+    MousePos pos = sp.findMousePosition(e);
+    if (pos.isOverAnnotation())
     {
-      SequenceI sequence = av.getAlignment().getSequenceAt(seq);
-      StringBuilder tip = new StringBuilder(64);
-      seqAnnotReport.createTooltipAnnotationReport(tip, sequence,
-              av.isShowDBRefs(), av.isShowNPFeats(),
-              sp.seqCanvas.fr.getMinMax());
-      setToolTipText(JvSwingUtils.wrapTooltip(true,
-              sequence.getDisplayId(true) + " " + tip.toString()));
+      /*
+       * mouse is over an annotation label in wrapped mode
+       */
+      AlignmentAnnotation[] anns = av.getAlignment()
+              .getAlignmentAnnotation();
+      AlignmentAnnotation annotation = anns[pos.annotationIndex];
+      setToolTipText(AnnotationLabels.getTooltip(annotation));
+      alignPanel.alignFrame.setStatus(
+              AnnotationLabels.getStatusMessage(annotation, anns));
+    }
+    else
+    {
+      int seq = Math.max(0, pos.seqIndex);
+      if (seq < av.getAlignment().getHeight())
+      {
+        SequenceI sequence = av.getAlignment().getSequenceAt(seq);
+        StringBuilder tip = new StringBuilder(64);
+        tip.append(sequence.getDisplayId(true)).append(" ");
+        seqAnnotReport.createTooltipAnnotationReport(tip, sequence,
+                av.isShowDBRefs(), av.isShowNPFeats(), sp.seqCanvas.fr);
+        setToolTipText(JvSwingUtils.wrapTooltip(true, tip.toString()));
+
+        StringBuilder text = new StringBuilder();
+        text.append("Sequence ").append(String.valueOf(seq + 1))
+                .append(" ID: ")
+                .append(sequence.getName());
+        alignPanel.alignFrame.setStatus(text.toString());
+      }
     }
   }
 
@@ -129,7 +146,14 @@ public class IdPanel extends JPanel implements MouseListener,
   {
     mouseDragging = true;
 
-    int seq = Math.max(0, alignPanel.getSeqPanel().findSeq(e));
+    MousePos pos = alignPanel.getSeqPanel().findMousePosition(e);
+    if (pos.isOverAnnotation())
+    {
+      // mouse is over annotation label in wrapped mode
+      return;
+    }
+
+    int seq = Math.max(0, pos.seqIndex);
 
     if (seq < lastid)
     {
@@ -141,7 +165,7 @@ public class IdPanel extends JPanel implements MouseListener,
     }
 
     lastid = seq;
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -151,26 +175,27 @@ public class IdPanel extends JPanel implements MouseListener,
   public void mouseWheelMoved(MouseWheelEvent e)
   {
     e.consume();
-    if (e.getWheelRotation() > 0)
+    double wheelRotation = e.getPreciseWheelRotation();
+    if (wheelRotation > 0)
     {
       if (e.isShiftDown())
       {
-        alignPanel.scrollRight(true);
+        av.getRanges().scrollRight(true);
       }
       else
       {
-        alignPanel.scrollUp(false);
+        av.getRanges().scrollUp(false);
       }
     }
-    else
+    else if (wheelRotation < 0)
     {
       if (e.isShiftDown())
       {
-        alignPanel.scrollRight(false);
+        av.getRanges().scrollRight(false);
       }
       else
       {
-        alignPanel.scrollUp(true);
+        av.getRanges().scrollUp(true);
       }
     }
   }
@@ -199,65 +224,25 @@ public class IdPanel extends JPanel implements MouseListener,
       return;
     }
 
-    Vector links = Preferences.sequenceURLLinks;
-    if (links == null || links.size() < 1)
+    MousePos pos = alignPanel.getSeqPanel().findMousePosition(e);
+    int seq = pos.seqIndex;
+    if (pos.isOverAnnotation() || seq < 0)
     {
       return;
     }
 
-    int seq = alignPanel.getSeqPanel().findSeq(e);
-    String url = null;
-    int i = 0;
     String id = av.getAlignment().getSequenceAt(seq).getName();
-    while (url == null && i < links.size())
-    {
-      // DEFAULT LINK IS FIRST IN THE LINK LIST
-      // BUT IF ITS A REGEX AND DOES NOT MATCH THE NEXT ONE WILL BE TRIED
-      url = links.elementAt(i++).toString();
-      jalview.util.UrlLink urlLink = null;
-      try
-      {
-        urlLink = new UrlLink(url);
-      } catch (Exception foo)
-      {
-        jalview.bin.Cache.log.error("Exception for URLLink '" + url + "'",
-                foo);
-        url = null;
-        continue;
-      }
+    String url = Preferences.sequenceUrlLinks.getPrimaryUrl(id);
 
-      if (urlLink.usesDBAccession())
-      {
-        // this URL requires an accession id, not the name of a sequence
-        url = null;
-        continue;
-      }
-
-      if (!urlLink.isValid())
-      {
-        jalview.bin.Cache.log.error(urlLink.getInvalidMessage());
-        url = null;
-        continue;
-      }
-
-      String urls[] = urlLink.makeUrls(id, true);
-      if (urls == null || urls[0] == null || urls[0].length() < 4)
-      {
-        url = null;
-        continue;
-      }
-      // just take first URL made from regex
-      url = urls[1];
-    }
     try
     {
       jalview.util.BrowserLauncher.openURL(url);
     } catch (Exception ex)
     {
-      JOptionPane.showInternalMessageDialog(Desktop.desktop,
+      JvOptionPane.showInternalMessageDialog(Desktop.desktop,
               MessageManager.getString("label.web_browser_not_found_unix"),
               MessageManager.getString("label.web_browser_not_found"),
-              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.WARNING_MESSAGE);
       ex.printStackTrace();
     }
   }
@@ -273,7 +258,7 @@ public class IdPanel extends JPanel implements MouseListener,
   {
     if (scrollThread != null)
     {
-      scrollThread.running = false;
+      scrollThread.stopScrolling();
     }
   }
 
@@ -291,13 +276,14 @@ public class IdPanel extends JPanel implements MouseListener,
       return;
     }
 
-    if (mouseDragging && (e.getY() < 0) && (av.getStartSeq() > 0))
+    if (mouseDragging && (e.getY() < 0)
+            && (av.getRanges().getStartSeq() > 0))
     {
       scrollThread = new ScrollThread(true);
     }
 
     if (mouseDragging && (e.getY() >= getHeight())
-            && (av.getAlignment().getHeight() > av.getEndSeq()))
+            && (av.getAlignment().getHeight() > av.getRanges().getEndSeq()))
     {
       scrollThread = new ScrollThread(false);
     }
@@ -324,9 +310,11 @@ public class IdPanel extends JPanel implements MouseListener,
       return;
     }
 
+    MousePos pos = alignPanel.getSeqPanel().findMousePosition(e);
+    
     if (e.isPopupTrigger()) // Mac reports this in mousePressed
     {
-      showPopupMenu(e);
+      showPopupMenu(e, pos);
       return;
     }
 
@@ -341,27 +329,26 @@ public class IdPanel extends JPanel implements MouseListener,
     }
 
     if ((av.getSelectionGroup() == null)
-            || (!jalview.util.Platform.isControlDown(e) && !e.isShiftDown() && av
-                    .getSelectionGroup() != null))
+            || (!jalview.util.Platform.isControlDown(e) && !e.isShiftDown()
+                    && av.getSelectionGroup() != null))
     {
       av.setSelectionGroup(new SequenceGroup());
       av.getSelectionGroup().setStartRes(0);
       av.getSelectionGroup().setEndRes(av.getAlignment().getWidth() - 1);
     }
 
-    int seq = alignPanel.getSeqPanel().findSeq(e);
     if (e.isShiftDown() && (lastid != -1))
     {
-      selectSeqs(lastid, seq);
+      selectSeqs(lastid, pos.seqIndex);
     }
     else
     {
-      selectSeq(seq);
+      selectSeq(pos.seqIndex);
     }
 
     av.isSelectionGroupChanged(true);
 
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -369,33 +356,52 @@ public class IdPanel extends JPanel implements MouseListener,
    * 
    * @param e
    */
-  void showPopupMenu(MouseEvent e)
+  void showPopupMenu(MouseEvent e, MousePos pos)
   {
-    int seq2 = alignPanel.getSeqPanel().findSeq(e);
-    Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq2);
-    // build a new links menu based on the current links + any non-positional
-    // features
-    Vector<String> nlinks = new Vector<String>(Preferences.sequenceURLLinks);
-    SequenceFeature sfs[] = sq == null ? null : sq.getSequenceFeatures();
-    if (sfs != null)
+    if (pos.isOverAnnotation())
     {
-      for (SequenceFeature sf : sfs)
-      {
-        if (sf.begin == sf.end && sf.begin == 0)
-        {
-          if (sf.links != null && sf.links.size() > 0)
-          {
-            for (int l = 0, lSize = sf.links.size(); l < lSize; l++)
-            {
-              nlinks.addElement(sf.links.elementAt(l));
-            }
-          }
-        }
-      }
+      showAnnotationMenu(e, pos);
+      return;
     }
 
-    PopupMenu pop = new PopupMenu(alignPanel, sq, nlinks,
-            Preferences.getGroupURLLinks());
+    Sequence sq = (Sequence) av.getAlignment().getSequenceAt(pos.seqIndex);
+    if (sq != null)
+    {
+      PopupMenu pop = new PopupMenu(alignPanel, sq,
+              Preferences.getGroupURLLinks());
+      pop.show(this, e.getX(), e.getY());
+    }
+  }
+
+  /**
+   * On right mouse click on a Consensus annotation label, shows a limited popup
+   * menu, with options to configure the consensus calculation and rendering.
+   * 
+   * @param e
+   * @param pos
+   * @see AnnotationLabels#showPopupMenu(MouseEvent)
+   */
+  void showAnnotationMenu(MouseEvent e, MousePos pos)
+  {
+    if (pos.annotationIndex == -1)
+    {
+      return;
+    }
+    AlignmentAnnotation[] anns = this.av.getAlignment()
+            .getAlignmentAnnotation();
+    if (anns == null || pos.annotationIndex >= anns.length)
+    {
+      return;
+    }
+    AlignmentAnnotation ann = anns[pos.annotationIndex];
+    if (!ann.label.contains("Consensus"))
+    {
+      return;
+    }
+
+    JPopupMenu pop = new JPopupMenu(
+            MessageManager.getString("label.annotations"));
+    AnnotationLabels.addConsensusMenuOptions(this.alignPanel, ann, pop);
     pop.show(this, e.getX(), e.getY());
   }
 
@@ -409,7 +415,7 @@ public class IdPanel extends JPanel implements MouseListener,
     lastid = seq;
 
     SequenceI pickedSeq = av.getAlignment().getSequenceAt(seq);
-    av.getSelectionGroup().addOrRemove(pickedSeq, true);
+    av.getSelectionGroup().addOrRemove(pickedSeq, false);
   }
 
   /**
@@ -443,8 +449,8 @@ public class IdPanel extends JPanel implements MouseListener,
 
     for (int i = start; i <= end; i++)
     {
-      av.getSelectionGroup().addSequence(
-              av.getAlignment().getSequenceAt(i), i == end);
+      av.getSelectionGroup().addSequence(av.getAlignment().getSequenceAt(i),
+              false);
     }
   }
 
@@ -459,8 +465,9 @@ public class IdPanel extends JPanel implements MouseListener,
   {
     if (scrollThread != null)
     {
-      scrollThread.running = false;
+      scrollThread.stopScrolling();
     }
+    MousePos pos = alignPanel.getSeqPanel().findMousePosition(e);
 
     mouseDragging = false;
     PaintRefresher.Refresh(this, av.getSequenceSetId());
@@ -469,7 +476,7 @@ public class IdPanel extends JPanel implements MouseListener,
 
     if (e.isPopupTrigger()) // Windows reports this in mouseReleased
     {
-      showPopupMenu(e);
+      showPopupMenu(e, pos);
     }
   }
 
@@ -483,7 +490,7 @@ public class IdPanel extends JPanel implements MouseListener,
   {
     getIdCanvas().setHighlighted(list);
 
-    if (list == null)
+    if (list == null || list.isEmpty())
     {
       return;
     }
@@ -491,9 +498,10 @@ public class IdPanel extends JPanel implements MouseListener,
     int index = av.getAlignment().findIndex(list.get(0));
 
     // do we need to scroll the panel?
-    if ((av.getStartSeq() > index) || (av.getEndSeq() < index))
+    if ((av.getRanges().getStartSeq() > index)
+            || (av.getRanges().getEndSeq() < index))
     {
-      alignPanel.setScrollValues(av.getStartRes(), index);
+      av.getRanges().setStartSeq(index);
     }
   }
 
@@ -507,24 +515,42 @@ public class IdPanel extends JPanel implements MouseListener,
     this.idCanvas = idCanvas;
   }
 
-  // this class allows scrolling off the bottom of the visible alignment
+  /**
+   * Performs scrolling of the visible alignment up or down, adding newly
+   * visible sequences to the current selection
+   */
   class ScrollThread extends Thread
   {
-    boolean running = false;
+    private boolean running = false;
 
-    boolean up = true;
+    private boolean up;
 
+    /**
+     * Constructor for a thread that scrolls either up or down
+     * 
+     * @param up
+     */
     public ScrollThread(boolean up)
     {
       this.up = up;
+      setName("IdPanel$ScrollThread$" + String.valueOf(up));
       start();
     }
 
+    /**
+     * Sets a flag to stop the scrolling
+     */
     public void stopScrolling()
     {
       running = false;
     }
 
+    /**
+     * Scrolls the alignment either up or down, one row at a time, adding newly
+     * visible sequences to the current selection. Speed is limited to a maximum
+     * of ten rows per second. The thread exits when the end of the alignment is
+     * reached or a flag is set to stop it.
+     */
     @Override
     public void run()
     {
@@ -532,33 +558,24 @@ public class IdPanel extends JPanel implements MouseListener,
 
       while (running)
       {
-        if (alignPanel.scrollUp(up))
+        ViewportRanges ranges = IdPanel.this.av.getRanges();
+        if (ranges.scrollUp(up))
         {
-          // scroll was ok, so add new sequence to selection
-          int seq = av.getStartSeq();
+          int toSeq = up ? ranges.getStartSeq() : ranges.getEndSeq();
+          int fromSeq = toSeq < lastid ? lastid - 1 : lastid + 1;
+          IdPanel.this.selectSeqs(fromSeq, toSeq);
 
-          if (!up)
-          {
-            seq = av.getEndSeq();
-          }
-
-          if (seq < lastid)
-          {
-            selectSeqs(lastid - 1, seq);
-          }
-          else if (seq > lastid)
-          {
-            selectSeqs(lastid + 1, seq);
-          }
-
-          lastid = seq;
+          lastid = toSeq;
         }
         else
         {
+          /*
+           * scroll did nothing - reached limit of visible alignment
+           */
           running = false;
         }
 
-        alignPanel.paintAlignment(false);
+        alignPanel.paintAlignment(false, false);
 
         try
         {

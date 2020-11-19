@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,30 +21,29 @@
 package jalview.ws;
 
 import jalview.analysis.AlignSeq;
+import jalview.api.FeatureSettingsModelI;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.DBRefSource;
 import jalview.datamodel.Mapping;
-import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.gui.CutAndPasteTransfer;
-import jalview.gui.DasSourceBrowser;
 import jalview.gui.Desktop;
 import jalview.gui.FeatureSettings;
 import jalview.gui.IProgressIndicator;
 import jalview.gui.OOMWarning;
 import jalview.util.DBRefUtils;
 import jalview.util.MessageManager;
-import jalview.ws.dbsources.das.api.jalviewSourceI;
-import jalview.ws.dbsources.das.datamodel.DasSequenceSource;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -61,6 +60,8 @@ import uk.ac.ebi.www.picr.AccessionMappingService.AccessionMapperServiceLocator;
 public class DBRefFetcher implements Runnable
 {
   private static final String NEWLINE = System.lineSeparator();
+
+  public static final String TRIM_RETRIEVED_SEQUENCES = "TRIM_FETCHED_DATASET_SEQS";
 
   public interface FetchFinishedListenerI
   {
@@ -118,7 +119,7 @@ public class DBRefFetcher implements Runnable
           DbSourceProxy[] sources, FeatureSettings featureSettings,
           boolean isNucleotide)
   {
-    listeners = new ArrayList<FetchFinishedListenerI>();
+    listeners = new ArrayList<>();
     this.progressWindow = progressIndicatorFrame;
     alseqs = new SequenceI[seqs.length];
     SequenceI[] ds = new SequenceI[seqs.length];
@@ -140,7 +141,7 @@ public class DBRefFetcher implements Runnable
             .getSequenceFetcherSingleton(progressIndicatorFrame);
     // set default behaviour for transferring excess sequence data to the
     // dataset
-    trimDsSeqs = Cache.getDefault("TRIM_FETCHED_DATASET_SEQS", true);
+    trimDsSeqs = Cache.getDefault(TRIM_RETRIEVED_SEQUENCES, true);
     if (sources == null)
     {
       setDatabaseSources(featureSettings, isNucleotide);
@@ -164,23 +165,7 @@ public class DBRefFetcher implements Runnable
   {
     // af.featureSettings_actionPerformed(null);
     String[] defdb = null;
-    List<DbSourceProxy> selsources = new ArrayList<DbSourceProxy>();
-    Vector<jalviewSourceI> dasselsrc = (featureSettings != null) ? featureSettings
-            .getSelectedSources() : new DasSourceBrowser()
-            .getSelectedSources();
-
-    for (jalviewSourceI src : dasselsrc)
-    {
-      List<DbSourceProxy> sp = src.getSequenceSourceProxies();
-      if (sp != null)
-      {
-        selsources.addAll(sp);
-        if (sp.size() > 1)
-        {
-          Cache.log.debug("Added many Db Sources for :" + src.getTitle());
-        }
-      }
-    }
+    List<DbSourceProxy> selsources = new ArrayList<>();
     // select appropriate databases based on alignFrame context.
     if (forNucleotide)
     {
@@ -190,7 +175,7 @@ public class DBRefFetcher implements Runnable
     {
       defdb = DBRefSource.PROTEINDBS;
     }
-    List<DbSourceProxy> srces = new ArrayList<DbSourceProxy>();
+    List<DbSourceProxy> srces = new ArrayList<>();
     for (String ddb : defdb)
     {
       List<DbSourceProxy> srcesfordb = sfetcher.getSourceProxy(ddb);
@@ -231,29 +216,6 @@ public class DBRefFetcher implements Runnable
   public void addListener(FetchFinishedListenerI l)
   {
     listeners.add(l);
-  }
-
-  /**
-   * retrieve all the das sequence sources and add them to the list of db
-   * sources to retrieve from
-   */
-  public void appendAllDasSources()
-  {
-    if (dbSources == null)
-    {
-      dbSources = new DbSourceProxy[0];
-    }
-    // append additional sources
-    DbSourceProxy[] otherdb = sfetcher
-            .getDbSourceProxyInstances(DasSequenceSource.class);
-    if (otherdb != null && otherdb.length > 0)
-    {
-      DbSourceProxy[] newsrc = new DbSourceProxy[dbSources.length
-              + otherdb.length];
-      System.arraycopy(dbSources, 0, newsrc, 0, dbSources.length);
-      System.arraycopy(otherdb, 0, newsrc, dbSources.length, otherdb.length);
-      dbSources = newsrc;
-    }
   }
 
   /**
@@ -309,14 +271,14 @@ public class DBRefFetcher implements Runnable
       }
       else if (seqs == null)
       {
-        seqs = new Vector<SequenceI>();
+        seqs = new Vector<>();
         seqs.addElement(seq);
       }
 
     }
     else
     {
-      seqs = new Vector<SequenceI>();
+      seqs = new Vector<>();
       seqs.addElement(seq);
     }
 
@@ -331,9 +293,8 @@ public class DBRefFetcher implements Runnable
   {
     if (dbSources == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_must_init_dbsources"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_must_init_dbsources"));
     }
     running = true;
     long startTime = System.currentTimeMillis();
@@ -356,9 +317,12 @@ public class DBRefFetcher implements Runnable
       e.printStackTrace();
     }
 
-    Vector<SequenceI> sdataset = new Vector<SequenceI>(
+    Vector<SequenceI> sdataset = new Vector<>(
             Arrays.asList(dataset));
-    List<String> warningMessages = new ArrayList<String>();
+    List<String> warningMessages = new ArrayList<>();
+
+    // clear any old feature display settings recorded from past sessions
+    featureDisplaySettings = null;
 
     int db = 0;
     while (sdataset.size() > 0 && db < dbSources.length)
@@ -370,8 +334,8 @@ public class DBRefFetcher implements Runnable
       SequenceI[] currSeqs = new SequenceI[sdataset.size()];
       sdataset.copyInto(currSeqs);// seqs that are to be validated against
       // dbSources[db]
-      Vector<String> queries = new Vector<String>(); // generated queries curSeq
-      seqRefs = new Hashtable<String, Vector<SequenceI>>();
+      Vector<String> queries = new Vector<>(); // generated queries curSeq
+      seqRefs = new Hashtable<>();
 
       int seqIndex = 0;
 
@@ -398,8 +362,8 @@ public class DBRefFetcher implements Runnable
             String query = queries.elementAt(0);
             if (dbsource.isValidReference(query))
             {
-              queryString.append((numq == 0) ? "" : dbsource
-                      .getAccessionSeparator());
+              queryString.append(
+                      (numq == 0) ? "" : dbsource.getAccessionSeparator());
               queryString.append(query);
               numq++;
             }
@@ -426,19 +390,20 @@ public class DBRefFetcher implements Runnable
           }
           if (retrieved != null)
           {
-            transferReferences(sdataset, dbsource.getDbSource(), retrieved,
+            transferReferences(sdataset, dbsource, retrieved,
                     trimDsSeqs, warningMessages);
           }
         }
         else
         {
           // make some more strings for use as queries
-          for (int i = 0; (seqIndex < dataset.length) && (i < 50); seqIndex++, i++)
+          for (int i = 0; (seqIndex < dataset.length)
+                  && (i < 50); seqIndex++, i++)
           {
             SequenceI sequence = dataset[seqIndex];
-            DBRefEntry[] uprefs = DBRefUtils.selectRefs(
-                    sequence.getDBRefs(),
-                    new String[] { dbsource.getDbSource() }); // jalview.datamodel.DBRefSource.UNIPROT
+            DBRefEntry[] uprefs = DBRefUtils
+                    .selectRefs(sequence.getDBRefs(), new String[]
+                    { dbsource.getDbSource() }); // jalview.datamodel.DBRefSource.UNIPROT
             // });
             // check for existing dbrefs to use
             if (uprefs != null && uprefs.length > 0)
@@ -446,7 +411,8 @@ public class DBRefFetcher implements Runnable
               for (int j = 0; j < uprefs.length; j++)
               {
                 addSeqId(sequence, uprefs[j].getAccessionId());
-                queries.addElement(uprefs[j].getAccessionId().toUpperCase());
+                queries.addElement(
+                        uprefs[j].getAccessionId().toUpperCase());
               }
             }
             else
@@ -463,14 +429,13 @@ public class DBRefFetcher implements Runnable
                   // resolve the string against PICR to recover valid IDs
                   try
                   {
-                    presp = picrClient
-                            .getUPIForAccession(token, null,
-                                    picrClient.getMappedDatabaseNames(),
-                                    null, true);
+                    presp = picrClient.getUPIForAccession(token, null,
+                            picrClient.getMappedDatabaseNames(), null,
+                            true);
                   } catch (Exception e)
                   {
-                    System.err.println("Exception with Picr for '" + token
-                            + "'\n");
+                    System.err.println(
+                            "Exception with Picr for '" + token + "'\n");
                     e.printStackTrace();
                   }
                 }
@@ -482,8 +447,8 @@ public class DBRefFetcher implements Runnable
                     // present, and do a transferReferences
                     // otherwise transfer non sequence x-references directly.
                   }
-                  System.out
-                          .println("Validated ID against PICR... (for what its worth):"
+                  System.out.println(
+                          "Validated ID against PICR... (for what its worth):"
                                   + token);
                   addSeqId(sequence, token);
                   queries.addElement(token.toUpperCase());
@@ -491,7 +456,8 @@ public class DBRefFetcher implements Runnable
                 else
                 {
                   // if ()
-                  // System.out.println("Not querying source with token="+token+"\n");
+                  // System.out.println("Not querying source with
+                  // token="+token+"\n");
                   addSeqId(sequence, token);
                   queries.addElement(token.toUpperCase());
                 }
@@ -515,7 +481,8 @@ public class DBRefFetcher implements Runnable
       output.setText(sb.toString());
 
       Desktop.addInternalFrame(output,
-              MessageManager.getString("label.sequences_updated"), 600, 300);
+              MessageManager.getString("label.sequences_updated"), 600,
+              300);
       // The above is the dataset, we must now find out the index
       // of the viewed sequence
 
@@ -551,7 +518,8 @@ public class DBRefFetcher implements Runnable
    * @param warningMessages
    *          a list of messages to add to
    */
-  boolean transferReferences(Vector<SequenceI> sdataset, String dbSource,
+  boolean transferReferences(Vector<SequenceI> sdataset,
+          DbSourceProxy dbSourceProxy,
           AlignmentI retrievedAl, boolean trimDatasetSeqs,
           List<String> warningMessages)
   {
@@ -561,19 +529,21 @@ public class DBRefFetcher implements Runnable
       return false;
     }
 
+    String dbSource = dbSourceProxy.getDbName();
     boolean modified = false;
-    SequenceI[] retrieved = recoverDbSequences(retrievedAl
-            .getSequencesArray());
+    SequenceI[] retrieved = recoverDbSequences(
+            retrievedAl.getSequencesArray());
     SequenceI sequence = null;
 
     for (SequenceI retrievedSeq : retrieved)
     {
       // Work out which sequences this sequence matches,
       // taking into account all accessionIds and names in the file
-      Vector<SequenceI> sequenceMatches = new Vector<SequenceI>();
+      Vector<SequenceI> sequenceMatches = new Vector<>();
       // look for corresponding accession ids
-      DBRefEntry[] entryRefs = DBRefUtils.selectRefs(
-              retrievedSeq.getDBRefs(), new String[] { dbSource });
+      DBRefEntry[] entryRefs = DBRefUtils
+              .selectRefs(retrievedSeq.getDBRefs(), new String[]
+              { dbSource });
       if (entryRefs == null)
       {
         System.err
@@ -630,6 +600,10 @@ public class DBRefFetcher implements Runnable
        * seqs.elementAt(jj); if (!sequenceMatches.contains(sequence)) {
        * sequenceMatches.addElement(sequence); } } } }
        */
+      if (sequenceMatches.size() > 0)
+      {
+        addFeatureSettings(dbSourceProxy);
+      }
       // sequenceMatches now contains the set of all sequences associated with
       // the returned db record
       final String retrievedSeqString = retrievedSeq.getSequenceAsString();
@@ -650,8 +624,9 @@ public class DBRefFetcher implements Runnable
         final int sequenceStart = sequence.getStart();
 
         boolean remoteEnclosesLocal = false;
-        String nonGapped = AlignSeq.extractGaps("-. ",
-                sequence.getSequenceAsString()).toUpperCase();
+        String nonGapped = AlignSeq
+                .extractGaps("-. ", sequence.getSequenceAsString())
+                .toUpperCase();
         int absStart = entrySeq.indexOf(nonGapped);
         if (absStart == -1)
         {
@@ -681,10 +656,14 @@ public class DBRefFetcher implements Runnable
            * So create a mapping to the external entry from the matching region of 
            * the local sequence, and leave local start/end untouched. 
            */
-          mp = new Mapping(null, new int[] { sequenceStart + absStart,
-              sequenceStart + absStart + entrySeq.length() - 1 }, new int[]
-          { retrievedSeq.getStart(),
-              retrievedSeq.getStart() + entrySeq.length() - 1 }, 1, 1);
+          mp = new Mapping(null,
+                  new int[]
+                  { sequenceStart + absStart,
+                      sequenceStart + absStart + entrySeq.length() - 1 },
+                  new int[]
+                  { retrievedSeq.getStart(),
+                      retrievedSeq.getStart() + entrySeq.length() - 1 },
+                  1, 1);
           updateRefFrame = false;
         }
         else
@@ -697,28 +676,14 @@ public class DBRefFetcher implements Runnable
 
           if (updateRefFrame)
           {
-            SequenceFeature[] sfs = sequence.getSequenceFeatures();
-            if (sfs != null)
+            /*
+             * relocate existing sequence features by offset
+             */
+            int startShift = absStart - sequenceStart + 1;
+            if (startShift != 0)
             {
-              /*
-               * relocate existing sequence features by offset
-               */
-              int start = sequenceStart;
-              int end = sequence.getEnd();
-              int startShift = 1 - absStart - start;
-
-              if (startShift != 0)
-              {
-                for (SequenceFeature sf : sfs)
-                {
-                  if (sf.getBegin() >= start && sf.getEnd() <= end)
-                  {
-                    sf.setBegin(sf.getBegin() + startShift);
-                    sf.setEnd(sf.getEnd() + startShift);
-                    modified = true;
-                  }
-                }
-              }
+              modified |= sequence.getFeatures().shiftFeatures(1,
+                      startShift);
             }
           }
         }
@@ -741,8 +706,8 @@ public class DBRefFetcher implements Runnable
             sequence.setSequence(retrievedSeqString);
             modified = true;
             addWarningMessage(warningMessages,
-                    "Sequence for " + sequence.getName()
-                            + " expanded from " + retrievedSeq.getName());
+                    "Sequence for " + sequence.getName() + " expanded from "
+                            + retrievedSeq.getName());
           }
           if (sequence.getStart() != retrievedSeq.getStart())
           {
@@ -750,9 +715,9 @@ public class DBRefFetcher implements Runnable
             modified = true;
             if (absStart != sequenceStart)
             {
-              addWarningMessage(warningMessages, "Start/end position for "
-                      + sequence.getName() + " updated from "
-                      + retrievedSeq.getName());
+              addWarningMessage(warningMessages,
+                      "Start/end position for " + sequence.getName()
+                              + " updated from " + retrievedSeq.getName());
             }
           }
         }
@@ -768,9 +733,9 @@ public class DBRefFetcher implements Runnable
               sequence.setStart(absStart);
               sequence.setEnd(absEnd);
               modified = true;
-              addWarningMessage(warningMessages, "Start/end for "
-                      + sequence.getName() + " updated from "
-                      + retrievedSeq.getName());
+              addWarningMessage(warningMessages,
+                      "Start/end for " + sequence.getName()
+                              + " updated from " + retrievedSeq.getName());
             }
           }
           // search for alignment sequences to update coordinate frame for
@@ -778,16 +743,17 @@ public class DBRefFetcher implements Runnable
           {
             if (alseqs[alsq].getDatasetSequence() == sequence)
             {
-              String ngAlsq = AlignSeq.extractGaps("-. ",
-                      alseqs[alsq].getSequenceAsString()).toUpperCase();
+              String ngAlsq = AlignSeq
+                      .extractGaps("-. ",
+                              alseqs[alsq].getSequenceAsString())
+                      .toUpperCase();
               int oldstrt = alseqs[alsq].getStart();
               alseqs[alsq].setStart(sequence.getSequenceAsString()
-                      .toUpperCase().indexOf(ngAlsq)
-                      + sequence.getStart());
+                      .toUpperCase().indexOf(ngAlsq) + sequence.getStart());
               if (oldstrt != alseqs[alsq].getStart())
               {
-                alseqs[alsq].setEnd(ngAlsq.length()
-                        + alseqs[alsq].getStart() - 1);
+                alseqs[alsq].setEnd(
+                        ngAlsq.length() + alseqs[alsq].getStart() - 1);
                 modified = true;
               }
             }
@@ -801,13 +767,38 @@ public class DBRefFetcher implements Runnable
         // and remove it from the rest
         // TODO: decide if we should remove annotated sequence from set
         sdataset.remove(sequence);
-        // TODO: should we make a note of sequences that have received new DB
-        // ids, so we can query all enabled DAS servers for them ?
       }
     }
     return modified;
   }
 
+  Map<String, FeatureSettingsModelI> featureDisplaySettings = null;
+
+  private void addFeatureSettings(DbSourceProxy dbSourceProxy)
+  {
+    FeatureSettingsModelI fsettings = dbSourceProxy
+            .getFeatureColourScheme();
+    if (fsettings != null)
+    {
+      if (featureDisplaySettings == null)
+      {
+        featureDisplaySettings = new HashMap<>();
+      }
+      featureDisplaySettings.put(dbSourceProxy.getDbName(), fsettings);
+    }
+  }
+
+  /**
+   * 
+   * @return any feature settings associated with sources that have provided sequences
+   */
+  public List<FeatureSettingsModelI>getFeatureSettingsModels()
+  {
+    return featureDisplaySettings == null
+            ? Arrays.asList(new FeatureSettingsModelI[0])
+            : Arrays.asList(featureDisplaySettings.values()
+                    .toArray(new FeatureSettingsModelI[1]));
+  }
   /**
    * Adds the message to the list unless it already contains it
    * 
@@ -830,8 +821,9 @@ public class DBRefFetcher implements Runnable
    */
   private SequenceI[] recoverDbSequences(SequenceI[] sequencesArray)
   {
-    Vector<SequenceI> nseq = new Vector<SequenceI>();
-    for (int i = 0; sequencesArray != null && i < sequencesArray.length; i++)
+    Vector<SequenceI> nseq = new Vector<>();
+    for (int i = 0; sequencesArray != null
+            && i < sequencesArray.length; i++)
     {
       nseq.addElement(sequencesArray[i]);
       DBRefEntry[] dbr = sequencesArray[i].getDBRefs();

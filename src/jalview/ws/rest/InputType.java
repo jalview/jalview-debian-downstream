@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -130,13 +130,13 @@ public abstract class InputType
     {
       if (type == null)
       {
-        return new StringBody(utf8.encode(content).asCharBuffer()
-                .toString());
+        return new StringBody(
+                utf8.encode(content).asCharBuffer().toString());
       }
       else
       {
-        return new StringBody(utf8.encode(content).asCharBuffer()
-                .toString(), type, utf8);
+        return new StringBody(
+                utf8.encode(content).asCharBuffer().toString(), type, utf8);
       }
     } catch (Exception ex)
     {
@@ -307,9 +307,10 @@ public abstract class InputType
       {
         // TODO: revise architecture - this is counter intuitive - options with
         // different values to their names are actually parameters
-        rg = (arg.getValue().length() > 0) ? (arg.getValue().equals(
-                arg.getName()) ? arg.getName() : arg.getName() + "='"
-                + arg.getValue() + "'") : arg.getName();
+        rg = (arg.getValue().length() > 0)
+                ? (arg.getValue().equals(arg.getName()) ? arg.getName()
+                        : arg.getName() + "='" + arg.getValue() + "'")
+                : arg.getName();
       }
       if (rg.length() > 0)
       {
@@ -317,7 +318,8 @@ public abstract class InputType
       }
     }
     StringBuffer warnings;
-    if (!configureFromURLtokenString(urltoks, warnings = new StringBuffer()))
+    if (!configureFromURLtokenString(urltoks,
+            warnings = new StringBuffer()))
     {
       throw new InvalidArgumentException(warnings.toString());
     }
@@ -326,8 +328,8 @@ public abstract class InputType
   protected OptionI createMolTypeOption(String name, String descr,
           boolean req, molType curType, molType defType)
   {
-    return new Option(name, descr, req, defType == null ? ""
-            : defType.toString(),
+    return new Option(name, descr, req,
+            defType == null ? "" : defType.toString(),
             curType == null ? "" : curType.toString(),
             molType.toStringValues(), null);
   }

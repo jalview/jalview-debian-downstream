@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,9 @@
  */
 package jalview.ext.ensembl;
 
+import jalview.bin.Cache;
+import jalview.datamodel.DBRefSource;
+
 /**
  * A class to behave much like EnsemblGene but referencing the ensemblgenomes
  * domain and data
@@ -35,31 +38,30 @@ public class EnsemblGenomes extends EnsemblGene
    */
   public EnsemblGenomes()
   {
-    super(ENSEMBL_GENOMES_REST);
-  }
-
-  @Override
-  public boolean isGeneIdentifier(String query)
-  {
-    return true;
+    super();
+    setDomain(Cache.getDefault(ENSEMBL_GENOMES_BASEURL,
+            DEFAULT_ENSEMBL_GENOMES_BASEURL));
   }
 
   @Override
   public String getDbName()
   {
-    return "EnsemblGenomes";
+    return DBRefSource.ENSEMBLGENOMES;
   }
 
   @Override
   public String getTestQuery()
   {
-    return "DDB_G0283883";
+    /*
+     * Salmonella gene, Uniprot Q8Z9G6, EMBLCDS CAD01290
+     */
+    return "CAD01290";
   }
 
   @Override
   public String getDbSource()
   {
-    return "EnsemblGenomes";
+    return DBRefSource.ENSEMBLGENOMES;
   }
 
 }

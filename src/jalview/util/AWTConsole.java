@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -48,8 +48,8 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.io.PrintStream;
 
-public class AWTConsole extends WindowAdapter implements WindowListener,
-        ActionListener, Runnable
+public class AWTConsole extends WindowAdapter
+        implements WindowListener, ActionListener, Runnable
 {
   private Frame frame;
 

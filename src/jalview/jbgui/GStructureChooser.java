@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (Version 2.8.2)
- * Copyright (C) 2014 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,12 +29,15 @@ import jalview.fts.service.pdb.PDBFTSRestClient;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.Desktop;
 import jalview.gui.JvSwingUtils;
+import jalview.gui.StructureViewer;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
@@ -54,11 +57,14 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListCellRenderer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
@@ -66,93 +72,19 @@ import javax.swing.event.DocumentListener;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.table.TableColumn;
 
+import net.miginfocom.swing.MigLayout;
+
 @SuppressWarnings("serial")
 /**
- * GUI layout for structure chooser 
+ * GUI layout for structure chooser
+ * 
  * @author tcnofoegbu
  *
  */
-public abstract class GStructureChooser extends JPanel implements
-        ItemListener
+public abstract class GStructureChooser extends JPanel
+        implements ItemListener
 {
-  protected JPanel statusPanel = new JPanel();
-
-  public JLabel statusBar = new JLabel();
-
-  private JPanel pnl_actionsAndStatus = new JPanel(new BorderLayout());
-
-  protected String frameTitle = MessageManager
-          .getString("label.structure_chooser");
-
-  protected JInternalFrame mainFrame = new JInternalFrame(frameTitle);
-
-  protected JComboBox<FilterOption> cmb_filterOption = new JComboBox<FilterOption>();
-
-  protected AlignmentPanel ap;
-
-  protected StringBuilder errorWarning = new StringBuilder();
-
-  protected JLabel lbl_result = new JLabel(
-          MessageManager.getString("label.select"));
-
-  protected JButton btn_view = new JButton();
-
-  protected JButton btn_cancel = new JButton();
-
-  protected JButton btn_pdbFromFile = new JButton();
-
-  protected JTextField txt_search = new JTextField(14);
-
-  private JPanel pnl_actions = new JPanel();
-
-  private JPanel pnl_main = new JPanel();
-
-  private JPanel pnl_idInput = new JPanel(new FlowLayout());
-
-  private JPanel pnl_fileChooser = new JPanel(new FlowLayout());
-
-  private JPanel pnl_idInputBL = new JPanel(new BorderLayout());
-
-  private JPanel pnl_fileChooserBL = new JPanel(new BorderLayout());
-
-  private JPanel pnl_locPDB = new JPanel(new BorderLayout());
-
-  protected JPanel pnl_switchableViews = new JPanel(new CardLayout());
-
-  protected CardLayout layout_switchableViews = (CardLayout) (pnl_switchableViews
-          .getLayout());
-
-  private BorderLayout mainLayout = new BorderLayout();
-
-  protected JCheckBox chk_rememberSettings = new JCheckBox(
-          MessageManager.getString("label.dont_ask_me_again"));
-
-  protected JCheckBox chk_invertFilter = new JCheckBox(
-          MessageManager.getString("label.invert"));
-
-  protected ImageIcon loadingImage = new ImageIcon(getClass().getResource(
-          "/images/loading.gif"));
-
-  protected ImageIcon goodImage = new ImageIcon(getClass().getResource(
-          "/images/good.png"));
-
-  protected ImageIcon errorImage = new ImageIcon(getClass().getResource(
-          "/images/error.png"));
-
-  protected ImageIcon warningImage = new ImageIcon(getClass().getResource(
-          "/images/warning.gif"));
-
-  protected JLabel lbl_warning = new JLabel(warningImage);
-
-  protected JLabel lbl_loading = new JLabel(loadingImage);
-
-  protected JLabel lbl_pdbManualFetchStatus = new JLabel(errorImage);
-
-  protected JLabel lbl_fromFileStatus = new JLabel(errorImage);
-
-  protected AssciateSeqPanel idInputAssSeqPanel = new AssciateSeqPanel();
-
-  protected AssciateSeqPanel fileChooserAssSeqPanel = new AssciateSeqPanel();
+  private static final Font VERDANA_12 = new Font("Verdana", 0, 12);
 
   protected static final String VIEWS_FILTER = "VIEWS_FILTER";
 
@@ -160,11 +92,70 @@ public abstract class GStructureChooser extends JPanel implements
 
   protected static final String VIEWS_ENTER_ID = "VIEWS_ENTER_ID";
 
+  /*
+   * 'cached' structure view
+   */
   protected static final String VIEWS_LOCAL_PDB = "VIEWS_LOCAL_PDB";
 
-  protected JTable tbl_local_pdb = new JTable();
+  protected JPanel statusPanel = new JPanel();
 
-  protected JScrollPane scrl_localPDB = new JScrollPane(tbl_local_pdb);
+  public JLabel statusBar = new JLabel();
+
+  protected String frameTitle = MessageManager
+          .getString("label.structure_chooser");
+
+  protected JInternalFrame mainFrame = new JInternalFrame(frameTitle);
+
+  protected JComboBox<FilterOption> cmb_filterOption = new JComboBox<>();
+
+  protected AlignmentPanel ap;
+
+  protected StringBuilder errorWarning = new StringBuilder();
+
+  protected JButton btn_add;
+
+  protected JButton btn_newView;
+
+  protected JButton btn_pdbFromFile = new JButton();
+
+  protected JCheckBox chk_superpose = new JCheckBox(
+          MessageManager.getString("label.superpose_structures"));
+
+  protected JTextField txt_search = new JTextField(14);
+
+  protected JPanel pnl_switchableViews = new JPanel(new CardLayout());
+
+  protected CardLayout layout_switchableViews = (CardLayout) (pnl_switchableViews
+          .getLayout());
+
+  protected JCheckBox chk_invertFilter = new JCheckBox(
+          MessageManager.getString("label.invert"));
+
+  protected ImageIcon loadingImage = new ImageIcon(
+          getClass().getResource("/images/loading.gif"));
+
+  protected ImageIcon goodImage = new ImageIcon(
+          getClass().getResource("/images/good.png"));
+
+  protected ImageIcon errorImage = new ImageIcon(
+          getClass().getResource("/images/error.png"));
+
+  protected ImageIcon warningImage = new ImageIcon(
+          getClass().getResource("/images/warning.gif"));
+
+  protected JLabel lbl_loading = new JLabel(loadingImage);
+
+  protected JLabel lbl_pdbManualFetchStatus = new JLabel(errorImage);
+
+  protected JLabel lbl_fromFileStatus = new JLabel(errorImage);
+
+  protected AssociateSeqPanel idInputAssSeqPanel = new AssociateSeqPanel();
+
+  protected AssociateSeqPanel fileChooserAssSeqPanel = new AssociateSeqPanel();
+
+  protected JComboBox<StructureViewer> targetView = new JComboBox<>();
+
+  protected JTable tbl_local_pdb = new JTable();
 
   protected JTabbedPane pnl_filter = new JTabbedPane();
 
@@ -174,7 +165,7 @@ public abstract class GStructureChooser extends JPanel implements
 
   protected FTSDataColumnI[] previousWantedFields;
 
-  protected static Map<String, Integer> tempUserPrefs = new HashMap<String, Integer>();
+  protected static Map<String, Integer> tempUserPrefs = new HashMap<>();
 
   private JTable tbl_summary = new JTable()
   {
@@ -245,15 +236,14 @@ public abstract class GStructureChooser extends JPanel implements
         // e.printStackTrace();
       }
       toolTipText = (toolTipText == null ? null
-              : (toolTipText.length() > 500 ? JvSwingUtils.wrapTooltip(
-                      true, "\"" + toolTipText.subSequence(0, 500)
-                              + "...\"") : JvSwingUtils.wrapTooltip(true,
-                      toolTipText)));
+              : (toolTipText.length() > 500
+                      ? JvSwingUtils.wrapTooltip(true,
+                              "\"" + toolTipText.subSequence(0, 500)
+                                      + "...\"")
+                      : JvSwingUtils.wrapTooltip(true, toolTipText)));
       return toolTipText;
     }
   };
-
-  protected JScrollPane scrl_foundStructures = new JScrollPane(tbl_summary);
 
   public GStructureChooser()
   {
@@ -276,9 +266,11 @@ public abstract class GStructureChooser extends JPanel implements
    */
   private void jbInit() throws Exception
   {
-    Integer width = tempUserPrefs.get("structureChooser.width") == null ? 800
+    Integer width = tempUserPrefs.get("structureChooser.width") == null
+            ? 800
             : tempUserPrefs.get("structureChooser.width");
-    Integer height = tempUserPrefs.get("structureChooser.height") == null ? 400
+    Integer height = tempUserPrefs.get("structureChooser.height") == null
+            ? 400
             : tempUserPrefs.get("structureChooser.height");
     tbl_summary.setAutoCreateRowSorter(true);
     tbl_summary.getTableHeader().setReorderingAllowed(false);
@@ -308,9 +300,9 @@ public abstract class GStructureChooser extends JPanel implements
           mainFrame.dispose();
           break;
         case KeyEvent.VK_ENTER: // enter key
-          if (btn_view.isEnabled())
+          if (btn_add.isEnabled())
           {
-            ok_ActionPerformed();
+            add_ActionPerformed();
           }
           break;
         case KeyEvent.VK_TAB: // tab key
@@ -320,7 +312,7 @@ public abstract class GStructureChooser extends JPanel implements
           }
           else
           {
-            btn_view.requestFocus();
+            btn_add.requestFocus();
           }
           evt.consume();
           break;
@@ -329,6 +321,30 @@ public abstract class GStructureChooser extends JPanel implements
         }
       }
     });
+
+    JButton btn_cancel = new JButton(
+            MessageManager.getString("action.cancel"));
+    btn_cancel.setFont(VERDANA_12);
+    btn_cancel.addActionListener(new java.awt.event.ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        closeAction(pnl_filter.getHeight());
+      }
+    });
+    btn_cancel.addKeyListener(new KeyAdapter()
+    {
+      @Override
+      public void keyPressed(KeyEvent evt)
+      {
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER)
+        {
+          closeAction(pnl_filter.getHeight());
+        }
+      }
+    });
+
     tbl_local_pdb.setAutoCreateRowSorter(true);
     tbl_local_pdb.getTableHeader().setReorderingAllowed(false);
     tbl_local_pdb.addMouseListener(new MouseAdapter()
@@ -357,9 +373,9 @@ public abstract class GStructureChooser extends JPanel implements
           mainFrame.dispose();
           break;
         case KeyEvent.VK_ENTER: // enter key
-          if (btn_view.isEnabled())
+          if (btn_add.isEnabled())
           {
-            ok_ActionPerformed();
+            add_ActionPerformed();
           }
           break;
         case KeyEvent.VK_TAB: // tab key
@@ -369,9 +385,9 @@ public abstract class GStructureChooser extends JPanel implements
           }
           else
           {
-            if (btn_view.isEnabled())
+            if (btn_add.isEnabled())
             {
-              btn_view.requestFocus();
+              btn_add.requestFocus();
             }
             else
             {
@@ -385,51 +401,52 @@ public abstract class GStructureChooser extends JPanel implements
         }
       }
     });
-    btn_view.setFont(new java.awt.Font("Verdana", 0, 12));
-    btn_view.setText(MessageManager.getString("action.view"));
-    btn_view.addActionListener(new java.awt.event.ActionListener()
+
+    btn_newView = new JButton(MessageManager.getString("action.new_view"));
+    btn_newView.setFont(VERDANA_12);
+    btn_newView.addActionListener(new java.awt.event.ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        ok_ActionPerformed();
+        newView_ActionPerformed();
       }
     });
-    btn_view.addKeyListener(new KeyAdapter()
+    btn_newView.addKeyListener(new KeyAdapter()
     {
       @Override
       public void keyPressed(KeyEvent evt)
       {
         if (evt.getKeyCode() == KeyEvent.VK_ENTER)
         {
-          ok_ActionPerformed();
+          newView_ActionPerformed();
         }
       }
     });
 
-    btn_cancel.setFont(new java.awt.Font("Verdana", 0, 12));
-    btn_cancel.setText(MessageManager.getString("action.cancel"));
-    btn_cancel.addActionListener(new java.awt.event.ActionListener()
+    btn_add = new JButton(MessageManager.getString("action.add"));
+    btn_add.setFont(VERDANA_12);
+    btn_add.addActionListener(new java.awt.event.ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        closeAction(pnl_filter.getHeight());
+        add_ActionPerformed();
       }
     });
-    btn_cancel.addKeyListener(new KeyAdapter()
+    btn_add.addKeyListener(new KeyAdapter()
     {
       @Override
       public void keyPressed(KeyEvent evt)
       {
         if (evt.getKeyCode() == KeyEvent.VK_ENTER)
         {
-          closeAction(pnl_filter.getHeight());
+          add_ActionPerformed();
         }
       }
     });
 
-    btn_pdbFromFile.setFont(new java.awt.Font("Verdana", 0, 12));
+    btn_pdbFromFile.setFont(VERDANA_12);
     String btn_title = MessageManager.getString("label.select_pdb_file");
     btn_pdbFromFile.setText(btn_title + "              ");
     btn_pdbFromFile.addActionListener(new java.awt.event.ActionListener()
@@ -452,20 +469,17 @@ public abstract class GStructureChooser extends JPanel implements
       }
     });
 
+    JScrollPane scrl_foundStructures = new JScrollPane(tbl_summary);
     scrl_foundStructures.setPreferredSize(new Dimension(width, height));
 
+    JScrollPane scrl_localPDB = new JScrollPane(tbl_local_pdb);
     scrl_localPDB.setPreferredSize(new Dimension(width, height));
-    scrl_localPDB
-            .setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    scrl_localPDB.setHorizontalScrollBarPolicy(
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-    cmb_filterOption.setFont(new java.awt.Font("Verdana", 0, 12));
-    chk_invertFilter.setFont(new java.awt.Font("Verdana", 0, 12));
-    chk_rememberSettings.setFont(new java.awt.Font("Verdana", 0, 12));
-    chk_rememberSettings.setVisible(false);
+    chk_invertFilter.setFont(VERDANA_12);
     txt_search.setToolTipText(JvSwingUtils.wrapTooltip(true,
-            MessageManager.getString("label.enter_pdb_id")));
-    cmb_filterOption.setToolTipText(MessageManager
-            .getString("info.select_filter_option"));
+            MessageManager.getString("label.enter_pdb_id_tip")));
     txt_search.getDocument().addDocumentListener(new DocumentListener()
     {
       @Override
@@ -487,26 +501,51 @@ public abstract class GStructureChooser extends JPanel implements
       }
     });
 
+    cmb_filterOption.setFont(VERDANA_12);
+    cmb_filterOption.setToolTipText(
+            MessageManager.getString("info.select_filter_option"));
     cmb_filterOption.addItemListener(this);
+    // add CustomComboSeparatorsRenderer to filter option combo-box
+    cmb_filterOption.setRenderer(new CustomComboSeparatorsRenderer(
+            (ListCellRenderer<Object>) cmb_filterOption.getRenderer())
+    {
+      @Override
+      protected boolean addSeparatorAfter(JList list, FilterOption value,
+              int index)
+      {
+        return value.isAddSeparatorAfter();
+      }
+    });
+
     chk_invertFilter.addItemListener(this);
 
-    pnl_actions.add(chk_rememberSettings);
-    pnl_actions.add(btn_view);
-    pnl_actions.add(btn_cancel);
+    targetView.setVisible(false);
 
-    // pnl_filter.add(lbl_result);
+    JPanel actionsPanel = new JPanel(new MigLayout());
+    actionsPanel.add(targetView, "left");
+    actionsPanel.add(btn_add, "wrap");
+    actionsPanel.add(chk_superpose, "left");
+    actionsPanel.add(btn_newView);
+    actionsPanel.add(btn_cancel, "right");
+
+    JPanel pnl_main = new JPanel();
     pnl_main.add(cmb_filterOption);
     pnl_main.add(lbl_loading);
     pnl_main.add(chk_invertFilter);
     lbl_loading.setVisible(false);
 
+    JPanel pnl_fileChooser = new JPanel(new FlowLayout());
     pnl_fileChooser.add(btn_pdbFromFile);
     pnl_fileChooser.add(lbl_fromFileStatus);
+    JPanel pnl_fileChooserBL = new JPanel(new BorderLayout());
     pnl_fileChooserBL.add(fileChooserAssSeqPanel, BorderLayout.NORTH);
     pnl_fileChooserBL.add(pnl_fileChooser, BorderLayout.CENTER);
 
+    JPanel pnl_idInput = new JPanel(new FlowLayout());
     pnl_idInput.add(txt_search);
     pnl_idInput.add(lbl_pdbManualFetchStatus);
+
+    JPanel pnl_idInputBL = new JPanel(new BorderLayout());
     pnl_idInputBL.add(idInputAssSeqPanel, BorderLayout.NORTH);
     pnl_idInputBL.add(pnl_idInput, BorderLayout.CENTER);
 
@@ -522,17 +561,19 @@ public abstract class GStructureChooser extends JPanel implements
         JTabbedPane sourceTabbedPane = (JTabbedPane) changeEvent
                 .getSource();
         int index = sourceTabbedPane.getSelectedIndex();
-        btn_view.setVisible(true);
+        btn_add.setVisible(targetView.isVisible());
+        btn_newView.setVisible(true);
         btn_cancel.setVisible(true);
         if (sourceTabbedPane.getTitleAt(index).equals(configureCols))
         {
-          btn_view.setEnabled(false);
+          btn_add.setEnabled(false);
           btn_cancel.setEnabled(false);
-          btn_view.setVisible(false);
+          btn_add.setVisible(false);
+          btn_newView.setEnabled(false);
           btn_cancel.setVisible(false);
           previousWantedFields = pdbDocFieldPrefs
-                  .getStructureSummaryFields().toArray(
-                          new FTSDataColumnI[0]);
+                  .getStructureSummaryFields()
+                  .toArray(new FTSDataColumnI[0]);
         }
         if (sourceTabbedPane.getTitleAt(index)
                 .equals(foundStructureSummary))
@@ -554,6 +595,7 @@ public abstract class GStructureChooser extends JPanel implements
     pnl_filter.add(foundStructureSummary, scrl_foundStructures);
     pnl_filter.add(configureCols, pdbDocFieldPrefs);
 
+    JPanel pnl_locPDB = new JPanel(new BorderLayout());
     pnl_locPDB.add(scrl_localPDB);
 
     pnl_switchableViews.add(pnl_fileChooserBL, VIEWS_FROM_FILE);
@@ -561,18 +603,20 @@ public abstract class GStructureChooser extends JPanel implements
     pnl_switchableViews.add(pnl_filter, VIEWS_FILTER);
     pnl_switchableViews.add(pnl_locPDB, VIEWS_LOCAL_PDB);
 
-    this.setLayout(mainLayout);
+    this.setLayout(new BorderLayout());
     this.add(pnl_main, java.awt.BorderLayout.NORTH);
     this.add(pnl_switchableViews, java.awt.BorderLayout.CENTER);
     // this.add(pnl_actions, java.awt.BorderLayout.SOUTH);
     statusPanel.setLayout(new GridLayout());
-    pnl_actionsAndStatus.add(pnl_actions, BorderLayout.CENTER);
+
+    JPanel pnl_actionsAndStatus = new JPanel(new BorderLayout());
+    pnl_actionsAndStatus.add(actionsPanel, BorderLayout.CENTER);
     pnl_actionsAndStatus.add(statusPanel, BorderLayout.SOUTH);
     statusPanel.add(statusBar, null);
     this.add(pnl_actionsAndStatus, java.awt.BorderLayout.SOUTH);
 
-    mainFrame
-            .addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
+    mainFrame.addInternalFrameListener(
+            new javax.swing.event.InternalFrameAdapter()
             {
               @Override
               public void internalFrameClosing(InternalFrameEvent e)
@@ -643,11 +687,28 @@ public abstract class GStructureChooser extends JPanel implements
 
     private String view;
 
-    public FilterOption(String name, String value, String view)
+    private boolean addSeparatorAfter;
+
+    /**
+     * Model for structure filter option
+     * 
+     * @param name
+     *          - the name of the Option
+     * @param value
+     *          - the value of the option
+     * @param view
+     *          - the category of the filter option
+     * @param addSeparatorAfter
+     *          - if true, a horizontal separator is rendered immediately after
+     *          this filter option, otherwise
+     */
+    public FilterOption(String name, String value, String view,
+            boolean addSeparatorAfter)
     {
       this.name = name;
       this.value = value;
       this.view = view;
+      this.addSeparatorAfter = addSeparatorAfter;
     }
 
     public String getName()
@@ -685,6 +746,16 @@ public abstract class GStructureChooser extends JPanel implements
     {
       return this.name;
     }
+
+    public boolean isAddSeparatorAfter()
+    {
+      return addSeparatorAfter;
+    }
+
+    public void setAddSeparatorAfter(boolean addSeparatorAfter)
+    {
+      this.addSeparatorAfter = addSeparatorAfter;
+    }
   }
 
   /**
@@ -703,8 +774,9 @@ public abstract class GStructureChooser extends JPanel implements
     public AssociateSeqOptions(SequenceI seq)
     {
       this.sequence = seq;
-      this.name = (seq.getName().length() >= 23) ? seq.getName().substring(
-              0, 23) : seq.getName();
+      this.name = (seq.getName().length() >= 23)
+              ? seq.getName().substring(0, 23)
+              : seq.getName();
     }
 
     public AssociateSeqOptions(String name, SequenceI seq)
@@ -749,19 +821,19 @@ public abstract class GStructureChooser extends JPanel implements
    * @author tcnofoegbu
    *
    */
-  public class AssciateSeqPanel extends JPanel implements ItemListener
+  public class AssociateSeqPanel extends JPanel implements ItemListener
   {
-    private JComboBox<AssociateSeqOptions> cmb_assSeq = new JComboBox<AssociateSeqOptions>();
+    private JComboBox<AssociateSeqOptions> cmb_assSeq = new JComboBox<>();
 
     private JLabel lbl_associateSeq = new JLabel();
 
-    public AssciateSeqPanel()
+    public AssociateSeqPanel()
     {
       this.setLayout(new FlowLayout());
       this.add(cmb_assSeq);
       this.add(lbl_associateSeq);
-      cmb_assSeq.setToolTipText(MessageManager
-              .getString("info.associate_wit_sequence"));
+      cmb_assSeq.setToolTipText(
+              MessageManager.getString("info.associate_wit_sequence"));
       cmb_assSeq.addItemListener(this);
     }
 
@@ -800,20 +872,70 @@ public abstract class GStructureChooser extends JPanel implements
     return cmb_filterOption;
   }
 
+  /**
+   * Custom ListCellRenderer for adding a separator between different categories
+   * of structure chooser filter option drop-down.
+   * 
+   * @author tcnofoegbu
+   *
+   */
+  public abstract class CustomComboSeparatorsRenderer
+          implements ListCellRenderer<Object>
+  {
+    private ListCellRenderer<Object> regent;
+
+    private JPanel separatorPanel = new JPanel(new BorderLayout());
+
+    private JSeparator jSeparator = new JSeparator();
+
+    public CustomComboSeparatorsRenderer(
+            ListCellRenderer<Object> listCellRenderer)
+    {
+      this.regent = listCellRenderer;
+    }
+
+    @Override
+    public Component getListCellRendererComponent(JList list, Object value,
+            int index, boolean isSelected, boolean cellHasFocus)
+    {
+
+      Component comp = regent.getListCellRendererComponent(list, value,
+              index, isSelected, cellHasFocus);
+      if (index != -1
+              && addSeparatorAfter(list, (FilterOption) value, index))
+      {
+        separatorPanel.removeAll();
+        separatorPanel.add(comp, BorderLayout.CENTER);
+        separatorPanel.add(jSeparator, BorderLayout.SOUTH);
+        return separatorPanel;
+      }
+      else
+      {
+        return comp;
+      }
+    }
+
+    protected abstract boolean addSeparatorAfter(JList list,
+            FilterOption value, int index);
+  }
+
   protected abstract void stateChanged(ItemEvent e);
 
-  protected abstract void ok_ActionPerformed();
+  protected abstract void add_ActionPerformed();
+
+  protected abstract void newView_ActionPerformed();
 
   protected abstract void pdbFromFile_actionPerformed();
 
   protected abstract void txt_search_ActionPerformed();
 
-  public abstract void populateCmbAssociateSeqOptions(
-          JComboBox<AssociateSeqOptions> cmb_assSeq, JLabel lbl_associateSeq);
+  protected abstract void populateCmbAssociateSeqOptions(
+          JComboBox<AssociateSeqOptions> cmb_assSeq,
+          JLabel lbl_associateSeq);
 
-  public abstract void cmbAssSeqStateChanged();
+  protected abstract void cmbAssSeqStateChanged();
 
-  public abstract void tabRefresh();
+  protected abstract void tabRefresh();
 
-  public abstract void validateSelections();
+  protected abstract void validateSelections();
 }

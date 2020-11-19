@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,8 +23,9 @@ package jalview.appletgui;
 import jalview.api.FeatureColourI;
 import jalview.api.FeatureSettingsControllerI;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
 import jalview.util.MessageManager;
+import jalview.viewmodel.seqfeatures.FeatureRendererModel.FeatureSettingsBean;
 
 import java.awt.BorderLayout;
 import java.awt.Button;
@@ -56,14 +57,15 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
+import java.util.Set;
 
-public class FeatureSettings extends Panel implements ItemListener,
-        MouseListener, MouseMotionListener, ActionListener,
+public class FeatureSettings extends Panel
+        implements ItemListener, MouseListener, MouseMotionListener,
         AdjustmentListener, FeatureSettingsControllerI
 {
   FeatureRenderer fr;
@@ -106,6 +108,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     {
       fr.findAllFeatures(true); // was default - now true to make all visible
     }
+    groupPanel = new Panel();
 
     discoverAllFeatureData();
 
@@ -118,8 +121,17 @@ public class FeatureSettings extends Panel implements ItemListener,
       add(scrollPane, BorderLayout.CENTER);
     }
 
-    Button invert = new Button("Invert Selection");
-    invert.addActionListener(this);
+    Button invert = new Button(
+            MessageManager.getString("label.invert_selection"));
+    invert.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        invertSelection();
+      }
+    });
 
     Panel lowerPanel = new Panel(new GridLayout(2, 1, 5, 10));
     lowerPanel.add(invert);
@@ -133,17 +145,22 @@ public class FeatureSettings extends Panel implements ItemListener,
 
     add(lowerPanel, BorderLayout.SOUTH);
 
-    if (groupPanel != null)
-    {
-      groupPanel.setLayout(new GridLayout(
-              (fr.getFeatureGroupsSize()) / 4 + 1, 4)); // JBPNote - this was
-                                                        // scaled on number of
-                                                        // visible groups. seems
-                                                        // broken
-      groupPanel.validate();
+    groupPanel.setLayout(
+            new GridLayout((fr.getFeatureGroupsSize()) / 4 + 1, 4)); // JBPNote
+                                                                     // - this
+                                                                     // was
+                                                                     // scaled
+                                                                     // on
+                                                                     // number
+                                                                     // of
+                                                                     // visible
+                                                                     // groups.
+                                                                     // seems
+                                                                     // broken
+    groupPanel.validate();
 
-      add(groupPanel, BorderLayout.NORTH);
-    }
+    add(groupPanel, BorderLayout.NORTH);
+
     frame = new Frame();
     frame.add(this);
     final FeatureSettings me = this;
@@ -174,14 +191,12 @@ public class FeatureSettings extends Panel implements ItemListener,
   public void paint(Graphics g)
   {
     g.setColor(Color.black);
-    g.drawString(MessageManager
-            .getString("label.no_features_added_to_this_alignment"), 10, 20);
-    g.drawString(MessageManager
-            .getString("label.features_can_be_added_from_searches_1"), 10,
-            40);
-    g.drawString(MessageManager
-            .getString("label.features_can_be_added_from_searches_2"), 10,
-            60);
+    g.drawString(MessageManager.getString(
+            "label.no_features_added_to_this_alignment"), 10, 20);
+    g.drawString(MessageManager.getString(
+            "label.features_can_be_added_from_searches_1"), 10, 40);
+    g.drawString(MessageManager.getString(
+            "label.features_can_be_added_from_searches_2"), 10, 60);
   }
 
   protected void popupSort(final MyCheckbox check,
@@ -189,8 +204,9 @@ public class FeatureSettings extends Panel implements ItemListener,
   {
     final String type = check.type;
     final FeatureColourI typeCol = fr.getFeatureStyle(type);
-    PopupMenu men = new PopupMenu(MessageManager.formatMessage(
-            "label.settings_for_type", new String[] { type }));
+    PopupMenu men = new PopupMenu(MessageManager
+            .formatMessage("label.settings_for_type", new String[]
+            { type }));
     java.awt.MenuItem scr = new MenuItem(
             MessageManager.getString("label.sort_by_score"));
     men.add(scr);
@@ -201,8 +217,9 @@ public class FeatureSettings extends Panel implements ItemListener,
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc.sortAlignmentByFeatureScore(Arrays
-                .asList(new String[] { type }));
+        me.ap.alignFrame.avc
+                .sortAlignmentByFeatureScore(Arrays.asList(new String[]
+                { type }));
       }
 
     });
@@ -214,8 +231,9 @@ public class FeatureSettings extends Panel implements ItemListener,
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        me.ap.alignFrame.avc.sortAlignmentByFeatureDensity(Arrays
-                .asList(new String[] { type }));
+        me.ap.alignFrame.avc
+                .sortAlignmentByFeatureDensity(Arrays.asList(new String[]
+                { type }));
       }
 
     });
@@ -279,8 +297,8 @@ public class FeatureSettings extends Panel implements ItemListener,
     });
     men.add(selectContaining);
 
-    MenuItem selectNotContaining = new MenuItem(
-            MessageManager.getString("label.select_columns_not_containing"));
+    MenuItem selectNotContaining = new MenuItem(MessageManager
+            .getString("label.select_columns_not_containing"));
     selectNotContaining.addActionListener(new ActionListener()
     {
       @Override
@@ -326,78 +344,87 @@ public class FeatureSettings extends Panel implements ItemListener,
     if (fr.getAllFeatureColours() != null
             && fr.getAllFeatureColours().size() > 0)
     {
-      rebuildGroups();
+      // rebuildGroups();
 
     }
     resetTable(false);
   }
 
   /**
-   * rebuilds the group panel
+   * Answers the visibility of the given group, and adds a checkbox for it if
+   * there is not one already
    */
-  public void rebuildGroups()
+  public boolean checkGroupState(String group)
   {
-    boolean rdrw = false;
-    if (groupPanel == null)
+    boolean visible = fr.checkGroupVisibility(group, true);
+
+    /*
+     * is there already a checkbox for this group?
+     */
+    for (int g = 0; g < groupPanel.getComponentCount(); g++)
     {
-      groupPanel = new Panel();
+      if (((Checkbox) groupPanel.getComponent(g)).getLabel().equals(group))
+      {
+        ((Checkbox) groupPanel.getComponent(g)).setState(visible);
+        return visible;
+      }
     }
-    else
-    {
-      rdrw = true;
-      groupPanel.removeAll();
-    }
-    // TODO: JAL-964 - smoothly incorporate new group entries if panel already
-    // displayed and new groups present
-    for (String group : fr.getFeatureGroups())
-    {
-      boolean vis = fr.checkGroupVisibility(group, false);
-      Checkbox check = new MyCheckbox(group, vis, false);
-      check.addMouseListener(this);
-      check.setFont(new Font("Serif", Font.BOLD, 12));
-      check.addItemListener(groupItemListener);
-      // note - visibility seems to correlate with displayed. ???wtf ??
-      check.setVisible(vis);
-      groupPanel.add(check);
-    }
-    if (rdrw)
-    {
-      groupPanel.validate();
-    }
+
+    /*
+     * add a new checkbox
+     */
+    Checkbox check = new MyCheckbox(group, visible, false);
+    check.addMouseListener(this);
+    check.setFont(new Font("Serif", Font.BOLD, 12));
+    check.addItemListener(groupItemListener);
+    groupPanel.add(check);
+
+    groupPanel.validate();
+    return visible;
   }
 
   // This routine adds and removes checkboxes depending on
   // Group selection states
   void resetTable(boolean groupsChanged)
   {
-    SequenceFeature[] tmpfeatures;
-    String group = null, type;
-    Vector<String> visibleChecks = new Vector<String>();
+    List<String> displayableTypes = new ArrayList<>();
+    Set<String> foundGroups = new HashSet<>();
+
     AlignmentI alignment = av.getAlignment();
+
     for (int i = 0; i < alignment.getHeight(); i++)
     {
-      if (alignment.getSequenceAt(i).getSequenceFeatures() == null)
-      {
-        continue;
-      }
+      SequenceI seq = alignment.getSequenceAt(i);
 
-      tmpfeatures = alignment.getSequenceAt(i).getSequenceFeatures();
-      int index = 0;
-      while (index < tmpfeatures.length)
+      /*
+       * get the sequence's groups for positional features
+       * and keep track of which groups are visible
+       */
+      Set<String> groups = seq.getFeatures().getFeatureGroups(true);
+      Set<String> visibleGroups = new HashSet<>();
+      for (String group : groups)
       {
-        group = tmpfeatures[index].featureGroup;
-
-        if (group == null || fr.checkGroupVisibility(group, true))
+        // if (group == null || fr.checkGroupVisibility(group, true))
+        if (group == null || checkGroupState(group))
         {
-          type = tmpfeatures[index].getType();
-          if (!visibleChecks.contains(type))
-          {
-            visibleChecks.addElement(type);
-          }
+          visibleGroups.add(group);
         }
-        index++;
       }
+      foundGroups.addAll(groups);
+
+      /*
+       * get distinct feature types for visible groups
+       * record distinct visible types
+       */
+      Set<String> types = seq.getFeatures().getFeatureTypesForGroups(true,
+              visibleGroups.toArray(new String[visibleGroups.size()]));
+      displayableTypes.addAll(types);
     }
+
+    /*
+     * remove any checkboxes for groups not present
+     */
+    pruneGroups(foundGroups);
 
     Component[] comps;
     int cSize = featurePanel.getComponentCount();
@@ -408,7 +435,7 @@ public class FeatureSettings extends Panel implements ItemListener,
     {
       comps = featurePanel.getComponents();
       check = (MyCheckbox) comps[i];
-      if (!visibleChecks.contains(check.type))
+      if (!displayableTypes.contains(check.type))
       {
         featurePanel.remove(i);
         cSize--;
@@ -425,28 +452,28 @@ public class FeatureSettings extends Panel implements ItemListener,
       {
         String item = rol.get(ro);
 
-        if (!visibleChecks.contains(item))
+        if (!displayableTypes.contains(item))
         {
           continue;
         }
 
-        visibleChecks.removeElement(item);
+        displayableTypes.remove(item);
 
         addCheck(false, item);
       }
     }
 
-    // now add checkboxes which should be visible,
-    // if they have not already been added
-    Enumeration<String> en = visibleChecks.elements();
-
-    while (en.hasMoreElements())
+    /*
+     * now add checkboxes which should be visible,
+     * if they have not already been added
+     */
+    for (String type : displayableTypes)
     {
-      addCheck(groupsChanged, en.nextElement().toString());
+      addCheck(groupsChanged, type);
     }
 
-    featurePanel.setLayout(new GridLayout(featurePanel.getComponentCount(),
-            1, 10, 5));
+    featurePanel.setLayout(
+            new GridLayout(featurePanel.getComponentCount(), 1, 10, 5));
     featurePanel.validate();
 
     if (scrollPane != null)
@@ -455,6 +482,25 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
 
     itemStateChanged(null);
+  }
+
+  /**
+   * Remove from the groups panel any checkboxes for groups that are not in the
+   * foundGroups set. This enables removing a group from the display when the
+   * last feature in that group is deleted.
+   * 
+   * @param foundGroups
+   */
+  protected void pruneGroups(Set<String> foundGroups)
+  {
+    for (int g = 0; g < groupPanel.getComponentCount(); g++)
+    {
+      Checkbox checkbox = (Checkbox) groupPanel.getComponent(g);
+      if (!foundGroups.contains(checkbox.getLabel()))
+      {
+        groupPanel.remove(checkbox);
+      }
+    }
   }
 
   /**
@@ -509,15 +555,14 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
   }
 
-  @Override
-  public void actionPerformed(ActionEvent evt)
+  protected void invertSelection()
   {
     for (int i = 0; i < featurePanel.getComponentCount(); i++)
     {
       Checkbox check = (Checkbox) featurePanel.getComponent(i);
       check.setState(!check.getState());
     }
-    selectionChanged();
+    selectionChanged(true);
   }
 
   private ItemListener groupItemListener = new ItemListener()
@@ -540,31 +585,28 @@ public class FeatureSettings extends Panel implements ItemListener,
   @Override
   public void itemStateChanged(ItemEvent evt)
   {
-    selectionChanged();
+    selectionChanged(true);
   }
 
-  void selectionChanged()
+  void selectionChanged(boolean updateOverview)
   {
     Component[] comps = featurePanel.getComponents();
     int cSize = comps.length;
-
-    Object[][] tmp = new Object[cSize][3];
-    int tmpSize = 0;
-    for (int i = 0; i < cSize; i++)
+    FeatureSettingsBean[] rowData = new FeatureSettingsBean[cSize];
+    int i = 0;
+    for (Component comp : comps)
     {
-      MyCheckbox check = (MyCheckbox) comps[i];
-      tmp[tmpSize][0] = check.type;
-      tmp[tmpSize][1] = fr.getFeatureStyle(check.type);
-      tmp[tmpSize][2] = new Boolean(check.getState());
-      tmpSize++;
+      MyCheckbox check = (MyCheckbox) comp;
+      // feature filter set to null as not (yet) offered in applet
+      FeatureColourI colour = fr.getFeatureStyle(check.type);
+      rowData[i] = new FeatureSettingsBean(check.type, colour, null,
+              check.getState());
+      i++;
     }
 
-    Object[][] data = new Object[tmpSize][3];
-    System.arraycopy(tmp, 0, data, 0, tmpSize);
+    fr.setFeaturePriority(rowData);
 
-    fr.setFeaturePriority(data);
-
-    ap.paintAlignment(true);
+    ap.paintAlignment(updateOverview, updateOverview);
   }
 
   MyCheckbox selectedCheck;
@@ -606,8 +648,8 @@ public class FeatureSettings extends Panel implements ItemListener,
     }
     else
     {
-      comp = featurePanel.getComponentAt(evt.getX(), evt.getY()
-              + evt.getComponent().getLocation().y);
+      comp = featurePanel.getComponentAt(evt.getX(),
+              evt.getY() + evt.getComponent().getLocation().y);
     }
 
     if (comp != null && comp instanceof Checkbox)
@@ -644,7 +686,7 @@ public class FeatureSettings extends Panel implements ItemListener,
   {
     featurePanel.removeAll();
     resetTable(false);
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
   }
 
   @Override
@@ -661,7 +703,7 @@ public class FeatureSettings extends Panel implements ItemListener,
   public void mouseClicked(MouseEvent evt)
   {
     MyCheckbox check = (MyCheckbox) evt.getSource();
-    if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) != 0)
+    if ((evt.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0)
     {
       this.popupSort(check, fr.getMinMax(), evt.getX(), evt.getY());
     }
@@ -696,8 +738,7 @@ public class FeatureSettings extends Panel implements ItemListener,
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     fr.setTransparency((100 - transparency.getValue()) / 100f);
-    ap.seqPanel.seqCanvas.repaint();
-
+    ap.paintAlignment(true, true);
   }
 
   class MyCheckbox extends Checkbox

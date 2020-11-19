@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.ext.jmol.JalviewJmolBinding;
+import jalview.io.DataSourceType;
 import jalview.structure.StructureSelectionManager;
 
 import java.awt.Container;
@@ -43,7 +44,7 @@ class AppletJmolBinding extends JalviewJmolBinding
 
   public AppletJmolBinding(AppletJmol appletJmol,
           StructureSelectionManager sSm, PDBEntry[] pdbentry,
-          SequenceI[][] seq, String protocol)
+          SequenceI[][] seq, DataSourceType protocol)
   {
     super(sSm, pdbentry, seq, protocol);
     appletJmolBinding = appletJmol;
@@ -53,21 +54,7 @@ class AppletJmolBinding extends JalviewJmolBinding
   public jalview.api.FeatureRenderer getFeatureRenderer(
           AlignmentViewPanel alignment)
   {
-    AlignmentPanel ap = (AlignmentPanel) alignment;
-    if (appletJmolBinding.ap.av.isShowSequenceFeatures())
-    {
-      if (appletJmolBinding.fr == null)
-      {
-        appletJmolBinding.fr = new jalview.appletgui.FeatureRenderer(
-                appletJmolBinding.ap.av);
-      }
-
-      appletJmolBinding.fr
-              .transferSettings(appletJmolBinding.ap.seqPanel.seqCanvas
-                      .getFeatureRenderer());
-    }
-
-    return appletJmolBinding.fr;
+    return appletJmolBinding.ap.getFeatureRenderer();
   }
 
   @Override
@@ -123,8 +110,8 @@ class AppletJmolBinding extends JalviewJmolBinding
   {
     try
     {
-      appletJmolBinding.ap.av.applet.getAppletContext().showDocument(
-              new java.net.URL(url), "jmol");
+      appletJmolBinding.ap.av.applet.getAppletContext()
+              .showDocument(new java.net.URL(url), "jmol");
     } catch (java.net.MalformedURLException ex)
     {
     }
@@ -186,14 +173,12 @@ class AppletJmolBinding extends JalviewJmolBinding
   @Override
   public int[] resizeInnerPanel(String data)
   {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public Map<String, Object> getJSpecViewProperty(String arg0)
   {
-    // TODO Auto-generated method stub
     return null;
   }
 }

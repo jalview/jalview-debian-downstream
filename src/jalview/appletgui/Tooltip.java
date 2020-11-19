@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,8 +35,8 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.StringTokenizer;
 
-public class Tooltip extends Canvas implements MouseListener,
-        MouseMotionListener
+public class Tooltip extends Canvas
+        implements MouseListener, MouseMotionListener
 {
   private String[] tip;
 
@@ -91,8 +91,8 @@ public class Tooltip extends Canvas implements MouseListener,
       {
         if (lindex > 0)
         {
-          g.drawString(tip[i].substring(0, lindex), 3, (i + 1) * fontHeight
-                  - 3);
+          g.drawString(tip[i].substring(0, lindex), 3,
+                  (i + 1) * fontHeight - 3);
           x += fm.stringWidth(tip[i].substring(0, lindex) + 3);
         }
         g.drawImage(linkImage, x, i * fontHeight + 1, this);
@@ -155,11 +155,11 @@ public class Tooltip extends Canvas implements MouseListener,
       return;
     }
     setLocation(
-            (owner.getLocationOnScreen().x - mainContainer.getLocationOnScreen().x)
-                    + evt.getX(),
+            (owner.getLocationOnScreen().x
+                    - mainContainer.getLocationOnScreen().x) + evt.getX(),
             (owner.getLocationOnScreen().y
-                    - mainContainer.getLocationOnScreen().y + VERTICAL_OFFSET)
-                    + evt.getY());
+                    - mainContainer.getLocationOnScreen().y
+                    + VERTICAL_OFFSET) + evt.getY());
 
     // correction, whole tool tip must be visible
     if (mainContainer.getSize().width < (getLocation().x + getSize().width))

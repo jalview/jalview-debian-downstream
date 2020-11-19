@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.gui.WebserviceInfo;
 import jalview.util.MessageManager;
 
@@ -32,7 +33,6 @@ import java.awt.event.ActionListener;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 
 import ext.vamsas.MuscleWSServiceLocator;
 import ext.vamsas.MuscleWSSoapBindingStub;
@@ -78,22 +78,24 @@ public class MsaWSClient extends WS1Client
     alignFrame = _alignFrame;
     if (!sh.getAbstractName().equals("MsaWS"))
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.service_called_is_not_msa_service",
-                      new String[] { sh.getName() }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
+                      "label.service_called_is_not_msa_service",
+                      new String[]
+                      { sh.getName() }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
 
     if ((wsInfo = setWebService(sh)) == null)
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.msa_service_is_unknown",
-                      new String[] { sh.getName() }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.msa_service_is_unknown", new String[]
+              { sh.getName() }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
@@ -120,9 +122,8 @@ public class MsaWSClient extends WS1Client
     String jobtitle = WebServiceName.toLowerCase();
     if (jobtitle.endsWith("alignment"))
     {
-      if (submitGaps
-              && (!jobtitle.endsWith("realignment") || jobtitle
-                      .indexOf("profile") == -1))
+      if (submitGaps && (!jobtitle.endsWith("realignment")
+              || jobtitle.indexOf("profile") == -1))
       {
         int pos = jobtitle.indexOf("alignment");
         jobtitle = WebServiceName.substring(0, pos) + "re-alignment of "
@@ -213,9 +214,10 @@ public class MsaWSClient extends WS1Client
       public void actionPerformed(ActionEvent e)
       {
         AlignmentView msa = alignFrame.gatherSequencesForAlignment();
-        new jalview.ws.jws1.MsaWSClient(serviceHandle, alignFrame
-                .getTitle(), msa, false, true, alignFrame.getViewport()
-                .getAlignment().getDataset(), alignFrame);
+        new jalview.ws.jws1.MsaWSClient(serviceHandle,
+                alignFrame.getTitle(), msa, false, true,
+                alignFrame.getViewport().getAlignment().getDataset(),
+                alignFrame);
 
       }
 
@@ -224,8 +226,8 @@ public class MsaWSClient extends WS1Client
     if (canSubmitGaps())
     {
       // We know that ClustalWS can accept partial alignments for refinement.
-      final JMenuItem methodR = new JMenuItem(serviceHandle.getName()
-              + " Realign");
+      final JMenuItem methodR = new JMenuItem(
+              serviceHandle.getName() + " Realign");
       methodR.setToolTipText(WsURL);
       methodR.addActionListener(new ActionListener()
       {
@@ -233,9 +235,10 @@ public class MsaWSClient extends WS1Client
         public void actionPerformed(ActionEvent e)
         {
           AlignmentView msa = alignFrame.gatherSequencesForAlignment();
-          new jalview.ws.jws1.MsaWSClient(serviceHandle, alignFrame
-                  .getTitle(), msa, true, true, alignFrame.getViewport()
-                  .getAlignment().getDataset(), alignFrame);
+          new jalview.ws.jws1.MsaWSClient(serviceHandle,
+                  alignFrame.getTitle(), msa, true, true,
+                  alignFrame.getViewport().getAlignment().getDataset(),
+                  alignFrame);
 
         }
 

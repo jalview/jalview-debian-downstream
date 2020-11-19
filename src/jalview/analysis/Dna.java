@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -44,8 +44,8 @@ import jalview.util.ShiftList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 public class Dna
 {
@@ -57,19 +57,23 @@ public class Dna
    * 'final' variables describe the inputs to the translation, which should not
    * be modified.
    */
-  final private List<SequenceI> selection;
+  private final List<SequenceI> selection;
 
-  final private String[] seqstring;
+  private final String[] seqstring;
 
-  final private int[] contigs;
+  private final Iterator<int[]> contigs;
 
-  final private char gapChar;
+  private final char gapChar;
 
-  final private AlignmentAnnotation[] annotations;
+  private final AlignmentAnnotation[] annotations;
 
-  final private int dnaWidth;
+  private final int dnaWidth;
 
-  final private AlignmentI dataset;
+  private final AlignmentI dataset;
+
+  private ShiftList vismapping;
+
+  private int[] startcontigs;
 
   /*
    * Working variables for the translation.
@@ -92,7 +96,7 @@ public class Dna
    * @param viewport
    * @param visibleContigs
    */
-  public Dna(AlignViewportI viewport, int[] visibleContigs)
+  public Dna(AlignViewportI viewport, Iterator<int[]> visibleContigs)
   {
     this.selection = Arrays.asList(viewport.getSequenceSelection());
     this.seqstring = viewport.getViewAsString(true);
@@ -101,6 +105,45 @@ public class Dna
     this.annotations = viewport.getAlignment().getAlignmentAnnotation();
     this.dnaWidth = viewport.getAlignment().getWidth();
     this.dataset = viewport.getAlignment().getDataset();
+    initContigs();
+  }
+
+  /**
+   * Initialise contigs used as starting point for translateCodingRegion
+   */
+  private void initContigs()
+  {
+    vismapping = new ShiftList(); // map from viscontigs to seqstring
+    // intervals
+
+    int npos = 0;
+    int[] lastregion = null;
+    ArrayList<Integer> tempcontigs = new ArrayList<>();
+    while (contigs.hasNext())
+    {
+      int[] region = contigs.next();
+      if (lastregion == null)
+      {
+        vismapping.addShift(npos, region[0]);
+      }
+      else
+      {
+        // hidden region
+        vismapping.addShift(npos, region[0] - lastregion[1] + 1);
+      }
+      lastregion = region;
+      tempcontigs.add(region[0]);
+      tempcontigs.add(region[1]);
+    }
+
+    startcontigs = new int[tempcontigs.size()];
+    int i = 0;
+    for (Integer val : tempcontigs)
+    {
+      startcontigs[i] = val;
+      i++;
+    }
+    tempcontigs = null;
   }
 
   /**
@@ -134,7 +177,8 @@ public class Dna
    * @param ac2
    * @return
    */
-  private static int jalview_2_8_2compare(AlignedCodon ac1, AlignedCodon ac2)
+  private static int jalview_2_8_2compare(AlignedCodon ac1,
+          AlignedCodon ac2)
   {
     if (ac1 == null || ac2 == null || (ac1.equals(ac2)))
     {
@@ -150,10 +194,11 @@ public class Dna
   }
 
   /**
+   * Translates cDNA using the specified code table
    * 
    * @return
    */
-  public AlignmentI translateCdna()
+  public AlignmentI translateCdna(GeneticCodeI codeTable)
   {
     AlignedCodonFrame acf = new AlignedCodonFrame();
 
@@ -161,11 +206,11 @@ public class Dna
 
     int s;
     int sSize = selection.size();
-    List<SequenceI> pepseqs = new ArrayList<SequenceI>();
+    List<SequenceI> pepseqs = new ArrayList<>();
     for (s = 0; s < sSize; s++)
     {
       SequenceI newseq = translateCodingRegion(selection.get(s),
-              seqstring[s], acf, pepseqs);
+              seqstring[s], acf, pepseqs, codeTable);
 
       if (newseq != null)
       {
@@ -213,7 +258,7 @@ public class Dna
       if (dnarefs != null)
       {
         // intersect with pep
-        List<DBRefEntry> mappedrefs = new ArrayList<DBRefEntry>();
+        List<DBRefEntry> mappedrefs = new ArrayList<>();
         DBRefEntry[] refs = dna.getDBRefs();
         for (int d = 0; d < refs.length; d++)
         {
@@ -385,33 +430,21 @@ public class Dna
    * @param acf
    *          Definition of global ORF alignment reference frame
    * @param proteinSeqs
+   * @param codeTable
    * @return sequence ready to be added to alignment.
    */
   protected SequenceI translateCodingRegion(SequenceI selection,
           String seqstring, AlignedCodonFrame acf,
-          List<SequenceI> proteinSeqs)
+          List<SequenceI> proteinSeqs, GeneticCodeI codeTable)
   {
-    List<int[]> skip = new ArrayList<int[]>();
-    int skipint[] = null;
-    ShiftList vismapping = new ShiftList(); // map from viscontigs to seqstring
-    // intervals
-    int vc;
-    int[] scontigs = new int[contigs.length];
+    List<int[]> skip = new ArrayList<>();
+    int[] skipint = null;
+
     int npos = 0;
-    for (vc = 0; vc < contigs.length; vc += 2)
-    {
-      if (vc == 0)
-      {
-        vismapping.addShift(npos, contigs[vc]);
-      }
-      else
-      {
-        // hidden region
-        vismapping.addShift(npos, contigs[vc] - contigs[vc - 1] + 1);
-      }
-      scontigs[vc] = contigs[vc];
-      scontigs[vc + 1] = contigs[vc + 1];
-    }
+    int vc = 0;
+
+    int[] scontigs = new int[startcontigs.length];
+    System.arraycopy(startcontigs, 0, scontigs, 0, startcontigs.length);
 
     // allocate a roughly sized buffer for the protein sequence
     StringBuilder protein = new StringBuilder(seqstring.length() / 2);
@@ -436,7 +469,7 @@ public class Dna
          * Filled up a reading frame...
          */
         AlignedCodon alignedCodon = new AlignedCodon(cdp[0], cdp[1], cdp[2]);
-        String aa = ResidueProperties.codonTranslate(new String(codon));
+        String aa = codeTable.translate(new String(codon));
         rf = 0;
         final String gapString = String.valueOf(gapChar);
         if (aa == null)
@@ -444,10 +477,11 @@ public class Dna
           aa = gapString;
           if (skipint == null)
           {
-            skipint = new int[] { alignedCodon.pos1, alignedCodon.pos3 /*
-                                                                        * cdp[0],
-                                                                        * cdp[2]
-                                                                        */};
+            skipint = new int[] { alignedCodon.pos1,
+                alignedCodon.pos3 /*
+                                   * cdp[0],
+                                   * cdp[2]
+                                   */ };
           }
           skipint[1] = alignedCodon.pos3; // cdp[2];
         }
@@ -502,8 +536,8 @@ public class Dna
                       }
                       if (vc + 2 < t.length)
                       {
-                        System.arraycopy(scontigs, vc + 2, t, vc, t.length
-                                - vc + 2);
+                        System.arraycopy(scontigs, vc + 2, t, vc,
+                                t.length - vc + 2);
                       }
                       scontigs = t;
                     }
@@ -542,7 +576,7 @@ public class Dna
             skip.add(skipint);
             skipint = null;
           }
-          if (aa.equals("STOP"))
+          if (aa.equals(ResidueProperties.STOP))
           {
             aa = STOP_ASTERIX;
           }
@@ -596,9 +630,9 @@ public class Dna
         }
         else if (!alignedCodons[aspos].equals(alignedCodon))
         {
-          throw new IllegalStateException("Tried to coalign "
-                  + alignedCodons[aspos].toString() + " with "
-                  + alignedCodon.toString());
+          throw new IllegalStateException(
+                  "Tried to coalign " + alignedCodons[aspos].toString()
+                          + " with " + alignedCodon.toString());
         }
         if (aspos >= aaWidth)
         {
@@ -685,7 +719,7 @@ public class Dna
          */
         MapList map = new MapList(scontigs, new int[] { 1, resSize }, 3, 1);
 
-        transferCodedFeatures(selection, newseq, map, null, null);
+        transferCodedFeatures(selection, newseq, map);
 
         /*
          * Construct a dataset sequence for our new peptide.
@@ -754,25 +788,15 @@ public class Dna
 
   /**
    * Given a peptide newly translated from a dna sequence, copy over and set any
-   * features on the peptide from the DNA. If featureTypes is null, all features
-   * on the dna sequence are searched (rather than just the displayed ones), and
-   * similarly for featureGroups.
+   * features on the peptide from the DNA.
    * 
    * @param dna
    * @param pep
    * @param map
-   * @param featureTypes
-   *          hash whose keys are the displayed feature type strings
-   * @param featureGroups
-   *          hash where keys are feature groups and values are Boolean objects
-   *          indicating if they are displayed.
    */
   private static void transferCodedFeatures(SequenceI dna, SequenceI pep,
-          MapList map, Map<String, Object> featureTypes,
-          Map<String, Boolean> featureGroups)
+          MapList map)
   {
-    SequenceFeature[] sfs = dna.getSequenceFeatures();
-    Boolean fgstate;
     DBRefEntry[] dnarefs = DBRefUtils.selectRefs(dna.getDBRefs(),
             DBRefSource.DNACODINGDBS);
     if (dnarefs != null)
@@ -786,24 +810,15 @@ public class Dna
         }
       }
     }
-    if (sfs != null)
+    for (SequenceFeature sf : dna.getFeatures().getAllFeatures())
     {
-      for (SequenceFeature sf : sfs)
-      {
-        fgstate = (featureGroups == null) ? null : featureGroups
-                .get(sf.featureGroup);
-        if ((featureTypes == null || featureTypes.containsKey(sf.getType()))
-                && (fgstate == null || fgstate.booleanValue()))
+        if (FeatureProperties.isCodingFeature(null, sf.getType()))
         {
-          if (FeatureProperties.isCodingFeature(null, sf.getType()))
+          // if (map.intersectsFrom(sf[f].begin, sf[f].end))
           {
-            // if (map.intersectsFrom(sf[f].begin, sf[f].end))
-            {
 
-            }
           }
         }
-      }
     }
   }
 
@@ -817,7 +832,7 @@ public class Dna
   public AlignmentI reverseCdna(boolean complement)
   {
     int sSize = selection.size();
-    List<SequenceI> reversed = new ArrayList<SequenceI>();
+    List<SequenceI> reversed = new ArrayList<>();
     for (int s = 0; s < sSize; s++)
     {
       SequenceI newseq = reverseSequence(selection.get(s).getName(),
@@ -865,6 +880,23 @@ public class Dna
     }
     SequenceI reversed = new Sequence(newName, reversedSequence, 1, bases);
     return reversed;
+  }
+
+  /**
+   * Answers the reverse complement of the input string
+   * 
+   * @see #getComplement(char)
+   * @param s
+   * @return
+   */
+  public static String reverseComplement(String s)
+  {
+    StringBuilder sb = new StringBuilder(s.length());
+    for (int i = s.length() - 1; i >= 0; i--)
+    {
+      sb.append(Dna.getComplement(s.charAt(i)));
+    }
+    return sb.toString();
   }
 
   /**

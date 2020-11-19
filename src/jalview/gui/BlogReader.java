@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -253,10 +253,11 @@ public class BlogReader extends JPanel
     _channelModel = new ChannelListModel();
     // Construct our jalview news channel
     Channel chan = new Channel();
-    chan.setURL(jalview.bin.Cache.getDefault(
-            "JALVIEW_NEWS_RSS",
-            jalview.bin.Cache.getDefault("www.jalview.org",
-                    "http://www.jalview.org") + "/feeds/desktop/rss"));
+    chan.setURL(
+            jalview.bin.Cache.getDefault("JALVIEW_NEWS_RSS",
+                    jalview.bin.Cache.getDefault("www.jalview.org",
+                            "https://www.jalview.org")
+                            + "/feeds/desktop/rss"));
     loadLastM();
     _channelModel.addChannel(chan);
     updating = true;
@@ -318,8 +319,8 @@ public class BlogReader extends JPanel
             public void windowClosing(WindowEvent e)
             {
               ActionEvent actionEvent = new ActionEvent(this,
-                      ActionEvent.ACTION_FIRST, (String) exitAction
-                              .getValue(Action.NAME));
+                      ActionEvent.ACTION_FIRST,
+                      (String) exitAction.getValue(Action.NAME));
               exitAction.actionPerformed(actionEvent);
             }
 
@@ -359,8 +360,8 @@ public class BlogReader extends JPanel
     java.util.Date earliest = null;
     try
     {
-      earliest = new SimpleDateFormat("YYYY-MM-DD").parse(chan
-              .getHTTPLastModified());
+      earliest = new SimpleDateFormat("YYYY-MM-DD")
+              .parse(chan.getHTTPLastModified());
     } catch (Exception x)
     {
     }
@@ -424,8 +425,8 @@ public class BlogReader extends JPanel
       }
       if (lastDate != null)
       {
-        String formatted = Cache.setDateProperty(
-                "JALVIEW_NEWS_RSS_LASTMODIFIED", lastDate);
+        String formatted = Cache
+                .setDateProperty("JALVIEW_NEWS_RSS_LASTMODIFIED", lastDate);
         Cache.log.debug("Saved last read date as " + formatted);
       }
     }
@@ -529,15 +530,15 @@ public class BlogReader extends JPanel
     _itemsValueChanged(listItems);
   }
 
-  public class LaunchJvBrowserOnItem extends AbstractAction implements
-          UpdatableAction
+  public class LaunchJvBrowserOnItem extends AbstractAction
+          implements UpdatableAction
   {
     JList _listItems = null;
 
     public LaunchJvBrowserOnItem(JList listItems)
     {
       super("Open in Browser");
-      this.putValue(MNEMONIC_KEY, new Integer(KeyEvent.VK_O));
+      this.putValue(MNEMONIC_KEY, Integer.valueOf(KeyEvent.VK_O));
       this.putValue(Action.LONG_DESCRIPTION, "Open in Browser");
       _listItems = listItems;
     }
@@ -585,7 +586,8 @@ public class BlogReader extends JPanel
   private JPopupMenu _buildChannelsPopupMenu()
   {
     JPopupMenu popup = new JPopupMenu();
-    popup.add(new JMenuItem(new MarkChannelAsRead(listChannels, listItems)));
+    popup.add(
+            new JMenuItem(new MarkChannelAsRead(listChannels, listItems)));
     popup.add(new JMenuItem(
             new MarkChannelAsUnread(listChannels, listItems)));
     return popup;
@@ -609,8 +611,9 @@ public class BlogReader extends JPanel
     }
     DefaultListModel itemsModel = (DefaultListModel) listItems.getModel();
     itemsModel.clear();
-    Iterator iter = (channel.getItems() != null) ? channel.getItems()
-            .iterator() : Collections.EMPTY_LIST.iterator();
+    Iterator iter = (channel.getItems() != null)
+            ? channel.getItems().iterator()
+            : Collections.EMPTY_LIST.iterator();
     while (iter.hasNext())
     {
       itemsModel.addElement(iter.next());
@@ -706,8 +709,8 @@ public class BlogReader extends JPanel
           button.setVerticalTextPosition(AbstractButton.BOTTOM);
           button.setHorizontalTextPosition(AbstractButton.CENTER);
         }
-        else if (Boolean.toString(true).equals(
-                general.get("radioTextRight")))
+        else if (Boolean.toString(true)
+                .equals(general.get("radioTextRight")))
         {
           button.setVerticalTextPosition(AbstractButton.CENTER);
           button.setHorizontalTextPosition(AbstractButton.RIGHT);
@@ -756,8 +759,8 @@ public class BlogReader extends JPanel
     jalview.bin.Cache.loadProperties(null);
     jalview.bin.Cache.initLogger();
     // test will advance read date each time
-    Calendar today = Calendar.getInstance(), lastread = Calendar
-            .getInstance();
+    Calendar today = Calendar.getInstance(),
+            lastread = Calendar.getInstance();
     lastread.set(1983, 01, 01);
     while (lastread.before(today))
     {
@@ -826,13 +829,10 @@ class ChannelsRenderer extends DefaultListCellRenderer
     if (value instanceof Channel)
     {
       Channel channel = (Channel) value;
-      component
-              .setText(MessageManager.formatMessage(
-                      "label.channel_title_item_count",
-                      new String[] {
-                          channel.getTitle(),
-                          Integer.valueOf(channel.getUnreadItemCount())
-                                  .toString() }));
+      component.setText(MessageManager
+              .formatMessage("label.channel_title_item_count", new String[]
+              { channel.getTitle(), Integer
+                      .valueOf(channel.getUnreadItemCount()).toString() }));
       component.setToolTipText(channel.getURL());
     }
     return component;
@@ -857,12 +857,11 @@ class ItemsRenderer extends DefaultListCellRenderer
       if (item.getPublishDate() != null)
       {
         component.setText(MessageManager.formatMessage(
-                "label.blog_item_published_on_date",
-                new String[] {
-                    DateFormat
-                            .getDateInstance(DateFormat.LONG,
-                                    MessageManager.getLocale())
-                            .format(item.getPublishDate()).toString(),
+                "label.blog_item_published_on_date", new String[]
+                { DateFormat
+                        .getDateInstance(DateFormat.LONG,
+                                MessageManager.getLocale())
+                        .format(item.getPublishDate()).toString(),
                     item.getTitle() }));
       }
       component.setToolTipText(item.getLink());

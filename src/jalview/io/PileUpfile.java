@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -55,15 +55,16 @@ public class PileUpfile extends MSFfile
    * 
    * @param inFile
    *          DOCUMENT ME!
-   * @param type
+   * @param sourceType
    *          DOCUMENT ME!
    * 
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public PileUpfile(String inFile, String type) throws IOException
+  public PileUpfile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public PileUpfile(FileParse source) throws IOException
@@ -71,19 +72,8 @@ public class PileUpfile extends MSFfile
     super(source);
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
   @Override
-  public String print()
-  {
-    return print(getSeqsAsArray());
-  }
-
-  @Override
-  public String print(SequenceI[] s)
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
     StringBuffer out = new StringBuffer("PileUp");
     out.append(newline);
@@ -102,7 +92,7 @@ public class PileUpfile extends MSFfile
       i++;
     }
 
-    out.append("   MSF: " + s[0].getSequence().length
+    out.append("   MSF: " + s[0].getLength()
             + "   Type: P    Check:  " + bigChecksum % 10000 + "   ..");
     out.append(newline);
     out.append(newline);
@@ -112,8 +102,9 @@ public class PileUpfile extends MSFfile
     while ((i < s.length) && (s[i] != null))
     {
       String seq = s[i].getSequenceAsString();
-      out.append(" Name: " + printId(s[i]) + " oo  Len:  " + seq.length()
-              + "  Check:  " + checksums[i] + "  Weight:  1.00");
+      out.append(" Name: " + printId(s[i], jvsuffix) + " oo  Len:  "
+              + seq.length() + "  Check:  " + checksums[i]
+              + "  Weight:  1.00");
       out.append(newline);
 
       if (seq.length() > max)
@@ -151,7 +142,7 @@ public class PileUpfile extends MSFfile
 
       while ((j < s.length) && (s[j] != null))
       {
-        String name = printId(s[j]);
+        String name = printId(s[j], jvsuffix);
 
         out.append(new Format("%-" + maxid + "s").form(name + " "));
 
@@ -160,8 +151,8 @@ public class PileUpfile extends MSFfile
           int start = (i * 50) + (k * 10);
           int end = start + 10;
 
-          if ((end < s[j].getSequence().length)
-                  && (start < s[j].getSequence().length))
+          int length = s[j].getLength();
+          if ((end < length) && (start < length))
           {
             out.append(s[j].getSequence(start, end));
 
@@ -176,7 +167,7 @@ public class PileUpfile extends MSFfile
           }
           else
           {
-            if (start < s[j].getSequence().length)
+            if (start < length)
             {
               out.append(s[j].getSequenceAsString().substring(start));
               out.append(newline);

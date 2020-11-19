@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,236 +20,231 @@
  */
 package jalview.math;
 
+import jalview.datamodel.Point;
+
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * Model for a 3x3 matrix which provides methods for rotation in 3-D space
  */
 public class RotatableMatrix
 {
+  private static final int DIMS = 3;
+
+  /*
+   * cache the most used rotations: +/- 1, 2, 3, 4 degrees around x or y axis
+   */
+  private static Map<Axis, Map<Float, float[][]>> cachedRotations;
+
+  static
+  {
+    cachedRotations = new HashMap<>();
+    for (Axis axis : Axis.values())
+    {
+      HashMap<Float, float[][]> map = new HashMap<>();
+      cachedRotations.put(axis, map);
+      for (int deg = 1; deg < 5; deg++)
+      {
+        float[][] rotation = getRotation(deg, axis);
+        map.put(Float.valueOf(deg), rotation);
+        rotation = getRotation(-deg, axis);
+        map.put(Float.valueOf(-deg), rotation);
+      }
+    }
+  }
+
+  public enum Axis
+  {
+    X, Y, Z
+  };
+
   float[][] matrix;
 
-  float[] temp;
-
-  float[][] rot;
-
   /**
-   * Creates a new RotatableMatrix object.
-   * 
-   * @param rows
-   *          DOCUMENT ME!
-   * @param cols
-   *          DOCUMENT ME!
+   * Constructor creates a new identity matrix (all values zero except for 1 on
+   * the diagonal)
    */
-  public RotatableMatrix(int rows, int cols)
+  public RotatableMatrix()
   {
-    matrix = new float[rows][cols];
-
-    temp = new float[3];
-
-    rot = new float[3][3];
+    matrix = new float[DIMS][DIMS];
+    for (int j = 0; j < DIMS; j++)
+    {
+      matrix[j][j] = 1f;
+    }
   }
 
   /**
-   * DOCUMENT ME!
+   * Sets the value at position (i, j) of the matrix
    * 
    * @param i
-   *          DOCUMENT ME!
    * @param j
-   *          DOCUMENT ME!
    * @param value
-   *          DOCUMENT ME!
    */
-  public void addElement(int i, int j, float value)
+  public void setValue(int i, int j, float value)
   {
     matrix[i][j] = value;
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers the value at position (i, j) of the matrix
+   * 
+   * @param i
+   * @param j
+   * @return
+   */
+  public float getValue(int i, int j)
+  {
+    return matrix[i][j];
+  }
+
+  /**
+   * Prints the matrix in rows of space-delimited values
    */
   public void print()
   {
-    System.out.println(matrix[0][0] + " " + matrix[0][1] + " "
-            + matrix[0][2]);
+    System.out.println(
+            matrix[0][0] + " " + matrix[0][1] + " " + matrix[0][2]);
 
-    System.out.println(matrix[1][0] + " " + matrix[1][1] + " "
-            + matrix[1][2]);
+    System.out.println(
+            matrix[1][0] + " " + matrix[1][1] + " " + matrix[1][2]);
 
-    System.out.println(matrix[2][0] + " " + matrix[2][1] + " "
-            + matrix[2][2]);
+    System.out.println(
+            matrix[2][0] + " " + matrix[2][1] + " " + matrix[2][2]);
   }
 
   /**
-   * DOCUMENT ME!
+   * Rotates the matrix through the specified number of degrees around the
+   * specified axis
    * 
    * @param degrees
-   *          DOCUMENT ME!
    * @param axis
-   *          DOCUMENT ME!
    */
-  public void rotate(float degrees, char axis)
+  public void rotate(float degrees, Axis axis)
   {
-    float costheta = (float) Math.cos((degrees * Math.PI) / (float) 180.0);
+    float[][] rot = getRotation(degrees, axis);
 
-    float sintheta = (float) Math.sin((degrees * Math.PI) / (float) 180.0);
-
-    if (axis == 'z')
-    {
-      rot[0][0] = (float) costheta;
-
-      rot[0][1] = (float) -sintheta;
-
-      rot[0][2] = (float) 0.0;
-
-      rot[1][0] = (float) sintheta;
-
-      rot[1][1] = (float) costheta;
-
-      rot[1][2] = (float) 0.0;
-
-      rot[2][0] = (float) 0.0;
-
-      rot[2][1] = (float) 0.0;
-
-      rot[2][2] = (float) 1.0;
-
-      preMultiply(rot);
-    }
-
-    if (axis == 'x')
-    {
-      rot[0][0] = (float) 1.0;
-
-      rot[0][1] = (float) 0.0;
-
-      rot[0][2] = (float) 0.0;
-
-      rot[1][0] = (float) 0.0;
-
-      rot[1][1] = (float) costheta;
-
-      rot[1][2] = (float) sintheta;
-
-      rot[2][0] = (float) 0.0;
-
-      rot[2][1] = (float) -sintheta;
-
-      rot[2][2] = (float) costheta;
-
-      preMultiply(rot);
-    }
-
-    if (axis == 'y')
-    {
-      rot[0][0] = (float) costheta;
-
-      rot[0][1] = (float) 0.0;
-
-      rot[0][2] = (float) -sintheta;
-
-      rot[1][0] = (float) 0.0;
-
-      rot[1][1] = (float) 1.0;
-
-      rot[1][2] = (float) 0.0;
-
-      rot[2][0] = (float) sintheta;
-
-      rot[2][1] = (float) 0.0;
-
-      rot[2][2] = (float) costheta;
-
-      preMultiply(rot);
-    }
+    preMultiply(rot);
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers a matrix which, when it pre-multiplies another matrix, applies a
+   * rotation of the specified number of degrees around the specified axis
+   * 
+   * @param degrees
+   * @param axis
+   * @return
+   * @see https://en.wikipedia.org/wiki/Rotation_matrix#Basic_rotations
+   */
+  protected static float[][] getRotation(float degrees, Axis axis)
+  {
+    Float floatValue = Float.valueOf(degrees);
+    if (cachedRotations.get(axis).containsKey(floatValue))
+    {
+      // System.out.println("getRotation from cache: " + (int) degrees);
+      return cachedRotations.get(axis).get(floatValue);
+    }
+
+    float costheta = (float) Math.cos(degrees * Math.PI / 180f);
+
+    float sintheta = (float) Math.sin(degrees * Math.PI / 180f);
+
+    float[][] rot = new float[DIMS][DIMS];
+
+    switch (axis)
+    {
+    case X:
+      rot[0][0] = 1f;
+      rot[1][1] = costheta;
+      rot[1][2] = sintheta;
+      rot[2][1] = -sintheta;
+      rot[2][2] = costheta;
+      break;
+    case Y:
+      rot[0][0] = costheta;
+      rot[0][2] = -sintheta;
+      rot[1][1] = 1f;
+      rot[2][0] = sintheta;
+      rot[2][2] = costheta;
+      break;
+    case Z:
+      rot[0][0] = costheta;
+      rot[0][1] = -sintheta;
+      rot[1][0] = sintheta;
+      rot[1][1] = costheta;
+      rot[2][2] = 1f;
+      break;
+    }
+    return rot;
+  }
+
+  /**
+   * Answers a new array of float values which is the result of pre-multiplying
+   * this matrix by the given vector. Each value of the result is the dot
+   * product of the vector with one column of this matrix. The matrix and input
+   * vector are not modified.
    * 
    * @param vect
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   public float[] vectorMultiply(float[] vect)
   {
-    temp[0] = vect[0];
+    float[] result = new float[DIMS];
 
-    temp[1] = vect[1];
-
-    temp[2] = vect[2];
-
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < DIMS; i++)
     {
-      temp[i] = (matrix[i][0] * vect[0]) + (matrix[i][1] * vect[1])
+      result[i] = (matrix[i][0] * vect[0]) + (matrix[i][1] * vect[1])
               + (matrix[i][2] * vect[2]);
     }
 
-    vect[0] = temp[0];
-
-    vect[1] = temp[1];
-
-    vect[2] = temp[2];
-
-    return vect;
+    return result;
   }
 
   /**
-   * DOCUMENT ME!
+   * Performs pre-multiplication of this matrix by the given one. Value (i, j)
+   * of the result is the dot product of the i'th row of <code>mat</code> with
+   * the j'th column of this matrix.
    * 
    * @param mat
-   *          DOCUMENT ME!
    */
   public void preMultiply(float[][] mat)
   {
-    float[][] tmp = new float[3][3];
+    float[][] tmp = new float[DIMS][DIMS];
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < DIMS; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (int j = 0; j < DIMS; j++)
       {
         tmp[i][j] = (mat[i][0] * matrix[0][j]) + (mat[i][1] * matrix[1][j])
                 + (mat[i][2] * matrix[2][j]);
       }
     }
 
-    for (int i = 0; i < 3; i++)
-    {
-      for (int j = 0; j < 3; j++)
-      {
-        matrix[i][j] = tmp[i][j];
-      }
-    }
+    matrix = tmp;
   }
 
   /**
-   * DOCUMENT ME!
+   * Performs post-multiplication of this matrix by the given one. Value (i, j)
+   * of the result is the dot product of the i'th row of this matrix with the
+   * j'th column of <code>mat</code>.
    * 
    * @param mat
-   *          DOCUMENT ME!
    */
   public void postMultiply(float[][] mat)
   {
-    float[][] tmp = new float[3][3];
+    float[][] tmp = new float[DIMS][DIMS];
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < DIMS; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (int j = 0; j < DIMS; j++)
       {
         tmp[i][j] = (matrix[i][0] * mat[0][j]) + (matrix[i][1] * mat[1][j])
                 + (matrix[i][2] * mat[2][j]);
       }
     }
 
-    for (int i = 0; i < 3; i++)
-    {
-      for (int j = 0; j < 3; j++)
-      {
-        matrix[i][j] = tmp[i][j];
-      }
-    }
+    matrix = tmp;
   }
 
   /**
@@ -260,47 +255,47 @@ public class RotatableMatrix
    */
   public static void main(String[] args)
   {
-    RotatableMatrix m = new RotatableMatrix(3, 3);
+    RotatableMatrix m = new RotatableMatrix();
 
-    m.addElement(0, 0, 1);
+    m.setValue(0, 0, 1);
 
-    m.addElement(0, 1, 0);
+    m.setValue(0, 1, 0);
 
-    m.addElement(0, 2, 0);
+    m.setValue(0, 2, 0);
 
-    m.addElement(1, 0, 0);
+    m.setValue(1, 0, 0);
 
-    m.addElement(1, 1, 2);
+    m.setValue(1, 1, 2);
 
-    m.addElement(1, 2, 0);
+    m.setValue(1, 2, 0);
 
-    m.addElement(2, 0, 0);
+    m.setValue(2, 0, 0);
 
-    m.addElement(2, 1, 0);
+    m.setValue(2, 1, 0);
 
-    m.addElement(2, 2, 1);
+    m.setValue(2, 2, 1);
 
     m.print();
 
-    RotatableMatrix n = new RotatableMatrix(3, 3);
+    RotatableMatrix n = new RotatableMatrix();
 
-    n.addElement(0, 0, 2);
+    n.setValue(0, 0, 2);
 
-    n.addElement(0, 1, 1);
+    n.setValue(0, 1, 1);
 
-    n.addElement(0, 2, 1);
+    n.setValue(0, 2, 1);
 
-    n.addElement(1, 0, 2);
+    n.setValue(1, 0, 2);
 
-    n.addElement(1, 1, 1);
+    n.setValue(1, 1, 1);
 
-    n.addElement(1, 2, 1);
+    n.setValue(1, 2, 1);
 
-    n.addElement(2, 0, 2);
+    n.setValue(2, 0, 2);
 
-    n.addElement(2, 1, 1);
+    n.setValue(2, 1, 1);
 
-    n.addElement(2, 2, 1);
+    n.setValue(2, 2, 1);
 
     n.print();
 
@@ -321,26 +316,15 @@ public class RotatableMatrix
   }
 
   /**
-   * DOCUMENT ME!
+   * Performs a vector multiplication whose result is the Point representing the
+   * input point's value vector post-multiplied by this matrix.
+   * 
+   * @param coord
+   * @return
    */
-  public void setIdentity()
+  public Point vectorMultiply(Point coord)
   {
-    matrix[0][0] = (float) 1.0;
-
-    matrix[1][1] = (float) 1.0;
-
-    matrix[2][2] = (float) 1.0;
-
-    matrix[0][1] = (float) 0.0;
-
-    matrix[0][2] = (float) 0.0;
-
-    matrix[1][0] = (float) 0.0;
-
-    matrix[1][2] = (float) 0.0;
-
-    matrix[2][0] = (float) 0.0;
-
-    matrix[2][1] = (float) 0.0;
+    float[] v = vectorMultiply(new float[] { coord.x, coord.y, coord.z });
+    return new Point(v[0], v[1], v[2]);
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -87,7 +87,8 @@ public class SplitFrame extends EmbmenuFrame
      * Compute cDNA consensus on protein alignment
      */
     protein.initComplementConsensus();
-    AlignmentViewPanel ap = topAlignment.isNucleotide() ? bottomFrame.alignPanel
+    AlignmentViewPanel ap = topAlignment.isNucleotide()
+            ? bottomFrame.alignPanel
             : topFrame.alignPanel;
     protein.updateConsensus(ap);
 
@@ -118,7 +119,8 @@ public class SplitFrame extends EmbmenuFrame
   {
     AlignmentViewport cdna = topFrame.getAlignViewport().getAlignment()
             .isNucleotide() ? topFrame.viewport : bottomFrame.viewport;
-    AlignmentViewport protein = cdna == topFrame.viewport ? bottomFrame.viewport
+    AlignmentViewport protein = cdna == topFrame.viewport
+            ? bottomFrame.viewport
             : topFrame.viewport;
 
     /*
@@ -132,14 +134,14 @@ public class SplitFrame extends EmbmenuFrame
     if (w1 != w3)
     {
       Dimension d = topFrame.alignPanel.idPanel.idCanvas.getSize();
-      topFrame.alignPanel.idPanel.idCanvas.setSize(new Dimension(w3,
-              d.height));
+      topFrame.alignPanel.idPanel.idCanvas
+              .setSize(new Dimension(w3, d.height));
     }
     if (w2 != w3)
     {
       Dimension d = bottomFrame.alignPanel.idPanel.idCanvas.getSize();
-      bottomFrame.alignPanel.idPanel.idCanvas.setSize(new Dimension(w3,
-              d.height));
+      bottomFrame.alignPanel.idPanel.idCanvas
+              .setSize(new Dimension(w3, d.height));
     }
 
     /*
@@ -165,8 +167,8 @@ public class SplitFrame extends EmbmenuFrame
   private void addAlignFrameComponents(AlignFrame af, Panel panel)
   {
     panel.setLayout(new BorderLayout());
-    Panel menuPanel = af
-            .makeEmbeddedPopupMenu(af.getMenuBar(), true, false);
+    Panel menuPanel = af.makeEmbeddedPopupMenu(af.getMenuBar(), true,
+            false);
     panel.add(menuPanel, BorderLayout.NORTH);
     panel.add(af.statusBar, BorderLayout.SOUTH);
     panel.add(af.alignPanel, BorderLayout.CENTER);
@@ -185,9 +187,9 @@ public class SplitFrame extends EmbmenuFrame
     createSplitFrameWindow(embedded, applet);
     validate();
     topFrame.alignPanel.adjustAnnotationHeight();
-    topFrame.alignPanel.paintAlignment(true);
+    topFrame.alignPanel.paintAlignment(true, true);
     bottomFrame.alignPanel.adjustAnnotationHeight();
-    bottomFrame.alignPanel.paintAlignment(true);
+    bottomFrame.alignPanel.paintAlignment(true, true);
   }
 
   /**
@@ -209,8 +211,8 @@ public class SplitFrame extends EmbmenuFrame
       this.add(outermost);
       int width = Math.max(topFrame.frameWidth, bottomFrame.frameWidth);
       int height = topFrame.frameHeight + bottomFrame.frameHeight;
-      jalview.bin.JalviewLite
-              .addFrame(this, this.getTitle(), width, height);
+      jalview.bin.JalviewLite.addFrame(this, this.getTitle(), width,
+              height);
     }
   }
 

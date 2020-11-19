@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,6 +27,7 @@ import jalview.datamodel.SeqCigar;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.gui.WebserviceInfo;
 import jalview.util.MessageManager;
 
@@ -36,7 +37,6 @@ import java.util.Hashtable;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 
 import ext.vamsas.Jpred;
 import ext.vamsas.JpredServiceLocator;
@@ -59,9 +59,8 @@ public class JPredClient extends WS1Client
    * @param viewonly
    *          TODO
    */
-  public JPredClient(ext.vamsas.ServiceHandle sh, String title,
-          boolean msa, AlignmentView alview, AlignFrame parentFrame,
-          boolean viewonly)
+  public JPredClient(ext.vamsas.ServiceHandle sh, String title, boolean msa,
+          AlignmentView alview, AlignFrame parentFrame, boolean viewonly)
   {
     super();
     wsInfo = setWebService(sh);
@@ -154,9 +153,8 @@ public class JPredClient extends WS1Client
     {
       if (!msa && msf.length > 1)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_multiple_single_sequence_prediction_jobs_not_supported"));
+        throw new Error(MessageManager.getString(
+                "error.implementation_error_multiple_single_sequence_prediction_jobs_not_supported"));
       }
 
       String altitle = getPredictionName(WebServiceName) + " for "
@@ -185,8 +183,8 @@ public class JPredClient extends WS1Client
 
   private String getPredictionName(String webServiceName)
   {
-    if (webServiceName.toLowerCase().indexOf(
-            "secondary structure prediction") > -1)
+    if (webServiceName.toLowerCase()
+            .indexOf("secondary structure prediction") > -1)
     {
       return webServiceName;
     }
@@ -238,12 +236,13 @@ public class JPredClient extends WS1Client
 
     SequenceI seq = msf[0];
 
-    String altitle = "JNet prediction on " + seq.getName()
+    String altitle = "JPred prediction on " + seq.getName()
             + " using alignment from " + title;
 
     wsInfo.setProgressText("Job details for MSA based prediction (" + title
             + ") on sequence :\n>" + seq.getName() + "\n"
-            + AlignSeq.extractGaps("-. ", seq.getSequenceAsString()) + "\n");
+            + AlignSeq.extractGaps("-. ", seq.getSequenceAsString())
+            + "\n");
     SequenceI aln[] = new SequenceI[msf.length];
     for (int i = 0, j = msf.length; i < j; i++)
     {
@@ -274,8 +273,9 @@ public class JPredClient extends WS1Client
     }
     wsInfo.setProgressText("Job details for prediction on sequence :\n>"
             + seq.getName() + "\n"
-            + AlignSeq.extractGaps("-. ", seq.getSequenceAsString()) + "\n");
-    String altitle = "JNet prediction for sequence " + seq.getName()
+            + AlignSeq.extractGaps("-. ", seq.getSequenceAsString())
+            + "\n");
+    String altitle = "JPred prediction for sequence " + seq.getName()
             + " from " + title;
 
     Hashtable SequenceInfo = jalview.analysis.SeqsetUtils
@@ -323,21 +323,17 @@ public class JPredClient extends WS1Client
 
     } catch (Exception ex)
     {
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      MessageManager
-                              .formatMessage(
-                                      "label.secondary_structure_prediction_service_couldnt_be_located",
-                                      new String[] { WebServiceName, WsURL }),
-                      MessageManager
-                              .getString("label.internal_jalview_error"),
-                      JOptionPane.WARNING_MESSAGE);
-      wsInfo.setProgressText(MessageManager
-              .formatMessage(
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
                       "label.secondary_structure_prediction_service_couldnt_be_located",
-                      new String[] { WebServiceName, WsURL })
-              + "\n" + ex.getMessage());
+                      new String[]
+                      { WebServiceName, WsURL }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
+      wsInfo.setProgressText(MessageManager.formatMessage(
+              "label.secondary_structure_prediction_service_couldnt_be_located",
+              new String[]
+              { WebServiceName, WsURL }) + "\n" + ex.getMessage());
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
 
     }
@@ -345,6 +341,7 @@ public class JPredClient extends WS1Client
     return server;
   }
 
+  @Override
   public void attachWSMenuEntry(JMenu wsmenu, final ServiceHandle sh,
           final AlignFrame af)
   {
@@ -352,14 +349,15 @@ public class JPredClient extends WS1Client
     method.setToolTipText(sh.getEndpointURL());
     method.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         AlignmentView msa = af.gatherSeqOrMsaForSecStrPrediction();
         if (msa.getSequences().length == 1)
         {
           // Single Sequence prediction
-          new jalview.ws.jws1.JPredClient(sh, af.getTitle(), false, msa,
-                  af, true);
+          new jalview.ws.jws1.JPredClient(sh, af.getTitle(), false, msa, af,
+                  true);
         }
         else
         {

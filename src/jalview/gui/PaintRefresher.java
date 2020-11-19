@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,9 +26,9 @@ import jalview.datamodel.SequenceI;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Route datamodel/view update events for a sequence set to any display
@@ -74,25 +74,20 @@ public class PaintRefresher
    */
   public static void RemoveComponent(Component comp)
   {
-    List<String> emptied = new ArrayList<String>();
-    for (Entry<String, List<Component>> registered : components.entrySet())
+    if (components == null)
     {
-      String id = registered.getKey();
-      List<Component> comps = components.get(id);
+      return;
+    }
+
+    Iterator<String> it = components.keySet().iterator();
+    while (it.hasNext())
+    {
+      List<Component> comps = components.get(it.next());
       comps.remove(comp);
       if (comps.isEmpty())
       {
-        emptied.add(id);
+        it.remove();
       }
-    }
-
-    /*
-     * Remove now empty ids after the above (to avoid
-     * ConcurrentModificationException).
-     */
-    for (String id : emptied)
-    {
-      components.remove(id);
     }
   }
 
@@ -188,8 +183,8 @@ public class PaintRefresher
           {
             // raise an implementation warning here - not sure if this situation
             // will ever occur
-            System.err
-                    .println("IMPLEMENTATION PROBLEM: DATASET out of sync due to an insert whilst calling PaintRefresher.validateSequences(AlignmentI, ALignmentI)");
+            System.err.println(
+                    "IMPLEMENTATION PROBLEM: DATASET out of sync due to an insert whilst calling PaintRefresher.validateSequences(AlignmentI, ALignmentI)");
           }
           List<SequenceI> alsq;
           synchronized (alsq = comp.getSequences())

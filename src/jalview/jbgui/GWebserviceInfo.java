@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,7 @@ import jalview.util.MessageManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -61,6 +62,8 @@ public class GWebserviceInfo extends JPanel
 
   protected JPanel buttonPanel = new JPanel();
 
+  public JLabel titleText = new JLabel();
+
   public JButton cancel = new JButton();
 
   public JButton showResultsNewFrame = new JButton();
@@ -95,7 +98,7 @@ public class GWebserviceInfo extends JPanel
    */
   private void jbInit() throws Exception
   {
-    infoText.setFont(new java.awt.Font("Verdana", 0, 10));
+    infoText.setFont(new Font("Verdana", 0, 10));
     infoText.setBorder(null);
     infoText.setEditable(false);
     infoText.setText("");
@@ -106,21 +109,25 @@ public class GWebserviceInfo extends JPanel
     titlePanel.setBackground(Color.white);
     titlePanel.setPreferredSize(new Dimension(0, 60));
     titlePanel.setLayout(borderLayout3);
+    titleText.setFont(new Font("Arial", Font.BOLD, 12));
+    titleText.setBorder(null);
+    titleText.setText("");
     jScrollPane1.setBorder(null);
     jScrollPane1.setPreferredSize(new Dimension(400, 70));
-    cancel.setFont(new java.awt.Font("Verdana", 0, 11));
+    cancel.setFont(new Font("Verdana", 0, 11));
     cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new java.awt.event.ActionListener()
     {
-      public void actionPerformed(ActionEvent e)
+      @Override
+	public void actionPerformed(ActionEvent e)
       {
         cancel_actionPerformed(e);
       }
     });
     buttonPanel.setLayout(gridBagLayout1);
     buttonPanel.setOpaque(false);
-    showResultsNewFrame.setText(MessageManager
-            .getString("label.new_window"));
+    showResultsNewFrame
+            .setText(MessageManager.getString("label.new_window"));
     mergeResults.setText(MessageManager.getString("action.merge_results"));
     this.setBackground(Color.white);
     this.add(jPanel1, BorderLayout.NORTH);
@@ -128,9 +135,10 @@ public class GWebserviceInfo extends JPanel
     jScrollPane1.getViewport().add(infoText, null);
     jPanel1.add(titlePanel, BorderLayout.NORTH);
     titlePanel.add(buttonPanel, BorderLayout.EAST);
-    buttonPanel.add(cancel, new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0,
-            GridBagConstraints.CENTER, GridBagConstraints.NONE, new Insets(
-                    19, 6, 16, 4), 0, 0));
+    buttonPanel.add(cancel,
+            new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0,
+                    GridBagConstraints.CENTER, GridBagConstraints.NONE,
+                    new Insets(19, 6, 16, 4), 0, 0));
     this.add(statusPanel, java.awt.BorderLayout.SOUTH);
     statusPanel.add(statusBar, null);
   }

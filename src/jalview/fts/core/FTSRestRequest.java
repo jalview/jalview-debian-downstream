@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -45,8 +45,8 @@ public class FTSRestRequest
 
   private boolean allowEmptySequence;
 
-  private boolean allowUnpublishedEntries = Cache.getDefault(
-          "ALLOW_UNPUBLISHED_PDB_QUERYING", false);
+  private boolean allowUnpublishedEntries = Cache
+          .getDefault("ALLOW_UNPUBLISHED_PDB_QUERYING", false);
 
   private boolean facet;
 
@@ -117,7 +117,8 @@ public class FTSRestRequest
     return fieldToSortBy;
   }
 
-  public void setFieldToSortBy(String fieldToSortBy, boolean isSortAscending)
+  public void setFieldToSortBy(String fieldToSortBy,
+          boolean isSortAscending)
   {
     this.fieldToSortBy = fieldToSortBy;
     this.isSortAscending = isSortAscending;

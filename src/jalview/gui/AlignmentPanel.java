@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,16 +25,20 @@ import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.io.HTMLOutput;
 import jalview.jbgui.GAlignmentPanel;
 import jalview.math.AlignmentDimension;
 import jalview.schemes.ResidueProperties;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.Comparison;
 import jalview.util.MessageManager;
-import jalview.util.Platform;
+import jalview.viewmodel.ViewportListenerI;
+import jalview.viewmodel.ViewportRanges;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -43,9 +47,11 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.awt.Insets;
+import java.awt.Graphics2D;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
@@ -65,8 +71,13 @@ import javax.swing.SwingUtilities;
  * @version $Revision: 1.161 $
  */
 public class AlignmentPanel extends GAlignmentPanel implements
-        AdjustmentListener, Printable, AlignmentViewPanel
+        AdjustmentListener, Printable, AlignmentViewPanel, ViewportListenerI
 {
+  /*
+   * spare space in pixels between sequence id and alignment panel
+   */
+  private static final int ID_WIDTH_PADDING = 4;
+
   public AlignViewport av;
 
   OverviewPanel overviewPanel;
@@ -88,20 +99,19 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
   private AnnotationLabels alabels;
 
-  // this value is set false when selection area being dragged
-  boolean fastPaint = true;
+  private int hextent = 0;
 
-  int hextent = 0;
-
-  int vextent = 0;
+  private int vextent = 0;
 
   /*
    * Flag set while scrolling to follow complementary cDNA/protein scroll. When
-   * true, suppresses invoking the same method recursively.
+   * false, suppresses invoking the same method recursively.
    */
-  private boolean dontScrollComplement;
+  private boolean scrollComplementaryPanel = true;
 
   private PropertyChangeListener propertyChangeListener;
+
+  private CalculationChooser calculationDialog;
 
   /**
    * Creates a new AlignmentPanel object.
@@ -136,6 +146,35 @@ public class AlignmentPanel extends GAlignmentPanel implements
     hscroll.addAdjustmentListener(this);
     vscroll.addAdjustmentListener(this);
 
+    addComponentListener(new ComponentAdapter()
+    {
+      @Override
+      public void componentResized(ComponentEvent evt)
+      {
+        // reset the viewport ranges when the alignment panel is resized
+        // in particular, this initialises the end residue value when Jalview
+        // is initialised
+        ViewportRanges ranges = av.getRanges();
+        if (av.getWrapAlignment())
+        {
+          int widthInRes = getSeqPanel().seqCanvas.getWrappedCanvasWidth(
+                  getSeqPanel().seqCanvas.getWidth());
+          ranges.setViewportWidth(widthInRes);
+        }
+        else
+        {
+          int widthInRes = getSeqPanel().seqCanvas.getWidth()
+                  / av.getCharWidth();
+          int heightInSeq = getSeqPanel().seqCanvas.getHeight()
+                  / av.getCharHeight();
+
+          ranges.setViewportWidth(widthInRes);
+          ranges.setViewportHeight(heightInSeq);
+        }
+      }
+
+    });
+
     final AlignmentPanel ap = this;
     propertyChangeListener = new PropertyChangeListener()
     {
@@ -150,6 +189,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
       }
     };
     av.addPropertyChangeListener(propertyChangeListener);
+
+    av.getRanges().addPropertyChangeListener(this);
     fontChanged();
     adjustAnnotationHeight();
     updateLayout();
@@ -165,9 +206,15 @@ public class AlignmentPanel extends GAlignmentPanel implements
   {
     av.alignmentChanged(this);
 
+    if (getCalculationDialog() != null)
+    {
+      getCalculationDialog().validateCalcTypes();
+    }
+
     alignFrame.updateEditMenuBar();
 
-    paintAlignment(true);
+    // no idea if we need to update structure
+    paintAlignment(true, true);
 
   }
 
@@ -180,48 +227,42 @@ public class AlignmentPanel extends GAlignmentPanel implements
     // to prevent drawing old image
     FontMetrics fm = getFontMetrics(av.getFont());
 
-    scalePanelHolder.setPreferredSize(new Dimension(10, av.getCharHeight()
-            + fm.getDescent()));
-    idSpaceFillerPanel1.setPreferredSize(new Dimension(10, av
-            .getCharHeight() + fm.getDescent()));
-
+    scalePanelHolder.setPreferredSize(
+            new Dimension(10, av.getCharHeight() + fm.getDescent()));
+    idSpaceFillerPanel1.setPreferredSize(
+            new Dimension(10, av.getCharHeight() + fm.getDescent()));
+    idwidthAdjuster.invalidate();
+    scalePanelHolder.invalidate();
     getIdPanel().getIdCanvas().gg = null;
     getSeqPanel().seqCanvas.img = null;
     getAnnotationPanel().adjustPanelHeight();
 
     Dimension d = calculateIdWidth();
-
-    d.setSize(d.width + 4, d.height);
     getIdPanel().getIdCanvas().setPreferredSize(d);
     hscrollFillerPanel.setPreferredSize(d);
-
-    if (overviewPanel != null)
-    {
-      overviewPanel.setBoxPosition();
-    }
-    if (this.alignFrame.getSplitViewContainer() != null)
-    {
-      ((SplitFrame) this.alignFrame.getSplitViewContainer()).adjustLayout();
-    }
 
     repaint();
   }
 
   /**
-   * Calculate the width of the alignment labels based on the displayed names
-   * and any bounds on label width set in preferences.
+   * Calculates the width of the alignment labels based on the displayed names
+   * and any bounds on label width set in preferences. The calculated width is
+   * also set as a property of the viewport.
    * 
    * @return Dimension giving the maximum width of the alignment label panel
    *         that should be used.
    */
   public Dimension calculateIdWidth()
   {
+    int oldWidth = av.getIdWidth();
+
     // calculate sensible default width when no preference is available
     Dimension r = null;
     if (av.getIdWidth() < 0)
     {
       int afwidth = (alignFrame != null ? alignFrame.getWidth() : 300);
-      int maxwidth = Math.max(20, Math.min(afwidth - 200, 2 * afwidth / 3));
+      int idWidth = Math.min(afwidth - 200, 2 * afwidth / 3);
+      int maxwidth = Math.max(IdwidthAdjuster.MIN_ID_WIDTH, idWidth);
       r = calculateIdWidth(maxwidth);
       av.setIdWidth(r.width);
     }
@@ -230,6 +271,16 @@ public class AlignmentPanel extends GAlignmentPanel implements
       r = new Dimension();
       r.width = av.getIdWidth();
       r.height = 0;
+    }
+
+    /*
+     * fudge: if desired width has changed, update layout
+     * (see also paintComponent - updates layout on a repaint)
+     */
+    if (r.width != oldWidth)
+    {
+      idPanelHolder.setPreferredSize(r);
+      validate();
     }
     return r;
   }
@@ -243,29 +294,23 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @return Dimension giving the maximum width of the alignment label panel
    *         that should be used.
    */
-  public Dimension calculateIdWidth(int maxwidth)
+  protected Dimension calculateIdWidth(int maxwidth)
   {
     Container c = new Container();
 
-    FontMetrics fm = c.getFontMetrics(new Font(av.font.getName(),
-            Font.ITALIC, av.font.getSize()));
+    FontMetrics fm = c.getFontMetrics(
+            new Font(av.font.getName(), Font.ITALIC, av.font.getSize()));
 
     AlignmentI al = av.getAlignment();
     int i = 0;
     int idWidth = 0;
-    String id;
 
     while ((i < al.getHeight()) && (al.getSequenceAt(i) != null))
     {
       SequenceI s = al.getSequenceAt(i);
-
-      id = s.getDisplayId(av.getShowJVSuffix());
-
-      if (fm.stringWidth(id) > idWidth)
-      {
-        idWidth = fm.stringWidth(id);
-      }
-
+      String id = s.getDisplayId(av.getShowJVSuffix());
+      int stringWidth = fm.stringWidth(id);
+      idWidth = Math.max(idWidth, stringWidth);
       i++;
     }
 
@@ -279,39 +324,29 @@ public class AlignmentPanel extends GAlignmentPanel implements
       while (i < al.getAlignmentAnnotation().length)
       {
         String label = al.getAlignmentAnnotation()[i].label;
-
-        if (fm.stringWidth(label) > idWidth)
-        {
-          idWidth = fm.stringWidth(label);
-        }
-
+        int stringWidth = fm.stringWidth(label);
+        idWidth = Math.max(idWidth, stringWidth);
         i++;
       }
     }
 
-    return new Dimension(maxwidth < 0 ? idWidth : Math.min(maxwidth,
-            idWidth), 12);
+    int w = maxwidth < 0 ? idWidth : Math.min(maxwidth, idWidth);
+    w += ID_WIDTH_PADDING;
+
+    return new Dimension(w, 12);
   }
 
   /**
-   * Highlight the given results on the alignment.
+   * Highlight the given results on the alignment
    * 
    */
   public void highlightSearchResults(SearchResultsI results)
   {
-    scrollToPosition(results);
-    getSeqPanel().seqCanvas.highlightSearchResults(results);
-  }
+    boolean scrolled = scrollToPosition(results, 0, false);
 
-  /**
-   * Scroll the view to show the position of the highlighted region in results
-   * (if any) and redraw the overview
-   * 
-   * @param results
-   */
-  public boolean scrollToPosition(SearchResultsI results)
-  {
-    return scrollToPosition(results, 0, true, false);
+    boolean noFastPaint = scrolled && av.getWrapAlignment();
+
+    getSeqPanel().seqCanvas.highlightSearchResults(results, noFastPaint);
   }
 
   /**
@@ -319,157 +354,137 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * (if any)
    * 
    * @param searchResults
-   * @param redrawOverview
    * @return
    */
-  public boolean scrollToPosition(SearchResultsI searchResults,
-          boolean redrawOverview)
+  public boolean scrollToPosition(SearchResultsI searchResults)
   {
-    return scrollToPosition(searchResults, 0, redrawOverview, false);
+    return scrollToPosition(searchResults, 0, false);
   }
 
   /**
-   * Scroll the view to show the position of the highlighted region in results
-   * (if any)
+   * Scrolls the view (if necessary) to show the position of the first
+   * highlighted region in results (if any). Answers true if the view was
+   * scrolled, or false if no matched region was found, or it is already
+   * visible.
    * 
    * @param results
    * @param verticalOffset
    *          if greater than zero, allows scrolling to a position below the
    *          first displayed sequence
-   * @param redrawOverview
-   *          - when set, the overview will be recalculated (takes longer)
    * @param centre
    *          if true, try to centre the search results horizontally in the view
-   * @return false if results were not found
+   * @return
    */
-  public boolean scrollToPosition(SearchResultsI results,
-          int verticalOffset, boolean redrawOverview, boolean centre)
+  protected boolean scrollToPosition(SearchResultsI results,
+          int verticalOffset, boolean centre)
   {
     int startv, endv, starts, ends;
-    // TODO: properly locate search results in view when large numbers of hidden
-    // columns exist before highlighted region
-    // do we need to scroll the panel?
-    // TODO: tons of nullpointerexceptions raised here.
-    if (results != null && results.getSize() > 0 && av != null
-            && av.getAlignment() != null)
+    ViewportRanges ranges = av.getRanges();
+
+    if (results == null || results.isEmpty() || av == null
+            || av.getAlignment() == null)
     {
-      int seqIndex = av.getAlignment().findIndex(results);
-      if (seqIndex == -1)
-      {
-        return false;
-      }
-      SequenceI seq = av.getAlignment().getSequenceAt(seqIndex);
+      return false;
+    }
+    int seqIndex = av.getAlignment().findIndex(results);
+    if (seqIndex == -1)
+    {
+      return false;
+    }
+    SequenceI seq = av.getAlignment().getSequenceAt(seqIndex);
 
-      int[] r = results.getResults(seq, 0, av.getAlignment().getWidth());
-      if (r == null)
-      {
-        return false;
-      }
-      int start = r[0];
-      int end = r[1];
-      // DEBUG
-      // System.err.println(this.av.viewName + " Seq : " + seqIndex
-      // + " Scroll to " + start + "," + end);
+    int[] r = results.getResults(seq, 0, av.getAlignment().getWidth());
+    if (r == null)
+    {
+      return false;
+    }
+    int start = r[0];
+    int end = r[1];
 
-      /*
-       * To centre results, scroll to positions half the visible width
-       * left/right of the start/end positions
-       */
-      if (centre)
-      {
-        int offset = (av.getEndRes() - av.getStartRes() + 1) / 2 - 1;
-        start = Math.max(start - offset, 0);
-        end = end + offset - 1;
-      }
-      if (start < 0)
-      {
-        return false;
-      }
-      if (end == seq.getEnd())
-      {
-        return false;
-      }
-      if (av.hasHiddenColumns())
-      {
-        start = av.getColumnSelection().findColumnPosition(start);
-        end = av.getColumnSelection().findColumnPosition(end);
-        if (start == end)
-        {
-          if (!av.getColumnSelection().isVisible(r[0]))
-          {
-            // don't scroll - position isn't visible
-            return false;
-          }
-        }
-      }
+    /*
+     * To centre results, scroll to positions half the visible width
+     * left/right of the start/end positions
+     */
+    if (centre)
+    {
+      int offset = (ranges.getEndRes() - ranges.getStartRes() + 1) / 2 - 1;
+      start = Math.max(start - offset, 0);
+      end = end + offset - 1;
+    }
+    if (start < 0)
+    {
+      return false;
+    }
+    if (end == seq.getEnd())
+    {
+      return false;
+    }
 
-      /*
-       * allow for offset of target sequence (actually scroll to one above it)
-       */
-      seqIndex = Math.max(0, seqIndex - verticalOffset);
-
-      // System.out.println("start=" + start + ", end=" + end + ", startv="
-      // + av.getStartRes() + ", endv=" + av.getEndRes() + ", starts="
-      // + av.getStartSeq() + ", ends=" + av.getEndSeq());
-      if (!av.getWrapAlignment())
+    if (av.hasHiddenColumns())
+    {
+      HiddenColumns hidden = av.getAlignment().getHiddenColumns();
+      start = hidden.absoluteToVisibleColumn(start);
+      end = hidden.absoluteToVisibleColumn(end);
+      if (start == end)
       {
-        if ((startv = av.getStartRes()) >= start)
+        if (!hidden.isVisible(r[0]))
         {
-          /*
-           * Scroll left to make start of search results visible
-           */
-          // setScrollValues(start - 1, seqIndex); // plus one residue
-          setScrollValues(start, seqIndex);
+          // don't scroll - position isn't visible
+          return false;
         }
-        else if ((endv = av.getEndRes()) <= end)
-        {
-          /*
-           * Scroll right to make end of search results visible
-           */
-          // setScrollValues(startv + 1 + end - endv, seqIndex); // plus one
-          setScrollValues(startv + end - endv, seqIndex);
-        }
-        else if ((starts = av.getStartSeq()) > seqIndex)
-        {
-          /*
-           * Scroll up to make start of search results visible
-           */
-          setScrollValues(av.getStartRes(), seqIndex);
-        }
-        else if ((ends = av.getEndSeq()) <= seqIndex)
-        {
-          /*
-           * Scroll down to make end of search results visible
-           */
-          setScrollValues(av.getStartRes(), starts + seqIndex - ends + 1);
-        }
+      }
+    }
+
+    /*
+     * allow for offset of target sequence (actually scroll to one above it)
+     */
+    seqIndex = Math.max(0, seqIndex - verticalOffset);
+    boolean scrollNeeded = true;
+
+    if (!av.getWrapAlignment())
+    {
+      if ((startv = ranges.getStartRes()) >= start)
+      {
         /*
-         * Else results are already visible - no need to scroll
+         * Scroll left to make start of search results visible
          */
+        setScrollValues(start, seqIndex);
       }
-      else
+      else if ((endv = ranges.getEndRes()) <= end)
       {
-        scrollToWrappedVisible(start);
+        /*
+         * Scroll right to make end of search results visible
+         */
+        setScrollValues(startv + end - endv, seqIndex);
       }
+      else if ((starts = ranges.getStartSeq()) > seqIndex)
+      {
+        /*
+         * Scroll up to make start of search results visible
+         */
+        setScrollValues(ranges.getStartRes(), seqIndex);
+      }
+      else if ((ends = ranges.getEndSeq()) <= seqIndex)
+      {
+        /*
+         * Scroll down to make end of search results visible
+         */
+        setScrollValues(ranges.getStartRes(), starts + seqIndex - ends
+                + 1);
+      }
+      /*
+       * Else results are already visible - no need to scroll
+       */
+      scrollNeeded = false;
     }
-    if (redrawOverview && overviewPanel != null)
+    else
     {
-      overviewPanel.setBoxPosition();
-    }
-    paintAlignment(redrawOverview);
-    return true;
-  }
-
-  void scrollToWrappedVisible(int res)
-  {
-    int cwidth = getSeqPanel().seqCanvas
-            .getWrappedCanvasWidth(getSeqPanel().seqCanvas.getWidth());
-    if (res < av.getStartRes() || res >= (av.getStartRes() + cwidth))
-    {
-      vscroll.setValue((res / cwidth));
-      av.startRes = vscroll.getValue() * cwidth;
+      scrollNeeded = ranges.scrollToWrappedVisible(start);
     }
 
+    paintAlignment(false, false);
+
+    return scrollNeeded;
   }
 
   /**
@@ -524,7 +539,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
     }
     validateAnnotationDimensions(true);
     addNotify();
-    paintAlignment(true);
+    // TODO: many places call this method and also paintAlignment with various
+    // different settings. this means multiple redraws are triggered...
+    paintAlignment(true, av.needToUpdateStructureViews());
   }
 
   /**
@@ -534,42 +551,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
   protected void validateAnnotationDimensions(boolean adjustPanelHeight)
   {
     int annotationHeight = getAnnotationPanel().adjustPanelHeight();
+    annotationHeight = getAnnotationPanel()
+            .adjustForAlignFrame(adjustPanelHeight, annotationHeight);
 
-    if (adjustPanelHeight)
-    {
-      int rowHeight = av.getCharHeight();
-      int alignmentHeight = rowHeight * av.getAlignment().getHeight();
-
-      /*
-       * Estimate available height in the AlignFrame for alignment +
-       * annotations. Deduct an estimate for title bar, menu bar, scale panel,
-       * hscroll, status bar (as these are not laid out we can't inspect their
-       * actual heights). Insets gives frame borders.
-       */
-      int stuff = Platform.isAMac() ? 80 : 100;
-      Insets insets = alignFrame.getInsets();
-      int availableHeight = alignFrame.getHeight() - stuff - insets.top
-              - insets.bottom;
-
-      /*
-       * If not enough vertical space, maximize annotation height while keeping
-       * at least two rows of alignment visible
-       */
-      if (annotationHeight + alignmentHeight > availableHeight)
-      {
-        annotationHeight = Math.min(annotationHeight, availableHeight - 2
-                * rowHeight);
-      }
-    }
-    else
-    {
-      // maintain same window layout whilst updating sliders
-      annotationHeight = annotationScroller.getSize().height;
-    }
     hscroll.addNotify();
-
-    annotationScroller.setPreferredSize(new Dimension(annotationScroller
-            .getWidth(), annotationHeight));
+    annotationScroller.setPreferredSize(
+            new Dimension(annotationScroller.getWidth(), annotationHeight));
 
     Dimension e = idPanel.getSize();
     alabels.setSize(new Dimension(e.width, annotationHeight));
@@ -591,7 +578,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
     fontChanged();
     setAnnotationVisible(av.isShowAnnotation());
     boolean wrap = av.getWrapAlignment();
-    av.startSeq = 0;
+    ViewportRanges ranges = av.getRanges();
+    ranges.setStartSeq(0);
     scalePanelHolder.setVisible(!wrap);
     hscroll.setVisible(!wrap);
     idwidthAdjuster.setVisible(!wrap);
@@ -605,76 +593,32 @@ public class AlignmentPanel extends GAlignmentPanel implements
     {
       annotationScroller.setVisible(true);
       annotationSpaceFillerHolder.setVisible(true);
+      validateAnnotationDimensions(false);
+    }
+
+    int canvasWidth = getSeqPanel().seqCanvas.getWidth();
+    if (canvasWidth > 0)
+    { // may not yet be laid out
+      if (wrap)
+      {
+        int widthInRes = getSeqPanel().seqCanvas
+                .getWrappedCanvasWidth(canvasWidth);
+        ranges.setViewportWidth(widthInRes);
+      }
+      else
+      {
+        int widthInRes = (canvasWidth / av.getCharWidth());
+        int heightInSeq = (getSeqPanel().seqCanvas.getHeight()
+                / av.getCharHeight());
+
+        ranges.setViewportWidth(widthInRes);
+        ranges.setViewportHeight(heightInSeq);
+      }
     }
 
     idSpaceFillerPanel1.setVisible(!wrap);
 
     repaint();
-  }
-
-  // return value is true if the scroll is valid
-  public boolean scrollUp(boolean up)
-  {
-    if (up)
-    {
-      if (vscroll.getValue() < 1)
-      {
-        return false;
-      }
-
-      fastPaint = false;
-      vscroll.setValue(vscroll.getValue() - 1);
-    }
-    else
-    {
-      if ((vextent + vscroll.getValue()) >= av.getAlignment().getHeight())
-      {
-        return false;
-      }
-
-      fastPaint = false;
-      vscroll.setValue(vscroll.getValue() + 1);
-    }
-
-    fastPaint = true;
-
-    return true;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param right
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public boolean scrollRight(boolean right)
-  {
-    if (!right)
-    {
-      if (hscroll.getValue() < 1)
-      {
-        return false;
-      }
-
-      fastPaint = false;
-      hscroll.setValue(hscroll.getValue() - 1);
-    }
-    else
-    {
-      if ((hextent + hscroll.getValue()) >= av.getAlignment().getWidth())
-      {
-        return false;
-      }
-
-      fastPaint = false;
-      hscroll.setValue(hscroll.getValue() + 1);
-    }
-
-    fastPaint = true;
-
-    return true;
   }
 
   /**
@@ -686,181 +630,188 @@ public class AlignmentPanel extends GAlignmentPanel implements
    *          visible row to scroll to
    * 
    */
-  public void setScrollValues(int x, int y)
+  public void setScrollValues(int xpos, int ypos)
   {
-    // System.err.println("Scroll " + this.av.viewName + " to " + x + "," + y);
+    int x = xpos;
+    int y = ypos;
+
     if (av == null || av.getAlignment() == null)
     {
       return;
     }
-    int width = av.getAlignment().getWidth();
-    int height = av.getAlignment().getHeight();
 
-    if (av.hasHiddenColumns())
+    if (av.getWrapAlignment())
     {
-      width = av.getColumnSelection().findColumnPosition(width);
+      setScrollingForWrappedPanel(x);
     }
-
-    av.setEndRes((x + (getSeqPanel().seqCanvas.getWidth() / av
-            .getCharWidth())) - 1);
-
-    hextent = getSeqPanel().seqCanvas.getWidth() / av.getCharWidth();
-    vextent = getSeqPanel().seqCanvas.getHeight() / av.getCharHeight();
-
-    if (hextent > width)
+    else
     {
-      hextent = width;
-    }
+      int width = av.getAlignment().getVisibleWidth();
+      int height = av.getAlignment().getHeight();
 
-    if (vextent > height)
-    {
-      vextent = height;
-    }
+      hextent = getSeqPanel().seqCanvas.getWidth() / av.getCharWidth();
+      vextent = getSeqPanel().seqCanvas.getHeight() / av.getCharHeight();
 
-    if ((hextent + x) > width)
-    {
-      x = width - hextent;
-    }
+      if (hextent > width)
+      {
+        hextent = width;
+      }
 
-    if ((vextent + y) > height)
-    {
-      y = height - vextent;
-    }
+      if (vextent > height)
+      {
+        vextent = height;
+      }
 
-    if (y < 0)
-    {
-      y = 0;
-    }
+      if ((hextent + x) > width)
+      {
+        x = width - hextent;
+      }
 
-    if (x < 0)
-    {
-      x = 0;
-    }
+      if ((vextent + y) > height)
+      {
+        y = height - vextent;
+      }
 
-    /*
-     * each scroll adjustment triggers adjustmentValueChanged, which resets the
-     * 'do not scroll complement' flag; ensure it is the same for both
-     * operations
-     */
-    boolean flag = isDontScrollComplement();
-    hscroll.setValues(x, hextent, 0, width);
-    setDontScrollComplement(flag);
-    vscroll.setValues(y, vextent, 0, height);
+      if (y < 0)
+      {
+        y = 0;
+      }
+
+      if (x < 0)
+      {
+        x = 0;
+      }
+
+      // update the scroll values
+      hscroll.setValues(x, hextent, 0, width);
+      vscroll.setValues(y, vextent, 0, height);
+    }
   }
 
   /**
-   * DOCUMENT ME!
+   * Respond to adjustment event when horizontal or vertical scrollbar is
+   * changed
    * 
    * @param evt
-   *          DOCUMENT ME!
+   *          adjustment event encoding whether hscroll or vscroll changed
    */
   @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
-    int oldX = av.getStartRes();
-    int oldY = av.getStartSeq();
+    if (av.getWrapAlignment())
+    {
+      adjustScrollingWrapped(evt);
+      return;
+    }
+
+    ViewportRanges ranges = av.getRanges();
 
     if (evt.getSource() == hscroll)
     {
+      int oldX = ranges.getStartRes();
+      int oldwidth = ranges.getViewportWidth();
       int x = hscroll.getValue();
-      av.setStartRes(x);
-      av.setEndRes((x + (getSeqPanel().seqCanvas.getWidth() / av
-              .getCharWidth())) - 1);
-    }
+      int width = getSeqPanel().seqCanvas.getWidth() / av.getCharWidth();
 
-    if (evt.getSource() == vscroll)
-    {
-      int offy = vscroll.getValue();
-
-      if (av.getWrapAlignment())
+      // if we're scrolling to the position we're already at, stop
+      // this prevents infinite recursion of events when the scroll/viewport
+      // ranges values are the same
+      if ((x == oldX) && (width == oldwidth))
       {
-        if (offy > -1)
-        {
-          int rowSize = getSeqPanel().seqCanvas
-                  .getWrappedCanvasWidth(getSeqPanel().seqCanvas.getWidth());
-          av.setStartRes(offy * rowSize);
-          av.setEndRes((offy + 1) * rowSize);
-        }
-        else
-        {
-          // This is only called if file loaded is a jar file that
-          // was wrapped when saved and user has wrap alignment true
-          // as preference setting
-          SwingUtilities.invokeLater(new Runnable()
-          {
-            @Override
-            public void run()
-            {
-              setScrollValues(av.getStartRes(), av.getStartSeq());
-            }
-          });
-        }
+        return;
       }
-      else
+      ranges.setViewportStartAndWidth(x, width);
+    }
+    else if (evt.getSource() == vscroll)
+    {
+      int oldY = ranges.getStartSeq();
+      int oldheight = ranges.getViewportHeight();
+      int y = vscroll.getValue();
+      int height = getSeqPanel().seqCanvas.getHeight() / av.getCharHeight();
+
+      // if we're scrolling to the position we're already at, stop
+      // this prevents infinite recursion of events when the scroll/viewport
+      // ranges values are the same
+      if ((y == oldY) && (height == oldheight))
       {
-        av.setStartSeq(offy);
-        av.setEndSeq(offy
-                + (getSeqPanel().seqCanvas.getHeight() / av.getCharHeight()));
+        return;
       }
+      ranges.setViewportStartAndHeight(y, height);
     }
-
-    if (overviewPanel != null)
-    {
-      overviewPanel.setBoxPosition();
-    }
-
-    int scrollX = av.startRes - oldX;
-    int scrollY = av.startSeq - oldY;
-
-    if (av.getWrapAlignment() || !fastPaint)
-    {
-      repaint();
-    }
-    else
-    {
-      // Make sure we're not trying to draw a panel
-      // larger than the visible window
-      if (scrollX > av.endRes - av.startRes)
-      {
-        scrollX = av.endRes - av.startRes;
-      }
-      else if (scrollX < av.startRes - av.endRes)
-      {
-        scrollX = av.startRes - av.endRes;
-      }
-
-      if (scrollX != 0 || scrollY != 0)
-      {
-        getIdPanel().getIdCanvas().fastPaint(scrollY);
-        getSeqPanel().seqCanvas.fastPaint(scrollX, scrollY);
-        getScalePanel().repaint();
-
-        if (av.isShowAnnotation() && scrollX != 0)
-        {
-          getAnnotationPanel().fastPaint(scrollX);
-        }
-      }
-    }
-    /*
-     * If there is one, scroll the (Protein/cDNA) complementary alignment to
-     * match, unless we are ourselves doing that.
-     */
-    if (isDontScrollComplement())
-    {
-      setDontScrollComplement(false);
-    }
-    else
-    {
-      av.scrollComplementaryAlignment();
-    }
+    repaint();
   }
 
   /**
-   * Repaint the alignment including the annotations and overview panels (if
-   * shown).
+   * Responds to a scroll change by setting the start position of the viewport.
+   * Does
+   * 
+   * @param evt
+   */
+  protected void adjustScrollingWrapped(AdjustmentEvent evt)
+  {
+    if (evt.getSource() == hscroll)
+    {
+      return; // no horizontal scroll when wrapped
+    }
+    final ViewportRanges ranges = av.getRanges();
+
+    if (evt.getSource() == vscroll)
+    {
+      int newY = vscroll.getValue();
+
+      /*
+       * if we're scrolling to the position we're already at, stop
+       * this prevents infinite recursion of events when the scroll/viewport
+       * ranges values are the same
+       */
+      int oldX = ranges.getStartRes();
+      int oldY = ranges.getWrappedScrollPosition(oldX);
+      if (oldY == newY)
+      {
+        return;
+      }
+      if (newY > -1)
+      {
+        /*
+         * limit page up/down to one width's worth of positions
+         */
+        int rowSize = ranges.getViewportWidth();
+        int newX = newY > oldY ? oldX + rowSize : oldX - rowSize;
+        ranges.setViewportStartAndWidth(Math.max(0, newX), rowSize);
+      }
+    }
+    else
+    {
+      // This is only called if file loaded is a jar file that
+      // was wrapped when saved and user has wrap alignment true
+      // as preference setting
+      SwingUtilities.invokeLater(new Runnable()
+      {
+        @Override
+        public void run()
+        {
+          // When updating scrolling to use ViewportChange events, this code
+          // could not be validated and it is not clear if it is now being
+          // called. Log warning here in case it is called and unforeseen
+          // problems occur
+          Cache.log.warn(
+                  "Unexpected path through code: Wrapped jar file opened with wrap alignment set in preferences");
+
+          // scroll to start of panel
+          ranges.setStartRes(0);
+          ranges.setStartSeq(0);
+        }
+      });
+    }
+    repaint();
+  }
+
+  /* (non-Javadoc)
+   * @see jalview.api.AlignmentViewPanel#paintAlignment(boolean)
    */
   @Override
-  public void paintAlignment(boolean updateOverview)
+  public void paintAlignment(boolean updateOverview,
+          boolean updateStructures)
   {
     final AnnotationSorter sorter = new AnnotationSorter(getAlignment(),
             av.isShowAutocalculatedAbove());
@@ -868,10 +819,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
             av.getSortAnnotationsBy());
     repaint();
 
+    if (updateStructures)
+    {
+      av.getStructureSelectionManager().sequenceColoursChanged(this);
+    }
     if (updateOverview)
     {
-      // TODO: determine if this paintAlignment changed structure colours
-      av.getStructureSelectionManager().sequenceColoursChanged(this);
 
       if (overviewPanel != null)
       {
@@ -880,54 +833,44 @@ public class AlignmentPanel extends GAlignmentPanel implements
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param g
-   *          DOCUMENT ME!
-   */
   @Override
   public void paintComponent(Graphics g)
   {
-    invalidate();
+    invalidate(); // needed so that the id width adjuster works correctly
 
     Dimension d = getIdPanel().getIdCanvas().getPreferredSize();
     idPanelHolder.setPreferredSize(d);
     hscrollFillerPanel.setPreferredSize(new Dimension(d.width, 12));
-    validate();
+
+    validate(); // needed so that the id width adjuster works correctly
 
     /*
-     * set scroll bar positions; first suppress this being 'followed' in any
-     * complementary split pane
+     * set scroll bar positions - tried to remove but necessary for split panel to resize correctly
+     * though I still think this call should be elsewhere.
      */
-    setDontScrollComplement(true);
+    ViewportRanges ranges = av.getRanges();
+    setScrollValues(ranges.getStartRes(), ranges.getStartSeq());
+  }
 
-    if (av.getWrapAlignment())
-    {
-      int maxwidth = av.getAlignment().getWidth();
+  /**
+   * Set vertical scroll bar position, and number of increments, for wrapped
+   * panel
+   * 
+   * @param topLeftColumn
+   *          the column position at top left (0..)
+   */
+  private void setScrollingForWrappedPanel(int topLeftColumn)
+  {
+    ViewportRanges ranges = av.getRanges();
+    int scrollPosition = ranges.getWrappedScrollPosition(topLeftColumn);
+    int maxScroll = ranges.getWrappedMaxScroll(topLeftColumn);
 
-      if (av.hasHiddenColumns())
-      {
-        maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
-      }
-
-      int canvasWidth = getSeqPanel().seqCanvas
-              .getWrappedCanvasWidth(getSeqPanel().seqCanvas.getWidth());
-      if (canvasWidth > 0)
-      {
-        int max = maxwidth
-                / getSeqPanel().seqCanvas
-                        .getWrappedCanvasWidth(getSeqPanel().seqCanvas
-                                .getWidth()) + 1;
-        vscroll.setMaximum(max);
-        vscroll.setUnitIncrement(1);
-        vscroll.setVisibleAmount(1);
-      }
-    }
-    else
-    {
-      setScrollValues(av.getStartRes(), av.getStartSeq());
-    }
+    /*
+     * a scrollbar's value can be set to at most (maximum-extent)
+     * so we add extent (1) to the maxScroll value
+     */
+    vscroll.setUnitIncrement(1);
+    vscroll.setValues(scrollPosition, 1, 0, maxScroll + 1);
   }
 
   /**
@@ -965,30 +908,16 @@ public class AlignmentPanel extends GAlignmentPanel implements
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param pg
-   *          DOCUMENT ME!
-   * @param pwidth
-   *          DOCUMENT ME!
-   * @param pheight
-   *          DOCUMENT ME!
-   * @param pi
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   * 
-   * @throws PrinterException
-   *           DOCUMENT ME!
-   */
-  /**
    * Draws the alignment image, including sequence ids, sequences, and
    * annotation labels and annotations if shown, on either one or two Graphics
-   * context.
+   * contexts.
    * 
    * @param pageWidth
+   *          in pixels
    * @param pageHeight
-   * @param pi
+   *          in pixels
+   * @param pageIndex
+   *          (0, 1, ...)
    * @param idGraphics
    *          the graphics context for sequence ids and annotation labels
    * @param alignmentGraphics
@@ -997,7 +926,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @return
    * @throws PrinterException
    */
-  public int printUnwrapped(int pageWidth, int pageHeight, int pi,
+  public int printUnwrapped(int pageWidth, int pageHeight, int pageIndex,
           Graphics idGraphics, Graphics alignmentGraphics)
           throws PrinterException
   {
@@ -1007,11 +936,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
      * Get the horizontal offset to where we draw the sequences.
      * This is idWidth if using a single Graphics context, else zero.
      */
-    final int alignmentGraphicsOffset = idGraphics != alignmentGraphics ? 0 : idWidth;
+    final int alignmentGraphicsOffset = idGraphics != alignmentGraphics ? 0
+            : idWidth;
 
     FontMetrics fm = getFontMetrics(av.getFont());
-    int charHeight = av.getCharHeight();
-    int scaleHeight = charHeight + fm.getDescent();
+    final int charHeight = av.getCharHeight();
+    final int scaleHeight = charHeight + fm.getDescent();
 
     idGraphics.setColor(Color.white);
     idGraphics.fillRect(0, 0, pageWidth, pageHeight);
@@ -1020,32 +950,22 @@ public class AlignmentPanel extends GAlignmentPanel implements
     /*
      * How many sequences and residues can we fit on a printable page?
      */
-    int totalRes = (pageWidth - idWidth) / av.getCharWidth();
+    final int totalRes = (pageWidth - idWidth) / av.getCharWidth();
 
-    int totalSeq = (pageHeight - scaleHeight) / charHeight - 1;
+    final int totalSeq = (pageHeight - scaleHeight) / charHeight - 1;
 
-    int alignmentWidth = av.getAlignment().getWidth();
+    final int alignmentWidth = av.getAlignment().getVisibleWidth();
     int pagesWide = (alignmentWidth / totalRes) + 1;
 
-    final int startRes = (pi % pagesWide) * totalRes;
-    int endRes = (startRes + totalRes) - 1;
+    final int startRes = (pageIndex % pagesWide) * totalRes;
+    final int endRes = Math.min(startRes + totalRes - 1,
+            alignmentWidth - 1);
 
-    if (endRes > (alignmentWidth - 1))
-    {
-      endRes = alignmentWidth - 1;
-    }
+    final int startSeq = (pageIndex / pagesWide) * totalSeq;
+    final int alignmentHeight = av.getAlignment().getHeight();
+    final int endSeq = Math.min(startSeq + totalSeq, alignmentHeight);
 
-    final int startSeq = (pi / pagesWide) * totalSeq;
-    int endSeq = startSeq + totalSeq;
-
-    int alignmentHeight = av.getAlignment().getHeight();
-    if (endSeq > alignmentHeight)
-    {
-      endSeq = alignmentHeight;
-    }
-
-    int pagesHigh = ((alignmentHeight / totalSeq) + 1)
-            * pageHeight;
+    int pagesHigh = ((alignmentHeight / totalSeq) + 1) * pageHeight;
 
     if (av.isShowAnnotation())
     {
@@ -1054,12 +974,11 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
     pagesHigh /= pageHeight;
 
-    if (pi >= (pagesWide * pagesHigh))
+    if (pageIndex >= (pagesWide * pagesHigh))
     {
       return Printable.NO_SUCH_PAGE;
     }
-    final int alignmentDrawnHeight = (endSeq - startSeq) * charHeight
-            + 3;
+    final int alignmentDrawnHeight = (endSeq - startSeq) * charHeight + 3;
 
     /*
      * draw the Scale at horizontal offset, then reset to top left (0, 0)
@@ -1074,49 +993,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
      * then reset to top left (0, 0)
      */
     idGraphics.translate(0, scaleHeight);
-    idGraphics.setFont(getIdPanel().getIdCanvas().getIdfont());
-    Color currentColor = null;
-    Color currentTextColor = null;
+    IdCanvas idCanvas = getIdPanel().getIdCanvas();
+    List<SequenceI> selection = av.getSelectionGroup() == null ? null
+            : av.getSelectionGroup().getSequences(null);
+    idCanvas.drawIds((Graphics2D) idGraphics, av, startSeq, endSeq - 1,
+            selection);
 
-    SequenceI seq;
-    for (int i = startSeq; i < endSeq; i++)
-    {
-      seq = av.getAlignment().getSequenceAt(i);
-      if ((av.getSelectionGroup() != null)
-              && av.getSelectionGroup().getSequences(null).contains(seq))
-      {
-        /*
-         * gray out ids of sequences in selection group (if any)
-         */
-        currentColor = Color.gray;
-        currentTextColor = Color.black;
-      }
-      else
-      {
-        currentColor = av.getSequenceColour(seq);
-        currentTextColor = Color.black;
-      }
-
-      idGraphics.setColor(currentColor);
-      idGraphics.fillRect(0, (i - startSeq) * charHeight, idWidth,
-              charHeight);
-
-      idGraphics.setColor(currentTextColor);
-
-      int xPos = 0;
-      String displayId = seq.getDisplayId(av.getShowJVSuffix());
-      if (av.isRightAlignIds())
-      {
-        fm = idGraphics.getFontMetrics();
-        xPos = idWidth
-                - fm.stringWidth(displayId)
-                - 4;
-      }
-
-      idGraphics.drawString(displayId, xPos,
-              (((i - startSeq) * charHeight) + charHeight)
-                      - (charHeight / 5));
-    }
     idGraphics.setFont(av.getFont());
     idGraphics.translate(0, -scaleHeight);
 
@@ -1125,8 +1007,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
      * single graphics context), then reset to (0, scale height)
      */
     alignmentGraphics.translate(alignmentGraphicsOffset, scaleHeight);
-    getSeqPanel().seqCanvas.drawPanel(alignmentGraphics, startRes, endRes,
-            startSeq, endSeq, 0);
+    getSeqPanel().seqCanvas.drawPanelForPrinting(alignmentGraphics, startRes,
+            endRes, startSeq, endSeq - 1);
     alignmentGraphics.translate(-alignmentGraphicsOffset, 0);
 
     if (av.isShowAnnotation() && (endSeq == alignmentHeight))
@@ -1146,7 +1028,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
        * draw the annotations starting at 
        * (idOffset, alignmentHeight) from (0, scaleHeight)
        */
-      alignmentGraphics.translate(alignmentGraphicsOffset, alignmentDrawnHeight);
+      alignmentGraphics.translate(alignmentGraphicsOffset,
+              alignmentDrawnHeight);
       getAnnotationPanel().renderer.drawComponent(getAnnotationPanel(), av,
               alignmentGraphics, -1, startRes, endRes + 1);
     }
@@ -1155,31 +1038,29 @@ public class AlignmentPanel extends GAlignmentPanel implements
   }
 
   /**
-   * DOCUMENT ME!
+   * Prints one page of an alignment in wrapped mode. Returns
+   * Printable.PAGE_EXISTS (0) if a page was drawn, or Printable.NO_SUCH_PAGE if
+   * no page could be drawn (page number out of range).
    * 
-   * @param pg
-   *          DOCUMENT ME!
-   * @param pwidth
-   *          DOCUMENT ME!
-   * @param pheight
-   *          DOCUMENT ME!
-   * @param pi
-   *          DOCUMENT ME!
+   * @param pageWidth
+   * @param pageHeight
+   * @param pageNumber
+   *          (0, 1, ...)
+   * @param g
    * 
-   * @return DOCUMENT ME!
+   * @return
    * 
    * @throws PrinterException
-   *           DOCUMENT ME!
    */
-  public int printWrappedAlignment(int pwidth, int pheight, int pi,
-          Graphics pg) throws PrinterException
+  public int printWrappedAlignment(int pageWidth, int pageHeight, int pageNumber,
+          Graphics g) throws PrinterException
   {
+    getSeqPanel().seqCanvas.calculateWrappedGeometry(getWidth(),
+            getHeight());
     int annotationHeight = 0;
-    AnnotationLabels labels = null;
     if (av.isShowAnnotation())
     {
       annotationHeight = getAnnotationPanel().adjustPanelHeight();
-      labels = new AnnotationLabels(av);
     }
 
     int hgap = av.getCharHeight();
@@ -1193,74 +1074,43 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
     int idWidth = getVisibleIdWidth(false);
 
-    int maxwidth = av.getAlignment().getWidth();
-    if (av.hasHiddenColumns())
-    {
-      maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
-    }
+    int maxwidth = av.getAlignment().getVisibleWidth();
 
-    int resWidth = getSeqPanel().seqCanvas.getWrappedCanvasWidth(pwidth
-            - idWidth);
+    int resWidth = getSeqPanel().seqCanvas
+            .getWrappedCanvasWidth(pageWidth - idWidth);
+    av.getRanges().setViewportStartAndWidth(0, resWidth);
 
     int totalHeight = cHeight * (maxwidth / resWidth + 1);
 
-    pg.setColor(Color.white);
-    pg.fillRect(0, 0, pwidth, pheight);
-    pg.setFont(av.getFont());
+    g.setColor(Color.white);
+    g.fillRect(0, 0, pageWidth, pageHeight);
+    g.setFont(av.getFont());
+    g.setColor(Color.black);
 
-    // //////////////
-    // Draw the ids
-    pg.setColor(Color.black);
+    /*
+     * method: print the whole wrapped alignment, but with a clip region that
+     * is restricted to the requested page; this supports selective print of 
+     * single pages or ranges, (at the cost of repeated processing in the 
+     * 'normal' case, when all pages are printed)
+     */
+    g.translate(0, -pageNumber * pageHeight);
 
-    pg.translate(0, -pi * pheight);
+    g.setClip(0, pageNumber * pageHeight, pageWidth, pageHeight);
 
-    pg.setClip(0, pi * pheight, pwidth, pheight);
+    /*
+     * draw sequence ids and annotation labels (if shown)
+     */
+    IdCanvas idCanvas = getIdPanel().getIdCanvas();
+    idCanvas.drawIdsWrapped((Graphics2D) g, av, 0, totalHeight);
 
-    int ypos = hgap;
+    g.translate(idWidth, 0);
 
-    do
-    {
-      for (int i = 0; i < av.getAlignment().getHeight(); i++)
-      {
-        pg.setFont(getIdPanel().getIdCanvas().getIdfont());
-        SequenceI s = av.getAlignment().getSequenceAt(i);
-        String string = s.getDisplayId(av.getShowJVSuffix());
-        int xPos = 0;
-        if (av.isRightAlignIds())
-        {
-          FontMetrics fm = pg.getFontMetrics();
-          xPos = idWidth - fm.stringWidth(string) - 4;
-        }
-        pg.drawString(string, xPos,
-                ((i * av.getCharHeight()) + ypos + av.getCharHeight())
-                        - (av.getCharHeight() / 5));
-      }
-      if (labels != null)
-      {
-        pg.translate(-3,
-                ypos + (av.getAlignment().getHeight() * av.getCharHeight()));
-
-        pg.setFont(av.getFont());
-        labels.drawComponent(pg, idWidth);
-        pg.translate(
-                +3,
-                -ypos
-                        - (av.getAlignment().getHeight() * av
-                                .getCharHeight()));
-      }
-
-      ypos += cHeight;
-    } while (ypos < totalHeight);
-
-    pg.translate(idWidth, 0);
-
-    getSeqPanel().seqCanvas.drawWrappedPanel(pg, pwidth - idWidth,
+    getSeqPanel().seqCanvas.drawWrappedPanelForPrinting(g, pageWidth - idWidth,
             totalHeight, 0);
 
-    if ((pi * pheight) < totalHeight)
+    if ((pageNumber * pageHeight) < totalHeight)
     {
       return Printable.PAGE_EXISTS;
-
     }
     else
     {
@@ -1288,36 +1138,37 @@ public class AlignmentPanel extends GAlignmentPanel implements
    *          be returned
    * @return
    */
-  public int getVisibleIdWidth(boolean onscreen)
+  protected int getVisibleIdWidth(boolean onscreen)
   {
     // see if rendering offscreen - check preferences and calc width accordingly
     if (!onscreen && Cache.getDefault("FIGURE_AUTOIDWIDTH", false))
     {
-      return calculateIdWidth(-1).width + 4;
+      return calculateIdWidth(-1).width;
     }
-    Integer idwidth = null;
-    if (onscreen
-            || (idwidth = Cache.getIntegerProperty("FIGURE_FIXEDIDWIDTH")) == null)
+    Integer idwidth = onscreen ? null
+            : Cache.getIntegerProperty("FIGURE_FIXEDIDWIDTH");
+    if (idwidth != null)
     {
-      int w = getIdPanel().getWidth();
-      return (w > 0 ? w : calculateIdWidth().width + 4);
+      return idwidth.intValue() + ID_WIDTH_PADDING;
     }
-    return idwidth.intValue() + 4;
+
+    int w = getIdPanel().getWidth();
+    return (w > 0 ? w : calculateIdWidth().width);
   }
 
   void makeAlignmentImage(jalview.util.ImageMaker.TYPE type, File file)
   {
     int boarderBottomOffset = 5;
     long pSessionId = System.currentTimeMillis();
-    headless = (System.getProperty("java.awt.headless") != null && System
-            .getProperty("java.awt.headless").equals("true"));
+    headless = (System.getProperty("java.awt.headless") != null
+            && System.getProperty("java.awt.headless").equals("true"));
     if (alignFrame != null && !headless)
     {
       if (file != null)
       {
-        alignFrame.setProgressBar(MessageManager.formatMessage(
-                "status.saving_file", new Object[] { type.getLabel() }),
-                pSessionId);
+        alignFrame.setProgressBar(MessageManager
+                .formatMessage("status.saving_file", new Object[]
+                { type.getLabel() }), pSessionId);
       }
     }
     try
@@ -1344,9 +1195,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
         }
 
         im = new jalview.util.ImageMaker(this, type, imageAction,
-                aDimension.getWidth(), aDimension.getHeight()
-                        + boarderBottomOffset, file, imageTitle,
-                alignFrame, pSessionId, headless);
+                aDimension.getWidth(),
+                aDimension.getHeight() + boarderBottomOffset, file,
+                imageTitle, alignFrame, pSessionId, headless);
         Graphics graphics = im.getGraphics();
         if (av.getWrapAlignment())
         {
@@ -1362,8 +1213,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
         {
           if (graphics != null)
           {
-            printUnwrapped(aDimension.getWidth(), aDimension.getHeight(),
-                    0, graphics, graphics);
+            printUnwrapped(aDimension.getWidth(), aDimension.getHeight(), 0,
+                    graphics, graphics);
             im.writeImage();
           }
         }
@@ -1387,11 +1238,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
   public AlignmentDimension getAlignmentDimension()
   {
-    int maxwidth = av.getAlignment().getWidth();
-    if (av.hasHiddenColumns())
-    {
-      maxwidth = av.getColumnSelection().findColumnPosition(maxwidth);
-    }
+    int maxwidth = av.getAlignment().getVisibleWidth();
 
     int height = ((av.getAlignment().getHeight() + 1) * av.getCharHeight())
             + getScalePanel().getHeight();
@@ -1407,9 +1254,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
         // this duplicates the calculation in getWrappedHeight but adjusts for
         // offscreen idWith
         width = alignFrame.getWidth() - vscroll.getPreferredSize().width
-                - alignFrame.getInsets().left
-                - alignFrame.getInsets().right - getVisibleIdWidth()
-                + getVisibleIdWidth(false);
+                - alignFrame.getInsets().left - alignFrame.getInsets().right
+                - getVisibleIdWidth() + getVisibleIdWidth(false);
       }
       else
       {
@@ -1460,33 +1306,32 @@ public class AlignmentPanel extends GAlignmentPanel implements
     {
       try
       {
-        int s, sSize = av.getAlignment().getHeight(), res, alwidth = av
-                .getAlignment().getWidth(), g, gSize, f, fSize, sy;
+        int sSize = av.getAlignment().getHeight();
+        int alwidth = av.getAlignment().getWidth();
         PrintWriter out = new PrintWriter(new FileWriter(imgMapFile));
-        out.println(jalview.io.HTMLOutput.getImageMapHTML());
+        out.println(HTMLOutput.getImageMapHTML());
         out.println("<img src=\"" + imageName
                 + "\" border=\"0\" usemap=\"#Map\" >"
                 + "<map name=\"Map\">");
 
-        for (s = 0; s < sSize; s++)
+        for (int s = 0; s < sSize; s++)
         {
-          sy = s * av.getCharHeight() + scaleHeight;
+          int sy = s * av.getCharHeight() + scaleHeight;
 
           SequenceI seq = av.getAlignment().getSequenceAt(s);
-          SequenceFeature[] features = seq.getSequenceFeatures();
           SequenceGroup[] groups = av.getAlignment().findAllGroups(seq);
-          for (res = 0; res < alwidth; res++)
+          for (int column = 0; column < alwidth; column++)
           {
-            StringBuilder text = new StringBuilder();
+            StringBuilder text = new StringBuilder(512);
             String triplet = null;
             if (av.getAlignment().isNucleotide())
             {
               triplet = ResidueProperties.nucleotideName.get(seq
-                      .getCharAt(res) + "");
+                      .getCharAt(column) + "");
             }
             else
             {
-              triplet = ResidueProperties.aa2Triplet.get(seq.getCharAt(res)
+              triplet = ResidueProperties.aa2Triplet.get(seq.getCharAt(column)
                       + "");
             }
 
@@ -1495,84 +1340,73 @@ public class AlignmentPanel extends GAlignmentPanel implements
               continue;
             }
 
-            int alIndex = seq.findPosition(res);
-            gSize = groups.length;
-            for (g = 0; g < gSize; g++)
+            int seqPos = seq.findPosition(column);
+            int gSize = groups.length;
+            for (int g = 0; g < gSize; g++)
             {
               if (text.length() < 1)
               {
                 text.append("<area shape=\"rect\" coords=\"")
-                        .append((idWidth + res * av.getCharWidth()))
+                        .append((idWidth + column * av.getCharWidth()))
                         .append(",").append(sy).append(",")
-                        .append((idWidth + (res + 1) * av.getCharWidth()))
+                        .append((idWidth + (column + 1) * av.getCharWidth()))
                         .append(",").append((av.getCharHeight() + sy))
                         .append("\"").append(" onMouseOver=\"toolTip('")
-                        .append(alIndex).append(" ").append(triplet);
+                        .append(seqPos).append(" ").append(triplet);
               }
 
-              if (groups[g].getStartRes() < res
-                      && groups[g].getEndRes() > res)
+              if (groups[g].getStartRes() < column
+                      && groups[g].getEndRes() > column)
               {
                 text.append("<br><em>").append(groups[g].getName())
                         .append("</em>");
               }
             }
 
-            if (features != null)
+            if (text.length() < 1)
             {
-              if (text.length() < 1)
+              text.append("<area shape=\"rect\" coords=\"")
+                      .append((idWidth + column * av.getCharWidth()))
+                      .append(",").append(sy).append(",")
+                      .append((idWidth + (column + 1) * av.getCharWidth()))
+                      .append(",").append((av.getCharHeight() + sy))
+                      .append("\"").append(" onMouseOver=\"toolTip('")
+                      .append(seqPos).append(" ").append(triplet);
+            }
+            if (!Comparison.isGap(seq.getCharAt(column)))
+            {
+              List<SequenceFeature> features = seq.findFeatures(column, column);
+              for (SequenceFeature sf : features)
               {
-                text.append("<area shape=\"rect\" coords=\"")
-                        .append((idWidth + res * av.getCharWidth()))
-                        .append(",").append(sy).append(",")
-                        .append((idWidth + (res + 1) * av.getCharWidth()))
-                        .append(",").append((av.getCharHeight() + sy))
-                        .append("\"").append(" onMouseOver=\"toolTip('")
-                        .append(alIndex).append(" ").append(triplet);
-              }
-              fSize = features.length;
-              for (f = 0; f < fSize; f++)
-              {
-
-                if ((features[f].getBegin() <= seq.findPosition(res))
-                        && (features[f].getEnd() >= seq.findPosition(res)))
+                if (sf.isContactFeature())
                 {
-                  if (features[f].isContactFeature())
+                  text.append("<br>").append(sf.getType()).append(" ")
+                          .append(sf.getBegin()).append(":")
+                          .append(sf.getEnd());
+                }
+                else
+                {
+                  text.append("<br>");
+                  text.append(sf.getType());
+                  String description = sf.getDescription();
+                  if (description != null
+                          && !sf.getType().equals(description))
                   {
-                    if (features[f].getBegin() == seq.findPosition(res)
-                            || features[f].getEnd() == seq
-                                    .findPosition(res))
-                    {
-                      text.append("<br>").append(features[f].getType())
-                              .append(" ").append(features[f].getBegin())
-                              .append(":").append(features[f].getEnd());
-                    }
-                  }
-                  else
-                  {
-                    text.append("<br>");
-                    text.append(features[f].getType());
-                    if (features[f].getDescription() != null
-                            && !features[f].getType().equals(
-                                    features[f].getDescription()))
-                    {
-                      text.append(" ").append(features[f].getDescription());
-                    }
-
-                    if (features[f].getValue("status") != null)
-                    {
-                      text.append(" (").append(features[f].getValue("status"))
-                              .append(")");
-                    }
+                    description = description.replace("\"", "&quot;");
+                    text.append(" ").append(description);
                   }
                 }
-
+                String status = sf.getStatus();
+                if (status != null && !"".equals(status))
+                {
+                  text.append(" (").append(status).append(")");
+                }
               }
-            }
-            if (text.length() > 1)
-            {
-              text.append("')\"; onMouseOut=\"toolTip()\";  href=\"#\">");
-              out.println(text.toString());
+              if (text.length() > 1)
+              {
+                text.append("')\"; onMouseOut=\"toolTip()\";  href=\"#\">");
+                out.println(text.toString());
+              }
             }
           }
         }
@@ -1587,6 +1421,12 @@ public class AlignmentPanel extends GAlignmentPanel implements
 
   }
 
+  /**
+   * Answers the height of the entire alignment in pixels, assuming it is in
+   * wrapped mode
+   * 
+   * @return
+   */
   int getWrappedHeight()
   {
     int seqPanelWidth = getSeqPanel().seqCanvas.getWidth();
@@ -1611,6 +1451,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
     int annotationHeight = 0;
     if (av.isShowAnnotation())
     {
+      hgap += SeqCanvas.SEQS_ANNOTATION_GAP;
       annotationHeight = getAnnotationPanel().adjustPanelHeight();
     }
 
@@ -1620,7 +1461,8 @@ public class AlignmentPanel extends GAlignmentPanel implements
     int maxwidth = av.getAlignment().getWidth();
     if (av.hasHiddenColumns())
     {
-      maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
+      maxwidth = av.getAlignment().getHiddenColumns()
+              .absoluteToVisibleColumn(maxwidth) - 1;
     }
 
     int height = ((maxwidth / chunkWidth) + 1) * cHeight;
@@ -1638,19 +1480,22 @@ public class AlignmentPanel extends GAlignmentPanel implements
     PaintRefresher.RemoveComponent(getIdPanel().getIdCanvas());
     PaintRefresher.RemoveComponent(this);
 
+    closeChildFrames();
+
     /*
      * try to ensure references are nulled
      */
     if (annotationPanel != null)
     {
       annotationPanel.dispose();
+      annotationPanel = null;
     }
 
     if (av != null)
     {
       av.removePropertyChangeListener(propertyChangeListener);
-      jalview.structure.StructureSelectionManager ssm = av
-              .getStructureSelectionManager();
+      propertyChangeListener = null;
+      StructureSelectionManager ssm = av.getStructureSelectionManager();
       ssm.removeStructureViewerListener(getSeqPanel(), null);
       ssm.removeSelectionListener(getSeqPanel());
       ssm.removeCommandListener(av);
@@ -1665,6 +1510,23 @@ public class AlignmentPanel extends GAlignmentPanel implements
       {
         Cache.log.warn("Closing alignment panel which is already closed.");
       }
+    }
+  }
+
+  /**
+   * Close any open dialogs that would be orphaned when this one is closed
+   */
+  protected void closeChildFrames()
+  {
+    if (overviewPanel != null)
+    {
+      overviewPanel.dispose();
+      overviewPanel = null;
+    }
+    if (calculationDialog != null)
+    {
+      calculationDialog.closeFrame();
+      calculationDialog = null;
     }
   }
 
@@ -1698,7 +1560,7 @@ public class AlignmentPanel extends GAlignmentPanel implements
   @Override
   public String getViewName()
   {
-    return av.viewName;
+    return av.getViewName();
   }
 
   /**
@@ -1827,38 +1689,9 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * @param verticalOffset
    *          the number of visible sequences to show above the mapped region
    */
-  public void scrollToCentre(SearchResultsI sr, int verticalOffset)
+  protected void scrollToCentre(SearchResultsI sr, int verticalOffset)
   {
-    /*
-     * To avoid jumpy vertical scrolling (if some sequences are gapped or not
-     * mapped), we can make the scroll-to location a sequence above the one
-     * actually mapped.
-     */
-    SequenceI mappedTo = sr.getResults().get(0).getSequence();
-    List<SequenceI> seqs = av.getAlignment().getSequences();
-
-    /*
-     * This is like AlignmentI.findIndex(seq) but here we are matching the
-     * dataset sequence not the aligned sequence
-     */
-    boolean matched = false;
-    for (SequenceI seq : seqs)
-    {
-      if (mappedTo == seq.getDatasetSequence())
-      {
-        matched = true;
-        break;
-      }
-    }
-    if (!matched)
-    {
-      return; // failsafe, shouldn't happen
-    }
-
-    /*
-     * Scroll to position but centring the target residue.
-     */
-    scrollToPosition(sr, verticalOffset, true, true);
+    scrollToPosition(sr, verticalOffset, true);
   }
 
   /**
@@ -1866,13 +1699,83 @@ public class AlignmentPanel extends GAlignmentPanel implements
    * 
    * @param b
    */
-  protected void setDontScrollComplement(boolean b)
+  protected void setToScrollComplementPanel(boolean b)
   {
-    this.dontScrollComplement = b;
+    this.scrollComplementaryPanel = b;
   }
 
-  protected boolean isDontScrollComplement()
+  /**
+   * Get whether to scroll complement panel
+   * 
+   * @return true if cDNA/protein complement panels should be scrolled
+   */
+  protected boolean isSetToScrollComplementPanel()
   {
-    return this.dontScrollComplement;
+    return this.scrollComplementaryPanel;
+  }
+
+  /**
+   * Redraw sensibly.
+   * 
+   * @adjustHeight if true, try to recalculate panel height for visible
+   *               annotations
+   */
+  protected void refresh(boolean adjustHeight)
+  {
+    validateAnnotationDimensions(adjustHeight);
+    addNotify();
+    if (adjustHeight)
+    {
+      // sort, repaint, update overview
+      paintAlignment(true, false);
+    }
+    else
+    {
+      // lightweight repaint
+      repaint();
+    }
+  }
+
+  @Override
+  /**
+   * Property change event fired when a change is made to the viewport ranges
+   * object associated with this alignment panel's viewport
+   */
+  public void propertyChange(PropertyChangeEvent evt)
+  {
+    // update this panel's scroll values based on the new viewport ranges values
+    ViewportRanges ranges = av.getRanges();
+    int x = ranges.getStartRes();
+    int y = ranges.getStartSeq();
+    setScrollValues(x, y);
+
+    // now update any complementary alignment (its viewport ranges object
+    // is different so does not get automatically updated)
+    if (isSetToScrollComplementPanel())
+    {
+      setToScrollComplementPanel(false);
+      av.scrollComplementaryAlignment();
+      setToScrollComplementPanel(true);
+    }
+  }
+
+  /**
+   * Set the reference to the PCA/Tree chooser dialog for this panel. This
+   * reference should be nulled when the dialog is closed.
+   * 
+   * @param calculationChooser
+   */
+  public void setCalculationDialog(CalculationChooser calculationChooser)
+  {
+    calculationDialog = calculationChooser;
+  }
+
+  /**
+   * Returns the reference to the PCA/Tree chooser dialog for this panel (null
+   * if none is open)
+   */
+  public CalculationChooser getCalculationDialog()
+  {
+    return calculationDialog;
   }
 }

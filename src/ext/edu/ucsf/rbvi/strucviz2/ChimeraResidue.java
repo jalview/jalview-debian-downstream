@@ -383,6 +383,8 @@ public class ChimeraResidue implements ChimeraStructuralObject,
   public void splitInsertionCode(String residue)
   {
     // OK, split the index into number and insertion code
+    // JBPNote - m.matches() can be true even if there is no resnum - this can
+    // cause NumberFormatExceptions below
     Pattern p = Pattern.compile("(\\d*)([A-Z]?)");
     Matcher m = p.matcher(residue);
     if (m.matches())

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 package jalview.ws.jws1;
 
 import jalview.datamodel.AlignmentI;
+import jalview.io.FileFormat;
 import jalview.io.FileParse;
 import jalview.io.FormatAdapter;
 import jalview.io.InputStreamParser;
@@ -85,8 +86,10 @@ public class Annotate3D
       AlignmentI al = null;
       while (r.hasNext())
       {
-        FileParse fp = new InputStreamParser(r.next(), source.getDataName());
-        AlignmentI nal = new FormatAdapter().readFromFile(fp, "RNAML");
+        FileParse fp = new InputStreamParser(r.next(),
+                source.getDataName());
+        AlignmentI nal = new FormatAdapter().readFromFile(fp,
+                FileFormat.Rnaml);
         if (al == null)
         {
           al = nal;
@@ -105,9 +108,8 @@ public class Annotate3D
       }
       else
       {
-        throw new IOException(
-                MessageManager
-                        .getString("exception.unexpected_handling_rnaml_translation_for_pdb"),
+        throw new IOException(MessageManager.getString(
+                "exception.unexpected_handling_rnaml_translation_for_pdb"),
                 x);
       }
     }
@@ -178,8 +180,8 @@ public class Annotate3D
       URL url = new URL(
               "http://paradise-ibmc.u-strasbg.fr/webservices/annotate3d?data="
                       + content);
-      BufferedReader is = new BufferedReader(new InputStreamReader(
-              url.openStream()));
+      BufferedReader is = new BufferedReader(
+              new InputStreamReader(url.openStream()));
       String str4;
       while ((str4 = is.readLine()) != null)
       {

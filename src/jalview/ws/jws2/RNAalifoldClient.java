@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -189,8 +189,8 @@ public class RNAalifoldClient extends JabawsCalcWorker
       descriptionData = data;
     }
 
-    String[] typenameAndDescription = constructTypenameAndDescription(descriptionData
-            .first());
+    String[] typenameAndDescription = constructTypenameAndDescription(
+            descriptionData.first());
     String typename = typenameAndDescription[0];
     String description = typenameAndDescription[1];
 
@@ -219,15 +219,14 @@ public class RNAalifoldClient extends JabawsCalcWorker
   }
 
   private AlignmentAnnotation constructAnnotationFromScoreHolder(
-          AlignmentAnnotation annotation, String struct, TreeSet<Score> data)
+          AlignmentAnnotation annotation, String struct,
+          TreeSet<Score> data)
   {
     Annotation[] anns = new Annotation[gapMap != null ? gapMap.length + 1
             : struct.length()];
 
-    if (data != null
-            && data.size() > 1
-            && data.first().getMethod()
-                    .equals(AlifoldResult.contactProbabilities.toString()))
+    if (data != null && data.size() > 1 && data.first().getMethod()
+            .equals(AlifoldResult.contactProbabilities.toString()))
     {
 
       // The base pair probabilities are stored in a set in scoreholder. we want
@@ -237,8 +236,8 @@ public class RNAalifoldClient extends JabawsCalcWorker
       {
         // The Score objects contain a set of size one containing the range and
         // an ArrayList<float> of size one containing the probabilty
-        basePairs.put(score.getRanges().first(), new Float(score
-                .getScores().get(0)));
+        basePairs.put(score.getRanges().first(),
+                Float.valueOf(score.getScores().get(0)));
       }
 
       for (int i = 0, ri = 0, iEnd = struct.length(); i < iEnd; i++, ri++)
@@ -320,25 +319,24 @@ public class RNAalifoldClient extends JabawsCalcWorker
 
       description = MessageFormat.format(
               "Minimum Free Energy Structure. Energy: {0} = {1} + {2}",
-              score.getScores().get(0), score.getScores().get(1), score
-                      .getScores().get(2));
+              score.getScores().get(0), score.getScores().get(1),
+              score.getScores().get(2));
       typename = "MFE Structure";
     }
-    else if (datatype.equals(AlifoldResult.contactProbabilityStructure
-            .toString()))
+    else if (datatype
+            .equals(AlifoldResult.contactProbabilityStructure.toString()))
     {
-      description = MessageFormat
-              .format("Base Pair Contact Probabilities. "
-                      + "Energy of Ensemble: {0}  Frequency of Ensemble: {1}",
-                      score.getScores().get(0), score.getScores().get(1));
+      description = MessageFormat.format("Base Pair Contact Probabilities. "
+              + "Energy of Ensemble: {0}  Frequency of Ensemble: {1}",
+              score.getScores().get(0), score.getScores().get(1));
       typename = "Contact Probabilities";
     }
     else if (datatype.equals(AlifoldResult.centroidStructure.toString()))
     {
       description = MessageFormat.format(
-              "Centroid Structure. Energy: {0} = {1} + {2}", score
-                      .getScores().get(0), score.getScores().get(1), score
-                      .getScores().get(2));
+              "Centroid Structure. Energy: {0} = {1} + {2}",
+              score.getScores().get(0), score.getScores().get(1),
+              score.getScores().get(2));
       typename = "Centroid Structure";
     }
     else if (datatype.equals(AlifoldResult.stochBTStructure.toString()))
@@ -356,8 +354,8 @@ public class RNAalifoldClient extends JabawsCalcWorker
     else if (datatype.equals(AlifoldResult.MEAStucture.toString()))
     {
       description = MessageFormat.format(
-              "Maximum Expected Accuracy Values: '{' {0} MEA={1} '}", score
-                      .getScores().get(0), score.getScores().get(1));
+              "Maximum Expected Accuracy Values: '{' {0} MEA={1} '}",
+              score.getScores().get(0), score.getScores().get(1));
       typename = "MEA Structure";
     }
     else if (datatype.equals(AlifoldResult.consensusAlignment.toString()))

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -296,8 +296,8 @@ public class InputParams implements java.io.Serializable
     {
       _hashCode += getMatrix().hashCode();
     }
-    _hashCode += new Float(getExp()).hashCode();
-    _hashCode += new Boolean(isEchofilter()).hashCode();
+    _hashCode += Float.valueOf(getExp()).hashCode();
+    _hashCode += Boolean.valueOf(isEchofilter()).hashCode();
     if (getFilter() != null)
     {
       _hashCode += getFilter().hashCode();
@@ -325,7 +325,7 @@ public class InputParams implements java.io.Serializable
       _hashCode += getOutformat().hashCode();
     }
     _hashCode += getTopcombon();
-    _hashCode += new Boolean(isAsync()).hashCode();
+    _hashCode += Boolean.valueOf(isAsync()).hashCode();
     if (getEmail() != null)
     {
       _hashCode += getEmail().hashCode();

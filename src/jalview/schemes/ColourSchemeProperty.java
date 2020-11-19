@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,9 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AnnotatedCollectionI;
+import jalview.util.ColorUtils;
 
 import java.awt.Color;
 
@@ -38,564 +40,73 @@ import java.awt.Color;
  */
 public class ColourSchemeProperty
 {
-  /** Undefined Colourscheme Index */
-  public static final int UNDEFINED = -1;
-
-  /** for schemes defined on the fly */
-  public static final int USER_DEFINED = 0;
-
-  /** No Colourscheme Index */
-  public static final int NONE = 1;
-
-  /** DOCUMENT ME!! */
-  public static final int CLUSTAL = 2;
-
-  /** DOCUMENT ME!! */
-  public static final int BLOSUM = 3;
-
-  /** DOCUMENT ME!! */
-  public static final int PID = 4;
-
-  /** DOCUMENT ME!! */
-  public static final int ZAPPO = 5;
-
-  /** DOCUMENT ME!! */
-  public static final int TAYLOR = 6;
-
-  /** DOCUMENT ME!! */
-  public static final int HYDROPHOBIC = 7;
-
-  /** DOCUMENT ME!! */
-  public static final int HELIX = 8;
-
-  /** DOCUMENT ME!! */
-  public static final int STRAND = 9;
-
-  /** DOCUMENT ME!! */
-  public static final int TURN = 10;
-
-  /** DOCUMENT ME!! */
-  public static final int BURIED = 11;
-
-  /** DOCUMENT ME!! */
-  public static final int NUCLEOTIDE = 12;
 
   /**
-   * purine/pyrimidine
-   */
-  public static final int PURINEPYRIMIDINE = 13;
-
-  public static final int COVARIATION = 14;
-
-  public static final int TCOFFEE = 15;
-
-  public static final int RNAHELIX = 16;
-
-  public static final int RNAINTERACTION = 17;
-
-  /**
-   * index of first colourscheme (includes 'None')
-   */
-  public static final int FIRST_COLOUR = NONE;
-
-  public static final int LAST_COLOUR = RNAINTERACTION;
-
-  /**
-   * DOCUMENT ME!
+   * Returns a colour scheme for the given name, with which the given data may
+   * be coloured. The name is not case-sensitive, and may be one of
+   * <ul>
+   * <li>any currently registered colour scheme; Jalview by default
+   * provides</li>
+   * <ul>
+   * <li>Clustal</li>
+   * <li>Blosum62</li>
+   * <li>% Identity</li>
+   * <li>Hydrophobic</li>
+   * <li>Zappo</li>
+   * <li>Taylor</li>
+   * <li>Helix Propensity</li>
+   * <li>Strand Propensity</li>
+   * <li>Turn Propensity</li>
+   * <li>Buried Index</li>
+   * <li>Nucleotide</li>
+   * <li>Purine/Pyrimidine</li>
+   * <li>T-Coffee Scores</li>
+   * <li>RNA Helices</li>
+   * </ul>
+   * <li>the name of a programmatically added colour scheme</li>
+   * <li>an AWT colour name e.g. red</li>
+   * <li>an AWT hex rgb colour e.g. ff2288</li>
+   * <li>residue colours list e.g. D,E=red;K,R,H=0022FF;c=yellow</li>
+   * </ul>
    * 
+   * If none of these formats is matched, the string is converted to a colour
+   * using a hashing algorithm. For name "None", returns null.
+   * 
+   * @param forData
    * @param name
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  public static int getColourIndexFromName(String name)
-  {
-    int ret = UNDEFINED;
-
-    if (name.equalsIgnoreCase("Clustal"))
-    {
-      ret = CLUSTAL;
-    }
-    else if (name.equalsIgnoreCase("Blosum62"))
-    {
-      ret = BLOSUM;
-    }
-    else if (name.equalsIgnoreCase("% Identity"))
-    {
-      ret = PID;
-    }
-    else if (name.equalsIgnoreCase("Zappo"))
-    {
-      ret = ZAPPO;
-    }
-    else if (name.equalsIgnoreCase("Taylor"))
-    {
-      ret = TAYLOR;
-    }
-    else if (name.equalsIgnoreCase("Hydrophobic"))
-    {
-      ret = HYDROPHOBIC;
-    }
-    else if (name.equalsIgnoreCase("Helix Propensity"))
-    {
-      ret = HELIX;
-    }
-    else if (name.equalsIgnoreCase("Strand Propensity"))
-    {
-      ret = STRAND;
-    }
-    else if (name.equalsIgnoreCase("Turn Propensity"))
-    {
-      ret = TURN;
-    }
-    else if (name.equalsIgnoreCase("Buried Index"))
-    {
-      ret = BURIED;
-    }
-    else if (name.equalsIgnoreCase("Nucleotide"))
-    {
-      ret = NUCLEOTIDE;
-    }
-    else if (name.equalsIgnoreCase("T-Coffee Scores"))
-    {
-      ret = TCOFFEE;
-    }
-
-    else if (name.equalsIgnoreCase("User Defined"))
-    {
-      ret = USER_DEFINED;
-    }
-    else if (name.equalsIgnoreCase("None"))
-    {
-      ret = NONE;
-    }
-    else if (name.equalsIgnoreCase("Purine/Pyrimidine"))
-    {
-      ret = PURINEPYRIMIDINE;
-    }
-    else if (name.equalsIgnoreCase("RNA Interaction type"))
-    {
-      ret = RNAINTERACTION;
-    }
-    else if (name.equalsIgnoreCase("RNA Helices"))
-    {
-      ret = RNAHELIX;
-    }
-    // else if (name.equalsIgnoreCase("Covariation"))
-    // {
-    // ret = COVARIATION;
-    // }
-
-    return ret;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param cs
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public static String getColourName(ColourSchemeI cs)
-  {
-
-    int index = NONE;
-
-    if (cs instanceof ClustalxColourScheme)
-    {
-      index = CLUSTAL;
-    }
-    else if (cs instanceof Blosum62ColourScheme)
-    {
-      index = BLOSUM;
-    }
-    else if (cs instanceof PIDColourScheme)
-    {
-      index = PID;
-    }
-    else if (cs instanceof ZappoColourScheme)
-    {
-      index = ZAPPO;
-    }
-    else if (cs instanceof TaylorColourScheme)
-    {
-      index = TAYLOR;
-    }
-    else if (cs instanceof HydrophobicColourScheme)
-    {
-      index = HYDROPHOBIC;
-    }
-    else if (cs instanceof HelixColourScheme)
-    {
-      index = HELIX;
-    }
-    else if (cs instanceof StrandColourScheme)
-    {
-      index = STRAND;
-    }
-    else if (cs instanceof TurnColourScheme)
-    {
-      index = TURN;
-    }
-    else if (cs instanceof BuriedColourScheme)
-    {
-      index = BURIED;
-    }
-    else if (cs instanceof NucleotideColourScheme)
-    {
-      index = NUCLEOTIDE;
-    }
-    else if (cs instanceof PurinePyrimidineColourScheme)
-    {
-      index = PURINEPYRIMIDINE;
-    }
-    else if (cs instanceof TCoffeeColourScheme)
-    {
-      index = TCOFFEE;
-    }
-    else if (cs instanceof RNAHelicesColour)
-    {
-      index = RNAHELIX;
-    }
-    /*
-     * else if (cs instanceof CovariationColourScheme) { index = COVARIATION; }
-     */
-    else if (cs instanceof UserColourScheme)
-    {
-      if ((((UserColourScheme) cs).getName() != null)
-              && (((UserColourScheme) cs).getName().length() > 0))
-      {
-        return ((UserColourScheme) cs).getName();
-      }
-      // get default colourscheme name
-      index = USER_DEFINED;
-    }
-
-    return getColourName(index);
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param index
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public static String getColourName(int index)
-  {
-    String ret = null;
-
-    switch (index)
-    {
-    case CLUSTAL:
-      ret = "Clustal";
-
-      break;
-
-    case BLOSUM:
-      ret = "Blosum62";
-
-      break;
-
-    case PID:
-      ret = "% Identity";
-
-      break;
-
-    case ZAPPO:
-      ret = "Zappo";
-
-      break;
-
-    case TAYLOR:
-      ret = "Taylor";
-      break;
-
-    case HYDROPHOBIC:
-      ret = "Hydrophobic";
-
-      break;
-
-    case HELIX:
-      ret = "Helix Propensity";
-
-      break;
-
-    case STRAND:
-      ret = "Strand Propensity";
-
-      break;
-
-    case TURN:
-      ret = "Turn Propensity";
-
-      break;
-
-    case BURIED:
-      ret = "Buried Index";
-
-      break;
-
-    case NUCLEOTIDE:
-      ret = "Nucleotide";
-
-      break;
-
-    case PURINEPYRIMIDINE:
-      ret = "Purine/Pyrimidine";
-
-      break;
-
-    case TCOFFEE:
-      ret = "T-Coffee Scores";
-
-      break;
-
-    case RNAINTERACTION:
-      ret = "RNA Interaction type";
-
-      break;
-    case RNAHELIX:
-      ret = "RNA Helices";
-
-      break;
-    /*
-     * case COVARIATION: ret = "Covariation";
-     * 
-     * break;
-     */
-    case USER_DEFINED:
-      ret = "User Defined";
-
-      break;
-
-    default:
-      ret = "None";
-
-      break;
-    }
-
-    return ret;
-  }
-
-  /**
-   * retrieve or create colourscheme associated with name
-   * 
-   * @param seqs
-   *          sequences to colour
-   * @param width
-   *          range of sequences to colour
-   * @param name
-   *          colourscheme name, applet colour parameter specification, or
-   *          string to parse as colour for new coloursheme
-   * @return Valid Colourscheme
-   */
-  public static ColourSchemeI getColour(AnnotatedCollectionI alignment,
+  public static ColourSchemeI getColourScheme(AlignViewportI view,
+          AnnotatedCollectionI forData,
           String name)
   {
-    int colindex = getColourIndexFromName(name);
-    if (colindex == UNDEFINED)
+    if (ResidueColourScheme.NONE.equalsIgnoreCase(name))
     {
-      if (name.indexOf('=') == -1)
-      {
-        // try to build a colour from the string directly
-        try
-        {
-          return new UserColourScheme(name);
-        } catch (Exception e)
-        {
-          // System.err.println("Ignoring unknown colourscheme name");
-        }
-      }
-      else
-      {
-        // try to parse the string as a residue colourscheme
-        try
-        {
-          // fix the launchApp user defined coloursheme transfer bug
-          jalview.schemes.UserColourScheme ucs = new jalview.schemes.UserColourScheme(
-                  "white");
-          ucs.parseAppletParameter(name);
+      return null;
 
-        } catch (Exception e)
-        {
-          // System.err.println("Ignoring exception when parsing colourscheme as applet-parameter");
-        }
-      }
-    }
-    return getColour(alignment, getColourIndexFromName(name));
-  }
-
-  /**
-   * Construct an instance of ColourSchemeI corresponding to the given
-   * colourscheme index
-   * 
-   * @param seqs
-   *          sequences to be coloured by colourscheme
-   * @param width
-   *          geometry of alignment
-   * @param index
-   *          colourscheme number
-   * 
-   * @return null or an instance of the colourscheme configured to colour given
-   *         sequence set
-   */
-  public static ColourSchemeI getColour(
-          jalview.datamodel.AnnotatedCollectionI coll, int index)
-  {
-    // TODO 3.0 2.8 refactor signature to take an alignmentI like container so
-    // colourschemes based on annotation can be initialised
-    ColourSchemeI cs = null;
-
-    switch (index)
-    {
-    case CLUSTAL:
-      cs = new ClustalxColourScheme(coll, null);
-
-      break;
-
-    case BLOSUM:
-      cs = new Blosum62ColourScheme();
-
-      break;
-
-    case PID:
-      cs = new PIDColourScheme();
-
-      break;
-
-    case ZAPPO:
-      cs = new ZappoColourScheme();
-
-      break;
-
-    case TAYLOR:
-      cs = new TaylorColourScheme();
-      break;
-
-    case HYDROPHOBIC:
-      cs = new HydrophobicColourScheme();
-
-      break;
-
-    case HELIX:
-      cs = new HelixColourScheme();
-
-      break;
-
-    case STRAND:
-      cs = new StrandColourScheme();
-
-      break;
-
-    case TURN:
-      cs = new TurnColourScheme();
-
-      break;
-
-    case BURIED:
-      cs = new BuriedColourScheme();
-
-      break;
-
-    case NUCLEOTIDE:
-      cs = new NucleotideColourScheme();
-
-      break;
-
-    case PURINEPYRIMIDINE:
-      cs = new PurinePyrimidineColourScheme();
-
-      break;
-
-    case TCOFFEE:
-      cs = new TCoffeeColourScheme(coll);
-      break;
-
-    case RNAHELIX:
-      cs = new RNAHelicesColour(coll);
-      break;
-
-    // case COVARIATION:
-    // cs = new CovariationColourScheme(annotation);
-    // break;
-
-    case USER_DEFINED:
-      Color[] col = new Color[24];
-      for (int i = 0; i < 24; i++)
-      {
-        col[i] = Color.white;
-      }
-      cs = new UserColourScheme(col);
-      break;
-
-    default:
-      break;
     }
 
-    return cs;
-  }
-
-  public static Color getAWTColorFromName(String name)
-  {
-    Color col = null;
-    name = name.toLowerCase();
-    if (name.equals("black"))
+    /*
+     * if this is the name of a registered colour scheme, just
+     * create a new instance of it
+     */
+    ColourSchemeI scheme = ColourSchemes.getInstance().getColourScheme(name,
+            view,
+            forData, null);
+    if (scheme != null)
     {
-      col = Color.black;
-    }
-    else if (name.equals("blue"))
-    {
-      col = Color.blue;
-    }
-    else if (name.equals("cyan"))
-    {
-      col = Color.cyan;
-    }
-    else if (name.equals("darkGray"))
-    {
-      col = Color.darkGray;
-    }
-    else if (name.equals("gray"))
-    {
-      col = Color.gray;
-    }
-    else if (name.equals("green"))
-    {
-      col = Color.green;
-    }
-    else if (name.equals("lightGray"))
-    {
-      col = Color.lightGray;
-    }
-    else if (name.equals("magenta"))
-    {
-      col = Color.magenta;
-    }
-    else if (name.equals("orange"))
-    {
-      col = Color.orange;
-    }
-    else if (name.equals("pink"))
-    {
-      col = Color.pink;
-    }
-    else if (name.equals("red"))
-    {
-      col = Color.red;
-    }
-    else if (name.equals("white"))
-    {
-      col = Color.white;
-    }
-    else if (name.equals("yellow"))
-    {
-      col = Color.yellow;
+      return scheme;
     }
 
-    return col;
+    /*
+     * try to parse the string as a residues colour scheme
+     * e.g. A=red;T,G=blue etc
+     * else parse the name as a colour specification
+     * e.g. "red" or "ff00ed",
+     * or failing that hash the name to a colour
+     */
+    UserColourScheme ucs = new UserColourScheme(name);
+    return ucs;
   }
 
   public static Color rnaHelices[] = null;
@@ -621,17 +132,27 @@ public class ColourSchemeProperty
     // Generate random colors and store
     for (; j <= n; j++)
     {
-      rnaHelices[j] = jalview.util.ColorUtils
-              .generateRandomColor(Color.white);
+      rnaHelices[j] = ColorUtils.generateRandomColor(Color.white);
     }
   }
 
   /**
-   * delete the existing cached RNA helces colours
+   * delete the existing cached RNA helices colours
    */
   public static void resetRnaHelicesShading()
   {
     rnaHelices = null;
+  }
+
+  /**
+   * Returns the name of the colour scheme (or "None" if it is null)
+   * 
+   * @param cs
+   * @return
+   */
+  public static String getColourName(ColourSchemeI cs)
+  {
+    return cs == null ? ResidueColourScheme.NONE : cs.getSchemeName();
   }
 
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,8 @@
  */
 package jalview.schemes;
 
-import jalview.datamodel.SequenceI;
-
-import java.awt.Color;
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AnnotatedCollectionI;
 
 /**
  * DOCUMENT ME!
@@ -37,59 +36,29 @@ public class NucleotideColourScheme extends ResidueColourScheme
    */
   public NucleotideColourScheme()
   {
-    super(ResidueProperties.nucleotideIndex, ResidueProperties.nucleotide,
-            0);
+    super(ResidueProperties.nucleotideIndex, ResidueProperties.nucleotide);
+  }
+
+  @Override
+  public boolean isNucleotideSpecific()
+  {
+    return true;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.Nucleotide.toString();
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param n
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
    */
   @Override
-  public Color findColour(char c)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
   {
-    // System.out.println("called"); log.debug
-    return colors[ResidueProperties.nucleotideIndex[c]];
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param n
-   *          DOCUMENT ME!
-   * @param j
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  @Override
-  public Color findColour(char c, int j, SequenceI seq)
-  {
-    Color currentColour;
-    if ((threshold == 0) || aboveThreshold(c, j))
-    {
-      try
-      {
-        currentColour = colors[ResidueProperties.nucleotideIndex[c]];
-      } catch (Exception ex)
-      {
-        return Color.white;
-      }
-    }
-    else
-    {
-      return Color.white;
-    }
-
-    if (conservationColouring)
-    {
-      currentColour = applyConservation(currentColour, j);
-    }
-
-    return currentColour;
+    return new NucleotideColourScheme();
   }
 }

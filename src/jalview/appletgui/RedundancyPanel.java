@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -40,8 +40,8 @@ import java.util.List;
 import java.util.Stack;
 import java.util.Vector;
 
-public class RedundancyPanel extends SliderPanel implements Runnable,
-        WindowListener
+public class RedundancyPanel extends SliderPanel
+        implements Runnable, WindowListener
 {
   Stack historyList = new Stack(); // simpler than synching with alignFrame.
 
@@ -63,8 +63,8 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
     applyButton.setVisible(true);
     allGroupsCheck.setVisible(false);
 
-    label.setText(MessageManager
-            .getString("label.enter_redundancy_threshold"));
+    label.setText(
+            MessageManager.getString("label.enter_redundancy_threshold"));
     valueField.setText("100");
 
     slider.setVisibleAmount(1);
@@ -74,9 +74,10 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     slider.addAdjustmentListener(new AdjustmentListener()
     {
+      @Override
       public void adjustmentValueChanged(AdjustmentEvent evt)
       {
-        valueField.setText(slider.getValue() + "");
+        valueField.setText(String.valueOf(slider.getValue()));
         sliderValueChanged();
       }
     });
@@ -104,6 +105,7 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public void run()
   {
     label.setText(MessageManager.getString("label.calculating"));
@@ -138,8 +140,8 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     redundancy = AlignSeq.computeRedundancyMatrix(originalSequences,
             omitHidden, start, end, false);
-    label.setText(MessageManager
-            .getString("label.enter_redundancy_threshold"));
+    label.setText(
+            MessageManager.getString("label.enter_redundancy_threshold"));
     slider.setVisible(true);
     applyButton.setEnabled(true);
     valueField.setVisible(true);
@@ -158,7 +160,7 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
     float value = slider.getValue();
 
-    List<SequenceI> redundantSequences = new ArrayList<SequenceI>();
+    List<SequenceI> redundantSequences = new ArrayList<>();
     for (int i = 0; i < redundancy.length; i++)
     {
       if (value <= redundancy[i])
@@ -172,6 +174,7 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
 
   }
 
+  @Override
   public void applyButton_actionPerformed()
   {
     Vector del = new Vector();
@@ -224,12 +227,13 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
       ap.alignFrame.addHistoryItem(cut);
 
       PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
-      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-              .getSequences());
+      ap.av.firePropertyChange("alignment", null,
+              ap.av.getAlignment().getSequences());
     }
 
   }
 
+  @Override
   public void undoButton_actionPerformed()
   {
     CommandI command = (CommandI) historyList.pop();
@@ -239,11 +243,11 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
     {
       ap.av.getHistoryList().remove(command);
       ap.alignFrame.updateEditMenuBar();
-      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-              .getSequences());
+      ap.av.firePropertyChange("alignment", null,
+              ap.av.getAlignment().getSequences());
     }
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
 
     if (historyList.size() == 0)
     {
@@ -263,31 +267,38 @@ public class RedundancyPanel extends SliderPanel implements Runnable,
     }
   }
 
+  @Override
   public void windowOpened(WindowEvent evt)
   {
   }
 
+  @Override
   public void windowClosing(WindowEvent evt)
   {
     ap.idPanel.idCanvas.setHighlighted(null);
   }
 
+  @Override
   public void windowClosed(WindowEvent evt)
   {
   }
 
+  @Override
   public void windowActivated(WindowEvent evt)
   {
   }
 
+  @Override
   public void windowDeactivated(WindowEvent evt)
   {
   }
 
+  @Override
   public void windowIconified(WindowEvent evt)
   {
   }
 
+  @Override
   public void windowDeiconified(WindowEvent evt)
   {
   }

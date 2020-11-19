@@ -173,7 +173,7 @@ public abstract class ChimUtils
       float[] rgbValues = new float[4];
       for (int i = 0; i < rgbStrings.length; i++)
       {
-        Float f = new Float(rgbStrings[i]);
+        Float f = Float.valueOf(rgbStrings[i]);
         rgbValues[i] = f.floatValue();
       }
       if (rgbStrings.length == 4)
@@ -203,7 +203,7 @@ public abstract class ChimUtils
    */
   public static Integer makeModelKey(int model, int subModel)
   {
-    return new Integer(model * MAX_SUB_MODELS + subModel);
+    return Integer.valueOf(model * MAX_SUB_MODELS + subModel);
   }
 
   // invoked by the getResdiue (parseConnectivityReplies in

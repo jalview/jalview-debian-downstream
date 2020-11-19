@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -58,7 +58,8 @@ public class ParseProperties
           String ScoreDescriptions, String regex, boolean repeat)
   {
     return getScoresFromDescription(new String[] { ScoreName },
-            new String[] { ScoreDescriptions }, regex, repeat);
+            new String[]
+            { ScoreDescriptions }, regex, repeat);
   }
 
   public int getScoresFromDescription(String[] ScoreNames,
@@ -85,9 +86,8 @@ public class ParseProperties
    *          description string of each sequence
    * @return total number of sequences that matched the regex
    */
-  public int getScoresFromDescription(SequenceI[] seqs,
-          String[] ScoreNames, String[] ScoreDescriptions, String regex,
-          boolean repeat)
+  public int getScoresFromDescription(SequenceI[] seqs, String[] ScoreNames,
+          String[] ScoreDescriptions, String regex, boolean repeat)
   {
     int count = 0;
     Regex pattern = new Regex(regex);
@@ -134,15 +134,15 @@ public class ParseProperties
           double score = Double.NaN;
           try
           {
-            score = new Double(sstring).doubleValue();
+            score = Double.valueOf(sstring).doubleValue();
           } catch (Exception e)
           {
             // don't try very hard to parse if regex was wrong.
             continue;
           }
           // add score to sequence annotation.
-          AlignmentAnnotation an = new AlignmentAnnotation(ScoreNames[cols]
-                  + ((reps > 0) ? "_" + reps : ""),
+          AlignmentAnnotation an = new AlignmentAnnotation(
+                  ScoreNames[cols] + ((reps > 0) ? "_" + reps : ""),
                   ScoreDescriptions[cols], null);
           an.setScore(score);
           System.out.println(seqs[i].getName() + " score: '"

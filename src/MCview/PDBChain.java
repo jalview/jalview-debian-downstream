@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -39,20 +39,17 @@ import java.util.Vector;
 
 public class PDBChain
 {
-  /**
-   * SequenceFeature group for PDB File features added to sequences
-   */
-  private static final String PDBFILEFEATURE = "PDBFile";
+  public static final String RESNUM_FEATURE = "RESNUM";
 
   private static final String IEASTATUS = "IEA:jalview";
 
   public String id;
 
-  public Vector<Bond> bonds = new Vector<Bond>();
+  public Vector<Bond> bonds = new Vector<>();
 
-  public Vector<Atom> atoms = new Vector<Atom>();
+  public Vector<Atom> atoms = new Vector<>();
 
-  public Vector<Residue> residues = new Vector<Residue>();
+  public Vector<Residue> residues = new Vector<>();
 
   public int offset;
 
@@ -81,10 +78,10 @@ public class PDBChain
 
   public String pdbid = "";
 
-  public PDBChain(String pdbid, String id)
+  public PDBChain(String thePdbid, String theId)
   {
-    this.pdbid = pdbid == null ? pdbid : pdbid.toLowerCase();
-    this.id = id;
+    this.pdbid = thePdbid == null ? thePdbid : thePdbid.toLowerCase();
+    this.id = theId;
   }
 
   /**
@@ -165,15 +162,58 @@ public class PDBChain
   }
 
   /**
-   * copy over the RESNUM seqfeatures from the internal chain sequence to the
+   * Annotate the residues with their corresponding positions in s1 using the
+   * alignment in as NOTE: This clears all atom.alignmentMapping values on the
+   * structure.
+   * 
+   * @param as
+   * @param s1
+   */
+  public void makeExactMapping(StructureMapping mapping, SequenceI s1)
+  {
+    // first clear out any old alignmentMapping values:
+    for (Atom atom : atoms)
+    {
+      atom.alignmentMapping = -1;
+    }
+    SequenceI ds = s1;
+    while (ds.getDatasetSequence() != null)
+    {
+      ds = ds.getDatasetSequence();
+    }
+    int pdboffset = 0;
+    for (Residue res : residues)
+    {
+      // res.number isn't set correctly for discontinuous/mismapped residues
+      int seqpos = mapping.getSeqPos(res.atoms.get(0).resNumber);
+      char strchar = sequence.getCharAt(pdboffset++);
+      if (seqpos == StructureMapping.UNASSIGNED_VALUE)
+      {
+        continue;
+      }
+      char seqchar = ds.getCharAt(seqpos - ds.getStart());
+
+      boolean sameResidue = Comparison.isSameResidue(
+              seqchar, strchar, false);
+      if (sameResidue)
+      {
+        for (Atom atom : res.atoms)
+        {
+          atom.alignmentMapping = seqpos - 1;
+        }
+      }
+    }
+  }
+
+  /**
+   * Copies over the RESNUM seqfeatures from the internal chain sequence to the
    * mapped sequence
    * 
    * @param seq
    * @param status
    *          The Status of the transferred annotation
-   * @return the features added to sq (or its dataset)
    */
-  public SequenceFeature[] transferRESNUMFeatures(SequenceI seq,
+  public void transferRESNUMFeatures(SequenceI seq,
           String status)
   {
     SequenceI sq = seq;
@@ -182,10 +222,11 @@ public class PDBChain
       sq = sq.getDatasetSequence();
       if (sq == sequence)
       {
-        return null;
+        return;
       }
     }
-    /**
+
+    /*
      * Remove any existing features for this chain if they exist ?
      * SequenceFeature[] seqsfeatures=seq.getSequenceFeatures(); int
      * totfeat=seqsfeatures.length; // Remove any features for this exact chain
@@ -195,23 +236,22 @@ public class PDBChain
     {
       status = PDBChain.IEASTATUS;
     }
-    SequenceFeature[] features = sequence.getSequenceFeatures();
-    if (features == null)
+
+    List<SequenceFeature> features = sequence.getSequenceFeatures();
+    for (SequenceFeature feature : features)
     {
-      return null;
-    }
-    for (int i = 0; i < features.length; i++)
-    {
-      if (features[i].getFeatureGroup() != null
-              && features[i].getFeatureGroup().equals(pdbid))
+      if (feature.getFeatureGroup() != null
+              && feature.getFeatureGroup().equals(pdbid))
       {
-        SequenceFeature tx = new SequenceFeature(features[i]);
-        tx.setBegin(1 + residues.elementAt(tx.getBegin() - offset).atoms
-                .elementAt(0).alignmentMapping);
-        tx.setEnd(1 + residues.elementAt(tx.getEnd() - offset).atoms
-                .elementAt(0).alignmentMapping);
+        int newBegin = 1 + residues.elementAt(feature.getBegin() - offset).atoms
+                .elementAt(0).alignmentMapping;
+        int newEnd = 1 + residues.elementAt(feature.getEnd() - offset).atoms
+                .elementAt(0).alignmentMapping;
+        SequenceFeature tx = new SequenceFeature(feature, newBegin, newEnd,
+                feature.getFeatureGroup(), feature.getScore());
         tx.setStatus(status
-                + ((tx.getStatus() == null || tx.getStatus().length() == 0) ? ""
+                + ((tx.getStatus() == null || tx.getStatus().length() == 0)
+                        ? ""
                         : ":" + tx.getStatus()));
         if (tx.begin != 0 && tx.end != 0)
         {
@@ -219,7 +259,6 @@ public class PDBChain
         }
       }
     }
-    return features;
   }
 
   /**
@@ -304,12 +343,13 @@ public class PDBChain
     boolean deoxyn = false;
     boolean nucleotide = false;
     StringBuilder seq = new StringBuilder(256);
-    Vector<SequenceFeature> resFeatures = new Vector<SequenceFeature>();
-    Vector<Annotation> resAnnotation = new Vector<Annotation>();
-    int i, iSize = atoms.size() - 1;
+    Vector<SequenceFeature> resFeatures = new Vector<>();
+    Vector<Annotation> resAnnotation = new Vector<>();
+    int iSize = atoms.size() - 1;
     int resNumber = -1;
     char insCode = ' ';
-    for (i = 0; i <= iSize; i++)
+
+    for (int i = 0; i <= iSize; i++)
     {
       Atom tmp = atoms.elementAt(i);
       resNumber = tmp.resNumber;
@@ -323,7 +363,7 @@ public class PDBChain
         offset = resNumber;
       }
 
-      Vector<Atom> resAtoms = new Vector<Atom>();
+      Vector<Atom> resAtoms = new Vector<>();
       // Add atoms to a vector while the residue number
       // remains the same as the first atom's resNumber (res)
       while ((resNumber == res) && (ins == insCode) && (i < atoms.size()))
@@ -347,47 +387,48 @@ public class PDBChain
 
       // Add inserted residues as features to the base residue
       Atom currAtom = resAtoms.get(0);
-      if (currAtom.insCode != ' '
-              && !residues.isEmpty()
-              && residues.lastElement().atoms.get(0).resNumber == currAtom.resNumber)
+      if (currAtom.insCode != ' ' && !residues.isEmpty()
+              && residues.lastElement().atoms
+                      .get(0).resNumber == currAtom.resNumber)
       {
-        SequenceFeature sf = new SequenceFeature("INSERTION",
-                currAtom.resName + ":" + currAtom.resNumIns + " " + pdbid
-                        + id, "", offset + count - 1, offset + count - 1,
-                "PDB_INS");
+        String desc = currAtom.resName + ":" + currAtom.resNumIns + " "
+                + pdbid + id;
+        SequenceFeature sf = new SequenceFeature("INSERTION", desc, offset
+                + count - 1, offset + count - 1, "PDB_INS");
         resFeatures.addElement(sf);
         residues.lastElement().atoms.addAll(resAtoms);
       }
       else
       {
-
         // Make a new Residue object with the new atoms vector
         residues.addElement(new Residue(resAtoms, resNumber - 1, count));
 
         Residue tmpres = residues.lastElement();
         Atom tmpat = tmpres.atoms.get(0);
         // Make A new SequenceFeature for the current residue numbering
-        SequenceFeature sf = new SequenceFeature("RESNUM", tmpat.resName
-                + ":" + tmpat.resNumIns + " " + pdbid + id, "", offset
-                + count, offset + count, pdbid);
+        String desc = tmpat.resName
+                + ":" + tmpat.resNumIns + " " + pdbid + id;
+        SequenceFeature sf = new SequenceFeature(RESNUM_FEATURE, desc,
+                offset + count, offset + count, pdbid);
         resFeatures.addElement(sf);
         resAnnotation.addElement(new Annotation(tmpat.tfactor));
         // Keep totting up the sequence
 
-        if ((symbol = ResidueProperties.getAA3Hash().get(tmpat.resName)) == null)
+        if ((symbol = ResidueProperties.getAA3Hash()
+                .get(tmpat.resName)) == null)
         {
           String nucname = tmpat.resName.trim();
           // use the aaIndex rather than call 'toLower' - which would take a bit
           // more time.
           deoxyn = nucname.length() == 2
-                  && ResidueProperties.aaIndex[nucname.charAt(0)] == ResidueProperties.aaIndex['D'];
+                  && ResidueProperties.aaIndex[nucname
+                          .charAt(0)] == ResidueProperties.aaIndex['D'];
           if (tmpat.name.equalsIgnoreCase("CA")
                   || ResidueProperties.nucleotideIndex[nucname
                           .charAt((deoxyn ? 1 : 0))] == -1)
           {
-            char r = ResidueProperties
-                    .getSingleCharacterCode(ResidueProperties
-                            .getCanonicalAminoAcid(tmpat.resName));
+            char r = ResidueProperties.getSingleCharacterCode(
+                    ResidueProperties.getCanonicalAminoAcid(tmpat.resName));
             seq.append(r == '0' ? 'X' : r);
             // System.err.println("PDBReader:Null aa3Hash for " +
             // tmpat.resName);
@@ -403,8 +444,8 @@ public class PDBChain
         {
           if (nucleotide)
           {
-            System.err
-                    .println("Warning: mixed nucleotide and amino acid chain.. its gonna do bad things to you!");
+            System.err.println(
+                    "Warning: mixed nucleotide and amino acid chain.. its gonna do bad things to you!");
           }
           seq.append(ResidueProperties.aa[((Integer) symbol).intValue()]);
         }
@@ -429,7 +470,8 @@ public class PDBChain
 
     if (StructureImportSettings.isShowSeqFeatures())
     {
-      for (i = 0, iSize = resFeatures.size(); i < iSize; i++)
+      iSize = resFeatures.size();
+      for (int i = 0; i < iSize; i++)
       {
         sequence.addSequenceFeature(resFeatures.elementAt(i));
         resFeatures.setElementAt(null, i);
@@ -438,20 +480,20 @@ public class PDBChain
     if (visibleChainAnnotation)
     {
       Annotation[] annots = new Annotation[resAnnotation.size()];
-      float max = 0;
-      for (i = 0, iSize = annots.length; i < iSize; i++)
+      float max = 0f;
+      float min = 0f;
+      iSize = annots.length;
+      for (int i = 0; i < iSize; i++)
       {
         annots[i] = resAnnotation.elementAt(i);
-        if (annots[i].value > max)
-        {
-          max = annots[i].value;
-        }
+        max = Math.max(max, annots[i].value);
+        min = Math.min(min, annots[i].value);
         resAnnotation.setElementAt(null, i);
       }
 
       AlignmentAnnotation tfactorann = new AlignmentAnnotation(
               "Temperature Factor", "Temperature Factor for " + pdbid + id,
-              annots, 0, max, AlignmentAnnotation.LINE_GRAPH);
+              annots, min, max, AlignmentAnnotation.LINE_GRAPH);
       tfactorann.setSequenceRef(sequence);
       sequence.addAlignmentAnnotation(tfactorann);
     }
@@ -516,10 +558,12 @@ public class PDBChain
       try
       {
         index = ResidueProperties.aa3Hash.get(b.at1.resName).intValue();
-        b.startCol = cs.findColour(ResidueProperties.aa[index].charAt(0));
+        b.startCol = cs.findColour(ResidueProperties.aa[index].charAt(0), 0,
+                null, null, 0f);
 
         index = ResidueProperties.aa3Hash.get(b.at2.resName).intValue();
-        b.endCol = cs.findColour(ResidueProperties.aa[index].charAt(0));
+        b.endCol = cs.findColour(ResidueProperties.aa[index].charAt(0), 0,
+                null, null, 0f);
 
       } catch (Exception e)
       {
@@ -552,6 +596,12 @@ public class PDBChain
   {
     SequenceI sq = mapping.getSequence();
     SequenceI dsq = sq;
+    if (sqmpping == null)
+    {
+      // SIFTS mappings are recorded in the StructureMapping object...
+
+      sqmpping = mapping.getSeqToPdbMapping();
+    }
     if (sq != null)
     {
       while (dsq.getDatasetSequence() != null)
@@ -565,8 +615,8 @@ public class PDBChain
 
         for (AlignmentAnnotation ana : shadow.getAnnotation())
         {
-          List<AlignmentAnnotation> transfer = sq.getAlignmentAnnotations(
-                  ana.getCalcId(), ana.label);
+          List<AlignmentAnnotation> transfer = sq
+                  .getAlignmentAnnotations(ana.getCalcId(), ana.label);
           if (transfer == null || transfer.size() == 0)
           {
             ana = new AlignmentAnnotation(ana);
@@ -607,7 +657,8 @@ public class PDBChain
         // Useful for debugging mappings - adds annotation for mapped position
         float min = -1, max = 0;
         Annotation[] an = new Annotation[sq.getEnd() - sq.getStart() + 1];
-        for (int i = sq.getStart(), j = sq.getEnd(), k = 0; i <= j; i++, k++)
+        for (int i = sq.getStart(), j = sq
+                .getEnd(), k = 0; i <= j; i++, k++)
         {
           int prn = mapping.getPDBResNum(k + 1);
 

@@ -21,11 +21,19 @@ For more help, read the file doc/building.html
 
 ##################
 
-To run application:
+To run application...
+[ NOTE: when using the -classpath option with the '*' wildcard, the argument must be quoted to avoid shell expansion of the wildcard,
+  ALSO, the wildcard MUST be as DIR/* and not DIR/*.jar etc or it will not be interpreted correctly ]
 
-java -Djava.ext.dirs=JALVIEW_HOME/lib -cp JALVIEW_HOME/jalview.jar jalview.bin.Jalview
+on Windows use:
+  java -classpath "JALVIEW_HOME/lib/*;JALVIEW_HOME/jalview.jar" jalview.bin.Jalview
+and on MacOS or Linux:
+  java -classpath "JALVIEW_HOME/lib/*:JALVIEW_HOME/jalview.jar" jalview.bin.Jalview
 
-Replace JALVIEW_HOME with the full path to Jalview Installation Directory.
+Replace JALVIEW_HOME with the full path to Jalview Installation Directory. If building from source:
+
+  java -classpath "JALVIEW_BUILD/dist/*" jalview.bin.Jalview
+
 
 ##################
 

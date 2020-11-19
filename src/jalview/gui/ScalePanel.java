@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,23 +21,28 @@
 package jalview.gui;
 
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
 import jalview.renderer.ScaleRenderer;
 import jalview.renderer.ScaleRenderer.ScaleMark;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
+import jalview.viewmodel.ViewportListenerI;
+import jalview.viewmodel.ViewportRanges;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.beans.PropertyChangeEvent;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.JMenuItem;
@@ -50,8 +55,8 @@ import javax.swing.ToolTipManager;
  * The panel containing the sequence ruler (when not in wrapped mode), and
  * supports a range of mouse operations to select, hide or reveal columns.
  */
-public class ScalePanel extends JPanel implements MouseMotionListener,
-        MouseListener
+public class ScalePanel extends JPanel
+        implements MouseMotionListener, MouseListener, ViewportListenerI
 {
   protected int offy = 4;
 
@@ -90,6 +95,8 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
 
     addMouseListener(this);
     addMouseMotionListener(this);
+
+    av.getRanges().addPropertyChangeListener(this);
   }
 
   /**
@@ -101,22 +108,14 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
   @Override
   public void mousePressed(MouseEvent evt)
   {
-    int x = (evt.getX() / av.getCharWidth()) + av.getStartRes();
+    int x = (evt.getX() / av.getCharWidth()) + av.getRanges().getStartRes();
     final int res;
 
     if (av.hasHiddenColumns())
     {
-      x = av.getColumnSelection().adjustForHiddenColumns(x);
+      x = av.getAlignment().getHiddenColumns().visibleToAbsoluteColumn(x);
     }
-
-    if (x >= av.getAlignment().getWidth())
-    {
-      res = av.getAlignment().getWidth() - 1;
-    }
-    else
-    {
-      res = x;
-    }
+    res = Math.min(x, av.getAlignment().getWidth() - 1);
 
     min = res;
     max = res;
@@ -150,8 +149,30 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
    */
   protected void rightMouseButtonPressed(MouseEvent evt, final int res)
   {
+    JPopupMenu pop = buildPopupMenu(res);
+    if (pop.getSubElements().length > 0)
+    {
+      pop.show(this, evt.getX(), evt.getY());
+    }
+  }
+
+  /**
+   * Builds a popup menu with 'Hide' or 'Reveal' options, or both, or neither
+   * 
+   * @param res
+   *          column number (0..)
+   * @return
+   */
+  protected JPopupMenu buildPopupMenu(final int res)
+  {
     JPopupMenu pop = new JPopupMenu();
-    if (reveal != null)
+
+    /*
+     * logic here depends on 'reveal', set in mouseMoved;
+     * grab the hidden range in case mouseMoved nulls it later
+     */
+    final int[] hiddenRange = reveal;
+    if (hiddenRange != null)
     {
       JMenuItem item = new JMenuItem(
               MessageManager.getString("label.reveal"));
@@ -160,19 +181,16 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
         @Override
         public void actionPerformed(ActionEvent e)
         {
-          av.showColumn(reveal[0]);
+          av.showColumn(hiddenRange[0]);
           reveal = null;
-          ap.paintAlignment(true);
-          if (ap.overviewPanel != null)
-          {
-            ap.overviewPanel.updateOverviewImage();
-          }
+          ap.updateLayout();
+          ap.paintAlignment(true, true);
           av.sendSelection();
         }
       });
       pop.add(item);
 
-      if (av.getColumnSelection().hasHiddenColumns())
+      if (av.getAlignment().getHiddenColumns().hasMultiHiddenColumnRegions())
       {
         item = new JMenuItem(MessageManager.getString("action.reveal_all"));
         item.addActionListener(new ActionListener()
@@ -182,19 +200,16 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
           {
             av.showAllHiddenColumns();
             reveal = null;
-            ap.paintAlignment(true);
-            if (ap.overviewPanel != null)
-            {
-              ap.overviewPanel.updateOverviewImage();
-            }
+            ap.updateLayout();
+            ap.paintAlignment(true, true);
             av.sendSelection();
           }
         });
         pop.add(item);
       }
-      pop.show(this, evt.getX(), evt.getY());
     }
-    else if (av.getColumnSelection().contains(res))
+
+    if (av.getColumnSelection().contains(res))
     {
       JMenuItem item = new JMenuItem(
               MessageManager.getString("label.hide_columns"));
@@ -204,24 +219,20 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
         public void actionPerformed(ActionEvent e)
         {
           av.hideColumns(res, res);
-          if (av.getSelectionGroup() != null
-                  && av.getSelectionGroup().getSize() == av.getAlignment()
-                          .getHeight())
+          if (av.getSelectionGroup() != null && av.getSelectionGroup()
+                  .getSize() == av.getAlignment().getHeight())
           {
             av.setSelectionGroup(null);
           }
 
-          ap.paintAlignment(true);
-          if (ap.overviewPanel != null)
-          {
-            ap.overviewPanel.updateOverviewImage();
-          }
+          ap.updateLayout();
+          ap.paintAlignment(true, true);
           av.sendSelection();
         }
       });
       pop.add(item);
-      pop.show(this, evt.getX(), evt.getY());
     }
+    return pop;
   }
 
   /**
@@ -243,15 +254,7 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
     }
 
     av.getColumnSelection().addElement(res);
-    SequenceGroup sg = new SequenceGroup();
-    // try to be as quick as possible
-    SequenceI[] iVec = av.getAlignment().getSequencesArray();
-    for (int i = 0; i < iVec.length; i++)
-    {
-      sg.addSequence(iVec[i], false);
-      iVec[i] = null;
-    }
-    iVec = null;
+    SequenceGroup sg = new SequenceGroup(av.getAlignment().getSequences());
     sg.setStartRes(res);
     sg.setEndRes(res);
 
@@ -267,32 +270,34 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
       sg.setEndRes(max);
     }
     av.setSelectionGroup(sg);
-    ap.paintAlignment(false);
+    ap.paintAlignment(false, false);
     av.sendSelection();
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on mouseUp is to set the limit of the current selection group (if
+   * there is one) and broadcast the selection
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseReleased(MouseEvent evt)
   {
+    boolean wasDragging = mouseDragging;
     mouseDragging = false;
+    ap.getSeqPanel().stopScrolling();
 
-    int res = (evt.getX() / av.getCharWidth()) + av.getStartRes();
-
+    int xCords = Math.max(0, evt.getX()); // prevent negative X coordinates
+    ViewportRanges ranges = av.getRanges();
+    int res = (xCords / av.getCharWidth())
+            + ranges.getStartRes();
+    res = Math.min(res, ranges.getEndRes());
     if (av.hasHiddenColumns())
     {
-      res = av.getColumnSelection().adjustForHiddenColumns(res);
+      res = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(res);
     }
-
-    if (res >= av.getAlignment().getWidth())
-    {
-      res = av.getAlignment().getWidth() - 1;
-    }
+    res = Math.max(0, res);
 
     if (!stretchingGroup)
     {
@@ -302,7 +307,7 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
       }
       else
       {
-        ap.paintAlignment(false);
+        ap.paintAlignment(false, false);
       }
       return;
     }
@@ -319,85 +324,50 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
       {
         sg.setStartRes(res);
       }
+      if (wasDragging)
+      {
+        min = Math.min(res, min);
+        max = Math.max(res, max);
+        av.getColumnSelection().stretchGroup(res, sg, min, max);
+      }
     }
     stretchingGroup = false;
-    ap.paintAlignment(false);
+    ap.paintAlignment(false, false);
+    av.isSelectionGroupChanged(true);
+    av.isColSelChanged(true);
     av.sendSelection();
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on dragging the mouse in the scale panel is to expand or shrink the
+   * selection group range (including any hidden columns that it spans). Note
+   * that the selection is only broadcast at the start of the drag (on
+   * mousePressed) and at the end (on mouseReleased), to avoid overload
+   * redrawing of other views.
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseDragged(MouseEvent evt)
   {
     mouseDragging = true;
+    ColumnSelection cs = av.getColumnSelection();
+    HiddenColumns hidden = av.getAlignment().getHiddenColumns();
 
-    int res = (evt.getX() / av.getCharWidth()) + av.getStartRes();
-    if (res < 0)
-    {
-      res = 0;
-    }
-
-    if (av.hasHiddenColumns())
-    {
-      res = av.getColumnSelection().adjustForHiddenColumns(res);
-    }
-
-    if (res >= av.getAlignment().getWidth())
-    {
-      res = av.getAlignment().getWidth() - 1;
-    }
-
-    if (res < min)
-    {
-      min = res;
-    }
-
-    if (res > max)
-    {
-      max = res;
-    }
+    int res = (evt.getX() / av.getCharWidth())
+            + av.getRanges().getStartRes();
+    res = Math.max(0, res);
+    res = hidden.visibleToAbsoluteColumn(res);
+    res = Math.min(res, av.getAlignment().getWidth() - 1);
+    min = Math.min(res, min);
+    max = Math.max(res, max);
 
     SequenceGroup sg = av.getSelectionGroup();
-
     if (sg != null)
     {
       stretchingGroup = true;
-
-      if (!av.getColumnSelection().contains(res))
-      {
-        av.getColumnSelection().addElement(res);
-      }
-
-      if (res > sg.getStartRes())
-      {
-        sg.setEndRes(res);
-      }
-      if (res < sg.getStartRes())
-      {
-        sg.setStartRes(res);
-      }
-
-      int col;
-      for (int i = min; i <= max; i++)
-      {
-        col = i; // av.getColumnSelection().adjustForHiddenColumns(i);
-
-        if ((col < sg.getStartRes()) || (col > sg.getEndRes()))
-        {
-          av.getColumnSelection().removeElement(col);
-        }
-        else
-        {
-          av.getColumnSelection().addElement(col);
-        }
-      }
-
-      ap.paintAlignment(false);
+      cs.stretchGroup(res, sg, min, max);
+      ap.paintAlignment(false, false);
     }
   }
 
@@ -406,16 +376,22 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
   {
     if (mouseDragging)
     {
-      ap.getSeqPanel().scrollCanvas(null);
+      ap.getSeqPanel().stopScrolling();
     }
   }
 
+  /**
+   * Action on leaving the panel bounds with mouse drag in progress is to start
+   * scrolling the alignment in the direction of the mouse. To restrict
+   * scrolling to left-right (not up-down), the y-value of the mouse position is
+   * replaced with zero.
+   */
   @Override
   public void mouseExited(MouseEvent evt)
   {
     if (mouseDragging)
     {
-      ap.getSeqPanel().scrollCanvas(evt);
+      ap.getSeqPanel().startScrolling(new Point(evt.getX(), 0));
     }
   }
 
@@ -424,6 +400,9 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
   {
   }
 
+  /**
+   * Creates a tooltip when the mouse is over a hidden columns marker
+   */
   @Override
   public void mouseMoved(MouseEvent evt)
   {
@@ -434,24 +413,17 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
       return;
     }
 
-    int res = (evt.getX() / av.getCharWidth()) + av.getStartRes();
+    int res = (evt.getX() / av.getCharWidth())
+            + av.getRanges().getStartRes();
 
-    res = av.getColumnSelection().adjustForHiddenColumns(res);
+    reveal = av.getAlignment().getHiddenColumns()
+            .getRegionWithEdgeAtRes(res);
 
-    if (av.getColumnSelection().getHiddenColumns() != null)
-    {
-      for (int[] region : av.getColumnSelection().getHiddenColumns())
-      {
-        if (res + 1 == region[0] || res - 1 == region[1])
-        {
-          reveal = region;
-          ToolTipManager.sharedInstance().registerComponent(this);
-          this.setToolTipText(MessageManager
-                  .getString("label.reveal_hidden_columns"));
-          break;
-        }
-      }
-    }
+    res = av.getAlignment().getHiddenColumns().visibleToAbsoluteColumn(res);
+
+    ToolTipManager.sharedInstance().registerComponent(this);
+    this.setToolTipText(
+            MessageManager.getString("label.reveal_hidden_columns"));
     repaint();
   }
 
@@ -464,7 +436,17 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
   @Override
   public void paintComponent(Graphics g)
   {
-    drawScale(g, av.getStartRes(), av.getEndRes(), getWidth(), getHeight());
+    super.paintComponent(g);
+
+    /*
+     * shouldn't get called in wrapped mode as the scale above is
+     * drawn instead by SeqCanvas.drawNorthScale
+     */
+    if (!av.getWrapAlignment())
+    {
+      drawScale(g, av.getRanges().getStartRes(), av.getRanges().getEndRes(),
+              getWidth(), getHeight());
+    }
   }
 
   // scalewidth will normally be screenwidth,
@@ -487,7 +469,9 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
 
     // Fill the selected columns
     ColumnSelection cs = av.getColumnSelection();
-    int avCharWidth = av.getCharWidth(), avCharHeight = av.getCharHeight();
+    HiddenColumns hidden = av.getAlignment().getHiddenColumns();
+    int avCharWidth = av.getCharWidth();
+    int avCharHeight = av.getCharHeight();
 
     if (cs != null)
     {
@@ -500,9 +484,9 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
 
         if (av.hasHiddenColumns())
         {
-          if (cs.isVisible(sel))
+          if (hidden.isVisible(sel))
           {
-            sel = cs.findColumnPosition(sel);
+            sel = hidden.absoluteToVisibleColumn(sel);
           }
           else
           {
@@ -529,24 +513,21 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
       // draw any hidden column markers
       gg.setColor(Color.blue);
       int res;
-      if (av.getShowHiddenMarkers()
-              && av.getColumnSelection().getHiddenColumns() != null)
+
+      if (av.getShowHiddenMarkers())
       {
-        for (int i = 0; i < av.getColumnSelection().getHiddenColumns()
-                .size(); i++)
+        Iterator<Integer> it = hidden.getStartRegionIterator(startx,
+                startx + widthx + 1);
+        while (it.hasNext())
         {
-          res = av.getColumnSelection().findHiddenRegionPosition(i)
-                  - startx;
+          res = it.next() - startx;
 
-          if (res < 0 || res > widthx)
-          {
-            continue;
-          }
-
-          gg.fillPolygon(new int[] {
-              -1 + res * avCharWidth - avCharHeight / 4,
+          gg.fillPolygon(
+                  new int[]
+          { -1 + res * avCharWidth - avCharHeight / 4,
               -1 + res * avCharWidth + avCharHeight / 4,
-              -1 + res * avCharWidth }, new int[] { y, y, y + 2 * yOf }, 3);
+              -1 + res * avCharWidth }, new int[]
+          { y, y, y + 2 * yOf }, 3);
         }
       }
     }
@@ -580,6 +561,28 @@ public class ScalePanel extends JPanel implements MouseMotionListener,
         gg.drawLine((mpos * avCharWidth) + (avCharWidth / 2), y + yOf,
                 (mpos * avCharWidth) + (avCharWidth / 2), y + (yOf * 2));
       }
+    }
+  }
+
+  @Override
+  public void propertyChange(PropertyChangeEvent evt)
+  {
+    // Respond to viewport change events (e.g. alignment panel was scrolled)
+    // Both scrolling and resizing change viewport ranges: scrolling changes
+    // both start and end points, but resize only changes end values.
+    // Here we only want to fastpaint on a scroll, with resize using a normal
+    // paint, so scroll events are identified as changes to the horizontal or
+    // vertical start value.
+    if (evt.getPropertyName().equals(ViewportRanges.STARTRES)
+            || evt.getPropertyName().equals(ViewportRanges.STARTRESANDSEQ)
+            || evt.getPropertyName().equals(ViewportRanges.MOVE_VIEWPORT))
+    {
+      // scroll event, repaint panel
+    	
+  	// Call repaint on alignment panel so that repaints from other alignment
+    // panel components can be aggregated. Otherwise performance of the overview
+    // window and others may be adversely affected.
+      av.getAlignPanel().repaint();
     }
   }
 

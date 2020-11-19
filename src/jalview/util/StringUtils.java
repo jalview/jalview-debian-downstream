@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.util;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -29,7 +31,15 @@ public class StringUtils
   private static final Pattern DELIMITERS_PATTERN = Pattern
           .compile(".*='[^']*(?!')");
 
+  private static final char PERCENT = '%';
+
   private static final boolean DEBUG = false;
+
+  /*
+   * URL encoded characters, indexed by char value
+   * e.g. urlEncodings['='] = urlEncodings[61] = "%3D"
+   */
+  private static String[] urlEncodings = new String[255];
 
   /**
    * Returns a new character array, after inserting characters into the given
@@ -138,14 +148,15 @@ public class StringUtils
    * @param delimiter
    * @return elements separated by separator
    */
-  public static String[] separatorListToArray(String input, String delimiter)
+  public static String[] separatorListToArray(String input,
+          String delimiter)
   {
     int seplen = delimiter.length();
     if (input == null || input.equals("") || input.equals(delimiter))
     {
       return null;
     }
-    List<String> jv = new ArrayList<String>();
+    List<String> jv = new ArrayList<>();
     int cp = 0, pos, escape;
     boolean wasescaped = false, wasquoted = false;
     String lstitem = null;
@@ -155,9 +166,8 @@ public class StringUtils
       if (wasescaped || wasquoted)
       {
         // append to previous pos
-        jv.set(jv.size() - 1,
-                lstitem = lstitem + delimiter
-                        + input.substring(cp, pos + escape));
+        jv.set(jv.size() - 1, lstitem = lstitem + delimiter
+                + input.substring(cp, pos + escape));
       }
       else
       {
@@ -201,8 +211,8 @@ public class StringUtils
     }
     if (DEBUG)
     {
-      System.err.println("Empty Array from '" + delimiter
-              + "' separated List");
+      System.err.println(
+              "Empty Array from '" + delimiter + "' separated List");
     }
     return null;
   }
@@ -235,16 +245,16 @@ public class StringUtils
       }
       if (DEBUG)
       {
-        System.err.println("Returning '" + separator
-                + "' separated List:\n");
+        System.err
+                .println("Returning '" + separator + "' separated List:\n");
         System.err.println(v);
       }
       return v.toString();
     }
     if (DEBUG)
     {
-      System.err.println("Returning empty '" + separator
-              + "' separated List\n");
+      System.err.println(
+              "Returning empty '" + separator + "' separated List\n");
     }
     return "" + separator;
   }
@@ -364,8 +374,8 @@ public class StringUtils
         }
       } catch (NumberFormatException e)
       {
-        System.err.println("Invalid version format found: "
-                + e.getMessage());
+        System.err
+                .println("Invalid version format found: " + e.getMessage());
         return 0;
       }
     }
@@ -402,5 +412,160 @@ public class StringUtils
       return s.toUpperCase();
     }
     return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
+  }
+
+  /**
+   * A helper method that strips off any leading or trailing html and body tags.
+   * If no html tag is found, then also html-encodes angle bracket characters.
+   * 
+   * @param text
+   * @return
+   */
+  public static String stripHtmlTags(String text)
+  {
+    if (text == null)
+    {
+      return null;
+    }
+    String tmp2up = text.toUpperCase();
+    int startTag = tmp2up.indexOf("<HTML>");
+    if (startTag > -1)
+    {
+      text = text.substring(startTag + 6);
+      tmp2up = tmp2up.substring(startTag + 6);
+    }
+    // is omission of "<BODY>" intentional here??
+    int endTag = tmp2up.indexOf("</BODY>");
+    if (endTag > -1)
+    {
+      text = text.substring(0, endTag);
+      tmp2up = tmp2up.substring(0, endTag);
+    }
+    endTag = tmp2up.indexOf("</HTML>");
+    if (endTag > -1)
+    {
+      text = text.substring(0, endTag);
+    }
+  
+    if (startTag == -1 && (text.contains("<") || text.contains(">")))
+    {
+      text = text.replaceAll("<", "&lt;");
+      text = text.replaceAll(">", "&gt;");
+    }
+    return text;
+  }
+
+  /**
+   * Answers the input string with any occurrences of the 'encodeable' characters
+   * replaced by their URL encoding
+   * 
+   * @param s
+   * @param encodable
+   * @return
+   */
+  public static String urlEncode(String s, String encodable)
+  {
+    if (s == null || s.isEmpty())
+    {
+      return s;
+    }
+
+    /*
+     * do % encoding first, as otherwise it may double-encode!
+     */
+    if (encodable.indexOf(PERCENT) != -1)
+    {
+      s = urlEncode(s, PERCENT);
+    }
+
+    for (char c : encodable.toCharArray())
+    {
+      if (c != PERCENT)
+      {
+        s = urlEncode(s, c);
+      }
+    }
+    return s;
+  }
+
+  /**
+   * Answers the input string with any occurrences of {@code c} replaced with
+   * their url encoding. Answers the input string if it is unchanged.
+   * 
+   * @param s
+   * @param c
+   * @return
+   */
+  static String urlEncode(String s, char c)
+  {
+    String decoded = String.valueOf(c);
+    if (s.indexOf(decoded) != -1)
+    {
+      String encoded = getUrlEncoding(c);
+      if (!encoded.equals(decoded))
+      {
+        s = s.replace(decoded, encoded);
+      }
+    }
+    return s;
+  }
+
+  /**
+   * Answers the input string with any occurrences of the specified (unencoded)
+   * characters replaced by their URL decoding.
+   * <p>
+   * Example: {@code urlDecode("a%3Db%3Bc", "-;=,")} should answer
+   * {@code "a=b;c"}.
+   * 
+   * @param s
+   * @param encodable
+   * @return
+   */
+  public static String urlDecode(String s, String encodable)
+  {
+    if (s == null || s.isEmpty())
+    {
+      return s;
+    }
+
+    for (char c : encodable.toCharArray())
+    {
+      String encoded = getUrlEncoding(c);
+      if (s.indexOf(encoded) != -1)
+      {
+        String decoded = String.valueOf(c);
+        s = s.replace(encoded, decoded);
+      }
+    }
+    return s;
+  }
+
+  /**
+   * Does a lazy lookup of the url encoding of the given character, saving the
+   * value for repeat lookups
+   * 
+   * @param c
+   * @return
+   */
+  private static String getUrlEncoding(char c)
+  {
+    if (c < 0 || c >= urlEncodings.length)
+    {
+      return String.valueOf(c);
+    }
+
+    String enc = urlEncodings[c];
+    if (enc == null)
+    {
+      try
+      {
+        enc = urlEncodings[c] = URLEncoder.encode(String.valueOf(c),
+                "UTF-8");
+      } catch (UnsupportedEncodingException e)
+      {
+        enc = urlEncodings[c] = String.valueOf(c);
+      }
+    }
+    return enc;
   }
 }

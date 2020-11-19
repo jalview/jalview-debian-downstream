@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -54,7 +54,7 @@ public class RnamlFile extends AlignFile
 
   }
 
-  public RnamlFile(String inFile, String type) throws IOException
+  public RnamlFile(String inFile, DataSourceType type) throws IOException
   {
     super(inFile, type);
 
@@ -103,35 +103,35 @@ public class RnamlFile extends AlignFile
     } catch (ExceptionPermissionDenied pdx)
     {
       errormessage = MessageManager.formatMessage(
-              "exception.rnaml_couldnt_access_datasource",
-              new String[] { pdx.getMessage() });
+              "exception.rnaml_couldnt_access_datasource", new String[]
+              { pdx.getMessage() });
       throw new IOException(pdx);
     } catch (ExceptionLoadingFailed lf)
     {
       errormessage = MessageManager.formatMessage(
-              "exception.ranml_couldnt_process_data",
-              new String[] { lf.getMessage() });
+              "exception.ranml_couldnt_process_data", new String[]
+              { lf.getMessage() });
       throw new IOException(lf);
     } catch (ExceptionFileFormatOrSyntax iff)
     {
-      errormessage = MessageManager.formatMessage(
-              "exception.ranml_invalid_file",
-              new String[] { iff.getMessage() });
+      errormessage = MessageManager
+              .formatMessage("exception.ranml_invalid_file", new String[]
+              { iff.getMessage() });
       throw new IOException(iff);
     } catch (Exception x)
     {
       error = true;
       errormessage = MessageManager.formatMessage(
-              "exception.ranml_problem_parsing_data",
-              new String[] { x.getMessage() });
+              "exception.ranml_problem_parsing_data", new String[]
+              { x.getMessage() });
       throw new IOException(errormessage, x);
     }
   }
 
   @SuppressWarnings("unchecked")
-  public void _parse() throws FileNotFoundException,
-          ExceptionPermissionDenied, ExceptionLoadingFailed,
-          ExceptionFileFormatOrSyntax
+  public void _parse()
+          throws FileNotFoundException, ExceptionPermissionDenied,
+          ExceptionLoadingFailed, ExceptionFileFormatOrSyntax
   {
 
     result = RNAFactory.loadSecStrRNAML(getReader());
@@ -172,15 +172,16 @@ public class RnamlFile extends AlignFile
       }
       for (int k = 0; k < rna.length(); k++)
       {
-        ann[k] = new Annotation(annot[k], "", Rna.getRNASecStrucState(
-                annot[k]).charAt(0), 0f);
+        ann[k] = new Annotation(annot[k], "",
+                Rna.getRNASecStrucState(annot[k]).charAt(0), 0f);
       }
 
       AlignmentAnnotation align = new AlignmentAnnotation(
               "Secondary Structure",
-              current.getID().trim().length() > 0 ? "Secondary Structure for "
-                      + current.getID()
-                      : "", ann);
+              current.getID().trim().length() > 0
+                      ? "Secondary Structure for " + current.getID()
+                      : "",
+              ann);
 
       sqs[i].addAlignmentAnnotation(align);
       sqs[i].setRNA(result.get(i));
@@ -195,16 +196,10 @@ public class RnamlFile extends AlignFile
     setSeqs(sqs);
   }
 
-  public static String print(SequenceI[] s)
+  @Override
+  public String print(SequenceI[] s, boolean jvSuffix)
   {
     return "not yet implemented";
-  }
-
-  @Override
-  public String print()
-  {
-    System.out.print("print :");
-    return print(getSeqsAsArray());
   }
 
   public List<RNA> getRNA()

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.gui;
 import jalview.api.StructureSelectionManagerProvider;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.io.StructureFile;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
@@ -44,15 +45,15 @@ public class AssociatePdbFileWithSeq
    * @param choice
    * @param sequence
    */
-  public PDBEntry associatePdbWithSeq(String choice, String protocol,
+  public PDBEntry associatePdbWithSeq(String choice, DataSourceType file,
           SequenceI sequence, boolean prompt,
           StructureSelectionManagerProvider ssmp)
   {
     PDBEntry entry = new PDBEntry();
     StructureFile pdbfile = null;
     pdbfile = StructureSelectionManager.getStructureSelectionManager(ssmp)
-            .setMapping(false, new SequenceI[] { sequence }, null, choice,
-                    protocol);
+            .setMapping(false, new SequenceI[]
+            { sequence }, null, choice, file);
     if (pdbfile == null)
     {
       // stacktrace already thrown so just return
@@ -64,11 +65,11 @@ public class AssociatePdbFileWithSeq
 
       if (prompt)
       {
-        reply = JOptionPane.showInternalInputDialog(Desktop.desktop,
+        reply = JvOptionPane.showInternalInputDialog(Desktop.desktop,
                 MessageManager
                         .getString("label.couldnt_find_pdb_id_in_file"),
                 MessageManager.getString("label.no_pdb_id_in_file"),
-                JOptionPane.QUESTION_MESSAGE);
+                JvOptionPane.QUESTION_MESSAGE);
       }
       if (reply == null)
       {

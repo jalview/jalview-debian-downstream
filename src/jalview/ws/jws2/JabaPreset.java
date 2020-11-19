@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -74,9 +74,9 @@ public class JabaPreset implements WsParamSetI
   @Override
   public void setSourceFile(String newfile)
   {
-    throw new Error(MessageManager.formatMessage(
-            "error.cannot_set_source_file_for", new String[] { getClass()
-                    .toString() }));
+    throw new Error(MessageManager
+            .formatMessage("error.cannot_set_source_file_for", new String[]
+            { getClass().toString() }));
   }
 
   @Override
@@ -84,22 +84,20 @@ public class JabaPreset implements WsParamSetI
   {
     try
     {
-      return JabaParamStore.getJwsArgsfromJaba(p.getArguments(service
-              .getRunnerConfig()));
+      return JabaParamStore.getJwsArgsfromJaba(
+              p.getArguments(service.getRunnerConfig()));
     } catch (Exception e)
     {
       e.printStackTrace();
-      throw new Error(
-              MessageManager
-                      .getString("error.mismatch_service_instance_preset"));
+      throw new Error(MessageManager
+              .getString("error.mismatch_service_instance_preset"));
     }
   }
 
   @Override
   public void setArguments(List<ArgumentI> args)
   {
-    throw new Error(
-            MessageManager
-                    .getString("error.cannot_set_params_for_ws_preset"));
+    throw new Error(MessageManager
+            .getString("error.cannot_set_params_for_ws_preset"));
   }
 }

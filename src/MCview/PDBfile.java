@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package MCview;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.DBRefSource;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.io.FileParse;
 import jalview.io.StructureFile;
 import jalview.util.MessageManager;
@@ -46,10 +47,10 @@ public class PDBfile extends StructureFile
   }
 
   public PDBfile(boolean addAlignmentAnnotations, boolean predictSecStr,
-          boolean externalSecStr, String dataObject, String protocol)
-          throws IOException
+          boolean externalSecStr, String dataObject,
+          DataSourceType sourceType) throws IOException
   {
-    super(false, dataObject, protocol);
+    super(false, dataObject, sourceType);
     addSettings(addAlignmentAnnotations, predictSecStr, externalSecStr);
     doParse();
   }
@@ -63,7 +64,7 @@ public class PDBfile extends StructureFile
   }
 
   @Override
-  public String print()
+  public String print(SequenceI[] seqs, boolean jvSuffix)
   {
     return null;
   }
@@ -188,9 +189,8 @@ public class PDBfile extends StructureFile
     } catch (OutOfMemoryError er)
     {
       System.out.println("OUT OF MEMORY LOADING PDB FILE");
-      throw new IOException(
-              MessageManager
-                      .getString("exception.outofmemory_loading_pdb_file"));
+      throw new IOException(MessageManager
+              .getString("exception.outofmemory_loading_pdb_file"));
     } catch (NumberFormatException ex)
     {
       if (line != null)
@@ -226,8 +226,8 @@ public class PDBfile extends StructureFile
   public static String relocateCalcId(String calcId,
           Hashtable<String, String> alreadyLoadedPDB) throws Exception
   {
-    int s = CALC_ID_PREFIX.length(), end = calcId
-            .indexOf(CALC_ID_PREFIX, s);
+    int s = CALC_ID_PREFIX.length(),
+            end = calcId.indexOf(CALC_ID_PREFIX, s);
     String between = calcId.substring(s, end - 1);
     return CALC_ID_PREFIX + alreadyLoadedPDB.get(between) + ":"
             + calcId.substring(end);

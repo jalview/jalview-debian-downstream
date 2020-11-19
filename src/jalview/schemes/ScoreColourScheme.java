@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,10 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AnnotatedCollectionI;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
 import java.awt.Color;
 
@@ -32,13 +35,10 @@ import java.awt.Color;
  */
 public class ScoreColourScheme extends ResidueColourScheme
 {
-  /** DOCUMENT ME!! */
   public double min;
 
-  /** DOCUMENT ME!! */
   public double max;
 
-  /** DOCUMENT ME!! */
   public double[] scores;
 
   /**
@@ -62,59 +62,36 @@ public class ScoreColourScheme extends ResidueColourScheme
 
     // Make colours in constructor
     // Why wasn't this done earlier?
-    int i, iSize = scores.length;
+    int iSize = scores.length;
     colors = new Color[scores.length];
-    for (i = 0; i < iSize; i++)
+    for (int i = 0; i < iSize; i++)
     {
-      float red = (float) (scores[i] - (float) min) / (float) (max - min);
+      /*
+       * scale score between min and max to the range 0.0 - 1.0
+       */
+      float score = (float) (scores[i] - (float) min) / (float) (max - min);
 
-      if (red > 1.0f)
+      if (score > 1.0f)
       {
-        red = 1.0f;
+        score = 1.0f;
       }
 
-      if (red < 0.0f)
+      if (score < 0.0f)
       {
-        red = 0.0f;
+        score = 0.0f;
       }
-      colors[i] = makeColour(red);
+      colors[i] = makeColour(score);
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param s
-   *          DOCUMENT ME!
-   * @param j
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
   @Override
   public Color findColour(char c, int j, SequenceI seq)
   {
-    if (threshold > 0)
-    {
-      if (!aboveThreshold(c, j))
-      {
-        return Color.white;
-      }
-    }
-
-    if (jalview.util.Comparison.isGap(c))
+    if (Comparison.isGap(c))
     {
       return Color.white;
     }
-
-    Color currentColour = colors[ResidueProperties.aaIndex[c]];
-
-    if (conservationColouring)
-    {
-      currentColour = applyConservation(currentColour, j);
-    }
-
-    return currentColour;
+    return super.findColour(c);
   }
 
   /**
@@ -128,5 +105,22 @@ public class ScoreColourScheme extends ResidueColourScheme
   public Color makeColour(float c)
   {
     return new Color(c, (float) 0.0, (float) 1.0 - c);
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return "Score";
+  }
+
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
+  @Override
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
+  {
+    return new ScoreColourScheme(symbolIndex, scores, min, max);
   }
 }

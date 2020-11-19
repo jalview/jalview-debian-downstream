@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -53,8 +53,8 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
               .newInstance());
     } catch (Throwable x)
     {
-      System.err
-              .println("Unexpected exception when instantiating rest input type.");
+      System.err.println(
+              "Unexpected exception when instantiating rest input type.");
       x.printStackTrace();
     }
     return null;
@@ -74,13 +74,13 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
     @Override
     protected void okPressed()
     {
-      reply = JOptionPane.OK_OPTION;
+      reply = JvOptionPane.OK_OPTION;
     }
 
     @Override
     protected void cancelPressed()
     {
-      reply = JOptionPane.CANCEL_OPTION;
+      reply = JvOptionPane.CANCEL_OPTION;
 
     }
   };
@@ -103,18 +103,19 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
   {
     okcancel.add(frame.cancel);
     okcancel.add(frame.ok);
-    frame.initDialogFrame(dpane, true, true, "Edit parameter for service "
-            + currentservice.getName(), 600, 800);
+    frame.initDialogFrame(dpane, true, true,
+            "Edit parameter for service " + currentservice.getName(), 600,
+            800);
 
     initTypeLists();
-    reply = JOptionPane.CANCEL_OPTION;
+    reply = JvOptionPane.CANCEL_OPTION;
     old = toedit;
     current = null;
     if (old != null)
     {
       setStateFor(old);
     }
-    updated = updated && reply == JOptionPane.OK_OPTION;
+    updated = updated && reply == JvOptionPane.OK_OPTION;
     frame.validate();
   }
 
@@ -159,14 +160,14 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
         newType.token = tok.getText().trim();
         try
         {
-          newType.configureFromArgumentI(opanps.get(
-                  newType.getURLtokenPrefix()).getCurrentSettings());
+          newType.configureFromArgumentI(opanps
+                  .get(newType.getURLtokenPrefix()).getCurrentSettings());
           current = newType;
           updated = true;
         } catch (InvalidArgumentException ex)
         {
-          System.err
-                  .println("IMPLEMENTATION ERROR: Invalid argument for type : "
+          System.err.println(
+                  "IMPLEMENTATION ERROR: Invalid argument for type : "
                           + typeList.getSelectedValue() + "\n");
           ex.printStackTrace();
         }
@@ -186,7 +187,8 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
       try
       {
         JPanel inopts = new JPanel(new MigLayout());
-        ArrayList<JPanel> opts = new ArrayList<JPanel>(), prms = new ArrayList<JPanel>();
+        ArrayList<JPanel> opts = new ArrayList<JPanel>(),
+                prms = new ArrayList<JPanel>();
         jtype = (InputType) (type.getConstructor().newInstance());
         typeclass.put(jtype.getURLtokenPrefix(), type);
         // and populate parameters from this type
@@ -213,8 +215,8 @@ public class RestInputParamEditDialog extends GRestInputParamEditDialog
         types.add(jtype.getURLtokenPrefix());
       } catch (Throwable x)
       {
-        System.err
-                .println("Unexpected exception when instantiating rest input type.");
+        System.err.println(
+                "Unexpected exception when instantiating rest input type.");
         x.printStackTrace();
       }
     }

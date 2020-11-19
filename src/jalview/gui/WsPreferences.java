@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -89,20 +89,20 @@ public class WsPreferences extends GWsPreferences
       rsbsUrls = new Vector<String>();
     }
     updateRsbsList();
-    enableEnfinServices.setSelected(oldEnfin = Cache.getDefault(
-            "SHOW_ENFIN_SERVICES", true));
+    enableEnfinServices.setSelected(
+            oldEnfin = Cache.getDefault("SHOW_ENFIN_SERVICES", true));
     enableEnfinServices.addActionListener(updateAction);
-    enableJws2Services.setSelected(oldJws2 = Cache.getDefault(
-            "SHOW_JWS2_SERVICES", true));
+    enableJws2Services.setSelected(
+            oldJws2 = Cache.getDefault("SHOW_JWS2_SERVICES", true));
     enableJws2Services.addActionListener(updateAction);
-    indexByHost.setSelected(oldIndexByHost = Cache.getDefault(
-            "WSMENU_BYHOST", false));
+    indexByHost.setSelected(
+            oldIndexByHost = Cache.getDefault("WSMENU_BYHOST", false));
     indexByHost.addActionListener(updateAction);
-    indexByType.setSelected(oldIndexByType = Cache.getDefault(
-            "WSMENU_BYTYPE", false));
+    indexByType.setSelected(
+            oldIndexByType = Cache.getDefault("WSMENU_BYTYPE", false));
     indexByType.addActionListener(updateAction);
-    displayWsWarning.setSelected(oldWsWarning = Cache.getDefault(
-            "SHOW_WSDISCOVERY_ERRORS", true));
+    displayWsWarning.setSelected(oldWsWarning = Cache
+            .getDefault("SHOW_WSDISCOVERY_ERRORS", true));
   }
 
   ActionListener updateAction = new ActionListener()
@@ -123,17 +123,17 @@ public class WsPreferences extends GWsPreferences
     for (String url : wsUrls)
     {
       int status = Jws2Discoverer.getDiscoverer().getServerStatusFor(url);
-      tdat[r][1] = new Integer(status);
+      tdat[r][1] = Integer.valueOf(status);
       tdat[r++][0] = url;
     }
 
     wsList.setModel(new WsUrlTableModel(tdat));
-    wsList.getColumn(MessageManager.getString("label.status")).setMinWidth(
-            10);
+    wsList.getColumn(MessageManager.getString("label.status"))
+            .setMinWidth(10);
   }
 
-  private class JabaWSStatusRenderer extends JPanel implements
-          TableCellRenderer
+  private class JabaWSStatusRenderer extends JPanel
+          implements TableCellRenderer
   {
     public JabaWSStatusRenderer()
     {
@@ -353,16 +353,14 @@ public class WsPreferences extends GWsPreferences
   {
     if (old)
     {
-      if (oldUrls != wsUrls
-              || (wsUrls != null && oldUrls != null && !wsUrls
-                      .equals(oldUrls)))
+      if (oldUrls != wsUrls || (wsUrls != null && oldUrls != null
+              && !wsUrls.equals(oldUrls)))
       {
         update++;
       }
       wsUrls = (oldUrls == null) ? null : new Vector(oldUrls);
-      if (oldRsbsUrls != rsbsUrls
-              || (rsbsUrls != null && oldRsbsUrls != null && !oldRsbsUrls
-                      .equals(rsbsUrls)))
+      if (oldRsbsUrls != rsbsUrls || (rsbsUrls != null
+              && oldRsbsUrls != null && !oldRsbsUrls.equals(rsbsUrls)))
       {
         update++;
       }
@@ -372,26 +370,21 @@ public class WsPreferences extends GWsPreferences
     {
 
     }
-    Cache.setProperty(
-            "SHOW_ENFIN_SERVICES",
+    Cache.setProperty("SHOW_ENFIN_SERVICES",
             Boolean.valueOf(
                     old ? oldEnfin : enableEnfinServices.isSelected())
                     .toString());
-    Cache.setProperty(
-            "SHOW_JWS2_SERVICES",
+    Cache.setProperty("SHOW_JWS2_SERVICES",
             Boolean.valueOf(old ? oldJws2 : enableJws2Services.isSelected())
                     .toString());
-    Cache.setProperty(
-            "WSMENU_BYHOST",
+    Cache.setProperty("WSMENU_BYHOST",
             Boolean.valueOf(old ? oldIndexByHost : indexByHost.isSelected())
                     .toString());
-    Cache.setProperty(
-            "WSMENU_BYTYPE",
+    Cache.setProperty("WSMENU_BYTYPE",
             Boolean.valueOf(old ? oldIndexByType : indexByType.isSelected())
                     .toString());
 
-    Cache.setProperty(
-            "SHOW_WSDISCOVERY_ERRORS",
+    Cache.setProperty("SHOW_WSDISCOVERY_ERRORS",
             Boolean.valueOf(
                     old ? oldWsWarning : displayWsWarning.isSelected())
                     .toString());
@@ -454,16 +447,15 @@ public class WsPreferences extends GWsPreferences
     JTextField urltf = new JTextField(url, 40);
     JPanel panel = new JPanel(new BorderLayout());
     JPanel pane12 = new JPanel(new BorderLayout());
-    pane12.add(new JLabel(MessageManager.getString("label.url")),
+    pane12.add(new JLabel(MessageManager.getString("label.url:")),
             BorderLayout.CENTER);
     pane12.add(urltf, BorderLayout.EAST);
     panel.add(pane12, BorderLayout.NORTH);
     boolean valid = false;
-    int resp = JOptionPane.CANCEL_OPTION;
-    while (!valid
-            && (resp = JOptionPane.showInternalConfirmDialog(
-                    Desktop.desktop, panel, title,
-                    JOptionPane.OK_CANCEL_OPTION)) == JOptionPane.OK_OPTION)
+    int resp = JvOptionPane.CANCEL_OPTION;
+    while (!valid && (resp = JvOptionPane.showInternalConfirmDialog(
+            Desktop.desktop, panel, title,
+            JvOptionPane.OK_CANCEL_OPTION)) == JvOptionPane.OK_OPTION)
     {
       try
       {
@@ -480,18 +472,18 @@ public class WsPreferences extends GWsPreferences
       } catch (Exception e)
       {
         valid = false;
-        JOptionPane.showInternalMessageDialog(Desktop.desktop,
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop,
                 MessageManager.getString("label.invalid_url"));
       }
     }
-    if (valid && resp == JOptionPane.OK_OPTION)
+    if (valid && resp == JvOptionPane.OK_OPTION)
     {
-      int validate = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
+      int validate = JvOptionPane.showInternalConfirmDialog(Desktop.desktop,
               MessageManager.getString("info.validate_jabaws_server"),
               MessageManager.getString("label.test_server"),
-              JOptionPane.YES_NO_OPTION);
+              JvOptionPane.YES_NO_OPTION);
 
-      if (validate == JOptionPane.OK_OPTION)
+      if (validate == JvOptionPane.OK_OPTION)
       {
         if (Jws2Discoverer.testServiceUrl(foo))
         {
@@ -499,26 +491,20 @@ public class WsPreferences extends GWsPreferences
         }
         else
         {
-          int opt = JOptionPane
-                  .showInternalOptionDialog(
-                          Desktop.desktop,
-                          "The Server  '"
-                                  + foo.toString()
-                                  + "' failed validation,\ndo you want to add it anyway? ",
-                          "Server Validation Failed",
-                          JOptionPane.YES_NO_OPTION,
-                          JOptionPane.INFORMATION_MESSAGE, null, null, null);
-          if (opt == JOptionPane.YES_OPTION)
+          int opt = JvOptionPane.showInternalOptionDialog(Desktop.desktop,
+                  "The Server  '" + foo.toString()
+                          + "' failed validation,\ndo you want to add it anyway? ",
+                  "Server Validation Failed", JvOptionPane.YES_NO_OPTION,
+                  JvOptionPane.INFORMATION_MESSAGE, null, null, null);
+          if (opt == JvOptionPane.YES_OPTION)
           {
             return foo.toString();
           }
           else
           {
-            JOptionPane
-                    .showInternalMessageDialog(
-                            Desktop.desktop,
-                            MessageManager
-                                    .getString("warn.server_didnt_pass_validation"));
+            JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                    MessageManager.getString(
+                            "warn.server_didnt_pass_validation"));
           }
 
         }
@@ -574,6 +560,7 @@ public class WsPreferences extends GWsPreferences
     new Thread(new Runnable()
     {
 
+      @Override
       public void run()
       {
         // force a refresh.
@@ -599,6 +586,7 @@ public class WsPreferences extends GWsPreferences
       new Thread(new Runnable()
       {
 
+        @Override
         public void run()
         {
           progressBar.setVisible(true);
@@ -624,6 +612,7 @@ public class WsPreferences extends GWsPreferences
       new Thread(new Runnable()
       {
 
+        @Override
         public void run()
         {
           long ct = System.currentTimeMillis();
@@ -681,6 +670,7 @@ public class WsPreferences extends GWsPreferences
     new Thread(new Runnable()
     {
 
+      @Override
       public void run()
       {
         updateWsMenuConfig(false);

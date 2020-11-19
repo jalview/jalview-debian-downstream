@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.datamodel;
 
-import java.util.List;
+import java.util.Iterator;
 
 public class CigarArray extends CigarBase
 {
@@ -68,7 +68,8 @@ public class CigarArray extends CigarBase
       for (int c = 0; c < cigars.length; c++)
       {
         refCigars[c] = cigars[c];
-        if (!((cigars[c] instanceof SeqCigar) || cigars[c] instanceof CigarCigar))
+        if (!((cigars[c] instanceof SeqCigar)
+                || cigars[c] instanceof CigarCigar))
         {
           seqcigararray = false;
         }
@@ -85,13 +86,11 @@ public class CigarArray extends CigarBase
    * @param columnSelection
    * @param selectionGroup
    */
-  public CigarArray(AlignmentI alignment, ColumnSelection columnSelection,
+  public CigarArray(AlignmentI alignment, HiddenColumns hidden,
           SequenceGroup selectionGroup)
   {
     this(constructSeqCigarArray(alignment, selectionGroup));
-    constructFromAlignment(alignment,
-            columnSelection != null ? columnSelection.getHiddenColumns()
-                    : null, selectionGroup);
+    constructFromAlignment(alignment, hidden, selectionGroup);
   }
 
   private static int[] _calcStartEndBounds(AlignmentI alignment,
@@ -153,48 +152,38 @@ public class CigarArray extends CigarBase
    * @param selectionGroup
    */
   private void constructFromAlignment(AlignmentI alignment,
-          List<int[]> list, SequenceGroup selectionGroup)
+          HiddenColumns hidden, SequenceGroup selectionGroup)
   {
     int[] _startend = _calcStartEndBounds(alignment, selectionGroup);
-    int start = _startend[1], end = _startend[2];
+    int start = _startend[1];
+    int end = _startend[2];
     // now construct the CigarArray operations
-    if (list != null)
+    if (hidden != null)
     {
       int[] region;
-      int hideStart, hideEnd;
+      int hideStart;
+      int hideEnd;
       int last = start;
-      for (int j = 0; last < end & j < list.size(); j++)
+
+      Iterator<int[]> regions = hidden.getBoundedIterator(start, end);
+      while (regions.hasNext())
       {
-        region = list.get(j);
+        region = regions.next();
         hideStart = region[0];
         hideEnd = region[1];
-        // edit hidden regions to selection range
-        if (hideStart < last)
+
+        // truncate region at start if last falls in region
+        if ((hideStart < last) && (hideEnd >= last))
         {
-          if (hideEnd > last)
-          {
-            hideStart = last;
-          }
-          else
-          {
-            continue;
-          }
+          hideStart = last;
         }
 
-        if (hideStart > end)
-        {
-          break;
-        }
-
-        if (hideEnd > end)
+        // truncate region at end if end falls in region
+        if (hideEnd > end) // already checked that hideStart<=end
         {
           hideEnd = end;
         }
 
-        if (hideStart > hideEnd)
-        {
-          break;
-        }
         /**
          * form operations...
          */
@@ -205,8 +194,9 @@ public class CigarArray extends CigarBase
         addOperation(CigarArray.D, 1 + hideEnd - hideStart);
         last = hideEnd + 1;
       }
+
       // Final match if necessary.
-      if (last < end)
+      if (last <= end)
       {
         addOperation(CigarArray.M, end - last + 1);
       }
@@ -218,7 +208,7 @@ public class CigarArray extends CigarBase
   }
 
   /**
-   * @see Cigar.getSequenceAndDeletions
+   * @see CigarBase.getSequenceAndDeletions
    * @param GapChar
    *          char
    * @return Object[][]

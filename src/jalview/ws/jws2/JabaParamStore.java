@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -84,8 +84,8 @@ public class JabaParamStore implements ParamDatastoreI
           }
           else
           {
-            System.err
-                    .println("Warning: Ignoring parameter set instance of type "
+            System.err.println(
+                    "Warning: Ignoring parameter set instance of type "
                             + paramset.getClass()
                             + " : Bound but not applicable for service at "
                             + service.getUri());
@@ -168,7 +168,8 @@ public class JabaParamStore implements ParamDatastoreI
       {
         throw new Error(MessageManager.formatMessage(
                 "error.implementation_error_cannot_handle_jaba_param",
-                new String[] { rg.getClass().toString() }));
+                new String[]
+                { rg.getClass().toString() }));
       }
       else
       {
@@ -199,13 +200,15 @@ public class JabaParamStore implements ParamDatastoreI
     List rgs = new ArrayList();
     for (ArgumentI rg : jwsargs)
     {
-      Argument narg = (rg instanceof JabaOption) ? ((JabaOption) rg)
-              .getOption() : null;
+      Argument narg = (rg instanceof JabaOption)
+              ? ((JabaOption) rg).getOption()
+              : null;
       if (narg == null)
       {
         throw new Error(MessageManager.formatMessage(
                 "error.implementation_error_cannot_handle_jaba_param",
-                new String[] { rg.getClass().toString() }));
+                new String[]
+                { rg.getClass().toString() }));
       }
       else
       {
@@ -224,8 +227,8 @@ public class JabaParamStore implements ParamDatastoreI
   @Override
   public boolean presetExists(String name)
   {
-    return (editedParams.containsKey(name) || servicePresets
-            .containsKey(name));
+    return (editedParams.containsKey(name)
+            || servicePresets.containsKey(name));
   }
 
   @Override
@@ -243,9 +246,8 @@ public class JabaParamStore implements ParamDatastoreI
     }
     if (servicePresets.containsKey(name))
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_attempt_to_delete_service_preset"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_attempt_to_delete_service_preset"));
     }
   }
 
@@ -266,15 +268,15 @@ public class JabaParamStore implements ParamDatastoreI
   public void updatePreset(String oldName, String presetName, String text,
           List<ArgumentI> jobParams)
   {
-    JabaWsParamSet jps = (JabaWsParamSet) ((oldName != null) ? getPreset(oldName)
+    JabaWsParamSet jps = (JabaWsParamSet) ((oldName != null)
+            ? getPreset(oldName)
             : getPreset(presetName));
     if (jps == null)
     {
-      throw new Error(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_cannot_locate_oldname_presetname",
-                              new String[] { oldName, presetName }));
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_cannot_locate_oldname_presetname",
+              new String[]
+              { oldName, presetName }));
     }
     jps.setName(presetName);
     jps.setDescription(text);
@@ -323,9 +325,8 @@ public class JabaParamStore implements ParamDatastoreI
   {
     if (!involves(urls))
     {
-      throw new IOException(
-              MessageManager
-                      .getString("error.implementation_error_cannot_find_service_url_in_given_set"));
+      throw new IOException(MessageManager.getString(
+              "error.implementation_error_cannot_find_service_url_in_given_set"));
 
     }
     JabaWsParamSet wsp = new JabaWsParamSet();
@@ -339,8 +340,8 @@ public class JabaParamStore implements ParamDatastoreI
     {
       lines.add(st.nextToken());
     }
-    wsp.setjabaArguments(ParameterUtils.processParameters(lines,
-            serviceOptions, " "));
+    wsp.setjabaArguments(
+            ParameterUtils.processParameters(lines, serviceOptions, " "));
     return wsp;
   }
 
@@ -350,17 +351,15 @@ public class JabaParamStore implements ParamDatastoreI
   {
     if (!involves(pset.getApplicableUrls()))
     {
-      throw new IOException(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_cannot_find_service_url_in_given_set_param_store",
-                              new String[] { service.getUri() }));
+      throw new IOException(MessageManager.formatMessage(
+              "error.implementation_error_cannot_find_service_url_in_given_set_param_store",
+              new String[]
+              { service.getUri() }));
     }
     if (!(pset instanceof JabaWsParamSet))
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_jabaws_param_set_only_handled_by"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_jabaws_param_set_only_handled_by"));
     }
 
     StringBuffer rslt = new StringBuffer();

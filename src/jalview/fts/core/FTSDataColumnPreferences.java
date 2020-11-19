@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -109,9 +109,9 @@ public class FTSDataColumnPreferences extends JScrollPane
       switch (source)
       {
       case SEARCH_SUMMARY:
-        data[x++] = new Object[] {
-            ftsRestClient.getAllDefaultDisplayedFTSDataColumns().contains(
-                    field), field.getName(), field.getGroup() };
+        data[x++] = new Object[] { ftsRestClient
+                .getAllDefaultDisplayedFTSDataColumns().contains(field),
+            field.getName(), field.getGroup() };
         break;
       case STRUCTURE_CHOOSER:
         data[x++] = new Object[] { structSummaryColumns.contains(field),
@@ -119,9 +119,9 @@ public class FTSDataColumnPreferences extends JScrollPane
         break;
       case PREFERENCES:
         data[x++] = new Object[] {
-            field.getName(),
-            ftsRestClient.getAllDefaultDisplayedFTSDataColumns().contains(
-                    field), structSummaryColumns.contains(field) };
+            field.getName(), ftsRestClient
+                    .getAllDefaultDisplayedFTSDataColumns().contains(field),
+            structSummaryColumns.contains(field) };
         break;
       default:
         break;

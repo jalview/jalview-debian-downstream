@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,8 @@ package jalview.gui;
 
 import jalview.analysis.AlignSeq;
 import jalview.datamodel.Alignment;
-import jalview.datamodel.Sequence;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.jbgui.GPairwiseAlignPanel;
 import jalview.util.MessageManager;
@@ -40,49 +41,56 @@ import java.util.Vector;
 public class PairwiseAlignPanel extends GPairwiseAlignPanel
 {
 
+  private static final String DASHES = "---------------------\n";
+
   AlignmentViewport av;
 
-  Vector sequences;
+  Vector<SequenceI> sequences;
 
   /**
    * Creates a new PairwiseAlignPanel object.
    * 
-   * @param av
+   * @param viewport
    *          DOCUMENT ME!
    */
-  public PairwiseAlignPanel(AlignmentViewport av)
+  public PairwiseAlignPanel(AlignmentViewport viewport)
   {
     super();
-    this.av = av;
+    this.av = viewport;
 
-    sequences = new Vector();
+    sequences = new Vector<SequenceI>();
+
+    SequenceGroup selectionGroup = viewport.getSelectionGroup();
+    boolean isSelection = selectionGroup != null
+            && selectionGroup.getSize() > 0;
+    AlignmentView view = viewport.getAlignmentView(isSelection);
+    // String[] seqStrings = viewport.getViewAsString(true);
+    String[] seqStrings = view.getSequenceStrings(viewport
+            .getGapCharacter());
 
     SequenceI[] seqs;
-    String[] seqStrings = av.getViewAsString(true);
-
-    if (av.getSelectionGroup() == null)
+    if (isSelection)
     {
-      seqs = av.getAlignment().getSequencesArray();
+      seqs = (SequenceI[]) view.getAlignmentAndHiddenColumns(viewport
+              .getGapCharacter())[0];
     }
     else
     {
-      seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
+      seqs = av.getAlignment().getSequencesArray();
     }
 
-    String type = (av.getAlignment().isNucleotide()) ? AlignSeq.DNA
+    String type = (viewport.getAlignment().isNucleotide()) ? AlignSeq.DNA
             : AlignSeq.PEP;
 
     float[][] scores = new float[seqs.length][seqs.length];
-    double totscore = 0;
+    double totscore = 0D;
     int count = seqs.length;
-
-    Sequence seq;
+    boolean first = true;
 
     for (int i = 1; i < count; i++)
     {
       for (int j = 0; j < i; j++)
       {
-
         AlignSeq as = new AlignSeq(seqs[i], seqStrings[i], seqs[j],
                 seqStrings[j], type);
 
@@ -94,9 +102,15 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
         as.calcScoreMatrix();
         as.traceAlignment();
 
+        if (!first)
+        {
+          System.out.println(DASHES);
+          textarea.append(DASHES);
+        }
+        first = false;
         as.printAlignment(System.out);
-        scores[i][j] = (float) as.getMaxScore()
-                / (float) as.getASeq1().length;
+        scores[i][j] = as.getMaxScore()
+                / as.getASeq1().length;
         totscore = totscore + scores[i][j];
 
         textarea.append(as.getOutput());
@@ -107,28 +121,53 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
 
     if (count > 2)
     {
-      System.out
-              .println("Pairwise alignment scaled similarity score matrix\n");
-
-      for (int i = 0; i < count; i++)
-      {
-        jalview.util.Format.print(System.out, "%s \n", ("" + i) + " "
-                + seqs[i].getName());
-      }
-
-      System.out.println("\n");
-
-      for (int i = 0; i < count; i++)
-      {
-        for (int j = 0; j < i; j++)
-        {
-          jalview.util.Format.print(System.out, "%7.3f", scores[i][j]
-                  / totscore);
-        }
-      }
-
-      System.out.println("\n");
+      printScoreMatrix(seqs, scores, totscore);
     }
+  }
+
+  /**
+   * Prints a matrix of seqi-seqj pairwise alignment scores to sysout
+   * 
+   * @param seqs
+   * @param scores
+   * @param totscore
+   */
+  protected void printScoreMatrix(SequenceI[] seqs, float[][] scores,
+          double totscore)
+  {
+    System.out
+            .println("Pairwise alignment scaled similarity score matrix\n");
+
+    for (int i = 0; i < seqs.length; i++)
+    {
+      System.out.println(String.format("%3d %s", i + 1,
+              seqs[i].getDisplayId(true)));
+    }
+
+    /*
+     * table heading columns for sequences 1, 2, 3...
+     */
+    System.out.print("\n ");
+    for (int i = 0; i < seqs.length; i++)
+    {
+      System.out.print(String.format("%7d", i + 1));
+    }
+    System.out.println();
+
+    for (int i = 0; i < seqs.length; i++)
+    {
+      System.out.print(String.format("%3d", i + 1));
+      for (int j = 0; j < i; j++)
+      {
+        /*
+         * as a fraction of tot score, outputs are 0 <= score <= 1
+         */
+        System.out.print(String.format("%7.3f", scores[i][j] / totscore));
+      }
+      System.out.println();
+    }
+
+    System.out.println("\n");
   }
 
   /**
@@ -137,13 +176,14 @@ public class PairwiseAlignPanel extends GPairwiseAlignPanel
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   protected void viewInEditorButton_actionPerformed(ActionEvent e)
   {
-    Sequence[] seq = new Sequence[sequences.size()];
+    SequenceI[] seq = new SequenceI[sequences.size()];
 
     for (int i = 0; i < sequences.size(); i++)
     {
-      seq[i] = (Sequence) sequences.elementAt(i);
+      seq[i] = sequences.elementAt(i);
     }
 
     AlignFrame af = new AlignFrame(new Alignment(seq),

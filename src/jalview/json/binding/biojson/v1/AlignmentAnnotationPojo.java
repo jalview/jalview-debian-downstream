@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,7 +43,8 @@ public class AlignmentAnnotationPojo
 
   @Attributes(
     required = false,
-    enums = { "0", "1", "2" },
+    enums =
+    { "0", "1", "2" },
     description = "Determines the rendering for the annotation<br><ul><li>0 - No graph</li><li>1 - Bar Graph</li><li>2 - Line graph</li></ul>")
   private int graphType;
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -39,6 +39,8 @@ import java.util.Map;
  */
 public class Gff3Helper extends GffHelperBase
 {
+  public static final String ALLELES = "alleles";
+
   protected static final String TARGET = "Target";
 
   protected static final String ID = "ID";
@@ -152,8 +154,8 @@ public class Gff3Helper extends GffHelperBase
      */
     if ("-".equals(strand))
     {
-      System.err
-              .println("Skipping mapping from reverse complement as not yet supported");
+      System.err.println(
+              "Skipping mapping from reverse complement as not yet supported");
       return null;
     }
 
@@ -244,7 +246,8 @@ public class Gff3Helper extends GffHelperBase
    * @return
    */
   @SuppressWarnings("unused")
-  protected String findTargetId(String target, Map<String, List<String>> set)
+  protected String findTargetId(String target,
+          Map<String, List<String>> set)
   {
     return target;
   }
@@ -275,8 +278,8 @@ public class Gff3Helper extends GffHelperBase
    * @throws IOException
    */
   protected SequenceFeature processProteinMatch(
-          Map<String, List<String>> set, SequenceI seq,
-          String[] gffColumns, AlignmentI align, List<SequenceI> newseqs,
+          Map<String, List<String>> set, SequenceI seq, String[] gffColumns,
+          AlignmentI align, List<SequenceI> newseqs,
           boolean relaxedIdMatching)
   {
     // This is currently tailored to InterProScan GFF output:
@@ -310,10 +313,9 @@ public class Gff3Helper extends GffHelperBase
          * give the mapped sequence a copy of the sequence feature, with 
          * start/end range adjusted 
          */
-        SequenceFeature sf2 = new SequenceFeature(sf);
-        sf2.setBegin(1);
         int sequenceFeatureLength = 1 + sf.getEnd() - sf.getBegin();
-        sf2.setEnd(sequenceFeatureLength);
+        SequenceFeature sf2 = new SequenceFeature(sf, 1,
+                sequenceFeatureLength, sf.getFeatureGroup(), sf.getScore());
         mappedSequence.addSequenceFeature(sf2);
 
         /*
@@ -321,8 +323,8 @@ public class Gff3Helper extends GffHelperBase
          * renamed with its qualified accession id; renaming has to wait until
          * all sequence reference resolution is complete
          */
-        String accessionId = StringUtils.listToDelimitedString(
-                set.get(NAME), ",");
+        String accessionId = StringUtils
+                .listToDelimitedString(set.get(NAME), ",");
         if (accessionId.length() > 0)
         {
           String database = sf.getType(); // TODO InterProScan only??
@@ -348,23 +350,16 @@ public class Gff3Helper extends GffHelperBase
   }
 
   /**
-   * Return '=' as the name-value separator used in column 9 attributes.
-   */
-  @Override
-  protected char getNameValueSeparator()
-  {
-    return '=';
-  }
-
-  /**
    * Modifies the default SequenceFeature in order to set the Target sequence id
    * as the description
    */
   @Override
   protected SequenceFeature buildSequenceFeature(String[] gff,
+          int typeColumn, String group,
           Map<String, List<String>> attributes)
   {
-    SequenceFeature sf = super.buildSequenceFeature(gff, attributes);
+    SequenceFeature sf = super.buildSequenceFeature(gff, typeColumn, group,
+            attributes);
     String desc = getDescription(sf, attributes);
     if (desc != null)
     {
@@ -397,7 +392,7 @@ public class Gff3Helper extends GffHelperBase
       /*
        * Ensembl returns dna variants as 'alleles'
        */
-      desc = StringUtils.listToDelimitedString(attributes.get("alleles"),
+      desc = StringUtils.listToDelimitedString(attributes.get(ALLELES),
               ",");
     }
 
@@ -419,6 +414,11 @@ public class Gff3Helper extends GffHelperBase
     {
       desc = (String) sf.getValue(ID);
     }
+
+    /*
+     * and decode comma, equals, semi-colon as required by GFF3 spec
+     */
+    desc = StringUtils.urlDecode(desc, GFF_ENCODABLE);
 
     return desc;
   }

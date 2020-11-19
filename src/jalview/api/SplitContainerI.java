@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.api;
 
+import jalview.controller.FeatureSettingsControllerGuiI;
 import jalview.datamodel.AlignmentI;
 
 /**
@@ -54,5 +55,42 @@ public interface SplitContainerI
    * @return
    */
   String getComplementTitle(Object af);
+
+  /**
+   * get the 'other' alignFrame in the SplitFrame
+   * 
+   * @param alignFrame
+   * @return the complement alignFrame - or null if alignFrame wasn't held by this
+   *         frame
+   */
+  AlignViewControllerGuiI getComplementAlignFrame(
+          AlignViewControllerGuiI alignFrame);
+
+  /**
+   * add the given UI to the splitframe's feature settings UI holder
+   * 
+   * @param featureSettings
+   * @return
+   */
+  void addFeatureSettingsUI(
+          FeatureSettingsControllerGuiI featureSettings);
+
+  /**
+   * Request to close all feature settings originating from a particular panel.
+   * 
+   * @param featureSettings
+   * @param closeContainingFrame
+   *                               - if false then the tab containing the feature
+   *                               settings will be 'reset' ready for a new
+   *                               feature settings
+   */
+  void closeFeatureSettings(FeatureSettingsControllerI featureSettings,
+          boolean closeContainingFrame);
+
+  /**
+   * 
+   * @return true if a feature settings panel is currently open
+   */
+  boolean isFeatureSettingsOpen();
 
 }

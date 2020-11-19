@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,13 +31,13 @@ import java.awt.Color;
 public class SequenceNode extends BinaryNode
 {
   /** DOCUMENT ME!! */
-  public float dist;
+  public double dist;
 
   /** DOCUMENT ME!! */
   public int count;
 
   /** DOCUMENT ME!! */
-  public float height;
+  public double height;
 
   /** DOCUMENT ME!! */
   public float ycount;
@@ -178,7 +178,9 @@ public class SequenceNode extends BinaryNode
       {
         char q = name.charAt(c);
         if ('0' <= q && q <= '9')
+        {
           continue;
+        }
         return true;
       }
     }

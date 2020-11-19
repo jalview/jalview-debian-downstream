@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -88,18 +88,6 @@ class EnsemblXref extends EnsemblRestClient
     return true;
   }
 
-  @Override
-  protected String getRequestMimeType(boolean multipleIds)
-  {
-    return "application/json";
-  }
-
-  @Override
-  protected String getResponseMimeType()
-  {
-    return "application/json";
-  }
-
   /**
    * Calls the Ensembl xrefs REST endpoint and retrieves any cross-references
    * ("primary_id") for the given identifier (Ensembl accession id) and database
@@ -113,8 +101,8 @@ class EnsemblXref extends EnsemblRestClient
    */
   public List<DBRefEntry> getCrossReferences(String identifier)
   {
-    List<DBRefEntry> result = new ArrayList<DBRefEntry>();
-    List<String> ids = new ArrayList<String>();
+    List<DBRefEntry> result = new ArrayList<>();
+    List<String> ids = new ArrayList<>();
     ids.add(identifier);
 
     BufferedReader br = null;
@@ -124,8 +112,11 @@ class EnsemblXref extends EnsemblRestClient
       if (url != null)
       {
         br = getHttpResponse(url, ids);
+        if (br != null)
+        {
+          result = parseResponse(br);
+        }
       }
-      return (parseResponse(br));
     } catch (IOException e)
     {
       // ignore
@@ -160,7 +151,7 @@ class EnsemblXref extends EnsemblRestClient
           throws IOException
   {
     JSONParser jp = new JSONParser();
-    List<DBRefEntry> result = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> result = new ArrayList<>();
     try
     {
       JSONArray responses = (JSONArray) jp.parse(br);
@@ -168,16 +159,13 @@ class EnsemblXref extends EnsemblRestClient
       while (rvals.hasNext())
       {
         JSONObject val = (JSONObject) rvals.next();
-        String dbName = val.get("dbname").toString();
-        if (dbName.equals(GO_GENE_ONTOLOGY))
-        {
-          continue;
-        }
+        String db = val.get("dbname").toString();
         String id = val.get("primary_id").toString();
-        if (dbName != null && id != null)
+        if (db != null && id != null
+                && !GO_GENE_ONTOLOGY.equals(db))
         {
-          dbName = DBRefUtils.getCanonicalName(dbName);
-          DBRefEntry dbref = new DBRefEntry(dbName, getXRefVersion(), id);
+          db = DBRefUtils.getCanonicalName(db);
+          DBRefEntry dbref = new DBRefEntry(db, getXRefVersion(), id);
           result.add(dbref);
         }
       }
@@ -211,7 +199,7 @@ class EnsemblXref extends EnsemblRestClient
   protected URL getUrl(String identifier)
   {
     String url = getDomain() + "/xrefs/id/" + identifier
-            + "?content-type=application/json&all_levels=1";
+            + CONTENT_TYPE_JSON + "&all_levels=1";
     try
     {
       return new URL(url);

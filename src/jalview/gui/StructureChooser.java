@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,8 @@
 
 package jalview.gui;
 
+import jalview.api.structures.JalviewStructureDisplayI;
+import jalview.bin.Cache;
 import jalview.bin.Jalview;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.DBRefSource;
@@ -32,6 +34,7 @@ import jalview.fts.api.FTSRestClientI;
 import jalview.fts.core.FTSRestRequest;
 import jalview.fts.core.FTSRestResponse;
 import jalview.fts.service.pdb.PDBFTSRestClient;
+import jalview.io.DataSourceType;
 import jalview.jbgui.GStructureChooser;
 import jalview.structure.StructureMapping;
 import jalview.structure.StructureSelectionManager;
@@ -52,7 +55,8 @@ import java.util.Vector;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
+import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 
 /**
@@ -62,9 +66,13 @@ import javax.swing.table.AbstractTableModel;
  *
  */
 @SuppressWarnings("serial")
-public class StructureChooser extends GStructureChooser implements
-        IProgressIndicator
+public class StructureChooser extends GStructureChooser
+        implements IProgressIndicator
 {
+  private static final String AUTOSUPERIMPOSE = "AUTOSUPERIMPOSE";
+
+  private static int MAX_QLENGTH = 7820;
+
   private SequenceI selectedSequence;
 
   private SequenceI[] selectedSequences;
@@ -83,7 +91,7 @@ public class StructureChooser extends GStructureChooser implements
 
   private boolean cachedPDBExists;
 
-  private static int MAX_QLENGHT = 7820;
+  private static StructureViewer lastTargetedView = null;
 
   public StructureChooser(SequenceI[] selectedSeqs, SequenceI selectedSeq,
           AlignmentPanel ap)
@@ -98,12 +106,14 @@ public class StructureChooser extends GStructureChooser implements
   /**
    * Initializes parameters used by the Structure Chooser Panel
    */
-  public void init()
+  protected void init()
   {
     if (!Jalview.isHeadlessMode())
     {
       progressBar = new ProgressBar(this.statusPanel, this.statusBar);
     }
+
+    chk_superpose.setSelected(Cache.getDefault(AUTOSUPERIMPOSE, true));
 
     // ensure a filter option is in force for search
     populateFilterComboBox(true, cachedPDBExists);
@@ -117,18 +127,71 @@ public class StructureChooser extends GStructureChooser implements
                 .getString("status.loading_cached_pdb_entries"), startTime);
         loadLocalCachedPDBEntries();
         updateProgressIndicator(null, startTime);
-        updateProgressIndicator(MessageManager
-                .getString("status.searching_for_pdb_structures"),
-                startTime);
+        updateProgressIndicator(MessageManager.getString(
+                "status.searching_for_pdb_structures"), startTime);
         fetchStructuresMetaData();
         // revise filter options if no results were found
         populateFilterComboBox(isStructuresDiscovered(), cachedPDBExists);
+        discoverStructureViews();
         updateProgressIndicator(null, startTime);
         mainFrame.setVisible(true);
         updateCurrentView();
       }
     });
     discoverPDBStructuresThread.start();
+  }
+
+  /**
+   * Builds a drop-down choice list of existing structure viewers to which new
+   * structures may be added. If this list is empty then it, and the 'Add'
+   * button, are hidden.
+   */
+  private void discoverStructureViews()
+  {
+    if (Desktop.instance != null)
+    {
+      targetView.removeAllItems();
+      if (lastTargetedView != null && !lastTargetedView.isVisible())
+      {
+        lastTargetedView = null;
+      }
+      int linkedViewsAt = 0;
+      for (StructureViewerBase view : Desktop.instance
+              .getStructureViewers(null, null))
+      {
+        StructureViewer viewHandler = (lastTargetedView != null
+                && lastTargetedView.sview == view) ? lastTargetedView
+                        : StructureViewer.reconfigure(view);
+
+        if (view.isLinkedWith(ap))
+        {
+          targetView.insertItemAt(viewHandler,
+                  linkedViewsAt++);
+        }
+        else
+        {
+          targetView.addItem(viewHandler);
+        }
+      }
+
+      /*
+       * show option to Add to viewer if at least 1 viewer found
+       */
+      targetView.setVisible(false);
+      if (targetView.getItemCount() > 0)
+      {
+        targetView.setVisible(true);
+        if (lastTargetedView != null)
+        {
+          targetView.setSelectedItem(lastTargetedView);
+        }
+        else
+        {
+          targetView.setSelectedIndex(0);
+        }
+      }
+      btn_add.setVisible(targetView.isVisible());
+    }
   }
 
   /**
@@ -139,7 +202,7 @@ public class StructureChooser extends GStructureChooser implements
    * @param id
    *          unique handle for this indicator
    */
-  public void updateProgressIndicator(String message, long id)
+  protected void updateProgressIndicator(String message, long id)
   {
     if (progressIndicator != null)
     {
@@ -151,15 +214,15 @@ public class StructureChooser extends GStructureChooser implements
    * Retrieve meta-data for all the structure(s) for a given sequence(s) in a
    * selection group
    */
-  public void fetchStructuresMetaData()
+  void fetchStructuresMetaData()
   {
     long startTime = System.currentTimeMillis();
     pdbRestCleint = PDBFTSRestClient.getInstance();
     Collection<FTSDataColumnI> wantedFields = pdbDocFieldPrefs
             .getStructureSummaryFields();
 
-    discoveredStructuresSet = new LinkedHashSet<FTSData>();
-    HashSet<String> errors = new HashSet<String>();
+    discoveredStructuresSet = new LinkedHashSet<>();
+    HashSet<String> errors = new HashSet<>();
     for (SequenceI seq : selectedSequences)
     {
       FTSRestRequest pdbRequest = new FTSRestRequest();
@@ -197,9 +260,8 @@ public class StructureChooser extends GStructureChooser implements
     if (discoveredStructuresSet != null
             && !discoveredStructuresSet.isEmpty())
     {
-      getResultTable().setModel(
-              FTSRestResponse.getTableModel(lastPdbRequest,
-                      discoveredStructuresSet));
+      getResultTable().setModel(FTSRestResponse
+              .getTableModel(lastPdbRequest, discoveredStructuresSet));
       noOfStructuresFound = discoveredStructuresSet.size();
       mainFrame.setTitle(MessageManager.formatMessage(
               "label.structure_chooser_no_of_structures",
@@ -216,16 +278,16 @@ public class StructureChooser extends GStructureChooser implements
         {
           errorMsg.append(error).append("\n");
         }
-        JOptionPane.showMessageDialog(this, errorMsg.toString(),
+        JvOptionPane.showMessageDialog(this, errorMsg.toString(),
                 MessageManager.getString("label.pdb_web-service_error"),
-                JOptionPane.ERROR_MESSAGE);
+                JvOptionPane.ERROR_MESSAGE);
       }
     }
   }
 
-  public void loadLocalCachedPDBEntries()
+  protected void loadLocalCachedPDBEntries()
   {
-    ArrayList<CachedPDB> entries = new ArrayList<CachedPDB>();
+    ArrayList<CachedPDB> entries = new ArrayList<>();
     for (SequenceI seq : selectedSequences)
     {
       if (seq.getDatasetSequence() != null
@@ -254,23 +316,29 @@ public class StructureChooser extends GStructureChooser implements
    * @return the built query string
    */
 
-  public static String buildQuery(SequenceI seq)
+  static String buildQuery(SequenceI seq)
   {
     boolean isPDBRefsFound = false;
     boolean isUniProtRefsFound = false;
     StringBuilder queryBuilder = new StringBuilder();
-    Set<String> seqRefs = new LinkedHashSet<String>();
+    Set<String> seqRefs = new LinkedHashSet<>();
+    
+    /*
+     * note PDBs as DBRefEntry so they are not duplicated in query
+     */
+    Set<String> pdbids = new HashSet<>();
 
     if (seq.getAllPDBEntries() != null
-            && queryBuilder.length() < MAX_QLENGHT)
+            && queryBuilder.length() < MAX_QLENGTH)
     {
       for (PDBEntry entry : seq.getAllPDBEntries())
       {
         if (isValidSeqName(entry.getId()))
         {
-          queryBuilder.append("pdb_id:")
-                  .append(entry.getId().toLowerCase()).append(" OR ");
+          String id = entry.getId().toLowerCase();
+          queryBuilder.append("pdb_id:").append(id).append(" OR ");
           isPDBRefsFound = true;
+          pdbids.add(id);
         }
       }
     }
@@ -280,7 +348,7 @@ public class StructureChooser extends GStructureChooser implements
       for (DBRefEntry dbRef : seq.getDBRefs())
       {
         if (isValidSeqName(getDBRefId(dbRef))
-                && queryBuilder.length() < MAX_QLENGHT)
+                && queryBuilder.length() < MAX_QLENGTH)
         {
           if (dbRef.getSource().equalsIgnoreCase(DBRefSource.UNIPROT))
           {
@@ -293,9 +361,13 @@ public class StructureChooser extends GStructureChooser implements
           else if (dbRef.getSource().equalsIgnoreCase(DBRefSource.PDB))
           {
 
-            queryBuilder.append("pdb_id:")
-                    .append(getDBRefId(dbRef).toLowerCase()).append(" OR ");
-            isPDBRefsFound = true;
+            String id = getDBRefId(dbRef).toLowerCase();
+            if (!pdbids.contains(id))
+            {
+              queryBuilder.append("pdb_id:").append(id).append(" OR ");
+              isPDBRefsFound = true;
+              pdbids.add(id);
+            }
           }
           else
           {
@@ -356,7 +428,7 @@ public class StructureChooser extends GStructureChooser implements
    * @param seqName
    * @return
    */
-  public static boolean isValidSeqName(String seqName)
+  static boolean isValidSeqName(String seqName)
   {
     // System.out.println("seqName : " + seqName);
     String ignoreList = "pdb,uniprot,swiss-prot";
@@ -379,7 +451,7 @@ public class StructureChooser extends GStructureChooser implements
     return true;
   }
 
-  public static String getDBRefId(DBRefEntry dbRef)
+  static String getDBRefId(DBRefEntry dbRef)
   {
     String ref = dbRef.getAccessionId().replaceAll("GO:", "");
     return ref;
@@ -391,7 +463,7 @@ public class StructureChooser extends GStructureChooser implements
    * @param fieldToFilterBy
    *          the field to filter by
    */
-  public void filterResultSet(final String fieldToFilterBy)
+  void filterResultSet(final String fieldToFilterBy)
   {
     Thread filterThread = new Thread(new Runnable()
     {
@@ -403,8 +475,8 @@ public class StructureChooser extends GStructureChooser implements
         lbl_loading.setVisible(true);
         Collection<FTSDataColumnI> wantedFields = pdbDocFieldPrefs
                 .getStructureSummaryFields();
-        Collection<FTSData> filteredResponse = new HashSet<FTSData>();
-        HashSet<String> errors = new HashSet<String>();
+        Collection<FTSData> filteredResponse = new HashSet<>();
+        HashSet<String> errors = new HashSet<>();
 
         for (SequenceI seq : selectedSequences)
         {
@@ -455,12 +527,11 @@ public class StructureChooser extends GStructureChooser implements
         if (!filteredResponse.isEmpty())
         {
           final int filterResponseCount = filteredResponse.size();
-          Collection<FTSData> reorderedStructuresSet = new LinkedHashSet<FTSData>();
+          Collection<FTSData> reorderedStructuresSet = new LinkedHashSet<>();
           reorderedStructuresSet.addAll(filteredResponse);
           reorderedStructuresSet.addAll(discoveredStructuresSet);
-          getResultTable().setModel(
-                  FTSRestResponse.getTableModel(lastPdbRequest,
-                          reorderedStructuresSet));
+          getResultTable().setModel(FTSRestResponse
+                  .getTableModel(lastPdbRequest, reorderedStructuresSet));
 
           FTSRestResponse.configureTableColumn(getResultTable(),
                   wantedFields, tempUserPrefs);
@@ -484,11 +555,9 @@ public class StructureChooser extends GStructureChooser implements
             {
               errorMsg.append(error).append("\n");
             }
-            JOptionPane.showMessageDialog(
-                    null,
-                    errorMsg.toString(),
+            JvOptionPane.showMessageDialog(null, errorMsg.toString(),
                     MessageManager.getString("label.pdb_web-service_error"),
-                    JOptionPane.ERROR_MESSAGE);
+                    JvOptionPane.ERROR_MESSAGE);
           }
         }
 
@@ -504,14 +573,14 @@ public class StructureChooser extends GStructureChooser implements
    * Handles action event for btn_pdbFromFile
    */
   @Override
-  public void pdbFromFile_actionPerformed()
+  protected void pdbFromFile_actionPerformed()
   {
     jalview.io.JalviewFileChooser chooser = new jalview.io.JalviewFileChooser(
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
     chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle(MessageManager.formatMessage(
-            "label.select_pdb_file_for",
-            selectedSequence.getDisplayId(false)));
+    chooser.setDialogTitle(
+            MessageManager.formatMessage("label.select_pdb_file_for",
+                    selectedSequence.getDisplayId(false)));
     chooser.setToolTipText(MessageManager.formatMessage(
             "label.load_pdb_file_associate_with_sequence",
             selectedSequence.getDisplayId(false)));
@@ -530,7 +599,7 @@ public class StructureChooser extends GStructureChooser implements
    * structures
    */
   protected void populateFilterComboBox(boolean haveData,
-          boolean cachedPDBExists)
+          boolean cachedPDBExist)
   {
     /*
      * temporarily suspend the change listener behaviour
@@ -540,27 +609,35 @@ public class StructureChooser extends GStructureChooser implements
     cmb_filterOption.removeAllItems();
     if (haveData)
     {
-      cmb_filterOption.addItem(new FilterOption("Best Quality",
-              "overall_quality", VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Best Resolution",
-              "resolution", VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Most Protein Chain",
-              "number_of_protein_chains", VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Most Bound Molecules",
-              "number_of_bound_molecules", VIEWS_FILTER));
-      cmb_filterOption.addItem(new FilterOption("Most Polymer Residues",
-              "number_of_polymer_residues", VIEWS_FILTER));
+      cmb_filterOption.addItem(new FilterOption(
+              MessageManager.getString("label.best_quality"),
+              "overall_quality", VIEWS_FILTER, false));
+      cmb_filterOption.addItem(new FilterOption(
+              MessageManager.getString("label.best_resolution"),
+              "resolution", VIEWS_FILTER, false));
+      cmb_filterOption.addItem(new FilterOption(
+              MessageManager.getString("label.most_protein_chain"),
+              "number_of_protein_chains", VIEWS_FILTER, false));
+      cmb_filterOption.addItem(new FilterOption(
+              MessageManager.getString("label.most_bound_molecules"),
+              "number_of_bound_molecules", VIEWS_FILTER, false));
+      cmb_filterOption.addItem(new FilterOption(
+              MessageManager.getString("label.most_polymer_residues"),
+              "number_of_polymer_residues", VIEWS_FILTER, true));
     }
-    cmb_filterOption.addItem(new FilterOption("Enter PDB Id", "-",
-            VIEWS_ENTER_ID));
-    cmb_filterOption.addItem(new FilterOption("From File", "-",
-            VIEWS_FROM_FILE));
-    FilterOption cachedOption = new FilterOption("Cached PDB Entries", "-",
-            VIEWS_LOCAL_PDB);
-    cmb_filterOption.addItem(cachedOption);
+    cmb_filterOption.addItem(
+            new FilterOption(MessageManager.getString("label.enter_pdb_id"),
+                    "-", VIEWS_ENTER_ID, false));
+    cmb_filterOption.addItem(
+            new FilterOption(MessageManager.getString("label.from_file"),
+                    "-", VIEWS_FROM_FILE, false));
 
-    if (/*!haveData &&*/cachedPDBExists)
+    if (cachedPDBExist)
     {
+      FilterOption cachedOption = new FilterOption(
+              MessageManager.getString("label.cached_structures"),
+              "-", VIEWS_LOCAL_PDB, false);
+      cmb_filterOption.addItem(cachedOption);
       cmb_filterOption.setSelectedItem(cachedOption);
     }
 
@@ -597,28 +674,37 @@ public class StructureChooser extends GStructureChooser implements
   }
 
   /**
-   * Validates user selection and activates the view button if all parameters
-   * are correct
+   * Validates user selection and enables the 'Add' and 'New View' buttons if
+   * all parameters are correct (the Add button will only be visible if there is
+   * at least one existing structure viewer open). This basically means at least
+   * one structure selected and no error messages.
+   * <p>
+   * The 'Superpose Structures' option is enabled if either more than one
+   * structure is selected, or the 'Add' to existing view option is enabled, and
+   * disabled if the only option is to open a new view of a single structure.
    */
   @Override
-  public void validateSelections()
+  protected void validateSelections()
   {
     FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
             .getSelectedItem());
-    btn_view.setEnabled(false);
+    btn_add.setEnabled(false);
     String currentView = selectedFilterOpt.getView();
+    int selectedCount = 0;
     if (currentView == VIEWS_FILTER)
     {
-      if (getResultTable().getSelectedRows().length > 0)
+      selectedCount = getResultTable().getSelectedRows().length;
+      if (selectedCount > 0)
       {
-        btn_view.setEnabled(true);
+        btn_add.setEnabled(true);
       }
     }
     else if (currentView == VIEWS_LOCAL_PDB)
     {
-      if (tbl_local_pdb.getSelectedRows().length > 0)
+      selectedCount = tbl_local_pdb.getSelectedRows().length;
+      if (selectedCount > 0)
       {
-        btn_view.setEnabled(true);
+        btn_add.setEnabled(true);
       }
     }
     else if (currentView == VIEWS_ENTER_ID)
@@ -629,12 +715,21 @@ public class StructureChooser extends GStructureChooser implements
     {
       validateAssociationFromFile();
     }
+
+    btn_newView.setEnabled(btn_add.isEnabled());
+
+    /*
+     * enable 'Superpose' option if more than one structure is selected,
+     * or there are view(s) available to add structure(s) to
+     */
+    chk_superpose
+            .setEnabled(selectedCount > 1 || targetView.getItemCount() > 0);
   }
 
   /**
    * Validates inputs from the Manual PDB entry panel
    */
-  public void validateAssociationEnterPdb()
+  protected void validateAssociationEnterPdb()
   {
     AssociateSeqOptions assSeqOpt = (AssociateSeqOptions) idInputAssSeqPanel
             .getCmb_assSeq().getSelectedItem();
@@ -642,27 +737,25 @@ public class StructureChooser extends GStructureChooser implements
     lbl_pdbManualFetchStatus.setToolTipText("");
     if (txt_search.getText().length() > 0)
     {
-      lbl_pdbManualFetchStatus
-              .setToolTipText(JvSwingUtils.wrapTooltip(true, MessageManager
-                      .formatMessage("info.no_pdb_entry_found_for",
-                              txt_search.getText())));
+      lbl_pdbManualFetchStatus.setToolTipText(JvSwingUtils.wrapTooltip(true,
+              MessageManager.formatMessage("info.no_pdb_entry_found_for",
+                      txt_search.getText())));
     }
 
     if (errorWarning.length() > 0)
     {
       lbl_pdbManualFetchStatus.setIcon(warningImage);
-      lbl_pdbManualFetchStatus.setToolTipText(JvSwingUtils.wrapTooltip(
-              true, errorWarning.toString()));
+      lbl_pdbManualFetchStatus.setToolTipText(
+              JvSwingUtils.wrapTooltip(true, errorWarning.toString()));
     }
 
-    if (selectedSequences.length == 1
-            || !assSeqOpt.getName().equalsIgnoreCase(
-                    "-Select Associated Seq-"))
+    if (selectedSequences.length == 1 || !assSeqOpt.getName()
+            .equalsIgnoreCase("-Select Associated Seq-"))
     {
       txt_search.setEnabled(true);
       if (isValidPBDEntry)
       {
-        btn_view.setEnabled(true);
+        btn_add.setEnabled(true);
         lbl_pdbManualFetchStatus.setToolTipText("");
         lbl_pdbManualFetchStatus.setIcon(goodImage);
       }
@@ -677,19 +770,18 @@ public class StructureChooser extends GStructureChooser implements
   /**
    * Validates inputs for the manual PDB file selection options
    */
-  public void validateAssociationFromFile()
+  protected void validateAssociationFromFile()
   {
     AssociateSeqOptions assSeqOpt = (AssociateSeqOptions) fileChooserAssSeqPanel
             .getCmb_assSeq().getSelectedItem();
     lbl_fromFileStatus.setIcon(errorImage);
-    if (selectedSequences.length == 1
-            || (assSeqOpt != null && !assSeqOpt.getName().equalsIgnoreCase(
-                    "-Select Associated Seq-")))
+    if (selectedSequences.length == 1 || (assSeqOpt != null && !assSeqOpt
+            .getName().equalsIgnoreCase("-Select Associated Seq-")))
     {
       btn_pdbFromFile.setEnabled(true);
       if (selectedPdbFileName != null && selectedPdbFileName.length() > 0)
       {
-        btn_view.setEnabled(true);
+        btn_add.setEnabled(true);
         lbl_fromFileStatus.setIcon(goodImage);
       }
     }
@@ -701,7 +793,7 @@ public class StructureChooser extends GStructureChooser implements
   }
 
   @Override
-  public void cmbAssSeqStateChanged()
+  protected void cmbAssSeqStateChanged()
   {
     validateSelections();
   }
@@ -728,17 +820,76 @@ public class StructureChooser extends GStructureChooser implements
   }
 
   /**
-   * Handles action event for btn_ok
+   * select structures for viewing by their PDB IDs
+   * 
+   * @param pdbids
+   * @return true if structures were found and marked as selected
+   */
+  public boolean selectStructure(String... pdbids)
+  {
+    boolean found = false;
+
+    FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
+            .getSelectedItem());
+    String currentView = selectedFilterOpt.getView();
+    JTable restable = (currentView == VIEWS_FILTER) ? getResultTable()
+            : (currentView == VIEWS_LOCAL_PDB) ? tbl_local_pdb : null;
+
+    if (restable == null)
+    {
+      // can't select (enter PDB ID, or load file - need to also select which
+      // sequence to associate with)
+      return false;
+    }
+
+    int pdbIdColIndex = restable.getColumn("PDB Id").getModelIndex();
+    for (int r = 0; r < restable.getRowCount(); r++)
+    {
+      for (int p = 0; p < pdbids.length; p++)
+      {
+        if (String.valueOf(restable.getValueAt(r, pdbIdColIndex))
+                .equalsIgnoreCase(pdbids[p]))
+        {
+          restable.setRowSelectionInterval(r, r);
+          found = true;
+        }
+      }
+    }
+    return found;
+  }
+  
+  /**
+   * Handles the 'New View' action
    */
   @Override
-  public void ok_ActionPerformed()
+  protected void newView_ActionPerformed()
   {
-    final long progressSessionId = System.currentTimeMillis();
+    targetView.setSelectedItem(null);
+    showStructures(false);
+  }
+
+  /**
+   * Handles the 'Add to existing viewer' action
+   */
+  @Override
+  protected void add_ActionPerformed()
+  {
+    showStructures(false);
+  }
+
+  /**
+   * structure viewer opened by this dialog, or null
+   */
+  private StructureViewer sViewer = null;
+
+  public void showStructures(boolean waitUntilFinished)
+  {
+
     final StructureSelectionManager ssm = ap.getStructureSelectionManager();
+
     final int preferredHeight = pnl_filter.getHeight();
-    ssm.setProgressIndicator(this);
-    ssm.setProgressSessionId(progressSessionId);
-    new Thread(new Runnable()
+
+    Runnable viewStruc = new Runnable()
     {
       @Override
       public void run()
@@ -746,21 +897,24 @@ public class StructureChooser extends GStructureChooser implements
         FilterOption selectedFilterOpt = ((FilterOption) cmb_filterOption
                 .getSelectedItem());
         String currentView = selectedFilterOpt.getView();
+        JTable restable = (currentView == VIEWS_FILTER) ? getResultTable()
+                : tbl_local_pdb;
+
         if (currentView == VIEWS_FILTER)
         {
-          int pdbIdColIndex = getResultTable().getColumn("PDB Id")
+          int pdbIdColIndex = restable.getColumn("PDB Id")
                   .getModelIndex();
-          int refSeqColIndex = getResultTable().getColumn("Ref Sequence")
+          int refSeqColIndex = restable.getColumn("Ref Sequence")
                   .getModelIndex();
-          int[] selectedRows = getResultTable().getSelectedRows();
+          int[] selectedRows = restable.getSelectedRows();
           PDBEntry[] pdbEntriesToView = new PDBEntry[selectedRows.length];
           int count = 0;
-          ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
+          List<SequenceI> selectedSeqsToView = new ArrayList<>();
           for (int row : selectedRows)
           {
-            String pdbIdStr = getResultTable().getValueAt(row,
-                    pdbIdColIndex).toString();
-            SequenceI selectedSeq = (SequenceI) getResultTable()
+            String pdbIdStr = restable
+                    .getValueAt(row, pdbIdColIndex).toString();
+            SequenceI selectedSeq = (SequenceI) restable
                     .getValueAt(row, refSeqColIndex);
             selectedSeqsToView.add(selectedSeq);
             PDBEntry pdbEntry = selectedSeq.getPDBEntry(pdbIdStr);
@@ -769,6 +923,7 @@ public class StructureChooser extends GStructureChooser implements
               pdbEntry = getFindEntry(pdbIdStr,
                       selectedSeq.getAllPDBEntries());
             }
+
             if (pdbEntry == null)
             {
               pdbEntry = new PDBEntry();
@@ -780,7 +935,8 @@ public class StructureChooser extends GStructureChooser implements
           }
           SequenceI[] selectedSeqs = selectedSeqsToView
                   .toArray(new SequenceI[selectedSeqsToView.size()]);
-          launchStructureViewer(ssm, pdbEntriesToView, ap, selectedSeqs);
+          sViewer = launchStructureViewer(ssm, pdbEntriesToView, ap,
+                  selectedSeqs);
         }
         else if (currentView == VIEWS_LOCAL_PDB)
         {
@@ -791,19 +947,20 @@ public class StructureChooser extends GStructureChooser implements
                   .getModelIndex();
           int refSeqColIndex = tbl_local_pdb.getColumn("Ref Sequence")
                   .getModelIndex();
-          ArrayList<SequenceI> selectedSeqsToView = new ArrayList<SequenceI>();
+          List<SequenceI> selectedSeqsToView = new ArrayList<>();
           for (int row : selectedRows)
           {
             PDBEntry pdbEntry = (PDBEntry) tbl_local_pdb.getValueAt(row,
                     pdbIdColIndex);
             pdbEntriesToView[count++] = pdbEntry;
-            SequenceI selectedSeq = (SequenceI) tbl_local_pdb.getValueAt(
-                    row, refSeqColIndex);
+            SequenceI selectedSeq = (SequenceI) tbl_local_pdb
+                    .getValueAt(row, refSeqColIndex);
             selectedSeqsToView.add(selectedSeq);
           }
           SequenceI[] selectedSeqs = selectedSeqsToView
                   .toArray(new SequenceI[selectedSeqsToView.size()]);
-          launchStructureViewer(ssm, pdbEntriesToView, ap, selectedSeqs);
+          sViewer = launchStructureViewer(ssm, pdbEntriesToView, ap,
+                  selectedSeqs);
         }
         else if (currentView == VIEWS_ENTER_ID)
         {
@@ -813,7 +970,6 @@ public class StructureChooser extends GStructureChooser implements
           {
             selectedSequence = userSelectedSeq;
           }
-
           String pdbIdStr = txt_search.getText();
           PDBEntry pdbEntry = selectedSequence.getPDBEntry(pdbIdStr);
           if (pdbEntry == null)
@@ -833,8 +989,9 @@ public class StructureChooser extends GStructureChooser implements
           }
 
           PDBEntry[] pdbEntriesToView = new PDBEntry[] { pdbEntry };
-          launchStructureViewer(ssm, pdbEntriesToView, ap,
-                  new SequenceI[] { selectedSequence });
+          sViewer = launchStructureViewer(ssm, pdbEntriesToView, ap,
+                  new SequenceI[]
+                  { selectedSequence });
         }
         else if (currentView == VIEWS_FROM_FILE)
         {
@@ -846,15 +1003,43 @@ public class StructureChooser extends GStructureChooser implements
           }
           PDBEntry fileEntry = new AssociatePdbFileWithSeq()
                   .associatePdbWithSeq(selectedPdbFileName,
-                          jalview.io.AppletFormatAdapter.FILE,
-                          selectedSequence, true, Desktop.instance);
+                          DataSourceType.FILE, selectedSequence, true,
+                          Desktop.instance);
 
-          launchStructureViewer(ssm, new PDBEntry[] { fileEntry }, ap,
-                  new SequenceI[] { selectedSequence });
+          sViewer = launchStructureViewer(
+                  ssm, new PDBEntry[]
+                  { fileEntry }, ap,
+                  new SequenceI[]
+                  { selectedSequence });
         }
-        closeAction(preferredHeight);
+        SwingUtilities.invokeLater(new Runnable()
+        {
+          @Override
+          public void run()
+          {
+            closeAction(preferredHeight);
+            mainFrame.dispose();
+          }
+        });
       }
-    }).start();
+    };
+    Thread runner = new Thread(viewStruc);
+    runner.start();
+    if (waitUntilFinished)
+    {
+      while (sViewer == null ? runner.isAlive()
+              : (sViewer.sview == null ? true
+                      : !sViewer.sview.hasMapping()))
+      {
+        try
+        {
+          Thread.sleep(300);
+        } catch (InterruptedException ie)
+        {
+
+        }
+      }
+    }
   }
 
   private PDBEntry getFindEntry(String id, Vector<PDBEntry> pdbEntries)
@@ -872,17 +1057,52 @@ public class StructureChooser extends GStructureChooser implements
     return foundEntry;
   }
 
-  private void launchStructureViewer(StructureSelectionManager ssm,
+  /**
+   * Answers a structure viewer (new or existing) configured to superimpose
+   * added structures or not according to the user's choice
+   * 
+   * @param ssm
+   * @return
+   */
+  StructureViewer getTargetedStructureViewer(
+          StructureSelectionManager ssm)
+  {
+    Object sv = targetView.getSelectedItem();
+
+    return sv == null ? new StructureViewer(ssm) : (StructureViewer) sv;
+  }
+
+  /**
+   * Adds PDB structures to a new or existing structure viewer
+   * 
+   * @param ssm
+   * @param pdbEntriesToView
+   * @param alignPanel
+   * @param sequences
+   * @return
+   */
+  private StructureViewer launchStructureViewer(
+          StructureSelectionManager ssm,
           final PDBEntry[] pdbEntriesToView,
           final AlignmentPanel alignPanel, SequenceI[] sequences)
   {
-    ssm.setProgressBar(MessageManager
-            .getString("status.launching_3d_structure_viewer"));
-    final StructureViewer sViewer = new StructureViewer(ssm);
+    long progressId = sequences.hashCode();
+    setProgressBar(MessageManager
+            .getString("status.launching_3d_structure_viewer"), progressId);
+    final StructureViewer theViewer = getTargetedStructureViewer(ssm);
+    boolean superimpose = chk_superpose.isSelected();
+    theViewer.setSuperpose(superimpose);
 
+    /*
+     * remember user's choice of superimpose or not
+     */
+    Cache.setProperty(AUTOSUPERIMPOSE,
+            Boolean.valueOf(superimpose).toString());
+
+    setProgressBar(null, progressId);
     if (SiftsSettings.isMapWithSifts())
     {
-      List<SequenceI> seqsWithoutSourceDBRef = new ArrayList<SequenceI>();
+      List<SequenceI> seqsWithoutSourceDBRef = new ArrayList<>();
       int p = 0;
       // TODO: skip PDBEntry:Sequence pairs where PDBEntry doesn't look like a
       // real PDB ID. For moment, we can also safely do this if there is already
@@ -904,7 +1124,7 @@ public class StructureChooser extends GStructureChooser implements
             }
           }
         }
-        if (seq.getPrimaryDBRefs().size() == 0)
+        if (seq.getPrimaryDBRefs().isEmpty())
         {
           seqsWithoutSourceDBRef.add(seq);
           continue;
@@ -913,41 +1133,35 @@ public class StructureChooser extends GStructureChooser implements
       if (!seqsWithoutSourceDBRef.isEmpty())
       {
         int y = seqsWithoutSourceDBRef.size();
-        ssm.setProgressBar(null);
-        ssm.setProgressBar(MessageManager.formatMessage(
+        setProgressBar(MessageManager.formatMessage(
                 "status.fetching_dbrefs_for_sequences_without_valid_refs",
-                y));
-        SequenceI[] seqWithoutSrcDBRef = new SequenceI[y];
-        int x = 0;
-        for (SequenceI fSeq : seqsWithoutSourceDBRef)
-        {
-          seqWithoutSrcDBRef[x++] = fSeq;
-        }
+                y), progressId);
+        SequenceI[] seqWithoutSrcDBRef = seqsWithoutSourceDBRef
+                .toArray(new SequenceI[y]);
         DBRefFetcher dbRefFetcher = new DBRefFetcher(seqWithoutSrcDBRef);
         dbRefFetcher.fetchDBRefs(true);
+
+        setProgressBar("Fetch complete.", progressId); // todo i18n
       }
     }
     if (pdbEntriesToView.length > 1)
     {
-      ArrayList<SequenceI[]> seqsMap = new ArrayList<SequenceI[]>();
-      for (SequenceI seq : sequences)
-      {
-        seqsMap.add(new SequenceI[] { seq });
-      }
-      SequenceI[][] collatedSeqs = seqsMap.toArray(new SequenceI[0][0]);
-      ssm.setProgressBar(null);
-      ssm.setProgressBar(MessageManager
-              .getString("status.fetching_3d_structures_for_selected_entries"));
-      sViewer.viewStructures(pdbEntriesToView, collatedSeqs, alignPanel);
+      setProgressBar(MessageManager.getString(
+              "status.fetching_3d_structures_for_selected_entries"),
+              progressId);
+      theViewer.viewStructures(pdbEntriesToView, sequences, alignPanel);
     }
     else
     {
-      ssm.setProgressBar(null);
-      ssm.setProgressBar(MessageManager.formatMessage(
+      setProgressBar(MessageManager.formatMessage(
               "status.fetching_3d_structures_for",
-              pdbEntriesToView[0].getId()));
-      sViewer.viewStructures(pdbEntriesToView[0], sequences, alignPanel);
+              pdbEntriesToView[0].getId()),progressId);
+      theViewer.viewStructures(pdbEntriesToView[0], sequences, alignPanel);
     }
+    setProgressBar(null, progressId);
+    // remember the last viewer we used...
+    lastTargetedView = theViewer;
+    return theViewer;
   }
 
   /**
@@ -955,12 +1169,13 @@ public class StructureChooser extends GStructureChooser implements
    * a unique sequence when more than one sequence selection is made.
    */
   @Override
-  public void populateCmbAssociateSeqOptions(
-          JComboBox<AssociateSeqOptions> cmb_assSeq, JLabel lbl_associateSeq)
+  protected void populateCmbAssociateSeqOptions(
+          JComboBox<AssociateSeqOptions> cmb_assSeq,
+          JLabel lbl_associateSeq)
   {
     cmb_assSeq.removeAllItems();
-    cmb_assSeq.addItem(new AssociateSeqOptions("-Select Associated Seq-",
-            null));
+    cmb_assSeq.addItem(
+            new AssociateSeqOptions("-Select Associated Seq-", null));
     lbl_associateSeq.setVisible(false);
     if (selectedSequences.length > 1)
     {
@@ -979,15 +1194,10 @@ public class StructureChooser extends GStructureChooser implements
     }
   }
 
-  public boolean isStructuresDiscovered()
+  protected boolean isStructuresDiscovered()
   {
     return discoveredStructuresSet != null
             && !discoveredStructuresSet.isEmpty();
-  }
-
-  public Collection<FTSData> getDiscoveredStructuresSet()
-  {
-    return discoveredStructuresSet;
   }
 
   @Override
@@ -1005,7 +1215,7 @@ public class StructureChooser extends GStructureChooser implements
           String searchTerm = txt_search.getText().toLowerCase();
           searchTerm = searchTerm.split(":")[0];
           // System.out.println(">>>>> search term : " + searchTerm);
-          List<FTSDataColumnI> wantedFields = new ArrayList<FTSDataColumnI>();
+          List<FTSDataColumnI> wantedFields = new ArrayList<>();
           FTSRestRequest pdbRequest = new FTSRestRequest();
           pdbRequest.setAllowEmptySeq(false);
           pdbRequest.setResponseSize(1);
@@ -1039,7 +1249,7 @@ public class StructureChooser extends GStructureChooser implements
   }
 
   @Override
-  public void tabRefresh()
+  protected void tabRefresh()
   {
     if (selectedSequences != null)
     {
@@ -1049,8 +1259,9 @@ public class StructureChooser extends GStructureChooser implements
         public void run()
         {
           fetchStructuresMetaData();
-          filterResultSet(((FilterOption) cmb_filterOption
-                  .getSelectedItem()).getValue());
+          filterResultSet(
+                  ((FilterOption) cmb_filterOption.getSelectedItem())
+                          .getValue());
         }
       });
       refreshThread.start();
@@ -1059,13 +1270,14 @@ public class StructureChooser extends GStructureChooser implements
 
   public class PDBEntryTableModel extends AbstractTableModel
   {
-    String[] columns = { "Ref Sequence", "PDB Id", "Chain", "Type", "File" };
+    String[] columns = { "Ref Sequence", "PDB Id", "Chain", "Type",
+        "File" };
 
     private List<CachedPDB> pdbEntries;
 
     public PDBEntryTableModel(List<CachedPDB> pdbEntries)
     {
-      this.pdbEntries = new ArrayList<CachedPDB>(pdbEntries);
+      this.pdbEntries = new ArrayList<>(pdbEntries);
     }
 
     @Override
@@ -1106,8 +1318,8 @@ public class StructureChooser extends GStructureChooser implements
         value = entry.getPdbEntry();
         break;
       case 2:
-        value = entry.getPdbEntry().getChainCode() == null ? "_" : entry
-                .getPdbEntry().getChainCode();
+        value = entry.getPdbEntry().getChainCode() == null ? "_"
+                : entry.getPdbEntry().getChainCode();
         break;
       case 3:
         value = entry.getPdbEntry().getType();
@@ -1174,5 +1386,10 @@ public class StructureChooser extends GStructureChooser implements
   public boolean operationInProgress()
   {
     return progressBar.operationInProgress();
+  }
+
+  public JalviewStructureDisplayI getOpenedStructureViewer()
+  {
+    return sViewer == null ? null : sViewer.sview;
   }
 }

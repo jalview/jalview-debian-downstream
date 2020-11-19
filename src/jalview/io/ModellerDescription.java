@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -61,7 +61,8 @@ public class ModellerDescription
    */
   final int Types[] = { 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 };
 
-  final char Padding[] = { ' ', ' ', ' ', '.', ' ', '.', '.', '.', '.', '.' };
+  final char Padding[] = { ' ', ' ', ' ', '.', ' ', '.', '.', '.', '.',
+      '.' };
 
   java.util.Hashtable fields = new java.util.Hashtable();
 
@@ -84,7 +85,7 @@ public class ModellerDescription
 
     resCode(int v)
     {
-      val = new Integer(v);
+      val = Integer.valueOf(v);
       field = val.toString();
     }
   };
@@ -244,15 +245,15 @@ public class ModellerDescription
     {
       // Set start and end before we update the type (in the case of a
       // synthesized field set)
-      if (getStartCode() == null
-              || (getStartNum() != seq.getStart() && getStartCode().val != null))
+      if (getStartCode() == null || (getStartNum() != seq.getStart()
+              && getStartCode().val != null))
       {
         // unset or user updated sequence start position
         setStartCode(seq.getStart());
       }
 
-      if (getEndCode() == null
-              || (getEndNum() != seq.getEnd() && getStartCode() != null && getStartCode().val != null))
+      if (getEndCode() == null || (getEndNum() != seq.getEnd()
+              && getStartCode() != null && getStartCode().val != null))
       {
         setEndCode(seq.getEnd());
       }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -80,13 +80,13 @@ public class EditNameDialog
       panel2.add(description, BorderLayout.CENTER);
       panel.add(panel2, BorderLayout.SOUTH);
     }
-    int reply = JOptionPane.showInternalConfirmDialog(parent, panel, title,
-            JOptionPane.OK_CANCEL_OPTION);
+    int reply = JvOptionPane.showInternalConfirmDialog(parent, panel, title,
+            JvOptionPane.OK_CANCEL_OPTION);
     if (!parent.requestFocusInWindow())
     {
       System.err.println("Bad focus for dialog!");
     }
-    if (reply == JOptionPane.OK_OPTION)
+    if (reply == JvOptionPane.OK_OPTION)
     {
       accept = true;
     }

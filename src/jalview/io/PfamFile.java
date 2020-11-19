@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -36,9 +36,10 @@ public class PfamFile extends AlignFile
   {
   }
 
-  public PfamFile(String inFile, String type) throws IOException
+  public PfamFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public PfamFile(FileParse source) throws IOException
@@ -116,8 +117,8 @@ public class PfamFile extends AlignFile
 
     if (noSeqs < 1)
     {
-      throw new IOException(
-              MessageManager.getString("exception.pfam_no_sequences_found"));
+      throw new IOException(MessageManager
+              .getString("exception.pfam_no_sequences_found"));
     }
 
     for (i = 0; i < headers.size(); i++)
@@ -130,8 +131,8 @@ public class PfamFile extends AlignFile
         }
 
         Sequence newSeq = parseId(headers.get(i).toString());
-        newSeq.setSequence(seqhash.get(headers.get(i).toString())
-                .toString());
+        newSeq.setSequence(
+                seqhash.get(headers.get(i).toString()).toString());
         seqs.addElement(newSeq);
       }
       else
@@ -142,7 +143,8 @@ public class PfamFile extends AlignFile
     }
   }
 
-  public String print(SequenceI[] s)
+  @Override
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
     StringBuffer out = new StringBuffer("");
 
@@ -153,12 +155,9 @@ public class PfamFile extends AlignFile
 
     while ((i < s.length) && (s[i] != null))
     {
-      String tmp = printId(s[i]);
+      String tmp = printId(s[i], jvsuffix);
 
-      if (s[i].getSequence().length > max)
-      {
-        max = s[i].getSequence().length;
-      }
+      max = Math.max(max, s[i].getLength());
 
       if (tmp.length() > maxid)
       {
@@ -177,7 +176,8 @@ public class PfamFile extends AlignFile
 
     while ((j < s.length) && (s[j] != null))
     {
-      out.append(new Format("%-" + maxid + "s").form(printId(s[j]) + " "));
+      out.append(new Format("%-" + maxid + "s")
+              .form(printId(s[j], jvsuffix) + " "));
 
       out.append(s[j].getSequenceAsString());
       out.append(newline);
@@ -187,11 +187,5 @@ public class PfamFile extends AlignFile
     out.append(newline);
 
     return out.toString();
-  }
-
-  @Override
-  public String print()
-  {
-    return print(getSeqsAsArray());
   }
 }

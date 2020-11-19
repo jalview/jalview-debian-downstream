@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,8 +25,21 @@ import java.util.Map;
 
 public interface SequenceCollectionI
 {
+  /**
+   * 
+   * @return (visible) sequences in this collection. This may be a direct
+   *         reference to the collection so not thread safe
+   */
   List<SequenceI> getSequences();
 
+  /**
+   * FIXME: AlignmentI.getSequences(hiddenReps) doesn't actually obey this
+   * contract!
+   * 
+   * @param hiddenReps
+   * @return the full set of sequences in this collection, including any
+   *         sequences represented by sequences in the collection.
+   */
   List<SequenceI> getSequences(
           Map<SequenceI, SequenceCollectionI> hiddenReps);
 
@@ -64,4 +77,10 @@ public interface SequenceCollectionI
    */
   int getEndRes();
 
+  /**
+   * Answers true if sequence data is nucleotide (according to some heuristic)
+   * 
+   * @return
+   */
+  boolean isNucleotide();
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -68,12 +68,12 @@ public class AlignCalcManager implements AlignCalcManagerI
   {
     restartable = Collections
             .synchronizedList(new ArrayList<AlignCalcWorkerI>());
-    blackList = Collections
-            .synchronizedList(new ArrayList<Class<? extends AlignCalcWorkerI>>());
+    blackList = Collections.synchronizedList(
+            new ArrayList<Class<? extends AlignCalcWorkerI>>());
     inProgress = Collections
             .synchronizedList(new ArrayList<AlignCalcWorkerI>());
-    updating = Collections
-            .synchronizedMap(new Hashtable<Class<? extends AlignCalcWorkerI>, List<AlignCalcWorkerI>>());
+    updating = Collections.synchronizedMap(
+            new Hashtable<Class<? extends AlignCalcWorkerI>, List<AlignCalcWorkerI>>());
     canUpdate = new HashSet<AlignCalcWorkerI>();
   }
 
@@ -85,10 +85,8 @@ public class AlignCalcManager implements AlignCalcManagerI
       List<AlignCalcWorkerI> upd = updating.get(worker.getClass());
       if (upd == null)
       {
-        updating.put(
-                worker.getClass(),
-                upd = Collections
-                        .synchronizedList(new ArrayList<AlignCalcWorkerI>()));
+        updating.put(worker.getClass(), upd = Collections
+                .synchronizedList(new ArrayList<AlignCalcWorkerI>()));
       }
       synchronized (upd)
       {
@@ -235,7 +233,8 @@ public class AlignCalcManager implements AlignCalcManagerI
   }
 
   @Override
-  public boolean workingInvolvedWith(AlignmentAnnotation alignmentAnnotation)
+  public boolean workingInvolvedWith(
+          AlignmentAnnotation alignmentAnnotation)
   {
     synchronized (inProgress)
     {

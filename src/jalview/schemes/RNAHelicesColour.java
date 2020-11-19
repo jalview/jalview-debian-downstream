@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,9 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AnnotatedCollectionI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
@@ -44,7 +46,7 @@ public class RNAHelicesColour extends ResidueColourScheme
    * Maps sequence positions to the RNA helix they belong to. Key: position,
    * Value: helix TODO: Revise or drop in favour of annotation position numbers
    */
-  public Hashtable<Integer, String> positionsToHelix = new Hashtable<Integer, String>();
+  public Hashtable<Integer, String> positionsToHelix = new Hashtable<>();
 
   /**
    * Number of helices in the RNA secondary structure
@@ -52,6 +54,14 @@ public class RNAHelicesColour extends ResidueColourScheme
   int numHelix = 0;
 
   public AlignmentAnnotation annotation;
+
+  /**
+   * Default constructor (required for ColourSchemes cache)
+   */
+  public RNAHelicesColour()
+  {
+
+  }
 
   /**
    * Creates a new RNAHelicesColour object.
@@ -116,14 +126,14 @@ public class RNAHelicesColour extends ResidueColourScheme
   public void refresh()
   {
 
-    if (annotation != null
-            && ((annotation._rnasecstr == null || lastrefresh != annotation._rnasecstr
-                    .hashCode()) && annotation.isValidStruc()))
+    if (annotation != null && ((annotation._rnasecstr == null
+            || lastrefresh != annotation._rnasecstr.hashCode())
+            && annotation.isValidStruc()))
     {
       annotation.getRNAStruc();
       lastrefresh = annotation._rnasecstr.hashCode();
       numHelix = 0;
-      positionsToHelix = new Hashtable<Integer, String>();
+      positionsToHelix = new Hashtable<>();
 
       // Figure out number of helices
       // Length of rnasecstr is the number of pairs of positions that base pair
@@ -142,11 +152,11 @@ public class RNAHelicesColour extends ResidueColourScheme
         positionsToHelix.put(this.annotation._rnasecstr[x].getEnd(),
                 this.annotation._rnasecstr[x].getFeatureGroup());
 
-        if (Integer.parseInt(this.annotation._rnasecstr[x]
-                .getFeatureGroup()) > numHelix)
+        if (Integer.parseInt(
+                this.annotation._rnasecstr[x].getFeatureGroup()) > numHelix)
         {
-          numHelix = Integer.parseInt(this.annotation._rnasecstr[x]
-                  .getFeatureGroup());
+          numHelix = Integer.parseInt(
+                  this.annotation._rnasecstr[x].getFeatureGroup());
         }
 
       }
@@ -197,9 +207,44 @@ public class RNAHelicesColour extends ResidueColourScheme
   }
 
   @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI sg)
   {
-    return new RNAHelicesColour(this);
+    return new RNAHelicesColour(sg);
+  }
+
+  @Override
+  public boolean isNucleotideSpecific()
+  {
+    return true;
+  }
+
+  /**
+   * Answers true if the data has RNA secondary structure annotation
+   */
+  @Override
+  public boolean isApplicableTo(AnnotatedCollectionI ac)
+  {
+    if (ac instanceof AlignmentI && ((AlignmentI) ac).hasRNAStructure())
+    {
+      return true;
+    }
+
+    /*
+     * not currently supporting this option for group annotation / colouring
+     */
+    return false;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.RNAHelices.toString();
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,11 +28,12 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.JColorChooser;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
@@ -44,45 +45,53 @@ public class TextColourChooser
 
   SequenceGroup sg;
 
-  public void chooseColour(AlignmentPanel ap, SequenceGroup sg)
-  {
-    this.ap = ap;
-    this.sg = sg;
+  Color original1, original2;
 
-    int original1, original2, originalThreshold;
-    if (sg == null)
-    {
-      original1 = ap.av.getTextColour().getRGB();
-      original2 = ap.av.getTextColour2().getRGB();
-      originalThreshold = ap.av.getThresholdTextColour();
-    }
-    else
-    {
-      original1 = sg.textColour.getRGB();
-      original2 = sg.textColour2.getRGB();
-      originalThreshold = sg.thresholdTextColour;
-    }
+  int originalThreshold;
+
+  Map<SequenceGroup, Color> groupColour1;
+
+  Map<SequenceGroup, Color> groupColour2;
+
+  Map<SequenceGroup, Integer> groupThreshold;
+
+  /**
+   * Show a dialogue which allows the user to select two text colours and adjust
+   * a slider for the cross-over point
+   * 
+   * @param alignPanel
+   *          the AlignmentPanel context
+   * @param sequenceGroup
+   *          the SequenceGroup context (only for group pop-menu option)
+   */
+  public void chooseColour(AlignmentPanel alignPanel,
+          SequenceGroup sequenceGroup)
+  {
+    this.ap = alignPanel;
+    this.sg = sequenceGroup;
+
+    saveInitialSettings();
 
     final JSlider slider = new JSlider(0, 750, originalThreshold);
     final JPanel col1 = new JPanel();
     col1.setPreferredSize(new Dimension(40, 20));
     col1.setBorder(BorderFactory.createEtchedBorder());
     col1.setToolTipText(MessageManager.getString("label.dark_colour"));
-    col1.setBackground(new Color(original1));
+    col1.setBackground(original1);
     final JPanel col2 = new JPanel();
     col2.setPreferredSize(new Dimension(40, 20));
     col2.setBorder(BorderFactory.createEtchedBorder());
     col2.setToolTipText(MessageManager.getString("label.light_colour"));
-    col2.setBackground(new Color(original2));
+    col2.setBackground(original2);
     final JPanel bigpanel = new JPanel(new BorderLayout());
     JPanel panel = new JPanel();
     bigpanel.add(panel, BorderLayout.CENTER);
     bigpanel.add(
-            new JLabel(
-                    "<html>"
-                            + MessageManager
-                                    .getString("label.select_dark_light_set_threshold")
-                            + "</html>"), BorderLayout.NORTH);
+            new JLabel("<html>"
+                    + MessageManager.getString(
+                            "label.select_dark_light_set_threshold")
+                    + "</html>"),
+            BorderLayout.NORTH);
     panel.add(col1);
     panel.add(slider);
     panel.add(col2);
@@ -128,29 +137,88 @@ public class TextColourChooser
       }
     });
 
-    int reply = JOptionPane
-            .showInternalOptionDialog(
-                    ap,
-                    bigpanel,
-                    MessageManager
-                            .getString("label.adjunst_foreground_text_colour_threshold"),
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.QUESTION_MESSAGE, null, null, null);
+    int reply = JvOptionPane.showInternalOptionDialog(alignPanel, bigpanel,
+            MessageManager.getString(
+                    "label.adjunst_foreground_text_colour_threshold"),
+            JvOptionPane.OK_CANCEL_OPTION, JvOptionPane.QUESTION_MESSAGE,
+            null, null, null);
 
-    if (reply == JOptionPane.CANCEL_OPTION)
+    if (reply == JvOptionPane.CANCEL_OPTION)
     {
-      if (sg == null)
+      restoreInitialSettings();
+    }
+  }
+
+  /**
+   * Restore initial settings on Cancel
+   */
+  protected void restoreInitialSettings()
+  {
+    if (sg == null)
+    {
+      ap.av.setTextColour(original1);
+      ap.av.setTextColour2(original2);
+      ap.av.setThresholdTextColour(originalThreshold);
+    }
+    else
+    {
+      sg.textColour = original1;
+      sg.textColour2 = original2;
+      sg.thresholdTextColour = originalThreshold;
+    }
+
+    /*
+     * if 'Apply To All Groups' was in force, there will be 
+     * group-specific settings to restore as well
+     */
+    for (SequenceGroup group : this.groupColour1.keySet())
+    {
+      group.textColour = groupColour1.get(group);
+      group.textColour2 = groupColour2.get(group);
+      group.thresholdTextColour = groupThreshold.get(group);
+    }
+  }
+
+  /**
+   * Save settings on entry, for restore on Cancel
+   */
+  protected void saveInitialSettings()
+  {
+    groupColour1 = new HashMap<>();
+    groupColour2 = new HashMap<>();
+    groupThreshold = new HashMap<>();
+
+    if (sg == null)
+    {
+      /*
+       * alignment scope
+       */
+      original1 = ap.av.getTextColour();
+      original2 = ap.av.getTextColour2();
+      originalThreshold = ap.av.getThresholdTextColour();
+      if (ap.av.getColourAppliesToAllGroups()
+              && ap.av.getAlignment().getGroups() != null)
       {
-        ap.av.setTextColour(new Color(original1));
-        ap.av.setTextColour2(new Color(original2));
-        ap.av.setThresholdTextColour(originalThreshold);
+        /*
+         * if applying changes to all groups, need to be able to 
+         * restore group settings as well
+         */
+        for (SequenceGroup group : ap.av.getAlignment().getGroups())
+        {
+          groupColour1.put(group, group.textColour);
+          groupColour2.put(group, group.textColour2);
+          groupThreshold.put(group, group.thresholdTextColour);
+        }
       }
-      else
-      {
-        sg.textColour = new Color(original1);
-        sg.textColour2 = new Color(original2);
-        sg.thresholdTextColour = originalThreshold;
-      }
+    }
+    else
+    {
+      /*
+       * Sequence group scope
+       */
+      original1 = sg.textColour;
+      original2 = sg.textColour2;
+      originalThreshold = sg.thresholdTextColour;
     }
   }
 
@@ -169,7 +237,7 @@ public class TextColourChooser
       sg.textColour = col;
     }
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(false, false);
   }
 
   void colour2Changed(Color col)
@@ -187,7 +255,7 @@ public class TextColourChooser
       sg.textColour2 = col;
     }
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(false, false);
   }
 
   void thresholdChanged(int value)
@@ -205,7 +273,7 @@ public class TextColourChooser
       sg.thresholdTextColour = value;
     }
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(false, false);
   }
 
   void setGroupTextColour()
@@ -215,11 +283,11 @@ public class TextColourChooser
       return;
     }
 
-    for (SequenceGroup sg : ap.av.getAlignment().getGroups())
+    for (SequenceGroup group : ap.av.getAlignment().getGroups())
     {
-      sg.textColour = ap.av.getTextColour();
-      sg.textColour2 = ap.av.getTextColour2();
-      sg.thresholdTextColour = ap.av.getThresholdTextColour();
+      group.textColour = ap.av.getTextColour();
+      group.textColour2 = ap.av.getTextColour2();
+      group.thresholdTextColour = ap.av.getThresholdTextColour();
     }
   }
 

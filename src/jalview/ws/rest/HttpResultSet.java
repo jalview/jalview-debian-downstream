@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -50,7 +50,7 @@ import org.apache.james.mime4j.parser.MimeStreamParser;
  * 
  */
 
-public class HttpResultSet extends FileParse
+public class HttpResultSet extends FileParse implements AutoCloseable
 {
 
   private HttpRequestBase cachedRequest;
@@ -89,7 +89,7 @@ public class HttpResultSet extends FileParse
    */
   public List<DataProvider> createResultDataProviders()
   {
-    List<DataProvider> dp = new ArrayList<DataProvider>();
+    List<DataProvider> dp = new ArrayList<>();
     for (JvDataType type : restJob.rsd.getResultDataTypes())
     {
       dp.add(new SimpleDataProvider(type, this, null));
@@ -106,14 +106,13 @@ public class HttpResultSet extends FileParse
    */
   public Object[] parseResultSet() throws Exception, Error
   {
-    List<DataProvider> dp = new ArrayList<DataProvider>();
+    List<DataProvider> dp = new ArrayList<>();
     Object[] results = null;
 
     if (en == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_need_to_have_httpresponse"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_need_to_have_httpresponse"));
     }
     jalview.io.packed.JalviewDataset ds = restJob.newJalviewDataset();
     // Decide how we deal with content.
@@ -155,8 +154,8 @@ public class HttpResultSet extends FileParse
     if (!(en instanceof MultipartEntity))
     {
       // assume content is simple text stream that can be read from
-      String enc = (en.getContentEncoding() == null) ? null : en
-              .getContentEncoding().getValue();
+      String enc = (en.getContentEncoding() == null) ? null
+              : en.getContentEncoding().getValue();
       if (en.getContentType() != null)
       {
         Cache.log.debug("Result Type: " + en.getContentType().toString());
@@ -201,7 +200,7 @@ public class HttpResultSet extends FileParse
   }
 
   @Override
-  protected void finalize() throws Throwable
+  public void close()
   {
     dataIn = null;
     cachedRequest = null;
@@ -216,7 +215,8 @@ public class HttpResultSet extends FileParse
     } catch (Error ex)
     {
     }
-    super.finalize();
+    // no finalize for FileParse
+    // super.close();
   }
 
   /**

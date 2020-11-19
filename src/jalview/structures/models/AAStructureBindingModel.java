@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,19 +20,28 @@
  */
 package jalview.structures.models;
 
+import jalview.api.AlignmentViewPanel;
+import jalview.api.SequenceRenderer;
 import jalview.api.StructureSelectionManagerProvider;
+import jalview.api.structures.JalviewStructureDisplayI;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
+import jalview.schemes.ColourSchemeI;
 import jalview.structure.AtomSpec;
 import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
+import jalview.structure.StructureMappingcommandSet;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.Comparison;
 import jalview.util.MessageManager;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -44,9 +53,9 @@ import java.util.List;
  * @author gmcarstairs
  *
  */
-public abstract class AAStructureBindingModel extends
-        SequenceStructureBindingModel implements StructureListener,
-        StructureSelectionManagerProvider
+public abstract class AAStructureBindingModel
+        extends SequenceStructureBindingModel
+        implements StructureListener, StructureSelectionManagerProvider
 {
 
   private StructureSelectionManager ssm;
@@ -70,7 +79,7 @@ public abstract class AAStructureBindingModel extends
   /*
    * datasource protocol for access to PDBEntrylatest
    */
-  String protocol = null;
+  DataSourceType protocol = null;
 
   protected boolean colourBySequence = true;
 
@@ -82,6 +91,8 @@ public abstract class AAStructureBindingModel extends
    * current set of model filenames loaded in the Jmol instance
    */
   protected String[] modelFileNames = null;
+
+  public String fileLoadingError;
 
   /**
    * Data bean class to simplify parameterisation in superposeStructures
@@ -131,20 +142,71 @@ public abstract class AAStructureBindingModel extends
    * @param ssm
    * @param pdbentry
    * @param sequenceIs
-   * @param chains
    * @param protocol
    */
   public AAStructureBindingModel(StructureSelectionManager ssm,
           PDBEntry[] pdbentry, SequenceI[][] sequenceIs,
-          String protocol)
+          DataSourceType protocol)
   {
     this.ssm = ssm;
     this.sequence = sequenceIs;
     this.nucleotide = Comparison.isNucleotide(sequenceIs);
     this.pdbEntry = pdbentry;
     this.protocol = protocol;
+    resolveChains();
   }
 
+  private boolean resolveChains()
+  {
+    /**
+     * final count of chain mappings discovered
+     */
+    int chainmaps = 0;
+    // JBPNote: JAL-2693 - this should be a list of chain mappings per
+    // [pdbentry][sequence]
+    String[][] newchains = new String[pdbEntry.length][];
+    int pe = 0;
+    for (PDBEntry pdb : pdbEntry)
+    {
+      SequenceI[] seqsForPdb = sequence[pe];
+      if (seqsForPdb != null)
+      {
+        newchains[pe] = new String[seqsForPdb.length];
+        int se = 0;
+        for (SequenceI asq : seqsForPdb)
+        {
+          String chain = (chains != null && chains[pe] != null)
+                  ? chains[pe][se]
+                  : null;
+          SequenceI sq = (asq.getDatasetSequence() == null) ? asq
+                  : asq.getDatasetSequence();
+          if (sq.getAllPDBEntries() != null)
+          {
+            for (PDBEntry pdbentry : sq.getAllPDBEntries())
+            {
+              if (pdb.getFile() != null && pdbentry.getFile() != null
+                      && pdb.getFile().equals(pdbentry.getFile()))
+              {
+                String chaincode = pdbentry.getChainCode();
+                if (chaincode != null && chaincode.length() > 0)
+                {
+                  chain = chaincode;
+                  chainmaps++;
+                  break;
+                }
+              }
+            }
+          }
+          newchains[pe][se] = chain;
+          se++;
+        }
+        pe++;
+      }
+    }
+
+    chains = newchains;
+    return chainmaps > 0;
+  }
   public StructureSelectionManager getSsm()
   {
     return ssm;
@@ -202,7 +264,7 @@ public abstract class AAStructureBindingModel extends
     return chains;
   }
 
-  public String getProtocol()
+  public DataSourceType getProtocol()
   {
     return protocol;
   }
@@ -289,7 +351,8 @@ public abstract class AAStructureBindingModel extends
     {
       throw new Error(MessageManager.formatMessage(
               "error.implementation_error_no_pdbentry_from_index",
-              new Object[] { Integer.valueOf(pe).toString() }));
+              new Object[]
+              { Integer.valueOf(pe).toString() }));
     }
     final String nullChain = "TheNullChain";
     List<SequenceI> s = new ArrayList<SequenceI>();
@@ -510,18 +573,18 @@ public abstract class AAStructureBindingModel extends
    *          the sequence alignment which is the basis of structure
    *          superposition
    * @param matched
-   *          an array of booleans, indexed by alignment column, where true
-   *          indicates that every structure has a mapped residue present in the
-   *          column (so the column can participate in structure alignment)
+   *          a BitSet, where bit j is set to indicate that every structure has
+   *          a mapped residue present in column j (so the column can
+   *          participate in structure alignment)
    * @param structures
    *          an array of data beans corresponding to pdb file index
    * @return
    */
   protected int findSuperposableResidues(AlignmentI alignment,
-          boolean[] matched, SuperposeData[] structures)
+          BitSet matched, SuperposeData[] structures)
   {
     int refStructure = -1;
-    String[] files = getPdbFile();
+    String[] files = getStructureFiles();
     if (files == null)
     {
       return -1;
@@ -548,16 +611,16 @@ public abstract class AAStructureBindingModel extends
             {
               refStructure = pdbfnum;
             }
-            for (int r = 0; r < matched.length; r++)
+            for (int r = 0; r < alignment.getWidth(); r++)
             {
-              if (!matched[r])
+              if (!matched.get(r))
               {
                 continue;
               }
               int pos = getMappedPosition(theSequence, r, mapping);
               if (pos < 1 || pos == lastPos)
               {
-                matched[r] = false;
+                matched.clear(r);
                 continue;
               }
               lastPos = pos;
@@ -627,8 +690,8 @@ public abstract class AAStructureBindingModel extends
 
     if (waiting)
     {
-      System.err
-              .println("Timed out waiting for structure viewer to load file "
+      System.err.println(
+              "Timed out waiting for structure viewer to load file "
                       + notLoaded);
       return false;
     }
@@ -646,10 +709,8 @@ public abstract class AAStructureBindingModel extends
         {
           for (SequenceI s : seqs)
           {
-            if (s == seq
-                    || (s.getDatasetSequence() != null && s
-                            .getDatasetSequence() == seq
-                            .getDatasetSequence()))
+            if (s == seq || (s.getDatasetSequence() != null
+                    && s.getDatasetSequence() == seq.getDatasetSequence()))
             {
               return true;
             }
@@ -677,4 +738,89 @@ public abstract class AAStructureBindingModel extends
    */
   public abstract List<String> getChainNames();
 
+  /**
+   * Returns the Jalview panel hosting the structure viewer (if any)
+   * 
+   * @return
+   */
+  public JalviewStructureDisplayI getViewer()
+  {
+    return null;
+  }
+
+  public abstract void setJalviewColourScheme(ColourSchemeI cs);
+
+  /**
+   * Constructs and sends a command to align structures against a reference
+   * structure, based on one or more sequence alignments. May optionally return
+   * an error or warning message for the alignment command.
+   * 
+   * @param alignments
+   *          an array of alignments to process
+   * @param structureIndices
+   *          an array of corresponding reference structures (index into pdb
+   *          file array); if a negative value is passed, the first PDB file
+   *          mapped to an alignment sequence is used as the reference for
+   *          superposition
+   * @param hiddenCols
+   *          an array of corresponding hidden columns for each alignment
+   * @return
+   */
+  public abstract String superposeStructures(AlignmentI[] alignments,
+          int[] structureIndices, HiddenColumns[] hiddenCols);
+
+  public abstract void setBackgroundColour(Color col);
+
+  protected abstract StructureMappingcommandSet[] getColourBySequenceCommands(
+          String[] files, SequenceRenderer sr, AlignmentViewPanel avp);
+
+  /**
+   * returns the current sequenceRenderer that should be used to colour the
+   * structures
+   * 
+   * @param alignment
+   * 
+   * @return
+   */
+  public abstract SequenceRenderer getSequenceRenderer(
+          AlignmentViewPanel alignment);
+
+  protected abstract void colourBySequence(
+          StructureMappingcommandSet[] colourBySequenceCommands);
+
+  public abstract void colourByChain();
+
+  public abstract void colourByCharge();
+
+  /**
+   * colour any structures associated with sequences in the given alignment
+   * using the getFeatureRenderer() and getSequenceRenderer() renderers but only
+   * if colourBySequence is enabled.
+   */
+  public void colourBySequence(AlignmentViewPanel alignmentv)
+  {
+    if (!colourBySequence || !isLoadingFinished())
+    {
+      return;
+    }
+    if (getSsm() == null)
+    {
+      return;
+    }
+    String[] files = getStructureFiles();
+
+    SequenceRenderer sr = getSequenceRenderer(alignmentv);
+
+    StructureMappingcommandSet[] colourBySequenceCommands = getColourBySequenceCommands(
+            files, sr, alignmentv);
+    colourBySequence(colourBySequenceCommands);
+  }
+
+  public boolean hasFileLoadingError()
+  {
+    return fileLoadingError != null && fileLoadingError.length() > 0;
+  }
+
+  public abstract jalview.api.FeatureRenderer getFeatureRenderer(
+          AlignmentViewPanel alignment);
 }

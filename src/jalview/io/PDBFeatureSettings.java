@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,18 +26,19 @@ import jalview.schemes.FeatureSettingsAdapter;
 
 import java.awt.Color;
 
+import MCview.PDBChain;
+
 public class PDBFeatureSettings extends FeatureSettingsAdapter
 {
   // TODO find one central place to define feature names
   private static final String FEATURE_INSERTION = "INSERTION";
 
-  private static final String FEATURE_RES_NUM = "RESNUM";
+  private static final String FEATURE_RES_NUM = PDBChain.RESNUM_FEATURE;
 
   @Override
-  public boolean isFeatureDisplayed(String type)
+  public boolean isFeatureHidden(String type)
   {
-    return type.equalsIgnoreCase(FEATURE_INSERTION)
-            || type.equalsIgnoreCase(FEATURE_RES_NUM);
+    return type.equalsIgnoreCase(FEATURE_RES_NUM);
   }
 
   @Override

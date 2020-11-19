@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.gui;
 
-import jalview.api.FeatureColourI;
+import jalview.api.FeatureRenderer;
+import jalview.bin.Cache;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.SequenceI;
 import jalview.io.AnnotationFile;
@@ -29,16 +30,17 @@ import jalview.io.JalviewFileChooser;
 import jalview.io.JalviewFileView;
 import jalview.util.MessageManager;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Map;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 
-import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
@@ -56,18 +58,45 @@ import javax.swing.SwingConstants;
  */
 public class AnnotationExporter extends JPanel
 {
-  JInternalFrame frame;
+  private JInternalFrame frame;
 
-  AlignmentPanel ap;
+  private AlignmentPanel ap;
 
-  boolean features = true;
+  /*
+   * true if exporting features, false if exporting annotations
+   */
+  private boolean exportFeatures = true;
 
   private AlignmentAnnotation[] annotations;
 
   private boolean wholeView;
 
-  public AnnotationExporter()
+  /*
+   * option to export linked (CDS/peptide) features when shown 
+   * on the alignment, converted to this alignment's coordinates
+   */
+  private JCheckBox includeLinkedFeatures;
+
+  /*
+   * output format option shown for feature export
+   */
+  JRadioButton GFFFormat = new JRadioButton();
+
+  /*
+   * output format option shown for annotation export
+   */
+  JRadioButton CSVFormat = new JRadioButton();
+
+  private JPanel linkedFeaturesPanel;
+
+  /**
+   * Constructor
+   * 
+   * @param panel
+   */
+  public AnnotationExporter(AlignmentPanel panel)
   {
+    this.ap = panel;
     try
     {
       jbInit();
@@ -79,66 +108,80 @@ public class AnnotationExporter extends JPanel
     frame = new JInternalFrame();
     frame.setContentPane(this);
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
-    Desktop.addInternalFrame(frame, "", frame.getPreferredSize().width,
-            frame.getPreferredSize().height);
+    Dimension preferredSize = frame.getPreferredSize();
+    Desktop.addInternalFrame(frame, "", true, preferredSize.width,
+            preferredSize.height, true, true);
   }
 
-  public void exportFeatures(AlignmentPanel ap)
+  /**
+   * Configures the dialog for options to export visible features. If from a split
+   * frame panel showing linked features, make the option to include these in the
+   * export visible.
+   */
+  public void exportFeatures()
   {
-    this.ap = ap;
-    features = true;
+    exportFeatures = true;
     CSVFormat.setVisible(false);
+    if (ap.av.isShowComplementFeatures())
+    {
+      linkedFeaturesPanel.setVisible(true);
+      frame.pack();
+    }
     frame.setTitle(MessageManager.getString("label.export_features"));
   }
 
-  public void exportAnnotations(AlignmentPanel ap)
+  /**
+   * Configures the dialog for options to export all visible annotations
+   */
+  public void exportAnnotations()
   {
-    this.ap = ap;
-    annotations = ap.av.isShowAnnotation() ? null : ap.av.getAlignment()
-            .getAlignmentAnnotation();
-    wholeView = true;
-    startExportAnnotation();
+    boolean showAnnotation = ap.av.isShowAnnotation();
+    exportAnnotation(showAnnotation ? null
+            : ap.av.getAlignment().getAlignmentAnnotation(), true);
   }
 
-  public void exportAnnotations(AlignmentPanel alp,
-          AlignmentAnnotation[] toExport)
+  /**
+   * Configures the dialog for options to export the given annotation row
+   * 
+   * @param toExport
+   */
+  public void exportAnnotation(AlignmentAnnotation toExport)
   {
-    ap = alp;
+    exportAnnotation(new AlignmentAnnotation[] { toExport }, false);
+  }
+
+  private void exportAnnotation(AlignmentAnnotation[] toExport,
+          boolean forWholeView)
+  {
+    wholeView = forWholeView;
     annotations = toExport;
-    wholeView = false;
-    startExportAnnotation();
-  }
-
-  private void startExportAnnotation()
-  {
-    features = false;
+    exportFeatures = false;
     GFFFormat.setVisible(false);
     CSVFormat.setVisible(true);
     frame.setTitle(MessageManager.getString("label.export_annotations"));
   }
 
-  public void toFile_actionPerformed(ActionEvent e)
+  private void toFile_actionPerformed()
   {
     JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
+            Cache.getProperty("LAST_DIRECTORY"));
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(features ? MessageManager
-            .getString("label.save_features_to_file") : MessageManager
-            .getString("label.save_annotation_to_file"));
+    chooser.setDialogTitle(exportFeatures
+            ? MessageManager.getString("label.save_features_to_file")
+            : MessageManager.getString("label.save_annotation_to_file"));
     chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
 
     if (value == JalviewFileChooser.APPROVE_OPTION)
     {
-      String text = getFileContents();
+      String text = getText();
 
       try
       {
-        java.io.PrintWriter out = new java.io.PrintWriter(
-                new java.io.FileWriter(chooser.getSelectedFile()));
-
+        PrintWriter out = new PrintWriter(
+                new FileWriter(chooser.getSelectedFile()));
         out.print(text);
         out.close();
       } catch (Exception ex)
@@ -147,93 +190,109 @@ public class AnnotationExporter extends JPanel
       }
     }
 
-    close_actionPerformed(null);
+    close_actionPerformed();
   }
 
-  private String getFileContents()
+  /**
+   * Answers the text to output for either Features (in GFF or Jalview format) or
+   * Annotations (in CSV or Jalview format)
+   * 
+   * @return
+   */
+  private String getText()
   {
-    String text = MessageManager
-            .getString("label.no_features_on_alignment");
-    if (features)
+    return exportFeatures ? getFeaturesText() : getAnnotationsText();
+  }
+
+  /**
+   * Returns the text contents for output of annotations in either CSV or Jalview
+   * format
+   * 
+   * @return
+   */
+  private String getAnnotationsText()
+  {
+    String text;
+    if (CSVFormat.isSelected())
     {
-      Map<String, FeatureColourI> displayedFeatureColours = ap
-              .getFeatureRenderer().getDisplayedFeatureCols();
-      FeaturesFile formatter = new FeaturesFile();
-      SequenceI[] sequences = ap.av.getAlignment().getSequencesArray();
-      Map<String, FeatureColourI> featureColours = ap.getFeatureRenderer()
-              .getDisplayedFeatureCols();
-      boolean includeNonPositional = ap.av.isShowNPFeats();
-      if (GFFFormat.isSelected())
-      {
-        text = new FeaturesFile().printGffFormat(ap.av.getAlignment()
-                .getDataset().getSequencesArray(), displayedFeatureColours,
-                true, ap.av.isShowNPFeats());
-        text = formatter.printGffFormat(sequences, featureColours, true,
-                includeNonPositional);
-      }
-      else
-      {
-        text = new FeaturesFile().printJalviewFormat(ap.av.getAlignment()
-                .getDataset().getSequencesArray(), displayedFeatureColours,
-                true, ap.av.isShowNPFeats()); // ap.av.featuresDisplayed);
-        text = formatter.printJalviewFormat(sequences, featureColours,
-                true, includeNonPositional);
-      }
+      text = new AnnotationFile().printCSVAnnotations(annotations);
     }
     else
     {
-      if (CSVFormat.isSelected())
+      if (wholeView)
       {
-        text = new AnnotationFile().printCSVAnnotations(annotations);
+        text = new AnnotationFile().printAnnotationsForView(ap.av);
       }
       else
       {
-        if (wholeView)
-        {
-          text = new AnnotationFile().printAnnotationsForView(ap.av);
-        }
-        else
-        {
-          text = new AnnotationFile().printAnnotations(annotations, null,
-                  null);
-        }
+        text = new AnnotationFile().printAnnotations(annotations, null,
+                null);
       }
     }
     return text;
   }
 
-  public void toTextbox_actionPerformed(ActionEvent e)
+  /**
+   * Returns the text contents for output of features in either GFF or Jalview
+   * format
+   * 
+   * @return
+   */
+  private String getFeaturesText()
+  {
+    String text;
+    SequenceI[] sequences = ap.av.getAlignment().getSequencesArray();
+    boolean includeNonPositional = ap.av.isShowNPFeats();
+
+    FeaturesFile formatter = new FeaturesFile();
+    final FeatureRenderer fr = ap.getFeatureRenderer();
+    boolean includeComplement = includeLinkedFeatures.isSelected();
+
+    if (GFFFormat.isSelected())
+    {
+      text = formatter.printGffFormat(sequences, fr, includeNonPositional,
+              includeComplement);
+    }
+    else
+    {
+      text = formatter.printJalviewFormat(sequences, fr,
+              includeNonPositional, includeComplement);
+    }
+    return text;
+  }
+
+  private void toTextbox_actionPerformed()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
 
     try
     {
-      String text = getFileContents();
+      String text = getText();
       cap.setText(text);
-      Desktop.addInternalFrame(
-              cap,
-              (features ? MessageManager.formatMessage(
-                      "label.features_for_params",
-                      new String[] { ap.alignFrame.getTitle() })
-                      : MessageManager.formatMessage(
-                              "label.annotations_for_params",
-                              new String[] { ap.alignFrame.getTitle() })),
+      Desktop.addInternalFrame(cap, (exportFeatures ? MessageManager
+              .formatMessage("label.features_for_params", new String[]
+              { ap.alignFrame.getTitle() })
+              : MessageManager.formatMessage("label.annotations_for_params",
+                      new String[]
+                      { ap.alignFrame.getTitle() })),
               600, 500);
     } catch (OutOfMemoryError oom)
     {
-      new OOMWarning((features ? MessageManager.formatMessage(
-              "label.generating_features_for_params",
-              new String[] { ap.alignFrame.getTitle() })
+      new OOMWarning((exportFeatures ? MessageManager.formatMessage(
+              "label.generating_features_for_params", new String[]
+              { ap.alignFrame.getTitle() })
               : MessageManager.formatMessage(
                       "label.generating_annotations_for_params",
-                      new String[] { ap.alignFrame.getTitle() })), oom);
+                      new String[]
+                      { ap.alignFrame.getTitle() })),
+              oom);
       cap.dispose();
     }
 
-    close_actionPerformed(null);
+    close_actionPerformed();
   }
 
-  public void close_actionPerformed(ActionEvent e)
+  private void close_actionPerformed()
   {
     try
     {
@@ -243,83 +302,140 @@ public class AnnotationExporter extends JPanel
     }
   }
 
+  /**
+   * Adds widgets to the panel
+   * 
+   * @throws Exception
+   */
   private void jbInit() throws Exception
   {
-    this.setLayout(new BorderLayout());
+    this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+    this.setBackground(Color.white);
 
-    toFile.setText(MessageManager.getString("label.to_file"));
+    JPanel formatPanel = buildFormatOptionsPanel();
+    JPanel linkedFeatures = buildLinkedFeaturesPanel();
+    JPanel actionsPanel = buildActionsPanel();
+
+    this.add(formatPanel);
+    this.add(linkedFeatures);
+    this.add(actionsPanel);
+  }
+
+  /**
+   * Builds a panel with a checkbox for the option to export linked (CDS/peptide)
+   * features. This is hidden by default, and only made visible if exporting
+   * features from a split frame panel which is configured to show linked
+   * features.
+   * 
+   * @return
+   */
+  private JPanel buildLinkedFeaturesPanel()
+  {
+    linkedFeaturesPanel = new JPanel();
+    linkedFeaturesPanel.setOpaque(false);
+
+    boolean nucleotide = ap.av.isNucleotide();
+    String complement = nucleotide
+            ? MessageManager.getString("label.protein").toLowerCase()
+            : "CDS";
+    JLabel label = new JLabel(
+            MessageManager.formatMessage("label.include_linked_features",
+                    complement));
+    label.setHorizontalAlignment(SwingConstants.TRAILING);
+    String tooltip = MessageManager
+            .formatMessage("label.include_linked_tooltip", complement);
+    label.setToolTipText(
+            JvSwingUtils.wrapTooltip(true, tooltip));
+
+    includeLinkedFeatures = new JCheckBox();
+    linkedFeaturesPanel.add(label);
+    linkedFeaturesPanel.add(includeLinkedFeatures);
+    linkedFeaturesPanel.setVisible(false);
+
+    return linkedFeaturesPanel;
+  }
+
+  /**
+   * Builds the panel with to File or Textbox or Close actions
+   * 
+   * @return
+   */
+  JPanel buildActionsPanel()
+  {
+    JPanel actionsPanel = new JPanel();
+    actionsPanel.setOpaque(false);
+
+    JButton toFile = new JButton(MessageManager.getString("label.to_file"));
     toFile.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        toFile_actionPerformed(e);
+        toFile_actionPerformed();
       }
     });
-    toTextbox.setText(MessageManager.getString("label.to_textbox"));
+    JButton toTextbox = new JButton(
+            MessageManager.getString("label.to_textbox"));
     toTextbox.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        toTextbox_actionPerformed(e);
+        toTextbox_actionPerformed();
       }
     });
-    close.setText(MessageManager.getString("action.close"));
+    JButton close = new JButton(MessageManager.getString("action.close"));
     close.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        close_actionPerformed(e);
+        close_actionPerformed();
       }
     });
+
+    actionsPanel.add(toFile);
+    actionsPanel.add(toTextbox);
+    actionsPanel.add(close);
+
+    return actionsPanel;
+  }
+
+  /**
+   * Builds the panel with options to output in Jalview, GFF or CSV format. GFF is
+   * only made visible when exporting features, CSV only when exporting
+   * annotation.
+   * 
+   * @return
+   */
+  JPanel buildFormatOptionsPanel()
+  {
+    JPanel formatPanel = new JPanel();
+    // formatPanel.setBorder(BorderFactory.createEtchedBorder());
+    formatPanel.setOpaque(false);
+
+    JRadioButton jalviewFormat = new JRadioButton("Jalview");
     jalviewFormat.setOpaque(false);
     jalviewFormat.setSelected(true);
-    jalviewFormat.setText("Jalview");
     GFFFormat.setOpaque(false);
     GFFFormat.setText("GFF");
     CSVFormat.setOpaque(false);
     CSVFormat.setText(MessageManager.getString("label.csv_spreadsheet"));
-    jLabel1.setHorizontalAlignment(SwingConstants.TRAILING);
-    jLabel1.setText(MessageManager.getString("action.format") + " ");
-    this.setBackground(Color.white);
-    jPanel3.setBorder(BorderFactory.createEtchedBorder());
-    jPanel3.setOpaque(false);
-    jPanel1.setOpaque(false);
-    jPanel1.add(toFile);
-    jPanel1.add(toTextbox);
-    jPanel1.add(close);
-    jPanel3.add(jLabel1);
-    jPanel3.add(jalviewFormat);
-    jPanel3.add(GFFFormat);
-    jPanel3.add(CSVFormat);
+
+    ButtonGroup buttonGroup = new ButtonGroup();
     buttonGroup.add(jalviewFormat);
     buttonGroup.add(GFFFormat);
     buttonGroup.add(CSVFormat);
-    this.add(jPanel3, BorderLayout.CENTER);
-    this.add(jPanel1, BorderLayout.SOUTH);
+
+    JLabel format = new JLabel(
+            MessageManager.getString("action.format") + " ");
+    format.setHorizontalAlignment(SwingConstants.TRAILING);
+
+    formatPanel.add(format);
+    formatPanel.add(jalviewFormat);
+    formatPanel.add(GFFFormat);
+    formatPanel.add(CSVFormat);
+
+    return formatPanel;
   }
-
-  JPanel jPanel1 = new JPanel();
-
-  JButton toFile = new JButton();
-
-  JButton toTextbox = new JButton();
-
-  JButton close = new JButton();
-
-  ButtonGroup buttonGroup = new ButtonGroup();
-
-  JRadioButton jalviewFormat = new JRadioButton();
-
-  JRadioButton GFFFormat = new JRadioButton();
-
-  JRadioButton CSVFormat = new JRadioButton();
-
-  JLabel jLabel1 = new JLabel();
-
-  JPanel jPanel3 = new JPanel();
-
-  FlowLayout flowLayout1 = new FlowLayout();
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,8 @@ import jalview.datamodel.SequenceI;
 import jalview.util.Format;
 
 import java.io.IOException;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -37,9 +38,10 @@ public class ClustalFile extends AlignFile
   {
   }
 
-  public ClustalFile(String inFile, String type) throws IOException
+  public ClustalFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public ClustalFile(FileParse source) throws IOException
@@ -58,11 +60,11 @@ public class ClustalFile extends AlignFile
   {
     int i = 0;
     boolean flag = false;
-    boolean rna = false;
     boolean top = false;
-    StringBuffer pssecstr = new StringBuffer(), consstr = new StringBuffer();
-    Vector headers = new Vector();
-    Hashtable seqhash = new Hashtable();
+    StringBuffer pssecstr = new StringBuffer();
+    StringBuffer consstr = new StringBuffer();
+    Vector<String> headers = new Vector<>();
+    Map<String, StringBuffer> seqhash = new HashMap<>();
     StringBuffer tempseq;
     String line, id;
     StringTokenizer str;
@@ -75,9 +77,11 @@ public class ClustalFile extends AlignFile
         {
           top = true;
         }
-        if (line.indexOf(" ") != 0)
+        boolean isConservation = line.startsWith(SPACE)
+                || line.startsWith(TAB);
+        if (!isConservation)
         {
-          str = new StringTokenizer(line, " ");
+          str = new StringTokenizer(line);
 
           if (str.hasMoreTokens())
           {
@@ -93,7 +97,7 @@ public class ClustalFile extends AlignFile
               {
                 if (seqhash.containsKey(id))
                 {
-                  tempseq = (StringBuffer) seqhash.get(id);
+                  tempseq = seqhash.get(id);
                 }
                 else
                 {
@@ -157,22 +161,21 @@ public class ClustalFile extends AlignFile
           }
 
           Sequence newSeq = parseId(headers.elementAt(i).toString());
-          newSeq.setSequence(seqhash.get(headers.elementAt(i).toString())
-                  .toString());
+          newSeq.setSequence(
+                  seqhash.get(headers.elementAt(i).toString()).toString());
 
           seqs.addElement(newSeq);
         }
         else
         {
-          System.err
-                  .println("Clustal File Reader: Can't find sequence for "
-                          + headers.elementAt(i));
+          System.err.println("Clustal File Reader: Can't find sequence for "
+                  + headers.elementAt(i));
         }
       }
       AlignmentAnnotation lastssa = null;
       if (pssecstr.length() == maxLength)
       {
-        Vector ss = new Vector();
+        Vector<AlignmentAnnotation> ss = new Vector<>();
         AlignmentAnnotation ssa = lastssa = StockholmFile
                 .parseAnnotationRow(ss, "secondary structure",
                         pssecstr.toString());
@@ -181,13 +184,12 @@ public class ClustalFile extends AlignFile
       }
       if (consstr.length() == maxLength)
       {
-        Vector ss = new Vector();
+        Vector<AlignmentAnnotation> ss = new Vector<>();
         AlignmentAnnotation ssa = StockholmFile.parseAnnotationRow(ss,
                 "secondary structure", consstr.toString());
         ssa.label = "Consensus Secondary Structure";
-        if (lastssa == null
-                || !lastssa.getRNAStruc().equals(
-                        ssa.getRNAStruc().replace('-', '.')))
+        if (lastssa == null || !lastssa.getRNAStruc()
+                .equals(ssa.getRNAStruc().replace('-', '.')))
         {
           annotations.addElement(ssa);
         }
@@ -196,13 +198,7 @@ public class ClustalFile extends AlignFile
   }
 
   @Override
-  public String print()
-  {
-    return print(getSeqsAsArray());
-    // TODO: locaRNA style aln output
-  }
-
-  public String print(SequenceI[] s)
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
     StringBuffer out = new StringBuffer("CLUSTAL" + newline + newline);
 
@@ -213,12 +209,9 @@ public class ClustalFile extends AlignFile
 
     while ((i < s.length) && (s[i] != null))
     {
-      String tmp = printId(s[i]);
+      String tmp = printId(s[i], jvsuffix);
 
-      if (s[i].getSequence().length > max)
-      {
-        max = s[i].getSequence().length;
-      }
+      max = Math.max(max, s[i].getLength());
 
       if (tmp.length() > maxid)
       {
@@ -244,21 +237,22 @@ public class ClustalFile extends AlignFile
 
       while ((j < s.length) && (s[j] != null))
       {
-        out.append(new Format("%-" + maxid + "s").form(printId(s[j]) + " "));
+        out.append(new Format("%-" + maxid + "s")
+                .form(printId(s[j], jvsuffix) + " "));
 
-        int start = i * len;
-        int end = start + len;
+        int chunkStart = i * len;
+        int chunkEnd = chunkStart + len;
 
-        if ((end < s[j].getSequence().length)
-                && (start < s[j].getSequence().length))
+        int length = s[j].getLength();
+        if ((chunkEnd < length) && (chunkStart < length))
         {
-          out.append(s[j].getSequenceAsString(start, end));
+          out.append(s[j].getSequenceAsString(chunkStart, chunkEnd));
         }
         else
         {
-          if (start < s[j].getSequence().length)
+          if (chunkStart < length)
           {
-            out.append(s[j].getSequenceAsString().substring(start));
+            out.append(s[j].getSequenceAsString().substring(chunkStart));
           }
         }
 

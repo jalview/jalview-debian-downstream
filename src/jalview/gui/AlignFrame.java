@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,87 +19,6 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.gui;
-
-import jalview.analysis.AlignmentSorter;
-import jalview.analysis.AlignmentUtils;
-import jalview.analysis.CrossRef;
-import jalview.analysis.Dna;
-import jalview.analysis.ParseProperties;
-import jalview.analysis.SequenceIdMatcher;
-import jalview.api.AlignExportSettingI;
-import jalview.api.AlignViewControllerGuiI;
-import jalview.api.AlignViewControllerI;
-import jalview.api.AlignViewportI;
-import jalview.api.AlignmentViewPanel;
-import jalview.api.FeatureSettingsControllerI;
-import jalview.api.SplitContainerI;
-import jalview.api.ViewStyleI;
-import jalview.api.analysis.ScoreModelI;
-import jalview.bin.Cache;
-import jalview.bin.Jalview;
-import jalview.commands.CommandI;
-import jalview.commands.EditCommand;
-import jalview.commands.EditCommand.Action;
-import jalview.commands.OrderCommand;
-import jalview.commands.RemoveGapColCommand;
-import jalview.commands.RemoveGapsCommand;
-import jalview.commands.SlideSequencesCommand;
-import jalview.commands.TrimRegionCommand;
-import jalview.datamodel.AlignedCodonFrame;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentExportData;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.HiddenSequences;
-import jalview.datamodel.PDBEntry;
-import jalview.datamodel.SeqCigar;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.gui.ViewSelectionMenu.ViewSetProvider;
-import jalview.io.AlignmentProperties;
-import jalview.io.AnnotationFile;
-import jalview.io.BioJsHTMLOutput;
-import jalview.io.FileLoader;
-import jalview.io.FormatAdapter;
-import jalview.io.HtmlSvgOutput;
-import jalview.io.IdentifyFile;
-import jalview.io.JalviewFileChooser;
-import jalview.io.JalviewFileView;
-import jalview.io.JnetAnnotationMaker;
-import jalview.io.NewickFile;
-import jalview.io.StructureFile;
-import jalview.io.TCoffeeScoreFile;
-import jalview.jbgui.GAlignFrame;
-import jalview.schemes.Blosum62ColourScheme;
-import jalview.schemes.BuriedColourScheme;
-import jalview.schemes.ClustalxColourScheme;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.HelixColourScheme;
-import jalview.schemes.HydrophobicColourScheme;
-import jalview.schemes.NucleotideColourScheme;
-import jalview.schemes.PIDColourScheme;
-import jalview.schemes.PurinePyrimidineColourScheme;
-import jalview.schemes.RNAHelicesColourChooser;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.StrandColourScheme;
-import jalview.schemes.TCoffeeColourScheme;
-import jalview.schemes.TaylorColourScheme;
-import jalview.schemes.TurnColourScheme;
-import jalview.schemes.UserColourScheme;
-import jalview.schemes.ZappoColourScheme;
-import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
-import jalview.ws.DBRefFetcher;
-import jalview.ws.DBRefFetcher.FetchFinishedListenerI;
-import jalview.ws.jws1.Discoverer;
-import jalview.ws.jws2.Jws2Discoverer;
-import jalview.ws.jws2.jabaws2.Jws2Instance;
-import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -122,12 +41,14 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.print.PageFormat;
 import java.awt.print.PrinterJob;
 import java.beans.PropertyChangeEvent;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -137,16 +58,97 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JEditorPane;
 import javax.swing.JInternalFrame;
 import javax.swing.JLayeredPane;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+
+import jalview.analysis.AlignmentSorter;
+import jalview.analysis.AlignmentUtils;
+import jalview.analysis.CrossRef;
+import jalview.analysis.Dna;
+import jalview.analysis.GeneticCodeI;
+import jalview.analysis.ParseProperties;
+import jalview.analysis.SequenceIdMatcher;
+import jalview.api.AlignExportSettingI;
+import jalview.api.AlignViewControllerGuiI;
+import jalview.api.AlignViewControllerI;
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
+import jalview.api.FeatureSettingsControllerI;
+import jalview.api.FeatureSettingsModelI;
+import jalview.api.SplitContainerI;
+import jalview.api.ViewStyleI;
+import jalview.api.analysis.SimilarityParamsI;
+import jalview.bin.Cache;
+import jalview.bin.Jalview;
+import jalview.commands.CommandI;
+import jalview.commands.EditCommand;
+import jalview.commands.EditCommand.Action;
+import jalview.commands.OrderCommand;
+import jalview.commands.RemoveGapColCommand;
+import jalview.commands.RemoveGapsCommand;
+import jalview.commands.SlideSequencesCommand;
+import jalview.commands.TrimRegionCommand;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentExportData;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentOrder;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
+import jalview.datamodel.HiddenSequences;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SeqCigar;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.gui.ColourMenuHelper.ColourChangeListener;
+import jalview.gui.ViewSelectionMenu.ViewSetProvider;
+import jalview.io.AlignmentProperties;
+import jalview.io.AnnotationFile;
+import jalview.io.BackupFiles;
+import jalview.io.BioJsHTMLOutput;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormat;
+import jalview.io.FileFormatI;
+import jalview.io.FileFormats;
+import jalview.io.FileLoader;
+import jalview.io.FileParse;
+import jalview.io.FormatAdapter;
+import jalview.io.HtmlSvgOutput;
+import jalview.io.IdentifyFile;
+import jalview.io.JPredFile;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
+import jalview.io.JnetAnnotationMaker;
+import jalview.io.NewickFile;
+import jalview.io.ScoreMatrixFile;
+import jalview.io.TCoffeeScoreFile;
+import jalview.io.vcf.VCFLoader;
+import jalview.jbgui.GAlignFrame;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemes;
+import jalview.schemes.ResidueColourScheme;
+import jalview.schemes.TCoffeeColourScheme;
+import jalview.util.HttpUtils;
+import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.viewmodel.AlignmentViewport;
+import jalview.viewmodel.ViewportRanges;
+import jalview.ws.DBRefFetcher;
+import jalview.ws.DBRefFetcher.FetchFinishedListenerI;
+import jalview.ws.jws1.Discoverer;
+import jalview.ws.jws2.Jws2Discoverer;
+import jalview.ws.jws2.jabaws2.Jws2Instance;
+import jalview.ws.seqfetcher.DbSourceProxy;
 
 /**
  * DOCUMENT ME!
@@ -155,7 +157,7 @@ import javax.swing.SwingUtilities;
  * @version $Revision$
  */
 public class AlignFrame extends GAlignFrame implements DropTargetListener,
-        IProgressIndicator, AlignViewControllerGuiI
+        IProgressIndicator, AlignViewControllerGuiI, ColourChangeListener
 {
 
   public static final int DEFAULT_WIDTH = 700;
@@ -171,12 +173,12 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
   public AlignViewControllerI avc;
 
-  List<AlignmentPanel> alignPanels = new ArrayList<AlignmentPanel>();
+  List<AlignmentPanel> alignPanels = new ArrayList<>();
 
   /**
    * Last format used to load or save alignments in this window
    */
-  String currentFileFormat = null;
+  FileFormatI currentFileFormat = null;
 
   /**
    * Current filename for this alignment
@@ -238,8 +240,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param height
    *          height of frame.
    */
-  public AlignFrame(AlignmentI al, ColumnSelection hiddenColumns,
-          int width, int height)
+  public AlignFrame(AlignmentI al, HiddenColumns hiddenColumns, int width,
+          int height)
   {
     this(al, hiddenColumns, width, height, null);
   }
@@ -255,8 +257,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param sequenceSetId
    *          (may be null)
    */
-  public AlignFrame(AlignmentI al, ColumnSelection hiddenColumns,
-          int width, int height, String sequenceSetId)
+  public AlignFrame(AlignmentI al, HiddenColumns hiddenColumns, int width,
+          int height, String sequenceSetId)
   {
     this(al, hiddenColumns, width, height, sequenceSetId, null);
   }
@@ -274,8 +276,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param viewId
    *          (may be null)
    */
-  public AlignFrame(AlignmentI al, ColumnSelection hiddenColumns,
-          int width, int height, String sequenceSetId, String viewId)
+  public AlignFrame(AlignmentI al, HiddenColumns hiddenColumns, int width,
+          int height, String sequenceSetId, String viewId)
   {
     setSize(width, height);
 
@@ -293,7 +295,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   }
 
   public AlignFrame(AlignmentI al, SequenceI[] hiddenSeqs,
-          ColumnSelection hiddenColumns, int width, int height)
+          HiddenColumns hiddenColumns, int width, int height)
   {
     setSize(width, height);
 
@@ -344,7 +346,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
             alignPanel);
     if (viewport.getAlignmentConservationAnnotation() == null)
     {
-      BLOSUM62Colour.setEnabled(false);
+      // BLOSUM62Colour.setEnabled(false);
       conservationMenuItem.setEnabled(false);
       modifyConservation.setEnabled(false);
       // PIDColour.setEnabled(false);
@@ -364,19 +366,28 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       sortPairwiseMenuItem_actionPerformed(null);
     }
 
-    if (Desktop.desktop != null)
-    {
-      this.setDropTarget(new java.awt.dnd.DropTarget(this, this));
-      addServiceListeners();
-      setGUINucleotide(viewport.getAlignment().isNucleotide());
-    }
-
     this.alignPanel.av
             .setShowAutocalculatedAbove(isShowAutoCalculatedAbove());
 
     setMenusFromViewport(viewport);
     buildSortByAnnotationScoresMenu();
-    buildTreeMenu();
+    calculateTree.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        openTreePcaDialog();
+      }
+    });
+    buildColourMenu();
+
+    if (Desktop.desktop != null)
+    {
+      this.setDropTarget(new java.awt.dnd.DropTarget(this, this));
+      addServiceListeners();
+      setGUINucleotide();
+    }
 
     if (viewport.getWrapAlignment())
     {
@@ -390,8 +401,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     addKeyListener();
 
-    final List<AlignmentPanel> selviews = new ArrayList<AlignmentPanel>();
-    final List<AlignmentPanel> origview = new ArrayList<AlignmentPanel>();
+    final List<AlignmentPanel> selviews = new ArrayList<>();
+    final List<AlignmentPanel> origview = new ArrayList<>();
     final String menuLabel = MessageManager
             .getString("label.copy_format_from");
     ViewSelectionMenu vsel = new ViewSelectionMenu(menuLabel,
@@ -404,7 +415,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 origview.clear();
                 origview.add(alignPanel);
                 // make an array of all alignment panels except for this one
-                List<AlignmentPanel> aps = new ArrayList<AlignmentPanel>(
+                List<AlignmentPanel> aps = new ArrayList<>(
                         Arrays.asList(Desktop.getAlignmentPanels(null)));
                 aps.remove(AlignFrame.this.alignPanel);
                 return aps.toArray(new AlignmentPanel[aps.size()]);
@@ -485,7 +496,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param format
    *          format of file
    */
-  public void setFileName(String file, String format)
+  public void setFileName(String file, FileFormatI format)
   {
     fileName = file;
     setFileFormat(format);
@@ -504,9 +515,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       public void keyPressed(KeyEvent evt)
       {
         if (viewport.cursorMode
-                && ((evt.getKeyCode() >= KeyEvent.VK_0 && evt.getKeyCode() <= KeyEvent.VK_9) || (evt
-                        .getKeyCode() >= KeyEvent.VK_NUMPAD0 && evt
-                        .getKeyCode() <= KeyEvent.VK_NUMPAD9))
+                && ((evt.getKeyCode() >= KeyEvent.VK_0
+                        && evt.getKeyCode() <= KeyEvent.VK_9)
+                        || (evt.getKeyCode() >= KeyEvent.VK_NUMPAD0
+                                && evt.getKeyCode() <= KeyEvent.VK_NUMPAD9))
                 && Character.isDigit(evt.getKeyChar()))
         {
           alignPanel.getSeqPanel().numberPressed(evt.getKeyChar());
@@ -527,7 +539,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           }
           if (viewport.cursorMode)
           {
-            alignPanel.getSeqPanel().moveCursor(0, 1);
+            alignPanel.getSeqPanel().moveCursor(0, 1,
+                    evt.isShiftDown() && !evt.isAltDown());
           }
           break;
 
@@ -538,19 +551,20 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           }
           if (viewport.cursorMode)
           {
-            alignPanel.getSeqPanel().moveCursor(0, -1);
+            alignPanel.getSeqPanel().moveCursor(0, -1,
+                    evt.isShiftDown() && !evt.isAltDown());
           }
-
           break;
 
         case KeyEvent.VK_LEFT:
           if (evt.isAltDown() || !viewport.cursorMode)
           {
-            slideSequences(false, alignPanel.getSeqPanel().getKeyboardNo1());
+            slideSequences(false,
+                    alignPanel.getSeqPanel().getKeyboardNo1());
           }
           else
           {
-            alignPanel.getSeqPanel().moveCursor(-1, 0);
+            alignPanel.getSeqPanel().moveCursor(-1, 0, evt.isShiftDown());
           }
 
           break;
@@ -562,16 +576,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           }
           else
           {
-            alignPanel.getSeqPanel().moveCursor(1, 0);
+            alignPanel.getSeqPanel().moveCursor(1, 0, evt.isShiftDown());
           }
           break;
 
         case KeyEvent.VK_SPACE:
           if (viewport.cursorMode)
           {
-            alignPanel.getSeqPanel().insertGapAtCursor(
-                    evt.isControlDown() || evt.isShiftDown()
-                            || evt.isAltDown());
+            alignPanel.getSeqPanel().insertGapAtCursor(evt.isControlDown()
+                    || evt.isShiftDown() || evt.isAltDown());
           }
           break;
 
@@ -594,9 +607,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           }
           else
           {
-            alignPanel.getSeqPanel().deleteGapAtCursor(
-                    evt.isControlDown() || evt.isShiftDown()
-                            || evt.isAltDown());
+            alignPanel.getSeqPanel().deleteGapAtCursor(evt.isControlDown()
+                    || evt.isShiftDown() || evt.isAltDown());
           }
 
           break;
@@ -643,13 +655,16 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
         case KeyEvent.VK_F2:
           viewport.cursorMode = !viewport.cursorMode;
-          statusBar.setText(MessageManager.formatMessage(
-                  "label.keyboard_editing_mode",
-                  new String[] { (viewport.cursorMode ? "on" : "off") }));
+          statusBar.setText(MessageManager
+                  .formatMessage("label.keyboard_editing_mode", new String[]
+                  { (viewport.cursorMode ? "on" : "off") }));
           if (viewport.cursorMode)
           {
-            alignPanel.getSeqPanel().seqCanvas.cursorX = viewport.startRes;
-            alignPanel.getSeqPanel().seqCanvas.cursorY = viewport.startSeq;
+            ViewportRanges ranges = viewport.getRanges();
+            alignPanel.getSeqPanel().seqCanvas.cursorX = ranges
+                    .getStartRes();
+            alignPanel.getSeqPanel().seqCanvas.cursorY = ranges
+                    .getStartSeq();
           }
           alignPanel.getSeqPanel().seqCanvas.repaint();
           break;
@@ -681,26 +696,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           break;
         }
         case KeyEvent.VK_PAGE_UP:
-          if (viewport.getWrapAlignment())
-          {
-            alignPanel.scrollUp(true);
-          }
-          else
-          {
-            alignPanel.setScrollValues(viewport.startRes, viewport.startSeq
-                    - viewport.endSeq + viewport.startSeq);
-          }
+          viewport.getRanges().pageUp();
           break;
         case KeyEvent.VK_PAGE_DOWN:
-          if (viewport.getWrapAlignment())
-          {
-            alignPanel.scrollUp(false);
-          }
-          else
-          {
-            alignPanel.setScrollValues(viewport.startRes, viewport.startSeq
-                    + viewport.endSeq - viewport.startSeq);
-          }
+          viewport.getRanges().pageDown();
           break;
         }
       }
@@ -713,16 +712,16 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         case KeyEvent.VK_LEFT:
           if (evt.isAltDown() || !viewport.cursorMode)
           {
-            viewport.firePropertyChange("alignment", null, viewport
-                    .getAlignment().getSequences());
+            viewport.firePropertyChange("alignment", null,
+                    viewport.getAlignment().getSequences());
           }
           break;
 
         case KeyEvent.VK_RIGHT:
           if (evt.isAltDown() || !viewport.cursorMode)
           {
-            viewport.firePropertyChange("alignment", null, viewport
-                    .getAlignment().getSequences());
+            viewport.firePropertyChange("alignment", null,
+                    viewport.getAlignment().getSequences());
           }
           break;
         }
@@ -742,9 +741,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     int aSize = alignPanels.size();
 
-    tabbedPane.setVisible(aSize > 1 || ap.av.viewName != null);
+    tabbedPane.setVisible(aSize > 1 || ap.av.getViewName() != null);
 
-    if (aSize == 1 && ap.av.viewName == null)
+    if (aSize == 1 && ap.av.getViewName() == null)
     {
       this.getContentPane().add(ap, BorderLayout.CENTER);
     }
@@ -757,7 +756,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
       expandViews.setEnabled(true);
       gatherViews.setEnabled(true);
-      tabbedPane.addTab(ap.av.viewName, ap);
+      tabbedPane.addTab(ap.av.getViewName(), ap);
 
       ap.setVisible(false);
     }
@@ -780,7 +779,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     gatherViews.setEnabled(true);
     tabbedPane.setVisible(true);
     AlignmentPanel first = alignPanels.get(0);
-    tabbedPane.addTab(first.av.viewName, first);
+    tabbedPane.addTab(first.av.getViewName(), first);
     this.getContentPane().add(tabbedPane, BorderLayout.CENTER);
   }
 
@@ -808,8 +807,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                     @Override
                     public void run()
                     {
-                      System.err
-                              .println("Rebuild WS Menu for service change");
+                      System.err.println(
+                              "Rebuild WS Menu for service change");
                       BuildWebServiceMenu();
                     }
 
@@ -843,25 +842,24 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   /**
    * Configure menu items that vary according to whether the alignment is
    * nucleotide or protein
-   * 
-   * @param nucleotide
    */
-  public void setGUINucleotide(boolean nucleotide)
+  public void setGUINucleotide()
   {
+    AlignmentI al = getViewport().getAlignment();
+    boolean nucleotide = al.isNucleotide();
+
+    loadVcf.setVisible(nucleotide);
     showTranslation.setVisible(nucleotide);
     showReverse.setVisible(nucleotide);
     showReverseComplement.setVisible(nucleotide);
     conservationMenuItem.setEnabled(!nucleotide);
-    modifyConservation.setEnabled(!nucleotide);
+    modifyConservation
+            .setEnabled(!nucleotide && conservationMenuItem.isSelected());
     showGroupConservation.setEnabled(!nucleotide);
-    rnahelicesColour.setEnabled(nucleotide);
-    purinePyrimidineColour.setEnabled(nucleotide);
-    showComplementMenuItem.setText(nucleotide ? MessageManager
-            .getString("label.protein") : MessageManager
-            .getString("label.nucleotide"));
-    setColourSelected(jalview.bin.Cache.getDefault(
-            nucleotide ? Preferences.DEFAULT_COLOUR_NUC
-                    : Preferences.DEFAULT_COLOUR_PROT, "None"));
+
+    showComplementMenuItem
+            .setText(nucleotide ? MessageManager.getString("label.protein")
+                    : MessageManager.getString("label.nucleotide"));
   }
 
   /**
@@ -882,12 +880,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param av
    *          AlignViewport
    */
-  void setMenusFromViewport(AlignViewport av)
+  public void setMenusFromViewport(AlignViewport av)
   {
     padGapsMenuitem.setSelected(av.isPadGaps());
     colourTextMenuItem.setSelected(av.isShowColourText());
     abovePIDThreshold.setSelected(av.getAbovePIDThreshold());
+    modifyPID.setEnabled(abovePIDThreshold.isSelected());
     conservationMenuItem.setSelected(av.getConservationSelected());
+    modifyConservation.setEnabled(conservationMenuItem.isSelected());
     seqLimits.setSelected(av.getShowJVSuffix());
     idRightAlign.setSelected(av.isRightAlignIds());
     centreColumnLabelsMenuItem.setState(av.isCentreColumnLabels());
@@ -913,8 +913,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     showSequenceLogo.setSelected(av.isShowSequenceLogo());
     normaliseSequenceLogo.setSelected(av.isNormaliseSequenceLogo());
 
-    setColourSelected(ColourSchemeProperty.getColourName(av
-            .getGlobalColourScheme()));
+    ColourMenuHelper.setColourSelected(colourMenu,
+            av.getGlobalColourScheme());
 
     showSeqFeatures.setSelected(av.isShowSequenceFeatures());
     hiddenMarkers.setState(av.getShowHiddenMarkers());
@@ -924,9 +924,6 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     autoCalculate.setSelected(av.autoCalculateConsensus);
     sortByTree.setSelected(av.sortByTree);
     listenToViewSelections.setSelected(av.followSelection);
-    rnahelicesColour.setEnabled(av.getAlignment().hasRNAStructure());
-    rnahelicesColour
-            .setSelected(av.getGlobalColourScheme() instanceof jalview.schemes.RNAHelicesColour);
 
     showProducts.setEnabled(canShowProducts());
     setGroovyEnabled(Desktop.getGroovyConsole() != null);
@@ -974,10 +971,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     return progressBar.operationInProgress();
   }
 
+  /**
+   * Sets the text of the status bar. Note that setting a null or empty value
+   * will cause the status bar to be hidden, with possibly undesirable flicker
+   * of the screen layout.
+   */
   @Override
   public void setStatus(String text)
   {
-    statusBar.setText(text);
+    statusBar.setText(text == null || text.isEmpty() ? " " : text);
   }
 
   /*
@@ -1014,7 +1016,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       // originating file's format
       // TODO: work out how to recover feature settings for correct view(s) when
       // file is reloaded.
-      if (currentFileFormat.equals("Jalview"))
+      if (FileFormat.Jalview.equals(currentFileFormat))
       {
         JInternalFrame[] frames = Desktop.desktop.getAllFrames();
         for (int i = 0; i < frames.length; i++)
@@ -1036,7 +1038,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         Desktop.instance.closeAssociatedWindows();
 
         FileLoader loader = new FileLoader();
-        String protocol = fileName.startsWith("http:") ? "URL" : "File";
+        DataSourceType protocol = HttpUtils.startsWithHttpOrHttps(fileName)
+                ? DataSourceType.URL
+                : DataSourceType.FILE;
         loader.LoadFile(viewport, fileName, protocol, currentFileFormat);
       }
       else
@@ -1044,7 +1048,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         Rectangle bounds = this.getBounds();
 
         FileLoader loader = new FileLoader();
-        String protocol = fileName.startsWith("http:") ? "URL" : "File";
+        DataSourceType protocol = HttpUtils.startsWithHttpOrHttps(fileName)
+                ? DataSourceType.URL
+                : DataSourceType.FILE;
         AlignFrame newframe = loader.LoadFileWaitTillLoaded(fileName,
                 protocol, currentFileFormat);
 
@@ -1075,8 +1081,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void addFromText_actionPerformed(ActionEvent e)
   {
-    Desktop.instance.inputTextboxMenuItem_actionPerformed(viewport
-            .getAlignPanel());
+    Desktop.instance
+            .inputTextboxMenuItem_actionPerformed(viewport.getAlignPanel());
   }
 
   @Override
@@ -1088,10 +1094,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void save_actionPerformed(ActionEvent e)
   {
-    if (fileName == null
-            || (currentFileFormat == null || !jalview.io.FormatAdapter
-                    .isValidIOFormat(currentFileFormat, true))
-            || fileName.startsWith("http"))
+    if (fileName == null || (currentFileFormat == null)
+            || HttpUtils.startsWithHttpOrHttps(fileName))
     {
       saveAs_actionPerformed(null);
     }
@@ -1110,15 +1114,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void saveAs_actionPerformed(ActionEvent e)
   {
-    JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            jalview.io.AppletFormatAdapter.WRITABLE_EXTENSIONS,
-            jalview.io.AppletFormatAdapter.WRITABLE_FNAMES,
-            currentFileFormat, false);
+    String format = currentFileFormat == null ? null
+            : currentFileFormat.getName();
+    JalviewFileChooser chooser = JalviewFileChooser
+            .forWrite(Cache.getProperty("LAST_DIRECTORY"), format);
 
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.save_alignment_to_file"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.save_alignment_to_file"));
     chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
@@ -1128,14 +1131,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       currentFileFormat = chooser.getSelectedFormat();
       while (currentFileFormat == null)
       {
-        JOptionPane
-                .showInternalMessageDialog(
-                        Desktop.desktop,
-                        MessageManager
-                                .getString("label.select_file_format_before_saving"),
-                        MessageManager
-                                .getString("label.file_format_not_specified"),
-                        JOptionPane.WARNING_MESSAGE);
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                MessageManager.getString(
+                        "label.select_file_format_before_saving"),
+                MessageManager.getString("label.file_format_not_specified"),
+                JvOptionPane.WARNING_MESSAGE);
         currentFileFormat = chooser.getSelectedFormat();
         value = chooser.showSaveDialog(this);
         if (value != JalviewFileChooser.APPROVE_OPTION)
@@ -1146,53 +1146,37 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
       fileName = chooser.getSelectedFile().getPath();
 
-      jalview.bin.Cache.setProperty("DEFAULT_FILE_FORMAT",
-              currentFileFormat);
+      Cache.setProperty("DEFAULT_FILE_FORMAT", currentFileFormat.getName());
 
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", fileName);
-      if (currentFileFormat.indexOf(" ") > -1)
-      {
-        currentFileFormat = currentFileFormat.substring(0,
-                currentFileFormat.indexOf(" "));
-      }
+      Cache.setProperty("LAST_DIRECTORY", fileName);
       saveAlignment(fileName, currentFileFormat);
     }
   }
 
-  public boolean saveAlignment(String file, String format)
+  public boolean saveAlignment(String file, FileFormatI format)
   {
     boolean success = true;
 
-    if (format.equalsIgnoreCase("Jalview"))
+    if (FileFormat.Jalview.equals(format))
     {
       String shortName = title;
 
       if (shortName.indexOf(java.io.File.separatorChar) > -1)
       {
-        shortName = shortName.substring(shortName
-                .lastIndexOf(java.io.File.separatorChar) + 1);
+        shortName = shortName.substring(
+                shortName.lastIndexOf(java.io.File.separatorChar) + 1);
       }
 
-      success = new Jalview2XML().saveAlignment(this, file, shortName);
+      success = new jalview.project.Jalview2XML().saveAlignment(this, file,
+              shortName);
 
       statusBar.setText(MessageManager.formatMessage(
-              "label.successfully_saved_to_file_in_format", new Object[] {
-                  fileName, format }));
+              "label.successfully_saved_to_file_in_format", new Object[]
+              { file, format }));
 
     }
     else
     {
-      if (!jalview.io.AppletFormatAdapter.isValidFormat(format, true))
-      {
-        warningMessage("Cannot save file " + fileName + " using format "
-                + format, "Alignment output format not supported");
-        if (!Jalview.isHeadlessMode())
-        {
-          saveAs_actionPerformed(null);
-        }
-        return false;
-      }
-
       AlignmentExportData exportData = getAlignmentForExport(format,
               viewport, null);
       if (exportData.getSettings().isCancelled())
@@ -1201,13 +1185,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       }
       FormatAdapter f = new FormatAdapter(alignPanel,
               exportData.getSettings());
-      String output = f.formatSequences(
-              format,
-              exportData.getAlignment(), // class cast exceptions will
+      String output = f.formatSequences(format, exportData.getAlignment(), // class
+                                                                           // cast
+                                                                           // exceptions
+                                                                           // will
               // occur in the distant future
               exportData.getOmitHidden(), exportData.getStartEndPostions(),
               f.getCacheSuffixDefault(format),
-              viewport.getColumnSelection());
+              viewport.getAlignment().getHiddenColumns());
 
       if (output == null)
       {
@@ -1215,32 +1200,67 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       }
       else
       {
+        // create backupfiles object and get new temp filename destination
+        Cache.log.trace("ALIGNFRAME making backupfiles object for " + file);
+        BackupFiles backupfiles = new BackupFiles(file);
+
         try
         {
-          java.io.PrintWriter out = new java.io.PrintWriter(
-                  new java.io.FileWriter(file));
+          String tempFilePath = backupfiles.getTempFilePath();
+          Cache.log.trace(
+                  "ALIGNFRAME setting PrintWriter to " + tempFilePath);
+          PrintWriter out = new PrintWriter(new FileWriter(tempFilePath));
+
+          Cache.log.trace(
+                  "ALIGNFRAME about to write to temp file " + tempFilePath);
 
           out.print(output);
+          Cache.log.trace("ALIGNFRAME about to close file");
           out.close();
+          Cache.log.trace("ALIGNFRAME closed file");
           this.setTitle(file);
           statusBar.setText(MessageManager.formatMessage(
-                  "label.successfully_saved_to_file_in_format",
-                  new Object[] { fileName, format }));
+                  "label.successfully_saved_to_file_in_format", new Object[]
+                  { file, format.getName() }));
+        } catch (IOException e)
+        {
+          success = false;
+          Cache.log.error(
+                  "ALIGNFRAME Something happened writing the temp file");
+          Cache.log.error(e.getMessage());
+          Cache.log.debug(Cache.getStackTraceString(e));
+
         } catch (Exception ex)
         {
           success = false;
-          ex.printStackTrace();
+          Cache.log.error(
+                  "ALIGNFRAME Something unexpected happened writing the temp file");
+          Cache.log.error(ex.getMessage());
+          Cache.log.debug(Cache.getStackTraceString(ex));
         }
+
+        backupfiles.setWriteSuccess(success);
+        Cache.log.debug("ALIGNFRAME writing temp file was "
+                + (success ? "" : "NOT ") + "successful");
+        // do the backup file roll and rename the temp file to actual file
+        Cache.log.trace("ALIGNFRAME about to rollBackupsAndRenameTempFile");
+        success = backupfiles.rollBackupsAndRenameTempFile();
+        Cache.log.debug("ALIGNFRAME performed rollBackupsAndRenameTempFile "
+                + (success ? "" : "un") + "successfully");
+
       }
     }
 
     if (!success)
     {
-      JOptionPane.showInternalMessageDialog(this, MessageManager
-              .formatMessage("label.couldnt_save_file",
-                      new Object[] { fileName }), MessageManager
-              .getString("label.error_saving_file"),
-              JOptionPane.WARNING_MESSAGE);
+      if (!Platform.isHeadless())
+      {
+        JvOptionPane.showInternalMessageDialog(this, MessageManager
+                .formatMessage("label.couldnt_save_file", new Object[]
+                { file }),
+                MessageManager.getString("label.error_saving_file"),
+                JvOptionPane.WARNING_MESSAGE);
+      }
     }
 
     return success;
@@ -1255,8 +1275,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
     else
     {
-      JOptionPane.showInternalMessageDialog(this, warning, title,
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showInternalMessageDialog(this, warning, title,
+              JvOptionPane.WARNING_MESSAGE);
     }
     return;
   }
@@ -1270,9 +1290,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   protected void outputText_actionPerformed(ActionEvent e)
   {
-
-    AlignmentExportData exportData = getAlignmentForExport(
-            e.getActionCommand(), viewport, null);
+    FileFormatI fileFormat = FileFormats.getInstance()
+            .forName(e.getActionCommand());
+    AlignmentExportData exportData = getAlignmentForExport(fileFormat,
+            viewport, null);
     if (exportData.getSettings().isCancelled())
     {
       return;
@@ -1281,25 +1302,26 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     cap.setForInput(null);
     try
     {
+      FileFormatI format = fileFormat;
       cap.setText(new FormatAdapter(alignPanel, exportData.getSettings())
-              .formatSequences(e.getActionCommand(),
-                      exportData.getAlignment(),
+              .formatSequences(format, exportData.getAlignment(),
                       exportData.getOmitHidden(),
                       exportData.getStartEndPostions(),
-                      viewport.getColumnSelection()));
-      Desktop.addInternalFrame(cap, MessageManager.formatMessage(
-              "label.alignment_output_command",
-              new Object[] { e.getActionCommand() }), 600, 500);
+                      viewport.getAlignment().getHiddenColumns()));
+      Desktop.addInternalFrame(cap, MessageManager
+              .formatMessage("label.alignment_output_command", new Object[]
+              { e.getActionCommand() }), 600, 500);
     } catch (OutOfMemoryError oom)
     {
-      new OOMWarning("Outputting alignment as " + e.getActionCommand(), oom);
+      new OOMWarning("Outputting alignment as " + e.getActionCommand(),
+              oom);
       cap.dispose();
     }
 
   }
 
   public static AlignmentExportData getAlignmentForExport(
-          String exportFormat, AlignViewportI viewport,
+          FileFormatI format, AlignViewportI viewport,
           AlignExportSettingI exportSettings)
   {
     AlignmentI alignmentToExport = null;
@@ -1315,7 +1337,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     if (settings == null)
     {
       settings = new AlignExportSettings(hasHiddenSeqs,
-              viewport.hasHiddenColumns(), exportFormat);
+              viewport.hasHiddenColumns(), format);
     }
     // settings.isExportAnnotations();
 
@@ -1334,9 +1356,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       alignmentToExport = viewport.getAlignment();
     }
-    alignmentStartEnd = alignmentToExport
-            .getVisibleStartAndEndIndex(viewport.getColumnSelection()
-                    .getHiddenColumns());
+    alignmentStartEnd = viewport.getAlignment().getHiddenColumns()
+            .getVisibleStartAndEndIndex(alignmentToExport.getWidth());
     AlignmentExportData ed = new AlignmentExportData(alignmentToExport,
             omitHidden, alignmentStartEnd, settings);
     return ed;
@@ -1421,13 +1442,13 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void exportFeatures_actionPerformed(ActionEvent e)
   {
-    new AnnotationExporter().exportFeatures(alignPanel);
+    new AnnotationExporter(alignPanel).exportFeatures();
   }
 
   @Override
   public void exportAnnotations_actionPerformed(ActionEvent e)
   {
-    new AnnotationExporter().exportAnnotations(alignPanel);
+    new AnnotationExporter(alignPanel).exportAnnotations();
   }
 
   @Override
@@ -1437,10 +1458,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     JalviewFileChooser chooser = new JalviewFileChooser(
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.load_jalview_annotations"));
-    chooser.setToolTipText(MessageManager
-            .getString("label.load_jalview_annotations"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.load_jalview_annotations"));
+    chooser.setToolTipText(
+            MessageManager.getString("label.load_jalview_annotations"));
 
     int value = chooser.showOpenDialog(null);
 
@@ -1489,9 +1510,13 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           closeView(alignPanel);
         }
       }
-
       if (closeAllTabs)
       {
+        if (featureSettings != null && featureSettings.isOpen())
+        {
+          featureSettings.close();
+          featureSettings = null;
+        }
         /*
          * this will raise an INTERNAL_FRAME_CLOSED event and this method will
          * be called recursively, with the frame now in 'closed' state
@@ -1539,9 +1564,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       undoMenuItem.setEnabled(true);
       CommandI command = viewport.getHistoryList().peek();
-      undoMenuItem.setText(MessageManager.formatMessage(
-              "label.undo_command",
-              new Object[] { command.getDescription() }));
+      undoMenuItem.setText(MessageManager
+              .formatMessage("label.undo_command", new Object[]
+              { command.getDescription() }));
     }
     else
     {
@@ -1554,9 +1579,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       redoMenuItem.setEnabled(true);
 
       CommandI command = viewport.getRedoList().peek();
-      redoMenuItem.setText(MessageManager.formatMessage(
-              "label.redo_command",
-              new Object[] { command.getDescription() }));
+      redoMenuItem.setText(MessageManager
+              .formatMessage("label.redo_command", new Object[]
+              { command.getDescription() }));
     }
     else
     {
@@ -1628,8 +1653,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       if (originalSource != viewport)
       {
-        Cache.log
-                .warn("Implementation worry: mismatch of viewport origin for undo");
+        Cache.log.warn(
+                "Implementation worry: mismatch of viewport origin for undo");
       }
       originalSource.updateHiddenColumns();
       // originalSource.hasHiddenColumns = (viewport.getColumnSelection() !=
@@ -1637,8 +1662,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       // && viewport.getColumnSelection().getHiddenColumns() != null &&
       // viewport.getColumnSelection()
       // .getHiddenColumns().size() > 0);
-      originalSource.firePropertyChange("alignment", null, originalSource
-              .getAlignment().getSequences());
+      originalSource.firePropertyChange("alignment", null,
+              originalSource.getAlignment().getSequences());
     }
   }
 
@@ -1668,8 +1693,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
       if (originalSource != viewport)
       {
-        Cache.log
-                .warn("Implementation worry: mismatch of viewport origin for redo");
+        Cache.log.warn(
+                "Implementation worry: mismatch of viewport origin for redo");
       }
       originalSource.updateHiddenColumns();
       // originalSource.hasHiddenColumns = (viewport.getColumnSelection() !=
@@ -1677,8 +1702,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       // && viewport.getColumnSelection().getHiddenColumns() != null &&
       // viewport.getColumnSelection()
       // .getHiddenColumns().size() > 0);
-      originalSource.firePropertyChange("alignment", null, originalSource
-              .getAlignment().getSequences());
+      originalSource.firePropertyChange("alignment", null,
+              originalSource.getAlignment().getSequences());
     }
   }
 
@@ -1693,8 +1718,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       EditCommand editCommand = (EditCommand) command;
       al = editCommand.getAlignment();
-      List<Component> comps = PaintRefresher.components.get(viewport
-              .getSequenceSetId());
+      List<Component> comps = PaintRefresher.components
+              .get(viewport.getSequenceSetId());
 
       for (Component comp : comps)
       {
@@ -1725,10 +1750,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * Calls AlignmentI.moveSelectedSequencesByOne with current sequence selection
+   * or the sequence under cursor in keyboard mode
    * 
    * @param up
-   *          DOCUMENT ME!
+   *          or down (if !up)
    */
   public void moveSelectedSequences(boolean up)
   {
@@ -1736,27 +1762,44 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     if (sg == null)
     {
+      if (viewport.cursorMode)
+      {
+        sg = new SequenceGroup();
+        sg.addSequence(viewport.getAlignment().getSequenceAt(
+                alignPanel.getSeqPanel().seqCanvas.cursorY), false);
+      }
+      else
+      {
+        return;
+      }
+    }
+
+    if (sg.getSize() < 1)
+    {
       return;
     }
+
+    // TODO: JAL-3733 - add an event to the undo buffer for this !
+
     viewport.getAlignment().moveSelectedSequencesByOne(sg,
             viewport.getHiddenRepSequences(), up);
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
   }
 
   synchronized void slideSequences(boolean right, int size)
   {
-    List<SequenceI> sg = new ArrayList<SequenceI>();
-    if (viewport.cursorMode)
+    List<SequenceI> sg = new ArrayList<>();
+    if (viewport.getSelectionGroup() != null && viewport.getSelectionGroup()
+            .getSize() != viewport.getAlignment().getHeight())
     {
-      sg.add(viewport.getAlignment().getSequenceAt(
-              alignPanel.getSeqPanel().seqCanvas.cursorY));
+      sg = viewport.getSelectionGroup()
+              .getSequences(viewport.getHiddenRepSequences());
     }
-    else if (viewport.getSelectionGroup() != null
-            && viewport.getSelectionGroup().getSize() != viewport
-                    .getAlignment().getHeight())
+
+    if (sg.size() == 0 && viewport.cursorMode)
     {
-      sg = viewport.getSelectionGroup().getSequences(
-              viewport.getHiddenRepSequences());
+      sg.add(viewport.getAlignment()
+              .getSequenceAt(alignPanel.getSeqPanel().seqCanvas.cursorY));
     }
 
     if (sg.size() < 1)
@@ -1764,7 +1807,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       return;
     }
 
-    List<SequenceI> invertGroup = new ArrayList<SequenceI>();
+    List<SequenceI> invertGroup = new ArrayList<>();
 
     for (SequenceI seq : viewport.getAlignment().getSequences())
     {
@@ -1785,13 +1828,13 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     SlideSequencesCommand ssc;
     if (right)
     {
-      ssc = new SlideSequencesCommand("Slide Sequences", seqs2, seqs1,
-              size, viewport.getGapCharacter());
+      ssc = new SlideSequencesCommand("Slide Sequences", seqs2, seqs1, size,
+              viewport.getGapCharacter());
     }
     else
     {
-      ssc = new SlideSequencesCommand("Slide Sequences", seqs1, seqs2,
-              size, viewport.getGapCharacter());
+      ssc = new SlideSequencesCommand("Slide Sequences", seqs1, seqs2, size,
+              viewport.getGapCharacter());
     }
 
     int groupAdjustment = 0;
@@ -1836,9 +1879,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     if (!inSplitFrame && historyList != null && historyList.size() > 0
             && historyList.peek() instanceof SlideSequencesCommand)
     {
-      appendHistoryItem = ssc
-              .appendSlideCommand((SlideSequencesCommand) historyList
-                      .peek());
+      appendHistoryItem = ssc.appendSlideCommand(
+              (SlideSequencesCommand) historyList.peek());
     }
 
     if (!appendHistoryItem)
@@ -1858,7 +1900,6 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   protected void copy_actionPerformed(ActionEvent e)
   {
-    System.gc();
     if (viewport.getSelectionGroup() == null)
     {
       return;
@@ -1873,8 +1914,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       omitHidden = viewport.getViewAsString(true);
     }
 
-    String output = new FormatAdapter().formatSequences("Fasta", seqs,
-            omitHidden, null);
+    String output = new FormatAdapter().formatSequences(FileFormat.Fasta,
+            seqs, omitHidden, null);
 
     StringSelection ss = new StringSelection(output);
 
@@ -1886,35 +1927,32 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       Toolkit.getDefaultToolkit().getSystemClipboard()
               .setContents(new StringSelection(""), null);
 
-      Toolkit.getDefaultToolkit().getSystemClipboard()
-              .setContents(ss, Desktop.instance);
+      Toolkit.getDefaultToolkit().getSystemClipboard().setContents(ss,
+              Desktop.instance);
     } catch (OutOfMemoryError er)
     {
       new OOMWarning("copying region", er);
       return;
     }
 
-    ArrayList<int[]> hiddenColumns = null;
+    HiddenColumns hiddenColumns = null;
     if (viewport.hasHiddenColumns())
     {
-      hiddenColumns = new ArrayList<int[]>();
-      int hiddenOffset = viewport.getSelectionGroup().getStartRes(), hiddenCutoff = viewport
-              .getSelectionGroup().getEndRes();
-      for (int[] region : viewport.getColumnSelection().getHiddenColumns())
-      {
-        if (region[0] >= hiddenOffset && region[1] <= hiddenCutoff)
-        {
-          hiddenColumns.add(new int[] { region[0] - hiddenOffset,
-              region[1] - hiddenOffset });
-        }
-      }
+      int hiddenOffset = viewport.getSelectionGroup().getStartRes();
+      int hiddenCutoff = viewport.getSelectionGroup().getEndRes();
+
+      // create new HiddenColumns object with copy of hidden regions
+      // between startRes and endRes, offset by startRes
+      hiddenColumns = new HiddenColumns(
+              viewport.getAlignment().getHiddenColumns(), hiddenOffset,
+              hiddenCutoff, hiddenOffset);
     }
 
     Desktop.jalviewClipboard = new Object[] { seqs,
         viewport.getAlignment().getDataset(), hiddenColumns };
     statusBar.setText(MessageManager.formatMessage(
-            "label.copied_sequences_to_clipboard", new Object[] { Integer
-                    .valueOf(seqs.length).toString() }));
+            "label.copied_sequences_to_clipboard", new Object[]
+            { Integer.valueOf(seqs.length).toString() }));
   }
 
   /**
@@ -1960,7 +1998,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         return;
       }
 
-      String str, format;
+      String str;
+      FileFormatI format;
       try
       {
         str = (String) contents.getTransferData(DataFlavor.stringFlavor);
@@ -1969,7 +2008,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           return;
         }
 
-        format = new IdentifyFile().identify(str, "Paste");
+        format = new IdentifyFile().identify(str, DataSourceType.PASTE);
 
       } catch (OutOfMemoryError er)
       {
@@ -1999,12 +2038,13 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       else
       {
         // parse the clipboard as an alignment.
-        alignment = new FormatAdapter().readFile(str, "Paste", format);
+        alignment = new FormatAdapter().readFile(str, DataSourceType.PASTE,
+                format);
         sequences = alignment.getSequencesArray();
       }
 
       int alwidth = 0;
-      ArrayList<Integer> newGraphGroups = new ArrayList<Integer>();
+      ArrayList<Integer> newGraphGroups = new ArrayList<>();
       int fgroup = -1;
 
       if (newAlignment)
@@ -2062,8 +2102,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           {
             // copy and derive new dataset sequence
             sequences[i] = sequences[i].deriveSequence();
-            alignment.getDataset().addSequence(
-                    sequences[i].getDatasetSequence());
+            alignment.getDataset()
+                    .addSequence(sequences[i].getDatasetSequence());
             // TODO: avoid creation of duplicate dataset sequences with a
             // 'contains' method using SequenceI.equals()/SequenceI.contains()
           }
@@ -2093,18 +2133,20 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
             annotationAdded = true;
             if (alann[i].sequenceRef == null && !alann[i].autoCalculated)
             {
-              AlignmentAnnotation newann = new AlignmentAnnotation(alann[i]);
+              AlignmentAnnotation newann = new AlignmentAnnotation(
+                      alann[i]);
               if (newann.graphGroup > -1)
               {
                 if (newGraphGroups.size() <= newann.graphGroup
                         || newGraphGroups.get(newann.graphGroup) == null)
                 {
-                  for (int q = newGraphGroups.size(); q <= newann.graphGroup; q++)
+                  for (int q = newGraphGroups
+                          .size(); q <= newann.graphGroup; q++)
                   {
                     newGraphGroups.add(q, null);
                   }
-                  newGraphGroups.set(newann.graphGroup, new Integer(
-                          ++fgroup));
+                  newGraphGroups.set(newann.graphGroup,
+                          Integer.valueOf(++fgroup));
                 }
                 newann.graphGroup = newGraphGroups.get(newann.graphGroup)
                         .intValue();
@@ -2123,7 +2165,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         //
         addHistoryItem(new EditCommand(
                 MessageManager.getString("label.add_sequences"),
-                Action.PASTE, sequences, 0, alignment.getWidth(), alignment));
+                Action.PASTE, sequences, 0, alignment.getWidth(),
+                alignment));
       }
       // Add any annotations attached to sequences
       for (int i = 0; i < sequences.length; i++)
@@ -2144,12 +2187,13 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 if (newGraphGroups.size() <= newann.graphGroup
                         || newGraphGroups.get(newann.graphGroup) == null)
                 {
-                  for (int q = newGraphGroups.size(); q <= newann.graphGroup; q++)
+                  for (int q = newGraphGroups
+                          .size(); q <= newann.graphGroup; q++)
                   {
                     newGraphGroups.add(q, null);
                   }
-                  newGraphGroups.set(newann.graphGroup, new Integer(
-                          ++fgroup));
+                  newGraphGroups.set(newann.graphGroup,
+                          Integer.valueOf(++fgroup));
                 }
                 newann.graphGroup = newGraphGroups.get(newann.graphGroup)
                         .intValue();
@@ -2159,8 +2203,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
             // was
             // duplicated
             // earlier
-            alignment
-                    .setAnnotationIndex(sequences[i].getAnnotation()[a], a);
+            alignment.setAnnotationIndex(sequences[i].getAnnotation()[a],
+                    a);
           }
         }
       }
@@ -2168,7 +2212,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       {
 
         // propagate alignment changed.
-        viewport.setEndSeq(alignment.getHeight());
+        viewport.getRanges().setEndSeq(alignment.getHeight());
         if (annotationAdded)
         {
           // Duplicate sequence annotation in all views.
@@ -2230,19 +2274,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         if (Desktop.jalviewClipboard != null
                 && Desktop.jalviewClipboard[2] != null)
         {
-          List<int[]> hc = (List<int[]>) Desktop.jalviewClipboard[2];
-          for (int[] region : hc)
-          {
-            af.viewport.hideColumns(region[0], region[1]);
-          }
+          HiddenColumns hc = (HiddenColumns) Desktop.jalviewClipboard[2];
+          af.viewport.setHiddenColumns(hc);
         }
 
         // >>>This is a fix for the moment, until a better solution is
         // found!!<<<
         af.alignPanel.getSeqPanel().seqCanvas.getFeatureRenderer()
-                .transferSettings(
-                        alignPanel.getSeqPanel().seqCanvas
-                                .getFeatureRenderer());
+                .transferSettings(alignPanel.getSeqPanel().seqCanvas
+                        .getFeatureRenderer());
 
         // TODO: maintain provenance of an alignment, rather than just make the
         // title a concatenation of operations.
@@ -2281,8 +2321,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   {
     try
     {
-      AlignmentI alignment = AlignmentUtils.expandContext(getViewport()
-              .getAlignment(), -1);
+      AlignmentI alignment = AlignmentUtils
+              .expandContext(getViewport().getAlignment(), -1);
       AlignFrame af = new AlignFrame(alignment, DEFAULT_WIDTH,
               DEFAULT_HEIGHT);
       String newtitle = new String("Flanking alignment");
@@ -2290,19 +2330,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       if (Desktop.jalviewClipboard != null
               && Desktop.jalviewClipboard[2] != null)
       {
-        List<int[]> hc = (List<int[]>) Desktop.jalviewClipboard[2];
-        for (int region[] : hc)
-        {
-          af.viewport.hideColumns(region[0], region[1]);
-        }
+        HiddenColumns hc = (HiddenColumns) Desktop.jalviewClipboard[2];
+        af.viewport.setHiddenColumns(hc);
       }
 
       // >>>This is a fix for the moment, until a better solution is
       // found!!<<<
       af.alignPanel.getSeqPanel().seqCanvas.getFeatureRenderer()
-              .transferSettings(
-                      alignPanel.getSeqPanel().seqCanvas
-                              .getFeatureRenderer());
+              .transferSettings(alignPanel.getSeqPanel().seqCanvas
+                      .getFeatureRenderer());
 
       // TODO: maintain provenance of an alignment, rather than just make the
       // title a concatenation of operations.
@@ -2364,17 +2400,17 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
      */
     if (sg.getSize() == viewport.getAlignment().getHeight())
     {
-      boolean isEntireAlignWidth = (((sg.getEndRes() - sg.getStartRes()) + 1) == viewport
-              .getAlignment().getWidth()) ? true : false;
+      boolean isEntireAlignWidth = (((sg.getEndRes() - sg.getStartRes())
+              + 1) == viewport.getAlignment().getWidth()) ? true : false;
       if (isEntireAlignWidth)
       {
-        int confirm = JOptionPane.showConfirmDialog(this,
+        int confirm = JvOptionPane.showConfirmDialog(this,
                 MessageManager.getString("warn.delete_all"), // $NON-NLS-1$
                 MessageManager.getString("label.delete_all"), // $NON-NLS-1$
-                JOptionPane.OK_CANCEL_OPTION);
+                JvOptionPane.OK_CANCEL_OPTION);
 
-        if (confirm == JOptionPane.CANCEL_OPTION
-                || confirm == JOptionPane.CLOSED_OPTION)
+        if (confirm == JvOptionPane.CANCEL_OPTION
+                || confirm == JvOptionPane.CLOSED_OPTION)
         {
           return;
         }
@@ -2394,8 +2430,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     viewport.sendSelection();
     viewport.getAlignment().deleteGroup(sg);
 
-    viewport.firePropertyChange("alignment", null, viewport.getAlignment()
-            .getSequences());
+    viewport.firePropertyChange("alignment", null,
+            viewport.getAlignment().getSequences());
     if (viewport.getAlignment().getHeight() < 1)
     {
       try
@@ -2420,7 +2456,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       PaintRefresher.Refresh(this, viewport.getSequenceSetId());
       alignPanel.updateAnnotation();
-      alignPanel.paintAlignment(true);
+      alignPanel.paintAlignment(true, true);
     }
   }
 
@@ -2433,20 +2469,17 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void selectAllSequenceMenuItem_actionPerformed(ActionEvent e)
   {
-    SequenceGroup sg = new SequenceGroup();
-
-    for (int i = 0; i < viewport.getAlignment().getSequences().size(); i++)
-    {
-      sg.addSequence(viewport.getAlignment().getSequenceAt(i), false);
-    }
+    SequenceGroup sg = new SequenceGroup(
+            viewport.getAlignment().getSequences());
 
     sg.setEndRes(viewport.getAlignment().getWidth() - 1);
     viewport.setSelectionGroup(sg);
+    viewport.isSelectionGroupChanged(true);
     viewport.sendSelection();
     // JAL-2034 - should delegate to
     // alignPanel to decide if overview needs
     // updating.
-    alignPanel.paintAlignment(false);
+    alignPanel.paintAlignment(false, false);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
   }
 
@@ -2466,13 +2499,12 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
     viewport.setSelectionGroup(null);
     viewport.getColumnSelection().clear();
-    viewport.setSelectionGroup(null);
-    alignPanel.getSeqPanel().seqCanvas.highlightSearchResults(null);
+    viewport.setSearchResults(null);
     alignPanel.getIdPanel().getIdCanvas().searchResults = null;
     // JAL-2034 - should delegate to
     // alignPanel to decide if overview needs
     // updating.
-    alignPanel.paintAlignment(false);
+    alignPanel.paintAlignment(false, false);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
     viewport.sendSelection();
   }
@@ -2503,7 +2535,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     // alignPanel to decide if overview needs
     // updating.
 
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
     PaintRefresher.Refresh(alignPanel, viewport.getSequenceSetId());
     viewport.sendSelection();
   }
@@ -2512,7 +2544,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void invertColSel_actionPerformed(ActionEvent e)
   {
     viewport.invertColumnSelection();
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
     viewport.sendSelection();
   }
 
@@ -2559,8 +2591,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       SequenceI[] seqs;
       if (viewport.getSelectionGroup() != null)
       {
-        seqs = viewport.getSelectionGroup().getSequencesAsArray(
-                viewport.getHiddenRepSequences());
+        seqs = viewport.getSelectionGroup()
+                .getSequencesAsArray(viewport.getHiddenRepSequences());
       }
       else
       {
@@ -2572,7 +2604,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       {
         trimRegion = new TrimRegionCommand("Remove Left", true, seqs,
                 column, viewport.getAlignment());
-        viewport.setStartRes(0);
+        viewport.getRanges().setStartRes(0);
       }
       else
       {
@@ -2580,10 +2612,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 column, viewport.getAlignment());
       }
 
-      statusBar.setText(MessageManager.formatMessage(
-              "label.removed_columns",
-              new String[] { Integer.valueOf(trimRegion.getSize())
-                      .toString() }));
+      statusBar.setText(MessageManager
+              .formatMessage("label.removed_columns", new String[]
+              { Integer.valueOf(trimRegion.getSize()).toString() }));
 
       addHistoryItem(trimRegion);
 
@@ -2596,8 +2627,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         }
       }
 
-      viewport.firePropertyChange("alignment", null, viewport
-              .getAlignment().getSequences());
+      viewport.firePropertyChange("alignment", null,
+              viewport.getAlignment().getSequences());
     }
   }
 
@@ -2615,8 +2646,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     SequenceI[] seqs;
     if (viewport.getSelectionGroup() != null)
     {
-      seqs = viewport.getSelectionGroup().getSequencesAsArray(
-              viewport.getHiddenRepSequences());
+      seqs = viewport.getSelectionGroup()
+              .getSequencesAsArray(viewport.getHiddenRepSequences());
       start = viewport.getSelectionGroup().getStartRes();
       end = viewport.getSelectionGroup().getEndRes();
     }
@@ -2631,23 +2662,23 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     addHistoryItem(removeGapCols);
 
-    statusBar.setText(MessageManager.formatMessage(
-            "label.removed_empty_columns",
-            new Object[] { Integer.valueOf(removeGapCols.getSize())
-                    .toString() }));
+    statusBar.setText(MessageManager
+            .formatMessage("label.removed_empty_columns", new Object[]
+            { Integer.valueOf(removeGapCols.getSize()).toString() }));
 
     // This is to maintain viewport position on first residue
     // of first sequence
     SequenceI seq = viewport.getAlignment().getSequenceAt(0);
-    int startRes = seq.findPosition(viewport.startRes);
+    ViewportRanges ranges = viewport.getRanges();
+    int startRes = seq.findPosition(ranges.getStartRes());
     // ShiftList shifts;
     // viewport.getAlignment().removeGaps(shifts=new ShiftList());
     // edit.alColumnChanges=shifts.getInverse();
     // if (viewport.hasHiddenColumns)
     // viewport.getColumnSelection().compensateForEdits(shifts);
-    viewport.setStartRes(seq.findIndex(startRes) - 1);
-    viewport.firePropertyChange("alignment", null, viewport.getAlignment()
-            .getSequences());
+    ranges.setStartRes(seq.findIndex(startRes) - 1);
+    viewport.firePropertyChange("alignment", null,
+            viewport.getAlignment().getSequences());
 
   }
 
@@ -2665,8 +2696,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     SequenceI[] seqs;
     if (viewport.getSelectionGroup() != null)
     {
-      seqs = viewport.getSelectionGroup().getSequencesAsArray(
-              viewport.getHiddenRepSequences());
+      seqs = viewport.getSelectionGroup()
+              .getSequencesAsArray(viewport.getHiddenRepSequences());
       start = viewport.getSelectionGroup().getStartRes();
       end = viewport.getSelectionGroup().getEndRes();
     }
@@ -2678,15 +2709,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     // This is to maintain viewport position on first residue
     // of first sequence
     SequenceI seq = viewport.getAlignment().getSequenceAt(0);
-    int startRes = seq.findPosition(viewport.startRes);
+    int startRes = seq.findPosition(viewport.getRanges().getStartRes());
 
     addHistoryItem(new RemoveGapsCommand("Remove Gaps", seqs, start, end,
             viewport.getAlignment()));
 
-    viewport.setStartRes(seq.findIndex(startRes) - 1);
+    viewport.getRanges().setStartRes(seq.findIndex(startRes) - 1);
 
-    viewport.firePropertyChange("alignment", null, viewport.getAlignment()
-            .getSequences());
+    viewport.firePropertyChange("alignment", null,
+            viewport.getAlignment().getSequences());
 
   }
 
@@ -2700,20 +2731,19 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void padGapsMenuitem_actionPerformed(ActionEvent e)
   {
     viewport.setPadGaps(padGapsMenuitem.isSelected());
-    viewport.firePropertyChange("alignment", null, viewport.getAlignment()
-            .getSequences());
+    viewport.firePropertyChange("alignment", null,
+            viewport.getAlignment().getSequences());
   }
 
   /**
-   * DOCUMENT ME!
+   * Opens a Finder dialog
    * 
    * @param e
-   *          DOCUMENT ME!
    */
   @Override
   public void findMenuItem_actionPerformed(ActionEvent e)
   {
-    new Finder();
+    new Finder(alignPanel);
   }
 
   /**
@@ -2739,8 +2769,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     /*
      * Create a new AlignmentPanel (with its own, new Viewport)
      */
-    AlignmentPanel newap = new Jalview2XML().copyAlignPanel(alignPanel,
-            true);
+    AlignmentPanel newap = new jalview.project.Jalview2XML()
+            .copyAlignPanel(alignPanel);
     if (!copyAnnotation)
     {
       /*
@@ -2752,10 +2782,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     newap.av.setGatherViewsHere(false);
 
-    if (viewport.viewName == null)
+    if (viewport.getViewName() == null)
     {
-      viewport.viewName = MessageManager
-              .getString("label.view_name_original");
+      viewport.setViewName(
+              MessageManager.getString("label.view_name_original"));
     }
 
     /*
@@ -2765,13 +2795,27 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     newap.av.setRedoList(viewport.getRedoList());
 
     /*
+     * copy any visualisation settings that are not saved in the project
+     */
+    newap.av.setColourAppliesToAllGroups(
+            viewport.getColourAppliesToAllGroups());
+
+    /*
      * Views share the same mappings; need to deregister any new mappings
      * created by copyAlignPanel, and register the new reference to the shared
      * mappings
      */
     newap.av.replaceMappings(viewport.getAlignment());
 
-    newap.av.viewName = getNewViewName(viewTitle);
+    /*
+     * start up cDNA consensus (if applicable) now mappings are in place
+     */
+    if (newap.av.initComplementConsensus())
+    {
+      newap.refresh(true); // adjust layout of annotations
+    }
+
+    newap.av.setViewName(getNewViewName(viewTitle));
 
     addAlignmentPanel(newap, true);
     newap.alignmentChanged();
@@ -2807,8 +2851,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
     String newViewName = viewTitle + ((addFirstIndex) ? " " + index : "");
 
-    List<Component> comps = PaintRefresher.components.get(viewport
-            .getSequenceSetId());
+    List<Component> comps = PaintRefresher.components
+            .get(viewport.getSequenceSetId());
 
     List<String> existingNames = getExistingViewNames(comps);
 
@@ -2828,15 +2872,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    */
   protected List<String> getExistingViewNames(List<Component> comps)
   {
-    List<String> existingNames = new ArrayList<String>();
+    List<String> existingNames = new ArrayList<>();
     for (Component comp : comps)
     {
       if (comp instanceof AlignmentPanel)
       {
         AlignmentPanel ap = (AlignmentPanel) comp;
-        if (!existingNames.contains(ap.av.viewName))
+        if (!existingNames.contains(ap.av.getViewName()))
         {
-          existingNames.add(ap.av.viewName);
+          existingNames.add(ap.av.getViewName());
         }
       }
     }
@@ -2886,21 +2930,21 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
     alignPanel.getIdPanel().getIdCanvas()
             .setPreferredSize(alignPanel.calculateIdWidth());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
   }
 
   @Override
   public void idRightAlign_actionPerformed(ActionEvent e)
   {
     viewport.setRightAlignIds(idRightAlign.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   @Override
   public void centreColumnLabels_actionPerformed(ActionEvent e)
   {
     viewport.setCentreColumnLabels(centreColumnLabelsMenuItem.getState());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /*
@@ -2919,7 +2963,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     viewport.setFollowHighlight(state);
     if (state)
     {
-      alignPanel.scrollToPosition(viewport.getSearchResults(), false);
+      alignPanel.scrollToPosition(viewport.getSearchResults());
     }
   }
 
@@ -2933,7 +2977,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void colourTextMenuItem_actionPerformed(ActionEvent e)
   {
     viewport.setColourText(colourTextMenuItem.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -2962,7 +3006,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void showAllColumns_actionPerformed(ActionEvent e)
   {
     viewport.showAllHiddenColumns();
-    repaint();
+    alignPanel.paintAlignment(true, true);
     viewport.sendSelection();
   }
 
@@ -2970,7 +3014,6 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void hideSelSequences_actionPerformed(ActionEvent e)
   {
     viewport.hideAllSelectedSeqs();
-    // alignPanel.paintAlignment(true);
   }
 
   /**
@@ -2989,9 +3032,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       // Hide everything by the current selection - this is a hack - we do the
       // invert and then hide
       // first check that there will be visible columns after the invert.
-      if (viewport.hasSelectedColumns()
-              || (sg != null && sg.getSize() > 0 && sg.getStartRes() <= sg
-                      .getEndRes()))
+      if (viewport.hasSelectedColumns() || (sg != null && sg.getSize() > 0
+              && sg.getStartRes() <= sg.getEndRes()))
       {
         // now invert the sequence set, if required - empty selection implies
         // that no hiding is required.
@@ -3068,7 +3110,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     viewport.expandColSelection(sg, false);
     viewport.hideAllSelectedSeqs();
     viewport.hideSelectedColumns();
-    alignPanel.paintAlignment(true);
+    alignPanel.updateLayout();
+    alignPanel.paintAlignment(true, true);
     viewport.sendSelection();
   }
 
@@ -3084,7 +3127,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   {
     viewport.showAllHiddenColumns();
     viewport.showAllHiddenSeqs();
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, true);
     viewport.sendSelection();
   }
 
@@ -3092,7 +3135,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void hideSelColumns_actionPerformed(ActionEvent e)
   {
     viewport.hideSelectedColumns();
-    alignPanel.paintAlignment(true);
+    alignPanel.updateLayout();
+    alignPanel.paintAlignment(true, true);
     viewport.sendSelection();
   }
 
@@ -3113,7 +3157,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void scaleAbove_actionPerformed(ActionEvent e)
   {
     viewport.setScaleAboveWrapped(scaleAbove.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.updateLayout();
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3126,7 +3171,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void scaleLeft_actionPerformed(ActionEvent e)
   {
     viewport.setScaleLeftWrapped(scaleLeft.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.updateLayout();
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3139,7 +3185,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void scaleRight_actionPerformed(ActionEvent e)
   {
     viewport.setScaleRightWrapped(scaleRight.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.updateLayout();
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3152,7 +3199,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void viewBoxesMenuItem_actionPerformed(ActionEvent e)
   {
     viewport.setShowBoxes(viewBoxesMenuItem.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -3165,7 +3212,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void viewTextMenuItem_actionPerformed(ActionEvent e)
   {
     viewport.setShowText(viewTextMenuItem.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -3178,7 +3225,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void renderGapsMenuItem_actionPerformed(ActionEvent e)
   {
     viewport.setRenderGaps(renderGapsMenuItem.isSelected());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   public FeatureSettings featureSettings;
@@ -3192,9 +3239,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   @Override
   public void featureSettings_actionPerformed(ActionEvent e)
   {
+    showFeatureSettingsUI();
+  }
+
+  @Override
+  public FeatureSettingsControllerI showFeatureSettingsUI()
+  {
     if (featureSettings != null)
     {
-      featureSettings.close();
+      featureSettings.closeOldSettings();
       featureSettings = null;
     }
     if (!showSeqFeatures.isSelected())
@@ -3204,6 +3257,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       showSeqFeatures_actionPerformed(null);
     }
     featureSettings = new FeatureSettings(this);
+    return featureSettings;
   }
 
   /**
@@ -3216,11 +3270,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void showSeqFeatures_actionPerformed(ActionEvent evt)
   {
     viewport.setShowSequenceFeatures(showSeqFeatures.isSelected());
-    alignPanel.paintAlignment(true);
-    if (alignPanel.getOverviewPanel() != null)
-    {
-      alignPanel.getOverviewPanel().updateOverviewImage();
-    }
+    alignPanel.paintAlignment(true, true);
   }
 
   /**
@@ -3251,14 +3301,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     editPane.setEditable(false);
     StringBuffer contents = new AlignmentProperties(viewport.getAlignment())
             .formatAsHtml();
-    editPane.setText(MessageManager.formatMessage("label.html_content",
-            new Object[] { contents.toString() }));
+    editPane.setText(
+            MessageManager.formatMessage("label.html_content", new Object[]
+            { contents.toString() }));
     JInternalFrame frame = new JInternalFrame();
     frame.getContentPane().add(new JScrollPane(editPane));
 
-    Desktop.addInternalFrame(frame, MessageManager.formatMessage(
-            "label.alignment_properties", new Object[] { getTitle() }),
-            500, 400);
+    Desktop.addInternalFrame(frame, MessageManager
+            .formatMessage("label.alignment_properties", new Object[]
+            { getTitle() }), 500, 400);
   }
 
   /**
@@ -3276,167 +3327,47 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
 
     JInternalFrame frame = new JInternalFrame();
-    OverviewPanel overview = new OverviewPanel(alignPanel);
+    final OverviewPanel overview = new OverviewPanel(alignPanel);
     frame.setContentPane(overview);
-    Desktop.addInternalFrame(frame, MessageManager.formatMessage(
-            "label.overview_params", new Object[] { this.getTitle() }),
-            frame.getWidth(), frame.getHeight());
+    Desktop.addInternalFrame(frame, MessageManager
+            .formatMessage("label.overview_params", new Object[]
+            { this.getTitle() }), true, frame.getWidth(), frame.getHeight(),
+            true, true);
     frame.pack();
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
-    frame.addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
+    frame.addInternalFrameListener(
+            new javax.swing.event.InternalFrameAdapter()
+            {
+              @Override
+              public void internalFrameClosed(
+                      javax.swing.event.InternalFrameEvent evt)
+              {
+                overview.dispose();
+                alignPanel.setOverviewPanel(null);
+              };
+            });
+    if (getKeyListeners().length > 0)
     {
-      @Override
-      public void internalFrameClosed(
-              javax.swing.event.InternalFrameEvent evt)
-      {
-        alignPanel.setOverviewPanel(null);
-      };
-    });
+      frame.addKeyListener(getKeyListeners()[0]);
+    }
 
     alignPanel.setOverviewPanel(overview);
   }
 
   @Override
-  public void textColour_actionPerformed(ActionEvent e)
+  public void textColour_actionPerformed()
   {
     new TextColourChooser().chooseColour(alignPanel, null);
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  protected void noColourmenuItem_actionPerformed(ActionEvent e)
-  {
-    changeColour(null);
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void clustalColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new ClustalxColourScheme(viewport.getAlignment(),
-            viewport.getHiddenRepSequences()));
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void zappoColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new ZappoColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void taylorColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new TaylorColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void hydrophobicityColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new HydrophobicColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void helixColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new HelixColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void strandColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new StrandColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void turnColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new TurnColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void buriedColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new BuriedColourScheme());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void nucleotideColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new NucleotideColourScheme());
-  }
-
-  @Override
-  public void purinePyrimidineColour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new PurinePyrimidineColourScheme());
-  }
-
   /*
-   * public void covariationColour_actionPerformed(ActionEvent e) {
+   * public void covariationColour_actionPerformed() {
    * changeColour(new
    * CovariationColourScheme(viewport.getAlignment().getAlignmentAnnotation
    * ()[0])); }
    */
   @Override
-  public void annotationColour_actionPerformed(ActionEvent e)
+  public void annotationColour_actionPerformed()
   {
     new AnnotationColourChooser(viewport, alignPanel);
   }
@@ -3447,272 +3378,129 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     new AnnotationColumnChooser(viewport, alignPanel);
   }
 
-  @Override
-  public void rnahelicesColour_actionPerformed(ActionEvent e)
-  {
-    new RNAHelicesColourChooser(viewport, alignPanel);
-  }
-
   /**
-   * DOCUMENT ME!
+   * Action on the user checking or unchecking the option to apply the selected
+   * colour scheme to all groups. If unchecked, groups may have their own
+   * independent colour schemes.
    * 
-   * @param e
-   *          DOCUMENT ME!
+   * @param selected
    */
   @Override
-  protected void applyToAllGroups_actionPerformed(ActionEvent e)
+  public void applyToAllGroups_actionPerformed(boolean selected)
   {
-    viewport.setColourAppliesToAllGroups(applyToAllGroups.isSelected());
+    viewport.setColourAppliesToAllGroups(selected);
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on user selecting a colour from the colour menu
+   * 
+   * @param name
+   *          the name (not the menu item label!) of the colour scheme
+   */
+  @Override
+  public void changeColour_actionPerformed(String name)
+  {
+    /*
+     * 'User Defined' opens a panel to configure or load a
+     * user-defined colour scheme
+     */
+    if (ResidueColourScheme.USER_DEFINED_MENU.equals(name))
+    {
+      new UserDefinedColours(alignPanel);
+      return;
+    }
+
+    /*
+     * otherwise set the chosen colour scheme (or null for 'None')
+     */
+    ColourSchemeI cs = ColourSchemes.getInstance().getColourScheme(name,
+            viewport, viewport.getAlignment(),
+            viewport.getHiddenRepSequences());
+    changeColour(cs);
+  }
+
+  /**
+   * Actions on setting or changing the alignment colour scheme
    * 
    * @param cs
-   *          DOCUMENT ME!
    */
   @Override
   public void changeColour(ColourSchemeI cs)
   {
     // TODO: pull up to controller method
-
-    if (cs != null)
-    {
-      // Make sure viewport is up to date w.r.t. any sliders
-      if (viewport.getAbovePIDThreshold())
-      {
-        int threshold = SliderPanel.setPIDSliderSource(alignPanel, cs,
-                "Background");
-        viewport.setThreshold(threshold);
-      }
-
-      if (viewport.getConservationSelected())
-      {
-        cs.setConservationInc(SliderPanel.setConservationSlider(alignPanel,
-                cs, "Background"));
-      }
-      if (cs instanceof TCoffeeColourScheme)
-      {
-        tcoffeeColour.setEnabled(true);
-        tcoffeeColour.setSelected(true);
-      }
-    }
+    ColourMenuHelper.setColourSelected(colourMenu, cs);
 
     viewport.setGlobalColourScheme(cs);
 
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, true);
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Show the PID threshold slider panel
    */
   @Override
-  protected void modifyPID_actionPerformed(ActionEvent e)
+  protected void modifyPID_actionPerformed()
   {
-    if (viewport.getAbovePIDThreshold()
-            && viewport.getGlobalColourScheme() != null)
-    {
-      SliderPanel.setPIDSliderSource(alignPanel,
-              viewport.getGlobalColourScheme(), "Background");
-      SliderPanel.showPIDSlider();
-    }
+    SliderPanel.setPIDSliderSource(alignPanel, viewport.getResidueShading(),
+            alignPanel.getViewName());
+    SliderPanel.showPIDSlider();
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Show the Conservation slider panel
    */
   @Override
-  protected void modifyConservation_actionPerformed(ActionEvent e)
+  protected void modifyConservation_actionPerformed()
   {
-    if (viewport.getConservationSelected()
-            && viewport.getGlobalColourScheme() != null)
-    {
-      SliderPanel.setConservationSlider(alignPanel,
-              viewport.getGlobalColourScheme(), "Background");
-      SliderPanel.showConservationSlider();
-    }
+    SliderPanel.setConservationSlider(alignPanel,
+            viewport.getResidueShading(), alignPanel.getViewName());
+    SliderPanel.showConservationSlider();
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Action on selecting or deselecting (Colour) By Conservation
    */
   @Override
-  protected void conservationMenuItem_actionPerformed(ActionEvent e)
+  public void conservationMenuItem_actionPerformed(boolean selected)
   {
-    viewport.setConservationSelected(conservationMenuItem.isSelected());
-
-    viewport.setAbovePIDThreshold(false);
-    abovePIDThreshold.setSelected(false);
+    modifyConservation.setEnabled(selected);
+    viewport.setConservationSelected(selected);
+    viewport.getResidueShading().setConservationApplied(selected);
 
     changeColour(viewport.getGlobalColourScheme());
-
-    modifyConservation_actionPerformed(null);
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void abovePIDThreshold_actionPerformed(ActionEvent e)
-  {
-    viewport.setAbovePIDThreshold(abovePIDThreshold.isSelected());
-
-    conservationMenuItem.setSelected(false);
-    viewport.setConservationSelected(false);
-
-    changeColour(viewport.getGlobalColourScheme());
-
-    modifyPID_actionPerformed(null);
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void userDefinedColour_actionPerformed(ActionEvent e)
-  {
-    if (e.getActionCommand().equals(
-            MessageManager.getString("action.user_defined")))
+    if (selected)
     {
-      new UserDefinedColours(alignPanel, null);
+      modifyConservation_actionPerformed();
     }
     else
     {
-      UserColourScheme udc = (UserColourScheme) UserDefinedColours
-              .getUserColourSchemes().get(e.getActionCommand());
-
-      changeColour(udc);
-    }
-  }
-
-  public void updateUserColourMenu()
-  {
-
-    Component[] menuItems = colourMenu.getMenuComponents();
-    int iSize = menuItems.length;
-    for (int i = 0; i < iSize; i++)
-    {
-      if (menuItems[i].getName() != null
-              && menuItems[i].getName().equals("USER_DEFINED"))
-      {
-        colourMenu.remove(menuItems[i]);
-        iSize--;
-      }
-    }
-    if (jalview.gui.UserDefinedColours.getUserColourSchemes() != null)
-    {
-      java.util.Enumeration userColours = jalview.gui.UserDefinedColours
-              .getUserColourSchemes().keys();
-
-      while (userColours.hasMoreElements())
-      {
-        final JRadioButtonMenuItem radioItem = new JRadioButtonMenuItem(
-                userColours.nextElement().toString());
-        radioItem.setName("USER_DEFINED");
-        radioItem.addMouseListener(new MouseAdapter()
-        {
-          @Override
-          public void mousePressed(MouseEvent evt)
-          {
-            if (evt.isPopupTrigger()) // Mac
-            {
-              offerRemoval(radioItem);
-            }
-          }
-
-          @Override
-          public void mouseReleased(MouseEvent evt)
-          {
-            if (evt.isPopupTrigger()) // Windows
-            {
-              offerRemoval(radioItem);
-            }
-          }
-
-          /**
-           * @param radioItem
-           */
-          void offerRemoval(final JRadioButtonMenuItem radioItem)
-          {
-            radioItem.removeActionListener(radioItem.getActionListeners()[0]);
-
-            int option = JOptionPane.showInternalConfirmDialog(
-                    jalview.gui.Desktop.desktop, MessageManager
-                            .getString("label.remove_from_default_list"),
-                    MessageManager
-                            .getString("label.remove_user_defined_colour"),
-                    JOptionPane.YES_NO_OPTION);
-            if (option == JOptionPane.YES_OPTION)
-            {
-              jalview.gui.UserDefinedColours
-                      .removeColourFromDefaults(radioItem.getText());
-              colourMenu.remove(radioItem);
-            }
-            else
-            {
-              radioItem.addActionListener(new ActionListener()
-              {
-                @Override
-                public void actionPerformed(ActionEvent evt)
-                {
-                  userDefinedColour_actionPerformed(evt);
-                }
-              });
-            }
-          }
-        });
-        radioItem.addActionListener(new ActionListener()
-        {
-          @Override
-          public void actionPerformed(ActionEvent evt)
-          {
-            userDefinedColour_actionPerformed(evt);
-          }
-        });
-
-        colourMenu.insert(radioItem, 15);
-        colours.add(radioItem);
-      }
+      SliderPanel.hideConservationSlider();
     }
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Action on selecting or deselecting (Colour) Above PID Threshold
    */
   @Override
-  public void PIDColour_actionPerformed(ActionEvent e)
+  public void abovePIDThreshold_actionPerformed(boolean selected)
   {
-    changeColour(new PIDColourScheme());
-  }
+    modifyPID.setEnabled(selected);
+    viewport.setAbovePIDThreshold(selected);
+    if (!selected)
+    {
+      viewport.getResidueShading().setThreshold(0,
+              viewport.isIgnoreGapsConsensus());
+    }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void BLOSUM62Colour_actionPerformed(ActionEvent e)
-  {
-    changeColour(new Blosum62ColourScheme());
+    changeColour(viewport.getGlobalColourScheme());
+    if (selected)
+    {
+      modifyPID_actionPerformed();
+    }
+    else
+    {
+      SliderPanel.hidePIDSlider();
+    }
   }
 
   /**
@@ -3725,11 +3513,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void sortPairwiseMenuItem_actionPerformed(ActionEvent e)
   {
     SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
-    AlignmentSorter.sortByPID(viewport.getAlignment(), viewport
-            .getAlignment().getSequenceAt(0), null);
+    AlignmentSorter.sortByPID(viewport.getAlignment(),
+            viewport.getAlignment().getSequenceAt(0));
     addHistoryItem(new OrderCommand("Pairwise Sort", oldOrder,
             viewport.getAlignment()));
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3743,9 +3531,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   {
     SequenceI[] oldOrder = viewport.getAlignment().getSequencesArray();
     AlignmentSorter.sortByID(viewport.getAlignment());
-    addHistoryItem(new OrderCommand("ID Sort", oldOrder,
-            viewport.getAlignment()));
-    alignPanel.paintAlignment(true);
+    addHistoryItem(
+            new OrderCommand("ID Sort", oldOrder, viewport.getAlignment()));
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3761,7 +3549,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     AlignmentSorter.sortByLength(viewport.getAlignment());
     addHistoryItem(new OrderCommand("Length Sort", oldOrder,
             viewport.getAlignment()));
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3778,7 +3566,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     addHistoryItem(new OrderCommand("Group Sort", oldOrder,
             viewport.getAlignment()));
 
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
   }
 
   /**
@@ -3805,10 +3593,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     if ((viewport.getSelectionGroup() == null)
             || (viewport.getSelectionGroup().getSize() < 2))
     {
-      JOptionPane.showInternalMessageDialog(this, MessageManager
-              .getString("label.you_must_select_least_two_sequences"),
+      JvOptionPane.showInternalMessageDialog(this,
+              MessageManager.getString(
+                      "label.you_must_select_least_two_sequences"),
               MessageManager.getString("label.invalid_selection"),
-              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.WARNING_MESSAGE);
     }
     else
     {
@@ -3820,43 +3609,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void PCAMenuItem_actionPerformed(ActionEvent e)
-  {
-    if (((viewport.getSelectionGroup() != null)
-            && (viewport.getSelectionGroup().getSize() < 4) && (viewport
-            .getSelectionGroup().getSize() > 0))
-            || (viewport.getAlignment().getHeight() < 4))
-    {
-      JOptionPane
-              .showInternalMessageDialog(
-                      this,
-                      MessageManager
-                              .getString("label.principal_component_analysis_must_take_least_four_input_sequences"),
-                      MessageManager
-                              .getString("label.sequence_selection_insufficient"),
-                      JOptionPane.WARNING_MESSAGE);
-
-      return;
-    }
-
-    new PCAPanel(alignPanel);
-  }
-
   @Override
   public void autoCalculate_actionPerformed(ActionEvent e)
   {
     viewport.autoCalculateConsensus = autoCalculate.isSelected();
     if (viewport.autoCalculateConsensus)
     {
-      viewport.firePropertyChange("alignment", null, viewport
-              .getAlignment().getSequences());
+      viewport.firePropertyChange("alignment", null,
+              viewport.getAlignment().getSequences());
     }
   }
 
@@ -3873,83 +3633,25 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void averageDistanceTreeMenuItem_actionPerformed(ActionEvent e)
-  {
-    newTreePanel("AV", "PID", "Average distance tree using PID");
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void neighbourTreeMenuItem_actionPerformed(ActionEvent e)
-  {
-    newTreePanel("NJ", "PID", "Neighbour joining tree using PID");
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  protected void njTreeBlosumMenuItem_actionPerformed(ActionEvent e)
-  {
-    newTreePanel("NJ", "BL", "Neighbour joining tree using BLOSUM62");
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  protected void avTreeBlosumMenuItem_actionPerformed(ActionEvent e)
-  {
-    newTreePanel("AV", "BL", "Average distance tree using BLOSUM62");
-  }
-
-  /**
-   * DOCUMENT ME!
+   * Constructs a tree panel and adds it to the desktop
    * 
    * @param type
-   *          DOCUMENT ME!
-   * @param pwType
-   *          DOCUMENT ME!
-   * @param title
-   *          DOCUMENT ME!
+   *          tree type (NJ or AV)
+   * @param modelName
+   *          name of score model used to compute the tree
+   * @param options
+   *          parameters for the distance or similarity calculation
    */
-  void newTreePanel(String type, String pwType, String title)
+  void newTreePanel(String type, String modelName,
+          SimilarityParamsI options)
   {
+    String frameTitle = "";
     TreePanel tp;
 
+    boolean onSelection = false;
     if (viewport.getSelectionGroup() != null
             && viewport.getSelectionGroup().getSize() > 0)
     {
-      if (viewport.getSelectionGroup().getSize() < 3)
-      {
-        JOptionPane
-                .showMessageDialog(
-                        Desktop.desktop,
-                        MessageManager
-                                .getString("label.you_need_more_two_sequences_selected_build_tree"),
-                        MessageManager
-                                .getString("label.not_enough_sequences"),
-                        JOptionPane.WARNING_MESSAGE);
-        return;
-      }
-
       SequenceGroup sg = viewport.getSelectionGroup();
 
       /* Decide if the selection is a column region */
@@ -3957,57 +3659,39 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       {
         if (_s.getLength() < sg.getEndRes())
         {
-          JOptionPane
-                  .showMessageDialog(
-                          Desktop.desktop,
-                          MessageManager
-                                  .getString("label.selected_region_to_tree_may_only_contain_residues_or_gaps"),
-                          MessageManager
-                                  .getString("label.sequences_selection_not_aligned"),
-                          JOptionPane.WARNING_MESSAGE);
+          JvOptionPane.showMessageDialog(Desktop.desktop,
+                  MessageManager.getString(
+                          "label.selected_region_to_tree_may_only_contain_residues_or_gaps"),
+                  MessageManager.getString(
+                          "label.sequences_selection_not_aligned"),
+                  JvOptionPane.WARNING_MESSAGE);
 
           return;
         }
       }
-
-      title = title + " on region";
-      tp = new TreePanel(alignPanel, type, pwType);
+      onSelection = true;
     }
     else
     {
-      // are the visible sequences aligned?
-      if (!viewport.getAlignment().isAligned(false))
-      {
-        JOptionPane
-                .showMessageDialog(
-                        Desktop.desktop,
-                        MessageManager
-                                .getString("label.sequences_must_be_aligned_before_creating_tree"),
-                        MessageManager
-                                .getString("label.sequences_not_aligned"),
-                        JOptionPane.WARNING_MESSAGE);
-
-        return;
-      }
-
       if (viewport.getAlignment().getHeight() < 2)
       {
         return;
       }
-
-      tp = new TreePanel(alignPanel, type, pwType);
     }
 
-    title += " from ";
+    tp = new TreePanel(alignPanel, type, modelName, options);
+    frameTitle = tp.getPanelTitle() + (onSelection ? " on region" : "");
 
-    if (viewport.viewName != null)
+    frameTitle += " from ";
+
+    if (viewport.getViewName() != null)
     {
-      title += viewport.viewName + " of ";
+      frameTitle += viewport.getViewName() + " of ";
     }
 
-    title += this.title;
+    frameTitle += this.title;
 
-    Desktop.addInternalFrame(tp, title, 600, 500);
+    Desktop.addInternalFrame(tp, frameTitle, 600, 500);
   }
 
   /**
@@ -4021,8 +3705,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   public void addSortByOrderMenuItem(String title,
           final AlignmentOrder order)
   {
-    final JMenuItem item = new JMenuItem(MessageManager.formatMessage(
-            "action.by_title_param", new Object[] { title }));
+    final JMenuItem item = new JMenuItem(MessageManager
+            .formatMessage("action.by_title_param", new Object[]
+            { title }));
     sort.add(item);
     item.addActionListener(new java.awt.event.ActionListener()
     {
@@ -4035,10 +3720,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         // pointers
         AlignmentSorter.sortBy(viewport.getAlignment(), order);
 
-        addHistoryItem(new OrderCommand(order.getName(), oldOrder, viewport
-                .getAlignment()));
+        addHistoryItem(new OrderCommand(order.getName(), oldOrder,
+                viewport.getAlignment()));
 
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(true, false);
       }
     });
   }
@@ -4067,7 +3752,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 viewport.getAlignment());// ,viewport.getSelectionGroup());
         addHistoryItem(new OrderCommand("Sort by " + scoreLabel, oldOrder,
                 viewport.getAlignment()));
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(true, false);
       }
     });
   }
@@ -4092,7 +3777,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       return;
     }
 
-    if (viewport.getAlignment().getAlignmentAnnotation().hashCode() != _annotationScoreVectorHash)
+    if (viewport.getAlignment().getAlignmentAnnotation()
+            .hashCode() != _annotationScoreVectorHash)
     {
       sortByAnnotScore.removeAll();
       // almost certainly a quicker way to do this - but we keep it simple
@@ -4129,53 +3815,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * call. Listeners are added to remove the menu item when the treePanel is
    * closed, and adjust the tree leaf to sequence mapping when the alignment is
    * modified.
-   * 
-   * @param treePanel
-   *          Displayed tree window.
-   * @param title
-   *          SortBy menu item title.
    */
   @Override
-  public void buildTreeMenu()
+  public void buildTreeSortMenu()
   {
-    calculateTree.removeAll();
-    // build the calculate menu
-
-    for (final String type : new String[] { "NJ", "AV" })
-    {
-      String treecalcnm = MessageManager.getString("label.tree_calc_"
-              + type.toLowerCase());
-      for (final String pwtype : ResidueProperties.scoreMatrices.keySet())
-      {
-        JMenuItem tm = new JMenuItem();
-        ScoreModelI sm = ResidueProperties.scoreMatrices.get(pwtype);
-        if (sm.isDNA() == viewport.getAlignment().isNucleotide()
-                || sm.isProtein() == !viewport.getAlignment()
-                        .isNucleotide())
-        {
-          String smn = MessageManager.getStringOrReturn(
-                  "label.score_model_", sm.getName());
-          final String title = MessageManager.formatMessage(
-                  "label.treecalc_title", treecalcnm, smn);
-          tm.setText(title);//
-          tm.addActionListener(new java.awt.event.ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              newTreePanel(type, pwtype, title);
-            }
-          });
-          calculateTree.add(tm);
-        }
-
-      }
-    }
     sortByTreeMenu.removeAll();
 
-    List<Component> comps = PaintRefresher.components.get(viewport
-            .getSequenceSetId());
-    List<TreePanel> treePanels = new ArrayList<TreePanel>();
+    List<Component> comps = PaintRefresher.components
+            .get(viewport.getSequenceSetId());
+    List<TreePanel> treePanels = new ArrayList<>();
     for (Component comp : comps)
     {
       if (comp instanceof TreePanel)
@@ -4219,7 +3867,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       addHistoryItem(new OrderCommand(undoname, oldOrder,
               viewport.getAlignment()));
     }
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(true, false);
     return true;
   }
 
@@ -4250,11 +3898,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     else if (viewport.getSelectionGroup() != null
             && viewport.getSelectionGroup().getSize() == 1)
     {
-      int option = JOptionPane.showConfirmDialog(this,
+      int option = JvOptionPane.showConfirmDialog(this,
               MessageManager.getString("warn.oneseq_msainput_selection"),
               MessageManager.getString("label.invalid_selection"),
-              JOptionPane.OK_CANCEL_OPTION);
-      if (option == JOptionPane.OK_OPTION)
+              JvOptionPane.OK_CANCEL_OPTION);
+      if (option == JvOptionPane.OK_OPTION)
       {
         msa = viewport.getAlignmentView(false);
       }
@@ -4313,67 +3961,53 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     JalviewFileChooser chooser = new JalviewFileChooser(
             jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.select_newick_like_tree_file"));
-    chooser.setToolTipText(MessageManager.getString("label.load_tree_file"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.select_newick_like_tree_file"));
+    chooser.setToolTipText(
+            MessageManager.getString("label.load_tree_file"));
 
     int value = chooser.showOpenDialog(null);
 
     if (value == JalviewFileChooser.APPROVE_OPTION)
     {
-      String choice = chooser.getSelectedFile().getPath();
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", choice);
-      jalview.io.NewickFile fin = null;
+      String filePath = chooser.getSelectedFile().getPath();
+      Cache.setProperty("LAST_DIRECTORY", filePath);
+      NewickFile fin = null;
       try
       {
-        fin = new jalview.io.NewickFile(choice, "File");
-        viewport.setCurrentTree(ShowNewickTree(fin, choice).getTree());
+        fin = new NewickFile(filePath, DataSourceType.FILE);
+        viewport.setCurrentTree(showNewickTree(fin, filePath).getTree());
       } catch (Exception ex)
       {
-        JOptionPane
-                .showMessageDialog(
-                        Desktop.desktop,
-                        ex.getMessage(),
-                        MessageManager
-                                .getString("label.problem_reading_tree_file"),
-                        JOptionPane.WARNING_MESSAGE);
+        JvOptionPane.showMessageDialog(Desktop.desktop, ex.getMessage(),
+                MessageManager.getString("label.problem_reading_tree_file"),
+                JvOptionPane.WARNING_MESSAGE);
         ex.printStackTrace();
       }
       if (fin != null && fin.hasWarningMessage())
       {
-        JOptionPane.showMessageDialog(Desktop.desktop, fin
-                .getWarningMessage(), MessageManager
-                .getString("label.possible_problem_with_tree_file"),
-                JOptionPane.WARNING_MESSAGE);
+        JvOptionPane.showMessageDialog(Desktop.desktop,
+                fin.getWarningMessage(),
+                MessageManager
+                        .getString("label.possible_problem_with_tree_file"),
+                JvOptionPane.WARNING_MESSAGE);
       }
     }
   }
 
-  @Override
-  protected void tcoffeeColorScheme_actionPerformed(ActionEvent e)
+  public TreePanel showNewickTree(NewickFile nf, String treeTitle)
   {
-    changeColour(new TCoffeeColourScheme(alignPanel.getAlignment()));
+    return showNewickTree(nf, treeTitle, 600, 500, 4, 5);
   }
 
-  public TreePanel ShowNewickTree(NewickFile nf, String title)
-  {
-    return ShowNewickTree(nf, title, 600, 500, 4, 5);
-  }
-
-  public TreePanel ShowNewickTree(NewickFile nf, String title,
-          AlignmentView input)
-  {
-    return ShowNewickTree(nf, title, input, 600, 500, 4, 5);
-  }
-
-  public TreePanel ShowNewickTree(NewickFile nf, String title, int w,
+  public TreePanel showNewickTree(NewickFile nf, String treeTitle, int w,
           int h, int x, int y)
   {
-    return ShowNewickTree(nf, title, null, w, h, x, y);
+    return showNewickTree(nf, treeTitle, null, w, h, x, y);
   }
 
   /**
-   * Add a treeviewer for the tree extracted from a newick file object to the
+   * Add a treeviewer for the tree extracted from a Newick file object to the
    * current alignment view
    * 
    * @param nf
@@ -4392,7 +4026,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    *          position
    * @return TreePanel handle
    */
-  public TreePanel ShowNewickTree(NewickFile nf, String title,
+  public TreePanel showNewickTree(NewickFile nf, String treeTitle,
           AlignmentView input, int w, int h, int x, int y)
   {
     TreePanel tp = null;
@@ -4403,7 +4037,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
 
       if (nf.getTree() != null)
       {
-        tp = new TreePanel(alignPanel, "FromFile", title, nf, input);
+        tp = new TreePanel(alignPanel, nf, treeTitle, input);
 
         tp.setSize(w, h);
 
@@ -4412,7 +4046,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           tp.setLocation(x, y);
         }
 
-        Desktop.addInternalFrame(tp, title, w, h);
+        Desktop.addInternalFrame(tp, treeTitle, w, h);
       }
     } catch (Exception ex)
     {
@@ -4447,7 +4081,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       @Override
       public void run()
       {
-        final List<JMenuItem> legacyItems = new ArrayList<JMenuItem>();
+        final List<JMenuItem> legacyItems = new ArrayList<>();
         try
         {
           // System.err.println("Building ws menu again "
@@ -4462,7 +4096,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           // TODO: group services by location as well as function and/or
           // introduce
           // object broker mechanism.
-          final Vector<JMenu> wsmenu = new Vector<JMenu>();
+          final Vector<JMenu> wsmenu = new Vector<>();
           final IProgressIndicator af = me;
 
           /*
@@ -4585,9 +4219,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 }
               } catch (Exception e)
               {
-                Cache.log
-                        .debug("Exception during web service menu building process.",
-                                e);
+                Cache.log.debug(
+                        "Exception during web service menu building process.",
+                        e);
               }
             }
           });
@@ -4672,7 +4306,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           @Override
           public void actionPerformed(ActionEvent e)
           {
-            showProductsFor(af.viewport.getSequenceSelection(), dna, source);
+            showProductsFor(af.viewport.getSequenceSelection(), dna,
+                    source);
           }
         });
         showProducts.add(xtype);
@@ -4681,9 +4316,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       showProducts.setEnabled(showp);
     } catch (Exception e)
     {
-      Cache.log
-              .warn("canShowProducts threw an exception - please report to help@jalview.org",
-                      e);
+      Cache.log.warn(
+              "canShowProducts threw an exception - please report to help@jalview.org",
+              e);
       return false;
     }
     return showp;
@@ -4700,10 +4335,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * @param source
    *          the database to show cross-references for
    */
-  protected void showProductsFor(final SequenceI[] sel,
-          final boolean _odna, final String source)
+  protected void showProductsFor(final SequenceI[] sel, final boolean _odna,
+          final String source)
   {
-    new Thread(CrossRefAction.showProductsFor(sel, _odna, source, this))
+    new Thread(CrossRefAction.getHandlerFor(sel, _odna, source, this))
             .start();
   }
 
@@ -4712,43 +4347,43 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * frame's DNA sequences to their aligned protein (amino acid) equivalents.
    */
   @Override
-  public void showTranslation_actionPerformed(ActionEvent e)
+  public void showTranslation_actionPerformed(GeneticCodeI codeTable)
   {
     AlignmentI al = null;
     try
     {
       Dna dna = new Dna(viewport, viewport.getViewAsVisibleContigs(true));
 
-      al = dna.translateCdna();
+      al = dna.translateCdna(codeTable);
     } catch (Exception ex)
     {
       jalview.bin.Cache.log.error(
               "Exception during translation. Please report this !", ex);
-      final String msg = MessageManager
-              .getString("label.error_when_translating_sequences_submit_bug_report");
+      final String msg = MessageManager.getString(
+              "label.error_when_translating_sequences_submit_bug_report");
       final String errorTitle = MessageManager
               .getString("label.implementation_error")
               + MessageManager.getString("label.translation_failed");
-      JOptionPane.showMessageDialog(Desktop.desktop, msg, errorTitle,
-              JOptionPane.ERROR_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop, msg, errorTitle,
+              JvOptionPane.ERROR_MESSAGE);
       return;
     }
     if (al == null || al.getHeight() == 0)
     {
-      final String msg = MessageManager
-              .getString("label.select_at_least_three_bases_in_at_least_one_sequence_to_cDNA_translation");
+      final String msg = MessageManager.getString(
+              "label.select_at_least_three_bases_in_at_least_one_sequence_to_cDNA_translation");
       final String errorTitle = MessageManager
               .getString("label.translation_failed");
-      JOptionPane.showMessageDialog(Desktop.desktop, msg, errorTitle,
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop, msg, errorTitle,
+              JvOptionPane.WARNING_MESSAGE);
     }
     else
     {
       AlignFrame af = new AlignFrame(al, DEFAULT_WIDTH, DEFAULT_HEIGHT);
       af.setFileFormat(this.currentFileFormat);
-      final String newTitle = MessageManager.formatMessage(
-              "label.translation_of_params",
-              new Object[] { this.getTitle() });
+      final String newTitle = MessageManager
+              .formatMessage("label.translation_of_params", new Object[]
+              { this.getTitle(), codeTable.getId() });
       af.setTitle(newTitle);
       if (Cache.getDefault(Preferences.ENABLE_SPLIT_FRAME, true))
       {
@@ -4766,11 +4401,11 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   /**
    * Set the file format
    * 
-   * @param fileFormat
+   * @param format
    */
-  public void setFileFormat(String fileFormat)
+  public void setFileFormat(FileFormatI format)
   {
-    this.currentFileFormat = fileFormat;
+    this.currentFileFormat = format;
   }
 
   /**
@@ -4778,14 +4413,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    * 
    * @param file
    *          contents or path to retrieve file
-   * @param type
+   * @param sourceType
    *          access mode of file (see jalview.io.AlignFile)
    * @return true if features file was parsed correctly.
    */
-  public boolean parseFeaturesFile(String file, String type)
+  public boolean parseFeaturesFile(String file, DataSourceType sourceType)
   {
-    return avc.parseFeaturesFile(file, type,
-            jalview.bin.Cache.getDefault("RELAXEDSEQIDMATCHING", false));
+    return avc.parseFeaturesFile(file, sourceType,
+            Cache.getDefault("RELAXEDSEQIDMATCHING", false));
 
   }
 
@@ -4830,7 +4465,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     // Java's Transferable for native dnd
     evt.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
     Transferable t = evt.getTransferable();
-    java.util.List<String> files = new ArrayList<String>(), protocols = new ArrayList<String>();
+    final AlignFrame thisaf = this;
+    final List<String> files = new ArrayList<>();
+    List<DataSourceType> protocols = new ArrayList<>();
 
     try
     {
@@ -4841,175 +4478,193 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     }
     if (files != null)
     {
-      try
+      new Thread(new Runnable()
       {
-        // check to see if any of these files have names matching sequences in
-        // the alignment
-        SequenceIdMatcher idm = new SequenceIdMatcher(viewport
-                .getAlignment().getSequencesArray());
-        /**
-         * Object[] { String,SequenceI}
-         */
-        ArrayList<Object[]> filesmatched = new ArrayList<Object[]>();
-        ArrayList<String> filesnotmatched = new ArrayList<String>();
-        for (int i = 0; i < files.size(); i++)
+        @Override
+        public void run()
         {
-          String file = files.get(i).toString();
-          String pdbfn = "";
-          String protocol = FormatAdapter.checkProtocol(file);
-          if (protocol == jalview.io.FormatAdapter.FILE)
+          try
           {
-            File fl = new File(file);
-            pdbfn = fl.getName();
-          }
-          else if (protocol == jalview.io.FormatAdapter.URL)
-          {
-            URL url = new URL(file);
-            pdbfn = url.getFile();
-          }
-          if (pdbfn.length() > 0)
-          {
-            // attempt to find a match in the alignment
-            SequenceI[] mtch = idm.findAllIdMatches(pdbfn);
-            int l = 0, c = pdbfn.indexOf(".");
-            while (mtch == null && c != -1)
+            // check to see if any of these files have names matching sequences
+            // in
+            // the alignment
+            SequenceIdMatcher idm = new SequenceIdMatcher(
+                    viewport.getAlignment().getSequencesArray());
+            /**
+             * Object[] { String,SequenceI}
+             */
+            ArrayList<Object[]> filesmatched = new ArrayList<>();
+            ArrayList<String> filesnotmatched = new ArrayList<>();
+            for (int i = 0; i < files.size(); i++)
             {
-              do
+              String file = files.get(i).toString();
+              String pdbfn = "";
+              DataSourceType protocol = FormatAdapter.checkProtocol(file);
+              if (protocol == DataSourceType.FILE)
               {
-                l = c;
-              } while ((c = pdbfn.indexOf(".", l)) > l);
-              if (l > -1)
-              {
-                pdbfn = pdbfn.substring(0, l);
+                File fl = new File(file);
+                pdbfn = fl.getName();
               }
-              mtch = idm.findAllIdMatches(pdbfn);
-            }
-            if (mtch != null)
-            {
-              String type = null;
-              try
+              else if (protocol == DataSourceType.URL)
               {
-                type = new IdentifyFile().identify(file, protocol);
-              } catch (Exception ex)
-              {
-                type = null;
+                URL url = new URL(file);
+                pdbfn = url.getFile();
               }
-              if (type != null)
+              if (pdbfn.length() > 0)
               {
-                if (StructureFile.isStructureFile(type))
+                // attempt to find a match in the alignment
+                SequenceI[] mtch = idm.findAllIdMatches(pdbfn);
+                int l = 0, c = pdbfn.indexOf(".");
+                while (mtch == null && c != -1)
                 {
-                  filesmatched.add(new Object[] { file, protocol, mtch });
-                  continue;
+                  do
+                  {
+                    l = c;
+                  } while ((c = pdbfn.indexOf(".", l)) > l);
+                  if (l > -1)
+                  {
+                    pdbfn = pdbfn.substring(0, l);
+                  }
+                  mtch = idm.findAllIdMatches(pdbfn);
+                }
+                if (mtch != null)
+                {
+                  FileFormatI type = null;
+                  try
+                  {
+                    type = new IdentifyFile().identify(file, protocol);
+                  } catch (Exception ex)
+                  {
+                    type = null;
+                  }
+                  if (type != null && type.isStructureFile())
+                  {
+                    filesmatched.add(new Object[] { file, protocol, mtch });
+                    continue;
+                  }
+                }
+                // File wasn't named like one of the sequences or wasn't a PDB
+                // file.
+                filesnotmatched.add(file);
+              }
+            }
+            int assocfiles = 0;
+            if (filesmatched.size() > 0)
+            {
+              boolean autoAssociate = Cache
+                      .getDefault("AUTOASSOCIATE_PDBANDSEQS", false);
+              if (!autoAssociate)
+              {
+                String msg = MessageManager.formatMessage(
+                        "label.automatically_associate_structure_files_with_sequences_same_name",
+                        new Object[]
+                        { Integer.valueOf(filesmatched.size())
+                                .toString() });
+                String ttl = MessageManager.getString(
+                        "label.automatically_associate_structure_files_by_name");
+                int choice = JvOptionPane.showConfirmDialog(thisaf, msg,
+                        ttl, JvOptionPane.YES_NO_OPTION);
+                autoAssociate = choice == JvOptionPane.YES_OPTION;
+              }
+              if (autoAssociate)
+              {
+                for (Object[] fm : filesmatched)
+                {
+                  // try and associate
+                  // TODO: may want to set a standard ID naming formalism for
+                  // associating PDB files which have no IDs.
+                  for (SequenceI toassoc : (SequenceI[]) fm[2])
+                  {
+                    PDBEntry pe = new AssociatePdbFileWithSeq()
+                            .associatePdbWithSeq((String) fm[0],
+                                    (DataSourceType) fm[1], toassoc, false,
+                                    Desktop.instance);
+                    if (pe != null)
+                    {
+                      System.err.println("Associated file : "
+                              + ((String) fm[0]) + " with "
+                              + toassoc.getDisplayId(true));
+                      assocfiles++;
+                    }
+                  }
+                  // TODO: do we need to update overview ? only if features are
+                  // shown I guess
+                  alignPanel.paintAlignment(true, false);
+                }
+              }
+              else
+              {
+                /*
+                 * add declined structures as sequences
+                 */
+                for (Object[] o : filesmatched)
+                {
+                  filesnotmatched.add((String) o[0]);
                 }
               }
             }
-            // File wasn't named like one of the sequences or wasn't a PDB file.
-            filesnotmatched.add(file);
-          }
-        }
-        int assocfiles = 0;
-        if (filesmatched.size() > 0)
-        {
-          if (Cache.getDefault("AUTOASSOCIATE_PDBANDSEQS", false)
-                  || JOptionPane
-                          .showConfirmDialog(
-                                  this,
-                                  MessageManager
-                                          .formatMessage(
-                                                  "label.automatically_associate_structure_files_with_sequences_same_name",
-                                                  new Object[] { Integer
-                                                          .valueOf(
-                                                                  filesmatched
-                                                                          .size())
-                                                          .toString() }),
-                                  MessageManager
-                                          .getString("label.automatically_associate_structure_files_by_name"),
-                                  JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
-
-          {
-            for (Object[] fm : filesmatched)
+            if (filesnotmatched.size() > 0)
             {
-              // try and associate
-              // TODO: may want to set a standard ID naming formalism for
-              // associating PDB files which have no IDs.
-              for (SequenceI toassoc : (SequenceI[]) fm[2])
+              if (assocfiles > 0 && (Cache.getDefault(
+                      "AUTOASSOCIATE_PDBANDSEQS_IGNOREOTHERS", false)
+                      || JvOptionPane.showConfirmDialog(thisaf,
+                              "<html>" + MessageManager.formatMessage(
+                                      "label.ignore_unmatched_dropped_files_info",
+                                      new Object[]
+                                      { Integer.valueOf(
+                                              filesnotmatched.size())
+                                              .toString() })
+                                      + "</html>",
+                              MessageManager.getString(
+                                      "label.ignore_unmatched_dropped_files"),
+                              JvOptionPane.YES_NO_OPTION) == JvOptionPane.YES_OPTION))
               {
-                PDBEntry pe = new AssociatePdbFileWithSeq()
-                        .associatePdbWithSeq((String) fm[0],
-                                (String) fm[1], toassoc, false,
-                                Desktop.instance);
-                if (pe != null)
-                {
-                  System.err.println("Associated file : "
-                          + ((String) fm[0]) + " with "
-                          + toassoc.getDisplayId(true));
-                  assocfiles++;
-                }
+                return;
               }
-              alignPanel.paintAlignment(true);
-            }
-          }
-        }
-        if (filesnotmatched.size() > 0)
-        {
-          if (assocfiles > 0
-                  && (Cache.getDefault(
-                          "AUTOASSOCIATE_PDBANDSEQS_IGNOREOTHERS", false) || JOptionPane
-                          .showConfirmDialog(
-                                  this,
-                                  "<html>"
-                                          + MessageManager
-                                                  .formatMessage(
-                                                          "label.ignore_unmatched_dropped_files_info",
-                                                          new Object[] { Integer
-                                                                  .valueOf(
-                                                                          filesnotmatched
-                                                                                  .size())
-                                                                  .toString() })
-                                          + "</html>",
-                                  MessageManager
-                                          .getString("label.ignore_unmatched_dropped_files"),
-                                  JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION))
-          {
-            return;
-          }
-          for (String fn : filesnotmatched)
-          {
-            loadJalviewDataFile(fn, null, null, null);
-          }
+              for (String fn : filesnotmatched)
+              {
+                loadJalviewDataFile(fn, null, null, null);
+              }
 
+            }
+          } catch (Exception ex)
+          {
+            ex.printStackTrace();
+          }
         }
-      } catch (Exception ex)
-      {
-        ex.printStackTrace();
-      }
+      }).start();
     }
   }
 
   /**
-   * Attempt to load a "dropped" file or URL string: First by testing whether
-   * it's an Annotation file, then a JNet file, and finally a features file. If
-   * all are false then the user may have dropped an alignment file onto this
-   * AlignFrame.
+   * Attempt to load a "dropped" file or URL string, by testing in turn for
+   * <ul>
+   * <li>an Annotation file</li>
+   * <li>a JNet file</li>
+   * <li>a features file</li>
+   * <li>else try to interpret as an alignment file</li>
+   * </ul>
    * 
    * @param file
    *          either a filename or a URL string.
    */
-  public void loadJalviewDataFile(String file, String protocol,
-          String format, SequenceI assocSeq)
+  public void loadJalviewDataFile(String file, DataSourceType sourceType,
+          FileFormatI format, SequenceI assocSeq)
   {
     try
     {
-      if (protocol == null)
+      if (sourceType == null)
       {
-        protocol = FormatAdapter.checkProtocol(file);
+        sourceType = FormatAdapter.checkProtocol(file);
       }
       // if the file isn't identified, or not positively identified as some
       // other filetype (PFAM is default unidentified alignment file type) then
       // try to parse as annotation.
-      boolean isAnnotation = (format == null || format
-              .equalsIgnoreCase("PFAM")) ? new AnnotationFile()
-              .annotateAlignmentView(viewport, file, protocol) : false;
+      boolean isAnnotation = (format == null
+              || FileFormat.Pfam.equals(format))
+                      ? new AnnotationFile().annotateAlignmentView(viewport,
+                              file, sourceType)
+                      : false;
 
       if (!isAnnotation)
       {
@@ -5017,32 +4672,30 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         TCoffeeScoreFile tcf = null;
         try
         {
-          tcf = new TCoffeeScoreFile(file, protocol);
+          tcf = new TCoffeeScoreFile(file, sourceType);
           if (tcf.isValid())
           {
             if (tcf.annotateAlignment(viewport.getAlignment(), true))
             {
-              tcoffeeColour.setEnabled(true);
-              tcoffeeColour.setSelected(true);
-              changeColour(new TCoffeeColourScheme(viewport.getAlignment()));
+              buildColourMenu();
+              changeColour(
+                      new TCoffeeColourScheme(viewport.getAlignment()));
               isAnnotation = true;
-              statusBar
-                      .setText(MessageManager
-                              .getString("label.successfully_pasted_tcoffee_scores_to_alignment"));
+              statusBar.setText(MessageManager.getString(
+                      "label.successfully_pasted_tcoffee_scores_to_alignment"));
             }
             else
             {
               // some problem - if no warning its probable that the ID matching
               // process didn't work
-              JOptionPane
-                      .showMessageDialog(
-                              Desktop.desktop,
-                              tcf.getWarningMessage() == null ? MessageManager
-                                      .getString("label.check_file_matches_sequence_ids_alignment")
-                                      : tcf.getWarningMessage(),
-                              MessageManager
-                                      .getString("label.problem_reading_tcoffee_score_file"),
-                              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.showMessageDialog(Desktop.desktop,
+                      tcf.getWarningMessage() == null
+                              ? MessageManager.getString(
+                                      "label.check_file_matches_sequence_ids_alignment")
+                              : tcf.getWarningMessage(),
+                      MessageManager.getString(
+                              "label.problem_reading_tcoffee_score_file"),
+                      JvOptionPane.WARNING_MESSAGE);
             }
           }
           else
@@ -5051,9 +4704,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           }
         } catch (Exception x)
         {
-          Cache.log
-                  .debug("Exception when processing data source as T-COFFEE score file",
-                          x);
+          Cache.log.debug(
+                  "Exception when processing data source as T-COFFEE score file",
+                  x);
           tcf = null;
         }
         if (tcf == null)
@@ -5063,32 +4716,46 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           // try to parse it as a features file
           if (format == null)
           {
-            format = new IdentifyFile().identify(file, protocol);
+            format = new IdentifyFile().identify(file, sourceType);
           }
-          if (format.equalsIgnoreCase("JnetFile"))
+          if (FileFormat.ScoreMatrix == format)
           {
-            jalview.io.JPredFile predictions = new jalview.io.JPredFile(
-                    file, protocol);
+            ScoreMatrixFile sm = new ScoreMatrixFile(
+                    new FileParse(file, sourceType));
+            sm.parse();
+            // todo: i18n this message
+            statusBar.setText(MessageManager.formatMessage(
+                    "label.successfully_loaded_matrix",
+                    sm.getMatrixName()));
+          }
+          else if (FileFormat.Jnet.equals(format))
+          {
+            JPredFile predictions = new JPredFile(file, sourceType);
             new JnetAnnotationMaker();
             JnetAnnotationMaker.add_annotation(predictions,
                     viewport.getAlignment(), 0, false);
-            SequenceI repseq = viewport.getAlignment().getSequenceAt(0);
-            viewport.getAlignment().setSeqrep(repseq);
-            ColumnSelection cs = new ColumnSelection();
-            cs.hideInsertionsFor(repseq);
-            viewport.setColumnSelection(cs);
+            viewport.getAlignment().setupJPredAlignment();
             isAnnotation = true;
           }
-          else if (IdentifyFile.FeaturesFile.equals(format))
+          // else if (IdentifyFile.FeaturesFile.equals(format))
+          else if (FileFormat.Features.equals(format))
           {
-            if (parseFeaturesFile(file, protocol))
+            if (parseFeaturesFile(file, sourceType))
             {
-              alignPanel.paintAlignment(true);
+              SplitFrame splitFrame = (SplitFrame) getSplitViewContainer();
+              if (splitFrame != null)
+              {
+                splitFrame.repaint();
+              }
+              else
+              {
+                alignPanel.paintAlignment(true, true);
+              }
             }
           }
           else
           {
-            new FileLoader().LoadFile(viewport, file, protocol, format);
+            new FileLoader().LoadFile(viewport, file, sourceType, format);
           }
         }
       }
@@ -5098,7 +4765,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
         alignPanel.adjustAnnotationHeight();
         viewport.updateSequenceIdColours();
         buildSortByAnnotationScoresMenu();
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(true, true);
       }
     } catch (Exception ex)
     {
@@ -5113,11 +4780,16 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       }
       new OOMWarning(
               "loading data "
-                      + (protocol != null ? (protocol.equals(FormatAdapter.PASTE) ? "from clipboard."
-                              : "using " + protocol + " from " + file)
+                      + (sourceType != null
+                              ? (sourceType == DataSourceType.PASTE
+                                      ? "from clipboard."
+                                      : "using " + sourceType + " from "
+                                              + file)
                               : ".")
-                      + (format != null ? "(parsing as '" + format
-                              + "' file)" : ""), oom, Desktop.desktop);
+                      + (format != null
+                              ? "(parsing as '" + format + "' file)"
+                              : ""),
+              oom, Desktop.desktop);
     }
   }
 
@@ -5134,6 +4806,43 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       viewport = alignPanel.av;
       avc.setViewportAndAlignmentPanel(viewport, alignPanel);
       setMenusFromViewport(viewport);
+      if (featureSettings != null && featureSettings.isOpen()
+              && featureSettings.fr.getViewport() != viewport)
+      {
+        if (viewport.isShowSequenceFeatures())
+        {
+          // refresh the featureSettings to reflect UI change
+          showFeatureSettingsUI();
+        }
+        else
+        {
+          // close feature settings for this view.
+          featureSettings.close();
+        }
+      }
+
+    }
+
+    /*
+     * 'focus' any colour slider that is open to the selected viewport
+     */
+    if (viewport.getConservationSelected())
+    {
+      SliderPanel.setConservationSlider(alignPanel,
+              viewport.getResidueShading(), alignPanel.getViewName());
+    }
+    else
+    {
+      SliderPanel.hideConservationSlider();
+    }
+    if (viewport.getAbovePIDThreshold())
+    {
+      SliderPanel.setPIDSliderSource(alignPanel,
+              viewport.getResidueShading(), alignPanel.getViewName());
+    }
+    else
+    {
+      SliderPanel.hidePIDSlider();
     }
 
     /*
@@ -5146,7 +4855,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     final AlignViewportI peer = viewport.getCodingComplement();
     if (peer != null)
     {
-      AlignFrame linkedAlignFrame = ((AlignViewport) peer).getAlignPanel().alignFrame;
+      AlignFrame linkedAlignFrame = ((AlignViewport) peer)
+              .getAlignPanel().alignFrame;
       if (linkedAlignFrame.tabbedPane.getTabCount() > index)
       {
         linkedAlignFrame.tabbedPane.setSelectedIndex(index);
@@ -5163,12 +4873,12 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     if (e.isPopupTrigger())
     {
       String msg = MessageManager.getString("label.enter_view_name");
-      String reply = JOptionPane.showInternalInputDialog(this, msg, msg,
-              JOptionPane.QUESTION_MESSAGE);
+      String reply = JvOptionPane.showInternalInputDialog(this, msg, msg,
+              JvOptionPane.QUESTION_MESSAGE);
 
       if (reply != null)
       {
-        viewport.viewName = reply;
+        viewport.setViewName(reply);
         // TODO warn if reply is in getExistingViewNames()?
         tabbedPane.setTitleAt(tabbedPane.getSelectedIndex(), reply);
       }
@@ -5261,30 +4971,31 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     // here
     final JMenu rfetch = new JMenu(
             MessageManager.getString("action.fetch_db_references"));
-    rfetch.setToolTipText(MessageManager
-            .getString("label.retrieve_parse_sequence_database_records_alignment_or_selected_sequences"));
+    rfetch.setToolTipText(MessageManager.getString(
+            "label.retrieve_parse_sequence_database_records_alignment_or_selected_sequences"));
     webService.add(rfetch);
 
     final JCheckBoxMenuItem trimrs = new JCheckBoxMenuItem(
             MessageManager.getString("option.trim_retrieved_seqs"));
-    trimrs.setToolTipText(MessageManager
-            .getString("label.trim_retrieved_sequences"));
-    trimrs.setSelected(Cache.getDefault("TRIM_FETCHED_DATASET_SEQS", true));
+    trimrs.setToolTipText(
+            MessageManager.getString("label.trim_retrieved_sequences"));
+    trimrs.setSelected(
+            Cache.getDefault(DBRefFetcher.TRIM_RETRIEVED_SEQUENCES, true));
     trimrs.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
         trimrs.setSelected(trimrs.isSelected());
-        Cache.setProperty("TRIM_FETCHED_DATASET_SEQS",
+        Cache.setProperty(DBRefFetcher.TRIM_RETRIEVED_SEQUENCES,
                 Boolean.valueOf(trimrs.isSelected()).toString());
       };
     });
     rfetch.add(trimrs);
     JMenuItem fetchr = new JMenuItem(
             MessageManager.getString("label.standard_databases"));
-    fetchr.setToolTipText(MessageManager
-            .getString("label.fetch_embl_uniprot"));
+    fetchr.setToolTipText(
+            MessageManager.getString("label.fetch_embl_uniprot"));
     fetchr.addActionListener(new ActionListener()
     {
 
@@ -5298,14 +5009,22 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
           {
             boolean isNucleotide = alignPanel.alignFrame.getViewport()
                     .getAlignment().isNucleotide();
-            DBRefFetcher dbRefFetcher = new DBRefFetcher(alignPanel.av
-                    .getSequenceSelection(), alignPanel.alignFrame, null,
+            DBRefFetcher dbRefFetcher = new DBRefFetcher(
+                    alignPanel.av.getSequenceSelection(),
+                    alignPanel.alignFrame, null,
                     alignPanel.alignFrame.featureSettings, isNucleotide);
             dbRefFetcher.addListener(new FetchFinishedListenerI()
             {
               @Override
               public void finished()
               {
+
+                for (FeatureSettingsModelI srcSettings : dbRefFetcher
+                        .getFeatureSettingsModels())
+                {
+
+                  alignPanel.av.mergeFeaturesStyle(srcSettings);
+                }
                 AlignFrame.this.setMenusForViewport();
               }
             });
@@ -5391,6 +5110,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                                   @Override
                                   public void finished()
                                   {
+                                    FeatureSettingsModelI srcSettings = dassource[0]
+                                            .getFeatureColourScheme();
+                                    alignPanel.av.mergeFeaturesStyle(
+                                            srcSettings);
                                     AlignFrame.this.setMenusForViewport();
                                   }
                                 });
@@ -5402,8 +5125,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 });
                 fetchr.setToolTipText(JvSwingUtils.wrapTooltip(true,
                         MessageManager.formatMessage(
-                                "label.fetch_retrieve_from",
-                                new Object[] { src.getDbName() })));
+                                "label.fetch_retrieve_from", new Object[]
+                                { src.getDbName() })));
                 dfetch.add(fetchr);
                 comp++;
               }
@@ -5413,9 +5136,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                         .toArray(new DbSourceProxy[0]);
                 // fetch all entry
                 DbSourceProxy src = otherdb.get(0);
-                fetchr = new JMenuItem(MessageManager.formatMessage(
-                        "label.fetch_all_param",
-                        new Object[] { src.getDbSource() }));
+                fetchr = new JMenuItem(MessageManager
+                        .formatMessage("label.fetch_all_param", new Object[]
+                        { src.getDbSource() }));
                 fetchr.addActionListener(new ActionListener()
                 {
                   @Override
@@ -5453,30 +5176,33 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                 fetchr.setToolTipText(JvSwingUtils.wrapTooltip(true,
                         MessageManager.formatMessage(
                                 "label.fetch_retrieve_from_all_sources",
-                                new Object[] {
-                                    Integer.valueOf(otherdb.size())
-                                            .toString(), src.getDbSource(),
-                                    src.getDbName() })));
+                                new Object[]
+                                { Integer.valueOf(otherdb.size())
+                                        .toString(),
+                                    src.getDbSource(), src.getDbName() })));
                 dfetch.add(fetchr);
                 comp++;
                 // and then build the rest of the individual menus
                 ifetch = new JMenu(MessageManager.formatMessage(
-                        "label.source_from_db_source",
-                        new Object[] { src.getDbSource() }));
+                        "label.source_from_db_source", new Object[]
+                        { src.getDbSource() }));
                 icomp = 0;
                 String imname = null;
                 int i = 0;
                 for (DbSourceProxy sproxy : otherdb)
                 {
                   String dbname = sproxy.getDbName();
-                  String sname = dbname.length() > 5 ? dbname.substring(0,
-                          5) + "..." : dbname;
-                  String msname = dbname.length() > 10 ? dbname.substring(
-                          0, 10) + "..." : dbname;
+                  String sname = dbname.length() > 5
+                          ? dbname.substring(0, 5) + "..."
+                          : dbname;
+                  String msname = dbname.length() > 10
+                          ? dbname.substring(0, 10) + "..."
+                          : dbname;
                   if (imname == null)
                   {
-                    imname = MessageManager.formatMessage(
-                            "label.from_msname", new Object[] { sname });
+                    imname = MessageManager
+                            .formatMessage("label.from_msname", new Object[]
+                            { sname });
                   }
                   fetchr = new JMenuItem(msname);
                   final DbSourceProxy[] dassrc = { sproxy };
@@ -5515,8 +5241,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
                     }
 
                   });
-                  fetchr.setToolTipText("<html>"
-                          + MessageManager.formatMessage(
+                  fetchr.setToolTipText(
+                          "<html>" + MessageManager.formatMessage(
                                   "label.fetch_retrieve_from", new Object[]
                                   { dbname }));
                   ifetch.add(fetchr);
@@ -5591,7 +5317,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   protected void showUnconservedMenuItem_actionPerformed(ActionEvent e)
   {
     viewport.setShowUnconserved(showNonconservedMenuItem.getState());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /*
@@ -5680,7 +5406,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       PaintRefresher.Refresh(this, viewport.getSequenceSetId());
       alignPanel.updateAnnotation();
-      alignPanel.paintAlignment(true);
+      alignPanel.paintAlignment(true,
+              viewport.needToUpdateStructureViews());
     }
   }
 
@@ -5692,7 +5419,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       viewport.getAlignment().setSeqrep(null);
       PaintRefresher.Refresh(this, viewport.getSequenceSetId());
       alignPanel.updateAnnotation();
-      alignPanel.paintAlignment(true);
+      alignPanel.paintAlignment(true, true);
     }
   }
 
@@ -5701,6 +5428,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   {
     if (avc.createGroup())
     {
+      if (applyAutoAnnotationSettings.isSelected())
+      {
+        alignPanel.updateAnnotation(true, false);
+      }
       alignPanel.alignmentChanged();
     }
   }
@@ -5721,17 +5452,14 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    */
   public void setDisplayedView(AlignmentPanel alignmentPanel)
   {
-    if (!viewport.getSequenceSetId().equals(
-            alignmentPanel.av.getSequenceSetId()))
+    if (!viewport.getSequenceSetId()
+            .equals(alignmentPanel.av.getSequenceSetId()))
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_cannot_show_view_alignment_frame"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_cannot_show_view_alignment_frame"));
     }
-    if (tabbedPane != null
-            && tabbedPane.getTabCount() > 0
-            && alignPanels.indexOf(alignmentPanel) != tabbedPane
-                    .getSelectedIndex())
+    if (tabbedPane != null && tabbedPane.getTabCount() > 0 && alignPanels
+            .indexOf(alignmentPanel) != tabbedPane.getSelectedIndex())
     {
       tabbedPane.setSelectedIndex(alignPanels.indexOf(alignmentPanel));
     }
@@ -5785,7 +5513,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     this.alignPanel.av.setSortAnnotationsBy(getAnnotationSortOrder());
     this.alignPanel.av
             .setShowAutocalculatedAbove(isShowAutoCalculatedAbove());
-    alignPanel.paintAlignment(true);
+    alignPanel.paintAlignment(false, false);
   }
 
   /**
@@ -5794,7 +5522,9 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
    */
   public List<? extends AlignmentViewPanel> getAlignPanels()
   {
-    return alignPanels == null ? Arrays.asList(alignPanel) : alignPanels;
+    // alignPanels is never null
+    // return alignPanels == null ? Arrays.asList(alignPanel) : alignPanels;
+    return alignPanels;
   }
 
   /**
@@ -5810,7 +5540,7 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
     {
       return;
     }
-    List<SequenceI> cdnaSeqs = new ArrayList<SequenceI>();
+    List<SequenceI> cdnaSeqs = new ArrayList<>();
     for (SequenceI aaSeq : alignment.getSequences())
     {
       for (AlignedCodonFrame acf : mappings)
@@ -5834,15 +5564,15 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       // show a warning dialog no mapped cDNA
       return;
     }
-    AlignmentI cdna = new Alignment(cdnaSeqs.toArray(new SequenceI[cdnaSeqs
-            .size()]));
-    AlignFrame alignFrame = new AlignFrame(cdna, AlignFrame.DEFAULT_WIDTH,
+    AlignmentI cdna = new Alignment(
+            cdnaSeqs.toArray(new SequenceI[cdnaSeqs.size()]));
+    GAlignFrame alignFrame = new AlignFrame(cdna, AlignFrame.DEFAULT_WIDTH,
             AlignFrame.DEFAULT_HEIGHT);
     cdna.alignAs(alignment);
     String newtitle = "cDNA " + MessageManager.getString("label.for") + " "
             + this.title;
-    Desktop.addInternalFrame(alignFrame, newtitle,
-            AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+    Desktop.addInternalFrame(alignFrame, newtitle, AlignFrame.DEFAULT_WIDTH,
+            AlignFrame.DEFAULT_HEIGHT);
   }
 
   /**
@@ -5875,8 +5605,8 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       al = dna.reverseCdna(complement);
       viewport.addAlignment(al, "");
       addHistoryItem(new EditCommand(
-              MessageManager.getString("label.add_sequences"),
-              Action.PASTE, al.getSequencesArray(), 0, al.getWidth(),
+              MessageManager.getString("label.add_sequences"), Action.PASTE,
+              al.getSequencesArray(), 0, al.getWidth(),
               viewport.getAlignment()));
     } catch (Exception ex)
     {
@@ -5903,12 +5633,10 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
       } catch (Exception ex)
       {
         System.err.println((ex.toString()));
-        JOptionPane
-                .showInternalMessageDialog(Desktop.desktop, MessageManager
-                        .getString("label.couldnt_run_groovy_script"),
-                        MessageManager
-                                .getString("label.groovy_support_failed"),
-                        JOptionPane.ERROR_MESSAGE);
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                MessageManager.getString("label.couldnt_run_groovy_script"),
+                MessageManager.getString("label.groovy_support_failed"),
+                JvOptionPane.ERROR_MESSAGE);
       }
     }
     else
@@ -5948,9 +5676,83 @@ public class AlignFrame extends GAlignFrame implements DropTargetListener,
   {
     // include key modifier check in case user selects from menu
     avc.markHighlightedColumns(
-            (actionEvent.getModifiers() & ActionEvent.ALT_MASK) != 0,
-            true,
-            (actionEvent.getModifiers() & (ActionEvent.META_MASK | ActionEvent.CTRL_MASK)) != 0);
+            (actionEvent.getModifiers() & ActionEvent.ALT_MASK) != 0, true,
+            (actionEvent.getModifiers() & (ActionEvent.META_MASK
+                    | ActionEvent.CTRL_MASK)) != 0);
+  }
+
+  /**
+   * Rebuilds the Colour menu, including any user-defined colours which have
+   * been loaded either on startup or during the session
+   */
+  public void buildColourMenu()
+  {
+    colourMenu.removeAll();
+
+    colourMenu.add(applyToAllGroups);
+    colourMenu.add(textColour);
+    colourMenu.addSeparator();
+
+    ButtonGroup bg = ColourMenuHelper.addMenuItems(colourMenu, this,
+            viewport.getAlignment(), false);
+
+    colourMenu.add(annotationColour);
+    bg.add(annotationColour);
+    colourMenu.addSeparator();
+    colourMenu.add(conservationMenuItem);
+    colourMenu.add(modifyConservation);
+    colourMenu.add(abovePIDThreshold);
+    colourMenu.add(modifyPID);
+
+    ColourSchemeI colourScheme = viewport.getGlobalColourScheme();
+    ColourMenuHelper.setColourSelected(colourMenu, colourScheme);
+  }
+
+  /**
+   * Open a dialog (if not already open) that allows the user to select and
+   * calculate PCA or Tree analysis
+   */
+  protected void openTreePcaDialog()
+  {
+    if (alignPanel.getCalculationDialog() == null)
+    {
+      new CalculationChooser(AlignFrame.this);
+    }
+  }
+
+  @Override
+  protected void loadVcf_actionPerformed()
+  {
+    JalviewFileChooser chooser = new JalviewFileChooser(
+            Cache.getProperty("LAST_DIRECTORY"));
+    chooser.setFileView(new JalviewFileView());
+    chooser.setDialogTitle(MessageManager.getString("label.load_vcf_file"));
+    chooser.setToolTipText(MessageManager.getString("label.load_vcf_file"));
+
+    int value = chooser.showOpenDialog(null);
+
+    if (value == JalviewFileChooser.APPROVE_OPTION)
+    {
+      String choice = chooser.getSelectedFile().getPath();
+      Cache.setProperty("LAST_DIRECTORY", choice);
+      SequenceI[] seqs = viewport.getAlignment().getSequencesArray();
+      new VCFLoader(choice).loadVCF(seqs, this);
+    }
+
+  }
+
+  private Rectangle lastFeatureSettingsBounds = null;
+
+  @Override
+  public void setFeatureSettingsGeometry(Rectangle bounds)
+  {
+    lastFeatureSettingsBounds = bounds;
+  }
+
+  @Override
+  public Rectangle getFeatureSettingsGeometry()
+  {
+    return lastFeatureSettingsBounds;
   }
 }
 

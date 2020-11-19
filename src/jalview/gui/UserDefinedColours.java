@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,35 +20,40 @@
  */
 package jalview.gui;
 
-import jalview.api.structures.JalviewStructureDisplayI;
-import jalview.datamodel.SequenceGroup;
+import jalview.bin.Cache;
 import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
 import jalview.jbgui.GUserDefinedColours;
 import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemeLoader;
+import jalview.schemes.ColourSchemes;
 import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
 import jalview.util.ColorUtils;
+import jalview.util.Format;
 import jalview.util.MessageManager;
+import jalview.xml.binding.jalview.JalviewUserColours;
+import jalview.xml.binding.jalview.JalviewUserColours.Colour;
+import jalview.xml.binding.jalview.ObjectFactory;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
+import java.awt.Insets;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.StringTokenizer;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JInternalFrame;
-import javax.swing.JOptionPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
 
 /**
  * This panel allows the user to assign colours to Amino Acid residue codes, and
@@ -57,10 +62,17 @@ import javax.swing.event.ChangeListener;
  * @author Andrew Waterhouse
  * @author Mungo Carstairs
  */
-public class UserDefinedColours extends GUserDefinedColours implements
-        ChangeListener
+public class UserDefinedColours extends GUserDefinedColours
+        implements ChangeListener
 {
-  private static final int MY_FRAME_HEIGHT = 420;
+  private static final Font VERDANA_BOLD_10 = new Font("Verdana", Font.BOLD,
+          10);
+
+  public static final String USER_DEFINED_COLOURS = "USER_DEFINED_COLOURS";
+
+  private static final String LAST_DIRECTORY = "LAST_DIRECTORY";
+
+  private static final int MY_FRAME_HEIGHT = 440;
 
   private static final int MY_FRAME_WIDTH = 810;
 
@@ -68,50 +80,44 @@ public class UserDefinedColours extends GUserDefinedColours implements
 
   AlignmentPanel ap;
 
-  SequenceGroup seqGroup;
-
-  ArrayList<JButton> selectedButtons;
-
+  /*
+   * the colour scheme when the dialog was opened, or
+   * the scheme last saved to file
+   */
   ColourSchemeI oldColourScheme;
+
+  /*
+   * flag is true if the colour scheme has been changed since the
+   * dialog was opened, or the changes last saved to file
+   */
+  boolean changed;
 
   JInternalFrame frame;
 
-  JalviewStructureDisplayI jmol;
+  List<JButton> upperCaseButtons;
 
-  ArrayList<JButton> upperCaseButtons;
-
-  ArrayList<JButton> lowerCaseButtons;
+  List<JButton> lowerCaseButtons;
 
   /**
-   * Creates a new UserDefinedColours object.
+   * Creates and displays a new UserDefinedColours panel
    * 
-   * @param ap
-   *          DOCUMENT ME!
-   * @param sg
-   *          DOCUMENT ME!
+   * @param alignPanel
    */
-  public UserDefinedColours(AlignmentPanel ap, SequenceGroup sg)
+  public UserDefinedColours(AlignmentPanel alignPanel)
   {
-    super();
+    this();
 
     lcaseColour.setEnabled(false);
 
-    this.ap = ap;
-    seqGroup = sg;
+    this.ap = alignPanel;
 
-    if (seqGroup != null)
-    {
-      oldColourScheme = seqGroup.cs;
-    }
-    else
-    {
-      oldColourScheme = ap.av.getGlobalColourScheme();
-    }
+    oldColourScheme = alignPanel.av.getGlobalColourScheme();
 
     if (oldColourScheme instanceof UserColourScheme)
     {
-      schemeName.setText(((UserColourScheme) oldColourScheme).getName());
-      if (((UserColourScheme) oldColourScheme).getLowerCaseColours() != null)
+      schemeName.setText(oldColourScheme.getSchemeName());
+      if (((UserColourScheme) oldColourScheme)
+              .getLowerCaseColours() != null)
       {
         caseSensitive.setSelected(true);
         lcaseColour.setEnabled(true);
@@ -130,25 +136,10 @@ public class UserDefinedColours extends GUserDefinedColours implements
     showFrame();
   }
 
-  public UserDefinedColours(JalviewStructureDisplayI jmol,
-          ColourSchemeI oldcs)
+  UserDefinedColours()
   {
     super();
-    this.jmol = jmol;
-
-    colorChooser.getSelectionModel().addChangeListener(this);
-
-    oldColourScheme = oldcs;
-
-    if (oldColourScheme instanceof UserColourScheme)
-    {
-      schemeName.setText(((UserColourScheme) oldColourScheme).getName());
-    }
-
-    resetButtonPanel(false);
-
-    showFrame();
-
+    selectedButtons = new ArrayList<>();
   }
 
   void showFrame()
@@ -159,39 +150,32 @@ public class UserDefinedColours extends GUserDefinedColours implements
     Desktop.addInternalFrame(frame,
             MessageManager.getString("label.user_defined_colours"),
             MY_FRAME_WIDTH, MY_FRAME_HEIGHT, true);
-
-    if (seqGroup != null)
-    {
-      frame.setTitle(frame.getTitle() + " (" + seqGroup.getName() + ")");
-    }
   }
 
-  void resetButtonPanel(boolean caseSensitive)
+  /**
+   * Rebuilds the panel with coloured buttons for residues. If not case
+   * sensitive colours, show 3-letter amino acid code as button text. If case
+   * sensitive, just show the single letter code, in order to make space for the
+   * additional buttons.
+   * 
+   * @param isCaseSensitive
+   */
+  void resetButtonPanel(boolean isCaseSensitive)
   {
     buttonPanel.removeAll();
 
     if (upperCaseButtons == null)
     {
-      upperCaseButtons = new ArrayList<JButton>();
+      upperCaseButtons = new ArrayList<>();
     }
 
-    JButton button;
-    String label;
     for (int i = 0; i < 20; i++)
     {
-      if (caseSensitive)
-      {
-        label = ResidueProperties.aa[i];
-      }
-      else
-      {
-        label = ResidueProperties.aa2Triplet.get(ResidueProperties.aa[i])
-                .toString();
-      }
-
-      button = makeButton(label, ResidueProperties.aa[i], upperCaseButtons,
-              i);
-
+      String label = isCaseSensitive ? ResidueProperties.aa[i]
+              : ResidueProperties.aa2Triplet.get(ResidueProperties.aa[i])
+                      .toString();
+      JButton button = makeButton(label, ResidueProperties.aa[i],
+              upperCaseButtons, i);
       buttonPanel.add(button);
     }
 
@@ -200,7 +184,7 @@ public class UserDefinedColours extends GUserDefinedColours implements
     buttonPanel.add(makeButton("X", "X", upperCaseButtons, 22));
     buttonPanel.add(makeButton("Gap", "-", upperCaseButtons, 23));
 
-    if (!caseSensitive)
+    if (!isCaseSensitive)
     {
       gridLayout.setRows(6);
       gridLayout.setColumns(4);
@@ -213,21 +197,21 @@ public class UserDefinedColours extends GUserDefinedColours implements
 
       if (lowerCaseButtons == null)
       {
-        lowerCaseButtons = new ArrayList<JButton>();
+        lowerCaseButtons = new ArrayList<>();
       }
 
       for (int i = 0; i < 20; i++)
       {
         int row = i / cols + 1;
         int index = (row * cols) + i;
-        button = makeButton(ResidueProperties.aa[i].toLowerCase(),
+        JButton button = makeButton(ResidueProperties.aa[i].toLowerCase(),
                 ResidueProperties.aa[i].toLowerCase(), lowerCaseButtons, i);
 
         buttonPanel.add(button, index);
       }
     }
 
-    if (caseSensitive)
+    if (isCaseSensitive)
     {
       buttonPanel.add(makeButton("b", "b", lowerCaseButtons, 20));
       buttonPanel.add(makeButton("z", "z", lowerCaseButtons, 21));
@@ -238,7 +222,7 @@ public class UserDefinedColours extends GUserDefinedColours implements
     // codes
     if (this.frame != null)
     {
-      int newWidth = caseSensitive ? MY_FRAME_WIDTH_CASE_SENSITIVE
+      int newWidth = isCaseSensitive ? MY_FRAME_WIDTH_CASE_SENSITIVE
               : MY_FRAME_WIDTH;
       this.frame.setSize(newWidth, this.frame.getHeight());
     }
@@ -248,35 +232,39 @@ public class UserDefinedColours extends GUserDefinedColours implements
   }
 
   /**
-   * DOCUMENT ME!
+   * ChangeListener handler for when a colour is picked in the colour chooser.
+   * The action is to apply the colour to all selected buttons as their
+   * background colour. Foreground colour (text) is set to a lighter shade in
+   * order to highlight which buttons are selected. If 'Lower Case Colour' is
+   * active, then the colour is applied to all lower case buttons (as well as
+   * the Lower Case Colour button itself).
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void stateChanged(ChangeEvent evt)
   {
-    if (selectedButtons != null)
+    JButton button = null;
+    final Color newColour = colorChooser.getColor();
+    if (lcaseColour.isSelected())
     {
-      JButton button = null;
-      final Color newColour = colorChooser.getColor();
-      for (int i = 0; i < selectedButtons.size(); i++)
+      selectedButtons.clear();
+      for (int i = 0; i < lowerCaseButtons.size(); i++)
       {
-        button = selectedButtons.get(i);
+        button = lowerCaseButtons.get(i);
         button.setBackground(newColour);
-        button.setForeground(ColorUtils.brighterThan(newColour));
-      }
-      if (button == lcaseColour)
-      {
-        for (int i = 0; i < lowerCaseButtons.size(); i++)
-        {
-          button = lowerCaseButtons.get(i);
-          button.setBackground(newColour);
-          button.setForeground(ColorUtils.brighterThan(button
-                  .getBackground()));
-        }
+        button.setForeground(
+                ColorUtils.brighterThan(button.getBackground()));
       }
     }
+    for (int i = 0; i < selectedButtons.size(); i++)
+    {
+      button = selectedButtons.get(i);
+      button.setBackground(newColour);
+      button.setForeground(ColorUtils.brighterThan(newColour));
+    }
+
+    changed = true;
   }
 
   /**
@@ -299,11 +287,6 @@ public class UserDefinedColours extends GUserDefinedColours implements
    */
   public void colourButtonPressed(MouseEvent e)
   {
-    if (selectedButtons == null)
-    {
-      selectedButtons = new ArrayList<JButton>();
-    }
-
     JButton pressed = (JButton) e.getSource();
 
     if (e.isShiftDown())
@@ -343,8 +326,8 @@ public class UserDefinedColours extends GUserDefinedColours implements
         JButton button = (JButton) buttonPanel.getComponent(b);
         if (!selectedButtons.contains(button))
         {
-          button.setForeground(ColorUtils.brighterThan(button
-                  .getBackground()));
+          button.setForeground(
+                  ColorUtils.brighterThan(button.getBackground()));
           selectedButtons.add(button);
         }
       }
@@ -357,7 +340,8 @@ public class UserDefinedColours extends GUserDefinedColours implements
         button.setForeground(ColorUtils.darkerThan(button.getBackground()));
       }
       selectedButtons.clear();
-      pressed.setForeground(ColorUtils.brighterThan(pressed.getBackground()));
+      pressed.setForeground(
+              ColorUtils.brighterThan(pressed.getBackground()));
       selectedButtons.add(pressed);
 
     }
@@ -365,13 +349,14 @@ public class UserDefinedColours extends GUserDefinedColours implements
     {
       if (selectedButtons.contains(pressed))
       {
-        pressed.setForeground(ColorUtils.darkerThan(pressed.getBackground()));
+        pressed.setForeground(
+                ColorUtils.darkerThan(pressed.getBackground()));
         selectedButtons.remove(pressed);
       }
       else
       {
-        pressed.setForeground(ColorUtils.brighterThan(pressed
-                .getBackground()));
+        pressed.setForeground(
+                ColorUtils.brighterThan(pressed.getBackground()));
         selectedButtons.add(pressed);
       }
     }
@@ -383,28 +368,35 @@ public class UserDefinedColours extends GUserDefinedColours implements
   }
 
   /**
-   * DOCUMENT ME!
+   * A helper method to update or make a colour button, whose background colour
+   * is the associated colour, and text colour a darker shade of the same. If
+   * the button is already in the list, then its text and margins are updated,
+   * if not then it is created and added. This method supports toggling between
+   * case-sensitive and case-insensitive button panels. The case-sensitive
+   * version has abbreviated button text in order to fit in more buttons.
    * 
    * @param label
-   *          DOCUMENT ME!
-   * @param aa
-   *          DOCUMENT ME!
+   * @param residue
+   * @param the
+   *          list of buttons
+   * @param buttonIndex
+   *          the button's position in the list
    */
-  JButton makeButton(String label, String aa,
-          ArrayList<JButton> caseSensitiveButtons, int buttonIndex)
+  JButton makeButton(String label, String residue, List<JButton> buttons,
+          int buttonIndex)
   {
     final JButton button;
     Color col;
 
-    if (buttonIndex < caseSensitiveButtons.size())
+    if (buttonIndex < buttons.size())
     {
-      button = caseSensitiveButtons.get(buttonIndex);
+      button = buttons.get(buttonIndex);
       col = button.getBackground();
     }
     else
     {
       button = new JButton();
-      button.addMouseListener(new java.awt.event.MouseAdapter()
+      button.addMouseListener(new MouseAdapter()
       {
         @Override
         public void mouseClicked(MouseEvent e)
@@ -413,63 +405,123 @@ public class UserDefinedColours extends GUserDefinedColours implements
         }
       });
 
-      caseSensitiveButtons.add(button);
+      buttons.add(button);
 
+      /*
+       * make initial button colour that of the current colour scheme,
+       * if it is a simple per-residue colouring, else white
+       */
       col = Color.white;
-      if (oldColourScheme != null)
+      if (oldColourScheme != null && oldColourScheme.isSimple())
       {
-        try
-        {
-          col = oldColourScheme.findColour(aa.charAt(0), -1, null);
-        } catch (Exception ex)
-        {
-        }
+        col = oldColourScheme.findColour(residue.charAt(0), 0, null, null,
+                0f);
       }
     }
 
     if (caseSensitive.isSelected())
     {
-      button.setMargin(new java.awt.Insets(2, 2, 2, 2));
+      button.setMargin(new Insets(2, 2, 2, 2));
     }
     else
     {
-      button.setMargin(new java.awt.Insets(2, 14, 2, 14));
+      button.setMargin(new Insets(2, 14, 2, 14));
     }
 
     button.setOpaque(true); // required for the next line to have effect
     button.setBackground(col);
     button.setText(label);
     button.setForeground(ColorUtils.darkerThan(col));
-    button.setFont(new java.awt.Font("Verdana", Font.BOLD, 10));
+    button.setFont(VERDANA_BOLD_10);
 
     return button;
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * On 'OK', check that at least one colour has been assigned to a residue (and
+   * if not issue a warning), and apply the chosen colour scheme and close the
+   * panel.
    */
   @Override
-  protected void okButton_actionPerformed(ActionEvent e)
+  protected void okButton_actionPerformed()
   {
     if (isNoSelectionMade())
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .getString("label.no_colour_selection_in_scheme"),
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager
+                      .getString("label.no_colour_selection_in_scheme"),
               MessageManager.getString("label.no_colour_selection_warn"),
-              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.WARNING_MESSAGE);
     }
     else
     {
-      applyButton_actionPerformed(null);
+      /*
+       * OK is treated as 'apply colours and close'
+       */
+      applyButton_actionPerformed();
+
+      /*
+       * If editing a named colour scheme, warn if changes
+       * have not been saved
+       */
+      warnIfUnsavedChanges();
 
       try
       {
         frame.setClosed(true);
       } catch (Exception ex)
       {
+      }
+    }
+  }
+
+  /**
+   * If we have made changes to an existing user defined colour scheme but not
+   * saved them, show a dialog with the option to save. If the user chooses to
+   * save, do so, else clear the colour scheme name to indicate a new colour
+   * scheme.
+   */
+  protected void warnIfUnsavedChanges()
+  {
+    if (!changed)
+    {
+      return;
+    }
+
+    String name = schemeName.getText().trim();
+    if (oldColourScheme != null && !"".equals(name)
+            && name.equals(oldColourScheme.getSchemeName()))
+    {
+      String message = MessageManager.formatMessage("label.scheme_changed",
+              name);
+      String title = MessageManager.getString("label.save_changes");
+      String[] options = new String[] { title,
+          MessageManager.getString("label.dont_save_changes"), };
+      final String question = JvSwingUtils.wrapTooltip(true, message);
+      int response = JvOptionPane.showOptionDialog(Desktop.desktop,
+              question, title, JvOptionPane.DEFAULT_OPTION,
+              JvOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+
+      boolean saved = false;
+      if (response == 0)
+      {
+        /*
+         * prompt to save changes to file
+         */
+        saved = savebutton_actionPerformed();
+      }
+
+      /*
+       * if user chooses not to save (either in this dialog or in the
+       * save as dialogs), treat this as a new user defined colour scheme
+       */
+      if (!saved)
+      {
+        /*
+         * clear scheme name and re-apply as an anonymous scheme
+         */
+        schemeName.setText("");
+        applyButton_actionPerformed();
       }
     }
   }
@@ -492,40 +544,31 @@ public class UserDefinedColours extends GUserDefinedColours implements
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Applies the current colour scheme to the alignment or sequence group
    */
   @Override
-  protected void applyButton_actionPerformed(ActionEvent e)
+  protected void applyButton_actionPerformed()
   {
     if (isNoSelectionMade())
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .getString("label.no_colour_selection_in_scheme"),
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager
+                      .getString("label.no_colour_selection_in_scheme"),
               MessageManager.getString("label.no_colour_selection_warn"),
-              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.WARNING_MESSAGE);
 
     }
     UserColourScheme ucs = getSchemeFromButtons();
-    ucs.setName(schemeName.getText());
 
-    if (seqGroup != null)
-    {
-      seqGroup.cs = ucs;
-      ap.paintAlignment(true);
-    }
-    else if (ap != null)
-    {
-      ap.alignFrame.changeColour(ucs);
-    }
-    else if (jmol != null)
-    {
-      jmol.setJalviewColourScheme(ucs);
-    }
+    ap.alignFrame.changeColour(ucs);
   }
 
+  /**
+   * Constructs an instance of UserColourScheme with the residue colours
+   * currently set on the buttons on the panel
+   * 
+   * @return
+   */
   UserColourScheme getSchemeFromButtons()
   {
 
@@ -551,6 +594,7 @@ public class UserDefinedColours extends GUserDefinedColours implements
     }
 
     UserColourScheme ucs = new UserColourScheme(newColours);
+    ucs.setName(schemeName.getText());
 
     if (caseSensitive.isSelected())
     {
@@ -576,347 +620,271 @@ public class UserDefinedColours extends GUserDefinedColours implements
       ucs.setLowerCaseColours(newColours);
     }
 
-    if (ap != null)
-    {
-      ucs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
-    }
-
     return ucs;
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Action on clicking Load scheme button.
+   * <ul>
+   * <li>Open a file chooser to browse for files with extension .jc</li>
+   * <li>Load in the colour scheme and transfer it to this panel's buttons</li>
+   * <li>Register the loaded colour scheme</li>
+   * </ul>
    */
   @Override
-  protected void loadbutton_actionPerformed(ActionEvent e)
+  protected void loadbutton_actionPerformed()
   {
-    upperCaseButtons = new ArrayList<JButton>();
-    lowerCaseButtons = new ArrayList<JButton>();
+    upperCaseButtons = new ArrayList<>();
+    lowerCaseButtons = new ArrayList<>();
 
-    JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "jc" }, new String[] { "Jalview User Colours" },
+    JalviewFileChooser chooser = new JalviewFileChooser("jc",
             "Jalview User Colours");
-    chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.load_colour_scheme"));
+    chooser.setFileView(new JalviewFileView());
+    chooser.setDialogTitle(
+            MessageManager.getString("label.load_colour_scheme"));
     chooser.setToolTipText(MessageManager.getString("action.load"));
 
     int value = chooser.showOpenDialog(this);
 
-    if (value == JalviewFileChooser.APPROVE_OPTION)
+    if (value != JalviewFileChooser.APPROVE_OPTION)
     {
-      File choice = chooser.getSelectedFile();
-      jalview.bin.Cache.setProperty("LAST_DIRECTORY", choice.getParent());
-      String defaultColours = jalview.bin.Cache.getDefault(
-              "USER_DEFINED_COLOURS", choice.getPath());
-      if (defaultColours.indexOf(choice.getPath()) == -1)
-      {
-        defaultColours = defaultColours.concat("|")
-                .concat(choice.getPath());
-      }
-
-      jalview.bin.Cache.setProperty("USER_DEFINED_COLOURS", defaultColours);
-
-      UserColourScheme ucs = loadColours(choice.getAbsolutePath());
-      Color[] colors = ucs.getColours();
-      schemeName.setText(ucs.getName());
-
-      if (ucs.getLowerCaseColours() != null)
-      {
-        caseSensitive.setSelected(true);
-        lcaseColour.setEnabled(true);
-        resetButtonPanel(true);
-        for (int i = 0; i < lowerCaseButtons.size(); i++)
-        {
-          JButton button = lowerCaseButtons.get(i);
-          button.setBackground(ucs.getLowerCaseColours()[i]);
-        }
-
-      }
-      else
-      {
-        caseSensitive.setSelected(false);
-        lcaseColour.setEnabled(false);
-        resetButtonPanel(false);
-      }
-
-      for (int i = 0; i < upperCaseButtons.size(); i++)
-      {
-        JButton button = upperCaseButtons.get(i);
-        button.setBackground(colors[i]);
-      }
-
+      return;
     }
+    File choice = chooser.getSelectedFile();
+    Cache.setProperty(LAST_DIRECTORY, choice.getParent());
+
+    UserColourScheme ucs = ColourSchemeLoader
+            .loadColourScheme(choice.getAbsolutePath());
+    Color[] colors = ucs.getColours();
+    schemeName.setText(ucs.getSchemeName());
+
+    if (ucs.getLowerCaseColours() != null)
+    {
+      caseSensitive.setSelected(true);
+      lcaseColour.setEnabled(true);
+      resetButtonPanel(true);
+      for (int i = 0; i < lowerCaseButtons.size(); i++)
+      {
+        JButton button = lowerCaseButtons.get(i);
+        button.setBackground(ucs.getLowerCaseColours()[i]);
+      }
+    }
+    else
+    {
+      caseSensitive.setSelected(false);
+      lcaseColour.setEnabled(false);
+      resetButtonPanel(false);
+    }
+
+    for (int i = 0; i < upperCaseButtons.size(); i++)
+    {
+      JButton button = upperCaseButtons.get(i);
+      button.setBackground(colors[i]);
+    }
+
+    addNewColourScheme(choice.getPath());
   }
 
   /**
-   * DOCUMENT ME!
+   * Loads the user-defined colour scheme from the first file listed in property
+   * "USER_DEFINED_COLOURS". If this fails, returns an all-white colour scheme.
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   public static UserColourScheme loadDefaultColours()
   {
     UserColourScheme ret = null;
 
-    String colours = jalview.bin.Cache.getProperty("USER_DEFINED_COLOURS");
+    String colours = Cache.getProperty(USER_DEFINED_COLOURS);
     if (colours != null)
     {
       if (colours.indexOf("|") > -1)
       {
         colours = colours.substring(0, colours.indexOf("|"));
       }
-
-      ret = loadColours(colours);
+      ret = ColourSchemeLoader.loadColourScheme(colours);
     }
 
     if (ret == null)
     {
-      Color[] newColours = new Color[24];
-      for (int i = 0; i < 24; i++)
-      {
-        newColours[i] = Color.white;
-      }
-      ret = new UserColourScheme(newColours);
+      ret = new UserColourScheme("white");
     }
 
     return ret;
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on pressing the Save button.
+   * <ul>
+   * <li>Check a name has been entered</li>
+   * <li>Warn if the name already exists, remove any existing scheme of the same
+   * name if overwriting</li>
+   * <li>Do the standard file chooser thing to write with extension .jc</li>
+   * <li>If saving changes (possibly not yet applied) to the currently selected
+   * colour scheme, then apply the changes, as it is too late to back out
+   * now</li>
+   * <li>Don't apply the changes if the currently selected scheme is different,
+   * to allow a new scheme to be configured and saved but not applied</li>
+   * </ul>
+   * Returns true if the scheme is saved to file, false if it is not
    * 
-   * @param file
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  static UserColourScheme loadColours(String file)
+  @Override
+  protected boolean savebutton_actionPerformed()
   {
-    UserColourScheme ucs = null;
-    Color[] newColours = null;
-    try
+    String name = schemeName.getText().trim();
+    if (name.length() < 1)
     {
-      InputStreamReader in = new InputStreamReader(
-              new FileInputStream(file), "UTF-8");
+      JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+              MessageManager
+                      .getString("label.user_colour_scheme_must_have_name"),
+              MessageManager.getString("label.no_name_colour_scheme"),
+              JvOptionPane.WARNING_MESSAGE);
+      return false;
+    }
 
-      jalview.schemabinding.version2.JalviewUserColours jucs = new jalview.schemabinding.version2.JalviewUserColours();
-
-      org.exolab.castor.xml.Unmarshaller unmar = new org.exolab.castor.xml.Unmarshaller(
-              jucs);
-      jucs = (jalview.schemabinding.version2.JalviewUserColours) unmar
-              .unmarshal(in);
-
-      newColours = new Color[24];
-
-      Color[] lowerCase = null;
-      boolean caseSensitive = false;
-
-      String name;
-      int index;
-      for (int i = 0; i < jucs.getColourCount(); i++)
-      {
-        name = jucs.getColour(i).getName();
-        if (ResidueProperties.aa3Hash.containsKey(name))
-        {
-          index = ResidueProperties.aa3Hash.get(name).intValue();
-        }
-        else
-        {
-          index = ResidueProperties.aaIndex[name.charAt(0)];
-        }
-        if (index == -1)
-        {
-          continue;
-        }
-
-        if (name.toLowerCase().equals(name))
-        {
-          if (lowerCase == null)
-          {
-            lowerCase = new Color[23];
-          }
-          caseSensitive = true;
-          lowerCase[index] = new Color(Integer.parseInt(jucs.getColour(i)
-                  .getRGB(), 16));
-        }
-        else
-        {
-          newColours[index] = new Color(Integer.parseInt(jucs.getColour(i)
-                  .getRGB(), 16));
-        }
-      }
-
-      if (newColours != null)
-      {
-        ucs = new UserColourScheme(newColours);
-        ucs.setName(jucs.getSchemeName());
-        if (caseSensitive)
-        {
-          ucs.setLowerCaseColours(lowerCase);
-        }
-      }
-
-    } catch (Exception ex)
+    if (ColourSchemes.getInstance().nameExists(name))
     {
-      // Could be Archive Jalview format
-      try
+      int reply = JvOptionPane.showInternalConfirmDialog(Desktop.desktop,
+              MessageManager.formatMessage(
+                      "label.colour_scheme_exists_overwrite", new Object[]
+                      { name, name }),
+              MessageManager.getString("label.duplicate_scheme_name"),
+              JvOptionPane.YES_NO_OPTION);
+      if (reply != JvOptionPane.YES_OPTION)
       {
-        InputStreamReader in = new InputStreamReader(new FileInputStream(
-                file), "UTF-8");
-
-        jalview.binding.JalviewUserColours jucs = new jalview.binding.JalviewUserColours();
-
-        jucs = jucs.unmarshal(in);
-
-        newColours = new Color[jucs.getColourCount()];
-
-        for (int i = 0; i < 24; i++)
-        {
-          newColours[i] = new Color(Integer.parseInt(jucs.getColour(i)
-                  .getRGB(), 16));
-        }
-        if (newColours != null)
-        {
-          ucs = new UserColourScheme(newColours);
-          ucs.setName(jucs.getSchemeName());
-        }
-      } catch (Exception ex2)
-      {
-        ex2.printStackTrace();
+        return false;
       }
+    }
+    JalviewFileChooser chooser = new JalviewFileChooser("jc",
+            "Jalview User Colours");
 
-      if (newColours == null)
+    JalviewFileView fileView = new JalviewFileView();
+    chooser.setFileView(fileView);
+    chooser.setDialogTitle(
+            MessageManager.getString("label.save_colour_scheme"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
+
+    int value = chooser.showSaveDialog(this);
+
+    if (value != JalviewFileChooser.APPROVE_OPTION)
+    {
+      return false;
+    }
+
+    File file = chooser.getSelectedFile();
+    UserColourScheme updatedScheme = addNewColourScheme(file.getPath());
+    saveToFile(file);
+    changed = false;
+
+    /*
+     * changes saved - apply to alignment if we are changing 
+     * the currently selected colour scheme; also make the updated
+     * colours the 'backout' scheme on Cancel
+     */
+    if (oldColourScheme != null
+            && name.equals(oldColourScheme.getSchemeName()))
+    {
+      oldColourScheme = updatedScheme;
+      applyButton_actionPerformed();
+    }
+    return true;
+  }
+
+  /**
+   * Adds the current colour scheme to the Jalview properties file so it is
+   * loaded on next startup, and updates the Colour menu in the parent
+   * AlignFrame (if there is one). Note this action does not including applying
+   * the colour scheme.
+   * 
+   * @param filePath
+   * @return
+   */
+  protected UserColourScheme addNewColourScheme(String filePath)
+  {
+    /*
+     * update the delimited list of user defined colour files in
+     * Jalview property USER_DEFINED_COLOURS
+     */
+    String defaultColours = Cache.getDefault(USER_DEFINED_COLOURS,
+            filePath);
+    if (defaultColours.indexOf(filePath) == -1)
+    {
+      if (defaultColours.length() > 0)
       {
-        System.out.println("Error loading User ColourFile\n" + ex);
+        defaultColours = defaultColours.concat("|");
       }
+      defaultColours = defaultColours.concat(filePath);
+    }
+    Cache.setProperty(USER_DEFINED_COLOURS, defaultColours);
+
+    /*
+     * construct and register the colour scheme
+     */
+    UserColourScheme ucs = getSchemeFromButtons();
+    ColourSchemes.getInstance().registerColourScheme(ucs);
+
+    /*
+     * update the Colour menu items
+     */
+    if (ap != null)
+    {
+      ap.alignFrame.buildColourMenu();
     }
 
     return ucs;
   }
 
   /**
-   * DOCUMENT ME!
+   * Saves the colour scheme to file in XML format
    * 
-   * @param e
-   *          DOCUMENT ME!
+   * @param path
    */
-  @Override
-  protected void savebutton_actionPerformed(ActionEvent e)
+  protected void saveToFile(File toFile)
   {
-    if (schemeName.getText().trim().length() < 1)
+    /*
+     * build a Java model of colour scheme as XML, and 
+     * marshal to file
+     */
+    JalviewUserColours ucs = new JalviewUserColours();
+    String name = schemeName.getText();
+    ucs.setSchemeName(name);
+    try
     {
-      JOptionPane.showInternalMessageDialog(Desktop.desktop, MessageManager
-              .getString("label.user_colour_scheme_must_have_name"),
-              MessageManager.getString("label.no_name_colour_scheme"),
-              JOptionPane.WARNING_MESSAGE);
-      return;
-    }
+      PrintWriter out = new PrintWriter(new OutputStreamWriter(
+              new FileOutputStream(toFile), "UTF-8"));
 
-    if (userColourSchemes != null
-            && userColourSchemes.containsKey(schemeName.getText()))
+      for (int i = 0; i < buttonPanel.getComponentCount(); i++)
+      {
+        JButton button = (JButton) buttonPanel.getComponent(i);
+        Colour col = new Colour();
+        col.setName(button.getText());
+        col.setRGB(Format.getHexString(button.getBackground()));
+        ucs.getColour().add(col);
+      }
+      JAXBContext jaxbContext = JAXBContext
+              .newInstance(JalviewUserColours.class);
+      Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+      jaxbMarshaller.marshal(
+              new ObjectFactory().createJalviewUserColours(ucs), out);
+      // ucs.marshal(out);
+      out.close();
+    } catch (Exception ex)
     {
-      int reply = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-              MessageManager.formatMessage(
-                      "label.colour_scheme_exists_overwrite", new Object[] {
-                          schemeName.getText(), schemeName.getText() }),
-              MessageManager.getString("label.duplicate_scheme_name"),
-              JOptionPane.YES_NO_OPTION);
-      if (reply != JOptionPane.YES_OPTION)
-      {
-        return;
-      }
-
-      userColourSchemes.remove(schemeName.getText());
-    }
-    JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "jc" }, new String[] { "Jalview User Colours" },
-            "Jalview User Colours");
-
-    chooser.setFileView(new jalview.io.JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.save_colour_scheme"));
-    chooser.setToolTipText(MessageManager.getString("action.save"));
-
-    int value = chooser.showSaveDialog(this);
-
-    if (value == JalviewFileChooser.APPROVE_OPTION)
-    {
-      String choice = chooser.getSelectedFile().getPath();
-      String defaultColours = jalview.bin.Cache.getDefault(
-              "USER_DEFINED_COLOURS", choice);
-      if (defaultColours.indexOf(choice) == -1)
-      {
-        if (defaultColours.length() > 0)
-        {
-          defaultColours = defaultColours.concat("|");
-        }
-        defaultColours = defaultColours.concat(choice);
-      }
-
-      userColourSchemes.put(schemeName.getText(), getSchemeFromButtons());
-
-      ap.alignFrame.updateUserColourMenu();
-
-      jalview.bin.Cache.setProperty("USER_DEFINED_COLOURS", defaultColours);
-
-      jalview.schemabinding.version2.JalviewUserColours ucs = new jalview.schemabinding.version2.JalviewUserColours();
-
-      ucs.setSchemeName(schemeName.getText());
-      try
-      {
-        PrintWriter out = new PrintWriter(new OutputStreamWriter(
-                new FileOutputStream(choice), "UTF-8"));
-
-        for (int i = 0; i < buttonPanel.getComponentCount(); i++)
-        {
-          JButton button = (JButton) buttonPanel.getComponent(i);
-          jalview.schemabinding.version2.Colour col = new jalview.schemabinding.version2.Colour();
-          col.setName(button.getText());
-          col.setRGB(jalview.util.Format.getHexString(button
-                  .getBackground()));
-          ucs.addColour(col);
-        }
-
-        ucs.marshal(out);
-        out.close();
-      } catch (Exception ex)
-      {
-        ex.printStackTrace();
-      }
+      ex.printStackTrace();
     }
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * On cancel, restores the colour scheme that was selected before the dialogue
+   * was opened
    */
   @Override
-  protected void cancelButton_actionPerformed(ActionEvent e)
+  protected void cancelButton_actionPerformed()
   {
-    if (ap != null)
-    {
-      if (seqGroup != null)
-      {
-        seqGroup.cs = oldColourScheme;
-      }
-      else if (ap != null)
-      {
-        ap.av.setGlobalColourScheme(oldColourScheme);
-      }
-      ap.paintAlignment(true);
-    }
-
-    if (jmol != null)
-    {
-      jmol.setJalviewColourScheme(oldColourScheme);
-    }
+    ap.alignFrame.changeColour(oldColourScheme);
+    ap.paintAlignment(true, true);
 
     try
     {
@@ -926,125 +894,17 @@ public class UserDefinedColours extends GUserDefinedColours implements
     }
   }
 
-  static Hashtable userColourSchemes;
-
-  public static Hashtable getUserColourSchemes()
-  {
-    return userColourSchemes;
-  }
-
-  public static void initUserColourSchemes(String files)
-  {
-    userColourSchemes = new Hashtable();
-
-    if (files == null || files.length() == 0)
-    {
-      return;
-    }
-
-    // In case colours can't be loaded, we'll remove them
-    // from the default list here.
-    StringBuffer coloursFound = new StringBuffer();
-    StringTokenizer st = new StringTokenizer(files, "|");
-    while (st.hasMoreElements())
-    {
-      String file = st.nextToken();
-      try
-      {
-        UserColourScheme ucs = loadColours(file);
-        if (ucs != null)
-        {
-          if (coloursFound.length() > 0)
-          {
-            coloursFound.append("|");
-          }
-          coloursFound.append(file);
-          userColourSchemes.put(ucs.getName(), ucs);
-        }
-      } catch (Exception ex)
-      {
-        System.out.println("Error loading User ColourFile\n" + ex);
-      }
-    }
-    if (!files.equals(coloursFound.toString()))
-    {
-      if (coloursFound.toString().length() > 1)
-      {
-        jalview.bin.Cache.setProperty("USER_DEFINED_COLOURS",
-                coloursFound.toString());
-      }
-      else
-      {
-        jalview.bin.Cache.applicationProperties
-                .remove("USER_DEFINED_COLOURS");
-      }
-    }
-  }
-
-  public static void removeColourFromDefaults(String target)
-  {
-    // The only way to find colours by name is to load them in
-    // In case colours can't be loaded, we'll remove them
-    // from the default list here.
-
-    userColourSchemes = new Hashtable();
-
-    StringBuffer coloursFound = new StringBuffer();
-    StringTokenizer st = new StringTokenizer(
-            jalview.bin.Cache.getProperty("USER_DEFINED_COLOURS"), "|");
-
-    while (st.hasMoreElements())
-    {
-      String file = st.nextToken();
-      try
-      {
-        UserColourScheme ucs = loadColours(file);
-        if (ucs != null && !ucs.getName().equals(target))
-        {
-          if (coloursFound.length() > 0)
-          {
-            coloursFound.append("|");
-          }
-          coloursFound.append(file);
-          userColourSchemes.put(ucs.getName(), ucs);
-        }
-      } catch (Exception ex)
-      {
-        System.out.println("Error loading User ColourFile\n" + ex);
-      }
-    }
-
-    if (coloursFound.toString().length() > 1)
-    {
-      jalview.bin.Cache.setProperty("USER_DEFINED_COLOURS",
-              coloursFound.toString());
-    }
-    else
-    {
-      jalview.bin.Cache.applicationProperties
-              .remove("USER_DEFINED_COLOURS");
-    }
-
-  }
-
+  /**
+   * Action on selecting or deselecting the Case Sensitive option. When
+   * selected, separate buttons are shown for lower case residues, and the panel
+   * is resized to accommodate them. Also, the checkbox for 'apply colour to all
+   * lower case' is enabled.
+   */
   @Override
-  public void caseSensitive_actionPerformed(ActionEvent e)
+  public void caseSensitive_actionPerformed()
   {
-    resetButtonPanel(caseSensitive.isSelected());
-    lcaseColour.setEnabled(caseSensitive.isSelected());
-  }
-
-  @Override
-  public void lcaseColour_actionPerformed(ActionEvent e)
-  {
-    if (selectedButtons == null)
-    {
-      selectedButtons = new ArrayList<JButton>();
-    }
-    else
-    {
-      selectedButtons.clear();
-    }
-    selectedButtons.add(lcaseColour);
+    boolean selected = caseSensitive.isSelected();
+    resetButtonPanel(selected);
+    lcaseColour.setEnabled(selected);
   }
 }

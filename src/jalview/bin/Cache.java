@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,12 +20,6 @@
  */
 package jalview.bin;
 
-import jalview.datamodel.PDBEntry;
-import jalview.structure.StructureImportSettings;
-import jalview.ws.dbsources.das.api.DasSourceRegistryI;
-import jalview.ws.dbsources.das.datamodel.DasSourceRegistry;
-import jalview.ws.sifts.SiftsSettings;
-
 import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.File;
@@ -33,6 +27,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
@@ -40,12 +36,27 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.StringTokenizer;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
+
+import javax.swing.LookAndFeel;
+import javax.swing.UIManager;
 
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.SimpleLayout;
+
+import jalview.datamodel.PDBEntry;
+import jalview.gui.UserDefinedColours;
+import jalview.schemes.ColourSchemeLoader;
+import jalview.schemes.ColourSchemes;
+import jalview.schemes.UserColourScheme;
+import jalview.structure.StructureImportSettings;
+import jalview.urls.IdOrgSettings;
+import jalview.util.ColorUtils;
+import jalview.ws.sifts.SiftsSettings;
 
 /**
  * Stores and retrieves Jalview Application Properties Lists and fields within
@@ -70,7 +81,8 @@ import org.apache.log4j.SimpleLayout;
  * <li>SHOW_FULLSCREEN boolean</li>
  * <li>FONT_NAME java font name for alignment text display</li>
  * <li>FONT_SIZE size of displayed alignment text</li>
- * <li>FONT_STYLE style of font displayed (sequence labels are always italic)</li>
+ * <li>FONT_STYLE style of font displayed (sequence labels are always
+ * italic)</li>
  * <li>GAP_SYMBOL character to treat as gap symbol (usually -,.,' ')</li>
  * <li>LAST_DIRECTORY last directory for browsing alignment</li>
  * <li>USER_DEFINED_COLOURS list of user defined colour scheme files</li>
@@ -108,7 +120,6 @@ import org.apache.log4j.SimpleLayout;
  * service</li>
  * <li>USAGESTATS (false - user prompted) Enable google analytics tracker for
  * collecting usage statistics</li>
- * <li>DAS_LOCAL_SOURCE list of local das sources</li>
  * <li>SHOW_OVERVIEW boolean for overview window display</li>
  * <li>ANTI_ALIAS boolean for smooth fonts</li>
  * <li>RIGHT_ALIGN_IDS boolean</li>
@@ -122,11 +133,13 @@ import org.apache.log4j.SimpleLayout;
  * <li>SORT_ALIGNMENT (No sort|Id|Pairwise Identity)</li>
  * <li>SEQUENCE_LINKS list of name|URL pairs for opening a url with
  * $SEQUENCE_ID$</li>
+ * <li>STORED_LINKS list of name|url pairs which user has entered but are not
+ * currently used
+ * <li>DEFAULT_LINK name of single url to be used when user double clicks a
+ * sequence id (must be in SEQUENCE_LINKS or STORED_LINKS)
  * <li>GROUP_LINKS list of name|URL[|&lt;separator&gt;] tuples - see
  * jalview.utils.GroupURLLink for more info</li>
- * <li>DAS_REGISTRY_URL the registry to query</li>
  * <li>DEFAULT_BROWSER for unix</li>
- * <li>DAS_ACTIVE_SOURCE list of active sources</li>
  * <li>SHOW_MEMUSAGE boolean show memory usage and warning indicator on desktop
  * (false)</li>
  * <li>VERSION_CHECK (true) check for the latest release version from
@@ -161,8 +174,8 @@ import org.apache.log4j.SimpleLayout;
  * when shading by annotation</li>
  * <li>ANNOTATIONCOLOUR_MAX (red) Shade used for maximum value of annotation
  * when shading by annotation</li>
- * <li>www.jalview.org (http://www.jalview.org) a property enabling all HTTP
- * requests to be redirected to a mirror of http://www.jalview.org</li>
+ * <li>www.jalview.org (https://www.jalview.org) a property enabling all HTTP
+ * requests to be redirected to a mirror of https://www.jalview.org</li>
  * <li>FIGURE_AUTOIDWIDTH (false) Expand the left hand column of an exported
  * alignment figure to accommodate even the longest sequence ID or annotation
  * label.</li>
@@ -179,6 +192,8 @@ import org.apache.log4j.SimpleLayout;
  * <li>STRUCTURE_DISPLAY choose from JMOL (default) or CHIMERA for 3D structure
  * display</li>
  * <li>CHIMERA_PATH specify full path to Chimera program (if non-standard)</li>
+ * <li>ID_ORG_HOSTURL location of jalview service providing identifiers.org urls
+ * </li>
  * 
  * </ul>
  * Deprecated settings:
@@ -214,20 +229,22 @@ public class Cache
    */
   public static final String JALVIEWLOGLEVEL = "logs.Jalview.level";
 
-  public static final String DAS_LOCAL_SOURCE = "DAS_LOCAL_SOURCE";
-
-  public static final String DAS_REGISTRY_URL = "DAS_REGISTRY_URL";
-
-  public static final String DAS_ACTIVE_SOURCE = "DAS_ACTIVE_SOURCE";
-
+  /**
+   * Sifts settings
+   */
   public static final String DEFAULT_SIFTS_DOWNLOAD_DIR = System
-          .getProperty("user.home")
-          + File.separatorChar
+          .getProperty("user.home") + File.separatorChar
           + ".sifts_downloads" + File.separatorChar;
 
   private final static String DEFAULT_CACHE_THRESHOLD_IN_DAYS = "2";
 
   private final static String DEFAULT_FAIL_SAFE_PID_THRESHOLD = "30";
+
+  /**
+   * Identifiers.org download settings
+   */
+  private static final String ID_ORG_FILE = System.getProperty("user.home")
+          + File.separatorChar + ".identifiers.org.ids.json";
 
   /**
    * Allowed values are PDB or mmCIF
@@ -259,7 +276,7 @@ public class Cache
     @Override
     public synchronized Enumeration<Object> keys()
     {
-      return Collections.enumeration(new TreeSet<Object>(super.keySet()));
+      return Collections.enumeration(new TreeSet<>(super.keySet()));
     }
   };
 
@@ -288,8 +305,8 @@ public class Cache
       Logger lcastor = Logger.getLogger("org.exolab.castor");
       jalview.bin.Cache.log = Logger.getLogger("jalview.bin.Jalview");
 
-      laxis.setLevel(Level.toLevel(Cache.getDefault("logs.Axis.Level",
-              Level.INFO.toString())));
+      laxis.setLevel(Level.toLevel(
+              Cache.getDefault("logs.Axis.Level", Level.INFO.toString())));
       lcastor.setLevel(Level.toLevel(Cache.getDefault("logs.Castor.Level",
               Level.INFO.toString())));
       lcastor = Logger.getLogger("org.exolab.castor.xml");
@@ -298,8 +315,12 @@ public class Cache
       // lcastor = Logger.getLogger("org.exolab.castor.xml.Marshaller");
       // lcastor.setLevel(Level.toLevel(Cache.getDefault("logs.Castor.Level",
       // Level.INFO.toString())));
-      jalview.bin.Cache.log.setLevel(Level.toLevel(Cache.getDefault(
-              "logs.Jalview.level", Level.INFO.toString())));
+      // we shouldn't need to do this
+      org.apache.log4j.Logger.getRootLogger()
+              .setLevel(org.apache.log4j.Level.INFO);
+
+      jalview.bin.Cache.log.setLevel(Level.toLevel(Cache
+              .getDefault("logs.Jalview.level", Level.INFO.toString())));
       // laxis.addAppender(ap);
       // lcastor.addAppender(ap);
       // jalview.bin.Cache.log.addAppender(ap);
@@ -312,7 +333,10 @@ public class Cache
     }
   }
 
-  /** Called when Jalview is started */
+  /**
+   * Loads properties from the given properties file. Any existing properties
+   * are first cleared.
+   */
   public static void loadProperties(String propsFile)
   {
     propertiesFile = propsFile;
@@ -333,10 +357,10 @@ public class Cache
       try
       {
         fis = new java.net.URL(propertiesFile).openStream();
-        System.out.println("Loading jalview properties from : "
-                + propertiesFile);
-        System.out
-                .println("Disabling Jalview writing to user's local properties file.");
+        System.out.println(
+                "Loading jalview properties from : " + propertiesFile);
+        System.out.println(
+                "Disabling Jalview writing to user's local properties file.");
         propsAreReadOnly = true;
 
       } catch (Exception ex)
@@ -347,6 +371,7 @@ public class Cache
       {
         fis = new FileInputStream(propertiesFile);
       }
+      applicationProperties.clear();
       applicationProperties.load(fis);
 
       // remove any old build properties
@@ -360,8 +385,8 @@ public class Cache
 
     if (getDefault("USE_PROXY", false))
     {
-      String proxyServer = getDefault("PROXY_SERVER", ""), proxyPort = getDefault(
-              "PROXY_PORT", "8080");
+      String proxyServer = getDefault("PROXY_SERVER", ""),
+              proxyPort = getDefault("PROXY_PORT", "8080");
 
       System.out.println("Using proxyServer: " + proxyServer
               + " proxyPort: " + proxyPort);
@@ -373,9 +398,9 @@ public class Cache
     // LOAD THE AUTHORS FROM THE authors.props file
     try
     {
-      String authorDetails = "jar:".concat(Cache.class
-              .getProtectionDomain().getCodeSource().getLocation()
-              .toString().concat("!/authors.props"));
+      String authorDetails = "jar:"
+              .concat(Cache.class.getProtectionDomain().getCodeSource()
+                      .getLocation().toString().concat("!/authors.props"));
 
       java.net.URL localJarFileURL = new java.net.URL(authorDetails);
 
@@ -390,58 +415,25 @@ public class Cache
       applicationProperties.remove("YEAR");
     }
 
-    // FIND THE VERSION NUMBER AND BUILD DATE FROM jalview.jar
-    // MUST FOLLOW READING OF LOCAL PROPERTIES FILE AS THE
-    // VERSION MAY HAVE CHANGED SINCE LAST USING JALVIEW
-    try
-    {
-      String buildDetails = "jar:".concat(Cache.class.getProtectionDomain()
-              .getCodeSource().getLocation().toString()
-              .concat("!/.build_properties"));
-
-      java.net.URL localJarFileURL = new java.net.URL(buildDetails);
-
-      InputStream in = localJarFileURL.openStream();
-      applicationProperties.load(in);
-      in.close();
-    } catch (Exception ex)
-    {
-      System.out.println("Error reading build details: " + ex);
-      applicationProperties.remove("VERSION");
-    }
-
-    String jnlpVersion = System.getProperty("jalview.version");
-    String codeVersion = getProperty("VERSION");
-    String codeInstallation = getProperty("INSTALLATION");
-    if (codeVersion == null)
-    {
-      // THIS SHOULD ONLY BE THE CASE WHEN TESTING!!
-      codeVersion = "Test";
-      jnlpVersion = "Test";
-      codeInstallation = "";
-    }
-    else
-    {
-      codeInstallation = " (" + codeInstallation + ")";
-    }
-    new BuildDetails(codeVersion, null, codeInstallation);
+    loadBuildProperties(false);
 
     SiftsSettings
             .setMapWithSifts(Cache.getDefault("MAP_WITH_SIFTS", false));
 
-    SiftsSettings.setSiftDownloadDirectory(jalview.bin.Cache.getDefault(
-            "sifts_download_dir", DEFAULT_SIFTS_DOWNLOAD_DIR));
+    SiftsSettings.setSiftDownloadDirectory(jalview.bin.Cache
+            .getDefault("sifts_download_dir", DEFAULT_SIFTS_DOWNLOAD_DIR));
 
-    SiftsSettings.setFailSafePIDThreshold(jalview.bin.Cache.getDefault(
-            "sifts_fail_safe_pid_threshold",
-            DEFAULT_FAIL_SAFE_PID_THRESHOLD));
+    SiftsSettings.setFailSafePIDThreshold(
+            jalview.bin.Cache.getDefault("sifts_fail_safe_pid_threshold",
+                    DEFAULT_FAIL_SAFE_PID_THRESHOLD));
 
-    SiftsSettings.setCacheThresholdInDays(jalview.bin.Cache.getDefault(
-            "sifts_cache_threshold_in_days",
-            DEFAULT_CACHE_THRESHOLD_IN_DAYS));
+    SiftsSettings.setCacheThresholdInDays(
+            jalview.bin.Cache.getDefault("sifts_cache_threshold_in_days",
+                    DEFAULT_CACHE_THRESHOLD_IN_DAYS));
 
-    System.out
-            .println("Jalview Version: " + codeVersion + codeInstallation);
+    IdOrgSettings.setUrl(getDefault("ID_ORG_HOSTURL",
+            "https://www.jalview.org/services/identifiers"));
+    IdOrgSettings.setDownloadLocation(ID_ORG_FILE);
 
     StructureImportSettings.setDefaultStructureFileFormat(jalview.bin.Cache
             .getDefault("PDB_DOWNLOAD_FORMAT", PDB_DOWNLOAD_FORMAT));
@@ -450,19 +442,26 @@ public class Cache
     // StructureImportSettings
     // .setDefaultPDBFileParser(jalview.bin.Cache.getDefault(
     // "DEFAULT_PDB_FILE_PARSER", DEFAULT_PDB_FILE_PARSER));
-    // jnlpVersion will be null if we're using InstallAnywhere
+
+    String jnlpVersion = System.getProperty("jalview.version");
+
+    // jnlpVersion will be null if a latest version check for the channel needs
+    // to be done
     // Dont do this check if running in headless mode
-    if (jnlpVersion == null
-            && getDefault("VERSION_CHECK", true)
+
+    if (jnlpVersion == null && getDefault("VERSION_CHECK", true)
             && (System.getProperty("java.awt.headless") == null || System
                     .getProperty("java.awt.headless").equals("false")))
     {
 
       class VersionChecker extends Thread
       {
+
         @Override
         public void run()
         {
+          String buildPropertiesUrl = Cache.getAppbaseBuildProperties();
+
           String orgtimeout = System
                   .getProperty("sun.net.client.defaultConnectTimeout");
           if (orgtimeout == null)
@@ -476,28 +475,19 @@ public class Cache
           {
             System.setProperty("sun.net.client.defaultConnectTimeout",
                     "5000");
-            java.net.URL url = new java.net.URL(Cache.getDefault(
-                    "www.jalview.org", "http://www.jalview.org")
-                    + "/webstart/jalview.jnlp");
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    url.openStream()));
-            String line = null;
-            while ((line = in.readLine()) != null)
-            {
-              if (line.indexOf("jalview.version") == -1)
-              {
-                continue;
-              }
+            java.net.URL url = new java.net.URL(buildPropertiesUrl);
 
-              line = line.substring(line.indexOf("value=") + 7);
-              line = line.substring(0, line.lastIndexOf("\""));
-              remoteVersion = line;
-              break;
-            }
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(url.openStream()));
+
+            Properties remoteBuildProperties = new Properties();
+            remoteBuildProperties.load(in);
+            remoteVersion = remoteBuildProperties.getProperty("VERSION");
           } catch (Exception ex)
           {
             System.out
-                    .println("Non-fatal exception when checking version at www.jalview.org :");
+                    .println("Non-fatal exception when checking version at "
+                            + buildPropertiesUrl + ":");
             System.out.println(ex);
             remoteVersion = getProperty("VERSION");
           }
@@ -523,13 +513,55 @@ public class Cache
       }
     }
 
-    setProperty("VERSION", codeVersion);
-
     // LOAD USERDEFINED COLOURS
-    jalview.gui.UserDefinedColours
+    jalview.bin.Cache
             .initUserColourSchemes(getProperty("USER_DEFINED_COLOURS"));
     jalview.io.PIRFile.useModellerOutput = Cache.getDefault("PIR_MODELLER",
             false);
+  }
+
+  public static void loadBuildProperties(boolean reportVersion)
+  {
+    String codeInstallation = getProperty("INSTALLATION");
+    boolean printV = codeInstallation == null;
+
+    // FIND THE VERSION NUMBER AND BUILD DATE FROM jalview.jar
+    try
+    {
+      String buildDetails = "jar:".concat(Cache.class.getProtectionDomain()
+              .getCodeSource().getLocation().toString()
+              .concat("!/.build_properties"));
+
+      java.net.URL localJarFileURL = new java.net.URL(buildDetails);
+
+      InputStream in = localJarFileURL.openStream();
+      applicationProperties.load(in);
+      in.close();
+    } catch (Exception ex)
+    {
+      System.out.println("Error reading build details: " + ex);
+      applicationProperties.remove("VERSION");
+    }
+    String codeVersion = getProperty("VERSION");
+    codeInstallation = getProperty("INSTALLATION");
+
+    if (codeVersion == null)
+    {
+      // THIS SHOULD ONLY BE THE CASE WHEN TESTING!!
+      codeVersion = "Test";
+      codeInstallation = "";
+    }
+    else
+    {
+      codeInstallation = " (" + codeInstallation + ")";
+    }
+    setProperty("VERSION", codeVersion);
+    new BuildDetails(codeVersion, null, codeInstallation);
+    if (printV && reportVersion)
+    {
+      System.out.println(
+              "Jalview Version: " + codeVersion + codeInstallation);
+    }
   }
 
   private static void deleteBuildProperties()
@@ -573,6 +605,24 @@ public class Cache
     return def;
   }
 
+  public static int getDefault(String property, int def)
+  {
+    String string = getProperty(property);
+    if (string != null)
+    {
+      try
+      {
+        def = Integer.parseInt(string);
+      } catch (NumberFormatException e)
+      {
+        System.out.println("Error parsing int property '" + property
+                + "' with value '" + string + "'");
+      }
+    }
+
+    return def;
+  }
+
   /**
    * These methods are used when checking if the saved preference is different
    * to the default setting
@@ -596,15 +646,15 @@ public class Cache
    * @param obj
    *          String value of property
    * 
-   * @return String value of property
+   * @return previous value of property (or null)
    */
-  public static String setProperty(String key, String obj)
+  public static Object setProperty(String key, String obj)
   {
-
+    Object oldValue = null;
     try
     {
-      applicationProperties.setProperty(key, obj);
-      if (!propsAreReadOnly)
+      oldValue = applicationProperties.setProperty(key, obj);
+      if (propertiesFile != null && !propsAreReadOnly)
       {
         FileOutputStream out = new FileOutputStream(propertiesFile);
         applicationProperties.store(out, "---JalviewX Properties File---");
@@ -612,10 +662,10 @@ public class Cache
       }
     } catch (Exception ex)
     {
-      System.out.println("Error setting property: " + key + " " + obj
-              + "\n" + ex);
+      System.out.println(
+              "Error setting property: " + key + " " + obj + "\n" + ex);
     }
-    return obj;
+    return oldValue;
   }
 
   /**
@@ -664,15 +714,15 @@ public class Cache
     {
       try
       {
-        if (jalview.jbgui.GDesktop.class.getClassLoader().loadClass(
-                "uk.ac.vamsas.client.VorbaId") != null)
+        if (jalview.jbgui.GDesktop.class.getClassLoader()
+                .loadClass("uk.ac.vamsas.client.VorbaId") != null)
         {
-          jalview.bin.Cache.log
-                  .debug("Found Vamsas Classes (uk.ac..vamsas.client.VorbaId can be loaded)");
+          jalview.bin.Cache.log.debug(
+                  "Found Vamsas Classes (uk.ac..vamsas.client.VorbaId can be loaded)");
           vamsasJarsArePresent = 1;
           Logger lvclient = Logger.getLogger("uk.ac.vamsas");
-          lvclient.setLevel(Level.toLevel(Cache.getDefault(
-                  "logs.Vamsas.Level", Level.INFO.toString())));
+          lvclient.setLevel(Level.toLevel(Cache
+                  .getDefault("logs.Vamsas.Level", Level.INFO.toString())));
 
           lvclient.addAppender(log.getAppender("JalviewLogger"));
           // Tell the user that debug is enabled
@@ -703,15 +753,15 @@ public class Cache
     {
       try
       {
-        if (Cache.class.getClassLoader().loadClass(
-                "groovy.lang.GroovyObject") != null)
+        if (Cache.class.getClassLoader()
+                .loadClass("groovy.lang.GroovyObject") != null)
         {
-          jalview.bin.Cache.log
-                  .debug("Found Groovy (groovy.lang.GroovyObject can be loaded)");
+          jalview.bin.Cache.log.debug(
+                  "Found Groovy (groovy.lang.GroovyObject can be loaded)");
           groovyJarsArePresent = 1;
           Logger lgclient = Logger.getLogger("groovy");
-          lgclient.setLevel(Level.toLevel(Cache.getDefault(
-                  "logs.Groovy.Level", Level.INFO.toString())));
+          lgclient.setLevel(Level.toLevel(Cache
+                  .getDefault("logs.Groovy.Level", Level.INFO.toString())));
 
           lgclient.addAppender(log.getAppender("JalviewLogger"));
           // Tell the user that debug is enabled
@@ -752,15 +802,14 @@ public class Cache
         // try to get the tracker class
         try
         {
-          jgoogleanalyticstracker = Cache.class
-                  .getClassLoader()
-                  .loadClass(
-                          "com.boxysystems.jgoogleanalytics.JGoogleAnalyticsTracker");
-          trackerfocus = Cache.class.getClassLoader().loadClass(
-                  "com.boxysystems.jgoogleanalytics.FocusPoint");
+          jgoogleanalyticstracker = Cache.class.getClassLoader().loadClass(
+                  "com.boxysystems.jgoogleanalytics.JGoogleAnalyticsTracker");
+          trackerfocus = Cache.class.getClassLoader()
+                  .loadClass("com.boxysystems.jgoogleanalytics.FocusPoint");
         } catch (Exception e)
         {
-          log.debug("com.boxysystems.jgoogleanalytics package is not present - tracking not enabled.");
+          log.debug(
+                  "com.boxysystems.jgoogleanalytics package is not present - tracking not enabled.");
           tracker = null;
           jgoogleanalyticstracker = null;
           trackerfocus = null;
@@ -774,22 +823,22 @@ public class Cache
       try
       {
         // Google analytics tracking code for Library Finder
-        tracker = jgoogleanalyticstracker.getConstructor(
-                new Class[] { String.class, String.class, String.class })
-                .newInstance(
-                        new Object[] {
-                            "Jalview Desktop",
-                            (vrs = jalview.bin.Cache.getProperty("VERSION")
-                                    + "_"
-                                    + jalview.bin.Cache.getDefault(
-                                            "BUILD_DATE", "unknown")),
-                            "UA-9060947-1" });
-        jgoogleanalyticstracker.getMethod("trackAsynchronously",
-                new Class[] { trackerfocus }).invoke(
-                tracker,
-                new Object[] { trackerfocus.getConstructor(
-                        new Class[] { String.class }).newInstance(
-                        new Object[] { "Application Started." }) });
+        tracker = jgoogleanalyticstracker
+                .getConstructor(new Class[]
+                { String.class, String.class, String.class })
+                .newInstance(new Object[]
+                { "Jalview Desktop",
+                    (vrs = jalview.bin.Cache.getProperty("VERSION") + "_"
+                            + jalview.bin.Cache.getDefault("BUILD_DATE",
+                                    "unknown")),
+                    "UA-9060947-1" });
+        jgoogleanalyticstracker
+                .getMethod("trackAsynchronously", new Class[]
+                { trackerfocus })
+                .invoke(tracker, new Object[]
+                { trackerfocus.getConstructor(new Class[] { String.class })
+                        .newInstance(new Object[]
+                        { "Application Started." }) });
       } catch (RuntimeException e)
       {
         re = e;
@@ -806,42 +855,45 @@ public class Cache
         {
           if (re != null)
           {
-            log.debug("Caught runtime exception in googletracker init:", re);
+            log.debug("Caught runtime exception in googletracker init:",
+                    re);
           }
           if (ex != null)
           {
             log.warn(
                     "Failed to initialise GoogleTracker for Jalview Desktop with version "
-                            + vrs, ex);
+                            + vrs,
+                    ex);
           }
           if (err != null)
           {
             log.error(
                     "Whilst initing GoogleTracker for Jalview Desktop version "
-                            + vrs, err);
+                            + vrs,
+                    err);
           }
         }
         else
         {
           if (re != null)
           {
-            System.err
-                    .println("Debug: Caught runtime exception in googletracker init:"
+            System.err.println(
+                    "Debug: Caught runtime exception in googletracker init:"
                             + vrs);
             re.printStackTrace();
           }
           if (ex != null)
           {
-            System.err
-                    .println("Warning:  Failed to initialise GoogleTracker for Jalview Desktop with version "
+            System.err.println(
+                    "Warning:  Failed to initialise GoogleTracker for Jalview Desktop with version "
                             + vrs);
             ex.printStackTrace();
           }
 
           if (err != null)
           {
-            System.err
-                    .println("ERROR: Whilst initing GoogleTracker for Jalview Desktop version "
+            System.err.println(
+                    "ERROR: Whilst initing GoogleTracker for Jalview Desktop version "
                             + vrs);
             err.printStackTrace();
           }
@@ -868,19 +920,11 @@ public class Cache
     {
       return defcolour;
     }
-    Color col = jalview.schemes.ColourSchemeProperty
-            .getAWTColorFromName(colprop);
+    Color col = ColorUtils.parseColourString(colprop);
     if (col == null)
     {
-      try
-      {
-        col = new jalview.schemes.UserColourScheme(colprop).findColour('A');
-      } catch (Exception ex)
-      {
-        log.warn("Couldn't parse '" + colprop + "' as a colour for "
-                + property);
-        col = null;
-      }
+      log.warn("Couldn't parse '" + colprop + "' as a colour for "
+              + property);
     }
     return (col == null) ? defcolour : col;
   }
@@ -959,22 +1003,6 @@ public class Cache
     return null;
   }
 
-  private static DasSourceRegistryI sourceRegistry = null;
-
-  /**
-   * initialise and ..
-   * 
-   * @return instance of the das source registry
-   */
-  public static DasSourceRegistryI getDasSourceRegistry()
-  {
-    if (sourceRegistry == null)
-    {
-      sourceRegistry = new DasSourceRegistry();
-    }
-    return sourceRegistry;
-  }
-
   /**
    * Set the specified value, or remove it if null or empty. Does not save the
    * properties file.
@@ -996,5 +1024,205 @@ public class Cache
     {
       Cache.applicationProperties.setProperty(propName, value);
     }
+  }
+
+  /**
+   * Loads in user colour schemes from files.
+   * 
+   * @param files
+   *          a '|'-delimited list of file paths
+   */
+  public static void initUserColourSchemes(String files)
+  {
+    if (files == null || files.length() == 0)
+    {
+      return;
+    }
+
+    // In case colours can't be loaded, we'll remove them
+    // from the default list here.
+    StringBuffer coloursFound = new StringBuffer();
+    StringTokenizer st = new StringTokenizer(files, "|");
+    while (st.hasMoreElements())
+    {
+      String file = st.nextToken();
+      try
+      {
+        UserColourScheme ucs = ColourSchemeLoader.loadColourScheme(file);
+        if (ucs != null)
+        {
+          if (coloursFound.length() > 0)
+          {
+            coloursFound.append("|");
+          }
+          coloursFound.append(file);
+          ColourSchemes.getInstance().registerColourScheme(ucs);
+        }
+      } catch (Exception ex)
+      {
+        System.out.println("Error loading User ColourFile\n" + ex);
+      }
+    }
+    if (!files.equals(coloursFound.toString()))
+    {
+      if (coloursFound.toString().length() > 1)
+      {
+        setProperty(UserDefinedColours.USER_DEFINED_COLOURS,
+                coloursFound.toString());
+      }
+      else
+      {
+        applicationProperties
+                .remove(UserDefinedColours.USER_DEFINED_COLOURS);
+      }
+    }
+  }
+
+  /**
+   * Initial logging information helper for various versions output
+   * 
+   * @param prefix
+   * @param value
+   * @param defaultValue
+   */
+  private static void appendIfNotNull(StringBuilder sb, String prefix,
+          String value, String suffix, String defaultValue)
+  {
+    if (value == null && defaultValue == null)
+    {
+      return;
+    }
+    String line = prefix + (value != null ? value : defaultValue) + suffix;
+    sb.append(line);
+  }
+
+  /**
+   * 
+   * @return Jalview version, build details and JVM platform version for console
+   */
+  public static String getVersionDetailsForConsole()
+  {
+    StringBuilder sb = new StringBuilder();
+    sb.append("Jalview Version: ");
+    sb.append(jalview.bin.Cache.getDefault("VERSION", "TEST"));
+    sb.append("\n");
+    sb.append("Jalview Installation: ");
+    sb.append(jalview.bin.Cache.getDefault("INSTALLATION", "unknown"));
+    sb.append("\n");
+    sb.append("Build Date: ");
+    sb.append(jalview.bin.Cache.getDefault("BUILD_DATE", "unknown"));
+    sb.append("\n");
+    sb.append("Java version: ");
+    sb.append(System.getProperty("java.version"));
+    sb.append("\n");
+    sb.append(System.getProperty("os.arch"));
+    sb.append(" ");
+    sb.append(System.getProperty("os.name"));
+    sb.append(" ");
+    sb.append(System.getProperty("os.version"));
+    sb.append("\n");
+    appendIfNotNull(sb, "Install4j version: ",
+            System.getProperty("sys.install4jVersion"), "\n", null);
+    appendIfNotNull(sb, "Install4j template version: ",
+            System.getProperty("installer_template_version"), "\n", null);
+    appendIfNotNull(sb, "Launcher version: ",
+            System.getProperty("launcher_version"), "\n", null);
+    LookAndFeel laf = UIManager.getLookAndFeel();
+    String lafName = laf == null ? "Not obtained" : laf.getName();
+    String lafClass = laf == null ? "unknown" : laf.getClass().getName();
+    sb.append("LookAndFeel: ");
+    sb.append(lafName);
+    sb.append(" (");
+    sb.append(lafClass);
+    sb.append(")\n");
+    // Not displayed in release version ( determined by possible version number
+    // regex 9[9.]*9[.-_a9]* )
+    if (Pattern.matches("^\\d[\\d\\.]*\\d[\\.\\-\\w]*$",
+            jalview.bin.Cache.getDefault("VERSION", "TEST")))
+    {
+      appendIfNotNull(sb, "Getdown appdir: ",
+              System.getProperty("getdownappdir"), "\n", null);
+      appendIfNotNull(sb, "Getdown appbase: ",
+              System.getProperty("getdownappbase"), "\n", null);
+      appendIfNotNull(sb, "Java home: ", System.getProperty("java.home"),
+              "\n", "unknown");
+    }
+    return sb.toString();
+  }
+
+  /**
+   * 
+   * @return build details as reported in splashscreen
+   */
+  public static String getBuildDetailsForSplash()
+  {
+    // consider returning more human friendly info
+    // eg 'built from Source' or update channel
+    return jalview.bin.Cache.getDefault("INSTALLATION", "unknown");
+  }
+
+  public static String getStackTraceString(Throwable t)
+  {
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    t.printStackTrace(pw);
+    return sw.toString();
+  }
+
+  /**
+   * Getdown appbase methods
+   */
+
+  private static final String releaseAppbase;
+
+  private static String getdownAppbase;
+
+  private static String getdownDistDir;
+
+  static
+  {
+    Float specversion = Float
+            .parseFloat(System.getProperty("java.specification.version"));
+    releaseAppbase = (specversion < 9)
+            ? "https://www.jalview.org/getdown/release/1.8"
+            : "https://www.jalview.org/getdown/release/11";
+  }
+
+  // look for properties (passed in by getdown) otherwise default to release
+  private static void setGetdownAppbase()
+  {
+    if (getdownAppbase != null)
+    {
+      return;
+    }
+    String appbase = System.getProperty("getdownappbase");
+    String distDir = System.getProperty("getdowndistdir");
+    if (appbase == null)
+    {
+      appbase = releaseAppbase;
+      distDir = "release";
+    }
+    if (appbase.endsWith("/"))
+    {
+      appbase = appbase.substring(0, appbase.length() - 1);
+    }
+    if (distDir == null)
+    {
+      distDir = appbase.equals(releaseAppbase) ? "release" : "alt";
+    }
+    getdownAppbase = appbase;
+    getdownDistDir = distDir;
+  }
+
+  public static String getGetdownAppbase()
+  {
+    setGetdownAppbase();
+    return getdownAppbase;
+  }
+
+  public static String getAppbaseBuildProperties()
+  {
+    String appbase = getGetdownAppbase();
+    return appbase + "/" + getdownDistDir + "/build_properties";
   }
 }

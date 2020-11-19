@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,8 @@ package jalview.api;
 
 import jalview.commands.CommandI;
 import jalview.schemes.ColourSchemeI;
+
+import java.awt.Rectangle;
 
 /**
  * Interface implemented by gui implementations managing a Jalview Alignment
@@ -62,4 +64,25 @@ public interface AlignViewControllerGuiI
    * @return
    */
   FeatureSettingsControllerI getFeatureSettingsUI();
+
+  /**
+   * displays the Feature Settigns control panel for the alignment view - if one
+   * exists it is closed and re-opened.
+   * 
+   * @return the current feature settings controller
+   */
+  FeatureSettingsControllerI showFeatureSettingsUI();
+
+  /**
+   * record the last position of a feature settings dialog before it was closed
+   * 
+   * @param bounds
+   */
+  void setFeatureSettingsGeometry(Rectangle bounds);
+
+  /**
+   * 
+   * @return last position of feature settings for this alignment view GUI
+   */
+  Rectangle getFeatureSettingsGeometry();
 }

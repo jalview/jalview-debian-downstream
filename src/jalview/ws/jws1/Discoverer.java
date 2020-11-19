@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,13 +20,12 @@
  */
 package jalview.ws.jws1;
 
+import jalview.gui.JvOptionPane;
 import jalview.util.MessageManager;
 
 import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.Vector;
-
-import javax.swing.JOptionPane;
 
 import ext.vamsas.IRegistry;
 import ext.vamsas.IRegistryServiceLocator;
@@ -98,9 +97,9 @@ public class Discoverer implements Runnable
       // timeout
     } catch (Exception ex)
     {
-      jalview.bin.Cache.log
-              .error("Serious!  Service location failed\nfor URL :" + WsURL
-                      + "\n", ex);
+      jalview.bin.Cache.log.error(
+              "Serious!  Service location failed\nfor URL :" + WsURL + "\n",
+              ex);
 
       return null;
     }
@@ -127,9 +126,8 @@ public class Discoverer implements Runnable
   static private Vector getDiscoveryURLS()
   {
     Vector urls = new Vector();
-    String RootServiceURLs = jalview.bin.Cache
-            .getDefault("DISCOVERY_URLS",
-                    "http://www.compbio.dundee.ac.uk/JalviewWS/services/ServiceRegistry");
+    String RootServiceURLs = jalview.bin.Cache.getDefault("DISCOVERY_URLS",
+            "http://www.compbio.dundee.ac.uk/JalviewWS/services/ServiceRegistry");
 
     try
     {
@@ -154,17 +152,17 @@ public class Discoverer implements Runnable
           jalview.bin.Cache.log
                   .warn("Problem whilst trying to make a URL from '"
                           + ((url != null) ? url : "<null>") + "'");
-          jalview.bin.Cache.log
-                  .warn("This was probably due to a malformed comma separated list"
+          jalview.bin.Cache.log.warn(
+                  "This was probably due to a malformed comma separated list"
                           + " in the DISCOVERY_URLS entry of $(HOME)/.jalview_properties)");
           jalview.bin.Cache.log.debug("Exception was ", ex);
         }
       }
     } catch (Exception ex)
     {
-      jalview.bin.Cache.log
-              .warn("Error parsing comma separated list of urls in DISCOVERY_URLS.",
-                      ex);
+      jalview.bin.Cache.log.warn(
+              "Error parsing comma separated list of urls in DISCOVERY_URLS.",
+              ex);
     }
     if (urls.size() > 0)
     {
@@ -182,8 +180,8 @@ public class Discoverer implements Runnable
             .debug("(Re)-Initialising the discovery URL list.");
     try
     {
-      reallyDiscoverServices = jalview.bin.Cache.getDefault(
-              "DISCOVERY_START", false);
+      reallyDiscoverServices = jalview.bin.Cache
+              .getDefault("DISCOVERY_START", false);
       if (reallyDiscoverServices)
       {
         ServiceURLList = getDiscoveryURLS();
@@ -193,37 +191,32 @@ public class Discoverer implements Runnable
         jalview.bin.Cache.log.debug("Setting default services");
         services = new Hashtable();
         // Muscle, Clustal and JPred.
-        ServiceHandle[] defServices = {
-            new ServiceHandle(
-                    "MsaWS",
-                    "Edgar, Robert C. (2004), MUSCLE: multiple sequence alignment "
-                            + "with high accuracy and high throughput, Nucleic Acids Research 32(5), 1792-97.",
-                    "http://www.compbio.dundee.ac.uk/JalviewWS/services/MuscleWS",
-                    MessageManager
-                            .getString("label.muscle_multiple_protein_sequence_alignment")),
-            new ServiceHandle(
-                    "MsaWS",
+        ServiceHandle[] defServices = { new ServiceHandle("MsaWS",
+                "Edgar, Robert C. (2004), MUSCLE: multiple sequence alignment "
+                        + "with high accuracy and high throughput, Nucleic Acids Research 32(5), 1792-97.",
+                "http://www.compbio.dundee.ac.uk/JalviewWS/services/MuscleWS",
+                MessageManager.getString(
+                        "label.muscle_multiple_protein_sequence_alignment")),
+            new ServiceHandle("MsaWS",
                     "Katoh, K., K. Kuma, K., Toh, H.,  and Miyata, T. (2005) "
                             + "\"MAFFT version 5: improvement in accuracy of multiple sequence alignment.\""
                             + " Nucleic Acids Research, 33 511-518",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/MafftWS",
-                    MessageManager
-                            .getString("label.mafft_multiple_sequence_alignment")),
-            new ServiceHandle(
-                    "MsaWS",
+                    MessageManager.getString(
+                            "label.mafft_multiple_sequence_alignment")),
+            new ServiceHandle("MsaWS",
                     "Thompson, J.D., Higgins, D.G. and Gibson, T.J. (1994) CLUSTAL W: improving the sensitivity of progressive multiple"
                             + " sequence alignment through sequence weighting, position specific gap penalties and weight matrix choice."
                             + " Nucleic Acids Research, 22 4673-4680",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/ClustalWS",
-                    MessageManager
-                            .getString("label.clustalw_multiple_sequence_alignment")),
-            new ServiceHandle(
-                    "SecStrPred",
+                    MessageManager.getString(
+                            "label.clustalw_multiple_sequence_alignment")),
+            new ServiceHandle("SecStrPred",
                     "Drozdetskiy A, Cole C, Procter J & Barton GJ. (2015)\nJPred4: a protein secondary structure prediction server"
                             + "\nNucleic Acids Research, Web Server issue (first published 15th April 2015)"
                             + "\ndoi://10.1093/nar/gkv332",
                     "http://www.compbio.dundee.ac.uk/JalviewWS/services/jpred",
-                    "JNet Secondary Structure Prediction") };
+                    "JPred Secondary Structure Prediction") };
         services = new Hashtable();
         serviceList = new Vector();
         buildServiceLists(defServices, serviceList, services);
@@ -231,8 +224,8 @@ public class Discoverer implements Runnable
 
     } catch (Exception e)
     {
-      System.err
-              .println("jalview.rootRegistry is not a proper url!\nWas set to "
+      System.err.println(
+              "jalview.rootRegistry is not a proper url!\nWas set to "
                       + RootServiceURL + "\n" + e);
     }
 
@@ -255,11 +248,11 @@ public class Discoverer implements Runnable
       {
         if (jalview.gui.Desktop.desktop != null)
         {
-          JOptionPane.showMessageDialog(jalview.gui.Desktop.desktop,
+          JvOptionPane.showMessageDialog(jalview.gui.Desktop.desktop,
                   MessageManager.getString("label.set_proxy_settings"),
                   MessageManager
                           .getString("label.proxy_authorization_failed"),
-                  JOptionPane.WARNING_MESSAGE);
+                  JvOptionPane.WARNING_MESSAGE);
         }
       }
       else
@@ -321,16 +314,15 @@ public class Discoverer implements Runnable
               disc_serv = new java.net.URL(sh[i].getEndpointURL());
               if (!ServiceURLList.contains(disc_serv))
               {
-                jalview.bin.Cache.log
-                        .debug("Adding new discovery service at "
-                                + disc_serv);
+                jalview.bin.Cache.log.debug(
+                        "Adding new discovery service at " + disc_serv);
                 ServiceURLList.add(disc_serv);
                 seenNewDiscovery = true;
               }
             } catch (Exception e)
             {
-              jalview.bin.Cache.log.debug(
-                      "Ignoring bad discovery service URL "
+              jalview.bin.Cache.log
+                      .debug("Ignoring bad discovery service URL "
                               + sh[i].getEndpointURL(), e);
             }
           }
@@ -354,17 +346,17 @@ public class Discoverer implements Runnable
     }
     while (s_url < ServiceURLList.size())
     {
-      if ((sh = getServices((java.net.URL) ServiceURLList.get(s_url))) != null)
+      if ((sh = getServices(
+              (java.net.URL) ServiceURLList.get(s_url))) != null)
       {
 
         buildServiceLists(sh, cat, sscat);
       }
       else
       {
-        jalview.bin.Cache.log
-                .warn("No services at "
-                        + (ServiceURLList.get(s_url))
-                        + " - check DISCOVERY_URLS property in .jalview_properties");
+        jalview.bin.Cache.log.warn("No services at "
+                + (ServiceURLList.get(s_url))
+                + " - check DISCOVERY_URLS property in .jalview_properties");
       }
       s_url++;
     }
@@ -383,11 +375,13 @@ public class Discoverer implements Runnable
   /**
    * creates a new thread to call discoverServices()
    */
+  @Override
   public void run()
   {
     final Discoverer discoverer = this;
     Thread discoverThread = new Thread()
     {
+      @Override
       public void run()
       {
         discoverer.doDiscovery();
@@ -412,12 +406,12 @@ public class Discoverer implements Runnable
       serviceClientBindings.put("SecStrPred", new JPredClient());
       serviceClientBindings.put("SeqSearch", new SeqSearchWSClient());
     }
-    WS1Client instance = (WS1Client) serviceClientBindings.get(sh
-            .getAbstractName());
+    WS1Client instance = (WS1Client) serviceClientBindings
+            .get(sh.getAbstractName());
     if (instance == null)
     {
-      System.err
-              .println("WARNING - POSSIBLE IMPLEMENTATION ERROR - cannot find WSClient implementation for "
+      System.err.println(
+              "WARNING - POSSIBLE IMPLEMENTATION ERROR - cannot find WSClient implementation for "
                       + sh.getAbstractName());
     }
     else

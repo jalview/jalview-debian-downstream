@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,8 @@ import jalview.fts.api.FTSRestClientI;
 import jalview.fts.core.FTSRestRequest;
 import jalview.fts.core.FTSRestResponse;
 import jalview.fts.core.GFTSPanel;
+import jalview.gui.Help;
+import jalview.gui.Help.HelpId;
 import jalview.gui.SequenceFetcher;
 import jalview.util.MessageManager;
 
@@ -33,28 +35,33 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import javax.help.HelpSetException;
+
 @SuppressWarnings("serial")
 public class PDBFTSPanel extends GFTSPanel
 {
   private static String defaultFTSFrameTitle = MessageManager
           .getString("label.pdb_sequence_fetcher");
 
-  private String ftsFrameTitle = defaultFTSFrameTitle;
+  private static Map<String, Integer> tempUserPrefs = new HashMap<>();
 
-  private static Map<String, Integer> tempUserPrefs = new HashMap<String, Integer>();
+  private static final String PDB_FTS_CACHE_KEY = "CACHE.PDB_FTS";
 
-  public PDBFTSPanel(SequenceFetcher seqFetcher)
+  private static final String PDB_AUTOSEARCH = "FTS.PDB.AUTOSEARCH";
+
+  public PDBFTSPanel(SequenceFetcher fetcher)
   {
-    super();
+    super(fetcher);
     pageLimit = PDBFTSRestClient.getInstance().getDefaultResponsePageSize();
-    this.seqFetcher = seqFetcher;
-    this.progressIndicator = (seqFetcher == null) ? null : seqFetcher
-            .getProgressIndicator();
+    this.seqFetcher = fetcher;
+    this.progressIndicator = (fetcher == null) ? null
+            : fetcher.getProgressIndicator();
   }
 
   @Override
   public void searchAction(boolean isFreshSearch)
   {
+    mainFrame.requestFocusInWindow();
     if (isFreshSearch)
     {
       offSet = 0;
@@ -64,7 +71,6 @@ public class PDBFTSPanel extends GFTSPanel
       @Override
       public void run()
       {
-        ftsFrameTitle = defaultFTSFrameTitle;
         reset();
         boolean allowEmptySequence = false;
         if (getTypedText().length() > 0)
@@ -76,7 +82,7 @@ public class PDBFTSPanel extends GFTSPanel
                   .getSelectedItem()).getCode();
           wantedFields = PDBFTSRestClient.getInstance()
                   .getAllDefaultDisplayedFTSDataColumns();
-          String searchTerm = decodeSearchTerm(txt_search.getText(),
+          String searchTerm = decodeSearchTerm(getTypedText(),
                   searchTarget);
 
           FTSRestRequest request = new FTSRestRequest();
@@ -86,24 +92,24 @@ public class PDBFTSPanel extends GFTSPanel
           request.setSearchTerm(searchTerm + ")");
           request.setOffSet(offSet);
           request.setWantedFields(wantedFields);
-          FTSRestClientI pdbRestCleint = PDBFTSRestClient.getInstance();
+          FTSRestClientI pdbRestClient = PDBFTSRestClient.getInstance();
           FTSRestResponse resultList;
           try
           {
-            resultList = pdbRestCleint.executeRequest(request);
+            resultList = pdbRestClient.executeRequest(request);
           } catch (Exception e)
           {
             setErrorMessage(e.getMessage());
             checkForErrors();
+            setSearchInProgress(false);
             return;
           }
 
           if (resultList.getSearchSummary() != null
                   && resultList.getSearchSummary().size() > 0)
           {
-            getResultTable().setModel(
-                    FTSRestResponse.getTableModel(request,
-                            resultList.getSearchSummary()));
+            getResultTable().setModel(FTSRestResponse.getTableModel(request,
+                    resultList.getSearchSummary()));
             FTSRestResponse.configureTableColumn(getResultTable(),
                     wantedFields, tempUserPrefs);
             getResultTable().setVisible(true);
@@ -113,15 +119,13 @@ public class PDBFTSPanel extends GFTSPanel
           totalResultSetCount = resultList.getNumberOfItemsFound();
           resultSetCount = resultList.getSearchSummary() == null ? 0
                   : resultList.getSearchSummary().size();
-          String result = (resultSetCount > 0) ? MessageManager
-                  .getString("label.results") : MessageManager
-                  .getString("label.result");
+          String result = (resultSetCount > 0)
+                  ? MessageManager.getString("label.results")
+                  : MessageManager.getString("label.result");
 
           if (isPaginationEnabled() && resultSetCount > 0)
           {
-            updateSearchFrameTitle(defaultFTSFrameTitle
-                    + " - "
-                    + result
+            updateSearchFrameTitle(defaultFTSFrameTitle + " - " + result
                     + " "
                     + totalNumberformatter.format((Number) (offSet + 1))
                     + " to "
@@ -129,8 +133,8 @@ public class PDBFTSPanel extends GFTSPanel
                             .format((Number) (offSet + resultSetCount))
                     + " of "
                     + totalNumberformatter
-                            .format((Number) totalResultSetCount) + " "
-                    + " (" + (endTime - startTime) + " milli secs)");
+                            .format((Number) totalResultSetCount)
+                    + " " + " (" + (endTime - startTime) + " milli secs)");
           }
           else
           {
@@ -143,6 +147,7 @@ public class PDBFTSPanel extends GFTSPanel
           refreshPaginatorState();
           updateSummaryTableSelections();
         }
+        txt_search.updateCache();
       }
     }.start();
   }
@@ -172,8 +177,8 @@ public class PDBFTSPanel extends GFTSPanel
       foundSearchTerms = foundSearchTermsBuilder.toString();
       if (foundSearchTerms.contains(" OR "))
       {
-        foundSearchTerms = foundSearchTerms.substring(
-                targetField.length() + 1, endIndex);
+        foundSearchTerms = foundSearchTerms
+                .substring(targetField.length() + 1, endIndex);
       }
     }
     else if (enteredText.contains(":"))
@@ -189,22 +194,22 @@ public class PDBFTSPanel extends GFTSPanel
     // mainFrame.dispose();
     disableActionButtons();
     StringBuilder selectedIds = new StringBuilder();
-    HashSet<String> selectedIdsSet = new HashSet<String>();
+    HashSet<String> selectedIdsSet = new HashSet<>();
     int primaryKeyColIndex = 0;
     try
     {
-      primaryKeyColIndex = getFTSRestClient().getPrimaryKeyColumIndex(
-              wantedFields, false);
+      primaryKeyColIndex = getFTSRestClient()
+              .getPrimaryKeyColumIndex(wantedFields, false);
     } catch (Exception e)
     {
       e.printStackTrace();
     }
     int[] selectedRows = getResultTable().getSelectedRows();
-    String searchTerm = txt_search.getText();
+    String searchTerm = getTypedText();
     for (int summaryRow : selectedRows)
     {
-      String idStr = getResultTable().getValueAt(summaryRow,
-              primaryKeyColIndex).toString();
+      String idStr = getResultTable()
+              .getValueAt(summaryRow, primaryKeyColIndex).toString();
       selectedIdsSet.add(getPDBIdwithSpecifiedChain(idStr, searchTerm));
     }
 
@@ -261,7 +266,7 @@ public class PDBFTSPanel extends GFTSPanel
   @Override
   public String getFTSFrameTitle()
   {
-    return ftsFrameTitle;
+    return defaultFTSFrameTitle;
   }
 
   @Override
@@ -276,4 +281,27 @@ public class PDBFTSPanel extends GFTSPanel
     return tempUserPrefs;
   }
 
+  @Override
+  public String getCacheKey()
+  {
+    return PDB_FTS_CACHE_KEY;
+  }
+
+  @Override
+  public String getAutosearchPreference()
+  {
+    return PDB_AUTOSEARCH;
+  }
+
+  @Override
+  protected void showHelp()
+  {
+    try
+    {
+      Help.showHelpWindow(HelpId.PdbFts);
+    } catch (HelpSetException e1)
+    {
+      e1.printStackTrace();
+    }
+ }
 }

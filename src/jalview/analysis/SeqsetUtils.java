@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,6 +27,7 @@ import jalview.datamodel.SequenceI;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Vector;
 
 public class SeqsetUtils
@@ -44,21 +45,17 @@ public class SeqsetUtils
   {
     Hashtable sqinfo = new Hashtable();
     sqinfo.put("Name", seq.getName());
-    sqinfo.put("Start", new Integer(seq.getStart()));
-    sqinfo.put("End", new Integer(seq.getEnd()));
+    sqinfo.put("Start", Integer.valueOf(seq.getStart()));
+    sqinfo.put("End", Integer.valueOf(seq.getEnd()));
     if (seq.getDescription() != null)
     {
       sqinfo.put("Description", seq.getDescription());
     }
-    Vector sfeat = new Vector();
-    jalview.datamodel.SequenceFeature[] sfarray = seq.getSequenceFeatures();
-    if (sfarray != null && sfarray.length > 0)
-    {
-      for (int i = 0; i < sfarray.length; i++)
-      {
-        sfeat.addElement(sfarray[i]);
-      }
-    }
+
+    Vector<SequenceFeature> sfeat = new Vector<SequenceFeature>();
+    List<SequenceFeature> sfs = seq.getFeatures().getAllFeatures();
+    sfeat.addAll(sfs);
+
     if (seq.getDatasetSequence() == null)
     {
       sqinfo.put("SeqFeatures", sfeat);
@@ -87,6 +84,20 @@ public class SeqsetUtils
    */
   public static boolean SeqCharacterUnhash(SequenceI sq, Hashtable sqinfo)
   {
+    return SeqCharacterUnhash(sq, sqinfo, false, false);
+  }
+
+  /**
+   * restore some characteristics for a sequence from its hash
+   * @param sq
+   * @param sqinfo
+   * @param excludeLimits - when true, start/end is left unmodified
+   * @param excludeFeatures - when true, features are not restored from stashed vector
+   * @return true if sequence's name was modified
+   */
+          
+  public static boolean SeqCharacterUnhash(SequenceI sq, Hashtable sqinfo, boolean excludeLimits,boolean excludeFeatures)
+  {
     boolean namePresent = true;
     if (sqinfo == null)
     {
@@ -95,7 +106,8 @@ public class SeqsetUtils
     String oldname = (String) sqinfo.get("Name");
     Integer start = (Integer) sqinfo.get("Start");
     Integer end = (Integer) sqinfo.get("End");
-    Vector sfeatures = (Vector) sqinfo.get("SeqFeatures");
+    Vector<SequenceFeature> sfeatures = (Vector<SequenceFeature>) sqinfo
+            .get("SeqFeatures");
     Vector<PDBEntry> pdbid = (Vector<PDBEntry>) sqinfo.get("PdbId");
     String description = (String) sqinfo.get("Description");
     Sequence seqds = (Sequence) sqinfo.get("datasetSequence");
@@ -112,33 +124,27 @@ public class SeqsetUtils
       sq.setPDBId(pdbid);
     }
 
-    if ((start != null) && (end != null))
+    if (!excludeLimits && (start != null) && (end != null))
     {
       sq.setStart(start.intValue());
       sq.setEnd(end.intValue());
     }
-
-    if ((sfeatures != null) && (sfeatures.size() > 0))
+    // TODO: drop this completely since we should not manipulate sequenceFeatures as a vector any more
+    if (!excludeFeatures && sfeatures != null && !sfeatures.isEmpty())
     {
-      SequenceFeature[] sfarray = new SequenceFeature[sfeatures.size()];
-      for (int is = 0, isize = sfeatures.size(); is < isize; is++)
-      {
-        sfarray[is] = (SequenceFeature) sfeatures.elementAt(is);
-      }
-      sq.setSequenceFeatures(sfarray);
+      sq.setSequenceFeatures(sfeatures);
     }
     if (description != null)
     {
       sq.setDescription(description);
     }
-    if ((seqds != null)
-            && !(seqds.getName().equals("THISISAPLACEHOLDER") && seqds
-                    .getLength() == 0))
+    if ((seqds != null) && !(seqds.getName().equals("THISISAPLACEHOLDER")
+            && seqds.getLength() == 0))
     {
       if (sfeatures != null)
       {
-        System.err
-                .println("Implementation error: setting dataset sequence for a sequence which has sequence features.\n\tDataset sequence features will not be visible.");
+        System.err.println(
+                "Implementation error: setting dataset sequence for a sequence which has sequence features.\n\tDataset sequence features will not be visible.");
       }
       sq.setDatasetSequence(seqds);
     }
@@ -261,8 +267,9 @@ public class SeqsetUtils
     if (unmatched.size() > 0 && !quiet)
     {
       System.err.println("Did not find matches for :");
-      for (Enumeration i = unmatched.elements(); i.hasMoreElements(); System.out
-              .println(((SequenceI) i.nextElement()).getName()))
+      for (Enumeration i = unmatched.elements(); i
+              .hasMoreElements(); System.out
+                      .println(((SequenceI) i.nextElement()).getName()))
       {
         ;
       }

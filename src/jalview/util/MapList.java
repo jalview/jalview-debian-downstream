@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,8 @@ package jalview.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import jalview.bin.Cache;
 
 /**
  * A simple way of bijectively mapping a non-contiguous linear range to another
@@ -77,8 +79,8 @@ public class MapList
    */
   public MapList()
   {
-    fromShifts = new ArrayList<int[]>();
-    toShifts = new ArrayList<int[]>();
+    fromShifts = new ArrayList<>();
+    toShifts = new ArrayList<>();
   }
 
   /**
@@ -103,10 +105,9 @@ public class MapList
     {
       return false;
     }
-    return Arrays
-            .deepEquals(fromShifts.toArray(), obj.fromShifts.toArray())
-            && Arrays
-                    .deepEquals(toShifts.toArray(), obj.toShifts.toArray());
+    return Arrays.deepEquals(fromShifts.toArray(), obj.fromShifts.toArray())
+            && Arrays.deepEquals(toShifts.toArray(),
+                    obj.toShifts.toArray());
   }
 
   /**
@@ -117,8 +118,17 @@ public class MapList
   {
     int hashCode = 31 * fromRatio;
     hashCode = 31 * hashCode + toRatio;
-    hashCode = 31 * hashCode + fromShifts.toArray().hashCode();
-    hashCode = 31 * hashCode + toShifts.toArray().hashCode();
+    for (int[] shift : fromShifts)
+    {
+      hashCode = 31 * hashCode + shift[0];
+      hashCode = 31 * hashCode + shift[1];
+    }
+    for (int[] shift : toShifts)
+    {
+      hashCode = 31 * hashCode + shift[0];
+      hashCode = 31 * hashCode + shift[1];
+    }
+
     return hashCode;
   }
 
@@ -201,8 +211,7 @@ public class MapList
 
   /**
    * Constructor given from and to ranges as [start1, end1, start2, end2,...].
-   * If any end is equal to the next start, the ranges will be merged. There is
-   * no validation check that the ranges do not overlap each other.
+   * There is no validation check that the ranges do not overlap each other.
    * 
    * @param from
    *          contiguous regions as [start1, end1, start2, end2, ...]
@@ -220,7 +229,6 @@ public class MapList
     this.toRatio = toRatio;
     fromLowest = Integer.MAX_VALUE;
     fromHighest = Integer.MIN_VALUE;
-    int added = 0;
 
     for (int i = 0; i < from.length; i += 2)
     {
@@ -230,36 +238,16 @@ public class MapList
        */
       fromLowest = Math.min(fromLowest, Math.min(from[i], from[i + 1]));
       fromHighest = Math.max(fromHighest, Math.max(from[i], from[i + 1]));
-      if (added > 0 && from[i] == fromShifts.get(added - 1)[1])
-      {
-        /*
-         * this range starts where the last ended - just extend it
-         */
-        fromShifts.get(added - 1)[1] = from[i + 1];
-      }
-      else
-      {
-        fromShifts.add(new int[] { from[i], from[i + 1] });
-        added++;
-      }
+      fromShifts.add(new int[] { from[i], from[i + 1] });
     }
 
     toLowest = Integer.MAX_VALUE;
     toHighest = Integer.MIN_VALUE;
-    added = 0;
     for (int i = 0; i < to.length; i += 2)
     {
       toLowest = Math.min(toLowest, Math.min(to[i], to[i + 1]));
       toHighest = Math.max(toHighest, Math.max(to[i], to[i + 1]));
-      if (added > 0 && to[i] == toShifts.get(added - 1)[1])
-      {
-        toShifts.get(added - 1)[1] = to[i + 1];
-      }
-      else
-      {
-        toShifts.add(new int[] { to[i], to[i + 1] });
-        added++;
-      }
+      toShifts.add(new int[] { to[i], to[i + 1] });
     }
   }
 
@@ -319,6 +307,12 @@ public class MapList
     fromHighest = Integer.MIN_VALUE;
     for (int[] range : fromRange)
     {
+      if (range.length != 2)
+      {
+        // throw new IllegalArgumentException(range);
+        Cache.log.error("Invalid format for fromRange "
+                + Arrays.toString(range) + " may cause errors");
+      }
       fromLowest = Math.min(fromLowest, Math.min(range[0], range[1]));
       fromHighest = Math.max(fromHighest, Math.max(range[0], range[1]));
     }
@@ -327,6 +321,12 @@ public class MapList
     toHighest = Integer.MIN_VALUE;
     for (int[] range : toRange)
     {
+      if (range.length != 2)
+      {
+        // throw new IllegalArgumentException(range);
+        Cache.log.error("Invalid format for toRange "
+                + Arrays.toString(range) + " may cause errors");
+      }
       toLowest = Math.min(toLowest, Math.min(range[0], range[1]));
       toHighest = Math.max(toHighest, Math.max(range[0], range[1]));
     }
@@ -335,6 +335,16 @@ public class MapList
   /**
    * Consolidates a list of ranges so that any contiguous ranges are merged.
    * This assumes the ranges are already in start order (does not sort them).
+   * <p>
+   * The main use case for this method is when mapping cDNA sequence to its
+   * protein product, based on CDS feature ranges which derive from spliced
+   * exons, but are contiguous on the cDNA sequence. For example 
+   * <pre>
+   *   CDS 1-20  // from exon1
+   *   CDS 21-35 // from exon2
+   *   CDS 36-71 // from exon3
+   * 'coalesce' to range 1-71
+   * </pre>
    * 
    * @param ranges
    * @return the same list (if unchanged), else a new merged list, leaving the
@@ -348,7 +358,7 @@ public class MapList
     }
 
     boolean changed = false;
-    List<int[]> merged = new ArrayList<int[]>();
+    List<int[]> merged = new ArrayList<>();
     int[] lastRange = ranges.get(0);
     int lastDirection = lastRange[1] >= lastRange[0] ? 1 : -1;
     lastRange = new int[] { lastRange[0], lastRange[1] };
@@ -362,25 +372,6 @@ public class MapList
         first = false;
         continue;
       }
-      if (range[0] == lastRange[0] && range[1] == lastRange[1])
-      {
-        // drop duplicate range
-        changed = true;
-        continue;
-      }
-
-      /*
-       * drop this range if it lies within the last range
-       */
-      if ((lastDirection == 1 && range[0] >= lastRange[0]
-              && range[0] <= lastRange[1] && range[1] >= lastRange[0] && range[1] <= lastRange[1])
-              || (lastDirection == -1 && range[0] <= lastRange[0]
-                      && range[0] >= lastRange[1]
-                      && range[1] <= lastRange[0] && range[1] >= lastRange[1]))
-      {
-        changed = true;
-        continue;
-      }
 
       int direction = range[1] >= range[0] ? 1 : -1;
 
@@ -391,9 +382,7 @@ public class MapList
       boolean sameDirection = range[1] == range[0]
               || direction == lastDirection;
       boolean extending = range[0] == lastRange[1] + lastDirection;
-      boolean overlapping = (lastDirection == 1 && range[0] >= lastRange[0] && range[0] <= lastRange[1])
-              || (lastDirection == -1 && range[0] <= lastRange[0] && range[0] >= lastRange[1]);
-      if (sameDirection && (overlapping || extending))
+      if (sameDirection && extending)
       {
         lastRange[1] = range[1];
         changed = true;
@@ -800,7 +789,7 @@ public class MapList
     {
       return null;
     }
-    List<int[]> ranges = new ArrayList<int[]>();
+    List<int[]> ranges = new ArrayList<>();
     if (fs <= fe)
     {
       intv = fs;
@@ -961,15 +950,17 @@ public class MapList
     // TODO not used - remove?
     if (local)
     {
-      return ((getFromLowest() >= map.getFromLowest() && getFromHighest() <= map
-              .getFromHighest()) || (getFromLowest() <= map.getFromLowest() && getFromHighest() >= map
-              .getFromHighest()));
+      return ((getFromLowest() >= map.getFromLowest()
+              && getFromHighest() <= map.getFromHighest())
+              || (getFromLowest() <= map.getFromLowest()
+                      && getFromHighest() >= map.getFromHighest()));
     }
     else
     {
-      return ((getToLowest() >= map.getToLowest() && getToHighest() <= map
-              .getToHighest()) || (getToLowest() <= map.getToLowest() && getToHighest() >= map
-              .getToHighest()));
+      return ((getToLowest() >= map.getToLowest()
+              && getToHighest() <= map.getToHighest())
+              || (getToLowest() <= map.getToLowest()
+                      && getToHighest() >= map.getToHighest()));
     }
   }
 
@@ -1089,8 +1080,33 @@ public class MapList
    */
   public boolean isFromForwardStrand()
   {
+    return isForwardStrand(getFromRanges());
+  }
+
+  /**
+   * Returns true if mapping is to forward strand, false if to reverse strand.
+   * Result is just based on the first 'to' range that is not a single position.
+   * Default is true unless proven to be false. Behaviour is not well defined if
+   * the mapping has a mixture of forward and reverse ranges.
+   * 
+   * @return
+   */
+  public boolean isToForwardStrand()
+  {
+    return isForwardStrand(getToRanges());
+  }
+
+  /**
+   * A helper method that returns true unless at least one range has start >
+   * end. Behaviour is undefined for a mixture of forward and reverse ranges.
+   * 
+   * @param ranges
+   * @return
+   */
+  private boolean isForwardStrand(List<int[]> ranges)
+  {
     boolean forwardStrand = true;
-    for (int[] range : getFromRanges())
+    for (int[] range : ranges)
     {
       if (range[1] > range[0])
       {
@@ -1115,4 +1131,114 @@ public class MapList
             || (fromRatio == 3 && toRatio == 1);
   }
 
+  /**
+   * Returns a map which is the composite of this one and the input map. That
+   * is, the output map has the fromRanges of this map, and its toRanges are the
+   * toRanges of this map as transformed by the input map.
+   * <p>
+   * Returns null if the mappings cannot be traversed (not all toRanges of this
+   * map correspond to fromRanges of the input), or if this.toRatio does not
+   * match map.fromRatio.
+   * 
+   * <pre>
+   * Example 1:
+   *    this:   from [1-100] to [501-600]
+   *    input:  from [10-40] to [60-90]
+   *    output: from [10-40] to [560-590]
+   * Example 2 ('reverse strand exons'):
+   *    this:   from [1-100] to [2000-1951], [1000-951] // transcript to loci
+   *    input:  from [1-50]  to [41-90] // CDS to transcript
+   *    output: from [10-40] to [1960-1951], [1000-971] // CDS to gene loci
+   * </pre>
+   * 
+   * @param map
+   * @return
+   */
+  public MapList traverse(MapList map)
+  {
+    if (map == null)
+    {
+      return null;
+    }
+
+    /*
+     * compound the ratios by this rule:
+     * A:B with M:N gives A*M:B*N
+     * reduced by greatest common divisor
+     * so 1:3 with 3:3 is 3:9 or 1:3
+     * 1:3 with 3:1 is 3:3 or 1:1
+     * 1:3 with 1:3 is 1:9
+     * 2:5 with 3:7 is 6:35
+     */
+    int outFromRatio = getFromRatio() * map.getFromRatio();
+    int outToRatio = getToRatio() * map.getToRatio();
+    int gcd = MathUtils.gcd(outFromRatio, outToRatio);
+    outFromRatio /= gcd;
+    outToRatio /= gcd;
+
+    List<int[]> toRanges = new ArrayList<>();
+    for (int[] range : getToRanges())
+    {
+      int[] transferred = map.locateInTo(range[0], range[1]);
+      if (transferred == null || transferred.length % 2 != 0)
+      {
+        return null;
+      }
+
+      /*
+       *  convert [start1, end1, start2, end2, ...] 
+       *  to [[start1, end1], [start2, end2], ...]
+       */
+      for (int i = 0; i < transferred.length;)
+      {
+        toRanges.add(new int[] { transferred[i], transferred[i + 1] });
+        i += 2;
+      }
+    }
+
+    return new MapList(getFromRanges(), toRanges, outFromRatio, outToRatio);
+  }
+
+  /**
+   * Answers true if the mapping is from one contiguous range to another, else
+   * false
+   * 
+   * @return
+   */
+  public boolean isContiguous()
+  {
+    return fromShifts.size() == 1 && toShifts.size() == 1;
+  }
+
+  /**
+   * Returns the [start, end...] positions in the range mapped from, that are
+   * mapped to by part or all of the given begin-end of the range mapped to.
+   * Returns null if begin-end does not overlap any position mapped to.
+   * 
+   * @param begin
+   * @param end
+   * @return
+   */
+  public int[] getOverlapsInFrom(final int begin, final int end)
+  {
+    int[] overlaps = MappingUtils.findOverlap(toShifts, begin, end);
+
+    return overlaps == null ? null : locateInFrom(overlaps[0], overlaps[1]);
+  }
+
+  /**
+   * Returns the [start, end...] positions in the range mapped to, that are
+   * mapped to by part or all of the given begin-end of the range mapped from.
+   * Returns null if begin-end does not overlap any position mapped from.
+   * 
+   * @param begin
+   * @param end
+   * @return
+   */
+  public int[] getOverlapsInTo(final int begin, final int end)
+  {
+    int[] overlaps = MappingUtils.findOverlap(fromShifts, begin, end);
+
+    return overlaps == null ? null : locateInTo(overlaps[0], overlaps[1]);
+  }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,9 @@ package jalview.ext.ensembl;
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.stevesoft.pat.Regex;
@@ -108,10 +110,10 @@ public class EnsemblProtein extends EnsemblSeqProxy
   }
 
   @Override
-  protected boolean identifiesSequence(SequenceFeature sf, String accId)
+  protected List<SequenceFeature> getIdentifyingFeatures(SequenceI seq,
+          String accId)
   {
-    // not applicable - protein sequence is not a 'subset' of genomic sequence
-    return false;
+    return new ArrayList<>();
   }
 
   @Override

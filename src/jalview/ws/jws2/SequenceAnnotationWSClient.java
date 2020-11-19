@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -67,9 +67,9 @@ public class SequenceAnnotationWSClient extends Jws2Client
     // dan changed! dan test. comment out if conditional
     // if (alignFrame.getViewport().getAlignment().isNucleotide())
     // {
-    // JOptionPane.showMessageDialog(Desktop.desktop, sh.serviceType
+    // JvOptionPane.showMessageDialog(Desktop.desktop, sh.serviceType
     // + " can only be used\nfor amino acid alignments.",
-    // "Wrong type of sequences!", JOptionPane.WARNING_MESSAGE);
+    // "Wrong type of sequences!", JvOptionPane.WARNING_MESSAGE);
     // return;
     //
     // }
@@ -93,15 +93,17 @@ public class SequenceAnnotationWSClient extends Jws2Client
         try
         {
           worker = (AbstractJabaCalcWorker) (clientClass
-                  .getConstructor(new Class[] { Jws2Instance.class,
-                      AlignFrame.class, WsParamSetI.class, List.class })
-                  .newInstance(new Object[] { sh, alignFrame, this.preset,
-                      paramset }));
+                  .getConstructor(new Class[]
+                  { Jws2Instance.class, AlignFrame.class, WsParamSetI.class,
+                      List.class })
+                  .newInstance(new Object[]
+                  { sh, alignFrame, this.preset, paramset }));
         } catch (Exception x)
         {
           x.printStackTrace();
           throw new Error(
-                  MessageManager.getString("error.implementation_error"), x);
+                  MessageManager.getString("error.implementation_error"),
+                  x);
         }
         alignFrame.getViewport().getCalcManager().registerWorker(worker);
         alignFrame.getViewport().getCalcManager().startWorker(worker);
@@ -135,11 +137,8 @@ public class SequenceAnnotationWSClient extends Jws2Client
         return;
       }
 
-      alignFrame
-              .getViewport()
-              .getCalcManager()
-              .startWorker(
-                      new AADisorderClient(sh, alignFrame, preset, paramset));
+      alignFrame.getViewport().getCalcManager().startWorker(
+              new AADisorderClient(sh, alignFrame, preset, paramset));
     }
   }
 
@@ -171,8 +170,8 @@ public class SequenceAnnotationWSClient extends Jws2Client
             service.serviceType.length() - 2);
 
     JMenuItem annotservice = new JMenuItem(MessageManager.formatMessage(
-            "label.calcname_with_default_settings",
-            new String[] { calcName }));
+            "label.calcname_with_default_settings", new String[]
+            { calcName }));
     annotservice.addActionListener(new ActionListener()
     {
 
@@ -189,9 +188,8 @@ public class SequenceAnnotationWSClient extends Jws2Client
       // arguments
       annotservice = new JMenuItem(
               MessageManager.getString("label.edit_settings_and_run"));
-      annotservice
-              .setToolTipText(MessageManager
-                      .getString("label.view_and_change_parameters_before_running_calculation"));
+      annotservice.setToolTipText(MessageManager.getString(
+              "label.view_and_change_parameters_before_running_calculation"));
 
       annotservice.addActionListener(new ActionListener()
       {
@@ -204,20 +202,19 @@ public class SequenceAnnotationWSClient extends Jws2Client
       List<WsParamSetI> presets = service.getParamStore().getPresets();
       if (presets != null && presets.size() > 0)
       {
-        JMenu presetlist = new JMenu(MessageManager.formatMessage(
-                "label.run_with_preset", new String[] { calcName }));
+        JMenu presetlist = new JMenu(MessageManager
+                .formatMessage("label.run_with_preset", new String[]
+                { calcName }));
 
         for (final WsParamSetI preset : presets)
         {
           final JMenuItem methodR = new JMenuItem(preset.getName());
-          methodR.setToolTipText(JvSwingUtils.wrapTooltip(
-                  true,
-                  "<strong>"
-                          + (preset.isModifiable() ? MessageManager
-                                  .getString("label.user_preset")
-                                  : MessageManager
-                                          .getString("label.service_preset"))
-                          + "</strong><br/>" + preset.getDescription()));
+          methodR.setToolTipText(JvSwingUtils.wrapTooltip(true, "<strong>"
+                  + (preset.isModifiable()
+                          ? MessageManager.getString("label.user_preset")
+                          : MessageManager
+                                  .getString("label.service_preset"))
+                  + "</strong><br/>" + preset.getDescription()));
           methodR.addActionListener(new ActionListener()
           {
             public void actionPerformed(ActionEvent e)
@@ -248,9 +245,10 @@ public class SequenceAnnotationWSClient extends Jws2Client
             Desktop.instance.showUrl(service.docUrl);
           }
         });
-        annotservice.setToolTipText(JvSwingUtils.wrapTooltip(true,
-                MessageManager.formatMessage("label.view_service_doc_url",
-                        new String[] { service.docUrl, service.docUrl })));
+        annotservice.setToolTipText(
+                JvSwingUtils.wrapTooltip(true, MessageManager.formatMessage(
+                        "label.view_service_doc_url", new String[]
+                        { service.docUrl, service.docUrl })));
         wsmenu.add(annotservice);
       }
     }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -53,8 +53,10 @@ public class Consensus
   /**
    * @deprecated Use {@link #isConserved(int[][],int,int,boolean)} instead
    */
+  @Deprecated
   public boolean isConserved(int[][] cons2, int col, int size)
   {
+    System.out.println("DEPRECATED!!!!");
     return isConserved(cons2, col, size, true);
   }
 
@@ -71,7 +73,7 @@ public class Consensus
       tot += cons2[col][mask[i]];
     }
 
-    if ((double) tot > ((threshold * size) / 100))
+    if (tot > ((threshold * size) / 100))
     {
       // System.out.println("True conserved "+tot+" from "+threshold+" out of
       // "+size+" : "+maskstr);

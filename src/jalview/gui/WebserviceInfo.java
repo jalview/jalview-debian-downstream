@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,12 +26,13 @@ import jalview.ws.WSClientI;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Font;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.MediaTracker;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.util.Vector;
@@ -39,7 +40,6 @@ import java.util.Vector;
 import javax.swing.JComponent;
 import javax.swing.JEditorPane;
 import javax.swing.JInternalFrame;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
@@ -56,8 +56,8 @@ import javax.swing.text.html.StyleSheet;
  * @author $author$
  * @version $Revision$
  */
-public class WebserviceInfo extends GWebserviceInfo implements
-        HyperlinkListener, IProgressIndicator
+public class WebserviceInfo extends GWebserviceInfo
+        implements HyperlinkListener, IProgressIndicator
 {
 
   /** Job is Queued */
@@ -82,7 +82,7 @@ public class WebserviceInfo extends GWebserviceInfo implements
 
   Image image;
 
-  int angle = 0;
+  float angle = 0f;
 
   String title = "";
 
@@ -328,8 +328,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
     this.title = title;
     setInfoText(info);
 
-    java.net.URL url = getClass().getResource(
-            "/images/Jalview_Logo_small.png");
+    java.net.URL url = getClass()
+            .getResource("/images/Jalview_Logo_small_with_border.png");
     image = java.awt.Toolkit.getDefaultToolkit().createImage(url);
 
     MediaTracker mt = new MediaTracker(this);
@@ -343,24 +343,29 @@ public class WebserviceInfo extends GWebserviceInfo implements
     }
 
     AnimatedPanel ap = new AnimatedPanel();
-    titlePanel.add(ap, BorderLayout.CENTER);
+    ap.setPreferredSize(new Dimension(60, 60));
+    titlePanel.add(ap, BorderLayout.WEST);
+    titlePanel.add(titleText, BorderLayout.CENTER);
+    setStatus(currentStatus);
 
     Thread thread = new Thread(ap);
     thread.start();
     final WebserviceInfo thisinfo = this;
-    frame.addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
-    {
-      public void internalFrameClosed(
-              javax.swing.event.InternalFrameEvent evt)
-      {
-        // System.out.println("Shutting down webservice client");
-        WSClientI service = thisinfo.getthisService();
-        if (service != null && service.isCancellable())
-        {
-          service.cancelJob();
-        }
-      };
-    });
+    frame.addInternalFrameListener(
+            new javax.swing.event.InternalFrameAdapter()
+            {
+              @Override
+			public void internalFrameClosed(
+                      javax.swing.event.InternalFrameEvent evt)
+              {
+                // System.out.println("Shutting down webservice client");
+                WSClientI service = thisinfo.getthisService();
+                if (service != null && service.isCancellable())
+                {
+                  service.cancelJob();
+                }
+              };
+            });
     frame.validate();
 
   }
@@ -374,6 +379,36 @@ public class WebserviceInfo extends GWebserviceInfo implements
   public void setStatus(int status)
   {
     currentStatus = status;
+
+    String message = null;
+    switch (currentStatus)
+    {
+    case STATE_QUEUING:
+      message = MessageManager.getString("label.state_queueing");
+      break;
+
+    case STATE_RUNNING:
+      message = MessageManager.getString("label.state_running");
+      break;
+
+    case STATE_STOPPED_OK:
+      message = MessageManager.getString("label.state_completed");
+      break;
+
+    case STATE_CANCELLED_OK:
+      message = MessageManager.getString("label.state_job_cancelled");
+      break;
+
+    case STATE_STOPPED_ERROR:
+      message = MessageManager.getString("label.state_job_error");
+      break;
+
+    case STATE_STOPPED_SERVERERROR:
+      message = MessageManager.getString("label.server_error_try_later");
+      break;
+    }
+    titleText.setText(title + (message == null ? "" : " - " + message));
+    titleText.repaint();
   }
 
   /**
@@ -387,8 +422,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
     if (jobpane < 0 || jobpane >= jobPanes.size())
     {
       throw new Error(MessageManager.formatMessage(
-              "error.setstatus_called_non_existent_job_pane",
-              new String[] { Integer.valueOf(jobpane).toString() }));
+              "error.setstatus_called_non_existent_job_pane", new String[]
+              { Integer.valueOf(jobpane).toString() }));
     }
     switch (status)
     {
@@ -515,8 +550,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
     int htmlpos = leaveFirst ? -1 : lowertxt.indexOf("<body");
 
     int htmlend = leaveLast ? -1 : lowertxt.indexOf("</body");
-    int htmlpose = lowertxt.indexOf(">", htmlpos), htmlende = lowertxt
-            .indexOf(">", htmlend);
+    int htmlpose = lowertxt.indexOf(">", htmlpos),
+            htmlende = lowertxt.indexOf(">", htmlend);
     if (htmlend == -1 && htmlpos == -1)
     {
       return text;
@@ -563,8 +598,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
     }
     if (text.indexOf("<meta") > -1)
     {
-      System.err.println("HTML COntent: \n" + text
-              + "<< END HTML CONTENT\n");
+      System.err
+              .println("HTML COntent: \n" + text + "<< END HTML CONTENT\n");
 
     }
     return text;
@@ -586,11 +621,12 @@ public class WebserviceInfo extends GWebserviceInfo implements
     {
       String txt = getHtmlFragment(
               ((JEditorPane) ((JScrollPane) jobPanes.get(which))
-                      .getViewport().getComponent(0)).getText(), true,
-              false);
+                      .getViewport().getComponent(0)).getText(),
+              true, false);
       ((JEditorPane) ((JScrollPane) jobPanes.get(which)).getViewport()
-              .getComponent(0)).setText(ensureHtmlTagged(txt
-              + getHtmlFragment(text, false, true)));
+              .getComponent(0))
+                      .setText(ensureHtmlTagged(
+                              txt + getHtmlFragment(text, false, true)));
     }
     else
     {
@@ -674,7 +710,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
    * @param e
    *          DOCUMENT ME!
    */
-  protected void cancel_actionPerformed(ActionEvent e)
+  @Override
+protected void cancel_actionPerformed(ActionEvent e)
   {
     if (!serviceIsCancellable)
     {
@@ -683,8 +720,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
       // JBPNote : TODO: Instead of a warning, we should have an optional 'Are
       // you sure?' prompt
       warnUser(
-              MessageManager
-                      .getString("warn.job_cannot_be_cancelled_close_window"),
+              MessageManager.getString(
+                      "warn.job_cannot_be_cancelled_close_window"),
               MessageManager.getString("action.cancel_job"));
     }
     else
@@ -705,10 +742,11 @@ public class WebserviceInfo extends GWebserviceInfo implements
   {
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
-      public void run()
+      @Override
+	public void run()
       {
-        JOptionPane.showInternalMessageDialog(Desktop.desktop, message,
-                title, JOptionPane.WARNING_MESSAGE);
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop, message,
+                title, JvOptionPane.WARNING_MESSAGE);
 
       }
     });
@@ -754,23 +792,38 @@ public class WebserviceInfo extends GWebserviceInfo implements
 
     BufferedImage offscreen;
 
+    @Override
     public void run()
     {
       startTime = System.currentTimeMillis();
 
+      float invSpeed = 15f;
+      float factor = 1f;
       while (currentStatus < STATE_STOPPED_OK)
       {
+        if (currentStatus == STATE_QUEUING)
+        {
+          invSpeed = 25f;
+          factor = 1f;
+        }
+        else if (currentStatus == STATE_RUNNING)
+        {
+          invSpeed = 10f;
+          factor = (float) (0.5 + 1.5
+                  * (0.5 - (0.5 * Math.sin(3.14159 / 180 * (angle + 45)))));
+        }
         try
         {
           Thread.sleep(50);
 
-          int units = (int) ((System.currentTimeMillis() - startTime) / 10f);
-          angle += units;
+          float delta = (System.currentTimeMillis() - startTime) / invSpeed;
+          angle += delta * factor;
           angle %= 360;
           startTime = System.currentTimeMillis();
 
           if (currentStatus >= STATE_STOPPED_OK)
           {
+            park();
             angle = 0;
           }
 
@@ -783,86 +836,67 @@ public class WebserviceInfo extends GWebserviceInfo implements
       cancel.setEnabled(false);
     }
 
+    public void park()
+    {
+      startTime = System.currentTimeMillis();
+
+      while (angle < 360)
+      {
+        float invSpeed = 5f;
+        float factor = 1f;
+        try
+        {
+          Thread.sleep(25);
+
+          float delta = (System.currentTimeMillis() - startTime) / invSpeed;
+          angle += delta * factor;
+          startTime = System.currentTimeMillis();
+
+          if (angle >= 360)
+          {
+            angle = 360;
+          }
+
+          repaint();
+        } catch (Exception ex)
+        {
+        }
+      }
+
+    }
+
     void drawPanel()
     {
       if (offscreen == null || offscreen.getWidth(this) != getWidth()
               || offscreen.getHeight(this) != getHeight())
       {
         offscreen = new BufferedImage(getWidth(), getHeight(),
-                BufferedImage.TYPE_INT_ARGB);
+                BufferedImage.TYPE_INT_RGB);
       }
 
       Graphics2D g = (Graphics2D) offscreen.getGraphics();
 
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+              RenderingHints.VALUE_ANTIALIAS_ON);
+      g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+              RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+      g.setRenderingHint(RenderingHints.KEY_RENDERING,
+              RenderingHints.VALUE_RENDER_QUALITY);
+
       g.setColor(Color.white);
       g.fillRect(0, 0, getWidth(), getHeight());
-
-      g.setFont(new Font("Arial", Font.BOLD, 12));
-      g.setColor(Color.black);
-
-      switch (currentStatus)
-      {
-      case STATE_QUEUING:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager.getString("label.state_queueing")),
-                60, 30);
-
-        break;
-
-      case STATE_RUNNING:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager.getString("label.state_running")),
-                60, 30);
-
-        break;
-
-      case STATE_STOPPED_OK:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager.getString("label.state_completed")),
-                60, 30);
-
-        break;
-
-      case STATE_CANCELLED_OK:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager
-                                .getString("label.state_job_cancelled")),
-                60, 30);
-
-        break;
-
-      case STATE_STOPPED_ERROR:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager.getString("label.state_job_error")),
-                60, 30);
-
-        break;
-
-      case STATE_STOPPED_SERVERERROR:
-        g.drawString(
-                title.concat(" - ").concat(
-                        MessageManager
-                                .getString("label.server_error_try_later")),
-                60, 30);
-
-        break;
-      }
 
       if (image != null)
       {
         int x = image.getWidth(this) / 2, y = image.getHeight(this) / 2;
-        g.rotate(Math.toRadians(angle), 10 + x, 10 + y);
-        g.drawImage(image, 10, 10, this);
-        g.rotate(-Math.toRadians(angle), 10 + x, 10 + y);
+        g.rotate(3.14159 / 180 * (angle), x, y);
+        g.drawImage(image, 0, 0, this);
+        g.rotate(-3.14159 / 180 * (angle), x, y);
       }
     }
 
-    public void paintComponent(Graphics g1)
+    @Override
+	public void paintComponent(Graphics g1)
     {
       drawPanel();
 
@@ -877,7 +911,8 @@ public class WebserviceInfo extends GWebserviceInfo implements
     renderAsHtml = b;
   }
 
-  public void hyperlinkUpdate(HyperlinkEvent e)
+  @Override
+public void hyperlinkUpdate(HyperlinkEvent e)
   {
     Desktop.hyperlinkUpdate(e);
   }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,41 +23,16 @@ package jalview.ws.dbsources;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefSource;
 
-import com.stevesoft.pat.Regex;
-
 /**
  * @author JimP
  * 
  */
-public class EmblSource extends EmblXmlSource
+public class EmblSource extends EmblFlatfileSource // was EmblXmlSource
 {
 
   public EmblSource()
   {
     super();
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.DbSourceProxy#getAccessionSeparator()
-   */
-  @Override
-  public String getAccessionSeparator()
-  {
-    // TODO Auto-generated method stub
-    return null;
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.DbSourceProxy#getAccessionValidator()
-   */
-  @Override
-  public Regex getAccessionValidator()
-  {
-    return new Regex("^[A-Z]+[0-9]+");
   }
 
   /*
@@ -74,39 +49,12 @@ public class EmblSource extends EmblXmlSource
   /*
    * (non-Javadoc)
    * 
-   * @see jalview.ws.DbSourceProxy#getDbVersion()
-   */
-  @Override
-  public String getDbVersion()
-  {
-    // TODO Auto-generated method stub
-    return "0";
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
    * @see jalview.ws.DbSourceProxy#getSequenceRecords(java.lang.String[])
    */
   @Override
   public AlignmentI getSequenceRecords(String queries) throws Exception
   {
     return getEmblSequenceRecords(DBRefSource.EMBL, queries);
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.DbSourceProxy#isValidReference(java.lang.String)
-   */
-  @Override
-  public boolean isValidReference(String accession)
-  {
-    // most embl refs look like ..
-
-    return (accession == null || accession.length() < 2) ? false
-            : getAccessionValidator().search(accession);
-
   }
 
   /**
@@ -122,11 +70,5 @@ public class EmblSource extends EmblXmlSource
   public String getDbName()
   {
     return "EMBL"; // getDbSource();
-  }
-
-  @Override
-  public int getTier()
-  {
-    return 0;
   }
 }

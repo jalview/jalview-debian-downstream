@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,8 +21,11 @@
 package jalview.io.vamsas;
 
 import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.io.VamsasAppDatastore;
+
+import java.util.List;
 
 import uk.ac.vamsas.objects.core.DataSet;
 import uk.ac.vamsas.objects.core.DbRef;
@@ -45,12 +48,12 @@ public class Datasetsequence extends DatastoreItem
   // private AlignmentI jvdset;
 
   public Datasetsequence(VamsasAppDatastore vamsasAppDatastore,
-          SequenceI sq, String dict, DataSet dataset)
+          SequenceI sq, String theDict, DataSet theDataset)
   {
     super(vamsasAppDatastore, sq, uk.ac.vamsas.objects.core.Sequence.class);
-    this.dataset = dataset;
+    this.dataset = theDataset;
     // this.jvdset = jvdset;
-    this.dict = dict;
+    this.dict = theDict;
     doSync();
   }
 
@@ -61,6 +64,7 @@ public class Datasetsequence extends DatastoreItem
     doJvUpdate();
   }
 
+  @Override
   public void addFromDocument()
   {
     Sequence vseq = (Sequence) vobj;
@@ -73,13 +77,15 @@ public class Datasetsequence extends DatastoreItem
     modified = true;
   }
 
+  @Override
   public void updateFromDoc()
   {
     Sequence sq = (Sequence) vobj;
     SequenceI sequence = (SequenceI) jvobj;
     if (!sequence.getSequenceAsString().equals(sq.getSequence()))
     {
-      log.warn("Potential Client Error ! - mismatch of dataset sequence: and jalview internal dataset sequence.");
+      log.warn(
+              "Potential Client Error ! - mismatch of dataset sequence: and jalview internal dataset sequence.");
     }
     else
     {
@@ -128,25 +134,21 @@ public class Datasetsequence extends DatastoreItem
    */
   private boolean updateSqFeatures()
   {
-    boolean modified = false;
+    boolean changed = false;
     SequenceI sq = (SequenceI) jvobj;
 
     // add or update any new features/references on dataset sequence
-    if (sq.getSequenceFeatures() != null)
+    List<SequenceFeature> sfs = sq.getSequenceFeatures();
+    for (SequenceFeature sf : sfs)
     {
-      int sfSize = sq.getSequenceFeatures().length;
-
-      for (int sf = 0; sf < sfSize; sf++)
-      {
-        modified |= new jalview.io.vamsas.Sequencefeature(datastore,
-                (jalview.datamodel.SequenceFeature) sq
-                        .getSequenceFeatures()[sf], dataset,
-                (Sequence) vobj).docWasUpdated();
-      }
+      changed |= new jalview.io.vamsas.Sequencefeature(datastore, sf,
+              dataset, (Sequence) vobj).docWasUpdated();
     }
-    return modified;
+
+    return changed;
   }
 
+  @Override
   public void addToDocument()
   {
     SequenceI sq = (SequenceI) jvobj;
@@ -183,7 +185,7 @@ public class Datasetsequence extends DatastoreItem
       for (int db = 0; db < entries.length; db++)
       {
         modifiedthedoc |= new jalview.io.vamsas.Dbref(datastore,
-        // dbentry =
+                // dbentry =
                 entries[db], sq, (Sequence) vobj, dataset).docWasUpdated();
 
       }
@@ -210,22 +212,25 @@ public class Datasetsequence extends DatastoreItem
       for (int db = 0; db < entries.length; db++)
       {
         modifiedtheseq |= new jalview.io.vamsas.Dbref(datastore,
-        // dbentry =
+                // dbentry =
                 entries[db], vsq, sq).jvWasUpdated();
       }
     }
     return modifiedtheseq;
   }
 
+  @Override
   public void conflict()
   {
-    log.warn("Conflict in dataset sequence update to document. Overwriting document");
+    log.warn(
+            "Conflict in dataset sequence update to document. Overwriting document");
     // TODO: could try to import from document data to jalview first. and then
     updateToDoc();
   }
 
   boolean modified = false;
 
+  @Override
   public void updateToDoc()
   {
     SequenceI sq = (SequenceI) jvobj;

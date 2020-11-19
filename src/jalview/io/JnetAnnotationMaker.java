@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,8 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.io;
+
+import java.util.Locale;
 
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
@@ -59,22 +61,19 @@ public class JnetAnnotationMaker
     // in the future we could search for the query
     // sequence in the alignment before calling this function.
     SequenceI seqRef = al.getSequenceAt(firstSeq);
-    int width = preds[0].getSequence().length;
+    int width = preds[0].getLength();
     int[] gapmap = al.getSequenceAt(firstSeq).gapMap();
     if ((delMap != null && delMap.length > width)
             || (delMap == null && gapmap.length != width))
     {
-      throw (new Exception(
-              MessageManager
-                      .formatMessage(
-                              "exception.number_of_residues_in_query_sequence_differ_from_prediction",
-                              new String[] {
-                                  (delMap == null ? "" : MessageManager
-                                          .getString("label.mapped")),
-                                  al.getSequenceAt(firstSeq).getName(),
-                                  al.getSequenceAt(firstSeq)
-                                          .getSequenceAsString(),
-                                  Integer.valueOf(width).toString() })));
+      throw (new Exception(MessageManager.formatMessage(
+              "exception.number_of_residues_in_query_sequence_differ_from_prediction",
+              new String[]
+              { (delMap == null ? ""
+                      : MessageManager.getString("label.mapped")),
+                  al.getSequenceAt(firstSeq).getName(),
+                  al.getSequenceAt(firstSeq).getSequenceAsString(),
+                  Integer.valueOf(width).toString() })));
     }
 
     AlignmentAnnotation annot;
@@ -91,14 +90,15 @@ public class JnetAnnotationMaker
 
     while (i < preds.length)
     {
-      String id = preds[i].getName().toUpperCase();
+      String id = preds[i].getName().toUpperCase(Locale.ROOT);
 
       if (id.startsWith("LUPAS") || id.startsWith("JNET")
               || id.startsWith("JPRED"))
       {
         if (id.startsWith("JNETSOL"))
         {
-          float amnt = (id.endsWith("25") ? 3f : id.endsWith("5") ? 6f : 9f);
+          float amnt = (id.endsWith("25") ? 3f
+                  : id.endsWith("5") ? 6f : 9f);
           for (int spos = 0; spos < width; spos++)
           {
             int sposw = (delMap == null) ? gapmap[spos]
@@ -150,7 +150,7 @@ public class JnetAnnotationMaker
             {
               for (int j = 0; j < width; j++)
               {
-                float value = new Float(preds[i].getCharAt(j) + "")
+                float value = Float.valueOf(preds[i].getCharAt(j) + "")
                         .floatValue();
                 annotations[gapmap[j]] = new Annotation(
                         preds[i].getCharAt(j) + "", "",
@@ -161,7 +161,7 @@ public class JnetAnnotationMaker
             {
               for (int j = 0; j < width; j++)
               {
-                float value = new Float(preds[i].getCharAt(j) + "")
+                float value = Float.valueOf(preds[i].getCharAt(j) + "")
                         .floatValue();
                 annotations[gapmap[delMap[j]]] = new Annotation(
                         preds[i].getCharAt(j) + "", "",
@@ -222,8 +222,7 @@ public class JnetAnnotationMaker
     if (!firstsol)
     {
       // add the solvent accessibility
-      annot = new AlignmentAnnotation(
-              "Jnet Burial",
+      annot = new AlignmentAnnotation("Jnet Burial",
               "<html>Prediction of Solvent Accessibility<br/>levels are<ul><li>0 - Exposed</li><li>3 - 25% or more S.A. accessible</li><li>6 - 5% or more S.A. accessible</li><li>9 - Buried (<5% exposed)</li></ul>",
               sol, 0f, 9f, AlignmentAnnotation.BAR_GRAPH);
 
@@ -234,8 +233,8 @@ public class JnetAnnotationMaker
         seqRef.addAlignmentAnnotation(annot);
       }
       al.addAnnotation(annot);
-      al.setAnnotationIndex(annot, al.getAlignmentAnnotation().length
-              - existingAnnotations - 1);
+      al.setAnnotationIndex(annot,
+              al.getAlignmentAnnotation().length - existingAnnotations - 1);
     }
     // Hashtable scores = prediction.getScores();
 

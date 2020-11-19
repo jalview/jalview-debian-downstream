@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,16 +33,10 @@ public class RfamFull extends Rfam
     super();
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.dbsources.Rfam#getXFAMURL()
-   */
   @Override
-  protected String getXFAMURL()
+  public String getURLSuffix()
   {
-    return "http://rfam.xfam.org/family/alignment/download/format?alnType=full&nseLabels=0&format=stockholm&acc=";
-
+    return "/alignment/full" + GZIPPED;
   }
 
   /*

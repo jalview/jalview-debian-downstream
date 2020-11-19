@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -93,12 +93,13 @@ public class ParameterUtils
       {
         try
         {
-          o.setDefaultValue(isParameter(param, pseparator) ? getParamValue(
-                  param, pseparator) : param);
+          o.setDefaultValue(isParameter(param, pseparator)
+                  ? getParamValue(param, pseparator)
+                  : param);
         } catch (WrongParameterException e)
         {
-          System.out.println("Problem setting value for the parameter: "
-                  + param);
+          System.out.println(
+                  "Problem setting value for the parameter: " + param);
           e.printStackTrace();
         }
       }
@@ -185,9 +186,8 @@ public class ParameterUtils
     } catch (Exception e)
     {
       e.printStackTrace();
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_couldnt_copy_value_constraint"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_couldnt_copy_value_constraint"));
     }
   }
 

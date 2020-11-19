@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,30 +20,33 @@
  */
 package jalview.util;
 
-import jalview.analysis.AlignmentSorter;
-import jalview.api.AlignViewportI;
-import jalview.commands.CommandI;
-import jalview.commands.EditCommand;
-import jalview.commands.EditCommand.Action;
-import jalview.commands.EditCommand.Edit;
-import jalview.commands.OrderCommand;
-import jalview.datamodel.AlignedCodonFrame;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.AlignmentOrder;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SearchResultMatchI;
-import jalview.datamodel.SearchResults;
-import jalview.datamodel.SearchResultsI;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import jalview.analysis.AlignmentSorter;
+import jalview.api.AlignViewportI;
+import jalview.bin.Cache;
+import jalview.commands.CommandI;
+import jalview.commands.EditCommand;
+import jalview.commands.EditCommand.Action;
+import jalview.commands.EditCommand.Edit;
+import jalview.commands.OrderCommand;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignedCodonFrame.SequenceToSequenceMapping;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.AlignmentOrder;
+import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
+import jalview.datamodel.SearchResultMatchI;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
 
 /**
  * Helper methods for manipulations involving sequence mappings.
@@ -77,7 +80,7 @@ public final class MappingUtils
       action = action.getUndoAction();
     }
     // TODO write this
-    System.err.println("MappingUtils.mapCutOrPaste not yet implemented");
+    Cache.log.error("MappingUtils.mapCutOrPaste not yet implemented");
   }
 
   /**
@@ -107,7 +110,7 @@ public final class MappingUtils
      * Cache a copy of the target sequences so we can mimic successive edits on
      * them. This lets us compute mappings for all edits in the set.
      */
-    Map<SequenceI, SequenceI> targetCopies = new HashMap<SequenceI, SequenceI>();
+    Map<SequenceI, SequenceI> targetCopies = new HashMap<>();
     for (SequenceI seq : mapTo.getSequences())
     {
       SequenceI ds = seq.getDatasetSequence();
@@ -218,8 +221,9 @@ public final class MappingUtils
              * Shift Delete start position left, as it acts on positions to its
              * right.
              */
-            int mappedEditPos = action == Action.DELETE_GAP ? match[0]
-                    - mappedCount : match[0];
+            int mappedEditPos = action == Action.DELETE_GAP
+                    ? match[0] - mappedCount
+                    : match[0];
             Edit e = result.new Edit(action, new SequenceI[] { targetSeq },
                     mappedEditPos, mappedCount, gapChar);
             result.addEdit(e);
@@ -229,15 +233,15 @@ public final class MappingUtils
              */
             if (action == Action.INSERT_GAP)
             {
-              copyTarget.setSequence(new String(StringUtils.insertCharAt(
-                      copyTarget.getSequence(), mappedEditPos, mappedCount,
-                      gapChar)));
+              copyTarget.setSequence(new String(
+                      StringUtils.insertCharAt(copyTarget.getSequence(),
+                              mappedEditPos, mappedCount, gapChar)));
             }
             else if (action == Action.DELETE_GAP)
             {
-              copyTarget.setSequence(new String(StringUtils.deleteChars(
-                      copyTarget.getSequence(), mappedEditPos,
-                      mappedEditPos + mappedCount)));
+              copyTarget.setSequence(new String(
+                      StringUtils.deleteChars(copyTarget.getSequence(),
+                              mappedEditPos, mappedEditPos + mappedCount)));
             }
           }
         }
@@ -320,7 +324,7 @@ public final class MappingUtils
      * Copy group name, colours etc, but not sequences or sequence colour scheme
      */
     SequenceGroup mappedGroup = new SequenceGroup(sg);
-    mappedGroup.cs = mapTo.getGlobalColourScheme();
+    mappedGroup.setColourScheme(mapTo.getGlobalColourScheme());
     mappedGroup.clear();
 
     int minStartCol = -1;
@@ -339,73 +343,72 @@ public final class MappingUtils
         firstUngappedPos++;
       }
 
-      /*
-       * If this sequence is only gaps in the selected range, skip it
-       */
-      if (firstUngappedPos > selectionEndRes)
-      {
-        continue;
-      }
+      boolean allGapped = (firstUngappedPos > selectionEndRes);
 
       int lastUngappedPos = selectionEndRes;
-      while (lastUngappedPos >= selectionStartRes
-              && Comparison.isGap(selected.getCharAt(lastUngappedPos)))
+      if (!allGapped)
       {
-        lastUngappedPos--;
+        while (lastUngappedPos >= selectionStartRes
+                && Comparison.isGap(selected.getCharAt(lastUngappedPos)))
+        {
+          lastUngappedPos--;
+        }
       }
 
       /*
        * Find the selected start/end residue positions in sequence
        */
-      int startResiduePos = selected.findPosition(firstUngappedPos);
-      int endResiduePos = selected.findPosition(lastUngappedPos);
+      int startResiduePos = allGapped ? 0 : selected.findPosition(firstUngappedPos);
+      int endResiduePos = allGapped ? 0 : selected.findPosition(lastUngappedPos);
 
       for (AlignedCodonFrame acf : codonFrames)
       {
-        SequenceI mappedSequence = targetIsNucleotide ? acf
-                .getDnaForAaSeq(selected) : acf.getAaForDnaSeq(selected);
-        if (mappedSequence != null)
+        for (SequenceI seq : mapTo.getAlignment().getSequences())
         {
-          for (SequenceI seq : mapTo.getAlignment().getSequences())
+          SequenceI peptide = targetIsNucleotide ? selected : seq;
+          SequenceI cds = targetIsNucleotide ? seq : selected;
+          SequenceToSequenceMapping s2s = acf.getCoveringMapping(cds,
+                  peptide);
+          if (s2s == null)
           {
-            int mappedStartResidue = 0;
-            int mappedEndResidue = 0;
-            if (seq.getDatasetSequence() == mappedSequence)
-            {
-              /*
-               * Found a sequence mapping. Locate the start/end mapped residues.
-               */
-              List<AlignedCodonFrame> mapping = Arrays
-                      .asList(new AlignedCodonFrame[] { acf });
-              SearchResultsI sr = buildSearchResults(selected,
-                      startResiduePos, mapping);
-              for (SearchResultMatchI m : sr.getResults())
-              {
-                mappedStartResidue = m.getStart();
-                mappedEndResidue = m.getEnd();
-              }
-              sr = buildSearchResults(selected, endResiduePos, mapping);
-              for (SearchResultMatchI m : sr.getResults())
-              {
-                mappedStartResidue = Math.min(mappedStartResidue,
-                        m.getStart());
-                mappedEndResidue = Math.max(mappedEndResidue, m.getEnd());
-              }
-
-              /*
-               * Find the mapped aligned columns, save the range. Note findIndex
-               * returns a base 1 position, SequenceGroup uses base 0
-               */
-              int mappedStartCol = seq.findIndex(mappedStartResidue) - 1;
-              minStartCol = minStartCol == -1 ? mappedStartCol : Math.min(
-                      minStartCol, mappedStartCol);
-              int mappedEndCol = seq.findIndex(mappedEndResidue) - 1;
-              maxEndCol = maxEndCol == -1 ? mappedEndCol : Math.max(
-                      maxEndCol, mappedEndCol);
-              mappedGroup.addSequence(seq, false);
-              break;
-            }
+            continue;
           }
+          mappedGroup.addSequence(seq, false);
+          if (allGapped)
+          {
+            /*
+             * sequence is mapped but includes no mapped residues
+             */
+            continue;
+          }
+          int mappedStartResidue = 0;
+          int mappedEndResidue = 0;
+          List<AlignedCodonFrame> mapping = Arrays.asList(acf);
+          SearchResultsI sr = buildSearchResults(selected, startResiduePos,
+                  mapping);
+          for (SearchResultMatchI m : sr.getResults())
+          {
+            mappedStartResidue = m.getStart();
+            mappedEndResidue = m.getEnd();
+          }
+          sr = buildSearchResults(selected, endResiduePos, mapping);
+          for (SearchResultMatchI m : sr.getResults())
+          {
+            mappedStartResidue = Math.min(mappedStartResidue, m.getStart());
+            mappedEndResidue = Math.max(mappedEndResidue, m.getEnd());
+          }
+
+          /*
+           * Find the mapped aligned columns, save the range. Note findIndex
+           * returns a base 1 position, SequenceGroup uses base 0
+           */
+          int mappedStartCol = seq.findIndex(mappedStartResidue) - 1;
+          minStartCol = minStartCol == -1 ? mappedStartCol
+                  : Math.min(minStartCol, mappedStartCol);
+          int mappedEndCol = seq.findIndex(mappedEndResidue) - 1;
+          maxEndCol = maxEndCol == -1 ? mappedEndCol
+                  : Math.max(maxEndCol, mappedEndCol);
+          break;
         }
       }
     }
@@ -428,11 +431,11 @@ public final class MappingUtils
    *          the mappings available
    * @return
    */
-  public static CommandI mapOrderCommand(OrderCommand command,
-          boolean undo, AlignmentI mapTo, List<AlignedCodonFrame> mappings)
+  public static CommandI mapOrderCommand(OrderCommand command, boolean undo,
+          AlignmentI mapTo, List<AlignedCodonFrame> mappings)
   {
     SequenceI[] sortOrder = command.getSequenceOrder(undo);
-    List<SequenceI> mappedOrder = new ArrayList<SequenceI>();
+    List<SequenceI> mappedOrder = new ArrayList<>();
     int j = 0;
 
     /*
@@ -445,20 +448,23 @@ public final class MappingUtils
     {
       for (AlignedCodonFrame acf : mappings)
       {
-        SequenceI mappedSeq = mappingToNucleotide ? acf.getDnaForAaSeq(seq)
-                : acf.getAaForDnaSeq(seq);
-        if (mappedSeq != null)
-        {
           for (SequenceI seq2 : mapTo.getSequences())
           {
-            if (seq2.getDatasetSequence() == mappedSeq)
+            /*
+             * the corresponding peptide / CDS is the one for which there is
+             * a complete ('covering') mapping to 'seq'
+             */
+            SequenceI peptide = mappingToNucleotide ? seq2 : seq;
+            SequenceI cds = mappingToNucleotide ? seq : seq2;
+            SequenceToSequenceMapping s2s = acf.getCoveringMapping(cds,
+                    peptide);
+            if (s2s != null)
             {
               mappedOrder.add(seq2);
               j++;
               break;
             }
           }
-        }
       }
     }
 
@@ -508,18 +514,19 @@ public final class MappingUtils
    * @param mapTo
    * @return
    */
-  public static ColumnSelection mapColumnSelection(ColumnSelection colsel,
-          AlignViewportI mapFrom, AlignViewportI mapTo)
+  public static void mapColumnSelection(ColumnSelection colsel,
+          HiddenColumns hiddencols, AlignViewportI mapFrom,
+          AlignViewportI mapTo, ColumnSelection newColSel,
+          HiddenColumns newHidden)
   {
     boolean targetIsNucleotide = mapTo.isNucleotide();
     AlignViewportI protein = targetIsNucleotide ? mapFrom : mapTo;
     List<AlignedCodonFrame> codonFrames = protein.getAlignment()
             .getCodonFrames();
-    ColumnSelection mappedColumns = new ColumnSelection();
 
     if (colsel == null)
     {
-      return mappedColumns;
+      return; 
     }
 
     char fromGapChar = mapFrom.getAlignment().getGapCharacter();
@@ -533,16 +540,17 @@ public final class MappingUtils
 
     for (Integer sel : colsel.getSelected())
     {
-      mapColumn(sel.intValue(), codonFrames, mappedColumns, fromSequences,
+      mapColumn(sel.intValue(), codonFrames, newColSel, fromSequences,
               toSequences, fromGapChar);
     }
 
-    for (int[] hidden : colsel.getHiddenColumns())
+    Iterator<int[]> regions = hiddencols.iterator();
+    while (regions.hasNext())
     {
-      mapHiddenColumns(hidden, codonFrames, mappedColumns, fromSequences,
-              toSequences, fromGapChar);
+      mapHiddenColumns(regions.next(), codonFrames, newHidden,
+              fromSequences, toSequences, fromGapChar);
     }
-    return mappedColumns;
+    return; 
   }
 
   /**
@@ -557,7 +565,7 @@ public final class MappingUtils
    * @param fromGapChar
    */
   protected static void mapHiddenColumns(int[] hidden,
-          List<AlignedCodonFrame> mappings, ColumnSelection mappedColumns,
+          List<AlignedCodonFrame> mappings, HiddenColumns mappedColumns,
           List<SequenceI> fromSequences, List<SequenceI> toSequences,
           char fromGapChar)
   {
@@ -590,10 +598,9 @@ public final class MappingUtils
    * @param toSequences
    * @param fromGapChar
    */
-  protected static void mapColumn(int col,
-          List<AlignedCodonFrame> mappings, ColumnSelection mappedColumns,
-          List<SequenceI> fromSequences, List<SequenceI> toSequences,
-          char fromGapChar)
+  protected static void mapColumn(int col, List<AlignedCodonFrame> mappings,
+          ColumnSelection mappedColumns, List<SequenceI> fromSequences,
+          List<SequenceI> toSequences, char fromGapChar)
   {
     int[] mappedTo = findMappedColumns(col, mappings, fromSequences,
             toSequences, fromGapChar);
@@ -661,7 +668,9 @@ public final class MappingUtils
          */
         for (SequenceI toSeq : toSequences)
         {
-          if (toSeq.getDatasetSequence() == mappedSeq)
+          if (toSeq.getDatasetSequence() == mappedSeq
+                  && mappedStartResidue >= toSeq.getStart()
+                  && mappedEndResidue <= toSeq.getEnd())
           {
             int mappedStartCol = toSeq.findIndex(mappedStartResidue);
             int mappedEndCol = toSeq.findIndex(mappedEndResidue);
@@ -693,14 +702,14 @@ public final class MappingUtils
   public static List<char[]> findCodonsFor(SequenceI seq, int col,
           List<AlignedCodonFrame> mappings)
   {
-    List<char[]> result = new ArrayList<char[]>();
+    List<char[]> result = new ArrayList<>();
     int dsPos = seq.findPosition(col);
     for (AlignedCodonFrame mapping : mappings)
     {
       if (mapping.involvesSequence(seq))
       {
-        List<char[]> codons = mapping.getMappedCodons(
-                seq.getDatasetSequence(), dsPos);
+        List<char[]> codons = mapping
+                .getMappedCodons(seq.getDatasetSequence(), dsPos);
         if (codons != null)
         {
           result.addAll(codons);
@@ -772,7 +781,7 @@ public final class MappingUtils
           SequenceI sequence, List<AlignedCodonFrame> mappings,
           List<SequenceI> filterList)
   {
-    List<AlignedCodonFrame> result = new ArrayList<AlignedCodonFrame>();
+    List<AlignedCodonFrame> result = new ArrayList<>();
     if (sequence == null || mappings == null)
     {
       return result;
@@ -788,8 +797,9 @@ public final class MappingUtils
             SequenceI otherDataset = otherseq.getDatasetSequence();
             if (otherseq == sequence
                     || otherseq == sequence.getDatasetSequence()
-                    || (otherDataset != null && (otherDataset == sequence || otherDataset == sequence
-                            .getDatasetSequence())))
+                    || (otherDataset != null && (otherDataset == sequence
+                            || otherDataset == sequence
+                                    .getDatasetSequence())))
             {
               // skip sequences in subset which directly relate to sequence
               continue;
@@ -829,8 +839,8 @@ public final class MappingUtils
     {
       if (range.length % 2 != 0)
       {
-        System.err.println("Error unbalance start/end ranges: "
-                + ranges.toString());
+        Cache.log.error(
+                "Error unbalance start/end ranges: " + ranges.toString());
         return 0;
       }
       for (int i = 0; i < range.length - 1; i += 2)
@@ -933,5 +943,164 @@ public final class MappingUtils
       return nxon;
     }
     return copy;
+  }
+
+  /**
+   * Answers true if range's start-end positions include those of queryRange,
+   * where either range might be in reverse direction, else false
+   * 
+   * @param range
+   *          a start-end range
+   * @param queryRange
+   *          a candidate subrange of range (start2-end2)
+   * @return
+   */
+  public static boolean rangeContains(int[] range, int[] queryRange)
+  {
+    if (range == null || queryRange == null || range.length != 2
+            || queryRange.length != 2)
+    {
+      /*
+       * invalid arguments
+       */
+      return false;
+    }
+
+    int min = Math.min(range[0], range[1]);
+    int max = Math.max(range[0], range[1]);
+
+    return (min <= queryRange[0] && max >= queryRange[0]
+            && min <= queryRange[1] && max >= queryRange[1]);
+  }
+
+  /**
+   * Removes the specified number of positions from the given ranges. Provided
+   * to allow a stop codon to be stripped from a CDS sequence so that it matches
+   * the peptide translation length.
+   * 
+   * @param positions
+   * @param ranges
+   *          a list of (single) [start, end] ranges
+   * @return
+   */
+  public static void removeEndPositions(int positions, List<int[]> ranges)
+  {
+    int toRemove = positions;
+    Iterator<int[]> it = new ReverseListIterator<>(ranges);
+    while (toRemove > 0)
+    {
+      int[] endRange = it.next();
+      if (endRange.length != 2)
+      {
+        /*
+         * not coded for [start1, end1, start2, end2, ...]
+         */
+        Cache.log.error(
+                "MappingUtils.removeEndPositions doesn't handle multiple  ranges");
+        return;
+      }
+
+      int length = endRange[1] - endRange[0] + 1;
+      if (length <= 0)
+      {
+        /*
+         * not coded for a reverse strand range (end < start)
+         */
+        Cache.log.error(
+                "MappingUtils.removeEndPositions doesn't handle reverse strand");
+        return;
+      }
+      if (length > toRemove)
+      {
+        endRange[1] -= toRemove;
+        toRemove = 0;
+      }
+      else
+      {
+        toRemove -= length;
+        it.remove();
+      }
+    }
+  }
+
+  /**
+   * Converts a list of [start, end] ranges to a single array of [start, end,
+   * start, end ...]
+   * 
+   * @param ranges
+   * @return
+   */
+  public static int[] listToArray(List<int[]> ranges)
+  {
+    int[] result = new int[ranges.size() * 2];
+    int i = 0;
+    for (int[] range : ranges)
+    {
+      result[i++] = range[0];
+      result[i++] = range[1];
+    }
+    return result;
+  }
+
+  /**
+   * Returns the maximal start-end positions in the given (ordered) list of
+   * ranges which is overlapped by the given begin-end range, or null if there
+   * is no overlap.
+   * 
+   * <pre>
+   * Examples:
+   *   if ranges is {[4, 8], [10, 12], [16, 19]}
+   * then
+   *   findOverlap(ranges, 1, 20) == [4, 19]
+   *   findOverlap(ranges, 6, 11) == [6, 11]
+   *   findOverlap(ranges, 9, 15) == [10, 12]
+   *   findOverlap(ranges, 13, 15) == null
+   * </pre>
+   * 
+   * @param ranges
+   * @param begin
+   * @param end
+   * @return
+   */
+  protected static int[] findOverlap(List<int[]> ranges, final int begin,
+          final int end)
+  {
+    boolean foundStart = false;
+    int from = 0;
+    int to = 0;
+
+    /*
+     * traverse the ranges to find the first position (if any) >= begin,
+     * and the last position (if any) <= end
+     */
+    for (int[] range : ranges)
+    {
+      if (!foundStart)
+      {
+        if (range[0] >= begin)
+        {
+          /*
+           * first range that starts with, or follows, begin
+           */
+          foundStart = true;
+          from = Math.max(range[0], begin);
+        }
+        else if (range[1] >= begin)
+        {
+          /*
+           * first range that contains begin
+           */
+          foundStart = true;
+          from = begin;
+        }
+      }
+
+      if (range[0] <= end)
+      {
+        to = Math.min(end, range[1]);
+      }
+    }
+
+    return foundStart && to >= from ? new int[] { from, to } : null;
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -92,8 +92,9 @@ public class RestServiceDescription
     boolean diff = (gapCharacter != other.gapCharacter);
     diff |= vseparable != other.vseparable;
     diff |= hseparable != other.hseparable;
-    diff |= !(urlSuffix == null && other.urlSuffix == null || (urlSuffix != null
-            && other.urlSuffix != null && urlSuffix.equals(other.urlSuffix)));
+    diff |= !(urlSuffix == null && other.urlSuffix == null
+            || (urlSuffix != null && other.urlSuffix != null
+                    && urlSuffix.equals(other.urlSuffix)));
     // TODO - robust diff that includes constants and reordering of URL
     // diff |= !(postUrl.equals(other.postUrl));
     // diff |= !inputParams.equals(other.inputParams);
@@ -462,8 +463,8 @@ public class RestServiceDescription
         resultData.add(JvDataType.valueOf(tok = st.nextToken()));
       } catch (NoSuchElementException x)
       {
-        warnings.append("Invalid result type: '" + tok
-                + "' (must be one of: ");
+        warnings.append(
+                "Invalid result type: '" + tok + "' (must be one of: ");
         String sep = "";
         for (JvDataType vl : JvDataType.values())
         {
@@ -491,8 +492,8 @@ public class RestServiceDescription
     ;
     vls.add(new String("gapCharacter='" + gapCharacter + "'"));
     vls.add(new String("returns='" + _genOutputFormatString() + "'"));
-    return StringUtils
-            .arrayToSeparatorList(vls.toArray(new String[0]), ",");
+    return StringUtils.arrayToSeparatorList(vls.toArray(new String[0]),
+            ",");
   }
 
   public String toString()
@@ -557,7 +558,8 @@ public class RestServiceDescription
    * @param p
    * @return
    */
-  protected int parseServiceList(String[] list, StringBuffer warnings, int p)
+  protected int parseServiceList(String[] list, StringBuffer warnings,
+          int p)
   {
     boolean invalid = false;
     // look for the first non-empty position - expect it to be service name
@@ -582,7 +584,8 @@ public class RestServiceDescription
               && list[p + 4].trim().length() > 5)
       {
         urlSuffix = null;
-        invalid |= !configureFromInputParamEncodedUrl(list[p + 4], warnings);
+        invalid |= !configureFromInputParamEncodedUrl(list[p + 4],
+                warnings);
         p += 5;
       }
     }
@@ -683,8 +686,8 @@ public class RestServiceDescription
         iprmparams = iprm.substring(colon + 1);
         iprm = iprm.substring(0, colon);
       }
-      valid = parseTypeString(prms.group(0), tok, iprm, iprmparams,
-              iparams, warnings);
+      valid = parseTypeString(prms.group(0), tok, iprm, iprmparams, iparams,
+              warnings);
     }
     if (valid)
     {
@@ -707,8 +710,7 @@ public class RestServiceDescription
     // TODO - find a better way of maintaining this classlist
     return new Class[] { jalview.ws.rest.params.Alignment.class,
         jalview.ws.rest.params.AnnotationFile.class,
-        SeqGroupIndexVector.class,
-        jalview.ws.rest.params.SeqIdVector.class,
+        SeqGroupIndexVector.class, jalview.ws.rest.params.SeqIdVector.class,
         jalview.ws.rest.params.SeqVector.class,
         jalview.ws.rest.params.Tree.class };
   }
@@ -801,7 +803,8 @@ public class RestServiceDescription
   /**
    * search the input types for an instance of the given class
    * 
-   * @param <validInput.inputType> class1
+   * @param <validInput.inputType>
+   *          class1
    * @return
    */
   public boolean inputInvolves(Class<?> class1)

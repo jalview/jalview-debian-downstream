@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,20 +21,24 @@
 package jalview.api;
 
 import jalview.analysis.Conservation;
+import jalview.analysis.TreeModel;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
-import jalview.datamodel.CigarArray;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.ResidueShaderI;
 import jalview.schemes.ColourSchemeI;
+import jalview.viewmodel.ViewportRanges;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -45,7 +49,13 @@ import java.util.Map;
 public interface AlignViewportI extends ViewStyleI
 {
 
-  int getEndRes();
+  /**
+   * Get the ranges object containing details of the start and end sequences and
+   * residues
+   * 
+   * @return
+   */
+  public ViewportRanges getRanges();
 
   /**
    * calculate the height for visible annotation, revalidating bounds where
@@ -79,6 +89,14 @@ public interface AlignViewportI extends ViewStyleI
 
   ColourSchemeI getGlobalColourScheme();
 
+  /**
+   * Returns an object that describes colouring (including any thresholding or
+   * fading) of the alignment
+   * 
+   * @return
+   */
+  ResidueShaderI getResidueShading();
+
   AlignmentI getAlignment();
 
   ColumnSelection getColumnSelection();
@@ -108,6 +126,13 @@ public interface AlignViewportI extends ViewStyleI
    * @return
    */
   AlignmentAnnotation getAlignmentConsensusAnnotation();
+
+  /**
+   * get the container for alignment gap annotation
+   * 
+   * @return
+   */
+  AlignmentAnnotation getAlignmentGapAnnotation();
 
   /**
    * get the container for cDNA complement consensus annotation
@@ -157,7 +182,7 @@ public interface AlignViewportI extends ViewStyleI
 
   /**
    * 
-   * @return the alignment annotatino row for the structure consensus
+   * @return the alignment annotation row for the structure consensus
    *         calculation
    */
   AlignmentAnnotation getAlignmentStrucConsensusAnnotation();
@@ -170,11 +195,13 @@ public interface AlignViewportI extends ViewStyleI
   void setRnaStructureConsensusHash(Hashtable[] hStrucConsensus);
 
   /**
-   * set global colourscheme
+   * Sets the colour scheme for the background alignment (as distinct from
+   * sub-groups, which may have their own colour schemes). A null value is used
+   * for no residue colour (white).
    * 
-   * @param rhc
+   * @param cs
    */
-  void setGlobalColourScheme(ColourSchemeI rhc);
+  void setGlobalColourScheme(ColourSchemeI cs);
 
   Map<SequenceI, SequenceCollectionI> getHiddenRepSequences();
 
@@ -217,16 +244,6 @@ public interface AlignViewportI extends ViewStyleI
   void clearSequenceColours();
 
   /**
-   * This method returns the visible alignment as text, as seen on the GUI, ie
-   * if columns are hidden they will not be returned in the result. Use this for
-   * calculating trees, PCA, redundancy etc on views which contain hidden
-   * columns.
-   * 
-   * @return String[]
-   */
-  CigarArray getViewAsCigars(boolean selectedRegionOnly);
-
-  /**
    * return a compact representation of the current alignment selection to pass
    * to an analysis function
    * 
@@ -249,6 +266,15 @@ public interface AlignViewportI extends ViewStyleI
    * @return AlignmentView
    */
   AlignmentView getAlignmentView(boolean selectedOnly, boolean markGroups);
+
+  /**
+   * @return an alignment view, optionally without a complement view
+   * @param selectedOnly
+   * @param markGroups
+   * @param withComplement - false if no complement view required
+   */
+  AlignmentView getAlignmentViewWithComplement(boolean selectedOnly,
+          boolean markGroups, boolean withComplement);
 
   /**
    * This method returns the visible alignment as text, as seen on the GUI, ie
@@ -415,7 +441,17 @@ public interface AlignViewportI extends ViewStyleI
    */
   void setFollowHighlight(boolean b);
 
+  /**
+   * configure the feature renderer with predefined feature settings
+   * 
+   * @param featureSettings
+   */
   public void applyFeaturesStyle(FeatureSettingsModelI featureSettings);
+
+  /**
+   * Apply the given feature settings on top of existing feature settings.
+   */
+  public void mergeFeaturesStyle(FeatureSettingsModelI featureSettings);
 
   /**
    * check if current selection group is defined on the view, or is simply a
@@ -445,4 +481,73 @@ public interface AlignViewportI extends ViewStyleI
    * @return search results or null
    */
   SearchResultsI getSearchResults();
+
+  /**
+   * Updates view settings with the given font. You may need to call
+   * AlignmentPanel.fontChanged to update the layout geometry.
+   * 
+   * @param setGrid
+   *          when true, charWidth/height is set according to font metrics
+   */
+  void setFont(Font newFont, boolean b);
+
+  /**
+   * Answers true if split screen protein and cDNA use the same font
+   * 
+   * @return
+   */
+  @Override
+  boolean isProteinFontAsCdna();
+
+  /**
+   * Set the flag for whether split screen protein and cDNA use the same font
+   * 
+   * @return
+   */
+  @Override
+  void setProteinFontAsCdna(boolean b);
+
+  public abstract TreeModel getCurrentTree();
+
+  public abstract void setCurrentTree(TreeModel tree);
+
+  /**
+   * @param update
+   *          - set the flag for updating structures on next repaint
+   */
+  void setUpdateStructures(boolean update);
+
+  /**
+   *
+   * @return true if structure views will be updated on next refresh
+   */
+  boolean isUpdateStructures();
+
+  /**
+   * check if structure views need to be updated, and clear the flag afterwards.
+   * 
+   * @return if an update is needed
+   */
+  boolean needToUpdateStructureViews();
+
+  /**
+   * Adds sequencegroup to the alignment in the view. Also adds a group to the
+   * complement view if one is defined.
+   * 
+   * @param sequenceGroup
+   *          - a group defined on sequences in the alignment held by the view
+   */
+  void addSequenceGroup(SequenceGroup sequenceGroup);
+
+  /**
+   * Returns an interator over the [start, end] column positions of the visible
+   * regions of the alignment
+   * 
+   * @param selectedRegionOnly
+   *                             if true, and the view has a selection region,
+   *                             then only the intersection of visible columns
+   *                             with the selection region is returned
+   * @return
+   */
+  Iterator<int[]> getViewAsVisibleContigs(boolean selectedRegionOnly);
 }

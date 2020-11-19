@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -89,8 +89,8 @@ public class ProgressBar implements IProgressIndicator
     }
     this.statusPanel = container;
     this.statusBar = statusBar;
-    this.progressBars = new Hashtable<Long, JPanel>();
-    this.progressBarHandlers = new Hashtable<Long, IProgressIndicatorHandler>();
+    this.progressBars = new Hashtable<>();
+    this.progressBarHandlers = new Hashtable<>();
 
   }
 
@@ -119,46 +119,52 @@ public class ProgressBar implements IProgressIndicator
    * execution.
    */
   @Override
-  public void setProgressBar(String message, long id)
+  public void setProgressBar(final String message, final long id)
   {
-    Long longId = Long.valueOf(id);
-
-    JPanel progressPanel = progressBars.get(longId);
-    if (progressPanel != null)
+    SwingUtilities.invokeLater(new Runnable()
     {
-      /*
-       * Progress bar is displayed for this id - remove it now, and any handler
-       */
-      progressBars.remove(id);
-      if (message != null && statusBar != null)
+      @Override
+      public void run()
       {
-        statusBar.setText(message);
+        JPanel progressPanel = progressBars.get(id);
+        if (progressPanel != null)
+        {
+          /*
+           * Progress bar is displayed for this id - remove it now, and any handler
+           */
+          progressBars.remove(id);
+          if (message != null && statusBar != null)
+          {
+            statusBar.setText(message);
+          }
+          if (progressBarHandlers.containsKey(id))
+          {
+            progressBarHandlers.remove(id);
+          }
+          removeRow(progressPanel);
+        }
+        else
+        {
+          /*
+           * No progress bar for this id - add one now
+           */
+          progressPanel = new JPanel(new BorderLayout(10, 5));
+
+          JProgressBar progressBar = new JProgressBar();
+          progressBar.setIndeterminate(true);
+
+          progressPanel.add(new JLabel(message), BorderLayout.WEST);
+          progressPanel.add(progressBar, BorderLayout.CENTER);
+
+          addRow(progressPanel);
+
+          progressBars.put(id, progressPanel);
+        }
+
+        refreshLayout();
       }
-      if (progressBarHandlers.containsKey(longId))
-      {
-        progressBarHandlers.remove(longId);
-      }
-      removeRow(progressPanel);
-    }
-    else
-    {
-      /*
-       * No progress bar for this id - add one now
-       */
-      progressPanel = new JPanel(new BorderLayout(10, 5));
+    });
 
-      JProgressBar progressBar = new JProgressBar();
-      progressBar.setIndeterminate(true);
-
-      progressPanel.add(new JLabel(message), BorderLayout.WEST);
-      progressPanel.add(progressBar, BorderLayout.CENTER);
-
-      addRow(progressPanel);
-
-      progressBars.put(longId, progressPanel);
-    }
-
-    refreshLayout();
   }
 
   /**
@@ -215,41 +221,50 @@ public class ProgressBar implements IProgressIndicator
   public void registerHandler(final long id,
           final IProgressIndicatorHandler handler)
   {
-    Long longId = Long.valueOf(id);
-    final JPanel progressPanel = progressBars.get(longId);
-    if (progressPanel == null)
-    {
-      System.err
-              .println("call setProgressBar before registering the progress bar's handler.");
-      return;
-    }
-
-    /*
-     * Nothing useful to do if not a Cancel handler
-     */
-    if (!handler.canCancel())
-    {
-      return;
-    }
-
-    progressBarHandlers.put(longId, handler);
-    JButton cancel = new JButton(MessageManager.getString("action.cancel"));
     final IProgressIndicator us = this;
-    cancel.addActionListener(new ActionListener()
-    {
 
+    SwingUtilities.invokeLater(new Runnable()
+    {
       @Override
-      public void actionPerformed(ActionEvent e)
+      public void run()
       {
-        handler.cancelActivity(id);
-        us.setProgressBar(MessageManager.formatMessage(
-                "label.cancelled_params",
-                new Object[] { ((JLabel) progressPanel.getComponent(0))
-                        .getText() }), id);
+        final JPanel progressPanel = progressBars.get(id);
+        if (progressPanel == null)
+        {
+          System.err.println(
+                  "call setProgressBar before registering the progress bar's handler.");
+          return;
+        }
+
+        /*
+         * Nothing useful to do if not a Cancel handler
+         */
+        if (!handler.canCancel())
+        {
+          return;
+        }
+
+        progressBarHandlers.put(id, handler);
+        JButton cancel = new JButton(
+                MessageManager.getString("action.cancel"));
+        cancel.addActionListener(new ActionListener()
+        {
+
+          @Override
+          public void actionPerformed(ActionEvent e)
+          {
+            handler.cancelActivity(id);
+            us.setProgressBar(MessageManager
+                    .formatMessage("label.cancelled_params", new Object[]
+                    { ((JLabel) progressPanel.getComponent(0)).getText() }),
+                    id);
+          }
+        });
+        progressPanel.add(cancel, BorderLayout.EAST);
+        refreshLayout();
+
       }
     });
-    progressPanel.add(cancel, BorderLayout.EAST);
-    refreshLayout();
   }
 
 }

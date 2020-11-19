@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,13 +21,14 @@
 package jalview.jbgui;
 
 import jalview.api.structures.JalviewStructureDisplayI;
+import jalview.gui.ColourMenuHelper.ColourChangeListener;
 import jalview.util.MessageManager;
 
+import java.awt.BorderLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.ButtonGroup;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -36,54 +37,38 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 
-public abstract class GStructureViewer extends JInternalFrame implements
-        JalviewStructureDisplayI
+public abstract class GStructureViewer extends JInternalFrame
+        implements JalviewStructureDisplayI, ColourChangeListener
 {
   // private AAStructureBindingModel bindingModel;
 
-  protected JMenu savemenu = new JMenu();
+  protected JMenu savemenu;
 
-  protected JMenu viewMenu = new JMenu();
+  protected JMenu viewMenu;
 
-  protected JMenu chainMenu = new JMenu();
+  protected JMenu colourMenu;
 
-  protected JMenu viewerActionMenu = new JMenu();
+  protected JMenu chainMenu;
 
-  protected JMenuItem alignStructs = new JMenuItem();
+  protected JMenu viewerActionMenu;
 
-  protected JMenuItem fitToWindow = new JMenuItem();
+  protected JMenuItem alignStructs;
 
-  protected JRadioButtonMenuItem seqColour = new JRadioButtonMenuItem();
+  protected JMenuItem fitToWindow;
 
-  protected JRadioButtonMenuItem chainColour = new JRadioButtonMenuItem();
+  protected JRadioButtonMenuItem seqColour;
 
-  protected JRadioButtonMenuItem chargeColour = new JRadioButtonMenuItem();
+  protected JRadioButtonMenuItem chainColour;
 
-  protected JRadioButtonMenuItem zappoColour = new JRadioButtonMenuItem();
+  protected JRadioButtonMenuItem chargeColour;
 
-  protected JRadioButtonMenuItem taylorColour = new JRadioButtonMenuItem();
+  protected JRadioButtonMenuItem viewerColour;
 
-  protected JRadioButtonMenuItem hydroColour = new JRadioButtonMenuItem();
+  protected JMenuItem helpItem;
 
-  protected JRadioButtonMenuItem strandColour = new JRadioButtonMenuItem();
+  protected JLabel statusBar;
 
-  protected JRadioButtonMenuItem helixColour = new JRadioButtonMenuItem();
-
-  protected JRadioButtonMenuItem turnColour = new JRadioButtonMenuItem();
-
-  protected JRadioButtonMenuItem buriedColour = new JRadioButtonMenuItem();
-
-  protected JRadioButtonMenuItem purinePyrimidineColour = new JRadioButtonMenuItem();
-
-  protected JRadioButtonMenuItem userColour = new JRadioButtonMenuItem();
-
-  protected JRadioButtonMenuItem viewerColour = new JRadioButtonMenuItem();
-
-  protected JMenuItem helpItem = new JMenuItem();
-
-  protected JLabel statusBar = new JLabel();
-
-  protected JPanel statusPanel = new JPanel();
+  protected JPanel statusPanel;
 
   /**
    * Constructor
@@ -107,7 +92,9 @@ public abstract class GStructureViewer extends JInternalFrame implements
     JMenu fileMenu = new JMenu();
     fileMenu.setText(MessageManager.getString("action.file"));
 
-    savemenu.setActionCommand(MessageManager.getString("action.save_image"));
+    savemenu = new JMenu();
+    savemenu.setActionCommand(
+            MessageManager.getString("action.save_image"));
     savemenu.setText(MessageManager.getString("action.save_as"));
 
     JMenuItem pdbFile = new JMenuItem();
@@ -153,10 +140,14 @@ public abstract class GStructureViewer extends JInternalFrame implements
         viewMapping_actionPerformed(actionEvent);
       }
     });
+
+    viewMenu = new JMenu();
     viewMenu.setText(MessageManager.getString("action.view"));
 
+    chainMenu = new JMenu();
     chainMenu.setText(MessageManager.getString("action.show_chain"));
 
+    fitToWindow = new JMenuItem();
     fitToWindow.setText(MessageManager.getString("label.fit_to_window"));
     fitToWindow.addActionListener(new ActionListener()
     {
@@ -167,148 +158,9 @@ public abstract class GStructureViewer extends JInternalFrame implements
       }
     });
 
-    JMenu colourMenu = new JMenu();
-    colourMenu.setText(MessageManager.getString("label.colours"));
-
-    JMenuItem backGround = new JMenuItem();
-    backGround
-            .setText(MessageManager.getString("action.background_colour"));
-    backGround.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        backGround_actionPerformed(actionEvent);
-      }
-    });
-    seqColour.setSelected(false);
-    seqColour.setText(MessageManager.getString("action.by_sequence"));
-    seqColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        seqColour_actionPerformed(actionEvent);
-      }
-    });
-    chainColour.setText(MessageManager.getString("action.by_chain"));
-    chainColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        chainColour_actionPerformed(actionEvent);
-      }
-    });
-    chargeColour.setText(MessageManager.getString("label.charge_cysteine"));
-    chargeColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        chargeColour_actionPerformed(actionEvent);
-      }
-    });
-    zappoColour.setText(MessageManager.getString("label.zappo"));
-    zappoColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        zappoColour_actionPerformed(actionEvent);
-      }
-    });
-    taylorColour.setText(MessageManager.getString("label.taylor"));
-    taylorColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        taylorColour_actionPerformed(actionEvent);
-      }
-    });
-    hydroColour.setText(MessageManager.getString("label.hydrophobicity"));
-    hydroColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        hydroColour_actionPerformed(actionEvent);
-      }
-    });
-    strandColour.setText(MessageManager
-            .getString("label.strand_propensity"));
-    strandColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        strandColour_actionPerformed(actionEvent);
-      }
-    });
-    helixColour.setText(MessageManager.getString("label.helix_propensity"));
-    helixColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        helixColour_actionPerformed(actionEvent);
-      }
-    });
-    turnColour.setText(MessageManager.getString("label.turn_propensity"));
-    turnColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        turnColour_actionPerformed(actionEvent);
-      }
-    });
-    buriedColour.setText(MessageManager.getString("label.buried_index"));
-    buriedColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        buriedColour_actionPerformed(actionEvent);
-      }
-    });
-    purinePyrimidineColour.setText(MessageManager
-            .getString("label.purine_pyrimidine"));
-    purinePyrimidineColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        purinePyrimidineColour_actionPerformed(actionEvent);
-      }
-    });
-
-    userColour.setText(MessageManager.getString("action.user_defined"));
-    userColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        userColour_actionPerformed(actionEvent);
-      }
-    });
-    viewerColour.setSelected(false);
-    viewerColour
-            .setText(MessageManager.getString("label.colour_with_jmol"));
-    viewerColour.setToolTipText(MessageManager
-            .getString("label.let_jmol_manage_structure_colours"));
-    viewerColour.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent actionEvent)
-      {
-        viewerColour_actionPerformed(actionEvent);
-      }
-    });
-
     JMenu helpMenu = new JMenu();
     helpMenu.setText(MessageManager.getString("action.help"));
+    helpItem = new JMenuItem();
     helpItem.setText(MessageManager.getString("label.jmol_help"));
     helpItem.addActionListener(new ActionListener()
     {
@@ -318,8 +170,9 @@ public abstract class GStructureViewer extends JInternalFrame implements
         showHelp_actionPerformed(actionEvent);
       }
     });
-    alignStructs
-            .setText(MessageManager.getString("label.align_structures"));
+    alignStructs = new JMenuItem();
+    alignStructs.setText(
+            MessageManager.getString("label.superpose_structures"));
     alignStructs.addActionListener(new ActionListener()
     {
       @Override
@@ -328,56 +181,30 @@ public abstract class GStructureViewer extends JInternalFrame implements
         alignStructs_actionPerformed(actionEvent);
       }
     });
-    viewerActionMenu.setText(MessageManager.getString("label.jmol"));
-    menuBar.add(fileMenu);
-    menuBar.add(viewMenu);
-    menuBar.add(colourMenu);
-    menuBar.add(viewerActionMenu);
+
+    viewerActionMenu = new JMenu(); // text set in sub-classes
     viewerActionMenu.setVisible(false);
-    menuBar.add(helpMenu);
+    viewerActionMenu.add(alignStructs);
+    colourMenu = new JMenu();
+    colourMenu.setText(MessageManager.getString("label.colours"));
     fileMenu.add(savemenu);
     fileMenu.add(viewMapping);
     savemenu.add(pdbFile);
     savemenu.add(png);
     savemenu.add(eps);
     viewMenu.add(chainMenu);
-
-    colourMenu.add(seqColour);
-    colourMenu.add(chainColour);
-    colourMenu.add(chargeColour);
-    colourMenu.add(zappoColour);
-    colourMenu.add(taylorColour);
-    colourMenu.add(hydroColour);
-    colourMenu.add(helixColour);
-    colourMenu.add(strandColour);
-    colourMenu.add(turnColour);
-    colourMenu.add(buriedColour);
-    colourMenu.add(purinePyrimidineColour);
-    colourMenu.add(userColour);
-    colourMenu.add(viewerColour);
-    colourMenu.add(backGround);
-
-    ButtonGroup colourButtons = new ButtonGroup();
-
-    colourButtons.add(seqColour);
-    colourButtons.add(chainColour);
-    colourButtons.add(chargeColour);
-    colourButtons.add(zappoColour);
-    colourButtons.add(taylorColour);
-    colourButtons.add(hydroColour);
-    colourButtons.add(helixColour);
-    colourButtons.add(strandColour);
-    colourButtons.add(turnColour);
-    colourButtons.add(buriedColour);
-    colourButtons.add(purinePyrimidineColour);
-    colourButtons.add(userColour);
-    colourButtons.add(viewerColour);
-
     helpMenu.add(helpItem);
-    viewerActionMenu.add(alignStructs);
 
+    menuBar.add(fileMenu);
+    menuBar.add(viewMenu);
+    menuBar.add(colourMenu);
+    menuBar.add(viewerActionMenu);
+    menuBar.add(helpMenu);
+
+    statusPanel = new JPanel();
     statusPanel.setLayout(new GridLayout());
-    this.getContentPane().add(statusPanel, java.awt.BorderLayout.SOUTH);
+    this.getContentPane().add(statusPanel, BorderLayout.SOUTH);
+    statusBar = new JLabel();
     statusPanel.add(statusBar, null);
   }
 
@@ -393,9 +220,8 @@ public abstract class GStructureViewer extends JInternalFrame implements
   {
   }
 
-  protected void alignStructs_actionPerformed(ActionEvent actionEvent)
-  {
-  }
+  protected abstract String alignStructs_actionPerformed(
+          ActionEvent actionEvent);
 
   public void pdbFile_actionPerformed(ActionEvent actionEvent)
   {
@@ -432,52 +258,7 @@ public abstract class GStructureViewer extends JInternalFrame implements
 
   }
 
-  public void zappoColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void taylorColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void hydroColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void helixColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void strandColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void turnColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void buriedColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void purinePyrimidineColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void userColour_actionPerformed(ActionEvent actionEvent)
-  {
-
-  }
-
-  public void backGround_actionPerformed(ActionEvent actionEvent)
+  public void background_actionPerformed(ActionEvent actionEvent)
   {
 
   }
@@ -486,14 +267,4 @@ public abstract class GStructureViewer extends JInternalFrame implements
   {
 
   }
-
-  // {
-  // return bindingModel;
-  // }
-
-  // public void setBindingModel(AAStructureBindingModel bindingModel)
-  // {
-  // this.bindingModel = bindingModel;
-  // }
-
 }

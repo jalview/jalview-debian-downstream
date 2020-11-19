@@ -1,3 +1,23 @@
+/*
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ */
 package jalview.ext.android;
 
 /*
@@ -19,14 +39,18 @@ package jalview.ext.android;
 /*
  * Copied to Jalview September 2016.
  * Only the members of this class required for SparseIntArray were copied.
- * Method binarySearch(short[] array, int size, short value) added to support
+ * Change Log:
+ * Sep 2016: Method binarySearch(short[] array, int size, short value) added to support
  * SparseShortArray.
+ * Jan 2017: EMPTY_DOUBLES added
  */
 class ContainerHelpers
 {
   static final boolean[] EMPTY_BOOLEANS = new boolean[0];
 
   static final int[] EMPTY_INTS = new int[0];
+
+  static final double[] EMPTY_DOUBLES = new double[0];
 
   static final long[] EMPTY_LONGS = new long[0];
 

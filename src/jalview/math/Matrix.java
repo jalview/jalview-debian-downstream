@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,61 +24,91 @@ import jalview.util.Format;
 import jalview.util.MessageManager;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * A class to model rectangular matrices of double values and operations on them
  */
-public class Matrix
+public class Matrix implements MatrixI
 {
-  /**
-   * SMJSPUBLIC
-   */
-  public double[][] value;
-
-  /** DOCUMENT ME!! */
-  public int rows;
-
-  /** DOCUMENT ME!! */
-  public int cols;
-
-  /** DOCUMENT ME!! */
-  public double[] d; // Diagonal
-
-  /** DOCUMENT ME!! */
-  public double[] e; // off diagonal
-
-  /**
+  /*
    * maximum number of iterations for tqli
-   * 
    */
-  int maxIter = 45; // fudge - add 15 iterations, just in case
+  private static final int MAX_ITER = 45;
+  // fudge - add 15 iterations, just in case
+
+  /*
+   * the number of rows
+   */
+  final protected int rows;
+
+  /*
+   * the number of columns
+   */
+  final protected int cols;
+
+  /*
+   * the cell values in row-major order
+   */
+  private double[][] value;
+
+  protected double[] d; // Diagonal
+
+  protected double[] e; // off diagonal
 
   /**
-   * Creates a new Matrix object.
+   * Constructor given number of rows and columns
    * 
-   * @param value
-   *          DOCUMENT ME!
-   * @param rows
-   *          DOCUMENT ME!
-   * @param cols
-   *          DOCUMENT ME!
+   * @param colCount
+   * @param rowCount
    */
-  public Matrix(double[][] value, int rows, int cols)
+  protected Matrix(int rowCount, int colCount)
   {
-    this.rows = rows;
-    this.cols = cols;
-    this.value = value;
+    rows = rowCount;
+    cols = colCount;
   }
 
   /**
-   * DOCUMENT ME!
+   * Creates a new Matrix object containing a copy of the supplied array values.
+   * For example
    * 
-   * @return DOCUMENT ME!
+   * <pre>
+   *   new Matrix(new double[][] {{2, 3, 4}, {5, 6, 7})
+   * constructs
+   *   (2 3 4)
+   *   (5 6 7)
+   * </pre>
+   * 
+   * Note that ragged arrays (with not all rows, or columns, of the same
+   * length), are not supported by this class. They can be constructed, but
+   * results of operations on them are undefined and may throw exceptions.
+   * 
+   * @param values
+   *          the matrix values in row-major order
    */
-  public Matrix transpose()
+  public Matrix(double[][] values)
+  {
+    this.rows = values.length;
+    this.cols = this.rows == 0 ? 0 : values[0].length;
+
+    /*
+     * make a copy of the values array, for immutability
+     */
+    this.value = new double[rows][];
+    int i = 0;
+    for (double[] row : values)
+    {
+      if (row != null)
+      {
+        value[i] = new double[row.length];
+        System.arraycopy(row, 0, value[i], 0, row.length);
+      }
+      i++;
+    }
+  }
+
+  @Override
+  public MatrixI transpose()
   {
     double[][] out = new double[cols][rows];
 
@@ -90,7 +120,7 @@ public class Matrix
       }
     }
 
-    return new Matrix(out, cols, rows);
+    return new Matrix(out);
   }
 
   /**
@@ -98,55 +128,55 @@ public class Matrix
    * 
    * @param ps
    *          DOCUMENT ME!
+   * @param format
    */
-  public void print(PrintStream ps)
+  @Override
+  public void print(PrintStream ps, String format)
   {
     for (int i = 0; i < rows; i++)
     {
       for (int j = 0; j < cols; j++)
       {
-        Format.print(ps, "%8.2f", value[i][j]);
+        Format.print(ps, format, getValue(i, j));
       }
 
       ps.println();
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param in
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public Matrix preMultiply(Matrix in)
+  @Override
+  public MatrixI preMultiply(MatrixI in)
   {
-    double[][] tmp = new double[in.rows][this.cols];
+    if (in.width() != rows)
+    {
+      throw new IllegalArgumentException("Can't pre-multiply " + this.rows
+              + " rows by " + in.width() + " columns");
+    }
+    double[][] tmp = new double[in.height()][this.cols];
 
-    for (int i = 0; i < in.rows; i++)
+    for (int i = 0; i < in.height(); i++)
     {
       for (int j = 0; j < this.cols; j++)
       {
-        tmp[i][j] = 0.0;
-
-        for (int k = 0; k < in.cols; k++)
+        /*
+         * result[i][j] is the vector product of 
+         * in.row[i] and this.column[j]
+         */
+        for (int k = 0; k < in.width(); k++)
         {
-          tmp[i][j] += (in.value[i][k] * this.value[k][j]);
+          tmp[i][j] += (in.getValue(i, k) * this.value[k][j]);
         }
       }
     }
 
-    return new Matrix(tmp, in.rows, this.cols);
+    return new Matrix(tmp);
   }
 
   /**
-   * DOCUMENT ME!
    * 
    * @param in
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   public double[] vectorPostMultiply(double[] in)
   {
@@ -165,61 +195,47 @@ public class Matrix
     return out;
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param in
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public Matrix postMultiply(Matrix in)
+  @Override
+  public MatrixI postMultiply(MatrixI in)
   {
-    double[][] out = new double[this.rows][in.cols];
-
-    for (int i = 0; i < this.rows; i++)
+    if (in.height() != this.cols)
     {
-      for (int j = 0; j < in.cols; j++)
-      {
-        out[i][j] = 0.0;
-
-        for (int k = 0; k < rows; k++)
-        {
-          out[i][j] = out[i][j] + (value[i][k] * in.value[k][j]);
-        }
-      }
+      throw new IllegalArgumentException("Can't post-multiply " + this.cols
+              + " columns by " + in.height() + " rows");
     }
-
-    return new Matrix(out, this.cols, in.rows);
+    return in.preMultiply(this);
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public Matrix copy()
+  @Override
+  public MatrixI copy()
   {
     double[][] newmat = new double[rows][cols];
 
     for (int i = 0; i < rows; i++)
     {
-      for (int j = 0; j < cols; j++)
-      {
-        newmat[i][j] = value[i][j];
-      }
+      System.arraycopy(value[i], 0, newmat[i], 0, value[i].length);
     }
 
-    return new Matrix(newmat, rows, cols);
+    Matrix m = new Matrix(newmat);
+    if (this.d != null)
+    {
+      m.d = Arrays.copyOf(this.d, this.d.length);
+    }
+    if (this.e != null)
+    {
+      m.e = Arrays.copyOf(this.e, this.e.length);
+    }
+
+    return m;
   }
 
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void tred()
   {
     int n = rows;
-    int l;
     int k;
     int j;
     int i;
@@ -235,7 +251,7 @@ public class Matrix
 
     for (i = n; i >= 2; i--)
     {
-      l = i - 1;
+      final int l = i - 1;
       h = 0.0;
       scale = 0.0;
 
@@ -243,22 +259,23 @@ public class Matrix
       {
         for (k = 1; k <= l; k++)
         {
-          scale += Math.abs(value[i - 1][k - 1]);
+          double v = Math.abs(getValue(i - 1, k - 1));
+          scale += v;
         }
 
         if (scale == 0.0)
         {
-          e[i - 1] = value[i - 1][l - 1];
+          e[i - 1] = getValue(i - 1, l - 1);
         }
         else
         {
           for (k = 1; k <= l; k++)
           {
-            value[i - 1][k - 1] /= scale;
-            h += (value[i - 1][k - 1] * value[i - 1][k - 1]);
+            double v = divideValue(i - 1, k - 1, scale);
+            h += v * v;
           }
 
-          f = value[i - 1][l - 1];
+          f = getValue(i - 1, l - 1);
 
           if (f > 0)
           {
@@ -271,46 +288,48 @@ public class Matrix
 
           e[i - 1] = scale * g;
           h -= (f * g);
-          value[i - 1][l - 1] = f - g;
+          setValue(i - 1, l - 1, f - g);
           f = 0.0;
 
           for (j = 1; j <= l; j++)
           {
-            value[j - 1][i - 1] = value[i - 1][j - 1] / h;
+            double val = getValue(i - 1, j - 1) / h;
+            setValue(j - 1, i - 1, val);
             g = 0.0;
 
             for (k = 1; k <= j; k++)
             {
-              g += (value[j - 1][k - 1] * value[i - 1][k - 1]);
+              g += (getValue(j - 1, k - 1) * getValue(i - 1, k - 1));
             }
 
             for (k = j + 1; k <= l; k++)
             {
-              g += (value[k - 1][j - 1] * value[i - 1][k - 1]);
+              g += (getValue(k - 1, j - 1) * getValue(i - 1, k - 1));
             }
 
             e[j - 1] = g / h;
-            f += (e[j - 1] * value[i - 1][j - 1]);
+            f += (e[j - 1] * getValue(i - 1, j - 1));
           }
 
           hh = f / (h + h);
 
           for (j = 1; j <= l; j++)
           {
-            f = value[i - 1][j - 1];
+            f = getValue(i - 1, j - 1);
             g = e[j - 1] - (hh * f);
             e[j - 1] = g;
 
             for (k = 1; k <= j; k++)
             {
-              value[j - 1][k - 1] -= ((f * e[k - 1]) + (g * value[i - 1][k - 1]));
+              double val = (f * e[k - 1]) + (g * getValue(i - 1, k - 1));
+              addValue(j - 1, k - 1, -val);
             }
           }
         }
       }
       else
       {
-        e[i - 1] = value[i - 1][l - 1];
+        e[i - 1] = getValue(i - 1, l - 1);
       }
 
       d[i - 1] = h;
@@ -321,7 +340,7 @@ public class Matrix
 
     for (i = 1; i <= n; i++)
     {
-      l = i - 1;
+      final int l = i - 1;
 
       if (d[i - 1] != 0.0)
       {
@@ -331,30 +350,66 @@ public class Matrix
 
           for (k = 1; k <= l; k++)
           {
-            g += (value[i - 1][k - 1] * value[k - 1][j - 1]);
+            g += (getValue(i - 1, k - 1) * getValue(k - 1, j - 1));
           }
 
           for (k = 1; k <= l; k++)
           {
-            value[k - 1][j - 1] -= (g * value[k - 1][i - 1]);
+            addValue(k - 1, j - 1, -(g * getValue(k - 1, i - 1)));
           }
         }
       }
 
-      d[i - 1] = value[i - 1][i - 1];
-      value[i - 1][i - 1] = 1.0;
+      d[i - 1] = getValue(i - 1, i - 1);
+      setValue(i - 1, i - 1, 1.0);
 
       for (j = 1; j <= l; j++)
       {
-        value[j - 1][i - 1] = 0.0;
-        value[i - 1][j - 1] = 0.0;
+        setValue(j - 1, i - 1, 0.0);
+        setValue(i - 1, j - 1, 0.0);
       }
     }
   }
 
   /**
+   * Adds f to the value at [i, j] and returns the new value
+   * 
+   * @param i
+   * @param j
+   * @param f
+   */
+  protected double addValue(int i, int j, double f)
+  {
+    double v = value[i][j] + f;
+    value[i][j] = v;
+    return v;
+  }
+
+  /**
+   * Divides the value at [i, j] by divisor and returns the new value. If d is
+   * zero, returns the unchanged value.
+   * 
+   * @param i
+   * @param j
+   * @param divisor
+   * @return
+   */
+  protected double divideValue(int i, int j, double divisor)
+  {
+    if (divisor == 0d)
+    {
+      return getValue(i, j);
+    }
+    double v = value[i][j];
+    v = v / divisor;
+    value[i][j] = v;
+    return v;
+  }
+
+  /**
    * DOCUMENT ME!
    */
+  @Override
   public void tqli() throws Exception
   {
     int n = rows;
@@ -367,7 +422,6 @@ public class Matrix
     double s;
     double r;
     double p;
-    ;
 
     double g;
     double f;
@@ -402,11 +456,11 @@ public class Matrix
         {
           iter++;
 
-          if (iter == maxIter)
+          if (iter == MAX_ITER)
           {
             throw new Exception(MessageManager.formatMessage(
-                    "exception.matrix_too_many_iteration", new String[] {
-                        "tqli", Integer.valueOf(maxIter).toString() }));
+                    "exception.matrix_too_many_iteration", new String[]
+                    { "tqli", Integer.valueOf(MAX_ITER).toString() }));
           }
           else
           {
@@ -450,9 +504,10 @@ public class Matrix
 
             for (k = 1; k <= n; k++)
             {
-              f = value[k - 1][i];
-              value[k - 1][i] = (s * value[k - 1][i - 1]) + (c * f);
-              value[k - 1][i - 1] = (c * value[k - 1][i - 1]) - (s * f);
+              f = getValue(k - 1, i);
+              setValue(k - 1, i, (s * getValue(k - 1, i - 1)) + (c * f));
+              setValue(k - 1, i - 1,
+                      (c * getValue(k - 1, i - 1)) - (s * f));
             }
           }
 
@@ -462,6 +517,18 @@ public class Matrix
         }
       } while (m != l);
     }
+  }
+
+  @Override
+  public double getValue(int i, int j)
+  {
+    return value[i][j];
+  }
+
+  @Override
+  public void setValue(int i, int j, double val)
+  {
+    value[i][j] = val;
   }
 
   /**
@@ -653,11 +720,11 @@ public class Matrix
         {
           iter++;
 
-          if (iter == maxIter)
+          if (iter == MAX_ITER)
           {
             throw new Exception(MessageManager.formatMessage(
-                    "exception.matrix_too_many_iteration", new String[] {
-                        "tqli2", Integer.valueOf(maxIter).toString() }));
+                    "exception.matrix_too_many_iteration", new String[]
+                    { "tqli2", Integer.valueOf(MAX_ITER).toString() }));
           }
           else
           {
@@ -716,16 +783,14 @@ public class Matrix
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers the first argument with the sign of the second argument
    * 
    * @param a
-   *          DOCUMENT ME!
    * @param b
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  public double sign(double a, double b)
+  static double sign(double a, double b)
   {
     if (b < 0)
     {
@@ -738,20 +803,19 @@ public class Matrix
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns an array containing the values in the specified column
    * 
-   * @param n
-   *          DOCUMENT ME!
+   * @param col
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  public double[] getColumn(int n)
+  public double[] getColumn(int col)
   {
     double[] out = new double[rows];
 
     for (int i = 0; i < rows; i++)
     {
-      out[i] = value[i][n];
+      out[i] = value[i][col];
     }
 
     return out;
@@ -762,12 +826,14 @@ public class Matrix
    * 
    * @param ps
    *          DOCUMENT ME!
+   * @param format
    */
-  public void printD(PrintStream ps)
+  @Override
+  public void printD(PrintStream ps, String format)
   {
     for (int j = 0; j < rows; j++)
     {
-      Format.print(ps, "%15.4e", d[j]);
+      Format.print(ps, format, d[j]);
     }
   }
 
@@ -776,93 +842,184 @@ public class Matrix
    * 
    * @param ps
    *          DOCUMENT ME!
+   * @param format
+   *          TODO
    */
-  public void printE(PrintStream ps)
+  @Override
+  public void printE(PrintStream ps, String format)
   {
     for (int j = 0; j < rows; j++)
     {
-      Format.print(ps, "%15.4e", e[j]);
+      Format.print(ps, format, e[j]);
+    }
+  }
+
+  @Override
+  public double[] getD()
+  {
+    return d;
+  }
+
+  @Override
+  public double[] getE()
+  {
+    return e;
+  }
+
+  @Override
+  public int height()
+  {
+    return rows;
+  }
+
+  @Override
+  public int width()
+  {
+    return cols;
+  }
+
+  @Override
+  public double[] getRow(int i)
+  {
+    double[] row = new double[cols];
+    System.arraycopy(value[i], 0, row, 0, cols);
+    return row;
+  }
+
+  /**
+   * Returns a length 2 array of {minValue, maxValue} of all values in the
+   * matrix. Returns null if the matrix is null or empty.
+   * 
+   * @return
+   */
+  double[] findMinMax()
+  {
+    if (value == null)
+    {
+      return null;
+    }
+    double min = Double.MAX_VALUE;
+    double max = -Double.MAX_VALUE;
+    boolean empty = true;
+    for (double[] row : value)
+    {
+      if (row != null)
+      {
+        for (double x : row)
+        {
+          empty = false;
+          if (x > max)
+          {
+            max = x;
+          }
+          if (x < min)
+          {
+            min = x;
+          }
+        }
+      }
+    }
+    return empty ? null : new double[] { min, max };
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void reverseRange(boolean maxToZero)
+  {
+    if (value == null)
+    {
+      return;
+    }
+    double[] minMax = findMinMax();
+    if (minMax == null)
+    {
+      return; // empty matrix
+    }
+    double subtractFrom = maxToZero ? minMax[1] : minMax[0] + minMax[1];
+
+    for (double[] row : value)
+    {
+      if (row != null)
+      {
+        int j = 0;
+        for (double x : row)
+        {
+          row[j] = subtractFrom - x;
+          j++;
+        }
+      }
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Multiplies every entry in the matrix by the given value.
    * 
-   * @param args
-   *          DOCUMENT ME!
+   * @param
    */
-  public static void main(String[] args) throws Exception
+  @Override
+  public void multiply(double by)
   {
-    int n = Integer.parseInt(args[0]);
-    double[][] in = new double[n][n];
-
-    for (int i = 0; i < n; i++)
+    for (double[] row : value)
     {
-      for (int j = 0; j < n; j++)
+      if (row != null)
       {
-        in[i][j] = (double) Math.random();
+        for (int i = 0; i < row.length; i++)
+        {
+          row[i] *= by;
+        }
       }
     }
+  }
 
-    Matrix origmat = new Matrix(in, n, n);
+  @Override
+  public void setD(double[] v)
+  {
+    d = v;
+  }
 
-    // System.out.println(" --- Original matrix ---- ");
-    // / origmat.print(System.out);
-    // System.out.println();
-    // System.out.println(" --- transpose matrix ---- ");
-    Matrix trans = origmat.transpose();
+  @Override
+  public void setE(double[] v)
+  {
+    e = v;
+  }
 
-    // trans.print(System.out);
-    // System.out.println();
-    // System.out.println(" --- OrigT * Orig ---- ");
-    Matrix symm = trans.postMultiply(origmat);
+  public double getTotal()
+  {
+    double d = 0d;
+    for (int i = 0; i < this.height(); i++)
+    {
+      for (int j = 0; j < this.width(); j++)
+      {
+        d += value[i][j];
+      }
+    }
+    return d;
+  }
 
-    // symm.print(System.out);
-    // System.out.println();
-    // Copy the symmetric matrix for later
-    // Matrix origsymm = symm.copy();
-
-    // This produces the tridiagonal transformation matrix
-    // long tstart = System.currentTimeMillis();
-    symm.tred();
-
-    // long tend = System.currentTimeMillis();
-
-    // System.out.println("Time take for tred = " + (tend-tstart) + "ms");
-    // System.out.println(" ---Tridiag transform matrix ---");
-    // symm.print(System.out);
-    // System.out.println();
-    // System.out.println(" --- D vector ---");
-    // symm.printD(System.out);
-    // System.out.println();
-    // System.out.println(" --- E vector ---");
-    // symm.printE(System.out);
-    // System.out.println();
-    // Now produce the diagonalization matrix
-    // tstart = System.currentTimeMillis();
-    symm.tqli();
-    // tend = System.currentTimeMillis();
-
-    // System.out.println("Time take for tqli = " + (tend-tstart) + " ms");
-    // System.out.println(" --- New diagonalization matrix ---");
-    // symm.print(System.out);
-    // System.out.println();
-    // System.out.println(" --- D vector ---");
-    // symm.printD(System.out);
-    // System.out.println();
-    // System.out.println(" --- E vector ---");
-    // symm.printE(System.out);
-    // System.out.println();
-    // System.out.println(" --- First eigenvector --- ");
-    // double[] eigenv = symm.getColumn(0);
-    // for (int i=0; i < eigenv.length;i++) {
-    // Format.print(System.out,"%15.4f",eigenv[i]);
-    // }
-    // System.out.println();
-    // double[] neigenv = origsymm.vectorPostMultiply(eigenv);
-    // for (int i=0; i < neigenv.length;i++) {
-    // Format.print(System.out,"%15.4f",neigenv[i]/symm.d[0]);
-    // }
-    // System.out.println();
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean equals(MatrixI m2, double delta)
+  {
+    if (m2 == null || this.height() != m2.height()
+            || this.width() != m2.width())
+    {
+      return false;
+    }
+    for (int i = 0; i < this.height(); i++)
+    {
+      for (int j = 0; j < this.width(); j++)
+      {
+        double diff = this.getValue(i, j) - m2.getValue(i, j);
+        if (Math.abs(diff) > delta)
+        {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 }

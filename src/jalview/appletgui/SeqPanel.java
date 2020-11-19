@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,7 @@ import jalview.commands.EditCommand;
 import jalview.commands.EditCommand.Action;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResults;
 import jalview.datamodel.SearchResultsI;
@@ -38,6 +39,7 @@ import jalview.structure.SelectionSource;
 import jalview.structure.SequenceListener;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasSource;
+import jalview.util.Comparison;
 import jalview.util.MappingUtils;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
@@ -51,6 +53,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.util.Collections;
+import java.util.List;
 import java.util.Vector;
 
 public class SeqPanel extends Panel implements MouseMotionListener,
@@ -127,8 +131,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     if (editCommand != null && editCommand.getSize() > 0)
     {
       ap.alignFrame.addHistoryItem(editCommand);
-      av.firePropertyChange("alignment", null, av.getAlignment()
-              .getSequences());
+      av.firePropertyChange("alignment", null,
+              av.getAlignment().getSequences());
     }
 
     startseq = -1;
@@ -143,13 +147,13 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   void setCursorRow()
   {
     seqCanvas.cursorY = getKeyboardNo1() - 1;
-    scrollToVisible();
+    scrollToVisible(true);
   }
 
   void setCursorColumn()
   {
     seqCanvas.cursorX = getKeyboardNo1() - 1;
-    scrollToVisible();
+    scrollToVisible(true);
   }
 
   void setCursorRowAndColumn()
@@ -162,7 +166,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     {
       seqCanvas.cursorX = getKeyboardNo1() - 1;
       seqCanvas.cursorY = getKeyboardNo2() - 1;
-      scrollToVisible();
+      scrollToVisible(true);
     }
   }
 
@@ -171,35 +175,42 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     SequenceI sequence = av.getAlignment().getSequenceAt(seqCanvas.cursorY);
 
     seqCanvas.cursorX = sequence.findIndex(getKeyboardNo1()) - 1;
-    scrollToVisible();
+    scrollToVisible(true);
   }
 
   void moveCursor(int dx, int dy)
   {
     seqCanvas.cursorX += dx;
     seqCanvas.cursorY += dy;
-    if (av.hasHiddenColumns()
-            && !av.getColumnSelection().isVisible(seqCanvas.cursorX))
+    if (av.hasHiddenColumns() && !av.getAlignment().getHiddenColumns()
+            .isVisible(seqCanvas.cursorX))
     {
       int original = seqCanvas.cursorX - dx;
       int maxWidth = av.getAlignment().getWidth();
 
-      while (!av.getColumnSelection().isVisible(seqCanvas.cursorX)
-              && seqCanvas.cursorX < maxWidth && seqCanvas.cursorX > 0)
+      while (!av.getAlignment().getHiddenColumns()
+              .isVisible(seqCanvas.cursorX) && seqCanvas.cursorX < maxWidth
+              && seqCanvas.cursorX > 0)
       {
         seqCanvas.cursorX += dx;
       }
 
-      if (seqCanvas.cursorX >= maxWidth
-              || !av.getColumnSelection().isVisible(seqCanvas.cursorX))
+      if (seqCanvas.cursorX >= maxWidth || !av.getAlignment()
+              .getHiddenColumns().isVisible(seqCanvas.cursorX))
       {
         seqCanvas.cursorX = original;
       }
     }
-    scrollToVisible();
+    scrollToVisible(false);
   }
 
-  void scrollToVisible()
+  /**
+   * Scroll to make the cursor visible in the viewport.
+   * 
+   * @param jump
+   *          just jump to the location rather than scrolling
+   */
+  void scrollToVisible(boolean jump)
   {
     if (seqCanvas.cursorX < 0)
     {
@@ -220,42 +231,34 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
 
     endEditing();
-    if (av.getWrapAlignment())
+
+    boolean repaintNeeded = true;
+    if (jump)
     {
-      ap.scrollToWrappedVisible(seqCanvas.cursorX);
+      // only need to repaint if the viewport did not move, as otherwise it will
+      // get a repaint
+      repaintNeeded = !av.getRanges().setViewportLocation(seqCanvas.cursorX,
+              seqCanvas.cursorY);
     }
     else
     {
-      while (seqCanvas.cursorY < av.startSeq)
+      if (av.getWrapAlignment())
       {
-        ap.scrollUp(true);
+        av.getRanges().scrollToWrappedVisible(seqCanvas.cursorX);
       }
-      while (seqCanvas.cursorY + 1 > av.endSeq)
+      else
       {
-        ap.scrollUp(false);
-      }
-      while (seqCanvas.cursorX < av.getColumnSelection()
-              .adjustForHiddenColumns(av.startRes))
-      {
-
-        if (!ap.scrollRight(false))
-        {
-          break;
-        }
-      }
-      while (seqCanvas.cursorX > av.getColumnSelection()
-              .adjustForHiddenColumns(av.endRes))
-      {
-        if (!ap.scrollRight(true))
-        {
-          break;
-        }
+        av.getRanges().scrollToVisible(seqCanvas.cursorX,
+                seqCanvas.cursorY);
       }
     }
     setStatusMessage(av.getAlignment().getSequenceAt(seqCanvas.cursorY),
             seqCanvas.cursorX, seqCanvas.cursorY);
 
-    seqCanvas.repaint();
+    if (repaintNeeded)
+    {
+      seqCanvas.repaint();
+    }
   }
 
   void setSelectionAreaAtCursor(boolean topLeft)
@@ -327,7 +330,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       sg.addSequence(sequence, false);
       av.setSelectionGroup(sg);
     }
-    ap.paintAlignment(false);
+    ap.paintAlignment(false, false);
     av.sendSelection();
   }
 
@@ -405,13 +408,12 @@ public class SeqPanel extends Panel implements MouseMotionListener,
    * 
    * @param sequence
    *          aligned sequence object
-   * @param res
+   * @param column
    *          alignment column
    * @param seq
    *          index of sequence in alignment
-   * @return position of res in sequence
    */
-  void setStatusMessage(SequenceI sequence, int res, int seq)
+  void setStatusMessage(SequenceI sequence, int column, int seq)
   {
     // TODO remove duplication of identical gui method
     StringBuilder text = new StringBuilder(32);
@@ -422,7 +424,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     /*
      * Try to translate the display character to residue name (null for gap).
      */
-    final String displayChar = String.valueOf(sequence.getCharAt(res));
+    final String displayChar = String.valueOf(sequence.getCharAt(column));
     if (av.getAlignment().isNucleotide())
     {
       residue = ResidueProperties.nucleotideName.get(displayChar);
@@ -433,9 +435,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
     else
     {
-      residue = "X".equalsIgnoreCase(displayChar) ? "X" : ("*"
-              .equals(displayChar) ? "STOP" : ResidueProperties.aa2Triplet
-              .get(displayChar));
+      residue = "X".equalsIgnoreCase(displayChar) ? "X"
+              : ("*".equals(displayChar) ? "STOP"
+                      : ResidueProperties.aa2Triplet.get(displayChar));
       if (residue != null)
       {
         text.append(" Residue: ").append(residue);
@@ -445,7 +447,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     int pos = -1;
     if (residue != null)
     {
-      pos = sequence.findPosition(res);
+      pos = sequence.findPosition(column);
       text.append(" (").append(Integer.toString(pos)).append(")");
     }
 
@@ -497,7 +499,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
     // For now, ignore the mouseWheel font resizing on Macs
     // As the Button2_mask always seems to be true
-    if ((evt.getModifiers() & InputEvent.BUTTON2_MASK) == InputEvent.BUTTON2_MASK
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON2_DOWN_MASK) == InputEvent.BUTTON2_DOWN_MASK
             && !av.MAC)
     {
       mouseWheelPressed = true;
@@ -519,7 +522,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
 
     int seq = findSeq(evt);
-    int res = findRes(evt);
+    int res = findColumn(evt);
 
     if (seq < 0 || res < 0)
     {
@@ -555,22 +558,20 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         av.setSelectionGroup(null);
       }
 
-      SequenceFeature[] features = findFeaturesAtRes(sequence,
-              sequence.findPosition(findRes(evt)));
+      int column = findColumn(evt);
+      List<SequenceFeature> features = findFeaturesAtColumn(sequence,
+              column + 1);
 
-      if (features != null && features.length > 0)
+      if (!features.isEmpty())
       {
         SearchResultsI highlight = new SearchResults();
-        highlight.addResult(sequence, features[0].getBegin(),
-                features[0].getEnd());
+        highlight.addResult(sequence, features.get(0).getBegin(),
+                features.get(0).getEnd());
         seqCanvas.highlightSearchResults(highlight);
-      }
-      if (features != null && features.length > 0)
-      {
         seqCanvas.getFeatureRenderer().amendFeatures(
-                new SequenceI[] { sequence }, features, false, ap);
-
-        seqCanvas.highlightSearchResults(null);
+                Collections.singletonList(sequence), features, false, ap);
+        av.setSearchResults(null); // clear highlighting
+        seqCanvas.repaint(); // draw new/amended features
       }
     }
   }
@@ -578,13 +579,13 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   @Override
   public void mouseReleased(MouseEvent evt)
   {
+    boolean didDrag = mouseDragging; // did we come here after a drag
     mouseDragging = false;
     mouseWheelPressed = false;
-    ap.paintAlignment(true);
 
     if (!editingSeqs)
     {
-      doMouseReleasedDefineMode(evt);
+      doMouseReleasedDefineMode(evt, didDrag);
       return;
     }
 
@@ -596,11 +597,19 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
   int wrappedBlock = -1;
 
-  int findRes(MouseEvent evt)
+  /**
+   * Returns the aligned sequence position (base 0) at the mouse position, or
+   * the closest visible one
+   * 
+   * @param evt
+   * @return
+   */
+  int findColumn(MouseEvent evt)
   {
     int res = 0;
     int x = evt.getX();
 
+    int startRes = av.getRanges().getStartRes();
     if (av.getWrapAlignment())
     {
 
@@ -615,7 +624,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
       int y = evt.getY();
       y -= hgap;
-      x -= seqCanvas.LABEL_WEST;
+      x = Math.max(0, x - seqCanvas.LABEL_WEST);
 
       int cwidth = seqCanvas.getWrappedCanvasWidth(getSize().width);
       if (cwidth < 1)
@@ -624,19 +633,21 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       }
 
       wrappedBlock = y / cHeight;
-      wrappedBlock += av.getStartRes() / cwidth;
-
-      res = wrappedBlock * cwidth + x / av.getCharWidth();
-
+      wrappedBlock += startRes / cwidth;
+      int startOffset = startRes % cwidth; // in case start is scrolled right
+                                           // from 0
+      res = wrappedBlock * cwidth + startOffset
+              + +Math.min(cwidth - 1, x / av.getCharWidth());
     }
     else
     {
-      res = (x / av.getCharWidth()) + av.getStartRes();
+      res = (x / av.getCharWidth()) + startRes;
     }
 
     if (av.hasHiddenColumns())
     {
-      res = av.getColumnSelection().adjustForHiddenColumns(res);
+      res = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(res);
     }
 
     return res;
@@ -672,8 +683,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
       y -= hgap;
 
-      seq = Math.min((y % cHeight) / av.getCharHeight(), av.getAlignment()
-              .getHeight() - 1);
+      seq = Math.min((y % cHeight) / av.getCharHeight(),
+              av.getAlignment().getHeight() - 1);
       if (seq < 0)
       {
         seq = -1;
@@ -681,8 +692,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
     else
     {
-      seq = Math.min((y / av.getCharHeight()) + av.getStartSeq(), av
-              .getAlignment().getHeight() - 1);
+      seq = Math.min(
+              (y / av.getCharHeight()) + av.getRanges().getStartSeq(),
+              av.getAlignment().getHeight() - 1);
       if (seq < 0)
       {
         seq = -1;
@@ -696,7 +708,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   {
 
     int seq = findSeq(evt);
-    int res = findRes(evt);
+    int res = findColumn(evt);
 
     if (seq < av.getAlignment().getHeight()
             && res < av.getAlignment().getSequenceAt(seq).getLength())
@@ -732,18 +744,24 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   }
 
   @Override
-  public void highlightSequence(SearchResultsI results)
+  public String highlightSequence(SearchResultsI results)
   {
     if (av.isFollowHighlight())
     {
+      // don't allow highlight of protein/cDNA to also scroll a complementary
+      // panel,as this sets up a feedback loop (scrolling panel 1 causes moused
+      // over residue to change abruptly, causing highlighted residue in panel 2
+      // to change, causing a scroll in panel 1 etc)
+      ap.setToScrollComplementPanel(false);
       if (ap.scrollToPosition(results, true))
       {
         ap.alignFrame.repaint();
       }
+      ap.setToScrollComplementPanel(true);
     }
     setStatusMessage(results);
     seqCanvas.highlightSearchResults(results);
-
+    return null;
   }
 
   @Override
@@ -762,10 +780,10 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   @Override
   public void mouseMoved(MouseEvent evt)
   {
-    int res = findRes(evt);
+    final int column = findColumn(evt);
     int seq = findSeq(evt);
 
-    if (seq >= av.getAlignment().getHeight() || seq < 0 || res < 0)
+    if (seq >= av.getAlignment().getHeight() || seq < 0 || column < 0)
     {
       if (tooltip != null)
       {
@@ -775,7 +793,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
 
     SequenceI sequence = av.getAlignment().getSequenceAt(seq);
-    if (res > sequence.getLength())
+    if (column > sequence.getLength())
     {
       if (tooltip != null)
       {
@@ -784,38 +802,33 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       return;
     }
 
-    int respos = sequence.findPosition(res);
-    if (ssm != null)
+    final char ch = sequence.getCharAt(column);
+    boolean isGapped = Comparison.isGap(ch);
+    // find residue at column (or nearest if at a gap)
+    int respos = sequence.findPosition(column);
+
+    if (ssm != null && !isGapped)
     {
-      mouseOverSequence(sequence, res, respos);
+      mouseOverSequence(sequence, column, respos);
     }
 
     StringBuilder text = new StringBuilder();
     text.append("Sequence ").append(Integer.toString(seq + 1))
             .append(" ID: ").append(sequence.getName());
 
-    String obj = null;
-    final String ch = String.valueOf(sequence.getCharAt(res));
-    if (av.getAlignment().isNucleotide())
+    if (!isGapped)
     {
-      obj = ResidueProperties.nucleotideName.get(ch);
-      if (obj != null)
+      if (av.getAlignment().isNucleotide())
       {
-        text.append(" Nucleotide: ").append(obj);
+        String base = ResidueProperties.nucleotideName.get(ch);
+        text.append(" Nucleotide: ").append(base == null ? ch : base);
       }
-    }
-    else
-    {
-      obj = "X".equalsIgnoreCase(ch) ? "X" : ResidueProperties.aa2Triplet
-              .get(ch);
-      if (obj != null)
+      else
       {
-        text.append(" Residue: ").append(obj);
+        String residue = (ch == 'x' || ch == 'X') ? "X"
+                : ResidueProperties.aa2Triplet.get(String.valueOf(ch));
+        text.append(" Residue: ").append(residue == null ? ch : residue);
       }
-    }
-
-    if (obj != null)
-    {
       text.append(" (").append(Integer.toString(respos)).append(")");
     }
 
@@ -827,7 +840,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     {
       for (int g = 0; g < groups.length; g++)
       {
-        if (groups[g].getStartRes() <= res && groups[g].getEndRes() >= res)
+        if (groups[g].getStartRes() <= column
+                && groups[g].getEndRes() >= column)
         {
           if (!groups[g].getName().startsWith("JTreeGroup")
                   && !groups[g].getName().startsWith("JGroup"))
@@ -843,33 +857,33 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       }
     }
 
-    // use aa to see if the mouse pointer is on a
-    SequenceFeature[] allFeatures = findFeaturesAtRes(sequence,
-            sequence.findPosition(res));
-
-    int index = 0;
-    while (index < allFeatures.length)
+    /*
+     * add feature details to tooltip, including any that straddle
+     * a gapped position
+     */
+    if (av.isShowSequenceFeatures())
     {
-      SequenceFeature sf = allFeatures[index];
-
-      tooltipText.append(sf.getType() + " " + sf.begin + ":" + sf.end);
-
-      if (sf.getDescription() != null)
+      List<SequenceFeature> allFeatures = findFeaturesAtColumn(sequence,
+              column + 1);
+      for (SequenceFeature sf : allFeatures)
       {
-        tooltipText.append(" " + sf.getDescription());
-      }
+        tooltipText.append(sf.getType() + " " + sf.begin + ":" + sf.end);
 
-      if (sf.getValue("status") != null)
-      {
-        String status = sf.getValue("status").toString();
-        if (status.length() > 0)
+        if (sf.getDescription() != null)
         {
-          tooltipText.append(" (" + sf.getValue("status") + ")");
+          tooltipText.append(" " + sf.getDescription());
         }
-      }
-      tooltipText.append("\n");
 
-      index++;
+        if (sf.getValue("status") != null)
+        {
+          String status = sf.getValue("status").toString();
+          if (status.length() > 0)
+          {
+            tooltipText.append(" (" + sf.getValue("status") + ")");
+          }
+        }
+        tooltipText.append("\n");
+      }
     }
 
     if (tooltip == null)
@@ -882,40 +896,19 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     }
   }
 
-  SequenceFeature[] findFeaturesAtRes(SequenceI sequence, int res)
+  /**
+   * Returns features at the specified aligned column on the given sequence.
+   * Non-positional features are not included. If the column has a gap, then
+   * enclosing features are included (but not contact features).
+   * 
+   * @param sequence
+   * @param column
+   *          (1..)
+   * @return
+   */
+  List<SequenceFeature> findFeaturesAtColumn(SequenceI sequence, int column)
   {
-    Vector tmp = new Vector();
-    SequenceFeature[] features = sequence.getSequenceFeatures();
-    if (features != null)
-    {
-      for (int i = 0; i < features.length; i++)
-      {
-        if (av.getFeaturesDisplayed() == null
-                || !av.getFeaturesDisplayed().isVisible(
-                        features[i].getType()))
-        {
-          continue;
-        }
-
-        if (features[i].featureGroup != null
-                && !seqCanvas.fr.checkGroupVisibility(
-                        features[i].featureGroup, false))
-        {
-          continue;
-        }
-
-        if ((features[i].getBegin() <= res)
-                && (features[i].getEnd() >= res))
-        {
-          tmp.addElement(features[i]);
-        }
-      }
-    }
-
-    features = new SequenceFeature[tmp.size()];
-    tmp.copyInto(features);
-
-    return features;
+    return seqCanvas.getFeatureRenderer().findFeaturesAtColumn(sequence, column);
   }
 
   Tooltip tooltip;
@@ -936,8 +929,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       int oldWidth = av.getCharWidth();
 
       // Which is bigger, left-right or up-down?
-      if (Math.abs(evt.getY() - lastMousePress.y) > Math.abs(evt.getX()
-              - lastMousePress.x))
+      if (Math.abs(evt.getY() - lastMousePress.y) > Math
+              .abs(evt.getX() - lastMousePress.x))
       {
         int fontSize = av.font.getSize();
 
@@ -955,7 +948,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
           fontSize = 1;
         }
 
-        av.setFont(new Font(av.font.getName(), av.font.getStyle(), fontSize));
+        av.setFont(
+                new Font(av.font.getName(), av.font.getStyle(), fontSize),
+                true);
         av.setCharWidth(oldWidth);
       }
       else
@@ -982,7 +977,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
       lastMousePress = evt.getPoint();
 
-      ap.paintAlignment(false);
+      ap.paintAlignment(false, false);
       ap.annotationPanel.image = null;
       return;
     }
@@ -993,7 +988,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       return;
     }
 
-    int res = findRes(evt);
+    int res = findColumn(evt);
 
     if (res < 0)
     {
@@ -1044,8 +1039,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     StringBuffer message = new StringBuffer();
     if (groupEditing)
     {
-      message.append(MessageManager.getString("action.edit_group")).append(
-              ":");
+      message.append(MessageManager.getString("action.edit_group"))
+              .append(":");
       if (editCommand == null)
       {
         editCommand = new EditCommand(
@@ -1063,8 +1058,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       }
       if (editCommand == null)
       {
-        editCommand = new EditCommand(MessageManager.formatMessage(
-                "label.edit_params", new String[] { label }));
+        editCommand = new EditCommand(MessageManager
+                .formatMessage("label.edit_params", new String[]
+                { label }));
       }
     }
 
@@ -1081,9 +1077,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     ap.alignFrame.statusBar.setText(message.toString());
 
     // Are we editing within a selection group?
-    if (groupEditing
-            || (sg != null && sg.getSequences(av.getHiddenRepSequences())
-                    .contains(seq)))
+    if (groupEditing || (sg != null
+            && sg.getSequences(av.getHiddenRepSequences()).contains(seq)))
     {
       fixedColumns = true;
 
@@ -1127,8 +1122,10 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     if (av.hasHiddenColumns())
     {
       fixedColumns = true;
-      int y1 = av.getColumnSelection().getHiddenBoundaryLeft(startres);
-      int y2 = av.getColumnSelection().getHiddenBoundaryRight(startres);
+      int y1 = av.getAlignment().getHiddenColumns()
+              .getNextHiddenBoundary(true, startres);
+      int y2 = av.getAlignment().getHiddenColumns()
+              .getNextHiddenBoundary(false, startres);
 
       if ((insertGap && startres > y1 && lastres < y1)
               || (!insertGap && startres < y2 && lastres > y2))
@@ -1173,7 +1170,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         // Find the next gap before the end
         // of the visible region boundary
         boolean blank = false;
-        for (fixedRight = fixedRight; fixedRight > lastres; fixedRight--)
+        for (; fixedRight > lastres; fixedRight--)
         {
           blank = true;
 
@@ -1181,8 +1178,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
           {
             for (int j = 0; j < startres - lastres; j++)
             {
-              if (!jalview.util.Comparison.isGap(gs.getCharAt(fixedRight
-                      - j)))
+              if (!jalview.util.Comparison
+                      .isGap(gs.getCharAt(fixedRight - j)))
               {
                 blank = false;
                 break;
@@ -1199,8 +1196,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         {
           if (sg.getSize() == av.getAlignment().getHeight())
           {
-            if ((av.hasHiddenColumns() && startres < av
-                    .getColumnSelection().getHiddenBoundaryRight(startres)))
+            if ((av.hasHiddenColumns() && startres < av.getAlignment()
+                    .getHiddenColumns()
+                    .getNextHiddenBoundary(false, startres)))
             {
               endEditing();
               return;
@@ -1303,9 +1301,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         }
         else
         {
-          editCommand.appendEdit(Action.INSERT_GAP,
-                  new SequenceI[] { seq }, lastres, startres - lastres,
-                  av.getAlignment(), true);
+          editCommand.appendEdit(Action.INSERT_GAP, new SequenceI[] { seq },
+                  lastres, startres - lastres, av.getAlignment(), true);
         }
       }
       else
@@ -1339,8 +1336,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
           if (max > 0)
           {
             editCommand.appendEdit(Action.DELETE_GAP,
-                    new SequenceI[] { seq }, startres, max,
-                    av.getAlignment(), true);
+                    new SequenceI[]
+                    { seq }, startres, max, av.getAlignment(), true);
           }
         }
       }
@@ -1400,11 +1397,11 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   {
     if (scrollThread != null)
     {
-      scrollThread.running = false;
+      scrollThread.threadRunning = false;
       scrollThread = null;
     }
 
-    int res = findRes(evt);
+    int column = findColumn(evt);
     int seq = findSeq(evt);
     oldSeq = seq;
     startWrapBlock = wrappedBlock;
@@ -1416,72 +1413,41 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
     SequenceI sequence = av.getAlignment().getSequenceAt(seq);
 
-    if (sequence == null || res > sequence.getLength())
+    if (sequence == null || column > sequence.getLength())
     {
       return;
     }
 
     stretchGroup = av.getSelectionGroup();
 
-    if (stretchGroup == null)
+    if (stretchGroup == null || !stretchGroup.contains(sequence, column))
     {
-      stretchGroup = av.getAlignment().findGroup(sequence);
-      if (stretchGroup != null && res > stretchGroup.getStartRes()
-              && res < stretchGroup.getEndRes())
+      stretchGroup = av.getAlignment().findGroup(sequence, column);
+      if (stretchGroup != null)
       {
+        // only update the current selection if the popup menu has a group to
+        // focus on
         av.setSelectionGroup(stretchGroup);
       }
-      else
-      {
-        stretchGroup = null;
-      }
-    }
-
-    else if (!stretchGroup.getSequences(null).contains(sequence)
-            || stretchGroup.getStartRes() > res
-            || stretchGroup.getEndRes() < res)
-    {
-      stretchGroup = null;
-
-      SequenceGroup[] allGroups = av.getAlignment().findAllGroups(sequence);
-
-      if (allGroups != null)
-      {
-        for (int i = 0; i < allGroups.length; i++)
-        {
-          if (allGroups[i].getStartRes() <= res
-                  && allGroups[i].getEndRes() >= res)
-          {
-            stretchGroup = allGroups[i];
-            break;
-          }
-        }
-      }
-      av.setSelectionGroup(stretchGroup);
     }
 
     // DETECT RIGHT MOUSE BUTTON IN AWT
-    if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK)
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
     {
-      SequenceFeature[] allFeatures = findFeaturesAtRes(sequence,
-              sequence.findPosition(res));
+      List<SequenceFeature> allFeatures = findFeaturesAtColumn(sequence,
+              sequence.findPosition(column + 1));
 
       Vector<String> links = null;
-      if (allFeatures != null)
+      for (SequenceFeature sf : allFeatures)
       {
-        for (int i = 0; i < allFeatures.length; i++)
+        if (sf.links != null)
         {
-          if (allFeatures[i].links != null)
+          if (links == null)
           {
-            if (links == null)
-            {
-              links = new Vector<String>();
-            }
-            for (int j = 0; j < allFeatures[i].links.size(); j++)
-            {
-              links.addElement(allFeatures[i].links.elementAt(j));
-            }
+            links = new Vector<>();
           }
+          links.addAll(sf.links);
         }
       }
       APopupMenu popup = new APopupMenu(ap, null, links);
@@ -1492,7 +1458,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
     if (av.cursorMode)
     {
-      seqCanvas.cursorX = findRes(evt);
+      seqCanvas.cursorX = findColumn(evt);
       seqCanvas.cursorY = findSeq(evt);
       seqCanvas.repaint();
       return;
@@ -1504,27 +1470,27 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     {
       // define a new group here
       SequenceGroup sg = new SequenceGroup();
-      sg.setStartRes(res);
-      sg.setEndRes(res);
+      sg.setStartRes(column);
+      sg.setEndRes(column);
       sg.addSequence(sequence, false);
       av.setSelectionGroup(sg);
       stretchGroup = sg;
 
       if (av.getConservationSelected())
       {
-        SliderPanel.setConservationSlider(ap, av.getGlobalColourScheme(),
-                "Background");
+        SliderPanel.setConservationSlider(ap, av.getResidueShading(),
+                ap.getViewName());
       }
       if (av.getAbovePIDThreshold())
       {
-        SliderPanel.setPIDSliderSource(ap, av.getGlobalColourScheme(),
-                "Background");
+        SliderPanel.setPIDSliderSource(ap, av.getResidueShading(),
+                ap.getViewName());
       }
 
     }
   }
 
-  public void doMouseReleasedDefineMode(MouseEvent evt)
+  public void doMouseReleasedDefineMode(MouseEvent evt, boolean afterDrag)
   {
     if (stretchGroup == null)
     {
@@ -1534,7 +1500,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     // but defer colourscheme update until hidden sequences are passed in
     boolean vischange = stretchGroup.recalcConservation(true);
     // here we rely on stretchGroup == av.getSelection()
-    needOverviewUpdate |= vischange && av.isSelectionDefinedGroup();
+    needOverviewUpdate |= vischange && av.isSelectionDefinedGroup()
+            && afterDrag;
     if (stretchGroup.cs != null)
     {
       stretchGroup.cs.alignmentChanged(stretchGroup,
@@ -1545,14 +1512,14 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         SliderPanel.setConservationSlider(ap, stretchGroup.cs,
                 stretchGroup.getName());
       }
-      else
+      if (stretchGroup.cs.getThreshold() > 0)
       {
         SliderPanel.setPIDSliderSource(ap, stretchGroup.cs,
                 stretchGroup.getName());
       }
     }
     PaintRefresher.Refresh(ap, av.getSequenceSetId());
-    ap.paintAlignment(needOverviewUpdate);
+    ap.paintAlignment(needOverviewUpdate, needOverviewUpdate);
     needOverviewUpdate = false;
     changeEndRes = false;
     changeStartRes = false;
@@ -1562,7 +1529,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
   public void doMouseDraggedDefineMode(MouseEvent evt)
   {
-    int res = findRes(evt);
+    int res = findColumn(evt);
     int y = findSeq(evt);
 
     if (wrappedBlock != startWrapBlock)
@@ -1669,13 +1636,15 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       oldSeq = -1;
     }
 
-    if (res > av.endRes || res < av.startRes || y < av.startSeq
-            || y > av.endSeq)
+    if (res > av.getRanges().getEndRes()
+            || res < av.getRanges().getStartRes()
+            || y < av.getRanges().getStartSeq()
+            || y > av.getRanges().getEndSeq())
     {
       mouseExited(evt);
     }
 
-    if (scrollThread != null)
+    if ((scrollThread != null) && (scrollThread.isRunning()))
     {
       scrollThread.setEvent(evt);
     }
@@ -1691,9 +1660,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       oldSeq = 0;
     }
 
-    if (scrollThread != null)
+    if ((scrollThread != null) && (scrollThread.isRunning()))
     {
-      scrollThread.running = false;
+      scrollThread.stopScrolling();
       scrollThread = null;
     }
   }
@@ -1716,9 +1685,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   {
     if (evt == null)
     {
-      if (scrollThread != null)
+      if ((scrollThread != null) && (scrollThread.isRunning()))
       {
-        scrollThread.running = false;
+        scrollThread.stopScrolling();
         scrollThread = null;
       }
       mouseDragging = false;
@@ -1741,7 +1710,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   {
     MouseEvent evt;
 
-    boolean running = false;
+    private volatile boolean threadRunning = true;
 
     public ScrollThread()
     {
@@ -1755,38 +1724,43 @@ public class SeqPanel extends Panel implements MouseMotionListener,
 
     public void stopScrolling()
     {
-      running = false;
+      threadRunning = false;
+    }
+
+    public boolean isRunning()
+    {
+      return threadRunning;
     }
 
     @Override
     public void run()
     {
-      running = true;
-      while (running)
+      while (threadRunning)
       {
 
         if (evt != null)
         {
 
-          if (mouseDragging && evt.getY() < 0 && av.getStartSeq() > 0)
+          if (mouseDragging && evt.getY() < 0
+                  && av.getRanges().getStartSeq() > 0)
           {
-            running = ap.scrollUp(true);
+            av.getRanges().scrollUp(true);
           }
 
-          if (mouseDragging && evt.getY() >= getSize().height
-                  && av.getAlignment().getHeight() > av.getEndSeq())
+          if (mouseDragging && evt.getY() >= getSize().height && av
+                  .getAlignment().getHeight() > av.getRanges().getEndSeq())
           {
-            running = ap.scrollUp(false);
+            av.getRanges().scrollUp(false);
           }
 
           if (mouseDragging && evt.getX() < 0)
           {
-            running = ap.scrollRight(false);
+            av.getRanges().scrollRight(false);
           }
 
           else if (mouseDragging && evt.getX() >= getSize().width)
           {
-            running = ap.scrollRight(true);
+            av.getRanges().scrollRight(true);
           }
         }
 
@@ -1805,15 +1779,16 @@ public class SeqPanel extends Panel implements MouseMotionListener,
    */
   @Override
   public void selection(SequenceGroup seqsel, ColumnSelection colsel,
-          SelectionSource source)
+          HiddenColumns hidden, SelectionSource source)
   {
     // TODO: fix this hack - source of messages is align viewport, but SeqPanel
     // handles selection messages...
     // TODO: extend config options to allow user to control if selections may be
     // shared between viewports.
-    if (av != null
-            && (av == source || !av.followSelection || (source instanceof AlignViewport && ((AlignmentViewport) source)
-                    .getSequenceSetId().equals(av.getSequenceSetId()))))
+    if (av != null && (av == source || !av.followSelection
+            || (source instanceof AlignViewport
+                    && ((AlignmentViewport) source).getSequenceSetId()
+                            .equals(av.getSequenceSetId()))))
     {
       return;
     }
@@ -1822,7 +1797,7 @@ public class SeqPanel extends Panel implements MouseMotionListener,
      * Check for selection in a view of which this one is a dna/protein
      * complement.
      */
-    if (selectionFromTranslation(seqsel, colsel, source))
+    if (selectionFromTranslation(seqsel, colsel, hidden, source))
     {
       return;
     }
@@ -1842,11 +1817,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       {
         if (av.getAlignment() == null)
         {
-          System.out
-                  .println("Selection message: alignviewport av SeqSetId="
-                          + av.getSequenceSetId() + " ViewId="
-                          + av.getViewId()
-                          + " 's alignment is NULL! returning immediatly.");
+          System.out.println("Selection message: alignviewport av SeqSetId="
+                  + av.getSequenceSetId() + " ViewId=" + av.getViewId()
+                  + " 's alignment is NULL! returning immediatly.");
           return;
         }
         sgroup = seqsel.intersect(av.getAlignment(),
@@ -1866,9 +1839,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
       }
       repaint = av.isSelectionGroupChanged(true);
     }
-    if (copycolsel
-            && (av.getColumnSelection() == null || !av
-                    .isColSelChanged(true)))
+    if (copycolsel && (av.getColumnSelection() == null
+            || !av.isColSelChanged(true)))
     {
       // the current selection is unset or from a previous message
       // so import the new colsel.
@@ -1888,15 +1860,14 @@ public class SeqPanel extends Panel implements MouseMotionListener,
         }
         else
         {
-          av.getColumnSelection().setElementsFrom(colsel);
+          av.getColumnSelection().setElementsFrom(colsel,
+                  av.getAlignment().getHiddenColumns());
         }
       }
       repaint |= av.isColSelChanged(true);
     }
-    if (copycolsel
-            && av.hasHiddenColumns()
-            && (av.getColumnSelection() == null || av.getColumnSelection()
-                    .getHiddenColumns() == null))
+    if (copycolsel && av.hasHiddenColumns()
+            && (av.getColumnSelection() == null))
     {
       System.err.println("Bad things");
     }
@@ -1916,8 +1887,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   public void scrollTo(int row, int column)
   {
 
-    row = row < 0 ? ap.av.startSeq : row;
-    column = column < 0 ? ap.av.startRes : column;
+    row = row < 0 ? ap.av.getRanges().getStartSeq() : row;
+    column = column < 0 ? ap.av.getRanges().getStartRes() : column;
     ap.scrollTo(column, column, row, true, true);
   }
 
@@ -1929,8 +1900,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   public void scrollToRow(int row)
   {
 
-    row = row < 0 ? ap.av.startSeq : row;
-    ap.scrollTo(ap.av.startRes, ap.av.startRes, row, true, true);
+    row = row < 0 ? ap.av.getRanges().getStartSeq() : row;
+    ap.scrollTo(ap.av.getRanges().getStartRes(),
+            ap.av.getRanges().getStartRes(), row, true, true);
   }
 
   /**
@@ -1941,8 +1913,9 @@ public class SeqPanel extends Panel implements MouseMotionListener,
   public void scrollToColumn(int column)
   {
 
-    column = column < 0 ? ap.av.startRes : column;
-    ap.scrollTo(column, column, ap.av.startSeq, true, true);
+    column = column < 0 ? ap.av.getRanges().getStartRes() : column;
+    ap.scrollTo(column, column, ap.av.getRanges().getStartSeq(), true,
+            true);
   }
 
   /**
@@ -1955,7 +1928,8 @@ public class SeqPanel extends Panel implements MouseMotionListener,
    * @param source
    */
   protected boolean selectionFromTranslation(SequenceGroup seqsel,
-          ColumnSelection colsel, SelectionSource source)
+          ColumnSelection colsel, HiddenColumns hidden,
+          SelectionSource source)
   {
     if (!(source instanceof AlignViewportI))
     {
@@ -1978,9 +1952,13 @@ public class SeqPanel extends Panel implements MouseMotionListener,
     /*
      * Map column selection
      */
-    ColumnSelection cs = MappingUtils.mapColumnSelection(colsel, sourceAv,
-            av);
+    // ColumnSelection cs = MappingUtils.mapColumnSelection(colsel, sourceAv,
+    // av);
+    ColumnSelection cs = new ColumnSelection();
+    HiddenColumns hs = new HiddenColumns();
+    MappingUtils.mapColumnSelection(colsel, hidden, sourceAv, av, cs, hs);
     av.setColumnSelection(cs);
+    av.getAlignment().setHiddenColumns(hs);
 
     ap.scalePanelHolder.repaint();
     ap.repaint();

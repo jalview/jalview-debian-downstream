@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,17 +20,81 @@
  */
 package jalview.api.analysis;
 
+import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.AlignmentView;
+import jalview.math.MatrixI;
 
 public interface ScoreModelI
 {
-
-  float[][] findDistances(AlignmentView seqData);
-
+  /**
+   * Answers a name for the score model, suitable for display in menus. Names
+   * should be unique across score models in use.
+   * 
+   * @return
+   * @see jalview.analysis.scoremodels.ScoreModels#forName(String)
+   */
   String getName();
 
+  /**
+   * Answers an informative description of the model, suitable for use in
+   * tooltips. Descriptions may be internationalised, and need not be unique
+   * (but should be).
+   * 
+   * @return
+   */
+  String getDescription();
+
+  /**
+   * Answers true if this model is applicable for nucleotide data (so should be
+   * shown in menus in that context)
+   * 
+   * @return
+   */
   boolean isDNA();
 
+  /**
+   * Answers true if this model is applicable for peptide data (so should be
+   * shown in menus in that context)
+   * 
+   * @return
+   */
   boolean isProtein();
 
+  // TODO getName, isDNA, isProtein can be static methods in Java 8
+
+  /**
+   * Returns a distance score for the given sequence regions, that is, a matrix
+   * whose value [i][j] is the distance of sequence i from sequence j by some
+   * measure. The options parameter provides configuration choices for how the
+   * similarity score is calculated.
+   * 
+   * @param seqData
+   * @param options
+   * @return
+   */
+
+  MatrixI findDistances(AlignmentView seqData, SimilarityParamsI options);
+
+  /**
+   * Returns a similarity score for the given sequence regions, that is, a
+   * matrix whose value [i][j] is the similarity of sequence i to sequence j by
+   * some measure. The options parameter provides configuration choices for how
+   * the similarity score is calculated.
+   * 
+   * @param seqData
+   * @param options
+   * @return
+   */
+  MatrixI findSimilarities(AlignmentView seqData,
+          SimilarityParamsI options);
+
+  /**
+   * Returns a score model object configured for the given alignment view.
+   * Depending on the score model, this may just be a singleton instance, or a
+   * new instance configured with data from the view.
+   * 
+   * @param avp
+   * @return
+   */
+  ScoreModelI getInstance(AlignmentViewPanel avp);
 }

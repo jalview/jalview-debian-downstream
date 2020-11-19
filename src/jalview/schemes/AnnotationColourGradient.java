@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AnnotatedCollectionI;
@@ -27,6 +28,8 @@ import jalview.datamodel.Annotation;
 import jalview.datamodel.GraphLine;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.AnnotationRenderer;
+import jalview.util.Comparison;
 
 import java.awt.Color;
 import java.util.IdentityHashMap;
@@ -40,15 +43,25 @@ public class AnnotationColourGradient extends FollowerColourScheme
 
   public static final int ABOVE_THRESHOLD = 1;
 
-  public AlignmentAnnotation annotation;
+  private final AlignmentAnnotation annotation;
 
-  int aboveAnnotationThreshold = -1;
+  private final int aboveAnnotationThreshold;
 
   public boolean thresholdIsMinMax = false;
 
-  GraphLine annotationThreshold;
+  private GraphLine annotationThreshold;
 
-  float r1, g1, b1, rr, gg, bb;
+  private int redMin;
+
+  private int greenMin;
+
+  private int blueMin;
+
+  private int redRange;
+
+  private int greenRange;
+
+  private int blueRange;
 
   private boolean predefinedColours = false;
 
@@ -61,23 +74,23 @@ public class AnnotationColourGradient extends FollowerColourScheme
    */
   private boolean noGradient = false;
 
-  IdentityHashMap<SequenceI, AlignmentAnnotation> seqannot = null;
+  private IdentityHashMap<SequenceI, AlignmentAnnotation> seqannot = null;
 
   @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI sg)
   {
     AnnotationColourGradient acg = new AnnotationColourGradient(annotation,
-            colourScheme, aboveAnnotationThreshold);
+            getColourScheme(), aboveAnnotationThreshold);
     acg.thresholdIsMinMax = thresholdIsMinMax;
     acg.annotationThreshold = (annotationThreshold == null) ? null
             : new GraphLine(annotationThreshold);
-    acg.r1 = r1;
-    acg.g1 = g1;
-    acg.b1 = b1;
-    acg.rr = rr;
-    acg.gg = gg;
-    acg.bb = bb;
+    acg.redMin = redMin;
+    acg.greenMin = greenMin;
+    acg.blueMin = blueMin;
+    acg.redRange = redRange;
+    acg.greenRange = greenRange;
+    acg.blueRange = blueRange;
     acg.predefinedColours = predefinedColours;
     acg.seqAssociated = seqAssociated;
     acg.noGradient = noGradient;
@@ -92,11 +105,12 @@ public class AnnotationColourGradient extends FollowerColourScheme
   {
     if (originalColour instanceof AnnotationColourGradient)
     {
-      colourScheme = ((AnnotationColourGradient) originalColour).colourScheme;
+      setColourScheme(((AnnotationColourGradient) originalColour)
+              .getColourScheme());
     }
     else
     {
-      colourScheme = originalColour;
+      setColourScheme(originalColour);
     }
 
     this.annotation = annotation;
@@ -108,12 +122,12 @@ public class AnnotationColourGradient extends FollowerColourScheme
       annotationThreshold = annotation.threshold;
     }
     // clear values so we don't get weird black bands...
-    r1 = 254;
-    g1 = 254;
-    b1 = 254;
-    rr = 0;
-    gg = 0;
-    bb = 0;
+    redMin = 254;
+    greenMin = 254;
+    blueMin = 254;
+    redRange = 0;
+    greenRange = 0;
+    blueRange = 0;
 
     noGradient = true;
     checkLimits();
@@ -134,13 +148,13 @@ public class AnnotationColourGradient extends FollowerColourScheme
       annotationThreshold = annotation.threshold;
     }
 
-    r1 = minColour.getRed();
-    g1 = minColour.getGreen();
-    b1 = minColour.getBlue();
+    redMin = minColour.getRed();
+    greenMin = minColour.getGreen();
+    blueMin = minColour.getBlue();
 
-    rr = maxColour.getRed() - r1;
-    gg = maxColour.getGreen() - g1;
-    bb = maxColour.getBlue() - b1;
+    redRange = maxColour.getRed() - redMin;
+    greenRange = maxColour.getGreen() - greenMin;
+    blueRange = maxColour.getBlue() - blueMin;
 
     noGradient = false;
     checkLimits();
@@ -172,18 +186,19 @@ public class AnnotationColourGradient extends FollowerColourScheme
       }
       else
       {
-        seqannot = new IdentityHashMap<SequenceI, AlignmentAnnotation>();
+        seqannot = new IdentityHashMap<>();
       }
       // resolve the context containing all the annotation for the sequence
-      AnnotatedCollectionI alcontext = alignment instanceof AlignmentI ? alignment
+      AnnotatedCollectionI alcontext = alignment instanceof AlignmentI
+              ? alignment
               : alignment.getContext();
       boolean f = true, rna = false;
-      for (AlignmentAnnotation alan : alcontext.findAnnotation(annotation
-              .getCalcId()))
+      for (AlignmentAnnotation alan : alcontext
+              .findAnnotation(annotation.getCalcId()))
       {
         if (alan.sequenceRef != null
-                && (alan.label != null && annotation != null && alan.label
-                        .equals(annotation.label)))
+                && (alan.label != null && annotation != null
+                        && alan.label.equals(annotation.label)))
         {
           if (!rna && alan.isRNA())
           {
@@ -210,9 +225,9 @@ public class AnnotationColourGradient extends FollowerColourScheme
 
   float aamin = 0f, aamax = 0f;
 
-  public String getAnnotation()
+  public AlignmentAnnotation getAnnotation()
   {
-    return annotation.label;
+    return annotation;
   }
 
   public int getAboveThreshold()
@@ -234,12 +249,13 @@ public class AnnotationColourGradient extends FollowerColourScheme
 
   public Color getMinColour()
   {
-    return new Color((int) r1, (int) g1, (int) b1);
+    return new Color(redMin, greenMin, blueMin);
   }
 
   public Color getMaxColour()
   {
-    return new Color((int) (r1 + rr), (int) (g1 + gg), (int) (b1 + bb));
+    return new Color(redMin + redRange, greenMin + greenRange,
+            blueMin + blueRange);
   }
 
   /**
@@ -250,142 +266,172 @@ public class AnnotationColourGradient extends FollowerColourScheme
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public Color findColour(char c)
   {
     return Color.red;
   }
 
   /**
-   * DOCUMENT ME!
+   * Returns the colour for a given character and position in a sequence
    * 
-   * @param n
-   *          DOCUMENT ME!
+   * @param c
+   *          the residue character
    * @param j
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
+   *          the aligned position
+   * @param seq
+   *          the sequence
+   * @return
    */
   @Override
   public Color findColour(char c, int j, SequenceI seq)
   {
-    Color currentColour = Color.white;
-    AlignmentAnnotation annotation = (seqAssociated && seqannot != null ? seqannot
-            .get(seq) : this.annotation);
-    if (annotation == null)
-    {
-      return currentColour;
-    }
-    if ((threshold == 0) || aboveThreshold(c, j))
-    {
-      if (annotation.annotations != null
-              && j < annotation.annotations.length
-              && annotation.annotations[j] != null
-              && !jalview.util.Comparison.isGap(c))
-      {
-        Annotation aj = annotation.annotations[j];
-        // 'use original colours' => colourScheme != null
-        // -> look up colour to be used
-        // predefined colours => preconfigured shading
-        // -> only use original colours reference if thresholding enabled &
-        // minmax exists
-        // annotation.hasIcons => null or black colours replaced with glyph
-        // colours
-        // -> reuse original colours if present
-        // -> if thresholding enabled then return colour on non-whitespace glyph
+    /*
+     * locate the annotation we are configured to colour by
+     */
+    AlignmentAnnotation ann = (seqAssociated && seqannot != null
+            ? seqannot.get(seq)
+            : this.annotation);
 
-        if (aboveAnnotationThreshold == NO_THRESHOLD
-                || (annotationThreshold != null && (aboveAnnotationThreshold == ABOVE_THRESHOLD ? aj.value >= annotationThreshold.value
-                        : aj.value <= annotationThreshold.value)))
+    /*
+     * if gap or no annotation at position, no colour (White)
+     */
+    if (ann == null || ann.annotations == null
+            || j >= ann.annotations.length || ann.annotations[j] == null
+            || Comparison.isGap(c))
+    {
+      return Color.white;
+    }
+
+    Annotation aj = ann.annotations[j];
+    // 'use original colours' => colourScheme != null
+    // -> look up colour to be used
+    // predefined colours => preconfigured shading
+    // -> only use original colours reference if thresholding enabled &
+    // minmax exists
+    // annotation.hasIcons => null or black colours replaced with glyph
+    // colours
+    // -> reuse original colours if present
+    // -> if thresholding enabled then return colour on non-whitespace glyph
+
+    /*
+     * if threshold applies, and annotation fails the test - no colour (white)
+     */
+    if (annotationThreshold != null)
+    {
+      if ((aboveAnnotationThreshold == ABOVE_THRESHOLD
+              && aj.value <= annotationThreshold.value)
+              || (aboveAnnotationThreshold == BELOW_THRESHOLD
+                      && aj.value >= annotationThreshold.value))
+      {
+        return Color.white;
+      }
+    }
+
+    /*
+     * If 'use original colours' then return the colour of the annotation
+     * at the aligned position - computed using the background colour scheme
+     */
+    if (predefinedColours && aj.colour != null
+            && !aj.colour.equals(Color.black))
+    {
+      return aj.colour;
+    }
+
+    Color result = Color.white;
+    if (ann.hasIcons && ann.graph == AlignmentAnnotation.NO_GRAPH)
+    {
+      /*
+       * secondary structure symbol colouring
+       */
+      if (aj.secondaryStructure > ' ' && aj.secondaryStructure != '.'
+              && aj.secondaryStructure != '-')
+      {
+        if (getColourScheme() != null)
         {
-          if (predefinedColours && aj.colour != null
-                  && !aj.colour.equals(Color.black))
+          result = getColourScheme().findColour(c, j, seq, null, 0f);
+        }
+        else
+        {
+          if (ann.isRNA())
           {
-            currentColour = aj.colour;
-          }
-          else if (annotation.hasIcons
-                  && annotation.graph == AlignmentAnnotation.NO_GRAPH)
-          {
-            if (aj.secondaryStructure > ' ' && aj.secondaryStructure != '.'
-                    && aj.secondaryStructure != '-')
-            {
-              if (colourScheme != null)
-              {
-                currentColour = colourScheme.findColour(c, j, seq);
-              }
-              else
-              {
-                if (annotation.isRNA())
-                {
-                  currentColour = ColourSchemeProperty.rnaHelices[(int) aj.value];
-                }
-                else
-                {
-                  currentColour = annotation.annotations[j].secondaryStructure == 'H' ? jalview.renderer.AnnotationRenderer.HELIX_COLOUR
-                          : annotation.annotations[j].secondaryStructure == 'E' ? jalview.renderer.AnnotationRenderer.SHEET_COLOUR
-                                  : jalview.renderer.AnnotationRenderer.STEM_COLOUR;
-                }
-              }
-            }
-            else
-            {
-              //
-              return Color.white;
-            }
-          }
-          else if (noGradient)
-          {
-            if (colourScheme != null)
-            {
-              currentColour = colourScheme.findColour(c, j, seq);
-            }
-            else
-            {
-              if (aj.colour != null)
-              {
-                currentColour = aj.colour;
-              }
-            }
+            result = ColourSchemeProperty.rnaHelices[(int) aj.value];
           }
           else
           {
-            currentColour = shadeCalculation(annotation, j);
+            result = ann.annotations[j].secondaryStructure == 'H'
+                    ? AnnotationRenderer.HELIX_COLOUR
+                    : ann.annotations[j].secondaryStructure == 'E'
+                            ? AnnotationRenderer.SHEET_COLOUR
+                            : AnnotationRenderer.STEM_COLOUR;
           }
         }
-        if (conservationColouring)
+      }
+      else
+      {
+        return Color.white;
+      }
+    }
+    else if (noGradient)
+    {
+      if (getColourScheme() != null)
+      {
+        result = getColourScheme().findColour(c, j, seq, null, 0f);
+      }
+      else
+      {
+        if (aj.colour != null)
         {
-          currentColour = applyConservation(currentColour, j);
+          result = aj.colour;
         }
       }
     }
-    return currentColour;
+    else
+    {
+      result = shadeCalculation(ann, j);
+    }
+
+    return result;
   }
 
-  private Color shadeCalculation(AlignmentAnnotation annotation, int j)
+  /**
+   * Returns a graduated colour for the annotation at the given column. If there
+   * is a threshold value, and it is used as the top/bottom of the colour range,
+   * and the value satisfies the threshold condition, then a colour
+   * proportionate to the range from the threshold is calculated. For all other
+   * cases, a colour proportionate to the annotation's min-max range is
+   * calulated. Note that thresholding is _not_ done here (a colour is computed
+   * even if threshold is not passed).
+   * 
+   * @param ann
+   * @param col
+   * @return
+   */
+  Color shadeCalculation(AlignmentAnnotation ann, int col)
   {
-
-    // calculate a shade
     float range = 1f;
-    if (thresholdIsMinMax
-            && annotation.threshold != null
+    float value = ann.annotations[col].value;
+    if (thresholdIsMinMax && ann.threshold != null
             && aboveAnnotationThreshold == ABOVE_THRESHOLD
-            && annotation.annotations[j].value >= annotation.threshold.value)
+            && value >= ann.threshold.value)
     {
-      range = (annotation.annotations[j].value - annotation.threshold.value)
-              / (annotation.graphMax - annotation.threshold.value);
+      range = ann.graphMax == ann.threshold.value ? 1f
+              : (value - ann.threshold.value)
+              / (ann.graphMax - ann.threshold.value);
     }
-    else if (thresholdIsMinMax && annotation.threshold != null
+    else if (thresholdIsMinMax && ann.threshold != null
             && aboveAnnotationThreshold == BELOW_THRESHOLD
-            && annotation.annotations[j].value >= annotation.graphMin)
+            && value <= ann.threshold.value)
     {
-      range = (annotation.annotations[j].value - annotation.graphMin)
-              / (annotation.threshold.value - annotation.graphMin);
+      range = ann.graphMin == ann.threshold.value ? 0f
+              : (value - ann.graphMin)
+                      / (ann.threshold.value - ann.graphMin);
     }
     else
     {
-      if (annotation.graphMax != annotation.graphMin)
+      if (ann.graphMax != ann.graphMin)
       {
-        range = (annotation.annotations[j].value - annotation.graphMin)
-                / (annotation.graphMax - annotation.graphMin);
+        range = (value - ann.graphMin) / (ann.graphMax - ann.graphMin);
       }
       else
       {
@@ -393,11 +439,11 @@ public class AnnotationColourGradient extends FollowerColourScheme
       }
     }
 
-    int dr = (int) (rr * range + r1), dg = (int) (gg * range + g1), db = (int) (bb
-            * range + b1);
+    int dr = (int) (redRange * range + redMin);
+    int dg = (int) (greenRange * range + greenMin);
+    int db = (int) (blueRange * range + blueMin);
 
     return new Color(dr, dg, db);
-
   }
 
   public boolean isPredefinedColours()
@@ -418,5 +464,27 @@ public class AnnotationColourGradient extends FollowerColourScheme
   public void setSeqAssociated(boolean sassoc)
   {
     seqAssociated = sassoc;
+  }
+
+  public boolean isThresholdIsMinMax()
+  {
+    return thresholdIsMinMax;
+  }
+
+  public void setThresholdIsMinMax(boolean minMax)
+  {
+    this.thresholdIsMinMax = minMax;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return ANNOTATION_COLOUR;
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
   }
 }

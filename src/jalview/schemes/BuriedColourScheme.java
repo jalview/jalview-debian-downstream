@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,9 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.schemes;
+
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AnnotatedCollectionI;
 
 import java.awt.Color;
 
@@ -47,8 +50,32 @@ public class BuriedColourScheme extends ScoreColourScheme
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public Color makeColour(float c)
   {
     return new Color(0, (float) (1.0 - c), c);
+  }
+
+  @Override
+  public boolean isPeptideSpecific()
+  {
+    return true;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.Buried.toString();
+  }
+
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
+  @Override
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
+  {
+    return new BuriedColourScheme();
   }
 }

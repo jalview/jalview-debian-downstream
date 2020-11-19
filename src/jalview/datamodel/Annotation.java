@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -30,6 +30,12 @@ import java.awt.Color;
  */
 public class Annotation
 {
+  /**
+   * the empty annotation - proxy for null entries in annotation row
+   */
+  public static final Annotation EMPTY_ANNOTATION = new Annotation("", "",
+          ' ', 0f);
+
   /** Character label - also shown below histogram */
   public String displayCharacter = "";
 
@@ -45,7 +51,9 @@ public class Annotation
    */
   public char secondaryStructure = ' ';
 
-  /** Score for the position - used in histograms, line graphs and for shading */
+  /**
+   * Score for the position - used in histograms, line graphs and for shading
+   */
   public float value;
 
   /** Colour for position */
@@ -191,5 +199,22 @@ public class Annotation
       sb.append("]");
     }
     return sb.toString();
+  }
+
+  /**
+   * @return true if annot is 'whitespace' annotation (zero score, whitespace or
+   *         zero length display character, label, description
+   */
+  public boolean isWhitespace()
+  {
+    return ((value == 0f)
+            && ((description == null) || (description.trim().length() == 0))
+            && ((displayCharacter == null)
+                    || (displayCharacter.trim().length() == 0)
+                    || (displayCharacter.equals(" ."))) // RNA Stockholm blank
+                                                        // displayCharacter can
+                                                        // end up like this
+            && (secondaryStructure == '\0' || (secondaryStructure == ' '))
+            && colour == null);
   }
 }

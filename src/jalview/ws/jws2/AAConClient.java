@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -48,10 +48,12 @@ public class AAConClient extends JabawsCalcWorker
     alignedSeqs = true;
     nucleotidesAllowed = false;
     proteinAllowed = true;
+    filterNonStandardResidues = true;
     gapMap = new boolean[0];
     initViewportParams();
   }
 
+  @Override
   public String getServiceActionText()
   {
     return "calculating Amino acid consensus using AACon service";
@@ -62,13 +64,14 @@ public class AAConClient extends JabawsCalcWorker
    * current visualization settings.
    */
 
+  @Override
   public void updateResultAnnotation(boolean immediate)
   {
     if (immediate || !calcMan.isWorking(this) && scoremanager != null)
     {
       Map<String, TreeSet<Score>> scoremap = scoremanager.asMap();
       int alWidth = alignViewport.getAlignment().getWidth();
-      ArrayList<AlignmentAnnotation> ourAnnot = new ArrayList<AlignmentAnnotation>();
+      ArrayList<AlignmentAnnotation> ourAnnot = new ArrayList<>();
       for (String score : scoremap.keySet())
       {
         Set<Score> scores = scoremap.get(score);

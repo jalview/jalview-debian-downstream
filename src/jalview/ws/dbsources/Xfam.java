@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,11 @@
  */
 package jalview.ws.dbsources;
 
+import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormat;
 import jalview.io.FormatAdapter;
 import jalview.ws.seqfetcher.DbSourceProxyImpl;
 
@@ -33,13 +36,17 @@ import jalview.ws.seqfetcher.DbSourceProxyImpl;
  */
 public abstract class Xfam extends DbSourceProxyImpl
 {
-
   public Xfam()
   {
     super();
   }
 
-  protected abstract String getXFAMURL();
+  /**
+   * the base URL for this Xfam-like service
+   * 
+   * @return
+   */
+  protected abstract String getURLPrefix();
 
   @Override
   public abstract String getDbVersion();
@@ -54,23 +61,35 @@ public abstract class Xfam extends DbSourceProxyImpl
     // retrieved.
     startQuery();
     // TODO: trap HTTP 404 exceptions and return null
-    AlignmentI rcds = new FormatAdapter().readFile(getXFAMURL()
-            + queries.trim().toUpperCase() + getXFAMURLSUFFIX(),
-            jalview.io.FormatAdapter.URL, "STH");
+    String xfamUrl = getURL(queries);
+
+    if (Cache.log != null)
+    {
+      Cache.log.debug("XFAM URL for retrieval is: " + xfamUrl);
+    }
+
+    AlignmentI rcds = new FormatAdapter().readFile(xfamUrl,
+            DataSourceType.URL, FileFormat.Stockholm);
+
     for (int s = 0, sNum = rcds.getHeight(); s < sNum; s++)
     {
       rcds.getSequenceAt(s).addDBRef(new DBRefEntry(getXfamSource(),
-      // getDbSource(),
+              // getDbSource(),
               getDbVersion(), queries.trim().toUpperCase()));
       if (!getDbSource().equals(getXfamSource()))
       { // add the specific ref too
-        rcds.getSequenceAt(s).addDBRef(
-                new DBRefEntry(getDbSource(), getDbVersion(), queries
-                        .trim().toUpperCase()));
+        rcds.getSequenceAt(s).addDBRef(new DBRefEntry(getDbSource(),
+                getDbVersion(), queries.trim().toUpperCase()));
       }
     }
     stopQuery();
     return rcds;
+  }
+
+  String getURL(String queries)
+  {
+    return getURLPrefix() + "/family/" + queries.trim().toUpperCase()
+            + getURLSuffix();
   }
 
   /**
@@ -87,7 +106,7 @@ public abstract class Xfam extends DbSourceProxyImpl
    * 
    * @return "" for most Xfam sources
    */
-  public String getXFAMURLSUFFIX()
+  public String getURLSuffix()
   {
     return "";
   }

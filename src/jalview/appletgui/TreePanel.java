@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,17 @@
  */
 package jalview.appletgui;
 
+import jalview.analysis.AverageDistanceTree;
 import jalview.analysis.NJTree;
+import jalview.analysis.TreeBuilder;
+import jalview.analysis.TreeModel;
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.analysis.scoremodels.SimilarityParams;
 import jalview.api.analysis.ScoreModelI;
-import jalview.api.analysis.ViewBasedAnalysisI;
 import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 import jalview.io.NewickFile;
-import jalview.schemes.ResidueProperties;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -43,8 +45,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
-public class TreePanel extends EmbmenuFrame implements ActionListener,
-        ItemListener
+public class TreePanel extends EmbmenuFrame
+        implements ActionListener, ItemListener, AutoCloseable
 {
   SequenceI[] seq;
 
@@ -58,41 +60,29 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
 
   TreeCanvas treeCanvas;
 
-  NJTree tree;
+  TreeModel tree;
 
   AlignmentPanel ap;
 
   AlignViewport av;
 
-  public NJTree getTree()
+  public TreeModel getTree()
   {
     return tree;
   }
 
-  public void finalize() throws Throwable
+  @Override
+  public void close()
   {
     ap = null;
     av = null;
-    super.finalize();
+    super.close();
   }
 
   /**
    * Creates a new TreePanel object.
-   * 
-   * @param av
-   *          DOCUMENT ME!
-   * @param seqVector
-   *          DOCUMENT ME!
-   * @param type
-   *          DOCUMENT ME!
-   * @param pwtype
-   *          DOCUMENT ME!
-   * @param s
-   *          DOCUMENT ME!
-   * @param e
-   *          DOCUMENT ME!
    */
-  public TreePanel(AlignmentPanel ap, String type, String pwtype)
+  public TreePanel(AlignmentPanel alignPanel, String type, String pwtype)
   {
     try
     {
@@ -103,22 +93,12 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
       ex.printStackTrace();
     }
 
-    initTreePanel(ap, type, pwtype, null);
+    initTreePanel(alignPanel, type, pwtype, null);
   }
 
   /**
    * Creates a new TreePanel object.
    * 
-   * @param av
-   *          DOCUMENT ME!
-   * @param seqVector
-   *          DOCUMENT ME!
-   * @param newtree
-   *          DOCUMENT ME!
-   * @param type
-   *          DOCUMENT ME!
-   * @param pwtype
-   *          DOCUMENT ME!
    */
   public TreePanel(AlignmentPanel ap, String type, String pwtype,
           NewickFile newtree)
@@ -159,7 +139,7 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
     // yields unaligned seqs)
     // or create a selection box around columns in alignment view
     // test Alignment(SeqCigar[])
-    if (tree.seqData != null)
+    if (tree.getOriginalData() != null)
     {
       char gc = '-';
       try
@@ -170,9 +150,9 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
       } catch (Exception ex)
       {
       }
-      ;
-      Object[] alAndColsel = tree.seqData
-              .getAlignmentAndColumnSelection(gc);
+
+      Object[] alAndColsel = tree.getOriginalData()
+              .getAlignmentAndHiddenColumns(gc);
 
       if (alAndColsel != null && alAndColsel[0] != null)
       {
@@ -180,7 +160,8 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
         AlignFrame af = new AlignFrame(al, av.applet,
                 "Original Data for Tree", false);
 
-        af.viewport.setHiddenColumns((ColumnSelection) alAndColsel[1]);
+        af.viewport.getAlignment()
+                .setHiddenColumns((HiddenColumns) alAndColsel[1]);
       }
     }
     else
@@ -200,62 +181,23 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
       this.newtree = newtree;
     }
 
+    @Override
     public void run()
     {
       if (newtree != null)
       {
-        if (odata == null)
-        {
-          tree = new NJTree(av.getAlignment().getSequencesArray(), newtree);
-        }
-        else
-        {
-          tree = new NJTree(av.getAlignment().getSequencesArray(), odata,
-                  newtree);
-        }
-
+        tree = new TreeModel(av.getAlignment().getSequencesArray(), odata,
+                newtree);
       }
       else
       {
-        int start, end;
-        SequenceI[] seqs;
-        boolean selview = av.getSelectionGroup() != null
-                && av.getSelectionGroup().getSize() > 1;
-        AlignmentView seqStrings = av.getAlignmentView(selview);
-        if (!selview)
-        {
-          start = 0;
-          end = av.getAlignment().getWidth();
-          seqs = av.getAlignment().getSequencesArray();
-        }
-        else
-        {
-          start = av.getSelectionGroup().getStartRes();
-          end = av.getSelectionGroup().getEndRes() + 1;
-          seqs = av.getSelectionGroup().getSequencesInOrder(
-                  av.getAlignment());
-        }
-        ScoreModelI sm = ResidueProperties.getScoreModel(pwtype);
-        if (sm instanceof ViewBasedAnalysisI)
-        {
-          try
-          {
-            sm = sm.getClass().newInstance();
-            ((ViewBasedAnalysisI) sm)
-                    .configureFromAlignmentView(treeCanvas.ap);
-          } catch (Exception q)
-          {
-            System.err.println("Couldn't create a scoremodel instance for "
-                    + sm.getName());
-            q.printStackTrace();
-          }
-          tree = new NJTree(seqs, seqStrings, type, pwtype, sm, start, end);
-        }
-        else
-        {
-          tree = new NJTree(seqs, seqStrings, type, pwtype, null, start,
-                  end);
-        }
+        ScoreModelI sm1 = ScoreModels.getInstance().getScoreModel(pwtype,
+                treeCanvas.ap);
+        ScoreModelI sm = sm1;
+        TreeBuilder njtree = type.equals(TreeBuilder.NEIGHBOUR_JOINING)
+                ? new NJTree(av, sm, SimilarityParams.Jalview)
+                : new AverageDistanceTree(av, sm, SimilarityParams.Jalview);
+        tree = new TreeModel(njtree);
       }
 
       tree.reCount(tree.getTopNode());
@@ -275,8 +217,8 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
         bootstrapMenu.setState(showBoots);
         treeCanvas.setShowBootstrap(showBoots);
         treeCanvas.setShowDistances(showDist);
-        treeCanvas.setMarkPlaceholders(av.applet.getDefaultParameter(
-                "showUnlinkedTreeNodes", false));
+        treeCanvas.setMarkPlaceholders(av.applet
+                .getDefaultParameter("showUnlinkedTreeNodes", false));
       }
 
       treeCanvas.repaint();
@@ -286,6 +228,7 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
     }
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == newickOutput)
@@ -302,6 +245,7 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
     }
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == fitToWindow)
@@ -392,13 +336,13 @@ public class TreePanel extends EmbmenuFrame implements ActionListener,
     jMenu2.setLabel(MessageManager.getString("action.view"));
     fontSize.setLabel(MessageManager.getString("action.font"));
     fontSize.addActionListener(this);
-    bootstrapMenu.setLabel(MessageManager
-            .getString("label.show_bootstrap_values"));
+    bootstrapMenu.setLabel(
+            MessageManager.getString("label.show_bootstrap_values"));
     bootstrapMenu.addItemListener(this);
     distanceMenu.setLabel(MessageManager.getString("label.show_distances"));
     distanceMenu.addItemListener(this);
-    placeholdersMenu.setLabel(MessageManager
-            .getString("label.mark_unassociated_leaves"));
+    placeholdersMenu.setLabel(
+            MessageManager.getString("label.mark_unassociated_leaves"));
     placeholdersMenu.addItemListener(this);
     fitToWindow.setState(true);
     fitToWindow.setLabel(MessageManager.getString("label.fit_to_window"));

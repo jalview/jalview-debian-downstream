@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -42,13 +42,7 @@ import MCview.PDBChain;
 
 public abstract class StructureFile extends AlignFile
 {
-
   private String id;
-
-  public enum StructureFileType
-  {
-    PDB, MMCIF, MMTF
-  };
 
   private PDBEntry.Type dbRefType;
 
@@ -74,9 +68,10 @@ public abstract class StructureFile extends AlignFile
 
   private boolean pdbIdAvailable;
 
-  public StructureFile(String inFile, String type) throws IOException
+  public StructureFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public StructureFile(FileParse fp) throws IOException
@@ -104,9 +99,9 @@ public abstract class StructureFile extends AlignFile
   }
 
   public StructureFile(boolean parseImmediately, String dataObject,
-          String type) throws IOException
+          DataSourceType sourceType) throws IOException
   {
-    super(parseImmediately, dataObject, type);
+    super(parseImmediately, dataObject, sourceType);
   }
 
   public StructureFile(boolean a, FileParse fp) throws IOException
@@ -196,11 +191,13 @@ public abstract class StructureFile extends AlignFile
       {
         // TODO: use the PDB ID of the structure if one is available, to save
         // bandwidth and avoid uploading the whole structure to the service
-        Object annotate3d = cl.getConstructor(new Class[] {}).newInstance(
-                new Object[] {});
-        AlignmentI al = ((AlignmentI) cl.getMethod("getRNAMLFor",
-                new Class[] { FileParse.class }).invoke(annotate3d,
-                new Object[] { new FileParse(getDataName(), type) }));
+        Object annotate3d = cl.getConstructor(new Class[] {})
+                .newInstance(new Object[] {});
+        AlignmentI al = ((AlignmentI) cl
+                .getMethod("getRNAMLFor", new Class[]
+                { FileParse.class })
+                .invoke(annotate3d, new Object[]
+                { new FileParse(getDataName(), dataSourceType) }));
         for (SequenceI sq : al.getSequences())
         {
           if (sq.getDatasetSequence() != null)
@@ -227,8 +224,8 @@ public abstract class StructureFile extends AlignFile
   }
 
   @SuppressWarnings("unchecked")
-  protected void replaceAndUpdateChains(List<SequenceI> prot,
-          AlignmentI al, String pep, boolean b)
+  protected void replaceAndUpdateChains(List<SequenceI> prot, AlignmentI al,
+          String pep, boolean b)
   {
     List<List<? extends Object>> replaced = AlignSeq
             .replaceMatchingSeqsWith(seqs, annotations, prot, al, pep,
@@ -293,8 +290,8 @@ public abstract class StructureFile extends AlignFile
         processWithJmolParser(proteinSequences);
       } catch (Exception x)
       {
-        System.err
-                .println("Exceptions from Jmol when processing data in pdb file");
+        System.err.println(
+                "Exceptions from Jmol when processing data in pdb file");
         x.printStackTrace();
       }
     }
@@ -310,9 +307,10 @@ public abstract class StructureFile extends AlignFile
       if (cl != null)
       {
         final Constructor constructor = cl
-                .getConstructor(new Class[] { FileParse.class });
-        final Object[] args = new Object[] { new FileParse(getDataName(),
-                type) };
+                .getConstructor(new Class[]
+                { FileParse.class });
+        final Object[] args = new Object[] {
+            new FileParse(getDataName(), dataSourceType) };
 
         StructureImportSettings.setShowSeqFeatures(false);
         StructureImportSettings.setVisibleChainAnnotation(false);
@@ -321,8 +319,8 @@ public abstract class StructureFile extends AlignFile
         StructureImportSettings
                 .setExternalSecondaryStructure(externalSecondaryStructure);
         Object jmf = constructor.newInstance(args);
-        AlignmentI al = new Alignment((SequenceI[]) cl.getMethod(
-                "getSeqsAsArray", new Class[] {}).invoke(jmf));
+        AlignmentI al = new Alignment((SequenceI[]) cl
+                .getMethod("getSeqsAsArray", new Class[] {}).invoke(jmf));
         cl.getMethod("addAnnotations", new Class[] { AlignmentI.class })
                 .invoke(jmf, al);
         for (SequenceI sq : al.getSequences())
@@ -399,8 +397,10 @@ public abstract class StructureFile extends AlignFile
 
   public static boolean isRNA(SequenceI seq)
   {
-    for (char c : seq.getSequence())
+    int length = seq.getLength();
+    for (int i = 0; i < length; i++)
     {
+      char c = seq.getCharAt(i);
       if ((c != 'A') && (c != 'C') && (c != 'G') && (c != 'U'))
       {
         return false;
@@ -413,7 +413,8 @@ public abstract class StructureFile extends AlignFile
    * make a friendly ID string.
    * 
    * @param dataName
-   * @return truncated dataName to after last '/'
+   * @return truncated dataName to after last '/' and pruned .extension if
+   *         present
    */
   protected String safeName(String dataName)
   {
@@ -421,6 +422,10 @@ public abstract class StructureFile extends AlignFile
     while ((p = dataName.indexOf("/")) > -1 && p < dataName.length())
     {
       dataName = dataName.substring(p + 1);
+    }
+    if (dataName.indexOf(".") > -1)
+    {
+      dataName = dataName.substring(0, dataName.lastIndexOf("."));
     }
     return dataName;
   }
@@ -488,21 +493,5 @@ public abstract class StructureFile extends AlignFile
   public void setPDBIdAvailable(boolean pdbIdAvailable)
   {
     this.pdbIdAvailable = pdbIdAvailable;
-  }
-
-  public static boolean isStructureFile(String fileType)
-  {
-    if (fileType == null)
-    {
-      return false;
-    }
-    for (StructureFileType sfType : StructureFileType.values())
-    {
-      if (sfType.name().equalsIgnoreCase(fileType))
-      {
-        return true;
-      }
-    }
-    return false;
   }
 }

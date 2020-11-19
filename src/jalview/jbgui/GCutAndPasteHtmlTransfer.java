@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,7 +25,6 @@ import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
@@ -39,6 +38,8 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.text.EditorKit;
+import javax.swing.text.html.HTMLEditorKit;
 
 /**
  * DOCUMENT ME!
@@ -85,6 +86,7 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
   {
     try
     {
+      textarea.setEditorKit(new HTMLEditorKit());
       setJMenuBar(editMenubar);
       jbInit();
     } catch (Exception e)
@@ -132,12 +134,16 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
       }
     });
     close.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_W, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_W,
+            jalview.util.ShortcutKeyMaskExWrapper
+                    .getMenuShortcutKeyMaskEx(),
+            false));
     selectAll.setText(MessageManager.getString("action.select_all"));
     selectAll.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_A, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_A,
+            jalview.util.ShortcutKeyMaskExWrapper
+                    .getMenuShortcutKeyMaskEx(),
+            false));
     selectAll.addActionListener(new ActionListener()
     {
       @Override
@@ -149,8 +155,10 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
     jMenu1.setText(MessageManager.getString("action.file"));
     save.setText(MessageManager.getString("action.save"));
     save.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_S, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_S,
+            jalview.util.ShortcutKeyMaskExWrapper
+                    .getMenuShortcutKeyMaskEx(),
+            false));
     save.addActionListener(new ActionListener()
     {
       @Override
@@ -160,8 +168,10 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
       }
     });
     copyItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_C, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_C,
+            jalview.util.ShortcutKeyMaskExWrapper
+                    .getMenuShortcutKeyMaskEx(),
+            false));
 
     editMenubar.add(jMenu1);
     editMenubar.add(editMenu);
@@ -190,10 +200,10 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
         copyItem_actionPerformed(e);
       }
     });
-    displaySource.setText(MessageManager
-            .getString("action.show_html_source"));
-    displaySource.setToolTipText(MessageManager
-            .getString("label.select_copy_raw_html"));
+    displaySource
+            .setText(MessageManager.getString("action.show_html_source"));
+    displaySource.setToolTipText(
+            MessageManager.getString("label.select_copy_raw_html"));
     displaySource.addActionListener(new ActionListener()
     {
 
@@ -271,5 +281,21 @@ public class GCutAndPasteHtmlTransfer extends JInternalFrame
   public void save_actionPerformed(ActionEvent e)
   {
 
+  }
+
+  /**
+   * Adds the given stylesheet rule to the Html editor. However note that CSS
+   * support is limited.
+   * 
+   * @param rule
+   * @see javax.swing.text.html.CSS
+   */
+  public void addStylesheetRule(String rule)
+  {
+    EditorKit editorKit = textarea.getEditorKit();
+    if (editorKit != null)
+    {
+      ((HTMLEditorKit) editorKit).getStyleSheet().addRule(rule);
+    }
   }
 }

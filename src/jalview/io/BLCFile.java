@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -48,15 +48,16 @@ public class BLCFile extends AlignFile
    * 
    * @param inFile
    *          DOCUMENT ME!
-   * @param type
+   * @param sourceType
    *          DOCUMENT ME!
    * 
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public BLCFile(String inFile, String type) throws IOException
+  public BLCFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public BLCFile(FileParse source) throws IOException
@@ -67,6 +68,7 @@ public class BLCFile extends AlignFile
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void initData()
   {
     super.initData();
@@ -89,6 +91,7 @@ public class BLCFile extends AlignFile
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void parse() throws IOException
   {
     StringBuffer headerLines = new StringBuffer();
@@ -215,22 +218,13 @@ public class BLCFile extends AlignFile
   /**
    * DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
-   */
-  public String print()
-  {
-    return print(getSeqsAsArray());
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
    * @param s
    *          DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  public String print(SequenceI[] s)
+  @Override
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
     StringBuffer out = new StringBuffer();
     /**
@@ -244,7 +238,7 @@ public class BLCFile extends AlignFile
 
     while ((i < s.length) && (s[i] != null))
     {
-      out.append(">" + printId(s[i]));
+      out.append(">" + printId(s[i], jvsuffix));
       if (s[i].getDescription() != null)
       {
         out.append(" " + s[i].getDescription());
@@ -252,10 +246,7 @@ public class BLCFile extends AlignFile
 
       out.append(newline);
 
-      if (s[i].getSequence().length > max)
-      {
-        max = s[i].getSequence().length;
-      }
+      max = Math.max(max, s[i].getLength());
 
       i++;
     }

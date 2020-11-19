@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -127,8 +127,8 @@ public class GTreePanel extends JInternalFrame
       {
       }
     });
-    sortAssocViews.setText(MessageManager
-            .getString("label.sort_alignment_by_tree"));
+    sortAssocViews.setText(
+            MessageManager.getString("label.sort_alignment_by_tree"));
     sortAssocViews.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -144,8 +144,8 @@ public class GTreePanel extends JInternalFrame
         font_actionPerformed(e);
       }
     });
-    bootstrapMenu.setText(MessageManager
-            .getString("label.show_bootstrap_values"));
+    bootstrapMenu.setText(
+            MessageManager.getString("label.show_bootstrap_values"));
     bootstrapMenu.addActionListener(new java.awt.event.ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -187,11 +187,10 @@ public class GTreePanel extends JInternalFrame
       }
     });
     saveAsMenu.setText(MessageManager.getString("action.save_as"));
-    placeholdersMenu
-            .setToolTipText(MessageManager
-                    .getString("label.marks_leaves_tree_not_associated_with_sequence"));
-    placeholdersMenu.setText(MessageManager
-            .getString("label.mark_unlinked_leaves"));
+    placeholdersMenu.setToolTipText(MessageManager.getString(
+            "label.marks_leaves_tree_not_associated_with_sequence"));
+    placeholdersMenu.setText(
+            MessageManager.getString("label.mark_unlinked_leaves"));
     placeholdersMenu.addActionListener(new ActionListener()
     {
       public void actionPerformed(ActionEvent e)
@@ -215,8 +214,8 @@ public class GTreePanel extends JInternalFrame
         originalSeqData_actionPerformed(e);
       }
     });
-    associateLeavesMenu.setText(MessageManager
-            .getString("label.associate_leaves_with"));
+    associateLeavesMenu.setText(
+            MessageManager.getString("label.associate_leaves_with"));
     this.getContentPane().add(scrollPane, BorderLayout.CENTER);
     jMenuBar1.add(fileMenu);
     jMenuBar1.add(viewMenu);

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,6 +41,15 @@ public interface SequenceOntologyI
 
   // SO:0001060
   public static final String SEQUENCE_VARIANT = "sequence_variant";
+
+  // SO:0001819
+  public static final String SYNONYMOUS_VARIANT = "synonymous_variant";
+
+  // SO:0001992
+  public static final String NONSYNONYMOUS_VARIANT = "nonsynonymous_variant";
+
+  // SO:0001587
+  public static final String STOP_GAINED = "stop_gained";
 
   // SO:0000147
   public static final String EXON = "exon";

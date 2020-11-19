@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -74,8 +74,8 @@ public abstract class AbstractRequestHandler extends AbstractHandler
         /*
          * Can't write an HTTP header once any response content has been written
          */
-        System.err
-                .println("Unable to return HTTP 500 as response already committed");
+        System.err.println(
+                "Unable to return HTTP 500 as response already committed");
       }
       else
       {
@@ -143,8 +143,8 @@ public abstract class AbstractRequestHandler extends AbstractHandler
       stop();
     } catch (Exception e)
     {
-      System.err.println("Error stopping " + getName() + ": "
-              + e.getMessage());
+      System.err.println(
+              "Error stopping " + getName() + ": " + e.getMessage());
     }
   }
 

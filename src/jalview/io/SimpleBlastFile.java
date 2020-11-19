@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -51,9 +51,10 @@ public class SimpleBlastFile extends AlignFile
   {
   }
 
-  public SimpleBlastFile(String inFile, String type) throws IOException
+  public SimpleBlastFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public SimpleBlastFile(FileParse source) throws IOException
@@ -61,6 +62,7 @@ public class SimpleBlastFile extends AlignFile
     super(source);
   }
 
+  @Override
   public void initData()
   {
     super.initData();
@@ -69,6 +71,7 @@ public class SimpleBlastFile extends AlignFile
     seqids = new Vector();
   }
 
+  @Override
   public void parse() throws IOException
   {
     String line;
@@ -162,8 +165,8 @@ public class SimpleBlastFile extends AlignFile
               rstart = Long.parseLong(stindx);
             } catch (Exception e)
             {
-              System.err.println("Couldn't parse '" + stindx
-                      + "' as start of row");
+              System.err.println(
+                      "Couldn't parse '" + stindx + "' as start of row");
               // inAlignments = false;
               // warn for this line
             }
@@ -172,8 +175,8 @@ public class SimpleBlastFile extends AlignFile
               rend = Long.parseLong(endindx);
             } catch (Exception e)
             {
-              System.err.println("Couldn't parse '" + endindx
-                      + "' as end of row");
+              System.err.println(
+                      "Couldn't parse '" + endindx + "' as end of row");
               // inAlignments = false;
 
               // warn for this line
@@ -201,7 +204,8 @@ public class SimpleBlastFile extends AlignFile
             {
               padseq = true; // prepend gaps to new sequences in this block
               seqentry = new Object[] { new StringBuffer(),
-                  new long[] { rstart, rend } };
+                  new long[]
+                  { rstart, rend } };
               seqentries.addElement(seqentry);
               seqhash.put(sqid, seqentry);
 
@@ -255,7 +259,7 @@ public class SimpleBlastFile extends AlignFile
         {
           Sequence newseq = new Sequence(idstring,
 
-          ((StringBuffer) seqentry[0]).toString(),
+                  ((StringBuffer) seqentry[0]).toString(),
                   (int) ((long[]) seqentry[1])[0],
                   (int) ((long[]) seqentry[1])[1]);
           if (newseq.getEnd() == 0)
@@ -286,13 +290,9 @@ public class SimpleBlastFile extends AlignFile
     }
   }
 
-  public String print(SequenceI[] s)
+  @Override
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     return new String("Not Implemented.");
-  }
-
-  public String print()
-  {
-    return print(getSeqsAsArray());
   }
 }

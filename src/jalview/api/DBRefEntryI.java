@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -92,7 +92,8 @@ public interface DBRefEntryI
   public boolean updateFrom(DBRefEntryI otherEntry);
 
   /**
-   * Answers true if the ref looks like a primary (direct) database reference. <br>
+   * Answers true if the ref looks like a primary (direct) database reference.
+   * <br>
    * The only way a dbref's mappings can be fully verified is via the local
    * sequence frame, so rather than use isPrimaryCandidate directly, please use
    * SequenceI.getPrimaryDbRefs(). <br>

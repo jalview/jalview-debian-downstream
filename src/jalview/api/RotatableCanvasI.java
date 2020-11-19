@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (Version 2.8.2b1)
+ * Copyright (C) 2014 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,7 @@ package jalview.api;
 
 import jalview.datamodel.SequencePoint;
 
-import java.util.Vector;
+import java.util.List;
 
 /**
  * interface implemented by RotatatableCanvas GUI elements (such as point clouds
@@ -33,7 +33,23 @@ import java.util.Vector;
  */
 public interface RotatableCanvasI
 {
+  void setPoints(List<SequencePoint> points, int rows);
 
-  void setPoints(Vector<SequencePoint> points, int rows);
+  /**
+   * Zoom the view in (or out) by the given factor, which should be >= 0. A
+   * factor greater than 1 zooms in (expands the display), a factor less than 1
+   * zooms out (shrinks the display).
+   * 
+   * @param factor
+   */
+  void zoom(float factor);
 
+  /**
+   * Rotates the view by the specified number of degrees about the x and/or y
+   * axis
+   * 
+   * @param x
+   * @param y
+   */
+  void rotate(float x, float y);
 }

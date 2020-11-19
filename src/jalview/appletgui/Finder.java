@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,12 +20,13 @@
  */
 package jalview.appletgui;
 
+import jalview.api.AlignViewportI;
+import jalview.api.FinderI;
 import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.Button;
 import java.awt.Checkbox;
@@ -41,24 +42,40 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Finder extends Panel implements ActionListener
 {
-  AlignmentViewport av;
+  private AlignViewportI av;
 
-  AlignmentPanel ap;
+  private AlignmentPanel ap;
 
-  Frame frame;
+  private TextField textfield = new TextField();
 
-  SearchResultsI searchResults;
+  private Button findAll = new Button();
 
-  int seqIndex = 0;
+  private Button findNext = new Button();
 
-  int resIndex = -1;
+  private Button createFeatures = new Button();
+
+  private Checkbox caseSensitive = new Checkbox();
+
+  private Checkbox searchDescription = new Checkbox();
+
+  private SearchResultsI searchResults;
+
+  /*
+   * Finder agent per viewport searched
+   */
+  Map<AlignViewportI, FinderI> finders;
 
   public Finder(final AlignmentPanel ap)
   {
+    finders = new HashMap<>();
+
     try
     {
       jbInit();
@@ -70,7 +87,7 @@ public class Finder extends Panel implements ActionListener
 
     this.av = ap.av;
     this.ap = ap;
-    frame = new Frame();
+    Frame frame = new Frame();
     frame.add(this);
     jalview.bin.JalviewLite.addFrame(frame,
             MessageManager.getString("action.find"), 340, 120);
@@ -101,31 +118,25 @@ public class Finder extends Panel implements ActionListener
 
     else if (evt.getSource() == findAll)
     {
-      resIndex = -1;
-      seqIndex = 0;
       doSearch(true);
     }
-    else if (evt.getSource() == createNewGroup)
+    else if (evt.getSource() == createFeatures)
     {
-      createNewGroup_actionPerformed();
+      createFeatures_actionPerformed();
     }
   }
 
-  public void createNewGroup_actionPerformed()
+  public void createFeatures_actionPerformed()
   {
-    SequenceI[] seqs = new SequenceI[searchResults.getSize()];
-    SequenceFeature[] features = new SequenceFeature[searchResults
-            .getSize()];
+    List<SequenceI> seqs = new ArrayList<>();
+    List<SequenceFeature> features = new ArrayList<>();
+    String searchString = textfield.getText().trim();
 
-    int i = 0;
     for (SearchResultMatchI match : searchResults.getResults())
     {
-      seqs[i] = match.getSequence().getDatasetSequence();
-
-      features[i] = new SequenceFeature(textfield.getText().trim(),
-              "Search Results", null, match.getStart(), match.getEnd(),
-              "Search Results");
-      i++;
+      seqs.add(match.getSequence().getDatasetSequence());
+      features.add(new SequenceFeature(searchString, "Search Results",
+              match.getStart(), match.getEnd(), "Search Results"));
     }
 
     if (ap.seqPanel.seqCanvas.getFeatureRenderer().amendFeatures(seqs,
@@ -137,48 +148,50 @@ public class Finder extends Panel implements ActionListener
     }
   }
 
-  void doSearch(boolean findAll)
+  void doSearch(boolean doFindAll)
   {
     if (ap.av.applet.currentAlignFrame != null)
     {
       ap = ap.av.applet.currentAlignFrame.alignPanel;
       av = ap.av;
     }
-    createNewGroup.setEnabled(false);
-    jalview.analysis.Finder finder = new jalview.analysis.Finder(
-            av.getAlignment(), av.getSelectionGroup(), seqIndex, resIndex);
-    finder.setCaseSensitive(caseSensitive.getState());
-    finder.setIncludeDescription(searchDescription.getState());
-    finder.setFindAll(findAll);
+    createFeatures.setEnabled(false);
+    FinderI finder = finders.get(av);
+    if (finder == null)
+    {
+      /*
+       * first time we searched this viewport
+       */
+      finder = new jalview.analysis.Finder(av);
+      finders.put(av, finder);
+    }
 
     String searchString = textfield.getText();
+    boolean isCaseSensitive = caseSensitive.getState();
+    boolean doSearchDescription = searchDescription.getState();
+    if (doFindAll)
+    {
+      finder.findAll(searchString, isCaseSensitive, doSearchDescription,
+              false);
+    }
+    else
+    {
+      finder.findNext(searchString, isCaseSensitive, doSearchDescription,
+              false);
+    }
 
-    finder.find(searchString);
-    seqIndex = finder.getSeqIndex();
-    resIndex = finder.getResIndex();
     searchResults = finder.getSearchResults();
-    Vector<SequenceI> idMatch = finder.getIdMatch();
-    boolean haveResults = false;
-    // set or reset the GUI
-    if ((idMatch.size() > 0))
-    {
-      haveResults = true;
-      ap.idPanel.highlightSearchResults(idMatch);
-    }
-    else
-    {
-      ap.idPanel.highlightSearchResults(null);
-    }
 
-    if (searchResults.getSize() > 0)
-    {
-      haveResults = true;
-      createNewGroup.setEnabled(true);
+    List<SequenceI> idMatches = finder.getIdMatches();
+    ap.idPanel.highlightSearchResults(idMatches);
 
-    }
-    else
+    if (searchResults.isEmpty())
     {
       searchResults = null;
+    }
+    else
+    {
+      createFeatures.setEnabled(true);
     }
 
     // if allResults is null, this effectively switches displaySearch flag in
@@ -186,64 +199,45 @@ public class Finder extends Panel implements ActionListener
     ap.highlightSearchResults(searchResults);
     // TODO: add enablers for 'SelectSequences' or 'SelectColumns' or
     // 'SelectRegion' selection
-    if (!haveResults)
+    if (idMatches.isEmpty() && searchResults == null)
     {
-      ap.alignFrame.statusBar.setText(MessageManager
-              .getString("label.finished_searching"));
-      resIndex = -1;
-      seqIndex = 0;
+      ap.alignFrame.statusBar.setText(
+              MessageManager.getString("label.finished_searching"));
     }
     else
     {
-      if (findAll)
+      if (doFindAll)
       {
-        String message = (idMatch.size() > 0) ? "" + idMatch.size()
-                + " IDs" : "";
-        if (idMatch.size() > 0 && searchResults != null
-                && searchResults.getSize() > 0)
+        String message = (idMatches.size() > 0) ? "" + idMatches.size() + " IDs"
+                : "";
+        if (idMatches.size() > 0 && searchResults != null
+                && searchResults.getCount() > 0)
         {
           message += " and ";
         }
         if (searchResults != null)
         {
-          message += searchResults.getSize() + " subsequence matches.";
+          message += searchResults.getCount() + " subsequence matches.";
         }
-        ap.alignFrame.statusBar.setText(MessageManager.formatMessage(
-                "label.search_results", new String[] { searchString,
-                    message }));
+        ap.alignFrame.statusBar.setText(MessageManager
+                .formatMessage("label.search_results", new String[]
+                { searchString, message }));
 
       }
       else
       {
         // TODO: indicate sequence and matching position in status bar
-        ap.alignFrame.statusBar.setText(MessageManager.formatMessage(
-                "label.found_match_for", new String[] { searchString }));
+        ap.alignFrame.statusBar.setText(MessageManager
+                .formatMessage("label.found_match_for", new String[]
+                { searchString }));
       }
     }
   }
 
-  Label jLabel1 = new Label();
-
-  protected TextField textfield = new TextField();
-
-  protected Button findAll = new Button();
-
-  protected Button findNext = new Button();
-
-  Panel actionsPanel = new Panel();
-
-  GridLayout gridLayout1 = new GridLayout();
-
-  protected Button createNewGroup = new Button();
-
-  Checkbox caseSensitive = new Checkbox();
-
-  Checkbox searchDescription = new Checkbox();
-
   private void jbInit() throws Exception
   {
+    Label jLabel1 = new Label(MessageManager.getString("action.find"));
     jLabel1.setFont(new java.awt.Font("Verdana", 0, 12));
-    jLabel1.setText(MessageManager.getString("action.find"));
     jLabel1.setBounds(new Rectangle(3, 30, 34, 15));
     this.setLayout(null);
     textfield.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
@@ -254,7 +248,7 @@ public class Finder extends Panel implements ActionListener
       @Override
       public void keyTyped(KeyEvent e)
       {
-        textfield_keyTyped(e);
+        textfield_keyTyped();
       }
     });
     textfield.addActionListener(this);
@@ -265,24 +259,27 @@ public class Finder extends Panel implements ActionListener
     findNext.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     findNext.setLabel(MessageManager.getString("action.find_next"));
     findNext.addActionListener(this);
+
+    Panel actionsPanel = new Panel();
     actionsPanel.setBounds(new Rectangle(195, 5, 141, 64));
+    GridLayout gridLayout1 = new GridLayout();
     actionsPanel.setLayout(gridLayout1);
     gridLayout1.setHgap(0);
     gridLayout1.setRows(3);
     gridLayout1.setVgap(2);
-    createNewGroup.setEnabled(false);
-    createNewGroup.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    createNewGroup.setLabel(MessageManager.getString("label.new_feature"));
-    createNewGroup.addActionListener(this);
+    createFeatures.setEnabled(false);
+    createFeatures.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
+    createFeatures.setLabel(MessageManager.getString("label.new_feature"));
+    createFeatures.addActionListener(this);
     caseSensitive.setLabel(MessageManager.getString("label.match_case"));
     caseSensitive.setBounds(new Rectangle(30, 39, 126, 23));
 
-    searchDescription.setLabel(MessageManager
-            .getString("label.include_description"));
+    searchDescription.setLabel(
+            MessageManager.getString("label.include_description"));
     searchDescription.setBounds(new Rectangle(30, 59, 170, 23));
     actionsPanel.add(findNext, null);
     actionsPanel.add(findAll, null);
-    actionsPanel.add(createNewGroup, null);
+    actionsPanel.add(createFeatures, null);
     this.add(caseSensitive);
     this.add(textfield, null);
     this.add(jLabel1, null);
@@ -290,7 +287,7 @@ public class Finder extends Panel implements ActionListener
     this.add(searchDescription);
   }
 
-  void textfield_keyTyped(KeyEvent e)
+  void textfield_keyTyped()
   {
     findNext.setEnabled(true);
   }

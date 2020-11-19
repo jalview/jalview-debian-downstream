@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -47,4 +47,14 @@ public interface SearchResultMatchI
    */
   int getEnd();
 
+  /**
+   * Answers true if this match is for the given sequence and includes (matches
+   * or encloses) the given start-end range
+   * 
+   * @param seq
+   * @param start
+   * @param end
+   * @return
+   */
+  boolean contains(SequenceI seq, int start, int end);
 }

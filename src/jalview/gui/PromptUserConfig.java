@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,8 +23,6 @@ package jalview.gui;
 import jalview.bin.Cache;
 
 import java.awt.Component;
-
-import javax.swing.JOptionPane;
 
 public class PromptUserConfig implements Runnable
 {
@@ -120,6 +118,7 @@ public class PromptUserConfig implements Runnable
     this.allowCancel = allowCancel;
   }
 
+  @Override
   public void run()
   {
     if (property == null)
@@ -201,25 +200,19 @@ public class PromptUserConfig implements Runnable
     }
     try
     {
-      int reply = JOptionPane.showConfirmDialog(
-              Desktop.desktop, // component,
+      int reply = JvOptionPane.showConfirmDialog(Desktop.desktop, // component,
               dialogText, dialogTitle,
-              (allowCancel) ? JOptionPane.YES_NO_CANCEL_OPTION
-                      : JOptionPane.YES_NO_OPTION,
-              JOptionPane.QUESTION_MESSAGE);
-      // now, ask the desktop to relayer any external windows that might have
-      // been obsured
-      if (Desktop.instance != null)
-      {
-        Desktop.instance.relayerWindows();
-      }
+              (allowCancel) ? JvOptionPane.YES_NO_CANCEL_OPTION
+                      : JvOptionPane.YES_NO_OPTION,
+              JvOptionPane.QUESTION_MESSAGE);
+
       // and finish parsing the result
       jalview.bin.Cache.log.debug("Got response : " + reply);
-      if (reply == JOptionPane.YES_OPTION)
+      if (reply == JvOptionPane.YES_OPTION)
       {
         jalview.bin.Cache.setProperty(property, "true");
       }
-      else if (reply == JOptionPane.NO_OPTION)
+      else if (reply == JvOptionPane.NO_OPTION)
       {
         if (removeifunset)
         {
@@ -245,7 +238,8 @@ public class PromptUserConfig implements Runnable
     {
       jalview.bin.Cache.log.warn(
               "Unexpected exception when prompting user for yes/no setting for property "
-                      + property, e);
+                      + property,
+              e);
     }
   }
 }

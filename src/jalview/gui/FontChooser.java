@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,12 +26,10 @@ import jalview.util.MessageManager;
 
 import java.awt.Font;
 import java.awt.FontMetrics;
-import java.awt.event.ActionEvent;
 import java.awt.geom.Rectangle2D;
 
 import javax.swing.JInternalFrame;
 import javax.swing.JLayeredPane;
-import javax.swing.JOptionPane;
 
 /**
  * DOCUMENT ME!
@@ -50,7 +48,21 @@ public class FontChooser extends GFontChooser
    */
   Font oldFont;
 
+  /*
+   * The font on opening the dialog (to be restored on Cancel)
+   * on the other half of a split frame (if applicable)
+   */
+  Font oldComplementFont;
+
+  /*
+   * the state of 'scale protein as cDNA' on opening the dialog
+   */
   boolean oldProteinScale;
+
+  /*
+   * the state of 'same font for protein and cDNA' on opening the dialog
+   */
+  boolean oldMirrorFont;
 
   boolean init = true;
 
@@ -63,34 +75,37 @@ public class FontChooser extends GFontChooser
 
   private boolean lastSelMono = false;
 
+  private boolean oldSmoothFont;
+
+  private boolean oldComplementSmooth;
+
   /**
-   * Creates a new FontChooser object.
+   * Creates a new FontChooser for a tree panel
    * 
-   * @param ap
-   *          DOCUMENT ME!
+   * @param treePanel
    */
-  public FontChooser(TreePanel tp)
+  public FontChooser(TreePanel treePanel)
   {
-    this.tp = tp;
-    ap = tp.treeCanvas.ap;
-    oldFont = tp.getTreeFont();
+    this.tp = treePanel;
+    ap = treePanel.getTreeCanvas().getAssociatedPanel();
+    oldFont = treePanel.getTreeFont();
     defaultButton.setVisible(false);
     smoothFont.setEnabled(false);
     init();
   }
 
   /**
-   * Creates a new FontChooser object.
+   * Creates a new FontChooser for an alignment panel
    * 
-   * @param ap
-   *          DOCUMENT ME!
+   * @param alignPanel
    */
-  public FontChooser(AlignmentPanel ap)
+  public FontChooser(AlignmentPanel alignPanel)
   {
-    oldFont = ap.av.getFont();
-    oldProteinScale = ap.av.isScaleProteinAsCdna();
-
-    this.ap = ap;
+    oldFont = alignPanel.av.getFont();
+    oldProteinScale = alignPanel.av.isScaleProteinAsCdna();
+    oldMirrorFont = alignPanel.av.isProteinFontAsCdna();
+    oldSmoothFont = alignPanel.av.antiAlias;
+    this.ap = alignPanel;
     init();
   }
 
@@ -103,17 +118,23 @@ public class FontChooser extends GFontChooser
 
     /*
      * Enable 'scale protein as cDNA' in a SplitFrame view. The selection is
-     * stored in the ViewStyle of both dna and protein Viewport
+     * stored in the ViewStyle of both dna and protein Viewport. Also enable
+     * checkbox for copy font changes to other half of split frame.
      */
-    scaleAsCdna.setEnabled(false);
-    if (ap.av.getCodingComplement() != null)
+    boolean inSplitFrame = ap.av.getCodingComplement() != null;
+    if (inSplitFrame)
     {
-      scaleAsCdna.setEnabled(true);
+      oldComplementFont = ((AlignViewport) ap.av.getCodingComplement())
+              .getFont();
+      oldComplementSmooth = ((AlignViewport) ap.av
+              .getCodingComplement()).antiAlias;
       scaleAsCdna.setVisible(true);
       scaleAsCdna.setSelected(ap.av.isScaleProteinAsCdna());
+      fontAsCdna.setVisible(true);
+      fontAsCdna.setSelected(ap.av.isProteinFontAsCdna());
     }
 
-    if (tp != null)
+    if (isTreeFont())
     {
       Desktop.addInternalFrame(frame,
               MessageManager.getString("action.change_font_tree_panel"),
@@ -122,7 +143,7 @@ public class FontChooser extends GFontChooser
     else
     {
       Desktop.addInternalFrame(frame,
-              MessageManager.getString("action.change_font"), 380, 200,
+              MessageManager.getString("action.change_font"), 380, 220,
               false);
     }
 
@@ -150,19 +171,28 @@ public class FontChooser extends GFontChooser
     fontStyle.setSelectedIndex(oldFont.getStyle());
 
     FontMetrics fm = getGraphics().getFontMetrics(oldFont);
-    monospaced.setSelected(fm.getStringBounds("M", getGraphics())
-            .getWidth() == fm.getStringBounds("|", getGraphics())
-            .getWidth());
+    monospaced.setSelected(
+            fm.getStringBounds("M", getGraphics()).getWidth() == fm
+                    .getStringBounds("|", getGraphics()).getWidth());
 
     init = false;
   }
 
   @Override
-  public void smoothFont_actionPerformed(ActionEvent e)
+  protected void smoothFont_actionPerformed()
   {
     ap.av.antiAlias = smoothFont.isSelected();
     ap.getAnnotationPanel().image = null;
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, false);
+    if (ap.av.getCodingComplement() != null && ap.av.isProteinFontAsCdna())
+    {
+      ((AlignViewport) ap.av
+              .getCodingComplement()).antiAlias = ap.av.antiAlias;
+      SplitFrame sv = (SplitFrame) ap.alignFrame.getSplitViewContainer();
+      sv.adjustLayout();
+      sv.repaint();
+    }
+
   }
 
   /**
@@ -172,7 +202,7 @@ public class FontChooser extends GFontChooser
    *          DOCUMENT ME!
    */
   @Override
-  protected void ok_actionPerformed(ActionEvent e)
+  protected void ok_actionPerformed()
   {
     try
     {
@@ -197,26 +227,33 @@ public class FontChooser extends GFontChooser
    *          DOCUMENT ME!
    */
   @Override
-  protected void cancel_actionPerformed(ActionEvent e)
+  protected void cancel_actionPerformed()
   {
-    if (ap != null)
-    {
-      ap.av.setFont(oldFont, true);
-      ap.av.setScaleProteinAsCdna(oldProteinScale);
-      ap.paintAlignment(true);
-      if (scaleAsCdna.isEnabled())
-      {
-        ap.av.setScaleProteinAsCdna(oldProteinScale);
-        ap.av.getCodingComplement().setScaleProteinAsCdna(oldProteinScale);
-      }
-    }
-    else if (tp != null)
+    if (isTreeFont())
     {
       tp.setTreeFont(oldFont);
     }
-    fontName.setSelectedItem(oldFont.getName());
-    fontSize.setSelectedItem(oldFont.getSize());
-    fontStyle.setSelectedIndex(oldFont.getStyle());
+    else if (ap != null)
+    {
+      ap.av.setFont(oldFont, true);
+      ap.av.setScaleProteinAsCdna(oldProteinScale);
+      ap.av.setProteinFontAsCdna(oldMirrorFont);
+      ap.av.antiAlias = oldSmoothFont;
+      ap.fontChanged();
+
+      if (scaleAsCdna.isVisible() && scaleAsCdna.isEnabled())
+      {
+        ap.av.getCodingComplement().setScaleProteinAsCdna(oldProteinScale);
+        ap.av.getCodingComplement().setProteinFontAsCdna(oldMirrorFont);
+        ((AlignViewport) ap.av
+                .getCodingComplement()).antiAlias = oldComplementSmooth;
+        ap.av.getCodingComplement().setFont(oldComplementFont, true);
+        SplitFrame splitFrame = (SplitFrame) ap.alignFrame
+                .getSplitViewContainer();
+        splitFrame.adjustLayout();
+        splitFrame.repaint();
+      }
+    }
 
     try
     {
@@ -224,6 +261,11 @@ public class FontChooser extends GFontChooser
     } catch (Exception ex)
     {
     }
+  }
+
+  private boolean isTreeFont()
+  {
+    return tp != null;
   }
 
   /**
@@ -250,12 +292,13 @@ public class FontChooser extends GFontChooser
     double iw = iBounds.getWidth();
     if (mw < 1 || iw < 1)
     {
-      String message = iBounds.getHeight() < 1 ? MessageManager
-              .getString("label.font_doesnt_have_letters_defined")
+      String message = iBounds.getHeight() < 1
+              ? MessageManager
+                      .getString("label.font_doesnt_have_letters_defined")
               : MessageManager.getString("label.font_too_small");
-      JOptionPane.showInternalMessageDialog(this, message,
+      JvOptionPane.showInternalMessageDialog(this, message,
               MessageManager.getString("label.invalid_font"),
-              JOptionPane.WARNING_MESSAGE);
+              JvOptionPane.WARNING_MESSAGE);
       /*
        * Restore the changed value - note this will reinvoke this method via the
        * ActionListener, but now validation should pass
@@ -264,8 +307,8 @@ public class FontChooser extends GFontChooser
       {
         fontSize.setSelectedItem(lastSelected.getSize());
       }
-      if (!lastSelected.getName().equals(
-              fontName.getSelectedItem().toString()))
+      if (!lastSelected.getName()
+              .equals(fontName.getSelectedItem().toString()))
       {
         fontName.setSelectedItem(lastSelected.getName());
       }
@@ -279,7 +322,7 @@ public class FontChooser extends GFontChooser
       }
       return;
     }
-    if (tp != null)
+    if (isTreeFont())
     {
       tp.setTreeFont(newFont);
     }
@@ -287,6 +330,24 @@ public class FontChooser extends GFontChooser
     {
       ap.av.setFont(newFont, true);
       ap.fontChanged();
+
+      /*
+       * adjust other half of split frame if present, whether or not same font or
+       * scale to cDNA is selected, because a font change may affect character
+       * width, and this is kept the same in both panels
+       */
+      if (fontAsCdna.isVisible())
+      {
+        if (fontAsCdna.isSelected())
+        {
+          ap.av.getCodingComplement().setFont(newFont, true);
+        }
+
+        SplitFrame splitFrame = (SplitFrame) ap.alignFrame
+                .getSplitViewContainer();
+        splitFrame.adjustLayout();
+        splitFrame.repaint();
+      }
     }
 
     monospaced.setSelected(mw == iw);
@@ -299,13 +360,10 @@ public class FontChooser extends GFontChooser
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Updates on change of selected font name
    */
   @Override
-  protected void fontName_actionPerformed(ActionEvent e)
+  protected void fontName_actionPerformed()
   {
     if (init)
     {
@@ -316,13 +374,10 @@ public class FontChooser extends GFontChooser
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Updates on change of selected font size
    */
   @Override
-  protected void fontSize_actionPerformed(ActionEvent e)
+  protected void fontSize_actionPerformed()
   {
     if (init)
     {
@@ -333,13 +388,10 @@ public class FontChooser extends GFontChooser
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Updates on change of selected font style
    */
   @Override
-  protected void fontStyle_actionPerformed(ActionEvent e)
+  protected void fontStyle_actionPerformed()
   {
     if (init)
     {
@@ -352,11 +404,9 @@ public class FontChooser extends GFontChooser
   /**
    * Make selected settings the defaults by storing them (via Cache class) in
    * the .jalview_properties file (the file is only written when Jalview exits)
-   * 
-   * @param e
    */
   @Override
-  public void defaultButton_actionPerformed(ActionEvent e)
+  public void defaultButton_actionPerformed()
   {
     Cache.setProperty("FONT_NAME", fontName.getSelectedItem().toString());
     Cache.setProperty("FONT_STYLE", fontStyle.getSelectedIndex() + "");
@@ -372,16 +422,37 @@ public class FontChooser extends GFontChooser
    * characters
    */
   @Override
-  protected void scaleAsCdna_actionPerformed(ActionEvent e)
+  protected void scaleAsCdna_actionPerformed()
   {
     ap.av.setScaleProteinAsCdna(scaleAsCdna.isSelected());
-    ap.av.getCodingComplement().setScaleProteinAsCdna(
-            scaleAsCdna.isSelected());
+    ap.av.getCodingComplement()
+            .setScaleProteinAsCdna(scaleAsCdna.isSelected());
     final SplitFrame splitFrame = (SplitFrame) ap.alignFrame
             .getSplitViewContainer();
     splitFrame.adjustLayout();
     splitFrame.repaint();
-    // ap.paintAlignment(true);
-    // TODO would like to repaint
+  }
+
+  /**
+   * Turn on/off mirroring of font across split frame. If turning on, also
+   * copies the current font across the split frame. If turning off, restores
+   * the other half of the split frame to its initial font.
+   */
+  @Override
+  protected void mirrorFonts_actionPerformed()
+  {
+    boolean selected = fontAsCdna.isSelected();
+    ap.av.setProteinFontAsCdna(selected);
+    ap.av.getCodingComplement().setProteinFontAsCdna(selected);
+
+    /*
+     * reset other half of split frame if turning option off
+     */
+    if (!selected)
+    {
+      ap.av.getCodingComplement().setFont(oldComplementFont, true);
+    }
+
+    changeFont();
   }
 }

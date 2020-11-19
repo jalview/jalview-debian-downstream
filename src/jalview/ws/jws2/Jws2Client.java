@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -67,7 +67,8 @@ public abstract class Jws2Client extends jalview.ws.WSClient
     this.preset = preset;
     if (preset != null)
     {
-      if (!((preset instanceof JabaPreset) || preset instanceof JabaWsParamSet))
+      if (!((preset instanceof JabaPreset)
+              || preset instanceof JabaWsParamSet))
       {
         /*
          * { this.preset = ((JabaPreset) preset).p; } else if (preset instanceof
@@ -78,9 +79,8 @@ public abstract class Jws2Client extends jalview.ws.WSClient
          * arguments. for (Argument opt : arguments) { newargs.add(opt); } }
          * paramset = newargs; } else {
          */
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_can_only_instantiate_jaba_param_sets"));
+        throw new Error(MessageManager.getString(
+                "error.implementation_error_can_only_instantiate_jaba_param_sets"));
       }
     }
     else
@@ -106,9 +106,10 @@ public abstract class Jws2Client extends jalview.ws.WSClient
         sh.paramStore = new JabaParamStore(sh,
                 Desktop.getUserParameterStore());
       }
-      WsJobParameters jobParams = (preset == null && paramset != null && paramset
-              .size() > 0) ? new WsJobParameters(null, sh, null, paramset)
-              : new WsJobParameters(sh, preset);
+      WsJobParameters jobParams = (preset == null && paramset != null
+              && paramset.size() > 0)
+                      ? new WsJobParameters(null, sh, null, paramset)
+                      : new WsJobParameters(sh, preset);
       if (adjustingExisting)
       {
         jobParams.setName(MessageManager
@@ -121,8 +122,9 @@ public abstract class Jws2Client extends jalview.ws.WSClient
       WsParamSetI prset = jobParams.getPreset();
       if (prset == null)
       {
-        paramset = jobParams.isServiceDefaults() ? null : JabaParamStore
-                .getJabafromJwsArgs(jobParams.getJobParams());
+        paramset = jobParams.isServiceDefaults() ? null
+                : JabaParamStore
+                        .getJabafromJwsArgs(jobParams.getJobParams());
         this.preset = null;
       }
       else
@@ -149,9 +151,11 @@ public abstract class Jws2Client extends jalview.ws.WSClient
     WsURL = serv.hosturl;
     if (!b)
     {
-      return new WebserviceInfo(WebServiceJobTitle, WebServiceJobTitle
-              + " using service hosted at " + serv.hosturl + "\n"
-              + (serv.description != null ? serv.description : ""), false);
+      return new WebserviceInfo(WebServiceJobTitle,
+              WebServiceJobTitle + " using service hosted at "
+                      + serv.hosturl + "\n"
+                      + (serv.description != null ? serv.description : ""),
+              false);
     }
     return null;
   }
@@ -220,7 +224,7 @@ public abstract class Jws2Client extends jalview.ws.WSClient
               removeCurrentAAConWorkerFor(aaui, alignFrame);
               buildCurrentAAConWorkerFor(aaui, alignFrame, service);
             }
-          }// );
+          } // );
         }
       }
     }
@@ -232,8 +236,8 @@ public abstract class Jws2Client extends jalview.ws.WSClient
       final JCheckBoxMenuItem aaConEnabled = new JCheckBoxMenuItem(
               aaui.getAAconToggle());
 
-      aaConEnabled.setToolTipText(JvSwingUtils.wrapTooltip(true,
-              aaui.getAAconToggleTooltip()));
+      aaConEnabled.setToolTipText(
+              JvSwingUtils.wrapTooltip(true, aaui.getAAconToggleTooltip()));
       aaConEnabled.addActionListener(new ActionListener()
       {
         @Override
@@ -255,7 +259,8 @@ public abstract class Jws2Client extends jalview.ws.WSClient
 
       });
       wsmenu.add(aaConEnabled);
-      final JMenuItem modifyParams = new JMenuItem(aaui.getAAeditSettings());
+      final JMenuItem modifyParams = new JMenuItem(
+              aaui.getAAeditSettings());
       modifyParams.setToolTipText(JvSwingUtils.wrapTooltip(true,
               aaui.getAAeditSettingsTooltip()));
       modifyParams.addActionListener(new ActionListener()
@@ -275,8 +280,9 @@ public abstract class Jws2Client extends jalview.ws.WSClient
         public void menuSelected(MenuEvent arg0)
         {
           // TODO: refactor to the implementing class.
-          if (alignFrame.getViewport().getAlignment().isNucleotide() ? aaui
-                  .isNa() : aaui.isPr())
+          if (alignFrame.getViewport().getAlignment().isNucleotide()
+                  ? aaui.isNa()
+                  : aaui.isPr())
           {
             aaConEnabled.setEnabled(true);
             modifyParams.setEnabled(true);
@@ -380,11 +386,11 @@ public abstract class Jws2Client extends jalview.ws.WSClient
   {
     if (service != null)
     {
-      if (!service.serviceType.toString().equals(
-              compbio.ws.client.Services.AAConWS.toString()))
+      if (!service.serviceType.toString()
+              .equals(compbio.ws.client.Services.AAConWS.toString()))
       {
-        Cache.log
-                .warn("Ignoring invalid preferred service for AACon calculations (service type was "
+        Cache.log.warn(
+                "Ignoring invalid preferred service for AACon calculations (service type was "
                         + service.serviceType + ")");
         service = null;
       }

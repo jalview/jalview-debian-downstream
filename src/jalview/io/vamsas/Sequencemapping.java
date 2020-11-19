@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -102,10 +102,8 @@ public class Sequencemapping extends Rangetype
     if (ds != null && sequenceMapping.is__stored_in_document()
             && sequenceMapping.getV_parent() != ds)
     {
-      jalview.bin.Cache.log
-              .warn("Probable IMPLEMENTATION ERROR: "
-                      + ds
-                      + " doesn't match the parent of the bound sequence mapping object.");
+      jalview.bin.Cache.log.warn("Probable IMPLEMENTATION ERROR: " + ds
+              + " doesn't match the parent of the bound sequence mapping object.");
     }
   }
 
@@ -152,8 +150,8 @@ public class Sequencemapping extends Rangetype
     SequenceType to = (SequenceType) getjv2vObj(jvto);
     if (to == null)
     {
-      jalview.bin.Cache.log
-              .warn("FIXME NONFATAL - do a second update: Ignoring Forward Reference to seuqence not yet bound to vamsas seuqence object");
+      jalview.bin.Cache.log.warn(
+              "FIXME NONFATAL - do a second update: Ignoring Forward Reference to seuqence not yet bound to vamsas seuqence object");
       return;
     }
     SequenceMapping sequenceMapping = new SequenceMapping();
@@ -183,8 +181,8 @@ public class Sequencemapping extends Rangetype
 
     if (!dnaToProt)
     {
-      jalview.bin.Cache.log
-              .warn("Ignoring Mapping - don't support protein to protein mapping in vamsas document yet.");
+      jalview.bin.Cache.log.warn(
+              "Ignoring Mapping - don't support protein to protein mapping in vamsas document yet.");
       return;
     }
     if (ds == null)
@@ -211,8 +209,8 @@ public class Sequencemapping extends Rangetype
               true);
     }
     ds.addSequenceMapping(sequenceMapping);
-    sequenceMapping.setProvenance(this
-            .dummyProvenance("user defined coding region translation")); // TODO:
+    sequenceMapping.setProvenance(
+            this.dummyProvenance("user defined coding region translation")); // TODO:
     // correctly
     // construct
     // provenance
@@ -223,8 +221,8 @@ public class Sequencemapping extends Rangetype
     // mapping
     bindjvvobj(mjvmapping.getMap(), sequenceMapping);
 
-    jalview.bin.Cache.log.debug("Successfully created mapping "
-            + sequenceMapping.getVorbaId());
+    jalview.bin.Cache.log.debug(
+            "Successfully created mapping " + sequenceMapping.getVorbaId());
   }
 
   // private void update(jalview.util.MapList mjvmapping,
@@ -244,8 +242,8 @@ public class Sequencemapping extends Rangetype
   private void update(jalview.datamodel.Mapping mjvmapping,
           SequenceMapping sequenceMapping)
   {
-    jalview.bin.Cache.log
-            .error("Not implemented: Jalview Update Sequence DBRef Mapping");
+    jalview.bin.Cache.log.error(
+            "Not implemented: Jalview Update Sequence DBRef Mapping");
   }
 
   /**
@@ -297,8 +295,8 @@ public class Sequencemapping extends Rangetype
     if (from == null || to == null)
     {
 
-      jalview.bin.Cache.log
-              .error("Probable Vamsas implementation error : unbound dataset sequences involved in a mapping are being parsed!");
+      jalview.bin.Cache.log.error(
+              "Probable Vamsas implementation error : unbound dataset sequences involved in a mapping are being parsed!");
       return;
     }
 
@@ -442,8 +440,9 @@ public class Sequencemapping extends Rangetype
             boolean smaptolocal2tm = (tmpnnl) ? smap.equals(tmp.getMap())
                     : false;
             // smap to maps from te.map to te.local
-            boolean smaptotemap2local = (tmpnnl) ? smapI.equals(fmp
-                    .getMap()) : false;
+            boolean smaptotemap2local = (tmpnnl)
+                    ? smapI.equals(fmp.getMap())
+                    : false;
             if (smapfromlocal2fe && smaptotemap2local)
             {
               // smap implies mapping from to to from

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -59,7 +59,7 @@ public class PDBFTSRestClient extends FTSRestClient
 
   private static FTSRestClientI instance = null;
 
-  public static final String PDB_SEARCH_ENDPOINT = "http://www.ebi.ac.uk/pdbe/search/pdb/select?";
+  public static final String PDB_SEARCH_ENDPOINT = "https://www.ebi.ac.uk/pdbe/search/pdb/select?";
 
   protected PDBFTSRestClient()
   {
@@ -82,9 +82,10 @@ public class PDBFTSRestClient extends FTSRestClient
       ClientConfig clientConfig = new DefaultClientConfig();
       Client client = Client.create(clientConfig);
 
-      String wantedFields = getDataColumnsFieldsAsCommaDelimitedString(pdbRestRequest
-              .getWantedFields());
-      int responseSize = (pdbRestRequest.getResponseSize() == 0) ? getDefaultResponsePageSize()
+      String wantedFields = getDataColumnsFieldsAsCommaDelimitedString(
+              pdbRestRequest.getWantedFields());
+      int responseSize = (pdbRestRequest.getResponseSize() == 0)
+              ? getDefaultResponsePageSize()
               : pdbRestRequest.getResponseSize();
       int offSet = pdbRestRequest.getOffSet();
       String sortParam = null;
@@ -108,11 +109,11 @@ public class PDBFTSRestClient extends FTSRestClient
         }
       }
 
-      String facetPivot = (pdbRestRequest.getFacetPivot() == null || pdbRestRequest
-              .getFacetPivot().isEmpty()) ? "" : pdbRestRequest
-              .getFacetPivot();
-      String facetPivotMinCount = String.valueOf(pdbRestRequest
-              .getFacetPivotMinCount());
+      String facetPivot = (pdbRestRequest.getFacetPivot() == null
+              || pdbRestRequest.getFacetPivot().isEmpty()) ? ""
+                      : pdbRestRequest.getFacetPivot();
+      String facetPivotMinCount = String
+              .valueOf(pdbRestRequest.getFacetPivotMinCount());
 
       String query = pdbRestRequest.getFieldToSearchBy()
               + pdbRestRequest.getSearchTerm()
@@ -143,18 +144,19 @@ public class PDBFTSRestClient extends FTSRestClient
                 .queryParam("q", query).queryParam("sort", sortParam);
       }
       // Execute the REST request
-      ClientResponse clientResponse = webResource.accept(
-              MediaType.APPLICATION_JSON).get(ClientResponse.class);
+      ClientResponse clientResponse = webResource
+              .accept(MediaType.APPLICATION_JSON).get(ClientResponse.class);
 
       // Get the JSON string from the response object
       String responseString = clientResponse.getEntity(String.class);
       // System.out.println("query >>>>>>> " + pdbRestRequest.toString());
 
       // Check the response status and report exception if one occurs
-      if (clientResponse.getStatus() != 200)
+      int responseStatus = clientResponse.getStatus();
+      if (responseStatus != 200)
       {
         String errorMessage = "";
-        if (clientResponse.getStatus() == 400)
+        if (responseStatus == 400)
         {
           errorMessage = parseJsonExceptionString(responseString);
           throw new Exception(errorMessage);
@@ -162,7 +164,7 @@ public class PDBFTSRestClient extends FTSRestClient
         else
         {
           errorMessage = getMessageByHTTPStatusCode(
-                  clientResponse.getStatus(), "PDB");
+                  responseStatus, "PDB");
           throw new Exception(errorMessage);
         }
       }
@@ -180,9 +182,8 @@ public class PDBFTSRestClient extends FTSRestClient
       if (exceptionMsg.contains("SocketException"))
       {
         // No internet connection
-        throw new Exception(
-                MessageManager
-                        .getString("exception.unable_to_detect_internet_connection"));
+        throw new Exception(MessageManager.getString(
+                "exception.unable_to_detect_internet_connection"));
       }
       else if (exceptionMsg.contains("UnknownHostException"))
       {
@@ -260,8 +261,8 @@ public class PDBFTSRestClient extends FTSRestClient
               .parse(pdbJsonResponseString);
 
       JSONObject pdbResponse = (JSONObject) jsonObj.get("response");
-      String queryTime = ((JSONObject) jsonObj.get("responseHeader")).get(
-              "QTime").toString();
+      String queryTime = ((JSONObject) jsonObj.get("responseHeader"))
+              .get("QTime").toString();
       int numFound = Integer
               .valueOf(pdbResponse.get("numFound").toString());
       if (numFound > 0)
@@ -298,8 +299,9 @@ public class PDBFTSRestClient extends FTSRestClient
     Collection<FTSDataColumnI> diplayFields = request.getWantedFields();
     SequenceI associatedSeq = request.getAssociatedSequence();
     int colCounter = 0;
-    summaryRowData = new Object[(associatedSeq != null) ? diplayFields
-            .size() + 1 : diplayFields.size()];
+    summaryRowData = new Object[(associatedSeq != null)
+            ? diplayFields.size() + 1
+            : diplayFields.size()];
     if (associatedSeq != null)
     {
       associatedSequence = associatedSeq;
@@ -325,10 +327,12 @@ public class PDBFTSRestClient extends FTSRestClient
         try
         {
           summaryRowData[colCounter++] = (field.getDataType()
-                  .getDataTypeClass() == Integer.class) ? Integer
-                  .valueOf(fieldData) : (field.getDataType()
-                  .getDataTypeClass() == Double.class) ? Double
-                  .valueOf(fieldData) : sanitiseData(fieldData);
+                  .getDataTypeClass() == Integer.class)
+                          ? Integer.valueOf(fieldData)
+                          : (field.getDataType()
+                                  .getDataTypeClass() == Double.class)
+                                          ? Double.valueOf(fieldData)
+                                          : sanitiseData(fieldData);
         } catch (Exception e)
         {
           e.printStackTrace();
@@ -418,8 +422,8 @@ public class PDBFTSRestClient extends FTSRestClient
             || allDefaultDisplayedStructureDataColumns.isEmpty())
     {
       allDefaultDisplayedStructureDataColumns = new ArrayList<FTSDataColumnI>();
-      allDefaultDisplayedStructureDataColumns.addAll(super
-              .getAllDefaultDisplayedFTSDataColumns());
+      allDefaultDisplayedStructureDataColumns
+              .addAll(super.getAllDefaultDisplayedFTSDataColumns());
     }
     return allDefaultDisplayedStructureDataColumns;
   }

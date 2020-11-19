@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -49,8 +49,9 @@ public class MappingOutputPojo
 
   public void setSeqName(String seqName)
   {
-    this.seqName = (seqName.length() > MAX_ID_LENGTH) ? seqName.substring(
-            0, MAX_ID_LENGTH) : seqName;
+    this.seqName = (seqName.length() > MAX_ID_LENGTH)
+            ? seqName.substring(0, MAX_ID_LENGTH)
+            : seqName;
   }
 
   public String getSeqResidue()
@@ -90,8 +91,9 @@ public class MappingOutputPojo
 
   public void setStrName(String strName)
   {
-    this.strName = (strName.length() > MAX_ID_LENGTH) ? strName.substring(
-            0, MAX_ID_LENGTH) : strName;
+    this.strName = (strName.length() > MAX_ID_LENGTH)
+            ? strName.substring(0, MAX_ID_LENGTH)
+            : strName;
   }
 
   public String getStrResidue()

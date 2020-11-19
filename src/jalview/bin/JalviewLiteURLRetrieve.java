@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,12 @@ package jalview.bin;
 
 import jalview.datamodel.AlignmentI;
 import jalview.io.AppletFormatAdapter;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormat;
+import jalview.io.FileFormatI;
+import jalview.io.FileFormats;
 import jalview.io.FileParse;
+import jalview.io.IdentifyFile;
 
 import java.applet.Applet;
 import java.io.InputStream;
@@ -45,6 +50,7 @@ public class JalviewLiteURLRetrieve extends Applet
    * 
    * @return void
    */
+  @Override
   public void init()
   {
     this.setSize(300, 200);
@@ -55,7 +61,7 @@ public class JalviewLiteURLRetrieve extends Applet
               .println("Specify a resource to read on the file parameter");
       return;
     }
-    String protocol = null;
+    DataSourceType protocol = null;
     try
     {
       System.out.println("Loading thread started with:\n>>file\n" + file
@@ -75,22 +81,22 @@ public class JalviewLiteURLRetrieve extends Applet
                 + (rtn ? "" : "not") + " located by classloader.");
         if (rtn)
         {
-          protocol = AppletFormatAdapter.CLASSLOADER;
+          protocol = DataSourceType.CLASSLOADER;
         }
 
       } catch (Exception ex)
       {
-        System.out.println("Exception checking resources: " + file + " "
-                + ex);
+        System.out.println(
+                "Exception checking resources: " + file + " " + ex);
       }
       if (file.indexOf("://") > -1)
       {
-        protocol = AppletFormatAdapter.URL;
+        protocol = DataSourceType.URL;
       }
       else
       {
         // skipping codebase prepend check.
-        protocol = AppletFormatAdapter.FILE;
+        protocol = DataSourceType.FILE;
       }
 
       System.out.println("Trying to get contents of resource:");
@@ -110,10 +116,11 @@ public class JalviewLiteURLRetrieve extends Applet
                 + " cannot be read with protocol==" + protocol);
         return;
       }
-      String format = getParameter("format");
-      if (format == null || format.length() == 0)
+      FileFormatI format = FileFormats.getInstance()
+              .forName(getParameter("format"));
+      if (format == null)
       {
-        format = new jalview.io.IdentifyFile().identify(file, protocol);
+        format = new IdentifyFile().identify(file, protocol);
         System.out.println("Format is " + format);
       }
       else
@@ -131,8 +138,8 @@ public class JalviewLiteURLRetrieve extends Applet
       }
       if (al != null)
       {
-        System.out.println(new AppletFormatAdapter().formatSequences(
-                "FASTA", al, false));
+        System.out.println(new AppletFormatAdapter()
+                .formatSequences(FileFormat.Fasta, al, false));
       }
     } catch (Exception e)
     {

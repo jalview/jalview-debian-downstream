@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,7 +24,7 @@ package jalview.io;
 import jalview.api.ComplexAlignFile;
 import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 
 import java.io.IOException;
@@ -44,7 +44,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
 
   private boolean showSeqFeatures;
 
-  private ColumnSelection columnSelection;
+  private HiddenColumns hiddenColumns;
 
   private SequenceI[] hiddenSequences;
 
@@ -60,9 +60,10 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
     super(source);
   }
 
-  public HtmlFile(String inFile, String type) throws IOException
+  public HtmlFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   @Override
@@ -110,7 +111,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
       this.showSeqFeatures = jsonFile.isShowSeqFeatures();
       this.globalColourScheme = jsonFile.getGlobalColourScheme();
       this.hiddenSequences = jsonFile.getHiddenSequences();
-      this.columnSelection = jsonFile.getColumnSelection();
+      this.hiddenColumns = jsonFile.getHiddenColumns();
       this.displayedFeatures = jsonFile.getDisplayedFeatures();
     } catch (Exception e)
     {
@@ -119,7 +120,7 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
   }
 
   @Override
-  public String print()
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     throw new UnsupportedOperationException(
             "Print method of HtmlFile is not supported!");
@@ -148,14 +149,14 @@ public class HtmlFile extends AlignFile implements ComplexAlignFile
   }
 
   @Override
-  public ColumnSelection getColumnSelection()
+  public HiddenColumns getHiddenColumns()
   {
-    return columnSelection;
+    return hiddenColumns;
   }
 
-  public void setColumnSelection(ColumnSelection columnSelection)
+  public void setHiddenColumns(HiddenColumns hidden)
   {
-    this.columnSelection = columnSelection;
+    this.hiddenColumns = hidden;
   }
 
   @Override

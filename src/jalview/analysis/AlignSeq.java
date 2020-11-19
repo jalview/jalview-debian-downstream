@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,13 +20,15 @@
  */
 package jalview.analysis;
 
+import jalview.analysis.scoremodels.PIDModel;
+import jalview.analysis.scoremodels.ScoreMatrix;
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.analysis.scoremodels.SimilarityParams;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Mapping;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.ScoreMatrix;
 import jalview.util.Comparison;
 import jalview.util.Format;
 import jalview.util.MapList;
@@ -34,6 +36,7 @@ import jalview.util.MessageManager;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,25 +50,27 @@ import java.util.StringTokenizer;
  */
 public class AlignSeq
 {
+  private static final int MAX_NAME_LENGTH = 30;
+
+  private static final int GAP_OPEN_COST = 120;
+
+  private static final int GAP_EXTEND_COST = 20;
+
+  private static final int GAP_INDEX = -1;
+
   public static final String PEP = "pep";
 
   public static final String DNA = "dna";
 
   private static final String NEWLINE = System.lineSeparator();
 
-  static String[] dna = { "A", "C", "G", "T", "-" };
+  float[][] score;
 
-  // "C", "T", "A", "G", "-"};
-  static String[] pep = { "A", "R", "N", "D", "C", "Q", "E", "G", "H", "I",
-      "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V", "B", "Z", "X", "-" };
+  float[][] E;
 
-  int[][] score;
+  float[][] F;
 
-  int[][] E;
-
-  int[][] F;
-
-  int[][] traceback;
+  int[][] traceback; // todo is this actually used?
 
   int[] seq1;
 
@@ -100,47 +105,33 @@ public class AlignSeq
   /** DOCUMENT ME!! */
   public int seq2start;
 
-  /** DOCUMENT ME!! */
   public int seq2end;
 
   int count;
 
-  /** DOCUMENT ME!! */
-  public int maxscore;
-
-  float pid;
+  public float maxscore;
 
   int prev = 0;
 
-  int gapOpen = 120;
-
-  int gapExtend = 20;
-
-  int[][] lookup = ResidueProperties.getBLOSUM62();
-
-  String[] intToStr = pep;
-
-  int defInt = 23;
-
   StringBuffer output = new StringBuffer();
 
-  String type;
+  String type; // AlignSeq.PEP or AlignSeq.DNA
 
-  private int[] charToInt;
+  private ScoreMatrix scoreMatrix;
 
   /**
    * Creates a new AlignSeq object.
    * 
    * @param s1
-   *          DOCUMENT ME!
+   *          first sequence for alignment
    * @param s2
-   *          DOCUMENT ME!
+   *          second sequence for alignment
    * @param type
-   *          DOCUMENT ME!
+   *          molecule type, either AlignSeq.PEP or AlignSeq.DNA
    */
   public AlignSeq(SequenceI s1, SequenceI s2, String type)
   {
-    SeqInit(s1, s1.getSequenceAsString(), s2, s2.getSequenceAsString(),
+    seqInit(s1, s1.getSequenceAsString(), s2, s2.getSequenceAsString(),
             type);
   }
 
@@ -157,7 +148,7 @@ public class AlignSeq
   public AlignSeq(SequenceI s1, String string1, SequenceI s2,
           String string2, String type)
   {
-    SeqInit(s1, string1.toUpperCase(), s2, string2.toUpperCase(), type);
+    seqInit(s1, string1.toUpperCase(), s2, string2.toUpperCase(), type);
   }
 
   /**
@@ -165,7 +156,7 @@ public class AlignSeq
    * 
    * @return DOCUMENT ME!
    */
-  public int getMaxScore()
+  public float getMaxScore()
   {
     return maxscore;
   }
@@ -261,26 +252,6 @@ public class AlignSeq
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public SequenceI getS1()
-  {
-    return s1;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public SequenceI getS2()
-  {
-    return s2;
-  }
-
-  /**
    * 
    * @return aligned instance of Seq 1
    */
@@ -289,8 +260,8 @@ public class AlignSeq
     SequenceI alSeq1 = new Sequence(s1.getName(), getAStr1());
     alSeq1.setStart(s1.getStart() + getSeq1Start() - 1);
     alSeq1.setEnd(s1.getStart() + getSeq1End() - 1);
-    alSeq1.setDatasetSequence(s1.getDatasetSequence() == null ? s1 : s1
-            .getDatasetSequence());
+    alSeq1.setDatasetSequence(
+            s1.getDatasetSequence() == null ? s1 : s1.getDatasetSequence());
     return alSeq1;
   }
 
@@ -303,8 +274,8 @@ public class AlignSeq
     SequenceI alSeq2 = new Sequence(s2.getName(), getAStr2());
     alSeq2.setStart(s2.getStart() + getSeq2Start() - 1);
     alSeq2.setEnd(s2.getStart() + getSeq2End() - 1);
-    alSeq2.setDatasetSequence(s2.getDatasetSequence() == null ? s2 : s2
-            .getDatasetSequence());
+    alSeq2.setDatasetSequence(
+            s2.getDatasetSequence() == null ? s2 : s2.getDatasetSequence());
     return alSeq2;
   }
 
@@ -322,36 +293,13 @@ public class AlignSeq
    * @param type
    *          DNA or PEPTIDE
    */
-  public void SeqInit(SequenceI s1, String string1, SequenceI s2,
+  public void seqInit(SequenceI s1, String string1, SequenceI s2,
           String string2, String type)
   {
     this.s1 = s1;
     this.s2 = s2;
     setDefaultParams(type);
-    SeqInit(string1, string2);
-  }
-
-  /**
-   * Construct score matrix for sequences with custom substitution matrix
-   * 
-   * @param s1
-   *          - sequence 1
-   * @param string1
-   *          - string to use for s1
-   * @param s2
-   *          - sequence 2
-   * @param string2
-   *          - string to use for s2
-   * @param scoreMatrix
-   *          - substitution matrix to use for alignment
-   */
-  public void SeqInit(SequenceI s1, String string1, SequenceI s2,
-          String string2, ScoreMatrix scoreMatrix)
-  {
-    this.s1 = s1;
-    this.s2 = s2;
-    setType(scoreMatrix.isDNA() ? AlignSeq.DNA : AlignSeq.PEP);
-    lookup = scoreMatrix.getMatrix();
+    seqInit(string1, string2);
   }
 
   /**
@@ -361,97 +309,44 @@ public class AlignSeq
    * @param string1
    * @param string2
    */
-  private void SeqInit(String string1, String string2)
+  private void seqInit(String string1, String string2)
   {
     s1str = extractGaps(jalview.util.Comparison.GapChars, string1);
     s2str = extractGaps(jalview.util.Comparison.GapChars, string2);
 
     if (s1str.length() == 0 || s2str.length() == 0)
     {
-      output.append("ALL GAPS: "
-              + (s1str.length() == 0 ? s1.getName() : " ")
-              + (s2str.length() == 0 ? s2.getName() : ""));
+      output.append(
+              "ALL GAPS: " + (s1str.length() == 0 ? s1.getName() : " ")
+                      + (s2str.length() == 0 ? s2.getName() : ""));
       return;
     }
 
-    // System.out.println("lookuip " + rt.freeMemory() + " "+ rt.totalMemory());
-    seq1 = new int[s1str.length()];
+    score = new float[s1str.length()][s2str.length()];
 
-    // System.out.println("seq1 " + rt.freeMemory() +" " + rt.totalMemory());
-    seq2 = new int[s2str.length()];
+    E = new float[s1str.length()][s2str.length()];
 
-    // System.out.println("seq2 " + rt.freeMemory() + " " + rt.totalMemory());
-    score = new int[s1str.length()][s2str.length()];
-
-    // System.out.println("score " + rt.freeMemory() + " " + rt.totalMemory());
-    E = new int[s1str.length()][s2str.length()];
-
-    // System.out.println("E " + rt.freeMemory() + " " + rt.totalMemory());
-    F = new int[s1str.length()][s2str.length()];
+    F = new float[s1str.length()][s2str.length()];
     traceback = new int[s1str.length()][s2str.length()];
 
-    // System.out.println("F " + rt.freeMemory() + " " + rt.totalMemory());
-    seq1 = stringToInt(s1str, type);
+    seq1 = indexEncode(s1str);
 
-    // System.out.println("seq1 " + rt.freeMemory() + " " + rt.totalMemory());
-    seq2 = stringToInt(s2str, type);
-
-    // System.out.println("Seq2 " + rt.freeMemory() + " " + rt.totalMemory());
-    // long tstart = System.currentTimeMillis();
-    // calcScoreMatrix();
-    // long tend = System.currentTimeMillis();
-    // System.out.println("Time take to calculate score matrix = " +
-    // (tend-tstart) + " ms");
-    // printScoreMatrix(score);
-    // System.out.println();
-    // printScoreMatrix(traceback);
-    // System.out.println();
-    // printScoreMatrix(E);
-    // System.out.println();
-    // /printScoreMatrix(F);
-    // System.out.println();
-    // tstart = System.currentTimeMillis();
-    // traceAlignment();
-    // tend = System.currentTimeMillis();
-    // System.out.println("Time take to traceback alignment = " + (tend-tstart)
-    // + " ms");
+    seq2 = indexEncode(s2str);
   }
 
-  private void setDefaultParams(String type)
+  private void setDefaultParams(String moleculeType)
   {
-    setType(type);
-
-    if (type.equals(AlignSeq.PEP))
-    {
-      lookup = ResidueProperties.getDefaultPeptideMatrix();
-    }
-    else if (type.equals(AlignSeq.DNA))
-    {
-      lookup = ResidueProperties.getDefaultDnaMatrix();
-    }
-  }
-
-  private void setType(String type2)
-  {
-    this.type = type2;
-    if (type.equals(AlignSeq.PEP))
-    {
-      intToStr = pep;
-      charToInt = ResidueProperties.aaIndex;
-      defInt = ResidueProperties.maxProteinIndex;
-    }
-    else if (type.equals(AlignSeq.DNA))
-    {
-      intToStr = dna;
-      charToInt = ResidueProperties.nucleotideIndex;
-      defInt = ResidueProperties.maxNucleotideIndex;
-    }
-    else
+    if (!PEP.equals(moleculeType) && !DNA.equals(moleculeType))
     {
       output.append("Wrong type = dna or pep only");
-      throw new Error(MessageManager.formatMessage(
-              "error.unknown_type_dna_or_pep", new String[] { type2 }));
+      throw new Error(MessageManager
+              .formatMessage("error.unknown_type_dna_or_pep", new String[]
+              { moleculeType }));
     }
+
+    type = moleculeType;
+    scoreMatrix = ScoreModels.getInstance()
+            .getDefaultModel(PEP.equals(type));
   }
 
   /**
@@ -460,7 +355,7 @@ public class AlignSeq
   public void traceAlignment()
   {
     // Find the maximum score along the rhs or bottom row
-    int max = -9999;
+    float max = -Float.MAX_VALUE;
 
     for (int i = 0; i < seq1.length; i++)
     {
@@ -482,11 +377,10 @@ public class AlignSeq
       }
     }
 
-    // System.out.println(maxi + " " + maxj + " " + score[maxi][maxj]);
     int i = maxi;
     int j = maxj;
     int trace;
-    maxscore = score[i][j] / 10;
+    maxscore = score[i][j] / 10f;
 
     seq1end = maxi + 1;
     seq2end = maxj + 1;
@@ -494,21 +388,17 @@ public class AlignSeq
     aseq1 = new int[seq1.length + seq2.length];
     aseq2 = new int[seq1.length + seq2.length];
 
+    StringBuilder sb1 = new StringBuilder(aseq1.length);
+    StringBuilder sb2 = new StringBuilder(aseq2.length);
+
     count = (seq1.length + seq2.length) - 1;
 
-    while ((i > 0) && (j > 0))
+    while (i > 0 && j > 0)
     {
-      if ((aseq1[count] != defInt) && (i >= 0))
-      {
-        aseq1[count] = seq1[i];
-        astr1 = s1str.charAt(i) + astr1;
-      }
-
-      if ((aseq2[count] != defInt) && (j > 0))
-      {
-        aseq2[count] = seq2[j];
-        astr2 = s2str.charAt(j) + astr2;
-      }
+      aseq1[count] = seq1[i];
+      sb1.append(s1str.charAt(i));
+      aseq2[count] = seq2[j];
+      sb2.append(s2str.charAt(j));
 
       trace = findTrace(i, j);
 
@@ -520,14 +410,14 @@ public class AlignSeq
       else if (trace == 1)
       {
         j--;
-        aseq1[count] = defInt;
-        astr1 = "-" + astr1.substring(1);
+        aseq1[count] = GAP_INDEX;
+        sb1.replace(sb1.length() - 1, sb1.length(), "-");
       }
       else if (trace == -1)
       {
         i--;
-        aseq2[count] = defInt;
-        astr2 = "-" + astr2.substring(1);
+        aseq2[count] = GAP_INDEX;
+        sb2.replace(sb2.length() - 1, sb2.length(), "-");
       }
 
       count--;
@@ -536,73 +426,81 @@ public class AlignSeq
     seq1start = i + 1;
     seq2start = j + 1;
 
-    if (aseq1[count] != defInt)
+    if (aseq1[count] != GAP_INDEX)
     {
       aseq1[count] = seq1[i];
-      astr1 = s1str.charAt(i) + astr1;
+      sb1.append(s1str.charAt(i));
     }
 
-    if (aseq2[count] != defInt)
+    if (aseq2[count] != GAP_INDEX)
     {
       aseq2[count] = seq2[j];
-      astr2 = s2str.charAt(j) + astr2;
+      sb2.append(s2str.charAt(j));
     }
+
+    /*
+     * we built the character strings backwards, so now
+     * reverse them to convert to sequence strings
+     */
+    astr1 = sb1.reverse().toString();
+    astr2 = sb2.reverse().toString();
   }
 
   /**
    * DOCUMENT ME!
    */
-  public void printAlignment(java.io.PrintStream os)
+  public void printAlignment(PrintStream os)
   {
     // TODO: Use original sequence characters rather than re-translated
     // characters in output
     // Find the biggest id length for formatting purposes
-    String s1id = s1.getName(), s2id = s2.getName();
-    int maxid = s1.getName().length();
-    if (s2.getName().length() > maxid)
+    String s1id = getAlignedSeq1().getDisplayId(true);
+    String s2id = getAlignedSeq2().getDisplayId(true);
+    int nameLength = Math.max(s1id.length(), s2id.length());
+    if (nameLength > MAX_NAME_LENGTH)
     {
-      maxid = s2.getName().length();
-    }
-    if (maxid > 30)
-    {
-      maxid = 30;
+      int truncateBy = nameLength - MAX_NAME_LENGTH;
+      nameLength = MAX_NAME_LENGTH;
       // JAL-527 - truncate the sequence ids
-      if (s1.getName().length() > maxid)
+      if (s1id.length() > nameLength)
       {
-        s1id = s1.getName().substring(0, 30);
+        int slashPos = s1id.lastIndexOf('/');
+        s1id = s1id.substring(0, slashPos - truncateBy)
+                + s1id.substring(slashPos);
       }
-      if (s2.getName().length() > maxid)
+      if (s2id.length() > nameLength)
       {
-        s2id = s2.getName().substring(0, 30);
+        int slashPos = s2id.lastIndexOf('/');
+        s2id = s2id.substring(0, slashPos - truncateBy)
+                + s2id.substring(slashPos);
       }
     }
-    int len = 72 - maxid - 1;
+    int len = 72 - nameLength - 1;
     int nochunks = ((aseq1.length - count) / len)
             + ((aseq1.length - count) % len > 0 ? 1 : 0);
-    pid = 0;
+    float pid = 0f;
 
     output.append("Score = ").append(score[maxi][maxj]).append(NEWLINE);
     output.append("Length of alignment = ")
             .append(String.valueOf(aseq1.length - count)).append(NEWLINE);
     output.append("Sequence ");
-    output.append(new Format("%" + maxid + "s").form(s1.getName()));
-    output.append(" :  ").append(String.valueOf(s1.getStart()))
-            .append(" - ").append(String.valueOf(s1.getEnd()));
+    Format nameFormat = new Format("%" + nameLength + "s");
+    output.append(nameFormat.form(s1id));
     output.append(" (Sequence length = ")
             .append(String.valueOf(s1str.length())).append(")")
             .append(NEWLINE);
     output.append("Sequence ");
-    output.append(new Format("%" + maxid + "s").form(s2.getName()));
-    output.append(" :  ").append(String.valueOf(s2.getStart()))
-            .append(" - ").append(String.valueOf(s2.getEnd()));
+    output.append(nameFormat.form(s2id));
     output.append(" (Sequence length = ")
             .append(String.valueOf(s2str.length())).append(")")
             .append(NEWLINE).append(NEWLINE);
 
+    ScoreMatrix pam250 = ScoreModels.getInstance().getPam250();
+
     for (int j = 0; j < nochunks; j++)
     {
       // Print the first aligned sequence
-      output.append(new Format("%" + (maxid) + "s").form(s1id)).append(" ");
+      output.append(nameFormat.form(s1id)).append(" ");
 
       for (int i = 0; i < len; i++)
       {
@@ -613,27 +511,29 @@ public class AlignSeq
       }
 
       output.append(NEWLINE);
-      output.append(new Format("%" + (maxid) + "s").form(" ")).append(" ");
+      output.append(nameFormat.form(" ")).append(" ");
 
-      // Print out the matching chars
+      /*
+       * Print out the match symbols:
+       * | for exact match (ignoring case)
+       * . if PAM250 score is positive
+       * else a space
+       */
       for (int i = 0; i < len; i++)
       {
         if ((i + (j * len)) < astr1.length())
         {
-          boolean sameChar = Comparison.isSameResidue(
-                  astr1.charAt(i + (j * len)), astr2.charAt(i + (j * len)),
-                  false);
-          if (sameChar
-                  && !jalview.util.Comparison.isGap(astr1.charAt(i
-                          + (j * len))))
+          char c1 = astr1.charAt(i + (j * len));
+          char c2 = astr2.charAt(i + (j * len));
+          boolean sameChar = Comparison.isSameResidue(c1, c2, false);
+          if (sameChar && !Comparison.isGap(c1))
           {
             pid++;
             output.append("|");
           }
-          else if (type.equals("pep"))
+          else if (PEP.equals(type))
           {
-            if (ResidueProperties.getPAM250(astr1.charAt(i + (j * len)),
-                    astr2.charAt(i + (j * len))) > 0)
+            if (pam250.getPairwiseScore(c1, c2) > 0)
             {
               output.append(".");
             }
@@ -651,8 +551,7 @@ public class AlignSeq
 
       // Now print the second aligned sequence
       output = output.append(NEWLINE);
-      output = output.append(new Format("%" + (maxid) + "s").form(s2id))
-              .append(" ");
+      output = output.append(nameFormat.form(s2id)).append(" ");
 
       for (int i = 0; i < len; i++)
       {
@@ -666,52 +565,13 @@ public class AlignSeq
     }
 
     pid = pid / (aseq1.length - count) * 100;
-    output = output.append(new Format("Percentage ID = %2.2f\n").form(pid));
+    output.append(new Format("Percentage ID = %3.2f\n").form(pid));
+    output.append(NEWLINE);
     try
     {
       os.print(output.toString());
     } catch (Exception ex)
     {
-    }
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param mat
-   *          DOCUMENT ME!
-   */
-  public void printScoreMatrix(int[][] mat)
-  {
-    int n = seq1.length;
-    int m = seq2.length;
-
-    for (int i = 0; i < n; i++)
-    {
-      // Print the top sequence
-      if (i == 0)
-      {
-        Format.print(System.out, "%8s", s2str.substring(0, 1));
-
-        for (int jj = 1; jj < m; jj++)
-        {
-          Format.print(System.out, "%5s", s2str.substring(jj, jj + 1));
-        }
-
-        System.out.println();
-      }
-
-      for (int j = 0; j < m; j++)
-      {
-        if (j == 0)
-        {
-          Format.print(System.out, "%3s", s1str.substring(i, i + 1));
-        }
-
-        Format.print(System.out, "%3d ", mat[i][j] / 10);
-      }
-
-      System.out.println();
     }
   }
 
@@ -728,7 +588,9 @@ public class AlignSeq
   public int findTrace(int i, int j)
   {
     int t = 0;
-    int max = score[i - 1][j - 1] + (lookup[seq1[i]][seq2[j]] * 10);
+    float pairwiseScore = scoreMatrix.getPairwiseScore(s1str.charAt(i),
+            s2str.charAt(j));
+    float max = score[i - 1][j - 1] + (pairwiseScore * 10);
 
     if (F[i][j] > max)
     {
@@ -772,18 +634,21 @@ public class AlignSeq
     int m = seq2.length;
 
     // top left hand element
-    score[0][0] = lookup[seq1[0]][seq2[0]] * 10;
-    E[0][0] = -gapExtend;
+    score[0][0] = scoreMatrix.getPairwiseScore(s1str.charAt(0),
+            s2str.charAt(0)) * 10;
+    E[0][0] = -GAP_EXTEND_COST;
     F[0][0] = 0;
 
     // Calculate the top row first
     for (int j = 1; j < m; j++)
     {
       // What should these values be? 0 maybe
-      E[0][j] = max(score[0][j - 1] - gapOpen, E[0][j - 1] - gapExtend);
-      F[0][j] = -gapExtend;
+      E[0][j] = max(score[0][j - 1] - GAP_OPEN_COST, E[0][j - 1] - GAP_EXTEND_COST);
+      F[0][j] = -GAP_EXTEND_COST;
 
-      score[0][j] = max(lookup[seq1[0]][seq2[j]] * 10, -gapOpen, -gapExtend);
+      float pairwiseScore = scoreMatrix.getPairwiseScore(s1str.charAt(0),
+              s2str.charAt(j));
+      score[0][j] = max(pairwiseScore * 10, -GAP_OPEN_COST, -GAP_EXTEND_COST);
 
       traceback[0][j] = 1;
     }
@@ -791,10 +656,12 @@ public class AlignSeq
     // Now do the left hand column
     for (int i = 1; i < n; i++)
     {
-      E[i][0] = -gapOpen;
-      F[i][0] = max(score[i - 1][0] - gapOpen, F[i - 1][0] - gapExtend);
+      E[i][0] = -GAP_OPEN_COST;
+      F[i][0] = max(score[i - 1][0] - GAP_OPEN_COST, F[i - 1][0] - GAP_EXTEND_COST);
 
-      score[i][0] = max(lookup[seq1[i]][seq2[0]] * 10, E[i][0], F[i][0]);
+      float pairwiseScore = scoreMatrix.getPairwiseScore(s1str.charAt(i),
+              s2str.charAt(0));
+      score[i][0] = max(pairwiseScore * 10, E[i][0], F[i][0]);
       traceback[i][0] = -1;
     }
 
@@ -803,11 +670,13 @@ public class AlignSeq
     {
       for (int j = 1; j < m; j++)
       {
-        E[i][j] = max(score[i][j - 1] - gapOpen, E[i][j - 1] - gapExtend);
-        F[i][j] = max(score[i - 1][j] - gapOpen, F[i - 1][j] - gapExtend);
+        E[i][j] = max(score[i][j - 1] - GAP_OPEN_COST, E[i][j - 1] - GAP_EXTEND_COST);
+        F[i][j] = max(score[i - 1][j] - GAP_OPEN_COST, F[i - 1][j] - GAP_EXTEND_COST);
 
-        score[i][j] = max(score[i - 1][j - 1]
-                + (lookup[seq1[i]][seq2[j]] * 10), E[i][j], F[i][j]);
+        float pairwiseScore = scoreMatrix.getPairwiseScore(s1str.charAt(i),
+                s2str.charAt(j));
+        score[i][j] = max(score[i - 1][j - 1] + (pairwiseScore * 10),
+                E[i][j], F[i][j]);
         traceback[i][j] = findTrace(i, j);
       }
     }
@@ -843,27 +712,27 @@ public class AlignSeq
   /**
    * DOCUMENT ME!
    * 
-   * @param i1
+   * @param f1
    *          DOCUMENT ME!
-   * @param i2
+   * @param f2
    *          DOCUMENT ME!
-   * @param i3
+   * @param f3
    *          DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  public int max(int i1, int i2, int i3)
+  private static float max(float f1, float f2, float f3)
   {
-    int max = i1;
+    float max = f1;
 
-    if (i2 > i1)
+    if (f2 > f1)
     {
-      max = i2;
+      max = f2;
     }
 
-    if (i3 > max)
+    if (f3 > max)
     {
-      max = i3;
+      max = f3;
     }
 
     return max;
@@ -872,65 +741,44 @@ public class AlignSeq
   /**
    * DOCUMENT ME!
    * 
-   * @param i1
+   * @param f1
    *          DOCUMENT ME!
-   * @param i2
+   * @param f2
    *          DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  public int max(int i1, int i2)
+  private static float max(float f1, float f2)
   {
-    int max = i1;
+    float max = f1;
 
-    if (i2 > i1)
+    if (f2 > f1)
     {
-      max = i2;
+      max = f2;
     }
 
     return max;
   }
 
   /**
-   * DOCUMENT ME!
+   * Converts the character string to an array of integers which are the
+   * corresponding indices to the characters in the score matrix
    * 
    * @param s
-   *          DOCUMENT ME!
-   * @param type
-   *          DOCUMENT ME!
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  public int[] stringToInt(String s, String type)
+  int[] indexEncode(String s)
   {
-    int[] seq1 = new int[s.length()];
+    int[] encoded = new int[s.length()];
 
     for (int i = 0; i < s.length(); i++)
     {
-      // String ss = s.substring(i, i + 1).toUpperCase();
       char c = s.charAt(i);
-      if ('a' <= c && c <= 'z')
-      {
-        // TO UPPERCASE !!!
-        c -= ('a' - 'A');
-      }
-
-      try
-      {
-        seq1[i] = charToInt[c]; // set accordingly from setType
-        if (seq1[i] < 0 || seq1[i] > defInt) // set from setType: 23 for
-                                             // peptides, or 4 for NA.
-        {
-          seq1[i] = defInt;
-        }
-
-      } catch (Exception e)
-      {
-        seq1[i] = defInt;
-      }
+      encoded[i] = scoreMatrix.getMatrixIndex(c);
     }
 
-    return seq1;
+    return encoded;
   }
 
   /**
@@ -950,7 +798,7 @@ public class AlignSeq
   public static void displayMatrix(Graphics g, int[][] mat, int n, int m,
           int psize)
   {
-    // TODO method dosen't seem to be referenced anywhere delete??
+    // TODO method doesn't seem to be referenced anywhere delete??
     int max = -1000;
     int min = 1000;
 
@@ -1014,7 +862,8 @@ public class AlignSeq
    */
   public jalview.datamodel.Mapping getMappingFromS1(boolean allowmismatch)
   {
-    ArrayList<Integer> as1 = new ArrayList<Integer>(), as2 = new ArrayList<Integer>();
+    ArrayList<Integer> as1 = new ArrayList<Integer>(),
+            as2 = new ArrayList<Integer>();
     int pdbpos = s2.getStart() + getSeq2Start() - 2;
     int alignpos = s1.getStart() + getSeq1Start() - 2;
     int lp2 = pdbpos - 3, lp1 = alignpos - 3;
@@ -1058,8 +907,8 @@ public class AlignSeq
     }
     // construct range pairs
 
-    int[] mapseq1 = new int[as1.size() + (lastmatch ? 1 : 0)], mapseq2 = new int[as2
-            .size() + (lastmatch ? 1 : 0)];
+    int[] mapseq1 = new int[as1.size() + (lastmatch ? 1 : 0)],
+            mapseq2 = new int[as2.size() + (lastmatch ? 1 : 0)];
     int i = 0;
     for (Integer ip : as1)
     {
@@ -1102,7 +951,8 @@ public class AlignSeq
           List<SequenceI> ochains, AlignmentI al, String dnaOrProtein,
           boolean removeOldAnnots)
   {
-    List<SequenceI> orig = new ArrayList<SequenceI>(), repl = new ArrayList<SequenceI>();
+    List<SequenceI> orig = new ArrayList<SequenceI>(),
+            repl = new ArrayList<SequenceI>();
     List<AlignSeq> aligs = new ArrayList<AlignSeq>();
     if (al != null && al.getHeight() > 0)
     {
@@ -1113,7 +963,7 @@ public class AlignSeq
       {
         SequenceI bestm = null;
         AlignSeq bestaseq = null;
-        int bestscore = 0;
+        float bestscore = 0;
         for (SequenceI msq : al.getSequences())
         {
           AlignSeq aseq = doGlobalNWAlignment(msq, sq, dnaOrProtein);
@@ -1124,8 +974,8 @@ public class AlignSeq
             bestm = msq;
           }
         }
-        System.out.println("Best Score for " + (matches.size() + 1) + " :"
-                + bestscore);
+        // System.out.println("Best Score for " + (matches.size() + 1) + " :"
+        // + bestscore);
         matches.add(bestm);
         aligns.add(bestaseq);
         al.deleteSequence(bestm);
@@ -1214,6 +1064,8 @@ public class AlignSeq
 
     // long start = System.currentTimeMillis();
 
+    SimilarityParams pidParams = new SimilarityParams(true, true, true,
+            true);
     float pid;
     String seqi, seqj;
     for (int i = 0; i < height; i++)
@@ -1254,7 +1106,7 @@ public class AlignSeq
             seqj = ug;
           }
         }
-        pid = Comparison.PID(seqi, seqj);
+        pid = (float) PIDModel.computePID(seqi, seqj, pidParams);
 
         // use real sequence length rather than string length
         if (lngth[j] < lngth[i])

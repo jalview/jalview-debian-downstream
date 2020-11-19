@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,8 +43,8 @@ import compbio.metadata.JobSubmissionException;
 import compbio.metadata.ResultNotAvailableException;
 import compbio.metadata.WrongParameterException;
 
-public abstract class JabawsMsaInterfaceAlignCalcWorker extends
-        AbstractJabaCalcWorker
+public abstract class JabawsMsaInterfaceAlignCalcWorker
+        extends AbstractJabaCalcWorker
 {
 
   @SuppressWarnings("unchecked")
@@ -59,7 +59,8 @@ public abstract class JabawsMsaInterfaceAlignCalcWorker extends
   }
 
   public JabawsMsaInterfaceAlignCalcWorker(Jws2Instance service,
-          AlignFrame alignFrame, WsParamSetI preset, List<Argument> paramset)
+          AlignFrame alignFrame, WsParamSetI preset,
+          List<Argument> paramset)
   {
     this(alignFrame.getCurrentView(), alignFrame.alignPanel);
     this.guiProgress = alignFrame;
@@ -129,10 +130,8 @@ public abstract class JabawsMsaInterfaceAlignCalcWorker extends
         rslt = msaservice.customAlign(seqs, getJabaArguments());
       } catch (WrongParameterException x)
       {
-        throw new JobSubmissionException(
-                MessageManager
-                        .getString("exception.jobsubmission_invalid_params_set"),
-                x);
+        throw new JobSubmissionException(MessageManager.getString(
+                "exception.jobsubmission_invalid_params_set"), x);
       }
     }
     return rslt;

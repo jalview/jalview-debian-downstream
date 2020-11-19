@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,6 +28,7 @@ import jalview.util.SparseCount;
 /**
  * A class to count occurrences of residues in a profile, optimised for speed
  * and memory footprint.
+ * 
  * @author gmcarstairs
  *
  */
@@ -447,8 +448,8 @@ public class ResidueCount
       {
         if (intCounts[i] == count)
         {
-          modal.append(isNucleotide ? NUCS.charAt(i - 1) : AAS
-                  .charAt(i - 1));
+          modal.append(
+                  isNucleotide ? NUCS.charAt(i - 1) : AAS.charAt(i - 1));
         }
       }
     }
@@ -458,8 +459,8 @@ public class ResidueCount
       {
         if (counts[i] == count)
         {
-          modal.append(isNucleotide ? NUCS.charAt(i - 1) : AAS
-                  .charAt(i - 1));
+          modal.append(
+                  isNucleotide ? NUCS.charAt(i - 1) : AAS.charAt(i - 1));
         }
       }
     }
@@ -492,7 +493,8 @@ public class ResidueCount
    * 
    * @return
    */
-  public int size() {
+  public int size()
+  {
     int size = 0;
     if (useIntCounts)
     {
@@ -546,8 +548,8 @@ public class ResidueCount
       {
         if (intCounts[i] > 0)
         {
-          char symbol = isNucleotide ? NUCS.charAt(i - 1) : AAS
-                  .charAt(i - 1);
+          char symbol = isNucleotide ? NUCS.charAt(i - 1)
+                  : AAS.charAt(i - 1);
           symbols[j] = symbol;
           values[j] = intCounts[i];
           j++;
@@ -560,8 +562,8 @@ public class ResidueCount
       {
         if (counts[i] > 0)
         {
-          char symbol = isNucleotide ? NUCS.charAt(i - 1) : AAS
-                  .charAt(i - 1);
+          char symbol = isNucleotide ? NUCS.charAt(i - 1)
+                  : AAS.charAt(i - 1);
           symbols[j] = symbol;
           values[j] = counts[i];
           j++;

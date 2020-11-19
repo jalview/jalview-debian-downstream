@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,6 +35,13 @@ public class BuildDetails implements BuildDetailsI
 
   }
 
+  /**
+   * update singleton Strings with these build details
+   * 
+   * @param version
+   * @param buildDate
+   * @param installation
+   */
   public BuildDetails(String version, String buildDate, String installation)
   {
     BuildDetails.version = version;
@@ -42,6 +49,7 @@ public class BuildDetails implements BuildDetailsI
     BuildDetails.installation = installation;
   }
 
+  @Override
   public String getBuildDate()
   {
     return buildDate;
@@ -52,6 +60,7 @@ public class BuildDetails implements BuildDetailsI
     BuildDetails.buildDate = buildDate;
   }
 
+  @Override
   public String getVersion()
   {
     return version;
@@ -62,6 +71,7 @@ public class BuildDetails implements BuildDetailsI
     BuildDetails.version = version;
   }
 
+  @Override
   public String getInstallation()
   {
     return installation;

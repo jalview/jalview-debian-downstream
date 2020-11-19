@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,12 +26,16 @@ import jalview.fts.api.FTSRestClientI;
 import jalview.fts.core.FTSRestRequest;
 import jalview.fts.core.FTSRestResponse;
 import jalview.fts.core.GFTSPanel;
+import jalview.gui.Help;
+import jalview.gui.Help.HelpId;
 import jalview.gui.SequenceFetcher;
 import jalview.util.MessageManager;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+
+import javax.help.HelpSetException;
 
 @SuppressWarnings("serial")
 public class UniprotFTSPanel extends GFTSPanel
@@ -40,23 +44,26 @@ public class UniprotFTSPanel extends GFTSPanel
   private static String defaultFTSFrameTitle = MessageManager
           .getString("label.uniprot_sequence_fetcher");
 
-  private String ftsFrameTitle = defaultFTSFrameTitle;
+  private static Map<String, Integer> tempUserPrefs = new HashMap<>();
 
-  private static Map<String, Integer> tempUserPrefs = new HashMap<String, Integer>();
+  private static final String UNIPROT_FTS_CACHE_KEY = "CACHE.UNIPROT_FTS";
 
-  public UniprotFTSPanel(SequenceFetcher seqFetcher)
+  private static final String UNIPROT_AUTOSEARCH = "FTS.UNIPROT.AUTOSEARCH";
+
+  public UniprotFTSPanel(SequenceFetcher fetcher)
   {
-    super();
+    super(fetcher);
     pageLimit = UniProtFTSRestClient.getInstance()
             .getDefaultResponsePageSize();
-    this.seqFetcher = seqFetcher;
-    this.progressIndicator = (seqFetcher == null) ? null : seqFetcher
-            .getProgressIndicator();
+    this.seqFetcher = fetcher;
+    this.progressIndicator = (fetcher == null) ? null
+            : fetcher.getProgressIndicator();
   }
 
   @Override
   public void searchAction(boolean isFreshSearch)
   {
+    mainFrame.requestFocusInWindow();
     if (isFreshSearch)
     {
       offSet = 0;
@@ -66,46 +73,43 @@ public class UniprotFTSPanel extends GFTSPanel
       @Override
       public void run()
       {
-        ftsFrameTitle = defaultFTSFrameTitle;
         reset();
-        if (getTypedText().length() > 0)
+        String searchInput = getTypedText();
+        if (searchInput.length() > 0)
         {
           setSearchInProgress(true);
           long startTime = System.currentTimeMillis();
-
+          searchInput = getTypedText();
           String searchTarget = ((FTSDataColumnI) cmb_searchTarget
                   .getSelectedItem()).getAltCode();
-
           wantedFields = UniProtFTSRestClient.getInstance()
                   .getAllDefaultDisplayedFTSDataColumns();
-          String searchTerm = decodeSearchTerm(txt_search.getText(),
-                  searchTarget);
+          String searchTerm = decodeSearchTerm(searchInput, searchTarget);
 
           FTSRestRequest request = new FTSRestRequest();
           request.setFieldToSearchBy(searchTarget);
           request.setSearchTerm(searchTerm);
           request.setOffSet(offSet);
           request.setWantedFields(wantedFields);
-          FTSRestClientI uniProtRestCleint = UniProtFTSRestClient
+          FTSRestClientI uniProtRestClient = UniProtFTSRestClient
                   .getInstance();
           FTSRestResponse resultList;
           try
           {
-            resultList = uniProtRestCleint.executeRequest(request);
+            resultList = uniProtRestClient.executeRequest(request);
           } catch (Exception e)
           {
-            e.printStackTrace();
             setErrorMessage(e.getMessage());
             checkForErrors();
+            setSearchInProgress(false);
             return;
           }
 
           if (resultList.getSearchSummary() != null
                   && resultList.getSearchSummary().size() > 0)
           {
-            getResultTable().setModel(
-                    FTSRestResponse.getTableModel(request,
-                            resultList.getSearchSummary()));
+            getResultTable().setModel(FTSRestResponse.getTableModel(request,
+                    resultList.getSearchSummary()));
             FTSRestResponse.configureTableColumn(getResultTable(),
                     wantedFields, tempUserPrefs);
             getResultTable().setVisible(true);
@@ -115,14 +119,12 @@ public class UniprotFTSPanel extends GFTSPanel
           totalResultSetCount = resultList.getNumberOfItemsFound();
           resultSetCount = resultList.getSearchSummary() == null ? 0
                   : resultList.getSearchSummary().size();
-          String result = (resultSetCount > 0) ? MessageManager
-                  .getString("label.results") : MessageManager
-                  .getString("label.result");
+          String result = (resultSetCount > 0)
+                  ? MessageManager.getString("label.results")
+                  : MessageManager.getString("label.result");
           if (isPaginationEnabled() && resultSetCount > 0)
           {
-            updateSearchFrameTitle(defaultFTSFrameTitle
-                    + " - "
-                    + result
+            updateSearchFrameTitle(defaultFTSFrameTitle + " - " + result
                     + " "
                     + totalNumberformatter.format((Number) (offSet + 1))
                     + " to "
@@ -130,8 +132,8 @@ public class UniprotFTSPanel extends GFTSPanel
                             .format((Number) (offSet + resultSetCount))
                     + " of "
                     + totalNumberformatter
-                            .format((Number) totalResultSetCount) + " "
-                    + " (" + (endTime - startTime) + " milli secs)");
+                            .format((Number) totalResultSetCount)
+                    + " " + " (" + (endTime - startTime) + " milli secs)");
           }
           else
           {
@@ -143,6 +145,7 @@ public class UniprotFTSPanel extends GFTSPanel
           refreshPaginatorState();
           updateSummaryTableSelections();
         }
+        txt_search.updateCache();
       }
     }.start();
 
@@ -186,12 +189,12 @@ public class UniprotFTSPanel extends GFTSPanel
   {
     disableActionButtons();
     StringBuilder selectedIds = new StringBuilder();
-    HashSet<String> selectedIdsSet = new HashSet<String>();
+    HashSet<String> selectedIdsSet = new HashSet<>();
     int primaryKeyColIndex = 0;
     try
     {
-      primaryKeyColIndex = getFTSRestClient().getPrimaryKeyColumIndex(
-              wantedFields, false);
+      primaryKeyColIndex = getFTSRestClient()
+              .getPrimaryKeyColumIndex(wantedFields, false);
     } catch (Exception e)
     {
       e.printStackTrace();
@@ -199,8 +202,8 @@ public class UniprotFTSPanel extends GFTSPanel
     int[] selectedRows = getResultTable().getSelectedRows();
     for (int summaryRow : selectedRows)
     {
-      String idStr = getResultTable().getValueAt(summaryRow,
-              primaryKeyColIndex).toString();
+      String idStr = getResultTable()
+              .getValueAt(summaryRow, primaryKeyColIndex).toString();
       selectedIdsSet.add(idStr);
     }
     selectedIdsSet.addAll(paginatorCart);
@@ -226,7 +229,7 @@ public class UniprotFTSPanel extends GFTSPanel
   @Override
   public String getFTSFrameTitle()
   {
-    return ftsFrameTitle;
+    return defaultFTSFrameTitle;
   }
 
   @Override
@@ -235,4 +238,27 @@ public class UniprotFTSPanel extends GFTSPanel
     return tempUserPrefs;
   }
 
+  @Override
+  public String getCacheKey()
+  {
+    return UNIPROT_FTS_CACHE_KEY;
+  }
+
+  @Override
+  public String getAutosearchPreference()
+  {
+    return UNIPROT_AUTOSEARCH;
+  }
+
+  @Override
+  protected void showHelp()
+  {
+    try
+    {
+      Help.showHelpWindow(HelpId.UniprotFts);
+    } catch (HelpSetException e1)
+    {
+      e1.printStackTrace();
+    }
+  }
 }

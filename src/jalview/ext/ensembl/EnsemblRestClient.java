@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.ext.ensembl;
 
-import jalview.io.FileParse;
 import jalview.util.StringUtils;
 
 import java.io.BufferedReader;
@@ -30,6 +29,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
@@ -40,8 +40,6 @@ import javax.ws.rs.HttpMethod;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-
-import com.stevesoft.pat.Regex;
 
 /**
  * Base class for Ensembl REST service clients
@@ -54,40 +52,39 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
 
   private static final int CONNECT_TIMEOUT_MS = 10 * 1000; // 10 seconds
 
+  private static final int MAX_RETRIES = 3;
+
+  private static final int HTTP_OK = 200;
+
+  private static final int HTTP_OVERLOAD = 429;
+
   /*
    * update these constants when Jalview has been checked / updated for
-   * changes to Ensembl REST API
+   * changes to Ensembl REST API, and updated JAL-3018
    * @see https://github.com/Ensembl/ensembl-rest/wiki/Change-log
    * @see http://rest.ensembl.org/info/rest?content-type=application/json
    */
-  private static final String LATEST_ENSEMBLGENOMES_REST_VERSION = "4.6";
+  private static final String LATEST_ENSEMBLGENOMES_REST_VERSION = "10.0";
 
-  private static final String LATEST_ENSEMBL_REST_VERSION = "4.7";
+  private static final String LATEST_ENSEMBL_REST_VERSION = "10.0";
 
   private static final String REST_CHANGE_LOG = "https://github.com/Ensembl/ensembl-rest/wiki/Change-log";
 
-  private static Map<String, EnsemblInfo> domainData;
-
-  // @see https://github.com/Ensembl/ensembl-rest/wiki/Output-formats
-  private static final String PING_URL = "http://rest.ensembl.org/info/ping.json";
+  private static Map<String, EnsemblData> domainData;
 
   private final static long AVAILABILITY_RETEST_INTERVAL = 10000L; // 10 seconds
 
   private final static long VERSION_RETEST_INTERVAL = 1000L * 3600; // 1 hr
 
-  private static final Regex TRANSCRIPT_REGEX = new Regex(
-          "(ENS)([A-Z]{3}|)T[0-9]{11}$");
-
-  private static final Regex GENE_REGEX = new Regex(
-          "(ENS)([A-Z]{3}|)G[0-9]{11}$");
+  protected static final String CONTENT_TYPE_JSON = "?content-type=application/json";
 
   static
   {
-    domainData = new HashMap<String, EnsemblInfo>();
-    domainData.put(ENSEMBL_REST, new EnsemblInfo(ENSEMBL_REST,
-            LATEST_ENSEMBL_REST_VERSION));
-    domainData.put(ENSEMBL_GENOMES_REST, new EnsemblInfo(
-            ENSEMBL_GENOMES_REST, LATEST_ENSEMBLGENOMES_REST_VERSION));
+    domainData = new HashMap<>();
+    domainData.put(DEFAULT_ENSEMBL_BASEURL,
+            new EnsemblData(DEFAULT_ENSEMBL_BASEURL, LATEST_ENSEMBL_REST_VERSION));
+    domainData.put(DEFAULT_ENSEMBL_GENOMES_BASEURL, new EnsemblData(
+            DEFAULT_ENSEMBL_GENOMES_BASEURL, LATEST_ENSEMBLGENOMES_REST_VERSION));
   }
 
   protected volatile boolean inProgress = false;
@@ -97,7 +94,21 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
    */
   public EnsemblRestClient()
   {
-    this(ENSEMBL_REST);
+    super();
+
+    /*
+     * initialise domain info lazily
+     */
+    if (!domainData.containsKey(ensemblDomain))
+    {
+      domainData.put(ensemblDomain,
+              new EnsemblData(ensemblDomain, LATEST_ENSEMBL_REST_VERSION));
+    }
+    if (!domainData.containsKey(ensemblGenomesDomain))
+    {
+      domainData.put(ensemblGenomesDomain, new EnsemblData(
+              ensemblGenomesDomain, LATEST_ENSEMBLGENOMES_REST_VERSION));
+    }
   }
 
   /**
@@ -108,30 +119,6 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
   public EnsemblRestClient(String d)
   {
     setDomain(d);
-  }
-
-  /**
-   * Answers true if the query matches the regular expression pattern for an
-   * Ensembl transcript stable identifier
-   * 
-   * @param query
-   * @return
-   */
-  public boolean isTranscriptIdentifier(String query)
-  {
-    return query == null ? false : TRANSCRIPT_REGEX.search(query);
-  }
-
-  /**
-   * Answers true if the query matches the regular expression pattern for an
-   * Ensembl gene stable identifier
-   * 
-   * @param query
-   * @return
-   */
-  public boolean isGeneIdentifier(String query)
-  {
-    return query == null ? false : GENE_REGEX.search(query);
   }
 
   @Override
@@ -164,22 +151,28 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
   protected abstract boolean useGetRequest();
 
   /**
-   * Return the desired value for the Content-Type request header
-   * 
-   * @param multipleIds
+   * Returns the desired value for the Content-Type request header. Default is
+   * application/json, override if required to vary this.
    * 
    * @return
    * @see https://github.com/Ensembl/ensembl-rest/wiki/HTTP-Headers
    */
-  protected abstract String getRequestMimeType(boolean multipleIds);
+  protected String getRequestMimeType()
+  {
+    return "application/json";
+  }
 
   /**
-   * Return the desired value for the Accept request header
+   * Return the desired value for the Accept request header. Default is
+   * application/json, override if required to vary this.
    * 
    * @return
    * @see https://github.com/Ensembl/ensembl-rest/wiki/HTTP-Headers
    */
-  protected abstract String getResponseMimeType();
+  protected String getResponseMimeType()
+  {
+    return "application/json";
+  }
 
   /**
    * Checks Ensembl's REST 'ping' endpoint, and returns true if response
@@ -188,29 +181,34 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
    * @see http://rest.ensembl.org/documentation/info/ping
    * @return
    */
-  private boolean checkEnsembl()
+  boolean checkEnsembl()
   {
     BufferedReader br = null;
+    String pingUrl = getDomain() + "/info/ping" + CONTENT_TYPE_JSON;
     try
     {
       // note this format works for both ensembl and ensemblgenomes
       // info/ping.json works for ensembl only (March 2016)
-      URL ping = new URL(getDomain()
-              + "/info/ping?content-type=application/json");
+      URL ping = new URL(pingUrl);
 
       /*
        * expect {"ping":1} if ok
        * if ping takes more than 2 seconds to respond, treat as if unavailable
        */
       br = getHttpResponse(ping, null, 2 * 1000);
+      if (br == null)
+      {
+        // error reponse status
+        return false;
+      }
       JSONParser jp = new JSONParser();
       JSONObject val = (JSONObject) jp.parse(br);
       String pingString = val.get("ping").toString();
       return pingString != null;
     } catch (Throwable t)
     {
-      System.err.println("Error connecting to " + PING_URL + ": "
-              + t.getMessage());
+      System.err.println(
+              "Error connecting to " + pingUrl + ": " + t.getMessage());
     } finally
     {
       if (br != null)
@@ -228,25 +226,20 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
   }
 
   /**
-   * returns a reader to a Fasta response from the Ensembl sequence endpoint
+   * Returns a reader to a (Json) response from the Ensembl sequence endpoint.
+   * If the request failed the return value may be null.
    * 
    * @param ids
    * @return
    * @throws IOException
    */
-  protected FileParse getSequenceReader(List<String> ids)
+  protected BufferedReader getSequenceReader(List<String> ids)
           throws IOException
   {
     URL url = getUrl(ids);
 
     BufferedReader reader = getHttpResponse(url, ids);
-    if (reader == null)
-    {
-      // request failed
-      return null;
-    }
-    FileParse fp = new FileParse(reader, url.toString(), "HTTP_POST");
-    return fp;
+    return reader;
   }
 
   /**
@@ -265,7 +258,8 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
   }
 
   /**
-   * Writes the HTTP request and gets the response as a reader.
+   * Sends the HTTP request and gets the response as a reader. Returns null if
+   * the HTTP response code was not 200.
    * 
    * @param url
    * @param ids
@@ -274,12 +268,60 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
    *          in milliseconds
    * @return
    * @throws IOException
-   *           if response code was not 200, or other I/O error
    */
   protected BufferedReader getHttpResponse(URL url, List<String> ids,
           int readTimeout) throws IOException
   {
-    // long now = System.currentTimeMillis();
+    int retriesLeft = MAX_RETRIES;
+    HttpURLConnection connection = null;
+    int responseCode = 0;
+
+    while (retriesLeft > 0)
+    {
+      connection = tryConnection(url, ids, readTimeout);
+      responseCode = connection.getResponseCode();
+      if (responseCode == HTTP_OVERLOAD) // 429
+      {
+        retriesLeft--;
+        checkRetryAfter(connection);
+      }
+      else
+      {
+        retriesLeft = 0;
+      }
+    }
+    if (responseCode != HTTP_OK) // 200
+    {
+      /*
+       * note: a GET request for an invalid id returns an error code e.g. 415
+       * but POST request returns 200 and an empty Fasta response 
+       */
+      System.err.println("Response code " + responseCode + " for " + url);
+      return null;
+    }
+
+    InputStream response = connection.getInputStream();
+
+    // System.out.println(getClass().getName() + " took "
+    // + (System.currentTimeMillis() - now) + "ms to fetch");
+
+    BufferedReader reader = null;
+    reader = new BufferedReader(new InputStreamReader(response, "UTF-8"));
+    return reader;
+  }
+
+  /**
+   * @param url
+   * @param ids
+   * @param readTimeout
+   * @return
+   * @throws IOException
+   * @throws ProtocolException
+   */
+  protected HttpURLConnection tryConnection(URL url, List<String> ids,
+          int readTimeout) throws IOException, ProtocolException
+  {
+    // System.out.println(System.currentTimeMillis() + " " + url);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
     /*
@@ -287,10 +329,9 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
      * sequence queries, but not for overlap
      */
     boolean multipleIds = ids != null && ids.size() > 1;
-    connection.setRequestMethod(multipleIds ? HttpMethod.POST
-            : HttpMethod.GET);
-    connection.setRequestProperty("Content-Type",
-            getRequestMimeType(multipleIds));
+    connection.setRequestMethod(
+            multipleIds ? HttpMethod.POST : HttpMethod.GET);
+    connection.setRequestProperty("Content-Type", getRequestMimeType());
     connection.setRequestProperty("Accept", getResponseMimeType());
 
     connection.setUseCaches(false);
@@ -304,76 +345,39 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
     {
       writePostBody(connection, ids);
     }
-
-    int responseCode = connection.getResponseCode();
-
-    if (responseCode != 200)
-    {
-      /*
-       * note: a GET request for an invalid id returns an error code e.g. 415
-       * but POST request returns 200 and an empty Fasta response 
-       */
-      System.err.println("Response code " + responseCode + " for " + url);
-      return null;
-    }
-    // get content
-    InputStream response = connection.getInputStream();
-
-    // System.out.println(getClass().getName() + " took "
-    // + (System.currentTimeMillis() - now) + "ms to fetch");
-
-    checkRateLimits(connection);
-
-    BufferedReader reader = null;
-    reader = new BufferedReader(new InputStreamReader(response, "UTF-8"));
-    return reader;
+    return connection;
   }
 
   /**
-   * Inspect response headers for any sign of server overload and respect any
-   * 'retry-after' directive
+   * Inspects response headers for a 'retry-after' directive, and waits for the
+   * directed period (if less than 10 seconds)
    * 
    * @see https://github.com/Ensembl/ensembl-rest/wiki/Rate-Limits
    * @param connection
    */
-  void checkRateLimits(HttpURLConnection connection)
+  void checkRetryAfter(HttpURLConnection connection)
   {
-    // number of requests allowed per time interval:
-    String limit = connection.getHeaderField("X-RateLimit-Limit");
-    // length of quota time interval in seconds:
-    // String period = connection.getHeaderField("X-RateLimit-Period");
-    // seconds remaining until usage quota is reset:
-    String reset = connection.getHeaderField("X-RateLimit-Reset");
-    // number of requests remaining from quota for current period:
-    String remaining = connection.getHeaderField("X-RateLimit-Remaining");
-    // number of seconds to wait before retrying (if remaining == 0)
     String retryDelay = connection.getHeaderField("Retry-After");
 
     // to test:
     // retryDelay = "5";
 
-    EnsemblInfo info = domainData.get(getDomain());
     if (retryDelay != null)
     {
-      System.err.println("Ensembl REST service rate limit exceeded, wait "
-              + retryDelay + " seconds before retrying");
       try
       {
-        info.retryAfter = System.currentTimeMillis()
-                + (1000 * Integer.valueOf(retryDelay));
-      } catch (NumberFormatException e)
+        int retrySecs = Integer.valueOf(retryDelay);
+        if (retrySecs > 0 && retrySecs < 10)
+        {
+          System.err
+                  .println("Ensembl REST service rate limit exceeded, waiting "
+                          + retryDelay + " seconds before retrying");
+          Thread.sleep(1000 * retrySecs);
+        }
+      } catch (NumberFormatException | InterruptedException e)
       {
-        System.err.println("Unexpected value for Retry-After: "
-                + retryDelay);
+        System.err.println("Error handling Retry-After: " + e.getMessage());
       }
-    }
-    else
-    {
-      info.retryAfter = 0;
-      // debug:
-      // System.out.println(String.format(
-      // "%s Ensembl requests remaining of %s (reset in %ss)",
-      // remaining, limit, reset));
     }
   }
 
@@ -387,28 +391,15 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
    */
   protected boolean isEnsemblAvailable()
   {
-    EnsemblInfo info = domainData.get(getDomain());
+    EnsemblData info = domainData.get(getDomain());
 
     long now = System.currentTimeMillis();
 
     /*
-     * check if we are waiting for 'Retry-After' to expire
-     */
-    if (info.retryAfter > now)
-    {
-      System.err.println("Still " + (1 + (info.retryAfter - now) / 1000)
-              + " secs to wait before retrying Ensembl");
-      return false;
-    }
-    else
-    {
-      info.retryAfter = 0;
-    }
-
-    /*
      * recheck if Ensembl is up if it was down, or the recheck period has elapsed
      */
-    boolean retestAvailability = (now - info.lastAvailableCheckTime) > AVAILABILITY_RETEST_INTERVAL;
+    boolean retestAvailability = (now
+            - info.lastAvailableCheckTime) > AVAILABILITY_RETEST_INTERVAL;
     if (!info.restAvailable || retestAvailability)
     {
       info.restAvailable = checkEnsembl();
@@ -418,7 +409,8 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
     /*
      * refetch Ensembl versions if the recheck period has elapsed
      */
-    boolean refetchVersion = (now - info.lastVersionCheckTime) > VERSION_RETEST_INTERVAL;
+    boolean refetchVersion = (now
+            - info.lastVersionCheckTime) > VERSION_RETEST_INTERVAL;
     if (refetchVersion)
     {
       checkEnsemblRestVersion();
@@ -459,7 +451,8 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
     byte[] thepostbody = postBody.toString().getBytes();
     connection.setRequestProperty("Content-Length",
             Integer.toString(thepostbody.length));
-    DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
+    DataOutputStream wr = new DataOutputStream(
+            connection.getOutputStream());
     wr.write(thepostbody);
     wr.flush();
     wr.close();
@@ -472,15 +465,18 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
    */
   private void checkEnsemblRestVersion()
   {
-    EnsemblInfo info = domainData.get(getDomain());
+    EnsemblData info = domainData.get(getDomain());
 
     JSONParser jp = new JSONParser();
     URL url = null;
     try
     {
-      url = new URL(getDomain()
-              + "/info/rest?content-type=application/json");
+      url = new URL(getDomain() + "/info/rest" + CONTENT_TYPE_JSON);
       BufferedReader br = getHttpResponse(url, null);
+      if (br == null)
+      {
+        return;
+      }
       JSONObject val = (JSONObject) jp.parse(br);
       String version = val.get("release").toString();
       String majorVersion = version.substring(0, version.indexOf("."));
@@ -509,18 +505,19 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
        * if so warn; we don't worry if it is earlier (this indicates Jalview has
        * been tested in advance against the next pending REST version)
        */
-      boolean laterVersion = StringUtils.compareVersions(version, expected) == 1;
+      boolean laterVersion = StringUtils.compareVersions(version,
+              expected) == 1;
       if (laterVersion)
       {
         System.err.println(String.format(
-                "Expected %s REST version %s but found %s, see %s",
+                "EnsemblRestClient expected %s REST version %s but found %s, see %s",
                 getDbSource(), expected, version, REST_CHANGE_LOG));
       }
       info.restVersion = version;
     } catch (Throwable t)
     {
-      System.err.println("Error checking Ensembl REST version: "
-              + t.getMessage());
+      System.err.println(
+              "Error checking Ensembl REST version: " + t.getMessage());
     }
   }
 
@@ -538,18 +535,35 @@ abstract class EnsemblRestClient extends EnsemblSequenceFetcher
   {
     JSONParser jp = new JSONParser();
     URL url = null;
+    BufferedReader br = null;
+
     try
     {
-      url = new URL(getDomain()
-              + "/info/data?content-type=application/json");
-      BufferedReader br = getHttpResponse(url, null);
-      JSONObject val = (JSONObject) jp.parse(br);
-      JSONArray versions = (JSONArray) val.get("releases");
-      domainData.get(getDomain()).dataVersion = versions.get(0).toString();
+      url = new URL(getDomain() + "/info/data" + CONTENT_TYPE_JSON);
+      br = getHttpResponse(url, null);
+      if (br != null)
+      {
+        JSONObject val = (JSONObject) jp.parse(br);
+        JSONArray versions = (JSONArray) val.get("releases");
+        domainData.get(getDomain()).dataVersion = versions.get(0)
+                .toString();
+      }
     } catch (Throwable t)
     {
-      System.err.println("Error checking Ensembl data version: "
-              + t.getMessage());
+      System.err.println(
+              "Error checking Ensembl data version: " + t.getMessage());
+    } finally
+    {
+      if (br != null)
+      {
+        try
+        {
+          br.close();
+        } catch (IOException e)
+        {
+          // ignore
+        }
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -79,21 +79,21 @@ public class IntegerParameter extends Option implements ParameterI
     min = parm.min;
   }
 
-  public IntegerParameter(String name, String description,
-          boolean required, int defValue, int min, int max)
+  public IntegerParameter(String name, String description, boolean required,
+          int defValue, int min, int max)
   {
-    super(name, description, required, String.valueOf(defValue), null,
-            null, null);
+    super(name, description, required, String.valueOf(defValue), null, null,
+            null);
     defval = defValue;
     this.min = min;
     this.max = max;
   }
 
-  public IntegerParameter(String name, String description,
-          boolean required, int defValue, int value, int min, int max)
+  public IntegerParameter(String name, String description, boolean required,
+          int defValue, int value, int min, int max)
   {
-    super(name, description, required, String.valueOf(defValue), String
-            .valueOf(value), null, null);
+    super(name, description, required, String.valueOf(defValue),
+            String.valueOf(value), null, null);
     defval = defValue;
     this.min = min;
     this.max = max;

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,20 +24,24 @@ import jalview.api.AlignExportSettingI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.api.FeatureSettingsModelI;
+import jalview.bin.Cache;
 import jalview.util.MessageManager;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.zip.GZIPInputStream;
+
 
 /**
  * implements a random access wrapper around a particular datasource, for
@@ -45,12 +49,17 @@ import java.util.zip.GZIPInputStream;
  */
 public class FileParse
 {
+  protected static final String SPACE = " ";
+
+  protected static final String TAB = "\t";
+
   /**
    * text specifying source of data. usually filename or url.
    */
   private String dataName = "unknown source";
 
   public File inFile = null;
+
 
   /**
    * a viewport associated with the current file operation. May be null. May
@@ -95,7 +104,7 @@ public class FileParse
    */
   protected String suffix = null;
 
-  protected String type = null;
+  protected DataSourceType dataSourceType = null;
 
   protected BufferedReader dataIn = null;
 
@@ -125,9 +134,8 @@ public class FileParse
   {
     if (from == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_null_fileparse"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_null_fileparse"));
     }
     if (from == this)
     {
@@ -139,7 +147,7 @@ public class FileParse
     suffix = from.suffix;
     errormessage = from.errormessage; // inherit potential error messages
     error = false; // reset any error condition.
-    type = from.type;
+    dataSourceType = from.dataSourceType;
     dataIn = from.dataIn;
     if (dataIn != null)
     {
@@ -179,79 +187,169 @@ public class FileParse
     }
     if (!error)
     {
-      if (fileStr.toLowerCase().endsWith(".gz"))
+      try
       {
-        try
-        {
-          dataIn = tryAsGzipSource(new FileInputStream(fileStr));
-          dataName = fileStr;
-          return error;
-        } catch (Exception x)
-        {
-          warningMessage = "Failed  to resolve as a GZ stream ("
-                  + x.getMessage() + ")";
-          // x.printStackTrace();
-        }
-        ;
+        dataIn = checkForGzipStream(new FileInputStream(fileStr));
+        dataName = fileStr;
+      } catch (Exception x)
+      {
+        warningMessage = "Failed to resolve " + fileStr
+                + " as a data source. (" + x.getMessage() + ")";
+        // x.printStackTrace();
+        error = true;
       }
-
-      dataIn = new BufferedReader(new FileReader(fileStr));
-      dataName = fileStr;
+      ;
     }
     return error;
   }
 
-  private BufferedReader tryAsGzipSource(InputStream inputStream)
+  /**
+   * Recognise the 2-byte magic header indicating a gzipped stream
+   * 
+   * see
+   * https://recalll.co/ask/v/topic/java-How-to-check-if-InputStream-is-Gzipped/555aadd62bd27354438b90f6
+   * 
+   * @param input
+   *          - input stream that supports mark and contains at least two bytes
+   * 
+   * @return false if mark not supported or no magic header found
+   *
+   * @throws IOException
+   */
+  public static boolean isGzipStream(InputStream input) throws IOException
+  {
+    if (!input.markSupported())
+    {
+      Cache.log.error(
+              "FileParse.izGzipStream: input stream must support mark/reset");
+      return false;
+    }
+    input.mark(4);
+
+    // get first 2 bytes or return false
+    byte[] bytes = new byte[2];
+    int read = input.read(bytes);
+    input.reset();
+    if (read != bytes.length)
+    {
+      return false;
+    }
+
+    int header = (bytes[0] & 0xff) | ((bytes[1] << 8) & 0xff00);
+    return (GZIPInputStream.GZIP_MAGIC == header);
+  }
+
+  /**
+   * Returns a Reader for the given input after wrapping it in a buffered input
+   * stream, and then checking if it needs to be wrapped by a GZipInputStream
+   * 
+   * @param input
+   * @return
+   */
+  private BufferedReader checkForGzipStream(InputStream input) throws Exception {
+
+    // NB: stackoverflow https://stackoverflow.com/questions/4818468/how-to-check-if-inputstream-is-gzipped
+    // could use a PushBackInputStream rather than a BufferedInputStream
+        
+    if (!input.markSupported()) {
+       input = new BufferedInputStream(input,16);
+    }
+    if (isGzipStream(input)) {
+      return getGzipReader(input);
+    }
+    // return a buffered reader for the stream.
+    InputStreamReader isReader= new InputStreamReader(input);
+    BufferedReader toReadFrom=new BufferedReader(isReader);
+    return toReadFrom;
+  }
+  /**
+   * Returns a {@code BufferedReader} which wraps the input stream with a
+   * GZIPInputStream. Throws a {@code ZipException} if a GZIP format error
+   * occurs or the compression method used is unsupported.
+   * 
+   * @param inputStream
+   * @return
+   * @throws Exception
+   */
+  private BufferedReader getGzipReader(InputStream inputStream)
           throws Exception
   {
-    BufferedReader inData = new BufferedReader(new InputStreamReader(
-            new GZIPInputStream(inputStream)));
+    BufferedReader inData = new BufferedReader(
+            new InputStreamReader(new GZIPInputStream(inputStream)));
     inData.mark(2048);
     inData.read();
     inData.reset();
     return inData;
   }
 
-  private boolean checkURLSource(String fileStr) throws IOException,
-          MalformedURLException
+  /**
+   * Tries to read from the given URL. If successful, saves a reader to the
+   * response in field {@code dataIn}, otherwise (on exception, or HTTP response
+   * status not 200), throws an exception.
+   * <p>
+   * If the response status includes
+   * 
+   * <pre>
+   * Content-Type : application/x-gzip
+   * </pre>
+   * 
+   * then tries to read as gzipped content.
+   * 
+   * @param urlStr
+   * @throws IOException
+   * @throws MalformedURLException
+   */
+  private void checkURLSource(String urlStr)
+          throws IOException, MalformedURLException
   {
     errormessage = "URL NOT FOUND";
-    URL url = new URL(fileStr);
-    //
-    // GZIPInputStream code borrowed from Aquaria (soon to be open sourced) via
-    // Kenny Sabir
+    URL url = new URL(urlStr);
+    URLConnection _conn = url.openConnection();
+    if (_conn instanceof HttpURLConnection)
+    {
+      HttpURLConnection conn = (HttpURLConnection) _conn;
+      int rc = conn.getResponseCode();
+      if (rc != HttpURLConnection.HTTP_OK)
+      {
+        throw new IOException(
+                "Response status from " + urlStr + " was " + rc);
+      }
+    } else {
+      try {
+      dataIn = checkForGzipStream(_conn.getInputStream());
+      dataName=urlStr;
+      } catch (IOException ex)
+      {
+        throw new IOException("Failed to handle non-HTTP URI stream",ex);
+      } catch (Exception ex)
+      {
+        throw new IOException("Failed to determine type of input stream for given URI",ex);
+      }
+      return;
+    }
+    String encoding = _conn.getContentEncoding();
+    String contentType = _conn.getContentType();
+    boolean isgzipped = "application/x-gzip".equalsIgnoreCase(contentType)
+            || "gzip".equals(encoding);
     Exception e = null;
-    if (fileStr.toLowerCase().endsWith(".gz"))
+    InputStream inputStream = _conn.getInputStream();
+    if (isgzipped)
     {
       try
       {
-        InputStream inputStream = url.openStream();
-        dataIn = tryAsGzipSource(inputStream);
-        dataName = fileStr;
-        return false;
-      } catch (Exception ex)
+        dataIn = getGzipReader(inputStream);
+        dataName = urlStr;
+      } catch (Exception e1)
       {
-        e = ex;
+        throw new IOException(MessageManager
+                .getString("exception.failed_to_resolve_gzip_stream"), e);
       }
+      return;
     }
 
-    try
-    {
-      dataIn = new BufferedReader(new InputStreamReader(url.openStream()));
-    } catch (IOException q)
-    {
-      if (e != null)
-      {
-        throw new IOException(
-                MessageManager
-                        .getString("exception.failed_to_resolve_gzip_stream"),
-                e);
-      }
-      throw q;
-    }
-    // record URL as name of datasource.
-    dataName = fileStr;
-    return false;
+    dataIn = new BufferedReader(new InputStreamReader(inputStream));
+    dataName = urlStr;
+    return;
   }
 
   /**
@@ -279,9 +377,9 @@ public class FileParse
    * configurable values for the origin and the type of the source
    */
   public FileParse(BufferedReader source, String originString,
-          String typeString)
+          DataSourceType sourceType)
   {
-    type = typeString;
+    dataSourceType = sourceType;
     error = false;
     inFile = null;
     dataName = originString;
@@ -304,18 +402,18 @@ public class FileParse
    * 
    * @param fileStr
    *          - datasource locator/content
-   * @param type
+   * @param sourceType
    *          - protocol of source
    * @throws MalformedURLException
    * @throws IOException
    */
-  public FileParse(String fileStr, String type)
+  public FileParse(String fileStr, DataSourceType sourceType)
           throws MalformedURLException, IOException
   {
-    this.type = type;
+    this.dataSourceType = sourceType;
     error = false;
 
-    if (type.equals(AppletFormatAdapter.FILE))
+    if (sourceType == DataSourceType.FILE)
     {
       if (checkFileSource(fileStr))
       {
@@ -326,19 +424,19 @@ public class FileParse
           {
             throw new IOException(MessageManager.formatMessage(
                     "exception.problem_opening_file_also_tried",
-                    new String[] { inFile.getName(), suffixLess,
-                        errormessage }));
+                    new String[]
+                    { inFile.getName(), suffixLess, errormessage }));
           }
         }
         else
         {
           throw new IOException(MessageManager.formatMessage(
-                  "exception.problem_opening_file",
-                  new String[] { inFile.getName(), errormessage }));
+                  "exception.problem_opening_file", new String[]
+                  { inFile.getName(), errormessage }));
         }
       }
     }
-    else if (type.equals(AppletFormatAdapter.URL))
+    else if (sourceType == DataSourceType.URL)
     {
       try
       {
@@ -375,13 +473,13 @@ public class FileParse
         error = true;
       }
     }
-    else if (type.equals(AppletFormatAdapter.PASTE))
+    else if (sourceType == DataSourceType.PASTE)
     {
       errormessage = "PASTE INACCESSIBLE!";
       dataIn = new BufferedReader(new StringReader(fileStr));
       dataName = "Paste";
     }
-    else if (type.equals(AppletFormatAdapter.CLASSLOADER))
+    else if (sourceType == DataSourceType.CLASSLOADER)
     {
       errormessage = "RESOURCE CANNOT BE LOCATED";
       java.io.InputStream is = getClass()
@@ -407,15 +505,15 @@ public class FileParse
     else
     {
       errormessage = "PROBABLE IMPLEMENTATION ERROR : Datasource Type given as '"
-              + (type != null ? type : "null") + "'";
+              + (sourceType != null ? sourceType : "null") + "'";
       error = true;
     }
     if (dataIn == null || error)
     {
       // pass up the reason why we have no source to read from
       throw new IOException(MessageManager.formatMessage(
-              "exception.failed_to_read_data_from_source",
-              new String[] { errormessage }));
+              "exception.failed_to_read_data_from_source", new String[]
+              { errormessage }));
     }
     error = false;
     dataIn.mark(READAHEAD_LIMIT);
@@ -446,9 +544,9 @@ public class FileParse
     {
       return dataIn.readLine();
     }
-    throw new IOException(MessageManager.formatMessage(
-            "exception.invalid_source_stream",
-            new String[] { errormessage }));
+    throw new IOException(MessageManager
+            .formatMessage("exception.invalid_source_stream", new String[]
+            { errormessage }));
   }
 
   /**
@@ -501,9 +599,8 @@ public class FileParse
     }
     else
     {
-      throw new IOException(
-              MessageManager
-                      .getString("error.implementation_error_reset_called_for_invalid_source"));
+      throw new IOException(MessageManager.getString(
+              "error.implementation_error_reset_called_for_invalid_source"));
     }
   }
 
@@ -624,5 +721,10 @@ public class FileParse
   public FeatureSettingsModelI getFeatureColourScheme()
   {
     return null;
+  }
+
+  public DataSourceType getDataSourceType()
+  {
+    return dataSourceType;
   }
 }

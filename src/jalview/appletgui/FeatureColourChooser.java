@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -42,63 +42,100 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.util.Hashtable;
 
 public class FeatureColourChooser extends Panel implements ActionListener,
         AdjustmentListener, ItemListener, MouseListener
 {
-  JVDialog frame;
+  /*
+   * the absolute min-max range of a feature score is scaled to 
+   * 1000 positions on the colour threshold slider
+   */
+  private static final int SCALE_FACTOR_1K = 1000;
 
-  Frame owner;
+  private static final String COLON = ":";
 
-  FeatureRenderer fr;
+  private JVDialog frame;
 
-  FeatureSettings fs = null;
+  private Frame owner;
 
-  // AlignmentPanel ap;
+  private FeatureRenderer fr;
 
-  FeatureColourI cs;
+  private FeatureSettings fs = null;
 
-  FeatureColourI oldcs;
+  private FeatureColourI cs;
 
-  Hashtable oldgroupColours;
+  private FeatureColourI oldcs;
 
-  boolean adjusting = false;
+  private boolean adjusting = false;
 
   private float min, max;
 
-  String type = null;
+  private String type = null;
 
   private AlignFrame af = null;
 
-  public FeatureColourChooser(AlignFrame af, String type)
+  private Panel minColour = new Panel();
+
+  private Panel maxColour = new Panel();
+
+  private Choice threshold = new Choice();
+
+  private Scrollbar slider = new Scrollbar(Scrollbar.HORIZONTAL);
+
+  private TextField thresholdValue = new TextField(20);
+
+  private Checkbox thresholdIsMin = new Checkbox();
+
+  private Checkbox colourFromLabel = new Checkbox();
+
+  private GraphLine threshline;
+
+  /**
+   * Constructor given a context AlignFrame and a feature type. This is used
+   * when opening the graduated colour dialog from the Amend Feature dialog.
+   * 
+   * @param alignFrame
+   * @param featureType
+   */
+  public FeatureColourChooser(AlignFrame alignFrame, String featureType)
   {
-    this.af = af;
-    init(af.getSeqcanvas().getFeatureRenderer(), type);
+    this.af = alignFrame;
+    init(alignFrame.getSeqcanvas().getFeatureRenderer(), featureType);
   }
 
-  public FeatureColourChooser(FeatureSettings fsettings, String type)
+  /**
+   * Constructor given a context FeatureSettings and a feature type. This is
+   * used when opening the graduated colour dialog from Feature Settings.
+   * 
+   * @param fsettings
+   * @param featureType
+   */
+  public FeatureColourChooser(FeatureSettings fsettings, String featureType)
   {
     this.fs = fsettings;
-    init(fsettings.fr, type);
-    // this.ap = fsettings.ap;
+    init(fsettings.fr, featureType);
   }
 
-  private void init(FeatureRenderer frenderer, String type)
+  private void init(FeatureRenderer frenderer, String featureType)
   {
-    this.type = type;
+    this.type = featureType;
     fr = frenderer;
     float mm[] = fr.getMinMax().get(type)[0];
     min = mm[0];
     max = mm[1];
+    threshline = new GraphLine((max - min) / 2f, "Threshold", Color.black);
     oldcs = fr.getFeatureColours().get(type);
     if (oldcs.isGraduatedColour())
     {
-      cs = new FeatureColour((FeatureColour) oldcs, min, max);
+      threshline.value = oldcs.getThreshold();
+      cs = new FeatureColour(oldcs.getColour(), oldcs.getMinColour(),
+              oldcs.getMaxColour(), oldcs.getNoColour(), min, max);
     }
     else
     {
@@ -109,7 +146,8 @@ public class FeatureColourChooser extends Panel implements ActionListener,
         bl = oldcs.getColour();
       }
       // original colour becomes the maximum colour
-      cs = new FeatureColour(Color.white, bl, mm[0], mm[1]);
+      cs = new FeatureColour(bl, Color.white, bl, Color.white, mm[0],
+              mm[1]);
     }
     minColour.setBackground(cs.getMinColour());
     maxColour.setBackground(cs.getMaxColour());
@@ -124,30 +162,29 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     } catch (Exception ex)
     {
     }
-    threshold.select(cs.isAboveThreshold() ? 1 : (cs.isBelowThreshold() ? 2
-            : 0));
+    threshold.select(
+            cs.isAboveThreshold() ? 1 : (cs.isBelowThreshold() ? 2 : 0));
 
     adjusting = false;
-    changeColour();
+    changeColour(true);
     colourFromLabel.addItemListener(this);
     slider.addAdjustmentListener(this);
     slider.addMouseListener(this);
     owner = (af != null) ? af : fs.frame;
     frame = new JVDialog(owner, MessageManager.formatMessage(
-            "label.graduated_color_for_params", new String[] { type }),
-            true, 480, 248);
+            "label.variable_color_for", new String[] { type }), true, 480,
+            248);
     frame.setMainPanel(this);
     validate();
     frame.setVisible(true);
     if (frame.accept)
     {
-      changeColour();
+      changeColour(true);
     }
     else
     {
       // cancel
       reset();
-      PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
       frame.setVisible(false);
     }
   }
@@ -165,8 +202,10 @@ public class FeatureColourChooser extends Panel implements ActionListener,
 
   private void jbInit() throws Exception
   {
-    Label minLabel = new Label(MessageManager.getString("label.min")), maxLabel = new Label(
-            MessageManager.getString("label.max"));
+    Label minLabel = new Label(
+            MessageManager.getString("label.min_value") + COLON);
+    Label maxLabel = new Label(
+            MessageManager.getString("label.max_value") + COLON);
     minLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
     maxLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
     // minColour.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
@@ -182,9 +221,13 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     thresholdIsMin.addItemListener(this);
 
     this.setLayout(new GridLayout(4, 1));
+    Panel jPanel1 = new Panel();
     jPanel1.setLayout(new FlowLayout());
+    Panel jPanel2 = new Panel();
     jPanel2.setLayout(new FlowLayout());
+    Panel jPanel3 = new Panel();
     jPanel3.setLayout(new GridLayout(1, 1));
+    Panel jPanel4 = new Panel();
     jPanel4.setLayout(new FlowLayout());
     jPanel1.setBackground(Color.white);
     jPanel2.setBackground(Color.white);
@@ -197,6 +240,14 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     threshold.addItem(MessageManager
             .getString("label.threshold_feature_below_threshold"));
     thresholdValue.addActionListener(this);
+    thresholdValue.addFocusListener(new FocusAdapter()
+    {
+      @Override
+      public void focusLost(FocusEvent e)
+      {
+        thresholdValue_actionPerformed();
+      }
+    });
     slider.setBackground(Color.white);
     slider.setEnabled(false);
     slider.setSize(new Dimension(93, 21));
@@ -208,13 +259,13 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     jPanel3.setBackground(Color.white);
 
     colourFromLabel.setFont(new java.awt.Font("Verdana", Font.PLAIN, 11));
-    colourFromLabel.setLabel(MessageManager
-            .getString("label.colour_by_label"));
+    colourFromLabel
+            .setLabel(MessageManager.getString("label.colour_by_label"));
     colourFromLabel.setSize(new Dimension(139, 22));
     // threshold.setBounds(new Rectangle(11, 3, 139, 22));
     thresholdIsMin.setBackground(Color.white);
-    thresholdIsMin.setLabel(MessageManager
-            .getString("label.threshold_minmax"));
+    thresholdIsMin
+            .setLabel(MessageManager.getString("label.threshold_minmax"));
     thresholdIsMin.setSize(new Dimension(135, 23));
     // thresholdIsMin.setBounds(new Rectangle(328, 3, 135, 23));
     jPanel1.add(minLabel);
@@ -232,45 +283,12 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     this.add(jPanel4);// , java.awt.BorderLayout.CENTER);
   }
 
-  Panel minColour = new Panel();
-
-  Panel maxColour = new Panel();
-
-  Panel jPanel1 = new Panel();
-
-  Panel jPanel2 = new Panel();
-
-  Choice threshold = new Choice();
-
-  Panel jPanel3 = new Panel();
-
-  Panel jPanel4 = new Panel();
-
-  Scrollbar slider = new Scrollbar(Scrollbar.HORIZONTAL);
-
-  TextField thresholdValue = new TextField(20);
-
-  // BorderLayout borderLayout1 = new BorderLayout();
-
-  Checkbox thresholdIsMin = new Checkbox();
-
-  Checkbox colourFromLabel = new Checkbox();
-
-  private GraphLine threshline;
-
   @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == thresholdValue)
     {
-      try
-      {
-        float f = new Float(thresholdValue.getText()).floatValue();
-        slider.setValue((int) (f * 1000));
-        adjustmentValueChanged(null);
-      } catch (NumberFormatException ex)
-      {
-      }
+      thresholdValue_actionPerformed();
     }
     else if (evt.getSource() == minColour)
     {
@@ -282,7 +300,27 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     }
     else
     {
-      changeColour();
+      changeColour(true);
+    }
+  }
+
+  /**
+   * Action on input of a value for colour score threshold
+   */
+  protected void thresholdValue_actionPerformed()
+  {
+    try
+    {
+      float f = Float.valueOf(thresholdValue.getText()).floatValue();
+      slider.setValue((int) (f * SCALE_FACTOR_1K));
+      adjustmentValueChanged(null);
+
+      /*
+       * force repaint of any Overview window or structure
+       */
+      changeColour(true);
+    } catch (NumberFormatException ex)
+    {
     }
   }
 
@@ -291,9 +329,13 @@ public class FeatureColourChooser extends Panel implements ActionListener,
   {
     maxColour.setEnabled(!colourFromLabel.getState());
     minColour.setEnabled(!colourFromLabel.getState());
-    changeColour();
+    changeColour(true);
   }
 
+  /**
+   * Handler called when the value of the threshold slider changes, either by
+   * user action or programmatically
+   */
   @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
@@ -304,29 +346,32 @@ public class FeatureColourChooser extends Panel implements ActionListener,
     }
   }
 
+  /**
+   * Responds to a change of colour threshold by computing the absolute value
+   * and refreshing the alignment.
+   */
   protected void valueChanged()
   {
     threshline.value = slider.getValue() / 1000f;
     cs.setThreshold(threshline.value);
-    changeColour();
+    changeColour(false);
     PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
-    // ap.paintAlignment(false);
   }
 
   public void minColour_actionPerformed(Color newCol)
   {
     if (newCol == null)
     {
-      UserDefinedColours udc = new UserDefinedColours(this,
-              minColour.getBackground(), owner,
-              MessageManager.getString("label.select_colour_minimum_value")); // frame.owner,
+      new UserDefinedColours(this, minColour.getBackground(), owner,
+              MessageManager
+                      .getString("label.select_colour_minimum_value"));
     }
     else
     {
       minColour.setBackground(newCol);
       minColour.setForeground(newCol);
       minColour.repaint();
-      changeColour();
+      changeColour(true);
     }
 
   }
@@ -335,23 +380,20 @@ public class FeatureColourChooser extends Panel implements ActionListener,
   {
     if (newCol == null)
     {
-
-      // UserDefinedColours udc = new UserDefinedColours(this,
-      // "Select Colour for Maximum Value",maxColour.getBackground(),true);
-      UserDefinedColours udc = new UserDefinedColours(this,
-              maxColour.getBackground(), owner,
-              MessageManager.getString("label.select_colour_maximum_value"));
+      new UserDefinedColours(this, maxColour.getBackground(), owner,
+              MessageManager
+                      .getString("label.select_colour_maximum_value"));
     }
     else
     {
       maxColour.setBackground(newCol);
       maxColour.setForeground(newCol);
       maxColour.repaint();
-      changeColour();
+      changeColour(true);
     }
   }
 
-  void changeColour()
+  void changeColour(boolean updateOverview)
   {
     // Check if combobox is still adjusting
     if (adjusting)
@@ -359,81 +401,77 @@ public class FeatureColourChooser extends Panel implements ActionListener,
       return;
     }
 
-    int aboveThreshold = AnnotationColourGradient.NO_THRESHOLD;
+    int thresholdOption = AnnotationColourGradient.NO_THRESHOLD;
     if (threshold.getSelectedIndex() == 1)
     {
-      aboveThreshold = AnnotationColourGradient.ABOVE_THRESHOLD;
+      thresholdOption = AnnotationColourGradient.ABOVE_THRESHOLD;
     }
     else if (threshold.getSelectedIndex() == 2)
     {
-      aboveThreshold = AnnotationColourGradient.BELOW_THRESHOLD;
+      thresholdOption = AnnotationColourGradient.BELOW_THRESHOLD;
     }
 
     slider.setEnabled(true);
     thresholdValue.setEnabled(true);
-    FeatureColour acg = new FeatureColour(minColour.getBackground(),
-            maxColour.getBackground(), min, max);
+    Color minc = minColour.getBackground();
+    Color maxc = maxColour.getBackground();
+    FeatureColour acg = new FeatureColour(maxc, minc, maxc, minc, min, max);
 
     acg.setColourByLabel(colourFromLabel.getState());
     maxColour.setEnabled(!colourFromLabel.getState());
     minColour.setEnabled(!colourFromLabel.getState());
-    if (aboveThreshold == AnnotationColourGradient.NO_THRESHOLD)
+    if (thresholdOption == AnnotationColourGradient.NO_THRESHOLD)
     {
       slider.setEnabled(false);
       thresholdValue.setEnabled(false);
       thresholdValue.setText("");
     }
 
-    else if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD
-            && threshline == null)
-    {
-      // todo visual indication of feature threshold
-      threshline = new jalview.datamodel.GraphLine((max - min) / 2f,
-              "Threshold", Color.black);
-    }
-
-    if (aboveThreshold != AnnotationColourGradient.NO_THRESHOLD)
+    if (thresholdOption != AnnotationColourGradient.NO_THRESHOLD)
     {
       adjusting = true;
       acg.setThreshold(threshline.value);
 
-      float range = max * 1000f - min * 1000f;
-
-      slider.setMinimum((int) (min * 1000));
-      slider.setMaximum((int) (max * 1000));
-      slider.setValue((int) (threshline.value * 1000));
+      slider.setMinimum((int) (min * SCALE_FACTOR_1K));
+      slider.setMaximum((int) (max * SCALE_FACTOR_1K));
+      slider.setValue((int) (threshline.value * SCALE_FACTOR_1K));
       thresholdValue.setText(threshline.value + "");
       slider.setEnabled(true);
       thresholdValue.setEnabled(true);
       adjusting = false;
     }
 
-    acg.setAboveThreshold(true);
+    acg.setAboveThreshold(
+            thresholdOption == AnnotationColourGradient.ABOVE_THRESHOLD);
+    acg.setBelowThreshold(
+            thresholdOption == AnnotationColourGradient.BELOW_THRESHOLD);
+
     if (thresholdIsMin.getState()
-            && aboveThreshold != AnnotationColourGradient.NO_THRESHOLD)
+            && thresholdOption != AnnotationColourGradient.NO_THRESHOLD)
     {
-      if (aboveThreshold == AnnotationColourGradient.ABOVE_THRESHOLD)
+      if (thresholdOption == AnnotationColourGradient.ABOVE_THRESHOLD)
       {
-        acg = new FeatureColour(acg, threshline.value, max);
+        acg = new FeatureColour(acg.getColour(), acg.getMinColour(),
+                acg.getMaxColour(), acg.getNoColour(), threshline.value,
+                max);
       }
       else
       {
-        acg = new FeatureColour(acg, min, threshline.value);
+        acg = new FeatureColour(acg.getColour(), acg.getMinColour(),
+                acg.getMaxColour(), acg.getNoColour(), min,
+                threshline.value);
       }
     }
 
     fr.setColour(type, acg);
     cs = acg;
-    PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
-    // ap.paintAlignment(false);
+    fs.selectionChanged(updateOverview);
   }
 
   void reset()
   {
     fr.setColour(type, oldcs);
-    PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
-    // ap.paintAlignment(true);
-
+    fs.selectionChanged(true);
   }
 
   @Override
@@ -449,16 +487,19 @@ public class FeatureColourChooser extends Panel implements ActionListener,
   @Override
   public void mouseReleased(MouseEvent evt)
   {
-    if (evt.getSource() == minColour || evt.getSource() == maxColour)
+    if (evt.getSource() == minColour)
     {
-      // relay the event
-      actionPerformed(new ActionEvent(evt.getSource(), 1, "Clicked"));
+      minColour_actionPerformed(null);
+    }
+    else if (evt.getSource() == maxColour)
+    {
+      maxColour_actionPerformed(null);
     }
     else
     {
-      PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
+      changeColour(true);
+      // PaintRefresher.Refresh(this, fr.getViewport().getSequenceSetId());
     }
-    // ap.paintAlignment(true);
   }
 
   @Override

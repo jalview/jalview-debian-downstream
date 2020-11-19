@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -102,23 +102,26 @@ public class EnsemblCds extends EnsemblSeqProxy
   }
 
   /**
-   * Answers true if the sequence feature type is 'CDS' (or a subtype of CDS in
-   * the Sequence Ontology), and the Parent of the feature is the transcript we
-   * are retrieving
+   * Answers a list of sequence features (if any) whose type is 'CDS' (or a
+   * subtype of CDS in the Sequence Ontology), and whose Parent is the
+   * transcript we are retrieving
    */
   @Override
-  protected boolean identifiesSequence(SequenceFeature sf, String accId)
+  protected List<SequenceFeature> getIdentifyingFeatures(SequenceI seq,
+          String accId)
   {
-    if (SequenceOntologyFactory.getInstance().isA(sf.getType(),
-            SequenceOntologyI.CDS))
+    List<SequenceFeature> result = new ArrayList<>();
+    List<SequenceFeature> sfs = seq.getFeatures()
+            .getFeaturesByOntology(SequenceOntologyI.CDS);
+    for (SequenceFeature sf : sfs)
     {
       String parentFeature = (String) sf.getValue(PARENT);
-      if (("transcript:" + accId).equals(parentFeature))
+      if ( accId.equals(parentFeature))
       {
-        return true;
+        result.add(sf);
       }
     }
-    return false;
+    return result;
   }
 
   /**
@@ -130,7 +133,7 @@ public class EnsemblCds extends EnsemblSeqProxy
   protected List<int[]> getCdsRanges(SequenceI dnaSeq)
   {
     int len = dnaSeq.getLength();
-    List<int[]> ranges = new ArrayList<int[]>();
+    List<int[]> ranges = new ArrayList<>();
     ranges.add(new int[] { 1, len });
     return ranges;
   }

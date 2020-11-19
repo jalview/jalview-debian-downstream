@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.analysis;
 
+import jalview.analysis.scoremodels.ScoreMatrix;
+import jalview.analysis.scoremodels.ScoreModels;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ResidueCount;
@@ -33,6 +35,7 @@ import java.awt.Color;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Vector;
 
@@ -49,14 +52,19 @@ public class Conservation
 
   private static final int TOUPPERCASE = 'a' - 'A';
 
+  private static final int GAP_INDEX = -1;
+
   SequenceI[] sequences;
 
   int start;
 
   int end;
 
-  Vector<int[]> seqNums; // vector of int vectors where first is sequence
-                         // checksum
+  /*
+   * a list whose i'th element is an array whose first entry is the checksum
+   * of the i'th sequence, followed by residues encoded to score matrix index
+   */
+  Vector<int[]> seqNums;
 
   int maxLength = 0; // used by quality calcs
 
@@ -69,17 +77,17 @@ public class Conservation
    */
   Map<String, Integer>[] total;
 
-  boolean canonicaliseAa = true; // if true then conservation calculation will
+  /*
+   * if true then conservation calculation will map all symbols to canonical aa
+   * numbering rather than consider conservation of that symbol
+   */
+  boolean canonicaliseAa = true;
 
-  // map all symbols to canonical aa numbering
-  // rather than consider conservation of that
-  // symbol
-
-  /** Stores calculated quality values */
   private Vector<Double> quality;
 
-  /** Stores maximum and minimum values of quality values */
-  private double[] qualityRange = new double[2];
+  private double qualityMinimum;
+
+  private double qualityMaximum;
 
   private Sequence consSequence;
 
@@ -90,7 +98,15 @@ public class Conservation
 
   private String name = "";
 
+  /*
+   * an array, for each column, of counts of symbols (by score matrix index)
+   */
   private int[][] cons2;
+
+  /*
+   * gap counts for each column
+   */
+  private int[] cons2GapCounts;
 
   private String[] consSymbs;
 
@@ -127,8 +143,8 @@ public class Conservation
    * @param end
    *          end column position
    */
-  public Conservation(String name, int threshold,
-          List<SequenceI> sequences, int start, int end)
+  public Conservation(String name, int threshold, List<SequenceI> sequences,
+          int start, int end)
   {
     this.name = name;
     this.threshold = threshold;
@@ -161,27 +177,29 @@ public class Conservation
   }
 
   /**
-   * Translate sequence i into a numerical representation and store it in the
-   * i'th position of the seqNums array.
+   * Translate sequence i into score matrix indices and store it in the i'th
+   * position of the seqNums array.
    * 
    * @param i
+   * @param sm
    */
-  private void calcSeqNum(int i)
+  private void calcSeqNum(int i, ScoreMatrix sm)
   {
-    String sq = null; // for dumb jbuilder not-inited exception warning
-    int[] sqnum = null;
-
     int sSize = sequences.length;
 
     if ((i > -1) && (i < sSize))
     {
-      sq = sequences[i].getSequenceAsString();
+      String sq = sequences[i].getSequenceAsString();
 
       if (seqNums.size() <= i)
       {
         seqNums.addElement(new int[sq.length() + 1]);
       }
 
+      /*
+       * the first entry in the array is the sequence's hashcode,
+       * following entries are matrix indices of sequence characters
+       */
       if (sq.hashCode() != seqNums.elementAt(i)[0])
       {
         int j;
@@ -194,14 +212,26 @@ public class Conservation
           maxLength = len;
         }
 
-        sqnum = new int[len + 1]; // better to always make a new array -
+        int[] sqnum = new int[len + 1]; // better to always make a new array -
         // sequence can change its length
         sqnum[0] = sq.hashCode();
 
         for (j = 1; j <= len; j++)
         {
-          sqnum[j] = jalview.schemes.ResidueProperties.aaIndex[sq
-                  .charAt(j - 1)];
+          // sqnum[j] = ResidueProperties.aaIndex[sq.charAt(j - 1)];
+          char residue = sq.charAt(j - 1);
+          if (Comparison.isGap(residue))
+          {
+            sqnum[j] = GAP_INDEX;
+          }
+          else
+          {
+            sqnum[j] = sm.getMatrixIndex(residue);
+            if (sqnum[j] == -1)
+            {
+              sqnum[j] = GAP_INDEX;
+            }
+          }
         }
 
         seqNums.setElementAt(sqnum, i);
@@ -214,8 +244,8 @@ public class Conservation
     else
     {
       // JBPNote INFO level debug
-      System.err
-              .println("ERROR: calcSeqNum called with out of range sequence index for Alignment\n");
+      System.err.println(
+              "ERROR: calcSeqNum called with out of range sequence index for Alignment\n");
     }
   }
 
@@ -243,7 +273,7 @@ public class Conservation
        * or not conserved (-1)
        * Using TreeMap means properties are displayed in alphabetical order
        */
-      Map<String, Integer> resultHash = new TreeMap<String, Integer>();
+      SortedMap<String, Integer> resultHash = new TreeMap<>();
       SymbolCounts symbolCounts = values.getSymbolCounts();
       char[] symbols = symbolCounts.symbols;
       int[] counts = symbolCounts.values;
@@ -384,7 +414,8 @@ public class Conservation
         continue;
       }
 
-      char c = sequences[i].getCharAt(column); // gaps do not have upper/lower case
+      char c = sequences[i].getCharAt(column); // gaps do not have upper/lower
+                                               // case
 
       if (Comparison.isGap((c)))
       {
@@ -518,7 +549,7 @@ public class Conservation
    * 
    * @return Conservation sequence
    */
-  public Sequence getConsSequence()
+  public SequenceI getConsSequence()
   {
     return consSequence;
   }
@@ -526,137 +557,134 @@ public class Conservation
   // From Alignment.java in jalview118
   public void findQuality()
   {
-    findQuality(0, maxLength - 1);
+    findQuality(0, maxLength - 1, ScoreModels.getInstance().getBlosum62());
   }
 
   /**
    * DOCUMENT ME!
+   * 
+   * @param sm
    */
-  private void percentIdentity2()
+  private void percentIdentity(ScoreMatrix sm)
   {
-    seqNums = new Vector<int[]>();
-    // calcSeqNum(s);
+    seqNums = new Vector<>();
     int i = 0, iSize = sequences.length;
     // Do we need to calculate this again?
     for (i = 0; i < iSize; i++)
     {
-      calcSeqNum(i);
+      calcSeqNum(i, sm);
     }
 
     if ((cons2 == null) || seqNumsChanged)
     {
+      // FIXME remove magic number 24 without changing calc
+      // sm.getSize() returns 25 so doesn't quite do it...
       cons2 = new int[maxLength][24];
+      cons2GapCounts = new int[maxLength];
 
-      // Initialize the array
-      for (int j = 0; j < 24; j++)
-      {
-        for (i = 0; i < maxLength; i++)
-        {
-          cons2[i][j] = 0;
-        }
-      }
-
-      int[] sqnum;
       int j = 0;
 
       while (j < sequences.length)
       {
-        sqnum = seqNums.elementAt(j);
+        int[] sqnum = seqNums.elementAt(j);
 
         for (i = 1; i < sqnum.length; i++)
         {
-          cons2[i - 1][sqnum[i]]++;
+          int index = sqnum[i];
+          if (index == GAP_INDEX)
+          {
+            cons2GapCounts[i - 1]++;
+          }
+          else
+          {
+            cons2[i - 1][index]++;
+          }
         }
 
+        // TODO should this start from sqnum.length?
         for (i = sqnum.length - 1; i < maxLength; i++)
         {
-          cons2[i][23]++; // gap count
+          cons2GapCounts[i]++;
         }
-
         j++;
       }
-
-      // unnecessary ?
-
-      /*
-       * for (int i=start; i <= end; i++) { int max = -1000; int maxi = -1; int
-       * maxj = -1;
-       * 
-       * for (int j=0;j<24;j++) { if (cons2[i][j] > max) { max = cons2[i][j];
-       * maxi = i; maxj = j; } } }
-       */
     }
   }
 
   /**
-   * Calculates the quality of the set of sequences
+   * Calculates the quality of the set of sequences over the given inclusive
+   * column range, using the specified substitution score matrix
    * 
-   * @param startRes
-   *          Start residue
-   * @param endRes
-   *          End residue
+   * @param startCol
+   * @param endCol
+   * @param scoreMatrix
    */
-  public void findQuality(int startRes, int endRes)
+  protected void findQuality(int startCol, int endCol,
+          ScoreMatrix scoreMatrix)
   {
-    quality = new Vector<Double>();
+    quality = new Vector<>();
 
-    double max = -10000;
-    int[][] BLOSUM62 = ResidueProperties.getBLOSUM62();
+    double max = -Double.MAX_VALUE;
+    float[][] scores = scoreMatrix.getMatrix();
 
-    // Loop over columns // JBPNote Profiling info
-    // long ts = System.currentTimeMillis();
-    // long te = System.currentTimeMillis();
-    percentIdentity2();
+    percentIdentity(scoreMatrix);
 
     int size = seqNums.size();
     int[] lengths = new int[size];
-    double tot, bigtot, sr, tmp;
-    double[] x, xx;
-    int l, j, i, ii, i2, k, seqNum;
 
-    for (l = 0; l < size; l++)
+    for (int l = 0; l < size; l++)
     {
       lengths[l] = seqNums.elementAt(l).length - 1;
     }
 
-    for (j = startRes; j <= endRes; j++)
+    final int symbolCount = scoreMatrix.getSize();
+
+    for (int j = startCol; j <= endCol; j++)
     {
-      bigtot = 0;
+      double bigtot = 0;
 
       // First Xr = depends on column only
-      x = new double[24];
+      double[] x = new double[symbolCount];
 
-      for (ii = 0; ii < 24; ii++)
+      for (int ii = 0; ii < symbolCount; ii++)
       {
         x[ii] = 0;
 
-        for (i2 = 0; i2 < 24; i2++)
+        /*
+         * todo JAL-728 currently assuming last symbol in matrix is * for gap
+         * (which we ignore as counted separately); true for BLOSUM62 but may
+         * not be once alternative matrices are supported
+         */
+        for (int i2 = 0; i2 < symbolCount - 1; i2++)
         {
-          x[ii] += (((double) cons2[j][i2] * BLOSUM62[ii][i2]) + 4);
+          x[ii] += (((double) cons2[j][i2] * scores[ii][i2]) + 4D);
         }
+        x[ii] += 4D + cons2GapCounts[j] * scoreMatrix.getMinimumScore();
 
         x[ii] /= size;
       }
 
       // Now calculate D for each position and sum
-      for (k = 0; k < size; k++)
+      for (int k = 0; k < size; k++)
       {
-        tot = 0;
-        xx = new double[24];
-        seqNum = (j < lengths[k]) ? seqNums.elementAt(k)[j + 1] : 23; // Sequence,
-                                                                      // or gap
-                                                                      // at the
-                                                                      // end
+        double tot = 0;
+        double[] xx = new double[symbolCount];
+        // sequence character index, or implied gap if sequence too short
+        int seqNum = (j < lengths[k]) ? seqNums.elementAt(k)[j + 1]
+                : GAP_INDEX;
 
-        // This is a loop over r
-        for (i = 0; i < 23; i++)
+        for (int i = 0; i < symbolCount - 1; i++)
         {
-          sr = 0;
+          double sr = 4D;
+          if (seqNum == GAP_INDEX)
+          {
+            sr += scoreMatrix.getMinimumScore();
+          }
+          else
+          {
+            sr += scores[i][seqNum];
+          }
 
-          sr = (double) BLOSUM62[i][seqNum] + 4;
-
-          // Calculate X with another loop over residues
-          // System.out.println("Xi " + i + " " + x[i] + " " + sr);
           xx[i] = x[i] - sr;
 
           tot += (xx[i] * xx[i]);
@@ -665,27 +693,21 @@ public class Conservation
         bigtot += Math.sqrt(tot);
       }
 
-      // This is the quality for one column
-      if (max < bigtot)
-      {
-        max = bigtot;
-      }
+      max = Math.max(max, bigtot);
 
-      // bigtot = bigtot * (size-cons2[j][23])/size;
-      quality.addElement(new Double(bigtot));
-
-      // Need to normalize by gaps
+      quality.addElement(Double.valueOf(bigtot));
     }
 
-    double newmax = -10000;
+    double newmax = -Double.MAX_VALUE;
 
-    for (j = startRes; j <= endRes; j++)
+    for (int j = startCol; j <= endCol; j++)
     {
-      tmp = quality.elementAt(j).doubleValue();
-      tmp = ((max - tmp) * (size - cons2[j][23])) / size;
+      double tmp = quality.elementAt(j).doubleValue();
+      // tmp = ((max - tmp) * (size - cons2[j][23])) / size;
+      tmp = ((max - tmp) * (size - cons2GapCounts[j])) / size;
 
       // System.out.println(tmp+ " " + j);
-      quality.setElementAt(new Double(tmp), j);
+      quality.setElementAt(Double.valueOf(tmp), j);
 
       if (tmp > newmax)
       {
@@ -693,15 +715,14 @@ public class Conservation
       }
     }
 
-    // System.out.println("Quality " + s);
-    qualityRange[0] = 0D;
-    qualityRange[1] = newmax;
+    qualityMinimum = 0D;
+    qualityMaximum = newmax;
   }
 
   /**
    * Complete the given consensus and quuality annotation rows. Note: currently
-   * this method will enlarge the given annotation row if it is too small,
-   * otherwise will leave its length unchanged.
+   * this method will reallocate the given annotation row if it is different to
+   * the calculated width, otherwise will leave its length unchanged.
    * 
    * @param conservation
    *          conservation annotation row
@@ -715,51 +736,46 @@ public class Conservation
   public void completeAnnotations(AlignmentAnnotation conservation,
           AlignmentAnnotation quality2, int istart, int alWidth)
   {
-    char[] sequence = getConsSequence().getSequence();
-    float minR;
-    float minG;
-    float minB;
-    float maxR;
-    float maxG;
-    float maxB;
-    minR = 0.3f;
-    minG = 0.0f;
-    minB = 0f;
-    maxR = 1.0f - minR;
-    maxG = 0.9f - minG;
-    maxB = 0f - minB; // scalable range for colouring both Conservation and
-    // Quality
+    SequenceI cons = getConsSequence();
+
+    /*
+     * colour scale for Conservation and Quality;
+     */
+    float minR = 0.3f;
+    float minG = 0.0f;
+    float minB = 0f;
+    float maxR = 1.0f - minR;
+    float maxG = 0.9f - minG;
+    float maxB = 0f - minB;
 
     float min = 0f;
     float max = 11f;
     float qmin = 0f;
     float qmax = 0f;
 
-    char c;
-
     if (conservation != null && conservation.annotations != null
-            && conservation.annotations.length < alWidth)
+            && conservation.annotations.length != alWidth)
     {
       conservation.annotations = new Annotation[alWidth];
     }
 
     if (quality2 != null)
     {
-      quality2.graphMax = (float) qualityRange[1];
+      quality2.graphMax = (float) qualityMaximum;
       if (quality2.annotations != null
-              && quality2.annotations.length < alWidth)
+              && quality2.annotations.length != alWidth)
       {
         quality2.annotations = new Annotation[alWidth];
       }
-      qmin = (float) qualityRange[0];
-      qmax = (float) qualityRange[1];
+      qmin = (float) qualityMinimum;
+      qmax = (float) qualityMaximum;
     }
 
     for (int i = istart; i < alWidth; i++)
     {
       float value = 0;
 
-      c = sequence[i];
+      char c = cons.getCharAt(i);
 
       if (Character.isDigit(c))
       {
@@ -779,11 +795,11 @@ public class Conservation
         float vprop = value - min;
         vprop /= max;
         int consp = i - start;
-        String conssym = (value > 0 && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
-                : "";
+        String conssym = (value > 0 && consp > -1
+                && consp < consSymbs.length) ? consSymbs[consp] : "";
         conservation.annotations[i] = new Annotation(String.valueOf(c),
-                conssym, ' ', value, new Color(minR + (maxR * vprop), minG
-                        + (maxG * vprop), minB + (maxB * vprop)));
+                conssym, ' ', value, new Color(minR + (maxR * vprop),
+                        minG + (maxG * vprop), minB + (maxB * vprop)));
       }
 
       // Quality calc
@@ -792,10 +808,9 @@ public class Conservation
         value = quality.elementAt(i).floatValue();
         float vprop = value - qmin;
         vprop /= qmax;
-        quality2.annotations[i] = new Annotation(" ",
-                String.valueOf(value), ' ', value, new Color(minR
-                        + (maxR * vprop), minG + (maxG * vprop), minB
-                        + (maxB * vprop)));
+        quality2.annotations[i] = new Annotation(" ", String.valueOf(value),
+                ' ', value, new Color(minR + (maxR * vprop),
+                        minG + (maxG * vprop), minB + (maxB * vprop)));
       }
     }
   }
@@ -846,11 +861,12 @@ public class Conservation
    */
   String getTooltip(int column)
   {
-    char[] sequence = getConsSequence().getSequence();
-    char val = column < sequence.length ? sequence[column] : '-';
+    SequenceI cons = getConsSequence();
+    char val = column < cons.getLength() ? cons.getCharAt(column) : '-';
     boolean hasConservation = val != '-' && val != '0';
     int consp = column - start;
-    String tip = (hasConservation && consp > -1 && consp < consSymbs.length) ? consSymbs[consp]
+    String tip = (hasConservation && consp > -1 && consp < consSymbs.length)
+            ? consSymbs[consp]
             : "";
     return tip;
   }

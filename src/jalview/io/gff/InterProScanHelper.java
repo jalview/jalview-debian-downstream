@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -73,13 +73,19 @@ public class InterProScanHelper extends Gff3Helper
   }
 
   /**
- * 
- */
+   * An override that
+   * <ul>
+   * <li>uses Source (column 2) as feature type instead of the default column 3</li>
+   * <li>sets "InterProScan" as the feature group</li>
+   * <li>extracts "signature_desc" attribute as the feature description</li>
+   * </ul>
+   */
   @Override
   protected SequenceFeature buildSequenceFeature(String[] gff,
           Map<String, List<String>> attributes)
   {
-    SequenceFeature sf = super.buildSequenceFeature(gff, attributes);
+    SequenceFeature sf = super.buildSequenceFeature(gff, SOURCE_COL,
+            INTER_PRO_SCAN, attributes);
 
     /*
      * signature_desc is a more informative source of description
@@ -90,13 +96,6 @@ public class InterProScanHelper extends Gff3Helper
     {
       sf.setDescription(description);
     }
-
-    /*
-     * Set sequence feature group as 'InterProScan', and type as the source
-     * database for this match (e.g. 'Pfam')
-     */
-    sf.setType(gff[SOURCE_COL]);
-    sf.setFeatureGroup(INTER_PRO_SCAN);
 
     return sf;
   }
@@ -112,8 +111,8 @@ public class InterProScanHelper extends Gff3Helper
     SequenceOntologyI so = SequenceOntologyFactory.getInstance();
     String type = columns[TYPE_COL];
     if (so.isA(type, SequenceOntologyI.PROTEIN_MATCH)
-            || (".".equals(columns[SOURCE_COL]) && so.isA(type,
-                    SequenceOntologyI.POLYPEPTIDE)))
+            || (".".equals(columns[SOURCE_COL])
+                    && so.isA(type, SequenceOntologyI.POLYPEPTIDE)))
     {
       return true;
     }
@@ -125,7 +124,8 @@ public class InterProScanHelper extends Gff3Helper
    * GFF field 'ID' rather than the usual 'Target' :-O
    */
   @Override
-  protected String findTargetId(String target, Map<String, List<String>> set)
+  protected String findTargetId(String target,
+          Map<String, List<String>> set)
   {
     List<String> ids = set.get(ID);
     if (ids == null || ids.size() != 1)

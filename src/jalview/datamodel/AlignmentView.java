@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -51,6 +51,37 @@ public class AlignmentView
   private boolean isNa = false;
 
   /**
+   * reference to the complementary CDS/Protein alignment for this alignment, if available
+   */
+  private AlignmentView complementView=null;
+  
+  /**
+   * setter for 
+   * @param complementView
+   */
+  public void setComplement(AlignmentView complementView)
+  {
+    this.complementView = complementView;
+    
+  }
+  /**
+   * 
+   * @return true if a complement is available
+   */
+  public boolean hasComplementView()
+  {
+    return complementView!=null;
+  }
+  /**
+   * 
+   * @return the complement view or null
+   */
+  public AlignmentView getComplementView()
+  {
+    return complementView;
+  }
+  
+  /**
    * false if the view concerns peptides
    * 
    * @return
@@ -74,7 +105,7 @@ public class AlignmentView
 
     ScGroup()
     {
-      seqs = new ArrayList<SeqCigar>();
+      seqs = new ArrayList<>();
     }
 
     /**
@@ -140,17 +171,17 @@ public class AlignmentView
    *          - when set, any groups on the given alignment will be marked on
    *          the view
    */
-  public AlignmentView(AlignmentI alignment,
-          ColumnSelection columnSelection, SequenceGroup selection,
-          boolean hasHiddenColumns, boolean selectedRegionOnly,
-          boolean recordGroups)
+  public AlignmentView(AlignmentI alignment, HiddenColumns hidden,
+          SequenceGroup selection, boolean hasHiddenColumns,
+          boolean selectedRegionOnly, boolean recordGroups)
   {
     // refactored from AlignViewport.getAlignmentView(selectedOnly);
     this(new jalview.datamodel.CigarArray(alignment,
-            (hasHiddenColumns ? columnSelection : null),
+            (hasHiddenColumns ? hidden : null),
             (selectedRegionOnly ? selection : null)),
-            (selectedRegionOnly && selection != null) ? selection
-                    .getStartRes() : 0);
+            (selectedRegionOnly && selection != null)
+                    ? selection.getStartRes()
+                    : 0);
     isNa = alignment.isNucleotide();
     // walk down SeqCigar array and Alignment Array - optionally restricted by
     // selected region.
@@ -160,19 +191,18 @@ public class AlignmentView
     SequenceI[] selseqs;
     if (selection != null && selection.getSize() > 0)
     {
-      List<SequenceI> sel = selection.getSequences(null);
       this.selected = new ScGroup();
-      selseqs = selection
-              .getSequencesInOrder(alignment, selectedRegionOnly);
+      selseqs = selection.getSequencesInOrder(alignment,
+              selectedRegionOnly);
     }
     else
     {
       selseqs = alignment.getSequencesArray();
     }
 
-    List<List<SequenceI>> seqsets = new ArrayList<List<SequenceI>>();
+    List<List<SequenceI>> seqsets = new ArrayList<>();
     // get the alignment's group list and make a copy
-    List<SequenceGroup> grps = new ArrayList<SequenceGroup>();
+    List<SequenceGroup> grps = new ArrayList<>();
     List<SequenceGroup> gg = alignment.getGroups();
     grps.addAll(gg);
     ScGroup[] sgrps = null;
@@ -185,7 +215,7 @@ public class AlignmentView
         // strip out any groups that do not actually intersect with the
         // visible and selected region
         int ssel = selection.getStartRes(), esel = selection.getEndRes();
-        List<SequenceGroup> isg = new ArrayList<SequenceGroup>();
+        List<SequenceGroup> isg = new ArrayList<>();
         for (SequenceGroup sg : grps)
         {
           if (!(sg.getStartRes() > esel || sg.getEndRes() < ssel))
@@ -245,7 +275,7 @@ public class AlignmentView
               {
                 if (scGroups == null)
                 {
-                  scGroups = new ArrayList<ScGroup>();
+                  scGroups = new ArrayList<>();
                 }
                 addedgps[sg] = true;
                 scGroups.add(sgrps[sg]);
@@ -330,13 +360,13 @@ public class AlignmentView
    *          char
    * @return Object[] { SequenceI[], ColumnSelection}
    */
-  public Object[] getAlignmentAndColumnSelection(char gapCharacter)
+  public Object[] getAlignmentAndHiddenColumns(char gapCharacter)
   {
-    ColumnSelection colsel = new ColumnSelection();
+    HiddenColumns hidden = new HiddenColumns();
 
-    return new Object[] {
-        SeqCigar.createAlignmentSequences(sequences, gapCharacter, colsel,
-                contigs), colsel };
+    return new Object[] { SeqCigar.createAlignmentSequences(sequences,
+            gapCharacter, hidden, contigs),
+        hidden };
   }
 
   /**
@@ -369,8 +399,8 @@ public class AlignmentView
    *          - true if vcal is alignment of the visible regions of the view
    *          (e.g. as returned from getVisibleAlignment)
    */
-  private void addPrunedGroupsInOrder(AlignmentI vcal, int gstart,
-          int gend, boolean viscontigs)
+  private void addPrunedGroupsInOrder(AlignmentI vcal, int gstart, int gend,
+          boolean viscontigs)
   {
     boolean r = false;
     if (gstart > -1 && gstart <= gend)
@@ -440,8 +470,8 @@ public class AlignmentView
               for (int h = 0; h < contigs.length; h += 3)
               {
                 {
-                  prune.addShift(p + contigs[h + 1], contigs[h + 2]
-                          - contigs[h + 1]);
+                  prune.addShift(p + contigs[h + 1],
+                          contigs[h + 2] - contigs[h + 1]);
                 }
                 p = contigs[h + 1] + contigs[h + 2];
               }
@@ -651,8 +681,8 @@ public class AlignmentView
           SequenceI mseq[] = new SequenceI[sequences.length];
           for (int s = 0; s < mseq.length; s++)
           {
-            mseq[s] = sequences[s].getSeq(gapCharacter).getSubSequence(
-                    start, contigs[contig + 1]);
+            mseq[s] = sequences[s].getSeq(gapCharacter)
+                    .getSubSequence(start, contigs[contig + 1]);
           }
           smsa[j] = mseq;
           j++;
@@ -698,9 +728,8 @@ public class AlignmentView
   {
     if (sequences == null || width <= 0)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.empty_view_cannot_be_updated"));
+      throw new Error(MessageManager
+              .getString("error.empty_view_cannot_be_updated"));
     }
     if (nvismsa == null)
     {
@@ -710,7 +739,8 @@ public class AlignmentView
     if (contigs != null && contigs.length > 0)
     {
       SequenceI[] alignment = new SequenceI[sequences.length];
-      ColumnSelection columnselection = new ColumnSelection();
+      // ColumnSelection columnselection = new ColumnSelection();
+      HiddenColumns hidden = new HiddenColumns();
       if (contigs != null && contigs.length > 0)
       {
         int start = 0;
@@ -730,17 +760,13 @@ public class AlignmentView
               j++;
               if (mseq.length != sequences.length)
               {
-                throw new Error(
-                        MessageManager
-                                .formatMessage(
-                                        "error.mismatch_between_number_of_sequences_in_block",
-                                        new String[] {
-                                            Integer.valueOf(j).toString(),
-                                            Integer.valueOf(mseq.length)
-                                                    .toString(),
-                                            Integer.valueOf(
-                                                    sequences.length)
-                                                    .toString() }));
+                throw new Error(MessageManager.formatMessage(
+                        "error.mismatch_between_number_of_sequences_in_block",
+                        new String[]
+                        { Integer.valueOf(j).toString(),
+                            Integer.valueOf(mseq.length).toString(),
+                            Integer.valueOf(sequences.length)
+                                    .toString() }));
               }
               swidth = mseq[0].getLength(); // JBPNote: could ensure padded
               // here.
@@ -752,9 +778,9 @@ public class AlignmentView
                 }
                 else
                 {
-                  alignment[s].setSequence(alignment[s]
-                          .getSequenceAsString()
-                          + mseq[s].getSequenceAsString());
+                  alignment[s]
+                          .setSequence(alignment[s].getSequenceAsString()
+                                  + mseq[s].getSequenceAsString());
                   if (mseq[s].getStart() <= mseq[s].getEnd())
                   {
                     alignment[s].setEnd(mseq[s].getEnd());
@@ -786,9 +812,9 @@ public class AlignmentView
                   }
                   else
                   {
-                    alignment[s].setSequence(alignment[s]
-                            .getSequenceAsString()
-                            + oseq.getSequenceAsString());
+                    alignment[s]
+                            .setSequence(alignment[s].getSequenceAsString()
+                                    + oseq.getSequenceAsString());
                     if (oseq.getEnd() >= oseq.getStart())
                     {
                       alignment[s].setEnd(oseq.getEnd());
@@ -823,8 +849,7 @@ public class AlignmentView
             }
           }
           // mark hidden segment as hidden in the new alignment
-          columnselection.hideColumns(nwidth, nwidth + contigs[contig + 2]
-                  - 1);
+          hidden.hideColumns(nwidth, nwidth + contigs[contig + 2] - 1);
           nwidth += contigs[contig + 2];
         }
         // Do final segment - if it exists
@@ -879,9 +904,9 @@ public class AlignmentView
                   }
                   else
                   {
-                    alignment[s].setSequence(alignment[s]
-                            .getSequenceAsString()
-                            + oseq.getSequenceAsString());
+                    alignment[s]
+                            .setSequence(alignment[s].getSequenceAsString()
+                                    + oseq.getSequenceAsString());
                     if (oseq.getEnd() >= oseq.getStart())
                     {
                       alignment[s].setEnd(oseq.getEnd());
@@ -893,34 +918,31 @@ public class AlignmentView
               else
               {
                 // place gaps.
-                throw new Error(
-                        MessageManager
-                                .getString("error.padding_not_yet_implemented"));
+                throw new Error(MessageManager
+                        .getString("error.padding_not_yet_implemented"));
               }
             }
           }
         }
       }
-      return new Object[] { alignment, columnselection };
+      return new Object[] { alignment, hidden };
     }
     else
     {
       if (nvismsa.length != 1)
       {
-        throw new Error(
-                MessageManager
-                        .formatMessage(
-                                "error.mismatch_between_visible_blocks_to_update_and_number_of_contigs_in_view",
-                                new String[] { Integer.valueOf(
-                                        nvismsa.length).toString() }));
+        throw new Error(MessageManager.formatMessage(
+                "error.mismatch_between_visible_blocks_to_update_and_number_of_contigs_in_view",
+                new String[]
+                { Integer.valueOf(nvismsa.length).toString() }));
       }
       if (nvismsa[0] != null)
       {
-        return new Object[] { nvismsa[0], new ColumnSelection() };
+        return new Object[] { nvismsa[0], new HiddenColumns() };
       }
       else
       {
-        return getAlignmentAndColumnSelection(gapCharacter);
+        return getAlignmentAndHiddenColumns(gapCharacter);
       }
     }
   }
@@ -970,14 +992,14 @@ public class AlignmentView
       if (start < fwidth)
       {
         viscontigs[nvis] = start;
-        viscontigs[nvis + 1] = fwidth; // end is inclusive
+        viscontigs[nvis + 1] = fwidth - 1; // end is inclusive
         nvis += 2;
       }
       return viscontigs;
     }
     else
     {
-      return new int[] { 0, width };
+      return new int[] { 0, width - 1 };
     }
   }
 
@@ -1135,113 +1157,114 @@ public class AlignmentView
   }
 
   public static void testSelectionViews(AlignmentI alignment,
-          ColumnSelection csel, SequenceGroup selection)
+          HiddenColumns hidden, SequenceGroup selection)
   {
     System.out.println("Testing standard view creation:\n");
     AlignmentView view = null;
     try
     {
-      System.out
-              .println("View with no hidden columns, no limit to selection, no groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, false, false,
+      System.out.println(
+              "View with no hidden columns, no limit to selection, no groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, false, false,
               false);
       summariseAlignmentView(view, System.out);
 
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View with no hidden columns, no limit to selection, and all groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, false, false,
+      System.out.println(
+              "View with no hidden columns, no limit to selection, and all groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, false, false,
               true);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection marked but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection marked but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View with no hidden columns, limited to selection and no groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, false, true,
+      System.out.println(
+              "View with no hidden columns, limited to selection and no groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, false, true,
               false);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection restricted but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection restricted but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View with no hidden columns, limited to selection, and all groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, false, true,
+      System.out.println(
+              "View with no hidden columns, limited to selection, and all groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, false, true,
               true);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection restricted and groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection restricted and groups marked.");
     }
     try
     {
-      System.out
-              .println("View *with* hidden columns, no limit to selection, no groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, true, false,
+      System.out.println(
+              "View *with* hidden columns, no limit to selection, no groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, true, false,
               false);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View *with* hidden columns, no limit to selection, and all groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, true, false,
+      System.out.println(
+              "View *with* hidden columns, no limit to selection, and all groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, true, false,
               true);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection marked but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection marked but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View *with* hidden columns, limited to selection and no groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, true, true,
+      System.out.println(
+              "View *with* hidden columns, limited to selection and no groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, true, true,
               false);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection restricted but no groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection restricted but no groups marked.");
     }
     try
     {
-      System.out
-              .println("View *with* hidden columns, limited to selection, and all groups to be collected:");
-      view = new AlignmentView(alignment, csel, selection, true, true, true);
+      System.out.println(
+              "View *with* hidden columns, limited to selection, and all groups to be collected:");
+      view = new AlignmentView(alignment, hidden, selection, true, true,
+              true);
       summariseAlignmentView(view, System.out);
     } catch (Exception e)
     {
       e.printStackTrace();
-      System.err
-              .println("Failed to generate alignment with selection restricted and groups marked.");
+      System.err.println(
+              "Failed to generate alignment with selection restricted and groups marked.");
     }
 
   }

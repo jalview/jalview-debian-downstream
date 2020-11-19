@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -51,8 +51,8 @@ public class QuickSort
     @Override
     public int compare(Integer o1, Integer o2)
     {
-      return ascending ? Float.compare(values[o1], values[o2]) : Float
-              .compare(values[o2], values[o1]);
+      return ascending ? Float.compare(values[o1], values[o2])
+              : Float.compare(values[o2], values[o1]);
     }
   }
 
@@ -105,8 +105,8 @@ public class QuickSort
     @Override
     public int compare(Integer o1, Integer o2)
     {
-      return ascending ? Integer.compare(values[o1], values[o2]) : Integer
-              .compare(values[o2], values[o1]);
+      return ascending ? Integer.compare(values[o1], values[o2])
+              : Integer.compare(values[o2], values[o1]);
     }
   }
 
@@ -129,8 +129,8 @@ public class QuickSort
     @Override
     public int compare(Integer o1, Integer o2)
     {
-      return ascending ? values[o1].compareTo(values[o2]) : values[o2]
-              .compareTo(values[o1]);
+      return ascending ? values[o1].compareTo(values[o2])
+              : values[o2].compareTo(values[o1]);
     }
   }
 
@@ -475,10 +475,10 @@ public class QuickSort
     /*
      * Copy sorted positive values after the negatives and zeros
      */
-    System.arraycopy(nonZeroFloats, negativeCount, arr, negativeCount
-            + zerosCount, positiveCount);
-    System.arraycopy(nonZeroChars, negativeCount, s, negativeCount
-            + zerosCount, positiveCount);
+    System.arraycopy(nonZeroFloats, negativeCount, arr,
+            negativeCount + zerosCount, positiveCount);
+    System.arraycopy(nonZeroChars, negativeCount, s,
+            negativeCount + zerosCount, positiveCount);
   }
 
   /**
@@ -613,10 +613,10 @@ public class QuickSort
     /*
      * Copy sorted positive values after the negatives and zeros
      */
-    System.arraycopy(nonZeroInts, negativeCount, arr, negativeCount
-            + zerosCount, positiveCount);
-    System.arraycopy(nonZeroChars, negativeCount, s, negativeCount
-            + zerosCount, positiveCount);
+    System.arraycopy(nonZeroInts, negativeCount, arr,
+            negativeCount + zerosCount, positiveCount);
+    System.arraycopy(nonZeroChars, negativeCount, s,
+            negativeCount + zerosCount, positiveCount);
   }
 
   /**

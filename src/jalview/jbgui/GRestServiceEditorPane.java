@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -95,8 +95,8 @@ public class GRestServiceEditorPane extends JPanel
     inputs.setLayout(new MigLayout("", "[grow 85,fill][]", ""));
     paste = new JPanel();
     paste.setName(MessageManager.getString("label.cut_paste"));
-    paste.setLayout(new MigLayout("", "[grow 100, fill]",
-            "[][grow 100,fill]"));
+    paste.setLayout(
+            new MigLayout("", "[grow 100, fill]", "[][grow 100,fill]"));
 
     panels = new JTabbedPane();
     panels.addTab(details.getName(), details);
@@ -109,8 +109,9 @@ public class GRestServiceEditorPane extends JPanel
     cpanel = details;
     name = new JTextArea(1, 12);
 
-    JvSwingUtils.mgAddtoLayout(cpanel, MessageManager
-            .getString("label.short_descriptive_name_for_service"),
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager
+                    .getString("label.short_descriptive_name_for_service"),
             new JLabel(MessageManager.getString("label.name")), name,
             "wrap");
     action = new JComboBox();
@@ -137,8 +138,8 @@ public class GRestServiceEditorPane extends JPanel
     urlsuff = new JTextArea();
     urlsuff.setColumns(60);
 
-    JvSwingUtils.mgAddtoLayout(cpanel, MessageManager
-            .getString("label.optional_suffix"),
+    JvSwingUtils.mgAddtoLayout(cpanel,
+            MessageManager.getString("label.optional_suffix"),
             new JLabel(MessageManager.getString("label.url_suffix")),
             urlsuff, "wrap");
 
@@ -160,11 +161,9 @@ public class GRestServiceEditorPane extends JPanel
     });
     vSeparable = new JCheckBox(
             MessageManager.getString("label.result_vertically_separable"));
-    vSeparable
-            .setToolTipText(JvSwingUtils.wrapTooltip(
-                    true,
-                    MessageManager
-                            .getString("label.when_checked_job_visible_region_and_results")));
+    vSeparable.setToolTipText(
+            JvSwingUtils.wrapTooltip(true, MessageManager.getString(
+                    "label.when_checked_job_visible_region_and_results")));
     vSeparable.addActionListener(new ActionListener()
     {
 
@@ -178,8 +177,9 @@ public class GRestServiceEditorPane extends JPanel
     gapChar = new JComboBox();
     JvSwingUtils.mgAddtoLayout(cpanel,
             MessageManager.getString("label.preferred_gap_character"),
-            new JLabel(MessageManager.getString("label.gap_character")
-                    + ":"), gapChar, "wrap");
+            new JLabel(
+                    MessageManager.getString("label.gap_character") + ":"),
+            gapChar, "wrap");
 
     cpanel.add(hSeparable);
     cpanel.add(vSeparable);
@@ -187,8 +187,8 @@ public class GRestServiceEditorPane extends JPanel
     // Input and Output lists
     // Inputparams
     JPanel iprmsList = new JPanel();
-    iprmsList.setBorder(new TitledBorder(MessageManager
-            .getString("label.data_input_parameters")));
+    iprmsList.setBorder(new TitledBorder(
+            MessageManager.getString("label.data_input_parameters")));
     iprmsList.setLayout(new MigLayout("", "[grow 90, fill][]"));
     iprmVp = new JScrollPane();
     iprmVp.getViewport().setView(iprms = new JList());
@@ -322,12 +322,12 @@ public class GRestServiceEditorPane extends JPanel
             });
 
     JPanel rparamList = new JPanel();
-    rparamList.setBorder(new TitledBorder(MessageManager
-            .getString("label.data_returned_by_service")));
+    rparamList.setBorder(new TitledBorder(
+            MessageManager.getString("label.data_returned_by_service")));
     rparamList.setLayout(new MigLayout("", "[grow 90, fill][]"));
     rdata = new JList();
-    rdata.setToolTipText(MessageManager
-            .getString("label.right_click_to_edit_currently_selected_parameter"));
+    rdata.setToolTipText(MessageManager.getString(
+            "label.right_click_to_edit_currently_selected_parameter"));
     rdata.addMouseListener(new MouseListener()
     {
 
@@ -388,10 +388,10 @@ public class GRestServiceEditorPane extends JPanel
     urldescVp = new JScrollPane();
     urldescVp.setViewportView(urldesc);
     JPanel urldescPane = new JPanel();
-    urldescPane.setLayout(new MigLayout("", "[grow 100, fill]",
-            "[grow 100, fill]"));
-    urldescPane.setBorder(new TitledBorder(MessageManager
-            .getString("label.rsbs_encoded_service")));
+    urldescPane.setLayout(
+            new MigLayout("", "[grow 100, fill]", "[grow 100, fill]"));
+    urldescPane.setBorder(new TitledBorder(
+            MessageManager.getString("label.rsbs_encoded_service")));
     urldescPane.add(urldescVp, "span");
     paste.add(urldescPane, "span");
     urldescPane.setToolTipText(JvSwingUtils.wrapTooltip(true,
@@ -402,10 +402,10 @@ public class GRestServiceEditorPane extends JPanel
     parseResVp.setViewportView(parseRes);
     parseRes.setWrapStyleWord(true);
     parseRes.setColumns(60);
-    parseWarnings = new JPanel(new MigLayout("", "[grow 100, fill]",
-            "[grow 100, fill]"));
-    parseWarnings.setBorder(new TitledBorder(MessageManager
-            .getString("label.parsing_errors")));
+    parseWarnings = new JPanel(
+            new MigLayout("", "[grow 100, fill]", "[grow 100, fill]"));
+    parseWarnings.setBorder(new TitledBorder(
+            MessageManager.getString("label.parsing_errors")));
     parseWarnings.setToolTipText(JvSwingUtils.wrapTooltip(true,
             MessageManager.getString("label.result_of_parsing_rsbs")));
     parseWarnings.add(parseResVp, "center");

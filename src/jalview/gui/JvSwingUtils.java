@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,14 +24,20 @@ import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.List;
 import java.util.Objects;
 
 import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -39,6 +45,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.SwingConstants;
+import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
 
 /**
  * useful functions for building Swing GUIs
@@ -60,7 +68,8 @@ public final class JvSwingUtils
    */
   public static String wrapTooltip(boolean enclose, String ttext)
   {
-    Objects.requireNonNull(ttext, "Tootip text to format must not be null!");
+    Objects.requireNonNull(ttext,
+            "Tootip text to format must not be null!");
     ttext = ttext.trim();
     boolean maxLengthExceeded = false;
 
@@ -87,7 +96,7 @@ public final class JvSwingUtils
     }
 
     return (enclose ? "<html>" : "")
-            + "<style> p.ttip {width: 350; text-align: justify; word-wrap: break-word;}</style><p class=\"ttip\">"
+            + "<style> p.ttip {width: 350; text-align: left; word-wrap: break-word;}</style><p class=\"ttip\">"
             + ttext + "</p>" + ((enclose ? "</html>" : ""));
 
   }
@@ -119,8 +128,8 @@ public final class JvSwingUtils
     for (int i = 0, iSize = menu.getMenuComponentCount(); i < iSize; i++)
     {
       if (menu.getMenuComponent(i) instanceof JMenu
-              && ((JMenu) menu.getMenuComponent(i)).getText().equals(
-                      submenu))
+              && ((JMenu) menu.getMenuComponent(i)).getText()
+                      .equals(submenu))
       {
         submenuinstance = (JMenu) menu.getMenuComponent(i);
       }
@@ -198,8 +207,10 @@ public final class JvSwingUtils
 
   public static Font getLabelFont(boolean bold, boolean italic)
   {
-    return new java.awt.Font("Verdana", (!bold && !italic) ? Font.PLAIN
-            : (bold ? Font.BOLD : 0) + (italic ? Font.ITALIC : 0), 11);
+    return new java.awt.Font("Verdana",
+            (!bold && !italic) ? Font.PLAIN
+                    : (bold ? Font.BOLD : 0) + (italic ? Font.ITALIC : 0),
+            11);
   }
 
   /**
@@ -275,8 +286,8 @@ public final class JvSwingUtils
      * of possible positions.
      */
     float fraction = proportion
-            * (scrollbar.getMaximum() - scrollbar.getMinimum() - scrollbar
-                    .getModel().getExtent())
+            * (scrollbar.getMaximum() - scrollbar.getMinimum()
+                    - scrollbar.getModel().getExtent())
             + (scrollbar.getModel().getExtent() / 2f);
     return Math.min(Math.round(fraction), scrollbar.getMaximum());
   }
@@ -299,6 +310,73 @@ public final class JvSwingUtils
   {
     comp.setBackground(Color.white);
     comp.setFont(JvSwingUtils.getLabelFont());
+  }
+
+  /**
+   * A helper method to build a drop-down choice of values, with tooltips for
+   * the entries
+   * 
+   * @param entries
+   * @param tooltips
+   */
+  public static JComboBox<Object> buildComboWithTooltips(
+          List<Object> entries, List<String> tooltips)
+  {
+    JComboBox<Object> combo = new JComboBox<>();
+    final ComboBoxTooltipRenderer renderer = new ComboBoxTooltipRenderer();
+    combo.setRenderer(renderer);
+    for (Object attName : entries)
+    {
+      combo.addItem(attName);
+    }
+    renderer.setTooltips(tooltips);
+    final MouseAdapter mouseListener = new MouseAdapter()
+    {
+      @Override
+      public void mouseEntered(MouseEvent e)
+      {
+        int j = combo.getSelectedIndex();
+        if (j > -1)
+        {
+          combo.setToolTipText(tooltips.get(j));
+        }
+      }
+      @Override
+      public void mouseExited(MouseEvent e)
+      {
+        combo.setToolTipText(null);
+      }
+    };
+    for (Component c : combo.getComponents())
+    {
+      c.addMouseListener(mouseListener);
+    }
+    return combo;
+  }
+
+  /**
+   * Adds a titled border to the component in the default font and position (top
+   * left), optionally witht italic text
+   * 
+   * @param comp
+   * @param title
+   * @param italic
+   */
+  public static TitledBorder createTitledBorder(JComponent comp,
+          String title, boolean italic)
+  {
+    Font font = comp.getFont();
+    if (italic)
+    {
+      font = new Font(font.getName(), Font.ITALIC, font.getSize());
+    }
+    Border border = BorderFactory.createTitledBorder("");
+    TitledBorder titledBorder = BorderFactory.createTitledBorder(border,
+            title, TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION,
+            font);
+    comp.setBorder(titledBorder);
+
+    return titledBorder;
   }
 
 }

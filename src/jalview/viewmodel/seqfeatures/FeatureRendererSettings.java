@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,9 +21,11 @@
 package jalview.viewmodel.seqfeatures;
 
 import jalview.api.FeatureColourI;
+import jalview.datamodel.features.FeatureMatcherSetI;
 import jalview.schemes.FeatureColour;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,6 +43,11 @@ public class FeatureRendererSettings implements Cloneable
    * map of {featureType, colourScheme}
    */
   Map<String, FeatureColourI> featureColours;
+
+  /*
+   * map of {featureType, filters}
+   */
+  Map<String, FeatureMatcherSetI> featureFilters;
 
   float transparency;
 
@@ -72,7 +79,9 @@ public class FeatureRendererSettings implements Cloneable
     renderOrder = null;
     featureGroups = new ConcurrentHashMap<String, Boolean>();
     featureColours = new ConcurrentHashMap<String, FeatureColourI>();
+    featureFilters = new HashMap<>();
     featureOrder = new ConcurrentHashMap<String, Float>();
+
     if (fr.renderOrder != null)
     {
       this.renderOrder = new String[fr.renderOrder.length];
@@ -100,6 +109,12 @@ public class FeatureRendererSettings implements Cloneable
         featureColours.put(next, new FeatureColour((FeatureColour) val));
       }
     }
+
+    if (fr.featureFilters != null)
+    {
+      this.featureFilters.putAll(fr.featureFilters);
+    }
+
     this.transparency = fr.transparency;
     if (fr.featureOrder != null)
     {

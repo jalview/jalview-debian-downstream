@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -192,8 +192,8 @@ public class TableSorter extends AbstractTableModel
               .getDefaultRenderer();
       if (defaultRenderer instanceof SortableHeaderRenderer)
       {
-        this.tableHeader
-                .setDefaultRenderer(((SortableHeaderRenderer) defaultRenderer).tableCellRenderer);
+        this.tableHeader.setDefaultRenderer(
+                ((SortableHeaderRenderer) defaultRenderer).tableCellRenderer);
       }
     }
     this.tableHeader = tableHeader;
@@ -595,7 +595,8 @@ public class TableSorter extends AbstractTableModel
         JLabel l = (JLabel) c;
         l.setHorizontalTextPosition(JLabel.LEFT);
         int modelColumn = table.convertColumnIndexToModel(column);
-        l.setIcon(getHeaderRendererIcon(modelColumn, l.getFont().getSize()));
+        l.setIcon(
+                getHeaderRendererIcon(modelColumn, l.getFont().getSize()));
       }
       return c;
     }

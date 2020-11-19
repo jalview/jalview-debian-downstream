@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -76,8 +76,8 @@ public abstract class DatastoreItem
     }
     if (Cache.log.isDebugEnabled())
     {
-      Cache.log.debug("Returning null VorbaID binding for jalview object "
-              + jvobj);
+      Cache.log.debug(
+              "Returning null VorbaID binding for jalview object " + jvobj);
     }
     return null;
   }
@@ -95,8 +95,8 @@ public abstract class DatastoreItem
     if (id == null)
     {
       id = cdoc.registerObject(vobj);
-      Cache.log
-              .debug("Registering new object and returning null for getvObj2jv");
+      Cache.log.debug(
+              "Registering new object and returning null for getvObj2jv");
       return null;
     }
     if (vobj2jv.containsKey(vobj.getVorbaId()))
@@ -124,28 +124,27 @@ public abstract class DatastoreItem
       {
         Cache.log.error("Failed to get id for "
                 + (vobj.isRegisterable() ? "registerable"
-                        : "unregisterable") + " object " + vobj);
+                        : "unregisterable")
+                + " object " + vobj);
       }
     }
     if (vobj2jv.containsKey(vobj.getVorbaId())
             && !(vobj2jv.get(vobj.getVorbaId())).equals(jvobj))
     {
-      Cache.log
-              .debug("Warning? Overwriting existing vamsas id binding for "
+      Cache.log.debug(
+              "Warning? Overwriting existing vamsas id binding for "
                       + vobj.getVorbaId(),
-                      new Exception(
-                              MessageManager
-                                      .getString("exception.overwriting_vamsas_id_binding")));
+              new Exception(MessageManager.getString(
+                      "exception.overwriting_vamsas_id_binding")));
     }
     else if (jv2vobj.containsKey(jvobj)
             && !((VorbaId) jv2vobj.get(jvobj)).equals(vobj.getVorbaId()))
     {
-      Cache.log
-              .debug("Warning? Overwriting existing jalview object binding for "
+      Cache.log.debug(
+              "Warning? Overwriting existing jalview object binding for "
                       + jvobj,
-                      new Exception(
-                              MessageManager
-                                      .getString("exception.overwriting_jalview_id_binding")));
+              new Exception(MessageManager.getString(
+                      "exception.overwriting_jalview_id_binding")));
     }
     /*
      * Cache.log.error("Attempt to make conflicting object binding! "+vobj+" id "
@@ -197,7 +196,8 @@ public abstract class DatastoreItem
     {
       throw new Error(MessageManager.formatMessage(
               "error.implementation_error_old_jalview_object_not_bound",
-              new String[] { oldjvobject.toString() }));
+              new String[]
+              { oldjvobject.toString() }));
     }
     if (newjvobject != null)
     {
@@ -236,13 +236,11 @@ public abstract class DatastoreItem
     tojalview = true;
     if (jvobj != null && !(boundType.isAssignableFrom(jvobj.getClass())))
     {
-      throw new Error(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
-                              new String[] { vobj.getClass().toString(),
-                                  boundType.toString(),
-                                  jvobj.getClass().toString() }));
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
+              new String[]
+              { vobj.getClass().toString(), boundType.toString(),
+                  jvobj.getClass().toString() }));
     }
     dsReg.registerDsObj(this);
   }
@@ -268,13 +266,11 @@ public abstract class DatastoreItem
     vobj = getjv2vObj(jvobj);
     if (vobj != null && !(boundToType.isAssignableFrom(vobj.getClass())))
     {
-      throw new Error(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
-                              new String[] { jvobj2.getClass().toString(),
-                                  boundToType.toString(),
-                                  vobj.getClass().toString() }));
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_vamsas_doc_class_should_bind_to_type",
+              new String[]
+              { jvobj2.getClass().toString(), boundToType.toString(),
+                  vobj.getClass().toString() }));
     }
     dsReg.registerDsObj(this);
   }
@@ -460,9 +456,9 @@ public abstract class DatastoreItem
     jalview.datamodel.Provenance jprov = new jalview.datamodel.Provenance();
     for (int i = 0; i < prov.getEntryCount(); i++)
     {
-      jprov.addEntry(prov.getEntry(i).getUser(), prov.getEntry(i)
-              .getAction(), prov.getEntry(i).getDate(), prov.getEntry(i)
-              .getId());
+      jprov.addEntry(prov.getEntry(i).getUser(),
+              prov.getEntry(i).getAction(), prov.getEntry(i).getDate(),
+              prov.getEntry(i).getId());
     }
 
     return jprov;

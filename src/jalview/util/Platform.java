@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.util;
 
-import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 
 /**
@@ -30,9 +29,21 @@ import java.awt.event.MouseEvent;
  */
 public class Platform
 {
-  private static Boolean isAMac = null;
+  private static Boolean isAMac = null, isWindows = null, isLinux = null;
 
   private static Boolean isHeadless = null;
+
+  /**
+   * added to check LaF for Linux
+   * 
+   * @return
+   */
+  public static boolean isLinux()
+  {
+    return (isLinux == null
+            ? (isLinux = (System.getProperty("os.name").indexOf("Linux") >= 0))
+            : isLinux);
+  }
 
   /**
    * sorry folks - Macs really are different
@@ -45,10 +56,29 @@ public class Platform
     {
       isAMac = System.getProperty("os.name").indexOf("Mac") > -1;
     }
+
     return isAMac.booleanValue();
 
   }
 
+  /**
+   * Check if we are on a Microsoft plaform...
+   * 
+   * @return true if we have to cope with another platform variation
+   */
+  public static boolean isWindows()
+  {
+    if (isWindows == null)
+    {
+      isWindows = System.getProperty("os.name").indexOf("Win") > -1;
+    }
+    return isWindows.booleanValue();
+  }
+
+  /**
+   * 
+   * @return true if we are running in non-interactive no UI mode
+   */
   public static boolean isHeadless()
   {
     if (isHeadless == null)
@@ -69,23 +99,15 @@ public class Platform
   }
 
   /**
-   * escape a string according to the local platform's escape character
+   * Answers the input with every backslash replaced with a double backslash (an
+   * 'escaped' single backslash)
    * 
-   * @param file
-   * @return escaped file
+   * @param s
+   * @return
    */
-  public static String escapeString(String file)
+  public static String escapeBackslashes(String s)
   {
-    StringBuffer f = new StringBuffer();
-    int p = 0, lastp = 0;
-    while ((p = file.indexOf('\\', lastp)) > -1)
-    {
-      f.append(file.subSequence(lastp, p));
-      f.append("\\\\");
-      lastp = p + 1;
-    }
-    f.append(file.substring(lastp));
-    return f.toString();
+    return s == null ? null : s.replace("\\", "\\\\");
   }
 
   /**
@@ -121,10 +143,34 @@ public class Platform
       {
         return false;
       }
-      return (Toolkit.getDefaultToolkit().getMenuShortcutKeyMask() & e
-              .getModifiers()) != 0;
-      // could we use e.isMetaDown() here?
+      return (jalview.util.ShortcutKeyMaskExWrapper
+              .getMenuShortcutKeyMaskEx() // .getMenuShortcutKeyMaskEx()
+              & jalview.util.ShortcutKeyMaskExWrapper
+                      .getModifiersEx(e)) != 0; // getModifiers()) != 0;
     }
     return e.isControlDown();
+  }
+
+  /**
+   * A (case sensitive) file path comparator that ignores the difference between
+   * / and \
+   * 
+   * @param path1
+   * @param path2
+   * @return
+   */
+  public static boolean pathEquals(String path1, String path2)
+  {
+    if (path1 == null)
+    {
+      return path2 == null;
+    }
+    if (path2 == null)
+    {
+      return false;
+    }
+    String p1 = path1.replace('\\', '/');
+    String p2 = path2.replace('\\', '/');
+    return p1.equals(p2);
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,7 +31,6 @@ import java.awt.Panel;
 import java.awt.Scrollbar;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
-import java.util.Vector;
 
 @SuppressWarnings("serial")
 public abstract class AnnotationRowFilter extends Panel
@@ -59,6 +58,8 @@ public abstract class AnnotationRowFilter extends Panel
   protected Checkbox thresholdIsMin = new Checkbox();
 
   protected Scrollbar slider = new Scrollbar(Scrollbar.HORIZONTAL);
+
+  protected Checkbox percentThreshold = new Checkbox();
 
   protected TextField thresholdValue = new TextField(20);
 
@@ -113,7 +114,7 @@ public abstract class AnnotationRowFilter extends Panel
   public void cancel_actionPerformed(ActionEvent e)
   {
     reset();
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
     frame.setVisible(false);
   }
 
@@ -132,16 +133,53 @@ public abstract class AnnotationRowFilter extends Panel
     updateView();
   }
 
+  /**
+   * update the text field from the threshold slider. preserves state of
+   * 'adjusting' so safe to call in init.
+   */
+  protected void setThresholdValueText()
+  {
+    boolean oldadj = adjusting;
+    adjusting = true;
+    if (percentThreshold.getState())
+    {
+      double scl = slider.getMaximum() - slider.getMinimum();
+      scl = (slider.getValue() - slider.getMinimum()) / scl;
+      thresholdValue.setText(100f * scl + "");
+    }
+    else
+    {
+      thresholdValue.setText((slider.getValue() / 1000f) + "");
+    }
+    thresholdValue.setCaretPosition(0);
+    adjusting = oldadj;
+  }
+
   public void thresholdValue_actionPerformed(ActionEvent e)
   {
     try
     {
       float f = Float.parseFloat(thresholdValue.getText());
-      slider.setValue((int) (f * 1000));
-      updateView();
+      if (percentThreshold.getState())
+      {
+        int pos = slider.getMinimum()
+                + (int) ((slider.getMaximum() - slider.getMinimum()) * f
+                        / 100f);
+        slider.setValue(pos);
+      }
+      else
+      {
+        slider.setValue((int) (f * 1000));
+      }
+      valueChanged(false);
     } catch (NumberFormatException ex)
     {
     }
+  }
+
+  protected void percentageValue_actionPerformed()
+  {
+    setThresholdValueText();
   }
 
   protected void populateThresholdComboBox(Choice threshold)

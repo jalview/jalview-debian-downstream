@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -47,8 +47,8 @@ public class FeatureProperties
     if (type.equalsIgnoreCase(EMBL_CODING_FEATURE))
     {
       return (dbrefsource == null
-              || dbrefsource.equalsIgnoreCase(DBRefSource.EMBL) || dbrefsource
-                .equalsIgnoreCase(DBRefSource.EMBLCDS));
+              || dbrefsource.equalsIgnoreCase(DBRefSource.EMBL)
+              || dbrefsource.equalsIgnoreCase(DBRefSource.EMBLCDS));
     }
     return false;
   }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.gui.AlignFrame;
 import jalview.gui.AlignViewport;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.gui.WebserviceInfo;
 import jalview.io.packed.DataProvider.JvDataType;
 import jalview.util.MessageManager;
@@ -40,7 +41,6 @@ import java.util.Vector;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 
@@ -48,8 +48,8 @@ import javax.swing.event.MenuListener;
  * @author JimP
  * 
  */
-public class RestClient extends WSClient implements WSClientI,
-        WSMenuEntryProviderI
+public class RestClient extends WSClient
+        implements WSClientI, WSMenuEntryProviderI
 {
   RestServiceDescription service;
 
@@ -97,9 +97,9 @@ public class RestClient extends WSClient implements WSClientI,
 
   public void setWebserviceInfo(boolean headless)
   {
-    WebServiceJobTitle = MessageManager.formatMessage(
-            "label.webservice_job_title", new String[] {
-                service.details.Action, service.details.Name });
+    WebServiceJobTitle = MessageManager
+            .formatMessage("label.webservice_job_title", new String[]
+            { service.details.Action, service.details.Name });
     WebServiceName = service.details.Name;
     WebServiceReference = "No reference - go to url for more info";
     if (service.details.description != null)
@@ -108,8 +108,8 @@ public class RestClient extends WSClient implements WSClientI,
     }
     if (!headless)
     {
-      wsInfo = new WebserviceInfo(WebServiceJobTitle, WebServiceName + "\n"
-              + WebServiceReference, true);
+      wsInfo = new WebserviceInfo(WebServiceJobTitle,
+              WebServiceName + "\n" + WebServiceReference, true);
       wsInfo.setRenderAsHtml(true);
     }
 
@@ -142,9 +142,9 @@ public class RestClient extends WSClient implements WSClientI,
           final AlignFrame alignFrame)
   {
     JMenuItem submit = new JMenuItem(service.details.Name);
-    submit.setToolTipText(MessageManager.formatMessage(
-            "label.rest_client_submit", new String[] {
-                service.details.Action, service.details.Name }));
+    submit.setToolTipText(MessageManager
+            .formatMessage("label.rest_client_submit", new String[]
+            { service.details.Action, service.details.Name }));
     submit.addActionListener(new ActionListener()
     {
 
@@ -259,40 +259,42 @@ public class RestClient extends WSClient implements WSClientI,
         {
           // intersect groups with selected region
           _input = new AlignmentView(av.getAlignment(),
-                  av.getColumnSelection(), av.getSelectionGroup(),
-                  av.hasHiddenColumns(), true, true);
+                  av.getAlignment().getHiddenColumns(),
+                  av.getSelectionGroup(), av.hasHiddenColumns(), true,
+                  true);
           viewTitle = MessageManager.formatMessage(
-                  "label.select_visible_region_of",
-                  new String[] {
-                      (av.hasHiddenColumns() ? MessageManager
-                              .getString("label.visible") : ""),
+                  "label.select_visible_region_of", new String[]
+                  { (av.hasHiddenColumns()
+                          ? MessageManager.getString("label.visible")
+                          : ""),
                       af.getTitle() });
         }
         else
         {
           // use selected region to partition alignment
           _input = new AlignmentView(av.getAlignment(),
-                  av.getColumnSelection(), av.getSelectionGroup(),
-                  av.hasHiddenColumns(), false, true);
+                  av.getAlignment().getHiddenColumns(),
+                  av.getSelectionGroup(), av.hasHiddenColumns(), false,
+                  true);
         }
         viewTitle = MessageManager.formatMessage(
-                "label.select_unselect_visible_regions_from",
-                new String[] {
-                    (av.hasHiddenColumns() ? MessageManager
-                            .getString("label.visible") : ""),
+                "label.select_unselect_visible_regions_from", new String[]
+                { (av.hasHiddenColumns()
+                        ? MessageManager.getString("label.visible")
+                        : ""),
                     af.getTitle() });
       }
       else
       {
         // just take selected region intersection
         _input = new AlignmentView(av.getAlignment(),
-                av.getColumnSelection(), av.getSelectionGroup(),
-                av.hasHiddenColumns(), true, true);
+                av.getAlignment().getHiddenColumns(),
+                av.getSelectionGroup(), av.hasHiddenColumns(), true, true);
         viewTitle = MessageManager.formatMessage(
-                "label.select_visible_region_of",
-                new String[] {
-                    (av.hasHiddenColumns() ? MessageManager
-                            .getString("label.visible") : ""),
+                "label.select_visible_region_of", new String[]
+                { (av.hasHiddenColumns()
+                        ? MessageManager.getString("label.visible")
+                        : ""),
                     af.getTitle() });
       }
     }
@@ -300,13 +302,16 @@ public class RestClient extends WSClient implements WSClientI,
     {
       // standard alignment view without selection present
       _input = new AlignmentView(av.getAlignment(),
-              av.getColumnSelection(), null, av.hasHiddenColumns(), false,
-              true);
+              av.getAlignment().getHiddenColumns(), null,
+              av.hasHiddenColumns(), false, true);
       viewTitle = ""
-              + (av.hasHiddenColumns() ? (new StringBuffer(" ")
-                      .append(MessageManager
-                              .getString("label.visible_region_of"))
-                      .toString()) : "") + af.getTitle();
+              + (av.hasHiddenColumns()
+                      ? (new StringBuffer(" ")
+                              .append(MessageManager
+                                      .getString("label.visible_region_of"))
+                              .toString())
+                      : "")
+              + af.getTitle();
     }
 
     RestJobThread jobsthread = new RestJobThread(this);
@@ -324,22 +329,21 @@ public class RestClient extends WSClient implements WSClientI,
     else
     {
       // TODO: try to tell the user why the job couldn't be started.
-      JOptionPane
-              .showMessageDialog(
-                      Desktop.desktop,
-                      (jobsthread.hasWarnings() ? jobsthread.getWarnings()
-                              : MessageManager
-                                      .getString("label.job_couldnt_be_started_check_input")),
-                      MessageManager
-                              .getString("label.unable_start_web_service_analysis"),
-                      JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              (jobsthread.hasWarnings() ? jobsthread.getWarnings()
+                      : MessageManager.getString(
+                              "label.job_couldnt_be_started_check_input")),
+              MessageManager
+                      .getString("label.unable_start_web_service_analysis"),
+              JvOptionPane.WARNING_MESSAGE);
     }
   }
 
   public static RestClient makeShmmrRestClient()
   {
-    String action = "Analysis", description = "Sequence Harmony and Multi-Relief (Brandt et al. 2010)", name = MessageManager
-            .getString("label.multiharmony");
+    String action = "Analysis",
+            description = "Sequence Harmony and Multi-Relief (Brandt et al. 2010)",
+            name = MessageManager.getString("label.multiharmony");
     Hashtable<String, InputType> iparams = new Hashtable<String, InputType>();
     jalview.ws.rest.params.JobConstant toolp;
     // toolp = new jalview.ws.rest.JobConstant("tool","jalview");
@@ -366,11 +370,9 @@ public class RestClient extends WSClient implements WSClientI,
     iparams.put("groups", sgroups);
     sgroups.token = "groups";
     sgroups.sep = " ";
-    RestServiceDescription shmrService = new RestServiceDescription(
-            action,
-            description,
-            name,
-            "http://zeus.few.vu.nl/programs/shmrwww/index.php?tool=jalview",// ?tool=jalview&mbjob[method]=shmr&mbjob[description]=step1",
+    RestServiceDescription shmrService = new RestServiceDescription(action,
+            description, name,
+            "http://zeus.few.vu.nl/programs/shmrwww/index.php?tool=jalview", // ?tool=jalview&mbjob[method]=shmr&mbjob[description]=step1",
             "?tool=jalview", iparams, true, false, '-');
     // a priori knowledge of the data returned from the service
     shmrService.addResultDatatype(JvDataType.ANNOTATION);
@@ -409,16 +411,16 @@ public class RestClient extends WSClient implements WSClientI,
       try
       {
         for (RestServiceDescription descr : RestServiceDescription
-                .parseDescriptions(jalview.bin.Cache.getDefault(
-                        RSBS_SERVICES,
-                        makeShmmrRestClient().service.toString())))
+                .parseDescriptions(
+                        jalview.bin.Cache.getDefault(RSBS_SERVICES,
+                                makeShmmrRestClient().service.toString())))
         {
           services.add(descr.toString());
         }
       } catch (Exception ex)
       {
-        System.err
-                .println("Serious - RSBS descriptions in user preferences are corrupt!");
+        System.err.println(
+                "Serious - RSBS descriptions in user preferences are corrupt!");
         ex.printStackTrace();
       }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,6 +35,12 @@ import java.util.List;
  */
 public interface GffHelperI
 {
+  /*
+   * GFF3 spec requires comma, equals, semi-colon, tab, percent characters to be
+   * encoded as %2C, %3D, %3B, %09, %25 respectively within data values
+   * see https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md
+   */
+  final String GFF_ENCODABLE = ",=;\t%";
 
   final String RENAME_TOKEN = "$RENAME_TO$";
 

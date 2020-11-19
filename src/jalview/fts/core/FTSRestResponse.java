@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 
 package jalview.fts.core;
 
+import jalview.datamodel.SequenceI;
 import jalview.fts.api.FTSData;
 import jalview.fts.api.FTSDataColumnI;
 
@@ -90,8 +91,8 @@ public class FTSRestResponse
   public static DefaultTableModel getTableModel(FTSRestRequest request,
           Collection<FTSData> summariesList)
   {
-    final FTSDataColumnI[] cols = request.getWantedFields().toArray(
-            new FTSDataColumnI[0]);
+    final FTSDataColumnI[] cols = request.getWantedFields()
+            .toArray(new FTSDataColumnI[0]);
     final int colOffset = request.getAssociatedSequence() == null ? 0 : 1;
     DefaultTableModel tableModel = new DefaultTableModel()
     {
@@ -106,7 +107,7 @@ public class FTSRestResponse
       {
         if (colOffset == 1 && columnIndex == 0)
         {
-          return String.class;
+          return SequenceI.class;
         }
         return cols[columnIndex - colOffset].getDataType()
                 .getDataTypeClass();
@@ -141,15 +142,15 @@ public class FTSRestResponse
     {
       try
       {
-        tbl_summary.getColumn(wantedField.getName()).setMinWidth(
-                wantedField.getMinWidth());
-        tbl_summary.getColumn(wantedField.getName()).setMaxWidth(
-                wantedField.getMaxWidth());
-        int prefedWidth = columnPrefs.get(wantedField.getName()) == null ? wantedField
-                .getPreferredWidth() : columnPrefs.get(wantedField
-                .getName());
-        tbl_summary.getColumn(wantedField.getName()).setPreferredWidth(
-                prefedWidth);
+        tbl_summary.getColumn(wantedField.getName())
+                .setMinWidth(wantedField.getMinWidth());
+        tbl_summary.getColumn(wantedField.getName())
+                .setMaxWidth(wantedField.getMaxWidth());
+        int prefedWidth = columnPrefs.get(wantedField.getName()) == null
+                ? wantedField.getPreferredWidth()
+                : columnPrefs.get(wantedField.getName());
+        tbl_summary.getColumn(wantedField.getName())
+                .setPreferredWidth(prefedWidth);
       } catch (Exception e)
       {
         e.printStackTrace();
@@ -157,15 +158,16 @@ public class FTSRestResponse
       if (wantedField.getDataType().getDataTypeClass() == Double.class)
       {
         DecimalFormatTableCellRenderer dfr = new DecimalFormatTableCellRenderer(
-                wantedField.getDataType().isFormtted(), wantedField
-                        .getDataType().getSignificantFigures());
+                wantedField.getDataType().isFormtted(),
+                wantedField.getDataType().getSignificantFigures());
         tbl_summary.getColumn(wantedField.getName()).setCellRenderer(dfr);
       }
-      else if (wantedField.getDataType().getDataTypeClass() == Integer.class)
+      else if (wantedField.getDataType()
+              .getDataTypeClass() == Integer.class)
       {
         DecimalFormatTableCellRenderer dfr = new DecimalFormatTableCellRenderer(
-                wantedField.getDataType().isFormtted(), wantedField
-                        .getDataType().getSignificantFigures());
+                wantedField.getDataType().isFormtted(),
+                wantedField.getDataType().getSignificantFigures());
         tbl_summary.getColumn(wantedField.getName()).setCellRenderer(dfr);
       }
     }

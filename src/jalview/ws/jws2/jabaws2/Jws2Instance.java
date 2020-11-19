@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -38,7 +38,7 @@ import compbio.data.msa.SequenceAnnotation;
 import compbio.metadata.PresetManager;
 import compbio.metadata.RunnerConfig;
 
-public class Jws2Instance
+public class Jws2Instance implements AutoCloseable
 {
   public String hosturl;
 
@@ -159,25 +159,24 @@ public class Jws2Instance
     }
     throw new Error(MessageManager.formatMessage(
             "error.implementation_error_runner_config_not_available",
-            new String[] { serviceType, service.getClass().toString() }));
+            new String[]
+            { serviceType, service.getClass().toString() }));
   }
 
   @Override
-  protected void finalize() throws Throwable
+  public void close()
   {
     if (service != null)
     {
       try
       {
-        Closeable svc = (Closeable) service;
-        service = null;
-        svc.close();
-      } catch (Exception e)
+        ((Closeable) service).close();
+      } catch (Throwable t)
       {
+        // ignore
       }
-      ;
     }
-    super.finalize();
+    // super.finalize();
   }
 
   public ParamDatastoreI getParamStore()
@@ -204,7 +203,8 @@ public class Jws2Instance
     // this is only valid for Jaba 1.0 - this formula might have to change!
     return hosturl
             + (hosturl.lastIndexOf("/") == (hosturl.length() - 1) ? ""
-                    : "/") + serviceType;
+                    : "/")
+            + serviceType;
   }
 
   private boolean hasParams = false, lookedForParams = false;

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -99,7 +99,7 @@ public class CrossRef
    */
   public List<String> findXrefSourcesForSequences(boolean dna)
   {
-    List<String> sources = new ArrayList<String>();
+    List<String> sources = new ArrayList<>();
     for (SequenceI seq : fromSeqs)
     {
       if (seq != null)
@@ -151,7 +151,7 @@ public class CrossRef
        * find sequence's direct (dna-to-dna, peptide-to-peptide) xrefs
        */
       DBRefEntry[] lrfs = DBRefUtils.selectDbRefs(fromDna, seq.getDBRefs());
-      List<SequenceI> foundSeqs = new ArrayList<SequenceI>();
+      List<SequenceI> foundSeqs = new ArrayList<>();
 
       /*
        * find sequences in the alignment which xref one of these DBRefs
@@ -164,8 +164,8 @@ public class CrossRef
        */
       for (SequenceI rs : foundSeqs)
       {
-        DBRefEntry[] xrs = DBRefUtils
-                .selectDbRefs(!fromDna, rs.getDBRefs());
+        DBRefEntry[] xrs = DBRefUtils.selectDbRefs(!fromDna,
+                rs.getDBRefs());
         addXrefsToSources(xrs, sources);
       }
     }
@@ -218,7 +218,7 @@ public class CrossRef
   public Alignment findXrefSequences(String source, boolean fromDna)
   {
 
-    rseqs = new ArrayList<SequenceI>();
+    rseqs = new ArrayList<>();
     AlignedCodonFrame cf = new AlignedCodonFrame();
     matcher = new SequenceIdMatcher(dataset.getSequences());
 
@@ -230,8 +230,8 @@ public class CrossRef
         dss = dss.getDatasetSequence();
       }
       boolean found = false;
-      DBRefEntry[] xrfs = DBRefUtils
-              .selectDbRefs(!fromDna, dss.getDBRefs());
+      DBRefEntry[] xrfs = DBRefUtils.selectDbRefs(!fromDna,
+              dss.getDBRefs());
       // ENST & ENSP comes in to both Protein and nucleotide, so we need to
       // filter them
       // out later.
@@ -291,13 +291,10 @@ public class CrossRef
             if (matchInDataset != null && xref.getMap().getTo() != null
                     && matchInDataset != xref.getMap().getTo())
             {
-              System.err
-                      .println("Implementation problem (reopen JAL-2154): CrossRef.findInDataset seems to have recovered a different sequence than the one explicitly mapped for xref."
-                              + "Found:"
-                              + matchInDataset
-                              + "\nExpected:"
-                              + xref.getMap().getTo()
-                              + "\nFor xref:"
+              System.err.println(
+                      "Implementation problem (reopen JAL-2154): CrossRef.findInDataset seems to have recovered a different sequence than the one explicitly mapped for xref."
+                              + "Found:" + matchInDataset + "\nExpected:"
+                              + xref.getMap().getTo() + "\nFor xref:"
                               + xref);
             }
             /*matcher.findIdMatch(mappedTo);*/
@@ -323,8 +320,9 @@ public class CrossRef
                 }
                 else
                 {
-                  cf.addMap(matchInDataset, dss, xref.getMap().getMap()
-                          .getInverse(), xref.getMap().getMappedFromId());
+                  cf.addMap(matchInDataset, dss,
+                          xref.getMap().getMap().getInverse(),
+                          xref.getMap().getMappedFromId());
                 }
               }
 
@@ -340,8 +338,8 @@ public class CrossRef
               if (fromDna)
               {
                 // map is from dna seq to a protein product
-                cf.addMap(dss, rsq, xref.getMap().getMap(), xref.getMap()
-                        .getMappedFromId());
+                cf.addMap(dss, rsq, xref.getMap().getMap(),
+                        xref.getMap().getMappedFromId());
               }
               else
               {
@@ -355,8 +353,8 @@ public class CrossRef
 
         if (!found)
         {
-          SequenceI matchedSeq = matcher.findIdMatch(xref.getSource() + "|"
-                  + xref.getAccessionId());
+          SequenceI matchedSeq = matcher.findIdMatch(
+                  xref.getSource() + "|" + xref.getAccessionId());
           // if there was a match, check it's at least the right type of
           // molecule!
           if (matchedSeq != null && matchedSeq.isProtein() == fromDna)
@@ -406,8 +404,8 @@ public class CrossRef
   {
     ASequenceFetcher sftch = SequenceFetcherFactory.getSequenceFetcher();
     SequenceI[] retrieved = null;
-    SequenceI dss = seq.getDatasetSequence() == null ? seq : seq
-            .getDatasetSequence();
+    SequenceI dss = seq.getDatasetSequence() == null ? seq
+            : seq.getDatasetSequence();
     // first filter in case we are retrieving crossrefs that have already been
     // retrieved. this happens for cases where a database record doesn't yield
     // protein products for CDS
@@ -423,8 +421,8 @@ public class CrossRef
       retrieved = sftch.getSequences(sourceRefs, !fromDna);
     } catch (Exception e)
     {
-      System.err
-              .println("Problem whilst retrieving cross references for Sequence : "
+      System.err.println(
+              "Problem whilst retrieving cross references for Sequence : "
                       + seq.getName());
       e.printStackTrace();
     }
@@ -432,14 +430,16 @@ public class CrossRef
     if (retrieved != null)
     {
       boolean addedXref = false;
-      List<SequenceI> newDsSeqs = new ArrayList<SequenceI>(), doNotAdd = new ArrayList<SequenceI>();
+      List<SequenceI> newDsSeqs = new ArrayList<>(),
+              doNotAdd = new ArrayList<>();
 
       for (SequenceI retrievedSequence : retrieved)
       {
         // dataset gets contaminated ccwith non-ds sequences. why ??!
         // try: Ensembl -> Nuc->Ensembl, Nuc->Uniprot-->Protein->EMBL->
-        SequenceI retrievedDss = retrievedSequence.getDatasetSequence() == null ? retrievedSequence
-                : retrievedSequence.getDatasetSequence();
+        SequenceI retrievedDss = retrievedSequence
+                .getDatasetSequence() == null ? retrievedSequence
+                        : retrievedSequence.getDatasetSequence();
         addedXref |= importCrossRefSeq(cf, newDsSeqs, doNotAdd, dss,
                 retrievedDss);
       }
@@ -452,8 +452,9 @@ public class CrossRef
         {
           // dataset gets contaminated ccwith non-ds sequences. why ??!
           // try: Ensembl -> Nuc->Ensembl, Nuc->Uniprot-->Protein->EMBL->
-          SequenceI retrievedDss = retrievedSequence.getDatasetSequence() == null ? retrievedSequence
-                  : retrievedSequence.getDatasetSequence();
+          SequenceI retrievedDss = retrievedSequence
+                  .getDatasetSequence() == null ? retrievedSequence
+                          : retrievedSequence.getDatasetSequence();
           addedXref |= importCrossRefSeq(cf, newDsSeqs, doNotAdd, dss,
                   retrievedDss);
         }
@@ -577,9 +578,8 @@ public class CrossRef
               int sf = map.getMap().getToLowest();
               int st = map.getMap().getToHighest();
               SequenceI mappedrg = ms.getSubSequence(sf, st);
-              if (mappedrg.getLength() > 0
-                      && ms.getSequenceAsString().equals(
-                              matched.getSequenceAsString()))
+              if (mappedrg.getLength() > 0 && ms.getSequenceAsString()
+                      .equals(matched.getSequenceAsString()))
               {
                 /*
                  * sequences were a match, 
@@ -597,8 +597,8 @@ public class CrossRef
                    */
                   for (DBRefEntry ref : toRefs)
                   {
-                    if (dbref.getSrcAccString().equals(
-                            ref.getSrcAccString()))
+                    if (dbref.getSrcAccString()
+                            .equals(ref.getSrcAccString()))
                     {
                       continue; // avoid overwriting the ref on source sequence
                     }
@@ -619,34 +619,31 @@ public class CrossRef
                  * duplication (e.g. same variation from two 
                  * transcripts)
                  */
-                SequenceFeature[] sfs = ms.getSequenceFeatures();
-                if (sfs != null)
+                List<SequenceFeature> sfs = ms.getFeatures()
+                        .getAllFeatures();
+                for (SequenceFeature feat : sfs)
                 {
-                  for (SequenceFeature feat : sfs)
+                  /*
+                   * make a flyweight feature object which ignores Parent
+                   * attribute in equality test; this avoids creating many
+                   * otherwise duplicate exon features on genomic sequence
+                   */
+                  SequenceFeature newFeature = new SequenceFeature(feat)
                   {
-                    /*
-                     * make a flyweight feature object which ignores Parent
-                     * attribute in equality test; this avoids creating many
-                     * otherwise duplicate exon features on genomic sequence
-                     */
-                    SequenceFeature newFeature = new SequenceFeature(feat)
+                    @Override
+                    public boolean equals(Object o)
                     {
-                      @Override
-                      public boolean equals(Object o)
-                      {
-                        return super.equals(o, true);
-                      }
-                    };
-                    matched.addSequenceFeature(newFeature);
-                  }
+                      return super.equals(o, true);
+                    }
+                  };
+                  matched.addSequenceFeature(newFeature);
                 }
-
               }
               cf.addMap(retrievedSequence, map.getTo(), map.getMap());
             } catch (Exception e)
             {
-              System.err
-                      .println("Exception when consolidating Mapped sequence set...");
+              System.err.println(
+                      "Exception when consolidating Mapped sequence set...");
               e.printStackTrace(System.err);
             }
           }
@@ -725,8 +722,8 @@ public class CrossRef
     SequenceI mapsTo = xref.getMap().getTo();
     String name = xref.getAccessionId();
     String name2 = xref.getSource() + "|" + name;
-    SequenceI dss = mapsTo.getDatasetSequence() == null ? mapsTo : mapsTo
-            .getDatasetSequence();
+    SequenceI dss = mapsTo.getDatasetSequence() == null ? mapsTo
+            : mapsTo.getDatasetSequence();
     // first check ds if ds is directly referenced
     if (dataset.findIndex(dss) > -1)
     {
@@ -741,8 +738,8 @@ public class CrossRef
     for (SequenceI seq : dataset.getSequences())
     {
       // first check primary refs.
-      List<DBRefEntry> match = DBRefUtils.searchRefs(seq.getPrimaryDBRefs()
-              .toArray(new DBRefEntry[0]), template);
+      List<DBRefEntry> match = DBRefUtils.searchRefs(
+              seq.getPrimaryDBRefs().toArray(new DBRefEntry[0]), template);
       if (match != null && match.size() == 1 && sameSequence(seq, dss))
       {
         return seq;
@@ -752,9 +749,8 @@ public class CrossRef
        * returns sequences with a dbref to the matched accession id 
        * which we don't want
        */
-      if (firstIdMatch == null
-              && (name.equals(seq.getName()) || seq.getName().startsWith(
-                      name2)))
+      if (firstIdMatch == null && (name.equals(seq.getName())
+              || seq.getName().startsWith(name2)))
       {
         if (sameSequence(seq, dss))
         {
@@ -786,15 +782,15 @@ public class CrossRef
     {
       return false;
     }
-    char[] c1 = seq1.getSequence();
-    char[] c2 = seq2.getSequence();
-    if (c1.length != c2.length)
+
+    if (seq1.getLength() != seq2.getLength())
     {
       return false;
     }
-    for (int i = 0; i < c1.length; i++)
+    int length = seq1.getLength();
+    for (int i = 0; i < length; i++)
     {
-      int diff = c1[i] - c2[i];
+      int diff = seq1.getCharAt(i) - seq2.getCharAt(i);
       /*
        * same char or differ in case only ('a'-'A' == 32)
        */
@@ -865,8 +861,8 @@ public class CrossRef
     MapList mapping = null;
     SequenceI dsmapFrom = mapFrom.getDatasetSequence() == null ? mapFrom
             : mapFrom.getDatasetSequence();
-    SequenceI dsmapTo = mapTo.getDatasetSequence() == null ? mapTo : mapTo
-            .getDatasetSequence();
+    SequenceI dsmapTo = mapTo.getDatasetSequence() == null ? mapTo
+            : mapTo.getDatasetSequence();
     /*
      * look for a reverse mapping, if found make its inverse. 
      * Note - we do this on dataset sequences only.
@@ -925,7 +921,7 @@ public class CrossRef
 
     if (fromDna)
     {
-      AlignmentUtils.computeProteinFeatures(mapFrom, mapTo, mapping);
+      // AlignmentUtils.computeProteinFeatures(mapFrom, mapTo, mapping);
       mappings.addMap(mapFrom, mapTo, mapping);
     }
     else
@@ -950,7 +946,8 @@ public class CrossRef
    * @return true if matches were found.
    */
   private boolean searchDatasetXrefs(boolean fromDna, SequenceI sequenceI,
-          DBRefEntry[] lrfs, List<SequenceI> foundSeqs, AlignedCodonFrame cf)
+          DBRefEntry[] lrfs, List<SequenceI> foundSeqs,
+          AlignedCodonFrame cf)
   {
     boolean found = false;
     if (lrfs == null)
@@ -963,7 +960,8 @@ public class CrossRef
       // add in wildcards
       xref.setVersion(null);
       xref.setMap(null);
-      found |= searchDataset(fromDna, sequenceI, xref, foundSeqs, cf, false);
+      found |= searchDataset(fromDna, sequenceI, xref, foundSeqs, cf,
+              false);
     }
     return found;
   }
@@ -1019,10 +1017,9 @@ public class CrossRef
         {
           if (nxt.getDatasetSequence() != null)
           {
-            System.err
-                    .println("Implementation warning: CrossRef initialised with a dataset alignment with non-dataset sequences in it! ("
-                            + nxt.getDisplayId(true)
-                            + " has ds reference "
+            System.err.println(
+                    "Implementation warning: CrossRef initialised with a dataset alignment with non-dataset sequences in it! ("
+                            + nxt.getDisplayId(true) + " has ds reference "
                             + nxt.getDatasetSequence().getDisplayId(true)
                             + ")");
           }

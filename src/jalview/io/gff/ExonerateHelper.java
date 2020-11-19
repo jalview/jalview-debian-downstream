@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -165,7 +165,8 @@ public class ExonerateHelper extends Gff2Helper
     SequenceI mapFromSequence = seq;
     SequenceI mapToSequence = mappedSequence;
     if ((type == MappingType.NucleotideToPeptide && featureIsOnTarget)
-            || (type == MappingType.PeptideToNucleotide && !featureIsOnTarget))
+            || (type == MappingType.PeptideToNucleotide
+                    && !featureIsOnTarget))
     {
       mapFromSequence = mappedSequence;
       mapToSequence = seq;
@@ -267,8 +268,8 @@ public class ExonerateHelper extends Gff2Helper
     {
       fromStart = alignToStart;
       toStart = alignFromStart;
-      toEnd = forwardStrand ? toStart + alignCount - 1 : toStart
-              - (alignCount - 1);
+      toEnd = forwardStrand ? toStart + alignCount - 1
+              : toStart - (alignCount - 1);
       int toLength = Math.abs(toEnd - toStart) + 1;
       int fromLength = toLength * type.getFromRatio() / type.getToRatio();
       fromEnd = fromStart + fromLength - 1;
@@ -352,12 +353,16 @@ public class ExonerateHelper extends Gff2Helper
     return false;
   }
 
+  /**
+   * An override to set feature group to "exonerate" instead of the default GFF
+   * source value (column 2)
+   */
   @Override
   protected SequenceFeature buildSequenceFeature(String[] gff,
           Map<String, List<String>> set)
   {
-    SequenceFeature sf = super.buildSequenceFeature(gff, set);
-    sf.setFeatureGroup("exonerate");
+    SequenceFeature sf = super.buildSequenceFeature(gff, TYPE_COL,
+            "exonerate", set);
 
     return sf;
   }

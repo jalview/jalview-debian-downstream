@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,7 +24,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class DatastoreRegistry
+public class DatastoreRegistry implements AutoCloseable
 {
   protected static org.apache.log4j.Logger log = org.apache.log4j.Logger
           .getLogger(DatastoreRegistry.class);
@@ -153,7 +153,7 @@ public class DatastoreRegistry
   }
 
   @Override
-  protected void finalize() throws Throwable
+  public void close()
   {
     if (dsObjReg != null)
     {
@@ -172,6 +172,6 @@ public class DatastoreRegistry
     {
       dsItemReg.clear();
     }
-    super.finalize();
+    // super.finalize();
   }
 }

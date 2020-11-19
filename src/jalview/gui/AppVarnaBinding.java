@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -281,8 +281,8 @@ public class AppVarnaBinding extends JalviewVarnaBinding
                       String name = r.getName();
                       if (name.equals(""))
                       {
-                        name = path.substring(path
-                                .lastIndexOf(File.separatorChar) + 1);
+                        name = path.substring(
+                                path.lastIndexOf(File.separatorChar) + 1);
                       }
                       if (mdls.size() > 1)
                       {
@@ -374,9 +374,9 @@ public class AppVarnaBinding extends JalviewVarnaBinding
 
       _sideList.ensureIndexIsVisible(index);
       /*
-       * TODO Object newName = JOptionPane.showInputDialog( this,
+       * TODO Object newName = JvOptionPane.showInputDialog( this,
        * "Specify a new name for this RNA", "Rename RNA",
-       * JOptionPane.QUESTION_MESSAGE, (Icon)null, null, item.toString()); if
+       * JvOptionPane.QUESTION_MESSAGE, (Icon)null, null, item.toString()); if
        * (newName!=null) { item.name = newName.toString();
        * this._sideList.repaint(); }
        */
@@ -384,7 +384,7 @@ public class AppVarnaBinding extends JalviewVarnaBinding
   }
 
   @Override
-  public String[] getPdbFile()
+  public String[] getStructureFiles()
   {
     return null;
   }

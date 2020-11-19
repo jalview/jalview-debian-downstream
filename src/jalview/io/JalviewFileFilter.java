@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,8 +21,10 @@
 package jalview.io;
 
 import java.io.File;
-import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 import javax.swing.filechooser.FileFilter;
@@ -31,13 +33,15 @@ public class JalviewFileFilter extends FileFilter
 {
   public static Hashtable suffixHash = new Hashtable();
 
-  private Hashtable filters = null;
+  private Map<String, JalviewFileFilter> filters = null;
 
   private String description = "no description";
 
   private String fullDescription = "full description";
 
   private boolean useExtensionsInDescription = true;
+
+  private JalviewFileChooser parentJFC = null;
 
   public JalviewFileFilter(String extension, String description)
   {
@@ -72,12 +76,14 @@ public class JalviewFileFilter extends FileFilter
 
   public String getAcceptableExtension()
   {
-    return filters.keys().nextElement().toString();
+    return filters.keySet().iterator().next().toString();
   }
 
   // takes account of the fact that database is a directory
+  @Override
   public boolean accept(File f)
   {
+
     if (f != null)
     {
       String extension = getExtension(f);
@@ -87,12 +93,35 @@ public class JalviewFileFilter extends FileFilter
         return true;
       }
 
-      if ((extension != null) && (filters.get(getExtension(f)) != null))
+      if ((extension != null) && (filters.get(extension) != null))
       {
         return true;
       }
+
     }
 
+    if (parentJFC != null && parentJFC.includeBackupFiles)
+    {
+      Iterator<String> it = filters.keySet().iterator();
+      EXTENSION: while (it.hasNext())
+      {
+        String ext = it.next();
+
+        // quick negative test
+        if (!f.getName().contains(ext))
+        {
+          continue EXTENSION;
+        }
+
+        BackupFilenameParts bfp = BackupFilenameParts
+                .currentBackupFilenameParts(f.getName(), ext, true);
+        if (bfp.isBackupFile())
+        {
+          return true;
+        }
+      }
+    }
+    
     return false;
   }
 
@@ -118,13 +147,14 @@ public class JalviewFileFilter extends FileFilter
   {
     if (filters == null)
     {
-      filters = new Hashtable(5);
+      filters = new LinkedHashMap<>(5);
     }
 
     filters.put(extension.toLowerCase(), this);
     fullDescription = null;
   }
 
+  @Override
   public String getDescription()
   {
     if (fullDescription == null)
@@ -135,15 +165,15 @@ public class JalviewFileFilter extends FileFilter
                 : (description + " (");
 
         // build the description from the extension list
-        Enumeration extensions = filters.keys();
+        Iterator<String> extensions = filters.keySet().iterator();
 
         if (extensions != null)
         {
-          fullDescription += ("." + (String) extensions.nextElement());
+          fullDescription += ("." + extensions.next());
 
-          while (extensions.hasMoreElements())
+          while (extensions.hasNext())
           {
-            fullDescription += (", " + (String) extensions.nextElement());
+            fullDescription += (", " + extensions.next());
           }
         }
 
@@ -174,4 +204,10 @@ public class JalviewFileFilter extends FileFilter
   {
     return useExtensionsInDescription;
   }
+
+  protected void setParentJFC(JalviewFileChooser p)
+  {
+    this.parentJFC = p;
+  }
+
 }

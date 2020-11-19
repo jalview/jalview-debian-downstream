@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,17 +20,21 @@
  */
 package jalview.gui;
 
+import jalview.api.AlignViewControllerGuiI;
+import jalview.api.FeatureSettingsControllerI;
 import jalview.api.SplitContainerI;
-import jalview.api.ViewStyleI;
+import jalview.controller.FeatureSettingsControllerGuiI;
 import jalview.datamodel.AlignmentI;
 import jalview.jbgui.GAlignFrame;
 import jalview.jbgui.GSplitFrame;
 import jalview.structure.StructureSelectionManager;
+import jalview.util.MessageManager;
 import jalview.util.Platform;
 import jalview.viewmodel.AlignmentViewport;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
@@ -43,9 +47,17 @@ import java.util.Map.Entry;
 
 import javax.swing.AbstractAction;
 import javax.swing.InputMap;
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDesktopPane;
+import javax.swing.JInternalFrame;
+import javax.swing.JLayeredPane;
 import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
 
@@ -74,6 +86,13 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
   private static final int DESKTOP_DECORATORS_HEIGHT = 65;
 
   private static final long serialVersionUID = 1L;
+
+  /**
+   * geometry for Feature Settings Holder
+   */
+  private static final int FS_MIN_WIDTH = 400;
+
+  private static final int FS_MIN_HEIGHT = 400;
 
   public SplitFrame(GAlignFrame top, GAlignFrame bottom)
   {
@@ -132,8 +151,8 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
   {
     // allow about 65 pixels for Desktop decorators on Windows
 
-    int newHeight = Math.min(height, Desktop.instance.getHeight()
-            - DESKTOP_DECORATORS_HEIGHT);
+    int newHeight = Math.min(height,
+            Desktop.instance.getHeight() - DESKTOP_DECORATORS_HEIGHT);
     if (newHeight != height)
     {
       int oldDividerLocation = getDividerLocation();
@@ -161,26 +180,21 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
    */
   public void adjustLayout()
   {
+    final AlignViewport topViewport = ((AlignFrame) getTopFrame()).viewport;
+    final AlignViewport bottomViewport = ((AlignFrame) getBottomFrame()).viewport;
+
     /*
      * Ensure sequence ids are the same width so sequences line up
      */
-    int w1 = ((AlignFrame) getTopFrame()).getViewport().getIdWidth();
-    int w2 = ((AlignFrame) getBottomFrame()).getViewport().getIdWidth();
+    int w1 = topViewport.getIdWidth();
+    int w2 = bottomViewport.getIdWidth();
     int w3 = Math.max(w1, w2);
-    if (w1 != w3)
-    {
-      ((AlignFrame) getTopFrame()).getViewport().setIdWidth(w3);
-    }
-    if (w2 != w3)
-    {
-      ((AlignFrame) getBottomFrame()).getViewport().setIdWidth(w3);
-    }
+    topViewport.setIdWidth(w3);
+    bottomViewport.setIdWidth(w3);
 
     /*
      * Scale protein to either 1 or 3 times character width of dna
      */
-    final AlignViewport topViewport = ((AlignFrame) getTopFrame()).viewport;
-    final AlignViewport bottomViewport = ((AlignFrame) getBottomFrame()).viewport;
     final AlignmentI topAlignment = topViewport.getAlignment();
     final AlignmentI bottomAlignment = bottomViewport.getAlignment();
     AlignmentViewport cdna = topAlignment.isNucleotide() ? topViewport
@@ -189,23 +203,35 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
             : (!bottomAlignment.isNucleotide() ? bottomViewport : null);
     if (protein != null && cdna != null)
     {
-      ViewStyleI vs = protein.getViewStyle();
-      int scale = vs.isScaleProteinAsCdna() ? 3 : 1;
-      vs.setCharWidth(scale * cdna.getViewStyle().getCharWidth());
-      protein.setViewStyle(vs);
+      int scale = protein.isScaleProteinAsCdna() ? 3 : 1;
+      protein.setCharWidth(scale * cdna.getViewStyle().getCharWidth());
     }
   }
 
   /**
-   * Adjust the divider for a sensible split of the real estate (for example,
+   * Adjusts the divider for a sensible split of the real estate (for example,
    * when many transcripts are shown with a single protein). This should only be
    * called after the split pane has been laid out (made visible) so it has a
-   * height.
+   * height. The aim is to avoid unnecessary vertical scroll bars, while
+   * ensuring that at least 2 sequences are visible in each panel.
+   * <p>
+   * Once laid out, the user may choose to customise as they wish, so this
+   * method is not called again after the initial layout.
    */
-  protected void adjustDivider()
+  protected void adjustInitialLayout()
   {
-    final AlignViewport topViewport = ((AlignFrame) getTopFrame()).viewport;
-    final AlignViewport bottomViewport = ((AlignFrame) getBottomFrame()).viewport;
+    AlignFrame topFrame = (AlignFrame) getTopFrame();
+    AlignFrame bottomFrame = (AlignFrame) getBottomFrame();
+
+    /*
+     * recompute layout of top and bottom panels to reflect their
+     * actual (rather than requested) height
+     */
+    topFrame.alignPanel.adjustAnnotationHeight();
+    bottomFrame.alignPanel.adjustAnnotationHeight();
+
+    final AlignViewport topViewport = topFrame.viewport;
+    final AlignViewport bottomViewport = bottomFrame.viewport;
     final AlignmentI topAlignment = topViewport.getAlignment();
     final AlignmentI bottomAlignment = bottomViewport.getAlignment();
     boolean topAnnotations = topViewport.isShowAnnotation();
@@ -217,6 +243,29 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     int bottomCharHeight = bottomViewport.getViewStyle().getCharHeight();
 
     /*
+     * calculate the minimum ratio that leaves at least the height 
+     * of two sequences (after rounding) visible in the top panel
+     */
+    int topPanelHeight = topFrame.getHeight();
+    int bottomPanelHeight = bottomFrame.getHeight();
+    int topSequencesHeight = topFrame.alignPanel.getSeqPanel().seqCanvas
+            .getHeight();
+    int topPanelMinHeight = topPanelHeight
+            - Math.max(0, topSequencesHeight - 3 * topCharHeight);
+    double totalHeight = (double) topPanelHeight + bottomPanelHeight;
+    double minRatio = topPanelMinHeight / totalHeight;
+
+    /*
+     * calculate the maximum ratio that leaves at least the height 
+     * of two sequences (after rounding) visible in the bottom panel
+     */
+    int bottomSequencesHeight = bottomFrame.alignPanel.getSeqPanel().seqCanvas
+            .getHeight();
+    int bottomPanelMinHeight = bottomPanelHeight
+            - Math.max(0, bottomSequencesHeight - 3 * bottomCharHeight);
+    double maxRatio = (totalHeight - bottomPanelMinHeight) / totalHeight;
+
+    /*
      * estimate ratio of (topFrameContent / bottomFrameContent)
      */
     int insets = Platform.isAMac() ? MAC_INSETS_HEIGHT
@@ -226,13 +275,14 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
             + (topAnnotations ? topViewport.calcPanelHeight() : 0);
     int bottomHeight = insets + (3 + bottomCount) * bottomCharHeight
             + (bottomAnnotations ? bottomViewport.calcPanelHeight() : 0);
-    double ratio = ((double) topHeight) / (topHeight + bottomHeight);
+    double ratio = ((double) topHeight)
+            / (double) (topHeight + bottomHeight);
 
     /*
-     * limit to 0.2 <= ratio <= 0.8 to avoid concealing all sequences
+     * limit ratio to avoid concealing all sequences
      */
-    ratio = Math.min(ratio, 0.8d);
-    ratio = Math.max(ratio, 0.2d);
+    ratio = Math.min(ratio, maxRatio);
+    ratio = Math.max(ratio, minRatio);
     setRelativeDividerLocation(ratio);
   }
 
@@ -376,8 +426,8 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     /*
      * Ctrl-W / Cmd-W - close view or window
      */
-    KeyStroke key_cmdW = KeyStroke.getKeyStroke(KeyEvent.VK_W, Toolkit
-            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    KeyStroke key_cmdW = KeyStroke.getKeyStroke(KeyEvent.VK_W,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false);
     action = new AbstractAction()
     {
       @Override
@@ -397,8 +447,8 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     /*
      * Ctrl-T / Cmd-T open new view
      */
-    KeyStroke key_cmdT = KeyStroke.getKeyStroke(KeyEvent.VK_T, Toolkit
-            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    KeyStroke key_cmdT = KeyStroke.getKeyStroke(KeyEvent.VK_T,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false);
     AbstractAction action = new AbstractAction()
     {
       @Override
@@ -451,8 +501,8 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
         Component c = getFrameAtMouse();
         if (c != null && c instanceof AlignFrame)
         {
-          for (ActionListener a : ((AlignFrame) c).getAccelerators()
-                  .get(ks).getActionListeners())
+          for (ActionListener a : ((AlignFrame) c).getAccelerators().get(ks)
+                  .getActionListeners())
           {
             a.actionPerformed(null);
           }
@@ -504,7 +554,7 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
       topFrame.setDisplayedView(newTopPanel);
     }
 
-    newBottomPanel.av.viewName = newTopPanel.av.viewName;
+    newBottomPanel.av.setViewName(newTopPanel.av.getViewName());
     newTopPanel.av.setCodingComplement(newBottomPanel.av);
 
     /*
@@ -722,8 +772,25 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
    */
   public List<AlignFrame> getAlignFrames()
   {
-    return Arrays.asList(new AlignFrame[] { (AlignFrame) getTopFrame(),
-        (AlignFrame) getBottomFrame() });
+    return Arrays
+            .asList(new AlignFrame[]
+            { (AlignFrame) getTopFrame(), (AlignFrame) getBottomFrame() });
+  }
+
+  @Override
+  public AlignFrame getComplementAlignFrame(
+          AlignViewControllerGuiI alignFrame)
+  {
+    if (getTopFrame() == alignFrame)
+    {
+      return (AlignFrame) getBottomFrame();
+    }
+    if (getBottomFrame() == alignFrame)
+    {
+      return (AlignFrame) getTopFrame();
+    }
+    // we didn't know anything about this frame...
+    return null;
   }
 
   /**
@@ -736,8 +803,8 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
     /*
      * Ctrl-F / Cmd-F open Finder dialog, 'focused' on the right alignment
      */
-    KeyStroke key_cmdF = KeyStroke.getKeyStroke(KeyEvent.VK_F, Toolkit
-            .getDefaultToolkit().getMenuShortcutKeyMask(), false);
+    KeyStroke key_cmdF = KeyStroke.getKeyStroke(KeyEvent.VK_F,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false);
     AbstractAction action = new AbstractAction()
     {
       @Override
@@ -747,10 +814,290 @@ public class SplitFrame extends GSplitFrame implements SplitContainerI
         if (c != null && c instanceof AlignFrame)
         {
           AlignFrame af = (AlignFrame) c;
-          new Finder(af.viewport, af.alignPanel);
+          new Finder(af.alignPanel);
         }
       }
     };
     overrideKeyBinding(key_cmdF, action);
+  }
+
+  /**
+   * Override to do nothing if triggered from one of the child frames
+   */
+  @Override
+  public void setSelected(boolean selected) throws PropertyVetoException
+  {
+    JDesktopPane desktopPane = getDesktopPane();
+    JInternalFrame fr = desktopPane == null ? null
+            : desktopPane.getSelectedFrame();
+    if (fr == getTopFrame() || fr == getBottomFrame())
+    {
+      /* 
+       * patch for JAL-3288 (deselecting top/bottom frame closes popup menu); 
+       * it may be possible to remove this method in future
+       * if the underlying Java behaviour changes
+       */
+      if (selected)
+      {
+        moveToFront();
+      }
+      return;
+    }
+    super.setSelected(selected);
+  }
+
+  /**
+   * holds the frame for feature settings, so Protein and DNA tabs can be managed
+   */
+  JInternalFrame featureSettingsUI;
+
+  JTabbedPane featureSettingsPanels;
+
+  @Override
+  public void addFeatureSettingsUI(
+          FeatureSettingsControllerGuiI featureSettings)
+  {
+    boolean showInternalFrame = false;
+    if (featureSettingsUI == null || featureSettingsPanels == null)
+    {
+      showInternalFrame = true;
+      featureSettingsPanels = new JTabbedPane();
+      featureSettingsPanels.addChangeListener(new ChangeListener()
+      {
+
+        @Override
+        public void stateChanged(ChangeEvent e)
+        {
+          if (e.getSource() != featureSettingsPanels
+                  || featureSettingsUI == null
+                  || featureSettingsUI.isClosed()
+                  || !featureSettingsUI.isVisible())
+          {
+            // not our tabbed pane
+            return;
+          }
+          int tab = featureSettingsPanels.getSelectedIndex();
+          if (tab < 0 || featureSettingsPanels
+                  .getSelectedComponent() instanceof FeatureSettingsControllerGuiI)
+          {
+            // no tab selected or already showing a feature settings GUI
+            return;
+          }
+          getAlignFrames().get(tab).showFeatureSettingsUI();
+        }
+      });
+      featureSettingsUI = new JInternalFrame(MessageManager.getString(
+              "label.sequence_feature_settings_for_CDS_and_Protein"));
+      featureSettingsPanels.setOpaque(true);
+
+      JPanel dialog = new JPanel();
+      dialog.setOpaque(true);
+      dialog.setLayout(new BorderLayout());
+      dialog.add(featureSettingsPanels, BorderLayout.CENTER);
+      JPanel buttons = new JPanel();
+      JButton ok = new JButton(MessageManager.getString("action.ok"));
+      ok.addActionListener(new ActionListener()
+      {
+
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          try
+          {
+            featureSettingsUI.setClosed(true);
+          } catch (PropertyVetoException pv)
+          {
+            pv.printStackTrace();
+          }
+        }
+      });
+      JButton cancel = new JButton(
+              MessageManager.getString("action.cancel"));
+      cancel.addActionListener(new ActionListener()
+      {
+
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          try
+          {
+            for (Component fspanel : featureSettingsPanels.getComponents())
+            {
+              if (fspanel instanceof FeatureSettingsControllerGuiI)
+              {
+                ((FeatureSettingsControllerGuiI) fspanel).revert();
+              }
+            }
+            featureSettingsUI.setClosed(true);
+          } catch (Exception pv)
+          {
+            pv.printStackTrace();
+          }
+        }
+      });
+      buttons.add(ok);
+      buttons.add(cancel);
+      dialog.add(buttons, BorderLayout.SOUTH);
+      featureSettingsUI.setContentPane(dialog);
+      createDummyTabs();
+    }
+    if (featureSettingsPanels
+            .indexOfTabComponent((Component) featureSettings) > -1)
+    {
+      // just show the feature settings !
+      featureSettingsPanels
+              .setSelectedComponent((Component) featureSettings);
+      return;
+    }
+    // otherwise replace the dummy tab with the given feature settings
+    int pos = getAlignFrames().indexOf(featureSettings.getAlignframe());
+    // if pos==-1 then alignFrame isn't managed by this splitframe
+    if (pos == 0)
+    {
+      featureSettingsPanels.removeTabAt(0);
+      featureSettingsPanels.insertTab(tabName[0], null,
+              (Component) featureSettings,
+              MessageManager.formatMessage(
+                      "label.sequence_feature_settings_for", tabName[0]),
+              0);
+    }
+    if (pos == 1)
+    {
+      featureSettingsPanels.removeTabAt(1);
+      featureSettingsPanels.insertTab(tabName[1], null,
+              (Component) featureSettings,
+              MessageManager.formatMessage(
+                      "label.sequence_feature_settings_for", tabName[1]),
+              1);
+    }
+    featureSettingsPanels.setSelectedComponent((Component) featureSettings);
+
+    // TODO: JAL-3535 - construct a feature settings title including names of
+    // currently selected CDS and Protein names
+
+    if (showInternalFrame)
+    {
+      if (Platform.isAMac())
+      {
+        Desktop.addInternalFrame(featureSettingsUI,
+                MessageManager.getString(
+                        "label.sequence_feature_settings_for_CDS_and_Protein"),
+                600, 480);
+      }
+      else
+      {
+        Desktop.addInternalFrame(featureSettingsUI,
+                MessageManager.getString(
+                        "label.sequence_feature_settings_for_CDS_and_Protein"),
+                600, 450);
+      }
+      featureSettingsUI
+              .setMinimumSize(new Dimension(FS_MIN_WIDTH, FS_MIN_HEIGHT));
+
+      featureSettingsUI.addInternalFrameListener(
+              new javax.swing.event.InternalFrameAdapter()
+              {
+                @Override
+                public void internalFrameClosed(
+                        javax.swing.event.InternalFrameEvent evt)
+                {
+                  for (int tab = 0; tab < featureSettingsPanels
+                          .getTabCount();)
+                  {
+                    FeatureSettingsControllerGuiI fsettings = (FeatureSettingsControllerGuiI) featureSettingsPanels
+                            .getTabComponentAt(tab);
+                    if (fsettings != null)
+                    {
+                      featureSettingsPanels.removeTabAt(tab);
+                      fsettings.featureSettings_isClosed();
+                    }
+                    else
+                    {
+                      tab++;
+                    }
+                  }
+                  featureSettingsPanels = null;
+                  featureSettingsUI = null;
+                };
+              });
+      featureSettingsUI.setLayer(JLayeredPane.PALETTE_LAYER);
+    }
+  }
+
+  /**
+   * tab names for feature settings
+   */
+  private String[] tabName = new String[] {
+      MessageManager.getString("label.CDS"),
+      MessageManager.getString("label.protein") };
+
+  /**
+   * create placeholder tabs which materialise the feature settings for a given
+   * view. Also reinitialises any tabs containing stale feature settings
+   */
+  private void createDummyTabs()
+  {
+    for (int tabIndex = 0; tabIndex < 2; tabIndex++)
+    {
+      JPanel dummyTab = new JPanel();
+      featureSettingsPanels.addTab(tabName[tabIndex], dummyTab);
+    }
+  }
+
+  private void replaceWithDummyTab(FeatureSettingsControllerI toClose)
+  {
+    Component dummyTab = null;
+    for (int tabIndex = 0; tabIndex < 2; tabIndex++)
+    {
+      if (featureSettingsPanels.getTabCount() > tabIndex)
+      {
+        dummyTab = featureSettingsPanels.getTabComponentAt(tabIndex);
+        if (dummyTab instanceof FeatureSettingsControllerGuiI
+                && !dummyTab.isVisible())
+        {
+          featureSettingsPanels.removeTabAt(tabIndex);
+          // close the feature Settings tab
+          ((FeatureSettingsControllerGuiI) dummyTab)
+                  .featureSettings_isClosed();
+          // create a dummy tab in its place
+          dummyTab = new JPanel();
+          featureSettingsPanels.insertTab(tabName[tabIndex], null, dummyTab,
+                  MessageManager.formatMessage(
+                          "label.sequence_feature_settings_for",
+                          tabName[tabIndex]),
+                  tabIndex);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void closeFeatureSettings(
+          FeatureSettingsControllerI featureSettings,
+          boolean closeContainingFrame)
+  {
+    if (featureSettingsUI != null)
+    {
+      if (closeContainingFrame)
+      {
+        try
+        {
+          featureSettingsUI.setClosed(true);
+        } catch (Exception x)
+        {
+        }
+        featureSettingsUI = null;
+      }
+      else
+      {
+        replaceWithDummyTab(featureSettings);
+      }
+    }
+  }
+
+  @Override
+  public boolean isFeatureSettingsOpen()
+  {
+    return featureSettingsUI != null && !featureSettingsUI.isClosed();
   }
 }

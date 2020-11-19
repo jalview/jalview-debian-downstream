@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,6 +28,9 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -105,6 +108,7 @@ public class GSliderPanel extends JPanel
     slider.setDoubleBuffered(true);
     slider.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseReleased(MouseEvent e)
       {
         slider_mouseReleased(e);
@@ -115,11 +119,20 @@ public class GSliderPanel extends JPanel
     valueField.setPreferredSize(new Dimension(50, 12));
     valueField.setText("");
     valueField.setHorizontalAlignment(SwingConstants.CENTER);
-    valueField.addActionListener(new java.awt.event.ActionListener()
+    valueField.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        valueField_actionPerformed(e);
+        valueField_actionPerformed();
+      }
+    });
+    valueField.addFocusListener(new FocusAdapter()
+    {
+      @Override
+      public void focusLost(FocusEvent e)
+      {
+        valueField_actionPerformed();
       }
     });
     label.setFont(new java.awt.Font("Verdana", 0, 11));
@@ -134,6 +147,7 @@ public class GSliderPanel extends JPanel
     applyButton.setText(MessageManager.getString("action.apply"));
     applyButton.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         applyButton_actionPerformed(e);
@@ -145,6 +159,7 @@ public class GSliderPanel extends JPanel
     undoButton.setText(MessageManager.getString("action.undo"));
     undoButton.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         undoButton_actionPerformed(e);
@@ -153,10 +168,11 @@ public class GSliderPanel extends JPanel
     allGroupsCheck.setEnabled(false);
     allGroupsCheck.setFont(new java.awt.Font("Verdana", 0, 11));
     allGroupsCheck.setOpaque(false);
-    allGroupsCheck.setText(MessageManager
-            .getString("action.apply_all_groups"));
+    allGroupsCheck
+            .setText(MessageManager.getString("action.apply_all_groups"));
     allGroupsCheck.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         allGroupsCheck_actionPerformed(e);
@@ -180,13 +196,18 @@ public class GSliderPanel extends JPanel
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Action on changing the slider text field value
    */
-  protected void valueField_actionPerformed(ActionEvent e)
+  protected void valueField_actionPerformed()
   {
+    try
+    {
+      int i = Integer.valueOf(valueField.getText());
+      slider.setValue(i);
+    } catch (NumberFormatException ex)
+    {
+      valueField.setText(String.valueOf(slider.getValue()));
+    }
   }
 
   /**

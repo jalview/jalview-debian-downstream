@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,72 +20,174 @@
  */
 package jalview.ext.ensembl;
 
-/**
- * A data class to model the data and rest version of one Ensembl domain,
- * currently for rest.ensembl.org and rest.ensemblgenomes.org
- * 
- * @author gmcarstairs
- */
-class EnsemblInfo
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.DBRefSource;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.json.simple.JSONArray;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
+public class EnsemblInfo extends EnsemblRestClient
 {
-  /*
-   * The http domain this object is holding data values for
-   */
-  String domain;
 
   /*
-   * The latest version Jalview has tested for, e.g. "4.5"; a minor version change should be
-   * ok, a major version change may break stuff 
+   * cached results of REST /info/divisions service, currently
+   * <pre>
+   * { 
+   *  { "ENSEMBLFUNGI", "http://rest.ensemblgenomes.org"},
+   *    "ENSEMBLBACTERIA", "http://rest.ensemblgenomes.org"},
+   *    "ENSEMBLPROTISTS", "http://rest.ensemblgenomes.org"},
+   *    "ENSEMBLMETAZOA", "http://rest.ensemblgenomes.org"},
+   *    "ENSEMBLPLANTS",  "http://rest.ensemblgenomes.org"},
+   *    "ENSEMBL", "http://rest.ensembl.org" }
+   *  }
+   * </pre>
+   * The values for EnsemblGenomes are retrieved by a REST call, that for
+   * Ensembl is added programmatically for convenience of lookup
    */
-  String expectedRestVersion;
+  private static Map<String, String> divisions;
 
-  /*
-   * Major / minor / point version e.g. "4.5.1"
-   * @see http://rest.ensembl.org/info/rest/?content-type=application/json
-   */
-  String restVersion;
-
-  /*
-   * data version
-   * @see http://rest.ensembl.org/info/data/?content-type=application/json
-   */
-  String dataVersion;
-
-  /*
-   * true when http://rest.ensembl.org/info/ping/?content-type=application/json
-   * returns response code 200 and not {"error":"Database is unavailable"}
-   */
-  boolean restAvailable;
-
-  /*
-   * absolute time when availability was last checked
-   */
-  long lastAvailableCheckTime;
-
-  /*
-   * absolute time when version numbers were last checked
-   */
-  long lastVersionCheckTime;
-
-  // flag set to true if REST major version is not the one expected
-  boolean restMajorVersionMismatch;
-
-  /*
-   * absolute time to wait till if we overloaded the REST service
-   */
-  long retryAfter;
-
-  /**
-   * Constructor given expected REST version number e.g 4.5 or 3.4.3
-   * 
-   * @param restExpected
-   */
-  EnsemblInfo(String theDomain, String restExpected)
+  @Override
+  public String getDbName()
   {
-    domain = theDomain;
-    expectedRestVersion = restExpected;
-    lastAvailableCheckTime = -1;
-    lastVersionCheckTime = -1;
+    return "ENSEMBL";
   }
 
+  @Override
+  public AlignmentI getSequenceRecords(String queries) throws Exception
+  {
+    return null;
+  }
+
+  @Override
+  protected URL getUrl(List<String> ids) throws MalformedURLException
+  {
+    return null;
+  }
+
+  @Override
+  protected boolean useGetRequest()
+  {
+    return true;
+  }
+
+  /**
+   * Answers the domain (http://rest.ensembl.org or
+   * http://rest.ensemblgenomes.org) for the given division, or null if not
+   * recognised by Ensembl.
+   * 
+   * @param division
+   * @return
+   */
+  public String getDomain(String division)
+  {
+    if (divisions == null)
+    {
+      fetchDivisions();
+    }
+    return divisions.get(division.toUpperCase());
+  }
+
+  /**
+   * On first request only, populate the lookup map by fetching the list of
+   * divisions known to EnsemblGenomes.
+   */
+  void fetchDivisions()
+  {
+    divisions = new HashMap<>();
+
+    /*
+     * for convenience, pre-fill ensembl.org as the domain for "ENSEMBL"
+     */
+    divisions.put(DBRefSource.ENSEMBL.toUpperCase(), ensemblDomain);
+
+    BufferedReader br = null;
+    try
+    {
+      URL url = getDivisionsUrl(ensemblGenomesDomain);
+      if (url != null)
+      {
+        br = getHttpResponse(url, null);
+      }
+      parseResponse(br, ensemblGenomesDomain);
+    } catch (IOException e)
+    {
+      // ignore
+    } finally
+    {
+      if (br != null)
+      {
+        try
+        {
+          br.close();
+        } catch (IOException e)
+        {
+          // ignore
+        }
+      }
+    }
+  }
+
+  /**
+   * Parses the JSON response to /info/divisions, and add each to the lookup map
+   * 
+   * @param br
+   * @param domain
+   */
+  void parseResponse(BufferedReader br, String domain)
+  {
+    JSONParser jp = new JSONParser();
+
+    try
+    {
+      JSONArray parsed = (JSONArray) jp.parse(br);
+
+      Iterator rvals = parsed.iterator();
+      while (rvals.hasNext())
+      {
+        String division = rvals.next().toString();
+        divisions.put(division.toUpperCase(), domain);
+      }
+    } catch (IOException | ParseException | NumberFormatException e)
+    {
+      // ignore
+    }
+  }
+
+  /**
+   * Constructs the URL for the EnsemblGenomes /info/divisions REST service
+   * @param domain TODO
+   * 
+   * @return
+   * @throws MalformedURLException
+   */
+  URL getDivisionsUrl(String domain) throws MalformedURLException
+  {
+    return new URL(domain
+            + "/info/divisions?content-type=application/json");
+  }
+
+  /**
+   * Returns the set of 'divisions' recognised by Ensembl or EnsemblGenomes
+   * 
+   * @return
+   */
+  public Set<String> getDivisions() {
+    if (divisions == null)
+    {
+      fetchDivisions();
+    }
+
+    return divisions.keySet();
+  }
 }

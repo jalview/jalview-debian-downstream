@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,6 +37,7 @@ import jalview.util.Format;
 import jalview.util.MappingUtils;
 import jalview.util.QuickSort;
 
+import java.awt.Color;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
@@ -67,8 +68,8 @@ public class AAFrequency
     }
   }
 
-  public static final ProfilesI calculate(List<SequenceI> list,
-          int start, int end)
+  public static final ProfilesI calculate(List<SequenceI> list, int start,
+          int end)
   {
     return calculate(list, start, end, false);
   }
@@ -146,14 +147,13 @@ public class AAFrequency
       {
         if (sequences[row] == null)
         {
-          System.err
-                  .println("WARNING: Consensus skipping null sequence - possible race condition.");
+          System.err.println(
+                  "WARNING: Consensus skipping null sequence - possible race condition.");
           continue;
         }
-        char[] seq = sequences[row].getSequence();
-        if (seq.length > column)
+        if (sequences[row].getLength() > column)
         {
-          char c = seq[column];
+          char c = sequences[row].getCharAt(column);
           residueCounts.add(c);
           if (Comparison.isNucleotide(c))
           {
@@ -289,11 +289,63 @@ public class AAFrequency
   }
 
   /**
+   * Derive the gap count annotation row.
+   * 
+   * @param gaprow
+   *          the annotation row to add annotations to
+   * @param profiles
+   *          the source consensus data
+   * @param startCol
+   *          start column (inclusive)
+   * @param endCol
+   *          end column (exclusive)
+   */
+  public static void completeGapAnnot(AlignmentAnnotation gaprow,
+          ProfilesI profiles, int startCol, int endCol, long nseq)
+  {
+    if (gaprow == null || gaprow.annotations == null
+            || gaprow.annotations.length < endCol)
+    {
+      /*
+       * called with a bad alignment annotation row 
+       * wait for it to be initialised properly
+       */
+      return;
+    }
+    // always set ranges again
+    gaprow.graphMax = nseq;
+    gaprow.graphMin = 0;
+    double scale = 0.8 / nseq;
+    for (int i = startCol; i < endCol; i++)
+    {
+      ProfileI profile = profiles.get(i);
+      if (profile == null)
+      {
+        /*
+         * happens if sequences calculated over were 
+         * shorter than alignment width
+         */
+        gaprow.annotations[i] = null;
+        return;
+      }
+
+      final int gapped = profile.getNonGapped();
+
+      String description = "" + gapped;
+
+      gaprow.annotations[i] = new Annotation("", description, '\0', gapped,
+              jalview.util.ColorUtils.bleachColour(Color.DARK_GRAY,
+                      (float) scale * gapped));
+    }
+  }
+
+  /**
    * Returns a tooltip showing either
    * <ul>
    * <li>the full profile (percentages of all residues present), if
    * showSequenceLogo is true, or</li>
-   * <li>just the modal (most common) residue(s), if showSequenceLogo is false</li>
+   * <li>just the modal (most common) residue(s), if showSequenceLogo is
+   * false</li>
    * </ul>
    * Percentages are as a fraction of all sequence, or only ungapped sequences
    * if ignoreGaps is true.
@@ -314,8 +366,8 @@ public class AAFrequency
     String description = null;
     if (counts != null && showSequenceLogo)
     {
-      int normaliseBy = ignoreGaps ? profile.getNonGapped() : profile
-              .getHeight();
+      int normaliseBy = ignoreGaps ? profile.getNonGapped()
+              : profile.getHeight();
       description = counts.getTooltip(normaliseBy, dp);
     }
     else
@@ -357,8 +409,7 @@ public class AAFrequency
    *          calculations
    * @return
    */
-  public static int[] extractProfile(ProfileI profile,
-          boolean ignoreGaps)
+  public static int[] extractProfile(ProfileI profile, boolean ignoreGaps)
   {
     int[] rtnval = new int[64];
     ResidueCount counts = profile.getCounts();
@@ -373,8 +424,8 @@ public class AAFrequency
     QuickSort.sort(values, symbols);
     int nextArrayPos = 2;
     int totalPercentage = 0;
-    final int divisor = ignoreGaps ? profile.getNonGapped() : profile
-            .getHeight();
+    final int divisor = ignoreGaps ? profile.getNonGapped()
+            : profile.getHeight();
 
     /*
      * traverse the arrays in reverse order (highest counts first)
@@ -480,7 +531,7 @@ public class AAFrequency
     for (int col = 0; col < cols; col++)
     {
       // todo would prefer a Java bean for consensus data
-      Hashtable<String, int[]> columnHash = new Hashtable<String, int[]>();
+      Hashtable<String, int[]> columnHash = new Hashtable<>();
       // #seqs, #ungapped seqs, counts indexed by (codon encoded + 1)
       int[] codonCounts = new int[66];
       codonCounts[0] = alignment.getSequences().size();
@@ -491,8 +542,8 @@ public class AAFrequency
         {
           continue;
         }
-        List<char[]> codons = MappingUtils
-                .findCodonsFor(seq, col, mappings);
+        List<char[]> codons = MappingUtils.findCodonsFor(seq, col,
+                mappings);
         for (char[] codon : codons)
         {
           int codonEncoded = CodingUtils.encodeCodon(codon);
@@ -500,6 +551,7 @@ public class AAFrequency
           {
             codonCounts[codonEncoded + 2]++;
             ungappedCount++;
+            break;
           }
         }
       }
@@ -572,10 +624,10 @@ public class AAFrequency
 
       int modalCodonEncoded = codons[codons.length - 1];
       int modalCodonCount = sortedCodonCounts[codons.length - 1];
-      String modalCodon = String.valueOf(CodingUtils
-              .decodeCodon(modalCodonEncoded));
-      if (sortedCodonCounts.length > 1
-              && sortedCodonCounts[codons.length - 2] == sortedCodonCounts[codons.length - 1])
+      String modalCodon = String
+              .valueOf(CodingUtils.decodeCodon(modalCodonEncoded));
+      if (sortedCodonCounts.length > 1 && sortedCodonCounts[codons.length
+              - 2] == sortedCodonCounts[codons.length - 1])
       {
         /*
          * two or more codons share the modal count
@@ -634,8 +686,8 @@ public class AAFrequency
           {
             if (samePercent.length() > 0)
             {
-              mouseOver.append(samePercent).append(": ")
-                      .append(lastPercent).append("% ");
+              mouseOver.append(samePercent).append(": ").append(lastPercent)
+                      .append("% ");
             }
             samePercent.setLength(0);
             samePercent.append(codon);

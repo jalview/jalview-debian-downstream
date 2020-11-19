@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,9 +24,10 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
 
 import java.awt.Component;
-import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 /**
@@ -37,7 +38,7 @@ import java.util.Vector;
  */
 public class PaintRefresher
 {
-  static Hashtable components;
+  static Map<String, Vector<Component>> components;
 
   /**
    * DOCUMENT ME!
@@ -51,12 +52,12 @@ public class PaintRefresher
   {
     if (components == null)
     {
-      components = new Hashtable();
+      components = new Hashtable<String, Vector<Component>>();
     }
 
     if (components.containsKey(seqSetId))
     {
-      Vector comps = (Vector) components.get(seqSetId);
+      Vector<Component> comps = components.get(seqSetId);
       if (!comps.contains(comp))
       {
         comps.addElement(comp);
@@ -64,7 +65,7 @@ public class PaintRefresher
     }
     else
     {
-      Vector vcoms = new Vector();
+      Vector<Component> vcoms = new Vector<>();
       vcoms.addElement(comp);
       components.put(seqSetId, vcoms);
     }
@@ -77,15 +78,14 @@ public class PaintRefresher
       return;
     }
 
-    Enumeration en = components.keys();
-    while (en.hasMoreElements())
+    Iterator<String> it = components.keySet().iterator();
+    while (it.hasNext())
     {
-      String id = en.nextElement().toString();
-      Vector comps = (Vector) components.get(id);
+      Vector<Component> comps = components.get(it.next());
       comps.removeElement(comp);
-      if (comps.size() == 0)
+      if (comps.isEmpty())
       {
-        components.remove(id);
+        it.remove();
       }
     }
   }
@@ -104,17 +104,17 @@ public class PaintRefresher
     }
 
     Component comp;
-    Vector comps = (Vector) components.get(id);
+    Vector<Component> comps = components.get(id);
 
     if (comps == null)
     {
       return;
     }
 
-    Enumeration e = comps.elements();
-    while (e.hasMoreElements())
+    Iterator<Component> it = comps.iterator();
+    while (it.hasNext())
     {
-      comp = (Component) e.nextElement();
+      comp = it.next();
 
       if (comp == source)
       {
@@ -123,7 +123,7 @@ public class PaintRefresher
 
       if (!comp.isValid())
       {
-        comps.removeElement(comp);
+        it.remove();
       }
       else if (validateSequences && comp instanceof AlignmentPanel
               && source instanceof AlignmentPanel)
@@ -240,8 +240,8 @@ public class PaintRefresher
 
   public static AlignmentPanel[] getAssociatedPanels(String id)
   {
-    Vector comps = (Vector) components.get(id);
-    Vector tmp = new Vector();
+    Vector<Component> comps = components.get(id);
+    Vector<Component> tmp = new Vector<>();
     int i, iSize = comps.size();
     for (i = 0; i < iSize; i++)
     {

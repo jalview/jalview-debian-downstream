@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,10 +28,13 @@ import jalview.api.FeaturesDisplayedI;
 import jalview.api.FeaturesSourceI;
 import jalview.bin.Jalview;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
+import jalview.io.AlignmentFileReaderI;
 import jalview.io.AppletFormatAdapter;
-import jalview.io.FileParse;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormatException;
+import jalview.io.FileFormatI;
 import jalview.io.FormatAdapter;
 import jalview.io.IdentifyFile;
 import jalview.io.JalviewFileChooser;
@@ -49,9 +52,11 @@ import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 
@@ -68,7 +73,7 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
 
   AlignViewportI viewport;
 
-  FileParse source = null;
+  AlignmentFileReaderI source = null;
 
   public CutAndPasteTransfer()
   {
@@ -135,8 +140,8 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
 
     chooser.setAcceptAllFileFilterUsed(false);
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.save_text_to_file"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.save_text_to_file"));
     chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
@@ -145,8 +150,8 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     {
       try
       {
-        java.io.PrintWriter out = new java.io.PrintWriter(
-                new java.io.FileWriter(chooser.getSelectedFile()));
+        PrintWriter out = new PrintWriter(
+                new FileWriter(chooser.getSelectedFile()));
 
         out.print(getText());
         out.close();
@@ -191,8 +196,8 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
 
     try
     {
-      textarea.append((String) contents
-              .getTransferData(DataFlavor.stringFlavor));
+      textarea.append(
+              (String) contents.getTransferData(DataFlavor.stringFlavor));
     } catch (Exception ex)
     {
     }
@@ -213,17 +218,24 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
       return;
     }
 
-    String format = new IdentifyFile().identify(text, "Paste");
-    if (format == null || format.equalsIgnoreCase("EMPTY DATA FILE"))
+    FileFormatI format = null;
+    try
     {
-      System.err.println(MessageManager
-              .getString("label.couldnt_read_data"));
+      format = new IdentifyFile().identify(text, DataSourceType.PASTE);
+    } catch (FileFormatException e1)
+    {
+      // leave as null
+    }
+    if (format == null)
+    {
+      System.err
+              .println(MessageManager.getString("label.couldnt_read_data"));
       if (!Jalview.isHeadlessMode())
       {
-        javax.swing.JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                AppletFormatAdapter.SUPPORTED_FORMATS,
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                AppletFormatAdapter.getSupportedFormats(),
                 MessageManager.getString("label.couldnt_read_data"),
-                JOptionPane.WARNING_MESSAGE);
+                JvOptionPane.WARNING_MESSAGE);
       }
       return;
     }
@@ -231,29 +243,26 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     // TODO: identify feature, annotation or tree file and parse appropriately.
     AlignmentI al = null;
 
-    if (FormatAdapter.isValidFormat(format))
+    try
     {
-      try
-      {
-        FormatAdapter fa = new FormatAdapter(alignpanel);
-        al = fa.readFile(getText(), "Paste", format);
-        source = fa.getAlignFile();
+      FormatAdapter fa = new FormatAdapter(alignpanel);
+      al = fa.readFile(getText(), DataSourceType.PASTE, format);
+      source = fa.getAlignFile();
 
-      } catch (java.io.IOException ex)
-      {
-        JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                MessageManager.formatMessage(
-                        "label.couldnt_read_pasted_text",
-                        new String[] { ex.toString() }), MessageManager
-                        .getString("label.error_parsing_text"),
-                JOptionPane.WARNING_MESSAGE);
-      }
+    } catch (IOException ex)
+    {
+      JvOptionPane.showInternalMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.couldnt_read_pasted_text", new String[]
+              { ex.toString() }),
+              MessageManager.getString("label.error_parsing_text"),
+              JvOptionPane.WARNING_MESSAGE);
     }
 
     if (al != null && al.hasValidSequence())
     {
-      String title = MessageManager.formatMessage(
-              "label.input_cut_paste_params", new String[] { format });
+      String title = MessageManager
+              .formatMessage("label.input_cut_paste_params", new String[]
+              { format.getName() });
       FeatureSettingsModelI proxyColourScheme = source
               .getFeatureColourScheme();
 
@@ -263,11 +272,8 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
        */
       if (viewport != null && viewport.getAlignment() != null)
       {
-        if (proxyColourScheme != null)
-        {
-          viewport.applyFeaturesStyle(proxyColourScheme);
-        }
         ((AlignViewport) viewport).addAlignment(al, title);
+        viewport.applyFeaturesStyle(proxyColourScheme);
       }
       else
       {
@@ -275,8 +281,8 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
         AlignFrame af;
         if (source instanceof ComplexAlignFile)
         {
-          ColumnSelection colSel = ((ComplexAlignFile) source)
-                  .getColumnSelection();
+          HiddenColumns hidden = ((ComplexAlignFile) source)
+                  .getHiddenColumns();
           SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
                   .getHiddenSequences();
           boolean showSeqFeatures = ((ComplexAlignFile) source)
@@ -285,10 +291,11 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
                   .getGlobalColourScheme();
           FeaturesDisplayedI fd = ((ComplexAlignFile) source)
                   .getDisplayedFeatures();
-          af = new AlignFrame(al, hiddenSeqs, colSel,
+          af = new AlignFrame(al, hiddenSeqs, hidden,
                   AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
           af.getViewport().setShowSequenceFeatures(showSeqFeatures);
           af.getViewport().setFeaturesDisplayed(fd);
+          af.setMenusForViewport();
           ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
                   colourSchemeName, al);
           if (cs != null)
@@ -312,13 +319,13 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
         af.currentFileFormat = format;
         Desktop.addInternalFrame(af, title, AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
-        af.statusBar.setText(MessageManager
+        af.setStatus(MessageManager
                 .getString("label.successfully_pasted_alignment_file"));
 
         try
         {
-          af.setMaximum(jalview.bin.Cache.getDefault("SHOW_FULLSCREEN",
-                  false));
+          af.setMaximum(
+                  jalview.bin.Cache.getDefault("SHOW_FULLSCREEN", false));
         } catch (Exception ex)
         {
         }
@@ -326,14 +333,14 @@ public class CutAndPasteTransfer extends GCutAndPasteTransfer
     }
     else
     {
-      System.err.println(MessageManager
-              .getString("label.couldnt_read_data"));
+      System.err
+              .println(MessageManager.getString("label.couldnt_read_data"));
       if (!Jalview.isHeadlessMode())
       {
-        javax.swing.JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                AppletFormatAdapter.SUPPORTED_FORMATS,
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                AppletFormatAdapter.getSupportedFormats(),
                 MessageManager.getString("label.couldnt_read_data"),
-                JOptionPane.WARNING_MESSAGE);
+                JvOptionPane.WARNING_MESSAGE);
       }
     }
   }

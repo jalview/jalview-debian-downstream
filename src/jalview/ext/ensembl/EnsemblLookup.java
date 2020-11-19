@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,13 +20,19 @@
  */
 package jalview.ext.ensembl;
 
+import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.GeneLociI;
+import jalview.datamodel.GeneLocus;
+import jalview.datamodel.Mapping;
+import jalview.util.MapList;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.json.simple.JSONObject;
@@ -34,14 +40,15 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 /**
- * A client for the Ensembl lookup REST endpoint; used to find the Parent gene
- * identifier given a transcript identifier.
+ * A client for the Ensembl /lookup REST endpoint, used to find the gene
+ * identifier given a gene, transcript or protein identifier, or to extract the
+ * species or chromosomal coordinates from the same service response
  * 
  * @author gmcarstairs
- *
  */
 public class EnsemblLookup extends EnsemblRestClient
 {
+  private static final String SPECIES = "species";
 
   /**
    * Default constructor (to use rest.ensembl.org)
@@ -77,17 +84,26 @@ public class EnsemblLookup extends EnsemblRestClient
   protected URL getUrl(List<String> ids) throws MalformedURLException
   {
     String identifier = ids.get(0);
-    return getUrl(identifier);
+    return getUrl(identifier, null);
   }
 
   /**
+   * Gets the url for lookup of the given identifier, optionally with objectType
+   * also specified in the request
+   * 
    * @param identifier
+   * @param objectType
    * @return
    */
-  protected URL getUrl(String identifier)
+  protected URL getUrl(String identifier, String objectType)
   {
     String url = getDomain() + "/lookup/id/" + identifier
-            + "?content-type=application/json";
+            + CONTENT_TYPE_JSON;
+    if (objectType != null)
+    {
+      url += "&" + OBJECT_TYPE + "=" + objectType;
+    }
+
     try
     {
       return new URL(url);
@@ -103,41 +119,117 @@ public class EnsemblLookup extends EnsemblRestClient
     return true;
   }
 
-  @Override
-  protected String getRequestMimeType(boolean multipleIds)
+  /**
+   * Returns the gene id related to the given identifier (which may be for a
+   * gene, transcript or protein), or null if none is found
+   * 
+   * @param identifier
+   * @return
+   */
+  public String getGeneId(String identifier)
   {
-    return "application/json";
-  }
-
-  @Override
-  protected String getResponseMimeType()
-  {
-    return "application/json";
+    return getGeneId(identifier, null);
   }
 
   /**
-   * Calls the Ensembl lookup REST endpoint and retrieves the 'Parent' for the
+   * Returns the gene id related to the given identifier (which may be for a
+   * gene, transcript or protein), or null if none is found
+   * 
+   * @param identifier
+   * @param objectType
+   * @return
+   */
+  public String getGeneId(String identifier, String objectType)
+  {
+    return parseGeneId(getResult(identifier, objectType));
+  }
+
+  /**
+   * Parses the JSON response and returns the gene identifier, or null if not
+   * found. If the returned object_type is Gene, returns the id, if Transcript
+   * returns the Parent. If it is Translation (peptide identifier), then the
+   * Parent is the transcript identifier, so we redo the search with this value.
+   * 
+   * @param br
+   * @return
+   */
+  protected String parseGeneId(JSONObject val)
+  {
+    if (val == null)
+    {
+      return null;
+    }
+    String geneId = null;
+    String type = val.get(OBJECT_TYPE).toString();
+    if (OBJECT_TYPE_GENE.equalsIgnoreCase(type))
+    {
+      // got the gene - just returns its id
+      geneId = val.get(JSON_ID).toString();
+    }
+    else if (OBJECT_TYPE_TRANSCRIPT.equalsIgnoreCase(type))
+    {
+      // got the transcript - return its (Gene) Parent
+      geneId = val.get(PARENT).toString();
+    }
+    else if (OBJECT_TYPE_TRANSLATION.equalsIgnoreCase(type))
+    {
+      // got the protein - get its Parent, restricted to type Transcript
+      String transcriptId = val.get(PARENT).toString();
+      geneId = getGeneId(transcriptId, OBJECT_TYPE_TRANSCRIPT);
+    }
+
+    return geneId;
+  }
+
+  /**
+   * Calls the Ensembl lookup REST endpoint and retrieves the 'species' for the
    * given identifier, or null if not found
    * 
    * @param identifier
    * @return
    */
-  public String getParent(String identifier)
+  public String getSpecies(String identifier)
+  {
+    String species = null;
+    JSONObject json = getResult(identifier, null);
+    if (json != null)
+    {
+      Object o = json.get(SPECIES);
+      if (o != null)
+      {
+        species = o.toString();
+      }
+    }
+    return species;
+  }
+
+  /**
+   * Calls the /lookup/id rest service and returns the response as a JSONObject,
+   * or null if any error
+   * 
+   * @param identifier
+   * @param objectType
+   *          (optional)
+   * @return
+   */
+  protected JSONObject getResult(String identifier, String objectType)
   {
     List<String> ids = Arrays.asList(new String[] { identifier });
 
     BufferedReader br = null;
     try
     {
-      URL url = getUrl(identifier);
+      URL url = getUrl(identifier, objectType);
+
       if (url != null)
       {
         br = getHttpResponse(url, ids);
       }
-      return (parseResponse(br));
-    } catch (IOException e)
+      return br == null ? null : (JSONObject) (new JSONParser().parse(br));
+    } catch (IOException | ParseException e)
     {
-      // ignore
+      System.err.println("Error parsing " + identifier + " lookup response "
+              + e.getMessage());
       return null;
     } finally
     {
@@ -155,26 +247,58 @@ public class EnsemblLookup extends EnsemblRestClient
   }
 
   /**
-   * Parses "Parent" from the JSON response and returns the value, or null if
-   * not found
+   * Calls the /lookup/id rest service for the given id, and if successful,
+   * parses and returns the gene's chromosomal coordinates
    * 
-   * @param br
+   * @param geneId
    * @return
-   * @throws IOException
    */
-  protected String parseResponse(BufferedReader br) throws IOException
+  public GeneLociI getGeneLoci(String geneId)
   {
-    String parent = null;
-    JSONParser jp = new JSONParser();
+    return parseGeneLoci(getResult(geneId, OBJECT_TYPE_GENE));
+  }
+
+  /**
+   * Parses the /lookup/id response for species, asssembly_name,
+   * seq_region_name, start, end and returns an object that wraps them, or null
+   * if unsuccessful
+   * 
+   * @param json
+   * @return
+   */
+  GeneLociI parseGeneLoci(JSONObject json)
+  {
+    if (json == null)
+    {
+      return null;
+    }
+
     try
     {
-      JSONObject val = (JSONObject) jp.parse(br);
-      parent = val.get("Parent").toString();
-    } catch (ParseException e)
+      final String species = json.get("species").toString();
+      final String assembly = json.get("assembly_name").toString();
+      final String chromosome = json.get("seq_region_name").toString();
+      String strand = json.get("strand").toString();
+      int start = Integer.parseInt(json.get("start").toString());
+      int end = Integer.parseInt(json.get("end").toString());
+      int fromEnd = end - start + 1;
+      boolean reverseStrand = "-1".equals(strand);
+      int toStart = reverseStrand ? end : start;
+      int toEnd = reverseStrand ? start : end;
+      List<int[]> fromRange = Collections.singletonList(new int[] { 1,
+          fromEnd });
+      List<int[]> toRange = Collections.singletonList(new int[] { toStart,
+          toEnd });
+      final Mapping map = new Mapping(
+              new MapList(fromRange, toRange, 1, 1));
+      return new GeneLocus(species == null ? "" : species, assembly,
+              chromosome, map);
+    } catch (NullPointerException | NumberFormatException e)
     {
-      // ignore
+      Cache.log.error("Error looking up gene loci: " + e.getMessage());
+      e.printStackTrace();
     }
-    return parent;
+    return null;
   }
 
 }

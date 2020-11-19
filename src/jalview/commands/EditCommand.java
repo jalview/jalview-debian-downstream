@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,12 +20,17 @@
  */
 package jalview.commands;
 
+import jalview.analysis.AlignSeq;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.ContiguousI;
+import jalview.datamodel.Range;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.SequenceFeaturesI;
+import jalview.util.Comparison;
 import jalview.util.ReverseListIterator;
 import jalview.util.StringUtils;
 
@@ -114,7 +119,7 @@ public class EditCommand implements CommandI
     public abstract Action getUndoAction();
   };
 
-  private List<Edit> edits = new ArrayList<Edit>();
+  private List<Edit> edits = new ArrayList<>();
 
   String description;
 
@@ -122,15 +127,15 @@ public class EditCommand implements CommandI
   {
   }
 
-  public EditCommand(String description)
+  public EditCommand(String desc)
   {
-    this.description = description;
+    this.description = desc;
   }
 
-  public EditCommand(String description, Action command, SequenceI[] seqs,
+  public EditCommand(String desc, Action command, SequenceI[] seqs,
           int position, int number, AlignmentI al)
   {
-    this.description = description;
+    this.description = desc;
     if (command == Action.CUT || command == Action.PASTE)
     {
       setEdit(new Edit(command, seqs, position, number, al));
@@ -139,10 +144,10 @@ public class EditCommand implements CommandI
     performEdit(0, null);
   }
 
-  public EditCommand(String description, Action command, String replace,
+  public EditCommand(String desc, Action command, String replace,
           SequenceI[] seqs, int position, int number, AlignmentI al)
   {
-    this.description = description;
+    this.description = desc;
     if (command == Action.REPLACE)
     {
       setEdit(new Edit(command, seqs, position, number, al, replace));
@@ -222,14 +227,16 @@ public class EditCommand implements CommandI
     /**
      * Check a contiguous edit; either
      * <ul>
-     * <li>a new Insert <n> positions to the right of the last <insert n>, or</li>
+     * <li>a new Insert <n> positions to the right of the last <insert n>,
+     * or</li>
      * <li>a new Delete <n> gaps which is <n> positions to the left of the last
      * delete.</li>
      * </ul>
      */
-    boolean contiguous = (action == Action.INSERT_GAP && e.position == lastEdit.position
-            + lastEdit.number)
-            || (action == Action.DELETE_GAP && e.position + e.number == lastEdit.position);
+    boolean contiguous = (action == Action.INSERT_GAP
+            && e.position == lastEdit.position + lastEdit.number)
+            || (action == Action.DELETE_GAP
+                    && e.position + e.number == lastEdit.position);
     if (contiguous)
     {
       /*
@@ -328,20 +335,8 @@ public class EditCommand implements CommandI
           int position, int number, AlignmentI al, boolean performEdit,
           AlignmentI[] views)
   {
-    Edit edit = new Edit(command, seqs, position, number,
-            al.getGapCharacter());
-    if (al.getHeight() == seqs.length)
-    {
-      edit.al = al;
-      edit.fullAlignmentHeight = true;
-    }
-
-    addEdit(edit);
-
-    if (performEdit)
-    {
-      performEdit(edit, views);
-    }
+    Edit edit = new Edit(command, seqs, position, number, al);
+    appendEdit(edit, al, performEdit, views);
   }
 
   /**
@@ -475,7 +470,8 @@ public class EditCommand implements CommandI
     {
       command.seqs[s].insertCharAt(command.position, command.number,
               command.gapChar);
-      // System.out.println("pos: "+command.position+" number: "+command.number);
+      // System.out.println("pos: "+command.position+" number:
+      // "+command.number);
     }
 
     adjustAnnotations(command, true, false, null);
@@ -504,8 +500,8 @@ public class EditCommand implements CommandI
   {
     for (int s = 0; s < command.seqs.length; s++)
     {
-      command.seqs[s].deleteChars(command.position, command.position
-              + command.number);
+      command.seqs[s].deleteChars(command.position,
+              command.position + command.number);
     }
 
     adjustAnnotations(command, false, false, null);
@@ -531,37 +527,61 @@ public class EditCommand implements CommandI
         command.string[i] = sequence.getSequence(command.position,
                 command.position + command.number);
         SequenceI oldds = sequence.getDatasetSequence();
-        if (command.oldds != null && command.oldds[i] != null)
-        {
-          // we are redoing an undone cut.
-          sequence.setDatasetSequence(null);
-        }
+        ContiguousI cutPositions = sequence.findPositions(
+                command.position + 1, command.position + command.number);
+        boolean cutIsInternal = cutPositions != null
+                && sequence.getStart() != cutPositions
+                .getBegin() && sequence.getEnd() != cutPositions.getEnd();
+
+        /*
+         * perform the cut; if this results in a new dataset sequence, add
+         * that to the alignment dataset
+         */
+        SequenceI ds = sequence.getDatasetSequence();
         sequence.deleteChars(command.position, command.position
                 + command.number);
+
         if (command.oldds != null && command.oldds[i] != null)
         {
-          // oldds entry contains the cut dataset sequence.
+          /*
+           * we are Redoing a Cut, or Undoing a Paste - so
+           * oldds entry contains the cut dataset sequence,
+           * with sequence features in expected place
+           */
           sequence.setDatasetSequence(command.oldds[i]);
           command.oldds[i] = oldds;
         }
         else
         {
-          // modify the oldds if necessary
-          if (oldds != sequence.getDatasetSequence()
-                  || sequence.getSequenceFeatures() != null)
+          /* 
+           * new cut operation: save the dataset sequence 
+           * so it can be restored in an Undo
+           */
+          if (command.oldds == null)
           {
-            if (command.oldds == null)
-            {
-              command.oldds = new SequenceI[command.seqs.length];
-            }
-            command.oldds[i] = oldds;
-            adjustFeatures(
-                    command,
-                    i,
-                    sequence.findPosition(command.position),
-                    sequence.findPosition(command.position + command.number),
-                    false);
+            command.oldds = new SequenceI[command.seqs.length];
           }
+          command.oldds[i] = oldds;// todo not if !cutIsInternal?
+
+          // do we need to edit sequence features for new sequence ?
+          if (oldds != sequence.getDatasetSequence()
+                  || (cutIsInternal
+                          && sequence.getFeatures().hasFeatures()))
+          // todo or just test cutIsInternal && cutPositions != null ?
+          {
+            if (cutPositions != null)
+            {
+              cutFeatures(command, sequence, cutPositions.getBegin(),
+                              cutPositions.getEnd(), cutIsInternal);
+            }
+          }
+        }
+        SequenceI newDs = sequence.getDatasetSequence();
+        if (newDs != ds && command.al != null
+                && command.al.getDataset() != null
+                && !command.al.getDataset().getSequences().contains(newDs))
+        {
+          command.al.getDataset().addSequence(newDs);
         }
       }
 
@@ -584,21 +604,19 @@ public class EditCommand implements CommandI
    */
   static void paste(Edit command, AlignmentI[] views)
   {
-    StringBuffer tmp;
-    boolean newDSNeeded;
-    boolean newDSWasNeeded;
-    int newstart, newend;
     boolean seqWasDeleted = false;
-    int start = 0, end = 0;
 
     for (int i = 0; i < command.seqs.length; i++)
     {
-      newDSNeeded = false;
-      newDSWasNeeded = command.oldds != null && command.oldds[i] != null;
-      if (command.seqs[i].getLength() < 1)
+      boolean newDSNeeded = false;
+      boolean newDSWasNeeded = command.oldds != null
+              && command.oldds[i] != null;
+      SequenceI sequence = command.seqs[i];
+      if (sequence.getLength() < 1)
       {
-        // ie this sequence was deleted, we need to
-        // readd it to the alignment
+        /*
+         * sequence was deleted; re-add it to the alignment
+         */
         if (command.alIndex[i] < command.al.getHeight())
         {
           List<SequenceI> sequences;
@@ -606,23 +624,26 @@ public class EditCommand implements CommandI
           {
             if (!(command.alIndex[i] < 0))
             {
-              sequences.add(command.alIndex[i], command.seqs[i]);
+              sequences.add(command.alIndex[i], sequence);
             }
           }
         }
         else
         {
-          command.al.addSequence(command.seqs[i]);
+          command.al.addSequence(sequence);
         }
         seqWasDeleted = true;
       }
-      newstart = command.seqs[i].getStart();
-      newend = command.seqs[i].getEnd();
+      int newStart = sequence.getStart();
+      int newEnd = sequence.getEnd();
 
-      tmp = new StringBuffer();
-      tmp.append(command.seqs[i].getSequence());
+      StringBuilder tmp = new StringBuilder();
+      tmp.append(sequence.getSequence());
       // Undo of a delete does not replace original dataset sequence on to
       // alignment sequence.
+
+      int start = 0;
+      int length = 0;
 
       if (command.string != null && command.string[i] != null)
       {
@@ -630,44 +651,51 @@ public class EditCommand implements CommandI
         {
           // This occurs if padding is on, and residues
           // are removed from end of alignment
-          int length = command.position - tmp.length();
-          while (length > 0)
+          int len = command.position - tmp.length();
+          while (len > 0)
           {
             tmp.append(command.gapChar);
-            length--;
+            len--;
           }
         }
         tmp.insert(command.position, command.string[i]);
         for (int s = 0; s < command.string[i].length; s++)
         {
-          if (jalview.schemes.ResidueProperties.aaIndex[command.string[i][s]] != 23)
+          if (!Comparison.isGap(command.string[i][s]))
           {
+            length++;
             if (!newDSNeeded)
             {
               newDSNeeded = true;
-              start = command.seqs[i].findPosition(command.position);
-              end = command.seqs[i].findPosition(command.position
-                      + command.number);
+              start = sequence.findPosition(command.position);
+              // end = sequence
+              // .findPosition(command.position + command.number);
             }
-            if (command.seqs[i].getStart() == start)
+            if (sequence.getStart() == start)
             {
-              newstart--;
+              newStart--;
             }
             else
             {
-              newend++;
+              newEnd++;
             }
           }
         }
         command.string[i] = null;
       }
 
-      command.seqs[i].setSequence(tmp.toString());
-      command.seqs[i].setStart(newstart);
-      command.seqs[i].setEnd(newend);
+      sequence.setSequence(tmp.toString());
+      sequence.setStart(newStart);
+      sequence.setEnd(newEnd);
+
+      /*
+       * command and Undo share the same dataset sequence if cut was
+       * at start or end of sequence
+       */
+      boolean sameDatasetSequence = false;
       if (newDSNeeded)
       {
-        if (command.seqs[i].getDatasetSequence() != null)
+        if (sequence.getDatasetSequence() != null)
         {
           SequenceI ds;
           if (newDSWasNeeded)
@@ -678,21 +706,29 @@ public class EditCommand implements CommandI
           {
             // make a new DS sequence
             // use new ds mechanism here
-            ds = new Sequence(command.seqs[i].getName(),
-                    jalview.analysis.AlignSeq.extractGaps(
-                            jalview.util.Comparison.GapChars,
-                            command.seqs[i].getSequenceAsString()),
-                    command.seqs[i].getStart(), command.seqs[i].getEnd());
-            ds.setDescription(command.seqs[i].getDescription());
+            String ungapped = AlignSeq.extractGaps(Comparison.GapChars,
+                    sequence.getSequenceAsString());
+            ds = new Sequence(sequence.getName(), ungapped,
+                    sequence.getStart(), sequence.getEnd());
+            ds.setDescription(sequence.getDescription());
           }
           if (command.oldds == null)
           {
             command.oldds = new SequenceI[command.seqs.length];
           }
-          command.oldds[i] = command.seqs[i].getDatasetSequence();
-          command.seqs[i].setDatasetSequence(ds);
+          command.oldds[i] = sequence.getDatasetSequence();
+          sameDatasetSequence = ds == sequence.getDatasetSequence();
+          ds.setSequenceFeatures(sequence.getSequenceFeatures());
+          if (!sameDatasetSequence && command.al.getDataset() != null)
+          {
+            // delete 'undone' sequence from alignment dataset
+            command.al.getDataset()
+                    .deleteSequence(sequence.getDatasetSequence());
+          }
+          sequence.setDatasetSequence(ds);
         }
-        adjustFeatures(command, i, start, end, true);
+        undoCutFeatures(command, command.seqs[i], start, length,
+                sameDatasetSequence);
       }
     }
     adjustAnnotations(command, true, seqWasDeleted, views);
@@ -702,7 +738,7 @@ public class EditCommand implements CommandI
 
   static void replace(Edit command)
   {
-    StringBuffer tmp;
+    StringBuilder tmp;
     String oldstring;
     int start = command.position;
     int end = command.number;
@@ -715,6 +751,7 @@ public class EditCommand implements CommandI
     {
       boolean newDSWasNeeded = command.oldds != null
               && command.oldds[i] != null;
+      boolean newStartEndWasNeeded = command.oldStartEnd!=null && command.oldStartEnd[i]!=null;
 
       /**
        * cut addHistoryItem(new EditCommand("Cut Sequences", EditCommand.CUT,
@@ -727,49 +764,147 @@ public class EditCommand implements CommandI
        * EditCommand.PASTE, sequences, 0, alignment.getWidth(), alignment) );
        * 
        */
+      ContiguousI beforeEditedPositions = command.seqs[i].findPositions(1,
+              start);
+      ContiguousI afterEditedPositions = command.seqs[i]
+              .findPositions(end + 1, command.seqs[i].getLength());
+      
       oldstring = command.seqs[i].getSequenceAsString();
-      tmp = new StringBuffer(oldstring.substring(0, start));
+      tmp = new StringBuilder(oldstring.substring(0, start));
       tmp.append(command.string[i]);
-      String nogaprep = jalview.analysis.AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, new String(
-                      command.string[i]));
-      int ipos = command.seqs[i].findPosition(start)
-              - command.seqs[i].getStart();
-      tmp.append(oldstring.substring(end));
+      String nogaprep = AlignSeq.extractGaps(Comparison.GapChars,
+              new String(command.string[i]));
+      if (end < oldstring.length())
+      {
+        tmp.append(oldstring.substring(end));
+      }
+      // stash end prior to updating the sequence object so we can save it if
+      // need be.
+      Range oldstartend = new Range(command.seqs[i].getStart(),
+              command.seqs[i].getEnd());
       command.seqs[i].setSequence(tmp.toString());
-      command.string[i] = oldstring.substring(start, end).toCharArray();
-      String nogapold = jalview.analysis.AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, new String(
-                      command.string[i]));
+      command.string[i] = oldstring
+              .substring(start, Math.min(end, oldstring.length()))
+              .toCharArray();
+      String nogapold = AlignSeq.extractGaps(Comparison.GapChars,
+              new String(command.string[i]));
+
       if (!nogaprep.toLowerCase().equals(nogapold.toLowerCase()))
       {
-        if (newDSWasNeeded)
+        // we may already have dataset and limits stashed...
+        if (newDSWasNeeded || newStartEndWasNeeded)
         {
+          if (newDSWasNeeded)
+          {
+          // then just switch the dataset sequence
           SequenceI oldds = command.seqs[i].getDatasetSequence();
           command.seqs[i].setDatasetSequence(command.oldds[i]);
           command.oldds[i] = oldds;
-        }
-        else
-        {
-          if (command.oldds == null)
-          {
-            command.oldds = new SequenceI[command.seqs.length];
           }
-          command.oldds[i] = command.seqs[i].getDatasetSequence();
-          SequenceI newds = new Sequence(
-                  command.seqs[i].getDatasetSequence());
-          String fullseq, osp = newds.getSequenceAsString();
-          fullseq = osp.substring(0, ipos) + nogaprep
-                  + osp.substring(ipos + nogaprep.length());
-          newds.setSequence(fullseq.toUpperCase());
-          // TODO: JAL-1131 ensure newly created dataset sequence is added to
-          // the set of
-          // dataset sequences associated with the alignment.
-          // TODO: JAL-1131 fix up any annotation associated with new dataset
-          // sequence to ensure that original sequence/annotation relationships
-          // are preserved.
-          command.seqs[i].setDatasetSequence(newds);
+          if (newStartEndWasNeeded)
+          {
+            Range newStart = command.oldStartEnd[i];
+            command.oldStartEnd[i] = oldstartend;
+            command.seqs[i].setStart(newStart.getBegin());
+            command.seqs[i].setEnd(newStart.getEnd());
+          }
+        }
+        else         
+        {
+          // decide if we need a new dataset sequence or modify start/end
+          // first edit the original dataset sequence string
+          SequenceI oldds = command.seqs[i].getDatasetSequence();
+          String osp = oldds.getSequenceAsString();
+          int beforeStartOfEdit = -oldds.getStart() + 1
+                  + (beforeEditedPositions == null
+                          ? ((afterEditedPositions != null)
+                                  ? afterEditedPositions.getBegin() - 1
+                                  : oldstartend.getBegin()
+                                          + nogapold.length())
+                          : beforeEditedPositions.getEnd()
+                  );
+          int afterEndOfEdit = -oldds.getStart() + 1
+                  + ((afterEditedPositions == null)
+                  ? oldstartend.getEnd()
+                          : afterEditedPositions.getBegin() - 1);
+          String fullseq = osp.substring(0,
+                  beforeStartOfEdit)
+                  + nogaprep
+                  + osp.substring(afterEndOfEdit);
 
+          // and check if new sequence data is different..
+          if (!fullseq.equalsIgnoreCase(osp))
+          {
+            // old ds and edited ds are different, so
+            // create the new dataset sequence
+            SequenceI newds = new Sequence(oldds);
+            newds.setSequence(fullseq.toUpperCase());
+
+            if (command.oldds == null)
+            {
+              command.oldds = new SequenceI[command.seqs.length];
+            }
+            command.oldds[i] = command.seqs[i].getDatasetSequence();
+
+            // And preserve start/end for good-measure
+
+            if (command.oldStartEnd == null)
+            {
+              command.oldStartEnd = new Range[command.seqs.length];
+            }
+            command.oldStartEnd[i] = oldstartend;
+            // TODO: JAL-1131 ensure newly created dataset sequence is added to
+            // the set of
+            // dataset sequences associated with the alignment.
+            // TODO: JAL-1131 fix up any annotation associated with new dataset
+            // sequence to ensure that original sequence/annotation
+            // relationships
+            // are preserved.
+            command.seqs[i].setDatasetSequence(newds);
+          }
+          else
+          {
+            if (command.oldStartEnd == null)
+            {
+              command.oldStartEnd = new Range[command.seqs.length];
+            }
+            command.oldStartEnd[i] = new Range(command.seqs[i].getStart(),
+                    command.seqs[i].getEnd());
+            if (beforeEditedPositions != null
+                    && afterEditedPositions == null)
+            {
+              // modification at end
+              command.seqs[i].setEnd(
+                      beforeEditedPositions.getEnd() + nogaprep.length()
+                              - nogapold.length());
+            }
+            else if (afterEditedPositions != null
+                    && beforeEditedPositions == null)
+            {
+              // modification at start
+              command.seqs[i].setStart(
+                      afterEditedPositions.getBegin() - nogaprep.length());
+            }
+            else
+            {
+              // edit covered both start and end. Here we can only guess the
+              // new
+              // start/end
+              String nogapalseq = AlignSeq.extractGaps(Comparison.GapChars,
+                      command.seqs[i].getSequenceAsString().toUpperCase());
+              int newStart = command.seqs[i].getDatasetSequence()
+                      .getSequenceAsString().indexOf(nogapalseq);
+              if (newStart == -1)
+              {
+                throw new Error(
+                        "Implementation Error: could not locate start/end "
+                                + "in dataset sequence after an edit of the sequence string");
+              }
+              int newEnd = newStart + nogapalseq.length() - 1;
+              command.seqs[i].setStart(newStart);
+              command.seqs[i].setEnd(newEnd);
+            }
+          }
         }
       }
       tmp = null;
@@ -785,7 +920,7 @@ public class EditCommand implements CommandI
     if (modifyVisibility && !insert)
     {
       // only occurs if a sequence was added or deleted.
-      command.deletedAnnotationRows = new Hashtable<SequenceI, AlignmentAnnotation[]>();
+      command.deletedAnnotationRows = new Hashtable<>();
     }
     if (command.fullAlignmentHeight)
     {
@@ -797,6 +932,8 @@ public class EditCommand implements CommandI
       AlignmentAnnotation[] tmp;
       for (int s = 0; s < command.seqs.length; s++)
       {
+        command.seqs[s].sequenceChanged();
+
         if (modifyVisibility)
         {
           // Rows are only removed or added to sequence object.
@@ -833,7 +970,8 @@ public class EditCommand implements CommandI
                 tmp = saved;
                 command.deletedAnnotationRows.put(command.seqs[s], saved);
                 // and then remove any annotation in the other views
-                for (int alview = 0; views != null && alview < views.length; alview++)
+                for (int alview = 0; views != null
+                        && alview < views.length; alview++)
                 {
                   if (views[alview] != command.al)
                   {
@@ -940,7 +1078,7 @@ public class EditCommand implements CommandI
 
     if (!insert)
     {
-      command.deletedAnnotations = new Hashtable<String, Annotation[]>();
+      command.deletedAnnotations = new Hashtable<>();
     }
 
     int aSize;
@@ -1012,8 +1150,8 @@ public class EditCommand implements CommandI
           }
 
           System.arraycopy(annotations[a].annotations, command.position,
-                  temp, command.position + command.number, aSize
-                          - command.position);
+                  temp, command.position + command.number,
+                  aSize - command.position);
         }
         else
         {
@@ -1056,8 +1194,8 @@ public class EditCommand implements CommandI
                     annotations[a].annotations.length - command.position);
             if (copylen > 0)
             {
-              System.arraycopy(annotations[a].annotations,
-                      command.position, deleted, 0, copylen); // command.number);
+              System.arraycopy(annotations[a].annotations, command.position,
+                      deleted, 0, copylen); // command.number);
             }
           }
 
@@ -1066,10 +1204,10 @@ public class EditCommand implements CommandI
           if (annotations[a].annotations.length > command.position
                   + command.number)
           {
-            System.arraycopy(annotations[a].annotations, command.position
-                    + command.number, temp, command.position,
-                    annotations[a].annotations.length - command.position
-                            - command.number); // aSize
+            System.arraycopy(annotations[a].annotations,
+                    command.position + command.number, temp,
+                    command.position, annotations[a].annotations.length
+                            - command.position - command.number); // aSize
           }
         }
         else
@@ -1101,81 +1239,97 @@ public class EditCommand implements CommandI
     }
   }
 
-  final static void adjustFeatures(Edit command, int index, int i, int j,
-          boolean insert)
+  /**
+   * Restores features to the state before a Cut.
+   * <ul>
+   * <li>re-add any features deleted by the cut</li>
+   * <li>remove any truncated features created by the cut</li>
+   * <li>shift right any features to the right of the cut</li>
+   * </ul>
+   * 
+   * @param command
+   *          the Cut command
+   * @param seq
+   *          the sequence the Cut applied to
+   * @param start
+   *          the start residue position of the cut
+   * @param length
+   *          the number of residues cut
+   * @param sameDatasetSequence
+   *          true if dataset sequence and frame of reference were left
+   *          unchanged by the Cut
+   */
+  final static void undoCutFeatures(Edit command, SequenceI seq,
+          final int start, final int length, boolean sameDatasetSequence)
   {
-    SequenceI seq = command.seqs[index];
     SequenceI sequence = seq.getDatasetSequence();
     if (sequence == null)
     {
       sequence = seq;
     }
 
-    if (insert)
+    /*
+     * shift right features that lie to the right of the restored cut (but not 
+     * if dataset sequence unchanged - so coordinates were changed by Cut)
+     */
+    if (!sameDatasetSequence)
     {
-      if (command.editedFeatures != null
-              && command.editedFeatures.containsKey(seq))
+      /*
+       * shift right all features right of and not 
+       * contiguous with the cut position
+       */
+      seq.getFeatures().shiftFeatures(start + 1, length);
+
+      /*
+       * shift right any features that start at the cut position,
+       * unless they were truncated
+       */
+      List<SequenceFeature> sfs = seq.getFeatures().findFeatures(start,
+              start);
+      for (SequenceFeature sf : sfs)
       {
-        sequence.setSequenceFeatures(command.editedFeatures.get(seq));
-      }
-
-      return;
-    }
-
-    SequenceFeature[] sf = sequence.getSequenceFeatures();
-
-    if (sf == null)
-    {
-      return;
-    }
-
-    SequenceFeature[] oldsf = new SequenceFeature[sf.length];
-
-    int cSize = j - i;
-
-    for (int s = 0; s < sf.length; s++)
-    {
-      SequenceFeature copy = new SequenceFeature(sf[s]);
-
-      oldsf[s] = copy;
-
-      if (sf[s].getEnd() < i)
-      {
-        continue;
-      }
-
-      if (sf[s].getBegin() > j)
-      {
-        sf[s].setBegin(copy.getBegin() - cSize);
-        sf[s].setEnd(copy.getEnd() - cSize);
-        continue;
-      }
-
-      if (sf[s].getBegin() >= i)
-      {
-        sf[s].setBegin(i);
-      }
-
-      if (sf[s].getEnd() < j)
-      {
-        sf[s].setEnd(j - 1);
-      }
-
-      sf[s].setEnd(sf[s].getEnd() - (cSize));
-
-      if (sf[s].getBegin() > sf[s].getEnd())
-      {
-        sequence.deleteFeature(sf[s]);
+        if (sf.getBegin() == start)
+        {
+          if (!command.truncatedFeatures.containsKey(seq)
+                  || !command.truncatedFeatures.get(seq).contains(sf))
+          {
+            /*
+             * feature was shifted left to cut position (not truncated),
+             * so shift it back right
+             */
+            SequenceFeature shifted = new SequenceFeature(sf, sf.getBegin()
+                    + length, sf.getEnd() + length, sf.getFeatureGroup(),
+                    sf.getScore());
+            seq.addSequenceFeature(shifted);
+            seq.deleteFeature(sf);
+          }
+        }
       }
     }
 
-    if (command.editedFeatures == null)
+    /*
+     * restore any features that were deleted or truncated
+     */
+    if (command.deletedFeatures != null
+            && command.deletedFeatures.containsKey(seq))
     {
-      command.editedFeatures = new Hashtable<SequenceI, SequenceFeature[]>();
+      for (SequenceFeature deleted : command.deletedFeatures.get(seq))
+      {
+        sequence.addSequenceFeature(deleted);
+      }
     }
 
-    command.editedFeatures.put(seq, oldsf);
-
+    /*
+     * delete any truncated features
+     */
+    if (command.truncatedFeatures != null
+            && command.truncatedFeatures.containsKey(seq))
+    {
+      for (SequenceFeature amended : command.truncatedFeatures.get(seq))
+      {
+        sequence.deleteFeature(amended);
+      }
+    }
   }
 
   /**
@@ -1208,7 +1362,7 @@ public class EditCommand implements CommandI
    */
   public Map<SequenceI, SequenceI> priorState(boolean forUndo)
   {
-    Map<SequenceI, SequenceI> result = new HashMap<SequenceI, SequenceI>();
+    Map<SequenceI, SequenceI> result = new HashMap<>();
     if (getEdits() == null)
     {
       return result;
@@ -1241,7 +1395,7 @@ public class EditCommand implements CommandI
      * Work backwards through the edit list, deriving the sequences before each
      * was applied. The final result is the sequence set before any edits.
      */
-    Iterator<Edit> editList = new ReverseListIterator<Edit>(getEdits());
+    Iterator<Edit> editList = new ReverseListIterator<>(getEdits());
     while (editList.hasNext())
     {
       Edit oldEdit = editList.next();
@@ -1290,75 +1444,98 @@ public class EditCommand implements CommandI
 
   public class Edit
   {
-    public SequenceI[] oldds;
+    private SequenceI[] oldds;
 
-    boolean fullAlignmentHeight = false;
+    /**
+     * start and end of sequence prior to edit
+     */
+    private Range[] oldStartEnd;
 
-    Hashtable<SequenceI, AlignmentAnnotation[]> deletedAnnotationRows;
+    private boolean fullAlignmentHeight = false;
 
-    Hashtable<String, Annotation[]> deletedAnnotations;
+    private Map<SequenceI, AlignmentAnnotation[]> deletedAnnotationRows;
 
-    Hashtable<SequenceI, SequenceFeature[]> editedFeatures;
+    private Map<String, Annotation[]> deletedAnnotations;
 
-    AlignmentI al;
+    /*
+     * features deleted by the cut (re-add on Undo)
+     * (including the original of any shortened features)
+     */
+    private Map<SequenceI, List<SequenceFeature>> deletedFeatures;
 
-    Action command;
+    /*
+     * shortened features added by the cut (delete on Undo)
+     */
+    private Map<SequenceI, List<SequenceFeature>> truncatedFeatures;
+
+    private AlignmentI al;
+
+    final private Action command;
 
     char[][] string;
 
     SequenceI[] seqs;
 
-    int[] alIndex;
+    private int[] alIndex;
 
-    int position, number;
+    private int position;
 
-    char gapChar;
+    private int number;
 
-    public Edit(Action command, SequenceI[] seqs, int position, int number,
-            char gapChar)
+    private char gapChar;
+
+    /*
+     * flag that identifies edits inserted to balance 
+     * user edits in a 'locked editing' region
+     */
+    private boolean systemGenerated;
+
+    public Edit(Action cmd, SequenceI[] sqs, int pos, int count,
+            char gap)
     {
-      this.command = command;
-      this.seqs = seqs;
-      this.position = position;
-      this.number = number;
-      this.gapChar = gapChar;
+      this.command = cmd;
+      this.seqs = sqs;
+      this.position = pos;
+      this.number = count;
+      this.gapChar = gap;
     }
 
-    Edit(Action command, SequenceI[] seqs, int position, int number,
-            AlignmentI al)
+    Edit(Action cmd, SequenceI[] sqs, int pos, int count,
+            AlignmentI align)
     {
-      this.gapChar = al.getGapCharacter();
-      this.command = command;
-      this.seqs = seqs;
-      this.position = position;
-      this.number = number;
-      this.al = al;
+      this(cmd, sqs, pos, count, align.getGapCharacter());
 
-      alIndex = new int[seqs.length];
-      for (int i = 0; i < seqs.length; i++)
+      this.al = align;
+
+      alIndex = new int[sqs.length];
+      for (int i = 0; i < sqs.length; i++)
       {
-        alIndex[i] = al.findIndex(seqs[i]);
+        alIndex[i] = align.findIndex(sqs[i]);
       }
 
-      fullAlignmentHeight = (al.getHeight() == seqs.length);
+      fullAlignmentHeight = (align.getHeight() == sqs.length);
     }
 
-    Edit(Action command, SequenceI[] seqs, int position, int number,
-            AlignmentI al, String replace)
+    /**
+     * Constructor given a REPLACE command and the replacement string
+     * 
+     * @param cmd
+     * @param sqs
+     * @param pos
+     * @param count
+     * @param align
+     * @param replace
+     */
+    Edit(Action cmd, SequenceI[] sqs, int pos, int count,
+            AlignmentI align, String replace)
     {
-      this.command = command;
-      this.seqs = seqs;
-      this.position = position;
-      this.number = number;
-      this.al = al;
-      this.gapChar = al.getGapCharacter();
-      string = new char[seqs.length][];
-      for (int i = 0; i < seqs.length; i++)
+      this(cmd, sqs, pos, count, align);
+
+      string = new char[sqs.length][];
+      for (int i = 0; i < sqs.length; i++)
       {
         string[i] = replace.toCharArray();
       }
-
-      fullAlignmentHeight = (al.getHeight() == seqs.length);
     }
 
     public SequenceI[] getSequences()
@@ -1385,6 +1562,16 @@ public class EditCommand implements CommandI
     {
       return gapChar;
     }
+
+    public void setSystemGenerated(boolean b)
+    {
+      systemGenerated = b;
+    }
+
+    public boolean isSystemGenerated()
+    {
+      return systemGenerated;
+    }
   }
 
   /**
@@ -1402,7 +1589,163 @@ public class EditCommand implements CommandI
     }
     else
     {
-      return new ReverseListIterator<Edit>(getEdits());
+      return new ReverseListIterator<>(getEdits());
     }
+  }
+
+  /**
+   * Adjusts features for Cut, and saves details of changes made to allow Undo
+   * <ul>
+   * <li>features left of the cut are unchanged</li>
+   * <li>features right of the cut are shifted left</li>
+   * <li>features internal to the cut region are deleted</li>
+   * <li>features that overlap or span the cut are shortened</li>
+   * <li>the originals of any deleted or shortened features are saved, to re-add
+   * on Undo</li>
+   * <li>any added (shortened) features are saved, to delete on Undo</li>
+   * </ul>
+   * 
+   * @param command
+   * @param seq
+   * @param fromPosition
+   * @param toPosition
+   * @param cutIsInternal
+   */
+  protected static void cutFeatures(Edit command, SequenceI seq,
+          int fromPosition, int toPosition, boolean cutIsInternal)
+  {
+    /* 
+     * if the cut is at start or end of sequence
+     * then we don't modify the sequence feature store
+     */
+    if (!cutIsInternal)
+    {
+      return;
+    }
+    List<SequenceFeature> added = new ArrayList<>();
+    List<SequenceFeature> removed = new ArrayList<>();
+  
+    SequenceFeaturesI featureStore = seq.getFeatures();
+    if (toPosition < fromPosition || featureStore == null)
+    {
+      return;
+    }
+  
+    int cutStartPos = fromPosition;
+    int cutEndPos = toPosition;
+    int cutWidth = cutEndPos - cutStartPos + 1;
+  
+    synchronized (featureStore)
+    {
+      /*
+       * get features that overlap the cut region
+       */
+      List<SequenceFeature> toAmend = featureStore.findFeatures(
+              cutStartPos, cutEndPos);
+  
+      /*
+       * add any contact features that span the cut region
+       * (not returned by findFeatures)
+       */
+      for (SequenceFeature contact : featureStore.getContactFeatures())
+      {
+        if (contact.getBegin() < cutStartPos
+                && contact.getEnd() > cutEndPos)
+        {
+          toAmend.add(contact);
+        }
+      }
+
+      /*
+       * adjust start-end of overlapping features;
+       * delete features enclosed by the cut;
+       * delete partially overlapping contact features
+       */
+      for (SequenceFeature sf : toAmend)
+      {
+        int sfBegin = sf.getBegin();
+        int sfEnd = sf.getEnd();
+        int newBegin = sfBegin;
+        int newEnd = sfEnd;
+        boolean toDelete = false;
+        boolean follows = false;
+        
+        if (sfBegin >= cutStartPos && sfEnd <= cutEndPos)
+        {
+          /*
+           * feature lies within cut region - delete it
+           */
+          toDelete = true;
+        }
+        else if (sfBegin < cutStartPos && sfEnd > cutEndPos)
+        {
+          /*
+           * feature spans cut region - left-shift the end
+           */
+          newEnd -= cutWidth;
+        }
+        else if (sfEnd <= cutEndPos)
+        {
+          /*
+           * feature overlaps left of cut region - truncate right
+           */
+          newEnd = cutStartPos - 1;
+          if (sf.isContactFeature())
+          {
+            toDelete = true;
+          }
+        }
+        else if (sfBegin >= cutStartPos)
+        {
+          /*
+           * remaining case - feature overlaps right
+           * truncate left, adjust end of feature
+           */
+          newBegin = cutIsInternal ? cutStartPos : cutEndPos + 1;
+          newEnd = newBegin + sfEnd - cutEndPos - 1;
+          if (sf.isContactFeature())
+          {
+            toDelete = true;
+          }
+        }
+  
+        seq.deleteFeature(sf);
+        if (!follows)
+        {
+          removed.add(sf);
+        }
+        if (!toDelete)
+        {
+          SequenceFeature copy = new SequenceFeature(sf, newBegin, newEnd,
+                  sf.getFeatureGroup(), sf.getScore());
+          seq.addSequenceFeature(copy);
+          if (!follows)
+          {
+            added.add(copy);
+          }
+        }
+      }
+  
+      /*
+       * and left shift any features lying to the right of the cut region
+       */
+
+      featureStore.shiftFeatures(cutEndPos + 1, -cutWidth);
+    }
+
+    /*
+     * save deleted and amended features, so that Undo can 
+     * re-add or delete them respectively
+     */
+    if (command.deletedFeatures == null)
+    {
+      command.deletedFeatures = new HashMap<>();
+    }
+    if (command.truncatedFeatures == null)
+    {
+      command.truncatedFeatures = new HashMap<>();
+    }
+    command.deletedFeatures.put(seq, removed);
+    command.truncatedFeatures.put(seq, added);
   }
 }

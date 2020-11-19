@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,33 +21,69 @@
 package jalview.datamodel;
 
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * A bean that models a set of (x, y, z) values and a reference to a sequence.
+ * As used in Principal Component Analysis, the (x, y, z) values are the
+ * sequence's score for the currently selected first, second and third
+ * dimensions of the PCA.
  */
 public class SequencePoint
 {
-  // SMJS PUBLIC
-  /**
-   * for points with no real physical association with an alignment sequence
+  /*
+   * Associated alignment sequence, or dummy sequence object
    */
-  public boolean isPlaceholder = false;
+  private final SequenceI sequence;
+
+  /*
+   * x, y, z values
+   */
+  public Point coord;
 
   /**
-   * Associated alignment sequence, or dummy sequence object.
+   * Constructor
+   * 
+   * @param sequence
+   * @param coord
    */
-  public SequenceI sequence;
-
-  /**
-   * array of coordinates in embedded sequence space.
-   */
-  public float[] coord;
-
-  // SMJS ENDPUBLIC
-  public SequencePoint(SequenceI sequence, float[] coord)
+  public SequencePoint(SequenceI sequence, Point pt)
   {
     this.sequence = sequence;
-    this.coord = coord;
+    this.coord = pt;
+  }
+
+  /**
+   * Constructor given a sequence and an array of x, y, z coordinate positions
+   * 
+   * @param sequence
+   * @param coords
+   * @throws ArrayIndexOutOfBoundsException
+   *           if array length is less than 3
+   */
+  public SequencePoint(SequenceI sequence, float[] coords)
+  {
+    this(sequence, new Point(coords[0], coords[1], coords[2]));
+  }
+
+  public SequenceI getSequence()
+  {
+    return sequence;
+  }
+
+  /**
+   * Applies a translation to the (x, y, z) coordinates
+   * 
+   * @param centre
+   */
+  public void translate(float x, float y, float z)
+  {
+    coord = new Point(coord.x + x, coord.y + y, coord.z + z);
+  }
+
+  /**
+   * string representation for ease of inspection in debugging or logging only
+   */
+  @Override
+  public String toString()
+  {
+    return sequence.getName() + " " + coord.toString();
   }
 }

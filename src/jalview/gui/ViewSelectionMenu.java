@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -59,15 +59,6 @@ public class ViewSelectionMenu extends JMenu
   private List<AlignmentPanel> _selectedviews;
 
   private ItemListener _handler;
-
-  @Override
-  protected void finalize() throws Throwable
-  {
-    _selectedviews = null;
-    _handler = null;
-    _allviews = null;
-    super.finalize();
-  }
 
   /**
    * create a new view selection menu. This menu has some standard entries
@@ -152,8 +143,8 @@ public class ViewSelectionMenu extends JMenu
       append = append || _selectedviews.size() > 1;
       toggleview = new JCheckBoxMenuItem(
               MessageManager.getString("label.select_many_views"), append);
-      toggleview.setToolTipText(MessageManager
-              .getString("label.toggle_enabled_views"));
+      toggleview.setToolTipText(
+              MessageManager.getString("label.toggle_enabled_views"));
       toggleview.addItemListener(new ItemListener()
       {
 
@@ -219,8 +210,9 @@ public class ViewSelectionMenu extends JMenu
     }
     for (final AlignmentPanel ap : allviews)
     {
-      String nm = ((ap.getViewName() == null || ap.getViewName().length() == 0) ? ""
-              : ap.getViewName() + " for ")
+      String nm = ((ap.getViewName() == null
+              || ap.getViewName().length() == 0) ? ""
+                      : ap.getViewName() + " for ")
               + ap.alignFrame.getTitle();
       final JCheckBoxMenuItem checkBox = new JCheckBoxMenuItem(nm,
               _selectedviews.contains(ap));

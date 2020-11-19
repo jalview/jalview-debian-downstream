@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,7 @@ import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
 import jalview.datamodel.Annotation;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
@@ -90,8 +90,8 @@ public class RestJobThread extends AWSThread
     {
       jobs = new RestJob[1];
       jobs[0] = new RestJob(0, this,
-              restClient._input.getVisibleAlignment(restClient.service
-                      .getGapCharacter()),
+              restClient._input.getVisibleAlignment(
+                      restClient.service.getGapCharacter()),
               restClient._input.getVisibleContigs());
       // need a function to get a range on a view/alignment and return both
       // annotation, groups and selection subsetted to just that region.
@@ -101,8 +101,8 @@ public class RestJobThread extends AWSThread
     {
       int[] viscontig = restClient._input.getVisibleContigs();
       AlignmentI[] viscontigals = restClient._input
-              .getVisibleContigAlignments(restClient.service
-                      .getGapCharacter());
+              .getVisibleContigAlignments(
+                      restClient.service.getGapCharacter());
       if (viscontigals != null && viscontigals.length > 0)
       {
         jobs = new RestJob[viscontigals.length];
@@ -173,9 +173,13 @@ public class RestJobThread extends AWSThread
   private String getStage(Stage stg)
   {
     if (stg == Stage.SUBMIT)
+    {
       return "submitting ";
+    }
     if (stg == Stage.POLL)
+    {
       return "checking status of ";
+    }
 
     return (" being confused about ");
   }
@@ -229,8 +233,8 @@ public class RestJobThread extends AWSThread
       {
         if (input.getValue().validFor(rj))
         {
-          postentity.addPart(input.getKey(), input.getValue()
-                  .formatForInput(rj));
+          postentity.addPart(input.getKey(),
+                  input.getValue().formatForInput(rj));
         }
         else
         {
@@ -285,10 +289,7 @@ public class RestJobThread extends AWSThread
         break;
       case 202:
         rj.statMessage = "<br>Job submitted successfully. Results available at this URL:\n"
-                + "<a href="
-                + rj.getJobId()
-                + "\">"
-                + rj.getJobId()
+                + "<a href=" + rj.getJobId() + "\">" + rj.getJobId()
                 + "</a><br>";
         rj.running = true;
         break;
@@ -301,11 +302,9 @@ public class RestJobThread extends AWSThread
         {
           if (loc.length > 1)
           {
-            Cache.log
-                    .warn("Ignoring additional "
-                            + (loc.length - 1)
-                            + " location(s) provided in response header ( next one is '"
-                            + loc[1].getValue() + "' )");
+            Cache.log.warn("Ignoring additional " + (loc.length - 1)
+                    + " location(s) provided in response header ( next one is '"
+                    + loc[1].getValue() + "' )");
           }
           rj.setJobId(loc[0].getValue());
           rj.setSubmitted(true);
@@ -319,8 +318,8 @@ public class RestJobThread extends AWSThread
         rj.setSubjobComplete(true);
         rj.error = true;
         rj.running = false;
-        completeStatus(rj, response, "" + getStage(stg)
-                + "failed. Reason below:\n");
+        completeStatus(rj, response,
+                "" + getStage(stg) + "failed. Reason below:\n");
         break;
       default:
         // Some other response. Probably need to pop up the content in a window.
@@ -333,16 +332,10 @@ public class RestJobThread extends AWSThread
         rj.setSubmitted(true);
         try
         {
-          completeStatus(
-                  rj,
-                  response,
-                  ""
-                          + getStage(stg)
-                          + " resulted in an unexpected server response.<br/>Url concerned was <a href=\""
-                          + request.getURI()
-                          + "\">"
-                          + request.getURI()
-                          + "</a><br/>Filtered response content below:<br/>");
+          completeStatus(rj, response, "" + getStage(stg)
+                  + " resulted in an unexpected server response.<br/>Url concerned was <a href=\""
+                  + request.getURI() + "\">" + request.getURI()
+                  + "</a><br/>Filtered response content below:<br/>");
         } catch (IOException e)
         {
           Cache.log.debug("IOException when consuming unhandled response",
@@ -480,21 +473,19 @@ public class RestJobThread extends AWSThread
 
         } catch (Error ex)
         {
-          Cache.log.warn("Failed to finish parsing data for job "
-                  + rj.getJobId());
+          Cache.log.warn(
+                  "Failed to finish parsing data for job " + rj.getJobId());
           ex.printStackTrace();
         } catch (Exception ex)
         {
-          Cache.log.warn("Failed to finish parsing data for job "
-                  + rj.getJobId());
+          Cache.log.warn(
+                  "Failed to finish parsing data for job " + rj.getJobId());
           ex.printStackTrace();
         } finally
         {
           rj.error = true;
           rj.statMessage = "Error whilst parsing data for this job.<br>URL for job response is :<a href=\""
-                  + rj.resSet.getUrl()
-                  + "\">"
-                  + rj.resSet.getUrl()
+                  + rj.resSet.getUrl() + "\">" + rj.resSet.getUrl()
                   + "</a><br>";
         }
       }
@@ -609,7 +600,7 @@ public class RestJobThread extends AWSThread
     // total number of distinct alignment sets generated by job set.
     int numAlSets = 0, als = 0;
     List<AlignmentI> destAls = new ArrayList<AlignmentI>();
-    List<jalview.datamodel.ColumnSelection> destColsel = new ArrayList<jalview.datamodel.ColumnSelection>();
+    List<jalview.datamodel.HiddenColumns> destColsel = new ArrayList<jalview.datamodel.HiddenColumns>();
     List<List<NewickFile>> trees = new ArrayList<List<NewickFile>>();
 
     do
@@ -715,7 +706,7 @@ public class RestJobThread extends AWSThread
           RestJob rj = (RestJob) jobs[nrj];
           int contigs[] = input.getVisibleContigs();
           AlignmentI destAl = null;
-          jalview.datamodel.ColumnSelection destCs = null;
+          jalview.datamodel.HiddenColumns destHCs = null;
           // Resolve destAl for this data.
           if (als == 0 && rj.isInputContextModified())
           {
@@ -731,10 +722,10 @@ public class RestJobThread extends AWSThread
               if (!restClient.isAlignmentModified() && merge)
               {
                 destAl = restClient.av.getAlignment();
-                destCs = restClient.av.getColumnSelection();
-                resultDest
-                        .add(restClient.isShowResultsInNewView() ? AddDataTo.newView
-                                : AddDataTo.currentView);
+                destHCs = restClient.av.getAlignment().getHiddenColumns();
+                resultDest.add(restClient.isShowResultsInNewView()
+                        ? AddDataTo.newView
+                        : AddDataTo.currentView);
                 destPanels.add(restClient.recoverAlignPanelForView());
               }
               else
@@ -742,15 +733,15 @@ public class RestJobThread extends AWSThread
                 newAlignment = true;
                 // recreate the input alignment data
                 Object[] idat = input
-                        .getAlignmentAndColumnSelection(gapCharacter);
+                        .getAlignmentAndHiddenColumns(gapCharacter);
                 destAl = new Alignment((SequenceI[]) idat[0]);
-                destCs = (ColumnSelection) idat[1];
+                destHCs = (HiddenColumns) idat[1];
                 resultDest.add(AddDataTo.newAlignment);
                 // but do not add to the alignment panel list - since we need to
                 // create a whole new alignFrame set.
               }
               destAls.add(destAl);
-              destColsel.add(destCs);
+              destColsel.add(destHCs);
             }
           }
           else
@@ -763,13 +754,13 @@ public class RestJobThread extends AWSThread
               {
                 // TODO: decide if multiple multiple alignments returned by
                 // non-vseparable services are allowed.
-                Cache.log
-                        .warn("dealing with multiple alignment products returned by non-vertically separable service.");
+                Cache.log.warn(
+                        "dealing with multiple alignment products returned by non-vertically separable service.");
               }
               // recover reference to last alignment created for this rest frame
               // ready for extension
               destAl = destAls.get(als);
-              destCs = destColsel.get(als);
+              destHCs = destColsel.get(als);
             }
             else
             {
@@ -798,16 +789,15 @@ public class RestJobThread extends AWSThread
                 newview = input.getUpdatedView(rseqs, orders, gapCharacter);
               }
               destAl = new Alignment((SequenceI[]) newview[0]);
-              destCs = (ColumnSelection) newview[1];
+              destHCs = (HiddenColumns) newview[1];
               newAlignment = true;
               // TODO create alignment from result data with propagated
               // references.
               destAls.add(destAl);
-              destColsel.add(destCs);
+              destColsel.add(destHCs);
               resultDest.add(AddDataTo.newAlignment);
               throw new Error(
-                      MessageManager
-                              .getString("error.implementation_error")
+                      MessageManager.getString("error.implementation_error")
                               + "TODO: ");
             }
           }
@@ -878,8 +868,8 @@ public class RestJobThread extends AWSThread
                     }
                     else
                     {
-                      Cache.log
-                              .warn("Couldn't resolve original sequence for new sequence.");
+                      Cache.log.warn(
+                              "Couldn't resolve original sequence for new sequence.");
                     }
                   }
                   if (sg.hasSeqrep())
@@ -901,8 +891,8 @@ public class RestJobThread extends AWSThread
                 {
                   // adjust boundaries of recovered group w.r.t. new group being
                   // merged on to original alignment.
-                  int start = sg.getStartRes() + contigs[ncnt], end = sg
-                          .getEndRes() + contigs[ncnt];
+                  int start = sg.getStartRes() + contigs[ncnt],
+                          end = sg.getEndRes() + contigs[ncnt];
                   if (start < exsg.getStartRes())
                   {
                     exsg.setStartRes(start);
@@ -956,8 +946,8 @@ public class RestJobThread extends AWSThread
                   grass = groupNames.get(alan[nrj][an].groupRef.getName());
                   if (grass == null)
                   {
-                    Cache.log
-                            .error("Couldn't relocate group referemce for group "
+                    Cache.log.error(
+                            "Couldn't relocate group referemce for group "
                                     + alan[nrj][an].groupRef.getName());
                   }
                 }
@@ -983,7 +973,8 @@ public class RestJobThread extends AWSThread
                   visan.sequenceRef = sqass;
                   visAlAn.add(visan);
                 }
-                if (contigs[ncnt] + alan[nrj][an].annotations.length > visan.annotations.length)
+                if (contigs[ncnt]
+                        + alan[nrj][an].annotations.length > visan.annotations.length)
                 {
                   // increase width of annotation row
                   Annotation[] newannv = new Annotation[contigs[ncnt]
@@ -1006,8 +997,8 @@ public class RestJobThread extends AWSThread
               {
                 // TODO: process each newick file, lifting over sequence refs to
                 // current alignment, if necessary.
-                Cache.log
-                        .error("Tree recovery from restjob not yet implemented.");
+                Cache.log.error(
+                        "Tree recovery from restjob not yet implemented.");
               }
             }
           }
@@ -1043,10 +1034,10 @@ public class RestJobThread extends AWSThread
     for (AddDataTo action : resultDest)
     {
       AlignmentI destal;
-      ColumnSelection destcs;
-      String alTitle = MessageManager.formatMessage(
-              "label.webservice_job_title_on", new String[] {
-                  restClient.service.details.Action,
+      HiddenColumns destcs;
+      String alTitle = MessageManager
+              .formatMessage("label.webservice_job_title_on", new String[]
+              { restClient.service.details.Action,
                   restClient.service.details.Name, restClient.viewTitle });
       switch (action)
       {
@@ -1055,8 +1046,8 @@ public class RestJobThread extends AWSThread
         destcs = destColsel.get(als);
         destaf = new AlignFrame(destal, destcs, AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
-        PaintRefresher.Refresh(destaf, destaf.getViewport()
-                .getSequenceSetId());
+        PaintRefresher.Refresh(destaf,
+                destaf.getViewport().getSequenceSetId());
         // todo transfer any feature settings and colouring
         /*
          * destaf.getFeatureRenderer().transferSettings(this.featureSettings);
@@ -1184,8 +1175,8 @@ public class RestJobThread extends AWSThread
           {
             if (start + width < end)
             {
-              blocks[c][s] = sequenceIs[s].getSubSequence(start, start
-                      + width);
+              blocks[c][s] = sequenceIs[s].getSubSequence(start,
+                      start + width);
             }
             else
             {

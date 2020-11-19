@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,6 @@
 package jalview.ws.jws2.jabaws2;
 
 import jalview.ws.jws2.AAConClient;
-import jalview.ws.jws2.JPred301Client;
 import jalview.ws.jws2.RNAalifoldClient;
 import jalview.ws.uimodel.AlignAnalysisUIText;
 
@@ -38,7 +37,8 @@ public class Jws2InstanceFactory
 
   private static String category_rewrite(String cat_name)
   {
-    return (cat_name != null && cat_name.equals("Prediction")) ? "Secondary Structure Prediction"
+    return (cat_name != null && cat_name.equals("Prediction"))
+            ? "Secondary Structure Prediction"
             : cat_name;
   }
 
@@ -51,11 +51,8 @@ public class Jws2InstanceFactory
               AAConClient.getAlignAnalysisUITest());
       aaConGUI.put(compbio.ws.client.Services.RNAalifoldWS.toString(),
               RNAalifoldClient.getAlignAnalysisUITest());
-      // disable the JPred301 client in jalview ...
+      // ignore list for JABAWS services not supported in jalview ...
       ignoreGUI = new HashSet<String>();
-      ignoreGUI.add(compbio.ws.client.Services.JpredWS.toString());
-      aaConGUI.put(compbio.ws.client.Services.JpredWS.toString(),
-              JPred301Client.getAlignAnalysisUITest());
     }
   }
 

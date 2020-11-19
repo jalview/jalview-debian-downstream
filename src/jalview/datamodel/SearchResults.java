@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,8 +33,9 @@ import java.util.List;
  */
 public class SearchResults implements SearchResultsI
 {
+  private int count;
 
-  private List<SearchResultMatchI> matches = new ArrayList<SearchResultMatchI>();
+  private List<SearchResultMatchI> matches = new ArrayList<>();
 
   /**
    * One match consists of a sequence reference, start and end positions.
@@ -42,17 +43,17 @@ public class SearchResults implements SearchResultsI
    */
   public class Match implements SearchResultMatchI
   {
-    SequenceI sequence;
+    final SequenceI sequence;
 
     /**
      * Start position of match in sequence (base 1)
      */
-    int start;
+    final int start;
 
     /**
      * End position (inclusive) (base 1)
      */
-    int end;
+    final int end;
 
     /**
      * create a Match on a range of sequence. Match always holds region in
@@ -91,27 +92,18 @@ public class SearchResults implements SearchResultsI
       }
     }
 
-    /* (non-Javadoc)
-     * @see jalview.datamodel.SearchResultMatchI#getSequence()
-     */
     @Override
     public SequenceI getSequence()
     {
       return sequence;
     }
 
-    /* (non-Javadoc)
-     * @see jalview.datamodel.SearchResultMatchI#getStart()
-     */
     @Override
     public int getStart()
     {
       return start;
     }
 
-    /* (non-Javadoc)
-     * @see jalview.datamodel.SearchResultMatchI#getEnd()
-     */
     @Override
     public int getEnd()
     {
@@ -131,11 +123,6 @@ public class SearchResults implements SearchResultsI
       }
       sb.append(start).append("-").append(end);
       return sb.toString();
-    }
-
-    public void setSequence(SequenceI seq)
-    {
-      this.sequence = seq;
     }
 
     /**
@@ -164,33 +151,59 @@ public class SearchResults implements SearchResultsI
         return false;
       }
       SearchResultMatchI m = (SearchResultMatchI) obj;
-      return (sequence == m.getSequence() && start == m.getStart() && end == m
-              .getEnd());
+      return (sequence == m.getSequence() && start == m.getStart()
+              && end == m.getEnd());
+    }
+
+    @Override
+    public boolean contains(SequenceI seq, int from, int to)
+    {
+      return (sequence == seq && start <= from && end >= to);
     }
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#addResult(jalview.datamodel.SequenceI, int, int)
-   */
   @Override
   public SearchResultMatchI addResult(SequenceI seq, int start, int end)
   {
     Match m = new Match(seq, start, end);
-    matches.add(m);
+    if (!matches.contains(m))
+    {
+      matches.add(m);
+      count++;
+    }
     return m;
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#involvesSequence(jalview.datamodel.SequenceI)
-   */
+  @Override
+  public void addResult(SequenceI seq, int[] positions)
+  {
+    /*
+     * we only increment the match count by 1 - or not at all,
+     * if the matches are all duplicates of existing
+     */
+    int beforeCount = count;
+    for (int i = 0; i < positions.length - 1; i += 2)
+    {
+      addResult(seq, positions[i], positions[i + 1]);
+    }
+    if (count > beforeCount)
+    {
+      count = beforeCount + 1;
+    }
+  }
+
   @Override
   public boolean involvesSequence(SequenceI sequence)
   {
+    final int start = sequence.getStart();
+    final int end = sequence.getEnd();
+
     SequenceI ds = sequence.getDatasetSequence();
-    for (SearchResultMatchI _m : matches)
+    for (SearchResultMatchI m : matches)
     {
-      SequenceI matched = _m.getSequence();
-      if (matched != null && (matched == sequence || matched == ds))
+      SequenceI matched = m.getSequence();
+      if (matched != null && (matched == sequence || matched == ds)
+              && (m.getEnd() >= start) && (m.getStart() <= end))
       {
         return true;
       }
@@ -198,9 +211,6 @@ public class SearchResults implements SearchResultsI
     return false;
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#getResults(jalview.datamodel.SequenceI, int, int)
-   */
   @Override
   public int[] getResults(SequenceI sequence, int start, int end)
   {
@@ -219,20 +229,15 @@ public class SearchResults implements SearchResultsI
       m = (Match) _m;
 
       mfound = false;
-      if (m.sequence == sequence)
+      if (m.sequence == sequence
+              || m.sequence == sequence.getDatasetSequence())
       {
         mfound = true;
-        // locate aligned position
         matchStart = sequence.findIndex(m.start) - 1;
-        matchEnd = sequence.findIndex(m.end) - 1;
+        matchEnd = m.start == m.end ? matchStart : sequence
+                .findIndex(m.end) - 1;
       }
-      else if (m.sequence == sequence.getDatasetSequence())
-      {
-        mfound = true;
-        // locate region in local context
-        matchStart = sequence.findIndex(m.start) - 1;
-        matchEnd = sequence.findIndex(m.end) - 1;
-      }
+
       if (mfound)
       {
         if (matchStart <= end && matchEnd >= start)
@@ -264,7 +269,7 @@ public class SearchResults implements SearchResultsI
         else
         {
           // debug
-          // System.err.println("Outwith bounds!" + matchStart+">"+end +"  or "
+          // System.err.println("Outwith bounds!" + matchStart+">"+end +" or "
           // + matchEnd+"<"+start);
         }
       }
@@ -277,9 +282,12 @@ public class SearchResults implements SearchResultsI
   {
     int count = 0;
     BitSet mask = new BitSet();
+    int startRes = sqcol.getStartRes();
+    int endRes = sqcol.getEndRes();
+
     for (SequenceI s : sqcol.getSequences())
     {
-      int[] cols = getResults(s, sqcol.getStartRes(), sqcol.getEndRes());
+      int[] cols = getResults(s, startRes, endRes);
       if (cols != null)
       {
         for (int pair = 0; pair < cols.length; pair += 2)
@@ -297,27 +305,18 @@ public class SearchResults implements SearchResultsI
     return count;
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#getSize()
-   */
   @Override
-  public int getSize()
+  public int getCount()
   {
-    return matches.size();
+    return count;
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#isEmpty()
-   */
   @Override
   public boolean isEmpty()
   {
     return matches.isEmpty();
   }
 
-  /* (non-Javadoc)
-   * @see jalview.datamodel.SearchResultsI#getResults()
-   */
   @Override
   public List<SearchResultMatchI> getResults()
   {
@@ -350,8 +349,10 @@ public class SearchResults implements SearchResultsI
   }
 
   /**
-   * Two SearchResults are considered equal if they contain the same matches in
-   * the same order.
+   * Two SearchResults are considered equal if they contain the same matches
+   * (Sequence, start position, end position) in the same order
+   * 
+   * @see Match#equals(Object)
    */
   @Override
   public boolean equals(Object obj)
@@ -362,5 +363,11 @@ public class SearchResults implements SearchResultsI
     }
     SearchResultsI sr = (SearchResultsI) obj;
     return matches.equals(sr.getResults());
+  }
+
+  @Override
+  public void addSearchResults(SearchResultsI toAdd)
+  {
+    matches.addAll(toAdd.getResults());
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -55,7 +55,7 @@ public class ConservationThread extends AlignCalcWorker
     {
       calcMan.notifyStart(this); // updatingConservation = true;
 
-      while (!calcMan.notifyWorking(this))
+      while ((calcMan != null) && (!calcMan.notifyWorking(this)))
       {
         try
         {
@@ -69,12 +69,13 @@ public class ConservationThread extends AlignCalcWorker
           ex.printStackTrace();
         }
       }
-      if (alignViewport.isClosed())
+      if ((alignViewport == null) || (calcMan == null)
+              || (alignViewport.isClosed()))
       {
         abortAndDestroy();
         return;
       }
-      List<AlignmentAnnotation> ourAnnot = new ArrayList<AlignmentAnnotation>();
+      List<AlignmentAnnotation> ourAnnot = new ArrayList<>();
       AlignmentI alignment = alignViewport.getAlignment();
       conservation = alignViewport.getAlignmentConservationAnnotation();
       quality = alignViewport.getAlignmentQualityAnnot();
@@ -114,9 +115,15 @@ public class ConservationThread extends AlignCalcWorker
     }
     calcMan.workerComplete(this);
 
+    if ((alignViewport == null) || (calcMan == null)
+            || (alignViewport.isClosed()))
+    {
+      abortAndDestroy();
+      return;
+    }
     if (ap != null)
     {
-      ap.paintAlignment(true);
+      ap.paintAlignment(true, true);
     }
 
   }

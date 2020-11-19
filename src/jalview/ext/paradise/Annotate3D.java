@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -94,8 +94,8 @@ public class Annotate3D
       }
 
       @Override
-      public boolean startObjectEntry(String key) throws ParseException,
-              IOException
+      public boolean startObjectEntry(String key)
+              throws ParseException, IOException
       {
         // TODO Auto-generated method stub
         return false;
@@ -123,8 +123,8 @@ public class Annotate3D
       }
 
       @Override
-      public boolean primitive(Object value) throws ParseException,
-              IOException
+      public boolean primitive(Object value)
+              throws ParseException, IOException
       {
         // TODO Auto-generated method stub
         return false;
@@ -137,15 +137,15 @@ public class Annotate3D
   public static Iterator<Reader> getRNAMLForPDBFileAsString(String pdbfile)
           throws Exception
   {
-    List<NameValuePair> vals = new ArrayList<NameValuePair>();
+    List<NameValuePair> vals = new ArrayList<>();
     vals.add(new BasicNameValuePair("tool", "rnaview"));
     vals.add(new BasicNameValuePair("data", pdbfile));
     vals.add(new BasicNameValuePair("output", "rnaml"));
     // return processJsonResponseFor(HttpClientUtils.doHttpUrlPost(twoDtoolsURL,
     // vals));
-    ArrayList<Reader> readers = new ArrayList<Reader>();
-    final BufferedReader postResponse = HttpClientUtils.doHttpUrlPost(
-            twoDtoolsURL, vals, 0, 0);
+    ArrayList<Reader> readers = new ArrayList<>();
+    final BufferedReader postResponse = HttpClientUtils
+            .doHttpUrlPost(twoDtoolsURL, vals, 0, 0);
     readers.add(postResponse);
     return readers.iterator();
 
@@ -158,79 +158,12 @@ public class Annotate3D
     try
     {
       final JSONArray responses = (JSONArray) jp.parse(respons);
-      final Iterator rvals = responses.iterator();
-      return new Iterator<Reader>()
-      {
-        @Override
-        public boolean hasNext()
-        {
-          return rvals.hasNext();
-        }
-
-        @Override
-        public Reader next()
-        {
-          JSONObject val = (JSONObject) rvals.next();
-
-          Object sval = null;
-          try
-          {
-            sval = val.get("2D");
-          } catch (Exception x)
-          {
-            x.printStackTrace();
-          }
-          ;
-          if (sval == null)
-          {
-            System.err
-                    .println("DEVELOPER WARNING: Annotate3d didn't return a '2D' tag in its response. Consider checking output of server. Response was :"
-                            + val.toString());
-
-            sval = "";
-          }
-          return new StringReader(
-                  (sval instanceof JSONObject) ? ((JSONObject) sval)
-                          .toString() : sval.toString());
-
-        }
-
-        @Override
-        public void remove()
-        {
-          throw new Error(
-                  MessageManager.getString("error.not_implemented_remove"));
-
-        }
-
-        @Override
-        protected Object clone() throws CloneNotSupportedException
-        {
-          throw new CloneNotSupportedException(
-                  MessageManager.getString("error.not_implemented_clone"));
-        }
-
-        @Override
-        public boolean equals(Object obj)
-        {
-          return super.equals(obj);
-        }
-
-        @Override
-        protected void finalize() throws Throwable
-        {
-          while (rvals.hasNext())
-          {
-            rvals.next();
-          }
-          super.finalize();
-        }
-      };
+      final RvalsIterator rvals = new RvalsIterator(responses);
+      return rvals;
     } catch (Exception foo)
     {
-      throw new Exception(
-              MessageManager
-                      .getString("exception.couldnt_parse_responde_from_annotated3d_server"),
+      throw new Exception(MessageManager.getString(
+              "exception.couldnt_parse_responde_from_annotated3d_server"),
               foo);
     }
 
@@ -239,7 +172,7 @@ public class Annotate3D
   public static Iterator<Reader> getRNAMLForPDBId(String pdbid)
           throws Exception
   {
-    List<NameValuePair> vals = new ArrayList<NameValuePair>();
+    List<NameValuePair> vals = new ArrayList<>();
     vals.add(new BasicNameValuePair("tool", "rnaview"));
     vals.add(new BasicNameValuePair("pdbid", pdbid));
     vals.add(new BasicNameValuePair("output", "rnaml"));
@@ -247,9 +180,83 @@ public class Annotate3D
             + pdbid + "&output=rnaml");
     // return processJsonResponseFor(new
     // InputStreamReader(geturl.openStream()));
-    ArrayList<Reader> readers = new ArrayList<Reader>();
+    ArrayList<Reader> readers = new ArrayList<>();
     readers.add(new InputStreamReader(geturl.openStream()));
     return readers.iterator();
   }
 
+}
+
+class RvalsIterator implements Iterator, AutoCloseable
+{
+  private Iterator rvals;
+
+  protected RvalsIterator(JSONArray responses)
+  {
+    this.rvals = responses.iterator();
+  }
+
+  @Override
+  public boolean hasNext()
+  {
+    return rvals.hasNext();
+  }
+
+  @Override
+  public Reader next()
+  {
+    JSONObject val = (JSONObject) rvals.next();
+
+    Object sval = null;
+    try
+    {
+      sval = val.get("2D");
+    } catch (Exception x)
+    {
+      x.printStackTrace();
+    }
+    ;
+    if (sval == null)
+    {
+      System.err.println(
+              "DEVELOPER WARNING: Annotate3d didn't return a '2D' tag in its response. Consider checking output of server. Response was :"
+                      + val.toString());
+
+      sval = "";
+    }
+    return new StringReader(
+            (sval instanceof JSONObject) ? ((JSONObject) sval).toString()
+                    : sval.toString());
+
+  }
+
+  @Override
+  public void remove()
+  {
+    throw new Error(
+            MessageManager.getString("error.not_implemented_remove"));
+
+  }
+
+  @Override
+  protected Object clone() throws CloneNotSupportedException
+  {
+    throw new CloneNotSupportedException(
+            MessageManager.getString("error.not_implemented_clone"));
+  }
+
+  @Override
+  public boolean equals(Object obj)
+  {
+    return super.equals(obj);
+  }
+
+  @Override
+  public void close()
+  {
+    while (rvals.hasNext())
+    {
+      rvals.next();
+    }
+  }
 }

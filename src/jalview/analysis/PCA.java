@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,144 +20,51 @@
  */
 package jalview.analysis;
 
-import jalview.datamodel.BinarySequence;
-import jalview.datamodel.BinarySequence.InvalidSequenceTypeException;
-import jalview.math.Matrix;
-import jalview.schemes.ResidueProperties;
-import jalview.schemes.ScoreMatrix;
+import jalview.api.analysis.ScoreModelI;
+import jalview.api.analysis.SimilarityParamsI;
+import jalview.bin.Cache;
+import jalview.datamodel.AlignmentView;
+import jalview.datamodel.Point;
+import jalview.math.MatrixI;
 
 import java.io.PrintStream;
 
 /**
  * Performs Principal Component Analysis on given sequences
- * 
- * @author $author$
- * @version $Revision$
  */
 public class PCA implements Runnable
 {
-  Matrix m;
+  /*
+   * inputs
+   */
+  final private AlignmentView seqs;
 
-  Matrix symm;
+  final private ScoreModelI scoreModel;
 
-  Matrix m2;
+  final private SimilarityParamsI similarityParams;
 
-  double[] eigenvalue;
+  /*
+   * outputs
+   */
+  private MatrixI pairwiseScores;
 
-  Matrix eigenvector;
+  private MatrixI tridiagonal;
 
-  StringBuffer details = new StringBuffer();
+  private MatrixI eigenMatrix;
 
   /**
-   * Creates a new PCA object. By default, uses blosum62 matrix to generate
-   * sequence similarity matrices
+   * Constructor given the sequences to compute for, the similarity model to
+   * use, and a set of parameters for sequence comparison
    * 
-   * @param s
-   *          Set of amino acid sequences to perform PCA on
+   * @param sequences
+   * @param sm
+   * @param options
    */
-  public PCA(String[] s)
+  public PCA(AlignmentView sequences, ScoreModelI sm, SimilarityParamsI options)
   {
-    this(s, false);
-  }
-
-  /**
-   * Creates a new PCA object. By default, uses blosum62 matrix to generate
-   * sequence similarity matrices
-   * 
-   * @param s
-   *          Set of sequences to perform PCA on
-   * @param nucleotides
-   *          if true, uses standard DNA/RNA matrix for sequence similarity
-   *          calculation.
-   */
-  public PCA(String[] s, boolean nucleotides)
-  {
-    this(s, nucleotides, null);
-  }
-
-  public PCA(String[] s, boolean nucleotides, String s_m)
-  {
-
-    BinarySequence[] bs = new BinarySequence[s.length];
-    int ii = 0;
-
-    while ((ii < s.length) && (s[ii] != null))
-    {
-      bs[ii] = new BinarySequence(s[ii], nucleotides);
-      bs[ii].encode();
-      ii++;
-    }
-
-    BinarySequence[] bs2 = new BinarySequence[s.length];
-    ii = 0;
-    ScoreMatrix smtrx = null;
-    String sm = s_m;
-    if (sm != null)
-    {
-      smtrx = ResidueProperties.getScoreMatrix(sm);
-    }
-    if (smtrx == null)
-    {
-      // either we were given a non-existent score matrix or a scoremodel that
-      // isn't based on a pairwise symbol score matrix
-      smtrx = ResidueProperties.getScoreMatrix(sm = (nucleotides ? "DNA"
-              : "BLOSUM62"));
-    }
-    details.append("PCA calculation using " + sm
-            + " sequence similarity matrix\n========\n\n");
-    while ((ii < s.length) && (s[ii] != null))
-    {
-      bs2[ii] = new BinarySequence(s[ii], nucleotides);
-      if (smtrx != null)
-      {
-        try
-        {
-          bs2[ii].matrixEncode(smtrx);
-        } catch (InvalidSequenceTypeException x)
-        {
-          details.append("Unexpected mismatch of sequence type and score matrix. Calculation will not be valid!\n\n");
-        }
-      }
-      ii++;
-    }
-
-    // System.out.println("Created binary encoding");
-    // printMemory(rt);
-    int count = 0;
-
-    while ((count < bs.length) && (bs[count] != null))
-    {
-      count++;
-    }
-
-    double[][] seqmat = new double[count][bs[0].getDBinary().length];
-    double[][] seqmat2 = new double[count][bs2[0].getDBinary().length];
-    int i = 0;
-
-    while (i < count)
-    {
-      seqmat[i] = bs[i].getDBinary();
-      seqmat2[i] = bs2[i].getDBinary();
-      i++;
-    }
-
-    // System.out.println("Created array");
-    // printMemory(rt);
-    // System.out.println(" --- Original matrix ---- ");
-    m = new Matrix(seqmat, count, bs[0].getDBinary().length);
-    m2 = new Matrix(seqmat2, count, bs2[0].getDBinary().length);
-
-  }
-
-  /**
-   * Returns the matrix used in PCA calculation
-   * 
-   * @return java.math.Matrix object
-   */
-
-  public Matrix getM()
-  {
-    return m;
+    this.seqs = sequences;
+    this.scoreModel = sm;
+    this.similarityParams = options;
   }
 
   /**
@@ -170,7 +77,7 @@ public class PCA implements Runnable
    */
   public double getEigenvalue(int i)
   {
-    return eigenvector.d[i];
+    return eigenMatrix.getD()[i];
   }
 
   /**
@@ -187,15 +94,16 @@ public class PCA implements Runnable
    * 
    * @return DOCUMENT ME!
    */
-  public float[][] getComponents(int l, int n, int mm, float factor)
+  public Point[] getComponents(int l, int n, int mm, float factor)
   {
-    float[][] out = new float[m.rows][3];
+    Point[] out = new Point[getHeight()];
 
-    for (int i = 0; i < m.rows; i++)
+    for (int i = 0; i < getHeight(); i++)
     {
-      out[i][0] = (float) component(i, l) * factor;
-      out[i][1] = (float) component(i, n) * factor;
-      out[i][2] = (float) component(i, mm) * factor;
+      float x = (float) component(i, l) * factor;
+      float y = (float) component(i, n) * factor;
+      float z = (float) component(i, mm) * factor;
+      out[i] = new Point(x, y, z);
     }
 
     return out;
@@ -212,9 +120,9 @@ public class PCA implements Runnable
   public double[] component(int n)
   {
     // n = index of eigenvector
-    double[] out = new double[m.rows];
+    double[] out = new double[getHeight()];
 
-    for (int i = 0; i < m.rows; i++)
+    for (int i = 0; i < out.length; i++)
     {
       out[i] = component(i, n);
     }
@@ -236,96 +144,158 @@ public class PCA implements Runnable
   {
     double out = 0.0;
 
-    for (int i = 0; i < symm.cols; i++)
+    for (int i = 0; i < pairwiseScores.width(); i++)
     {
-      out += (symm.value[row][i] * eigenvector.value[i][n]);
+      out += (pairwiseScores.getValue(row, i) * eigenMatrix.getValue(i, n));
     }
 
-    return out / eigenvector.d[n];
-  }
-
-  public String getDetails()
-  {
-    return details.toString();
+    return out / eigenMatrix.getD()[n];
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers a formatted text report of the PCA calculation results (matrices
+   * and eigenvalues) suitable for display
+   * 
+   * @return
    */
+  public String getDetails()
+  {
+    StringBuilder sb = new StringBuilder(1024);
+    sb.append("PCA calculation using ").append(scoreModel.getName())
+            .append(" sequence similarity matrix\n========\n\n");
+    PrintStream ps = wrapOutputBuffer(sb);
+    
+    /*
+     * pairwise similarity scores
+     */
+    sb.append(" --- OrigT * Orig ---- \n");
+    pairwiseScores.print(ps, "%8.2f");
+    
+    /*
+     * tridiagonal matrix, with D and E vectors
+     */
+    sb.append(" ---Tridiag transform matrix ---\n");
+    sb.append(" --- D vector ---\n");
+    tridiagonal.printD(ps, "%15.4e");
+    ps.println();
+    sb.append("--- E vector ---\n");
+    tridiagonal.printE(ps, "%15.4e");
+    ps.println();
+    
+    /*
+     * eigenvalues matrix, with D vector
+     */
+    sb.append(" --- New diagonalization matrix ---\n");
+    eigenMatrix.print(ps, "%8.2f");
+    sb.append(" --- Eigenvalues ---\n");
+    eigenMatrix.printD(ps, "%15.4e");
+    ps.println();
+    
+    return sb.toString();
+  }
+
+  /**
+   * Performs the PCA calculation
+   */
+  @Override
   public void run()
+  {
+    try
+    {
+      /*
+       * sequence pairwise similarity scores
+       */
+      pairwiseScores = scoreModel.findSimilarities(seqs, similarityParams);
+
+      /*
+       * tridiagonal matrix
+       */
+      tridiagonal = pairwiseScores.copy();
+      tridiagonal.tred();
+
+      /*
+       * the diagonalization matrix
+       */
+      eigenMatrix = tridiagonal.copy();
+      eigenMatrix.tqli();
+    } catch (Exception q)
+    {
+      Cache.log.error("Error computing PCA:  " + q.getMessage());
+      q.printStackTrace();
+    }
+  }
+
+  /**
+   * Returns a PrintStream that wraps (appends its output to) the given
+   * StringBuilder
+   * 
+   * @param sb
+   * @return
+   */
+  protected PrintStream wrapOutputBuffer(StringBuilder sb)
   {
     PrintStream ps = new PrintStream(System.out)
     {
+      @Override
       public void print(String x)
       {
-        details.append(x);
+        sb.append(x);
       }
 
+      @Override
       public void println()
       {
-        details.append("\n");
+        sb.append("\n");
       }
     };
-
-    try
-    {
-      details.append("PCA Calculation Mode is "
-              + (jvCalcMode ? "Jalview variant" : "Original SeqSpace")
-              + "\n");
-      Matrix mt = m.transpose();
-
-      details.append(" --- OrigT * Orig ---- \n");
-      if (!jvCalcMode)
-      {
-        eigenvector = mt.preMultiply(m); // standard seqspace comparison matrix
-      }
-      else
-      {
-        eigenvector = mt.preMultiply(m2); // jalview variation on seqsmace
-                                          // method
-      }
-
-      eigenvector.print(ps);
-
-      symm = eigenvector.copy();
-
-      eigenvector.tred();
-
-      details.append(" ---Tridiag transform matrix ---\n");
-      details.append(" --- D vector ---\n");
-      eigenvector.printD(ps);
-      ps.println();
-      details.append("--- E vector ---\n");
-      eigenvector.printE(ps);
-      ps.println();
-
-      // Now produce the diagonalization matrix
-      eigenvector.tqli();
-    } catch (Exception q)
-    {
-      q.printStackTrace();
-      details.append("\n*** Unexpected exception when performing PCA ***\n"
-              + q.getLocalizedMessage());
-      details.append("*** Matrices below may not be fully diagonalised. ***\n");
-    }
-
-    details.append(" --- New diagonalization matrix ---\n");
-    eigenvector.print(ps);
-    details.append(" --- Eigenvalues ---\n");
-    eigenvector.printD(ps);
-    ps.println();
-    /*
-     * for (int seq=0;seq<symm.rows;seq++) { ps.print("\"Seq"+seq+"\""); for
-     * (int ev=0;ev<symm.rows; ev++) {
-     * 
-     * ps.print(","+component(seq, ev)); } ps.println(); }
-     */
+    return ps;
   }
 
-  boolean jvCalcMode = true;
-
-  public void setJvCalcMode(boolean calcMode)
+  /**
+   * Answers the N dimensions of the NxN PCA matrix. This is the number of
+   * sequences involved in the pairwise score calculation.
+   * 
+   * @return
+   */
+  public int getHeight()
   {
-    this.jvCalcMode = calcMode;
+    // TODO can any of seqs[] be null?
+    return pairwiseScores.height();// seqs.getSequences().length;
+  }
+
+  /**
+   * Answers the sequence pairwise similarity scores which were the first step
+   * of the PCA calculation
+   * 
+   * @return
+   */
+  public MatrixI getPairwiseScores()
+  {
+    return pairwiseScores;
+  }
+
+  public void setPairwiseScores(MatrixI m)
+  {
+    pairwiseScores = m;
+  }
+
+  public MatrixI getEigenmatrix()
+  {
+    return eigenMatrix;
+  }
+
+  public void setEigenmatrix(MatrixI m)
+  {
+    eigenMatrix = m;
+  }
+
+  public MatrixI getTridiagonal()
+  {
+    return tridiagonal;
+  }
+
+  public void setTridiagonal(MatrixI tridiagonal)
+  {
+    this.tridiagonal = tridiagonal;
   }
 }

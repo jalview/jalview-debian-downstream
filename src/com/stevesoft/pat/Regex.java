@@ -19,6 +19,7 @@ import com.stevesoft.pat.wrap.StringWrap;
 /** Matches a Unicode punctuation character. */
 class UnicodePunct extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isPunct(s.charAt(from)) ? to : -1;
@@ -28,6 +29,7 @@ class UnicodePunct extends UniValidator
 /** Matches a Unicode white space character. */
 class UnicodeWhite extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isWhite(s.charAt(from)) ? to : -1;
@@ -39,6 +41,7 @@ class UnicodeWhite extends UniValidator
  */
 class NUnicodePunct extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isPunct(s.charAt(from)) ? to : -1;
@@ -50,6 +53,7 @@ class NUnicodePunct extends UniValidator
  */
 class NUnicodeWhite extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isWhite(s.charAt(from)) ? to : -1;
@@ -59,6 +63,7 @@ class NUnicodeWhite extends UniValidator
 /** Matches a Unicode word character: an alphanumeric or underscore. */
 class UnicodeW extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     if (from >= s.length())
@@ -74,6 +79,7 @@ class UnicodeW extends UniValidator
 /** Matches a character that is not a Unicode alphanumeric or underscore. */
 class NUnicodeW extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     if (from >= s.length())
@@ -89,6 +95,7 @@ class NUnicodeW extends UniValidator
 /** Matches a Unicode decimal digit. */
 class UnicodeDigit extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isDecimalDigit(s.charAt(from)) ? to
@@ -99,6 +106,7 @@ class UnicodeDigit extends UniValidator
 /** Matches a character that is not a Unicode digit. */
 class NUnicodeDigit extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isDecimalDigit(s.charAt(from)) ? to
@@ -109,6 +117,7 @@ class NUnicodeDigit extends UniValidator
 /** Matches a Unicode math character. */
 class UnicodeMath extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isMath(s.charAt(from)) ? to : -1;
@@ -118,6 +127,7 @@ class UnicodeMath extends UniValidator
 /** Matches a non-math Unicode character. */
 class NUnicodeMath extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isMath(s.charAt(from)) ? to : -1;
@@ -127,6 +137,7 @@ class NUnicodeMath extends UniValidator
 /** Matches a Unicode currency symbol. */
 class UnicodeCurrency extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isCurrency(s.charAt(from)) ? to : -1;
@@ -136,6 +147,7 @@ class UnicodeCurrency extends UniValidator
 /** Matches a non-currency symbol Unicode character. */
 class NUnicodeCurrency extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isCurrency(s.charAt(from)) ? to : -1;
@@ -145,6 +157,7 @@ class NUnicodeCurrency extends UniValidator
 /** Matches a Unicode alphabetic character. */
 class UnicodeAlpha extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && Prop.isAlphabetic(s.charAt(from)) ? to : -1;
@@ -154,6 +167,7 @@ class UnicodeAlpha extends UniValidator
 /** Matches a non-alphabetic Unicode character. */
 class NUnicodeAlpha extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && !Prop.isAlphabetic(s.charAt(from)) ? to
@@ -164,6 +178,7 @@ class NUnicodeAlpha extends UniValidator
 /** Matches an upper case Unicode character. */
 class UnicodeUpper extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && isUpper(s.charAt(from)) ? to : -1;
@@ -178,6 +193,7 @@ class UnicodeUpper extends UniValidator
 /** Matches an upper case Unicode character. */
 class UnicodeLower extends UniValidator
 {
+  @Override
   public int validate(StringLike s, int from, int to)
   {
     return from < s.length() && isLower(s.charAt(from)) ? to : -1;
@@ -599,7 +615,7 @@ public class Regex extends RegRes implements FilenameFilter
   /** Essentially clones the Regex object */
   public Regex(Regex r)
   {
-    super((RegRes) r);
+    super(r);
     dontMatchInQuotes = r.dontMatchInQuotes;
     esc = r.esc;
     ignoreCase = r.ignoreCase;
@@ -674,6 +690,7 @@ public class Regex extends RegRes implements FilenameFilter
    * patterns are equal as well as the most recent match. If a Regex is compare
    * with a RegRes, only the result of the most recent match is compared.
    */
+  @Override
   public boolean equals(Object o)
   {
     if (o instanceof Regex)
@@ -694,6 +711,7 @@ public class Regex extends RegRes implements FilenameFilter
   }
 
   /** A clone by any other name would smell as sweet. */
+  @Override
   public Object clone()
   {
     return new Regex(this);
@@ -1077,11 +1095,14 @@ public class Regex extends RegRes implements FilenameFilter
   {
     try
     {
-      return (Regex) getClass().newInstance();
+      return getClass().getDeclaredConstructor().newInstance();
     } catch (InstantiationException ie)
     {
       return null;
     } catch (IllegalAccessException iae)
+    {
+      return null;
+    } catch (ReflectiveOperationException roe)
     {
       return null;
     }
@@ -1641,7 +1662,7 @@ public class Regex extends RegRes implements FilenameFilter
   {
     if (p instanceof Any && p.next == null)
     {
-      return (Pattern) new DotMulti(lo, hi);
+      return new DotMulti(lo, hi);
     }
     return RegOpt.safe4fm(p) ? (Pattern) new FastMulti(lo, hi, p)
             : (Pattern) new Multi(lo, hi, p);
@@ -1801,6 +1822,7 @@ public class Regex extends RegRes implements FilenameFilter
    * representations. Also be prepared to see some strange output if your
    * characters are not printable.
    */
+  @Override
   public String toString()
   {
     if (false && thePattern == null)
@@ -1901,6 +1923,7 @@ public class Regex extends RegRes implements FilenameFilter
    * 
    * @see com.stevesoft.pat.FileRegex
    */
+  @Override
   public boolean accept(File dir, String s)
   {
     return search(s);

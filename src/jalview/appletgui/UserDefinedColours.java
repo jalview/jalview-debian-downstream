@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,14 @@
  */
 package jalview.appletgui;
 
+import jalview.analysis.AAFrequency;
 import jalview.api.FeatureColourI;
 import jalview.datamodel.SequenceGroup;
+import jalview.renderer.ResidueShader;
+import jalview.schemes.Blosum62ColourScheme;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.FeatureColour;
+import jalview.schemes.PIDColourScheme;
 import jalview.schemes.ResidueProperties;
 import jalview.schemes.UserColourScheme;
 import jalview.util.MessageManager;
@@ -50,8 +54,8 @@ import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
 import java.util.Vector;
 
-public class UserDefinedColours extends Panel implements ActionListener,
-        AdjustmentListener, FocusListener
+public class UserDefinedColours extends Panel
+        implements ActionListener, AdjustmentListener, FocusListener
 {
 
   AlignmentPanel ap;
@@ -60,7 +64,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
   Button selectedButton;
 
-  Vector<Color> oldColours = new Vector<Color>();
+  Vector<Color> oldColours = new Vector<>();
 
   ColourSchemeI oldColourScheme;
 
@@ -93,7 +97,7 @@ public class UserDefinedColours extends Panel implements ActionListener,
 
     if (seqGroup != null)
     {
-      oldColourScheme = seqGroup.cs;
+      oldColourScheme = seqGroup.getColourScheme();
     }
     else
     {
@@ -210,9 +214,8 @@ public class UserDefinedColours extends Panel implements ActionListener,
       // // not 1.1 compatible!
       // dialog = new Dialog(((JVDialog)alignframe), title, true);
       // } else {
-      throw new Error(
-              MessageManager
-                      .getString("label.error_unsupported_owwner_user_colour_scheme"));
+      throw new Error(MessageManager.getString(
+              "label.error_unsupported_owwner_user_colour_scheme"));
     }
 
     dialog.add(this);
@@ -221,11 +224,12 @@ public class UserDefinedColours extends Panel implements ActionListener,
     int height = 160 + alignframe.getInsets().top + getInsets().bottom;
     int width = 400;
 
-    dialog.setBounds(alignframe.getBounds().x
-            + (alignframe.getSize().width - width) / 2,
+    dialog.setBounds(
+            alignframe.getBounds().x
+                    + (alignframe.getSize().width - width) / 2,
             alignframe.getBounds().y
-                    + (alignframe.getSize().height - height) / 2, width,
-            height);
+                    + (alignframe.getSize().height - height) / 2,
+            width, height);
 
   }
 
@@ -407,14 +411,9 @@ public class UserDefinedColours extends Panel implements ActionListener,
   {
     final Button button = new Button();
     Color col = Color.white;
-    if (oldColourScheme != null)
+    if (oldColourScheme != null && oldColourScheme.isSimple())
     {
-      try
-      {
-        col = oldColourScheme.findColour(aa.charAt(0), -1, null);
-      } catch (Exception ex)
-      {
-      }
+      col = oldColourScheme.findColour(aa.charAt(0), 0, null, null, 0f);
     }
     button.setBackground(col);
     oldColours.addElement(col);
@@ -501,23 +500,27 @@ public class UserDefinedColours extends Panel implements ActionListener,
     }
 
     UserColourScheme ucs = new UserColourScheme(newColours);
-    if (ap != null)
-    {
-      ucs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
-    }
+    // if (ap != null)
+    // {
+    // ucs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
+    // }
 
     if (ap != null)
     {
       if (seqGroup != null)
       {
-        seqGroup.cs = ucs;
+        seqGroup.cs = new ResidueShader(ucs);
+        seqGroup.getGroupColourScheme().setThreshold(0,
+                ap.av.isIgnoreGapsConsensus());
       }
       else
       {
         ap.av.setGlobalColourScheme(ucs);
+        ap.av.getResidueShading().setThreshold(0,
+                ap.av.isIgnoreGapsConsensus());
       }
       ap.seqPanel.seqCanvas.img = null;
-      ap.paintAlignment(true);
+      ap.paintAlignment(true, true);
     }
     else if (jmol != null)
     {
@@ -579,34 +582,24 @@ public class UserDefinedColours extends Panel implements ActionListener,
       return;
     }
 
-    Color[] newColours = new Color[24];
-    for (int i = 0; i < 24; i++)
-    {
-      newColours[i] = oldColours.elementAt(i);
-      buttonPanel.getComponent(i).setBackground(newColours[i]);
-    }
-
-    UserColourScheme ucs = new UserColourScheme(newColours);
-
     if (ap != null)
     {
       if (seqGroup != null)
       {
-        seqGroup.cs = ucs;
+        seqGroup.cs = new ResidueShader(oldColourScheme);
+        if (oldColourScheme instanceof PIDColourScheme
+                || oldColourScheme instanceof Blosum62ColourScheme)
+        {
+          seqGroup.cs.setConsensus(AAFrequency.calculate(
+                  seqGroup.getSequences(ap.av.getHiddenRepSequences()), 0,
+                  ap.av.getAlignment().getWidth()));
+        }
       }
       else
       {
-        ap.av.setGlobalColourScheme(ucs);
+        ap.av.setGlobalColourScheme(oldColourScheme);
       }
-      ap.paintAlignment(true);
-    }
-    else if (jmol != null)
-    {
-      jmol.setJalviewColourScheme(ucs);
-    }
-    else if (pdbcanvas != null)
-    {
-      pdbcanvas.pdb.setColours(ucs);
+      ap.paintAlignment(true, true);
     }
 
     frame.setVisible(false);

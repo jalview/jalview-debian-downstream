@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,30 +20,29 @@
  */
 package jalview.appletgui;
 
-import jalview.analysis.NJTree;
 import jalview.api.AlignViewportI;
 import jalview.api.FeatureSettingsModelI;
 import jalview.bin.JalviewLite;
 import jalview.commands.CommandI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SearchResults;
 import jalview.datamodel.SearchResultsI;
-import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
+import jalview.renderer.ResidueShader;
 import jalview.schemes.ColourSchemeProperty;
 import jalview.schemes.UserColourScheme;
-import jalview.structure.CommandListener;
 import jalview.structure.SelectionSource;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasSource;
 import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.Font;
+import java.awt.FontMetrics;
 
-public class AlignViewport extends AlignmentViewport implements
-        SelectionSource, VamsasSource, CommandListener
+public class AlignViewport extends AlignmentViewport
+        implements SelectionSource
 {
   boolean cursorMode = false;
 
@@ -51,35 +50,21 @@ public class AlignViewport extends AlignmentViewport implements
 
   boolean validCharWidth = true;
 
-  NJTree currentTree = null;
-
   public jalview.bin.JalviewLite applet;
 
   boolean MAC = false;
 
   private AnnotationColumnChooser annotationColumnSelectionState;
 
-  @Override
-  public void finalize()
-  {
-    applet = null;
-    quality = null;
-    alignment = null;
-    colSel = null;
-  }
-
   public AlignViewport(AlignmentI al, JalviewLite applet)
   {
-    super();
+    super(al);
     calculator = new jalview.workers.AlignCalcManager();
     this.applet = applet;
-    alignment = al;
+
     // we always pad gaps
     this.setPadGaps(true);
-    this.startRes = 0;
-    this.endRes = al.getWidth() - 1;
-    this.startSeq = 0;
-    this.endSeq = al.getHeight() - 1;
+
     if (applet != null)
     {
       // get the width and height scaling factors if they were specified
@@ -88,21 +73,21 @@ public class AlignViewport extends AlignmentViewport implements
       {
         try
         {
-          widthScale = new Float(param).floatValue();
+          widthScale = Float.valueOf(param).floatValue();
         } catch (Exception e)
         {
         }
         if (widthScale <= 1.0)
         {
-          System.err
-                  .println("Invalid alignment character width scaling factor ("
+          System.err.println(
+                  "Invalid alignment character width scaling factor ("
                           + widthScale + "). Ignoring.");
           widthScale = 1;
         }
         if (JalviewLite.debug)
         {
-          System.err
-                  .println("Alignment character width scaling factor is now "
+          System.err.println(
+                  "Alignment character width scaling factor is now "
                           + widthScale);
         }
       }
@@ -111,33 +96,33 @@ public class AlignViewport extends AlignmentViewport implements
       {
         try
         {
-          heightScale = new Float(param).floatValue();
+          heightScale = Float.valueOf(param).floatValue();
         } catch (Exception e)
         {
         }
         if (heightScale <= 1.0)
         {
-          System.err
-                  .println("Invalid alignment character height scaling factor ("
+          System.err.println(
+                  "Invalid alignment character height scaling factor ("
                           + heightScale + "). Ignoring.");
           heightScale = 1;
         }
         if (JalviewLite.debug)
         {
-          System.err
-                  .println("Alignment character height scaling factor is now "
+          System.err.println(
+                  "Alignment character height scaling factor is now "
                           + heightScale);
         }
       }
     }
-    setFont(font);
+    setFont(font, true);
 
     MAC = new jalview.util.Platform().isAMac();
 
     if (applet != null)
     {
-      setShowJVSuffix(applet.getDefaultParameter("showFullId",
-              getShowJVSuffix()));
+      setShowJVSuffix(
+              applet.getDefaultParameter("showFullId", getShowJVSuffix()));
 
       setShowAnnotation(applet.getDefaultParameter("showAnnotation",
               isShowAnnotation()));
@@ -150,11 +135,14 @@ public class AlignViewport extends AlignmentViewport implements
       showConsensus = applet.getDefaultParameter("showConsensus",
               showConsensus);
 
+      showOccupancy = applet.getDefaultParameter("showOccupancy",
+              showOccupancy);
+
       setShowUnconserved(applet.getDefaultParameter("showUnconserved",
               getShowUnconserved()));
 
-      setScaleProteinAsCdna(applet.getDefaultParameter(
-              "scaleProteinAsCdna", isScaleProteinAsCdna()));
+      setScaleProteinAsCdna(applet.getDefaultParameter("scaleProteinAsCdna",
+              isScaleProteinAsCdna()));
 
       String param = applet.getParameter("upperCase");
       if (param != null)
@@ -190,9 +178,9 @@ public class AlignViewport extends AlignmentViewport implements
 
     if (applet != null)
     {
-      String colour = al.isNucleotide() ? applet
-              .getParameter("defaultColourNuc") : applet
-              .getParameter("defaultColourProt");
+      String colour = al.isNucleotide()
+              ? applet.getParameter("defaultColourNuc")
+              : applet.getParameter("defaultColourProt");
       if (colour == null)
       {
         colour = applet.getParameter("defaultColour");
@@ -208,59 +196,23 @@ public class AlignViewport extends AlignmentViewport implements
 
       if (colour != null)
       {
-        globalColourScheme = ColourSchemeProperty.getColour(alignment,
-                colour);
-        if (globalColourScheme != null)
+        residueShading = new ResidueShader(
+                ColourSchemeProperty.getColourScheme(this, alignment,
+                        colour));
+        if (residueShading != null)
         {
-          globalColourScheme.setConsensus(hconsensus);
+          residueShading.setConsensus(hconsensus);
         }
       }
 
       if (applet.getParameter("userDefinedColour") != null)
       {
-        ((UserColourScheme) globalColourScheme).parseAppletParameter(applet
-                .getParameter("userDefinedColour"));
+        residueShading = new ResidueShader(new UserColourScheme(
+                applet.getParameter("userDefinedColour")));
       }
     }
     initAutoAnnotation();
 
-  }
-
-  /**
-   * get the consensus sequence as displayed under the PID consensus annotation
-   * row.
-   * 
-   * @return consensus sequence as a new sequence object
-   */
-  public SequenceI getConsensusSeq()
-  {
-    if (consensus == null)
-    {
-      updateConsensus(null);
-    }
-    if (consensus == null)
-    {
-      return null;
-    }
-    StringBuilder seqs = new StringBuilder(consensus.annotations.length);
-    for (int i = 0; i < consensus.annotations.length; i++)
-    {
-      if (consensus.annotations[i] != null)
-      {
-        if (consensus.annotations[i].description.charAt(0) == '[')
-        {
-          seqs.append(consensus.annotations[i].description.charAt(1));
-        }
-        else
-        {
-          seqs.append(consensus.annotations[i].displayCharacter);
-        }
-      }
-    }
-    SequenceI sq = new Sequence("Consensus", seqs.toString());
-    sq.setDescription("Percentage Identity Consensus "
-            + ((ignoreGapsInConsensusCalculation) ? " without gaps" : ""));
-    return sq;
   }
 
   java.awt.Frame nullFrame;
@@ -269,7 +221,11 @@ public class AlignViewport extends AlignmentViewport implements
 
   private float heightScale = 1, widthScale = 1;
 
-  public void setFont(Font f)
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void setFont(Font f, boolean setGrid)
   {
     font = f;
     if (nullFrame == null)
@@ -278,15 +234,19 @@ public class AlignViewport extends AlignmentViewport implements
       nullFrame.addNotify();
     }
 
-    java.awt.FontMetrics fm = nullFrame.getGraphics().getFontMetrics(font);
-    setCharHeight((int) (heightScale * fm.getHeight()));
-    setCharWidth((int) (widthScale * fm.charWidth('M')));
+    if (setGrid)
+    {
+      FontMetrics fm = nullFrame.getGraphics().getFontMetrics(font);
+      setCharHeight((int) (heightScale * fm.getHeight()));
+      setCharWidth((int) (widthScale * fm.charWidth('M')));
+    }
 
     if (isUpperCasebold())
     {
       Font f2 = new Font(f.getName(), Font.BOLD, f.getSize());
-      fm = nullFrame.getGraphics().getFontMetrics(f2);
-      setCharWidth((int) (widthScale * (fm.stringWidth("MMMMMMMMMMM") / 10)));
+      FontMetrics fm = nullFrame.getGraphics().getFontMetrics(f2);
+      setCharWidth(
+              (int) (widthScale * (fm.stringWidth("MMMMMMMMMMM") / 10)));
     }
   }
 
@@ -297,17 +257,7 @@ public class AlignViewport extends AlignmentViewport implements
 
   public void resetSeqLimits(int height)
   {
-    setEndSeq(height / getCharHeight());
-  }
-
-  public void setCurrentTree(NJTree tree)
-  {
-    currentTree = tree;
-  }
-
-  public NJTree getCurrentTree()
-  {
-    return currentTree;
+    ranges.setEndSeq(height / getCharHeight());
   }
 
   boolean centreColumnLabels;
@@ -333,7 +283,8 @@ public class AlignViewport extends AlignmentViewport implements
   {
     getStructureSelectionManager().sendSelection(
             new SequenceGroup(getSelectionGroup()),
-            new ColumnSelection(getColumnSelection()), this);
+            new ColumnSelection(getColumnSelection()),
+            new HiddenColumns(getAlignment().getHiddenColumns()), this);
   }
 
   /**
@@ -438,16 +389,17 @@ public class AlignViewport extends AlignmentViewport implements
     int seqOffset = findComplementScrollTarget(sr);
     if (!sr.isEmpty())
     {
-      complementPanel.setFollowingComplementScroll(true);
+      complementPanel.setToScrollComplementPanel(false);
       complementPanel.scrollToCentre(sr, seqOffset);
+      complementPanel.setToScrollComplementPanel(true);
     }
   }
 
   /**
-   * Applies the supplied feature settings descriptor to currently known
-   * features. This supports an 'initial configuration' of feature colouring
-   * based on a preset or user favourite. This may then be modified in the usual
-   * way using the Feature Settings dialogue.
+   * Applies the supplied feature settings descriptor to currently known features.
+   * This supports an 'initial configuration' of feature colouring based on a
+   * preset or user favourite. This may then be modified in the usual way using
+   * the Feature Settings dialogue. NOT IMPLEMENTED FOR APPLET
    * 
    * @param featureSettings
    */
@@ -457,4 +409,18 @@ public class AlignViewport extends AlignmentViewport implements
     // TODO implement for applet
   }
 
+  /**
+   * Merges the supplied feature settings descriptor with existing feature styles.
+   * This supports an 'initial configuration' of feature colouring based on a
+   * preset or user favourite. This may then be modified in the usual way using
+   * the Feature Settings dialogue. NOT IMPLEMENTED FOR APPLET
+   * 
+   * @param featureSettings
+   */
+  @Override
+  public void mergeFeaturesStyle(FeatureSettingsModelI featureSettings)
+  {
+    // TODO Auto-generated method stub
+
+  }
 }

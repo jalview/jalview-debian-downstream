@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -42,11 +42,9 @@ public class UserQuestionnaireCheck implements Runnable
   {
     if (url.indexOf("questionnaire.pl") == -1)
     {
-      jalview.bin.Cache.log
-              .error("'"
-                      + url
-                      + "' is an Invalid URL for the checkForQuestionnaire() method.\n"
-                      + "This argument is only for questionnaires derived from jalview's questionnaire.pl cgi interface.");
+      jalview.bin.Cache.log.error("'" + url
+              + "' is an Invalid URL for the checkForQuestionnaire() method.\n"
+              + "This argument is only for questionnaires derived from jalview's questionnaire.pl cgi interface.");
     }
     else
     {
@@ -62,8 +60,8 @@ public class UserQuestionnaireCheck implements Runnable
     boolean prompt = false;
     // see if we have already responsed to this questionnaire or get a new
     // qid/rid pair
-    BufferedReader br = new BufferedReader(new InputStreamReader(
-            qurl.openStream()));
+    BufferedReader br = new BufferedReader(
+            new InputStreamReader(qurl.openStream()));
     String qresp;
     while ((qresp = br.readLine()) != null)
     {
@@ -114,8 +112,9 @@ public class UserQuestionnaireCheck implements Runnable
         String qurl = url + (url.indexOf('?') > -1 ? "&" : "?")
                 + "checkresponse=1";
         // query the server with the old qid/id pair
-        String qqid = lastq.indexOf(':') > -1 ? lastq.substring(0,
-                lastq.indexOf(':')) : null;
+        String qqid = lastq.indexOf(':') > -1
+                ? lastq.substring(0, lastq.indexOf(':'))
+                : null;
         if (qqid != null && qqid != "null" && qqid.length() > 0)
         {
           qurl += "&qid=" + qqid;
@@ -140,17 +139,14 @@ public class UserQuestionnaireCheck implements Runnable
       {
         String qurl = url + (url.indexOf('?') > -1 ? "&" : "?") + "qid="
                 + qid + "&rid=" + rid;
-        jalview.bin.Cache.log.info("Prompting user for questionnaire at "
-                + qurl);
-        int reply = JOptionPane
-                .showInternalConfirmDialog(Desktop.desktop, MessageManager
-                        .getString("label.jalview_new_questionnaire"),
-                        MessageManager
-                                .getString("label.jalview_user_survey"),
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.QUESTION_MESSAGE);
+        jalview.bin.Cache.log
+                .info("Prompting user for questionnaire at " + qurl);
+        int reply = JvOptionPane.showInternalConfirmDialog(Desktop.desktop,
+                MessageManager.getString("label.jalview_new_questionnaire"),
+                MessageManager.getString("label.jalview_user_survey"),
+                JvOptionPane.YES_NO_OPTION, JvOptionPane.QUESTION_MESSAGE);
 
-        if (reply == JOptionPane.YES_OPTION)
+        if (reply == JvOptionPane.YES_OPTION)
         {
           jalview.bin.Cache.log.debug("Opening " + qurl);
           jalview.util.BrowserLauncher.openURL(qurl);
@@ -158,8 +154,8 @@ public class UserQuestionnaireCheck implements Runnable
       }
     } catch (Exception e)
     {
-      jalview.bin.Cache.log.warn("When trying to access questionnaire URL "
-              + url, e);
+      jalview.bin.Cache.log
+              .warn("When trying to access questionnaire URL " + url, e);
     }
   }
 

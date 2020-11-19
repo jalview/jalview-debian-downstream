@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,13 @@ import java.awt.Color;
 
 public interface ViewStyleI
 {
+  void setShowComplementFeatures(boolean b);
+
+  boolean isShowComplementFeatures();
+
+  void setShowComplementFeaturesOnTop(boolean b);
+
+  boolean isShowComplementFeaturesOnTop();
 
   void setColourAppliesToAllGroups(boolean b);
 
@@ -257,4 +264,18 @@ public interface ViewStyleI
    * @return
    */
   void setScaleProteinAsCdna(boolean b);
+
+  /**
+   * Answers true if split screen protein and cDNA use the same font
+   * 
+   * @return
+   */
+  boolean isProteinFontAsCdna();
+
+  /**
+   * Set the flag for whether split screen protein and cDNA use the same font
+   * 
+   * @return
+   */
+  void setProteinFontAsCdna(boolean b);
 }

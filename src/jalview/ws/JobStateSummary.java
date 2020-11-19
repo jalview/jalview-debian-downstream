@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -119,7 +119,8 @@ public class JobStateSummary
       {
         serror++;
         j.subjobComplete = true;
-        wsInfo.setStatus(j.jobnum, WebserviceInfo.STATE_STOPPED_SERVERERROR);
+        wsInfo.setStatus(j.jobnum,
+                WebserviceInfo.STATE_STOPPED_SERVERERROR);
       }
       else if (j.isBroken())
       {
@@ -152,7 +153,8 @@ public class JobStateSummary
         }
         // } catch (OutOfMemoryError e)
         // {
-        // System.err.println("Out of memory when displaying status. Squashing error.");
+        // System.err.println("Out of memory when displaying status. Squashing
+        // error.");
         // wsInfo.appendProgressText(j.jobnum,
         // "..\n(Out of memory when displaying status)\n");
         // }

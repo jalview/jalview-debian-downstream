@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -47,11 +47,11 @@ class AnnotationWorker extends AlignCalcWorker
    * @param af
    * @param counter
    */
-  public AnnotationWorker(AlignViewportI viewport,
-          AlignmentViewPanel panel, AnnotationProviderI counter)
+  public AnnotationWorker(AlignViewportI viewport, AlignmentViewPanel panel,
+          AnnotationProviderI counter)
   {
     super(viewport, panel);
-    ourAnnots = new ArrayList<AlignmentAnnotation>();
+    ourAnnots = new ArrayList<>();
     this.counter = counter;
     calcMan.registerWorker(this);
   }
@@ -121,7 +121,10 @@ class AnnotationWorker extends AlignCalcWorker
     if (ap != null)
     {
       ap.adjustAnnotationHeight();
-      ap.paintAlignment(true);
+      // TODO: only need to update colour and geometry if panel height changes
+      // and view is coloured by annotation, and the annotation is actually
+      // changed!
+      ap.paintAlignment(true, true);
     }
   }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.io;
 
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
 
 import java.io.IOException;
 import java.util.Vector;
@@ -36,9 +37,10 @@ public class PIRFile extends AlignFile
   {
   }
 
-  public PIRFile(String inFile, String type) throws IOException
+  public PIRFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public PIRFile(FileParse source) throws IOException
@@ -102,14 +104,9 @@ public class PIRFile extends AlignFile
   }
 
   @Override
-  public String print()
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
-    return print(getSeqsAsArray());
-  }
-
-  public String print(SequenceI[] s)
-  {
-    boolean is_NA = jalview.util.Comparison.isNucleotide(s);
+    boolean is_NA = Comparison.isNucleotide(s);
     int len = 72;
     StringBuffer out = new StringBuffer();
     int i = 0;
@@ -161,7 +158,7 @@ public class PIRFile extends AlignFile
         }
         else
         {
-          out.append(">P1;" + printId(s[i]));
+          out.append(">P1;" + printId(s[i], jvsuffix));
           out.append(newline);
           if (s[i].getDescription() != null)
           {

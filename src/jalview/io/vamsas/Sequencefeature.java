@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -97,10 +97,8 @@ public class Sequencefeature extends Rangetype
     DataSetAnnotations dsa = (DataSetAnnotations) vobj;
     if (dsa.getSeqRefCount() != 1)
     {
-      Cache.log
-              .warn("Not binding "
-                      + dsa.getVorbaId()
-                      + " to Sequence Feature - has multiple dataset sequence references.");
+      Cache.log.warn("Not binding " + dsa.getVorbaId()
+              + " to Sequence Feature - has multiple dataset sequence references.");
       return;
     }
     jalview.datamodel.SequenceFeature sf = (jalview.datamodel.SequenceFeature) jvobj;
@@ -130,8 +128,8 @@ public class Sequencefeature extends Rangetype
     if (dsa.getSeqRefCount() != 1)
     {
       replaceJvObjMapping(feature, null);
-      Cache.log
-              .warn("Binding of annotation to jalview feature has changed. Removing binding and recreating.");
+      Cache.log.warn(
+              "Binding of annotation to jalview feature has changed. Removing binding and recreating.");
       doSync(); // re-verify bindings.
     }
     else
@@ -158,10 +156,8 @@ public class Sequencefeature extends Rangetype
     {
       // conflicting update from document - we cannot map this feature anymore.
       replaceJvObjMapping(feature, null);
-      Cache.log
-              .warn("annotation ("
-                      + dsa.getVorbaId()
-                      + " bound to jalview feature cannot be mapped. Removing binding, deleting feature, and deleting feature.");
+      Cache.log.warn("annotation (" + dsa.getVorbaId()
+              + " bound to jalview feature cannot be mapped. Removing binding, deleting feature, and deleting feature.");
       // - consider deleting the feature ?
       dsSeq.deleteFeature(feature);
       // doSync();
@@ -202,8 +198,8 @@ public class Sequencefeature extends Rangetype
     vSeg.setInclusive(true);
     if (dsa.getSegCount() > 1)
     {
-      Cache.log
-              .debug("About to destroy complex annotation in vamsas document mapped to sequence feature ("
+      Cache.log.debug(
+              "About to destroy complex annotation in vamsas document mapped to sequence feature ("
                       + dsa.getVorbaId() + ")");
     }
     dsa.setSeg(new Seg[] { vSeg });
@@ -256,7 +252,8 @@ public class Sequencefeature extends Rangetype
           else if (vlu instanceof Integer)
           {
             valid = true;
-            nprop.setType(uk.ac.vamsas.objects.utils.Properties.INTEGERTYPE);
+            nprop.setType(
+                    uk.ac.vamsas.objects.utils.Properties.INTEGERTYPE);
           }
           else if (vlu instanceof Float)
           {
@@ -284,9 +281,39 @@ public class Sequencefeature extends Rangetype
   private SequenceFeature getJalviewSeqFeature(RangeAnnotation dseta)
   {
     int[] se = getBounds(dseta);
-    SequenceFeature sf = new jalview.datamodel.SequenceFeature(
-            dseta.getType(), dseta.getDescription(), dseta.getStatus(),
-            se[0], se[1], dseta.getGroup());
+
+    /*
+     * try to identify feature score
+     */
+    boolean scoreFound = false;
+    float theScore = 0f;
+    String featureType = dseta.getType();
+    if (dseta.getScoreCount() > 0)
+    {
+      Enumeration scr = dseta.enumerateScore();
+      while (scr.hasMoreElements())
+      {
+        Score score = (Score) scr.nextElement();
+        if (score.getName().equals(featureType))
+        {
+          theScore = score.getContent();
+          scoreFound = true;
+        }
+      }
+    }
+
+    SequenceFeature sf = null;
+    if (scoreFound)
+    {
+      sf = new SequenceFeature(featureType, dseta.getDescription(), se[0],
+              se[1], theScore, dseta.getGroup());
+    }
+    else
+    {
+      sf = new SequenceFeature(featureType, dseta.getDescription(), se[0],
+              se[1], dseta.getGroup());
+    }
+    sf.setStatus(dseta.getStatus());
     if (dseta.getLinkCount() > 0)
     {
       Link[] links = dseta.getLink();
@@ -302,11 +329,7 @@ public class Sequencefeature extends Rangetype
       while (scr.hasMoreElements())
       {
         Score score = (Score) scr.nextElement();
-        if (score.getName().equals(sf.getType()))
-        {
-          sf.setScore(score.getContent());
-        }
-        else
+        if (!score.getName().equals(sf.getType()))
         {
           sf.setValue(score.getName(), "" + score.getContent());
         }
@@ -328,7 +351,7 @@ public class Sequencefeature extends Rangetype
         {
           try
           {
-            val = new Boolean(p.getContent());
+            val = Boolean.valueOf(p.getContent());
           } catch (Exception e)
           {
           }
@@ -337,7 +360,7 @@ public class Sequencefeature extends Rangetype
         {
           try
           {
-            val = new Float(p.getContent());
+            val = Float.valueOf(p.getContent());
 
           } catch (Exception e)
           {
@@ -347,7 +370,7 @@ public class Sequencefeature extends Rangetype
         {
           try
           {
-            val = new Integer(p.getContent());
+            val = Integer.valueOf(p.getContent());
           } catch (Exception e)
           {
           }

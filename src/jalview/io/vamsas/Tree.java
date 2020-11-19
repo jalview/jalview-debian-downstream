@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.io.vamsas;
 
-import jalview.analysis.NJTree;
+import jalview.analysis.TreeBuilder;
+import jalview.analysis.TreeModel;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
@@ -140,8 +141,8 @@ public class Tree extends DatastoreItem
   @Override
   public void conflict()
   {
-    Cache.log
-            .info("Update (with conflict) from vamsas document to alignment associated tree not implemented yet.");
+    Cache.log.info(
+            "Update (with conflict) from vamsas document to alignment associated tree not implemented yet.");
   }
 
   /*
@@ -161,7 +162,8 @@ public class Tree extends DatastoreItem
     else
     {
       // handle conflict
-      log.info("TODO: Add the locally modified tree in Jalview as a new tree in document, leaving locked tree unchanged.");
+      log.info(
+              "TODO: Add the locally modified tree in Jalview as a new tree in document, leaving locked tree unchanged.");
     }
   }
 
@@ -219,7 +221,9 @@ public class Tree extends DatastoreItem
     prov.getEntry(0).setUser(provEntry.getUser());
     prov.getEntry(0).setApp(provEntry.getApp());
     prov.getEntry(0).setDate(provEntry.getDate());
-    if (tp.getTree().hasOriginalSequenceData())
+
+    AlignmentView originalData = tp.getTree().getOriginalData();
+    if (originalData != null)
     {
       Input vInput = new Input();
       // LATER: check to see if tree input data is contained in this alignment -
@@ -227,7 +231,7 @@ public class Tree extends DatastoreItem
       // in
       // the document.
       Vector alsqrefs = getjv2vObjs(findAlignmentSequences(jal,
-              tp.getTree().seqData.getSequences()));
+              tp.getTree().getOriginalData().getSequences()));
       Object[] alsqs = new Object[alsqrefs.size()];
       alsqrefs.copyInto(alsqs);
       vInput.setObjRef(alsqs);
@@ -239,12 +243,13 @@ public class Tree extends DatastoreItem
       prov.getEntry(0).addParam(new Param());
       prov.getEntry(0).getParam(0).setName("treeType");
       prov.getEntry(0).getParam(0).setType("utf8");
-      prov.getEntry(0).getParam(0).setContent("NJ"); // TODO: type of tree is a
-      // general parameter
-      int ranges[] = tp.getTree().seqData.getVisibleContigs();
+      prov.getEntry(0).getParam(0)
+              .setContent(TreeBuilder.NEIGHBOUR_JOINING);
+      // TODO: type of tree is a general parameter
+      int ranges[] = originalData.getVisibleContigs();
       // VisibleContigs are with respect to alignment coordinates. Still need
       // offsets
-      int start = tp.getTree().seqData.getAlignmentOrigin();
+      int start = tp.getTree().getOriginalData().getAlignmentOrigin();
       for (int r = 0; r < ranges.length; r += 2)
       {
         Seg visSeg = new Seg();
@@ -266,7 +271,8 @@ public class Tree extends DatastoreItem
    * @return vector of alignment sequences in order of SeqCigar array (but
    *         missing unfound seqcigars)
    */
-  private Vector findAlignmentSequences(AlignmentI jal, SeqCigar[] sequences)
+  private Vector findAlignmentSequences(AlignmentI jal,
+          SeqCigar[] sequences)
   {
     SeqCigar[] tseqs = new SeqCigar[sequences.length];
     System.arraycopy(sequences, 0, tseqs, 0, sequences.length);
@@ -278,9 +284,8 @@ public class Tree extends DatastoreItem
       {
         for (int t = 0; t < sequences.length; t++)
         {
-          if (tseqs[t] != null
-                  && (tseqs[t].getRefSeq() == asq || tseqs[t].getRefSeq() == asq
-                          .getDatasetSequence()))
+          if (tseqs[t] != null && (tseqs[t].getRefSeq() == asq
+                  || tseqs[t].getRefSeq() == asq.getDatasetSequence()))
           // && tseqs[t].getStart()>=asq.getStart() &&
           // tseqs[t].getEnd()<=asq.getEnd())
           {
@@ -292,8 +297,8 @@ public class Tree extends DatastoreItem
     }
     if (alsq.size() < sequences.length)
     {
-      Cache.log
-              .warn("Not recovered all alignment sequences for given set of input sequence CIGARS");
+      Cache.log.warn(
+              "Not recovered all alignment sequences for given set of input sequence CIGARS");
     }
     return alsq;
   }
@@ -314,12 +319,12 @@ public class Tree extends DatastoreItem
 
     if (tp.getTree() == null)
     {
-      Cache.log.warn("Not updating SequenceTreeMap for "
-              + tree.getVorbaId());
+      Cache.log.warn(
+              "Not updating SequenceTreeMap for " + tree.getVorbaId());
       return;
     }
-    Vector<SequenceNode> leaves = tp.getTree().findLeaves(
-            tp.getTree().getTopNode());
+    Vector<SequenceNode> leaves = tp.getTree()
+            .findLeaves(tp.getTree().getTopNode());
     Treenode[] tn = tree.getTreenode(); // todo: select nodes for this
     // particular tree
     int sz = tn.length;
@@ -360,7 +365,8 @@ public class Tree extends DatastoreItem
         else
         {
           leaf.setPlaceholder(true);
-          leaf.setElement(new Sequence(leaf.getName(), "THISISAPLACEHLDER"));
+          leaf.setElement(
+                  new Sequence(leaf.getName(), "THISISAPLACEHLDER"));
         }
       }
     }
@@ -370,13 +376,14 @@ public class Tree extends DatastoreItem
   /**
    * construct treenode mappings for mapped sequences
    * 
-   * @param ntree
+   * @param treeModel
    * @param newick
    * @return
    */
-  public Treenode[] makeTreeNodes(NJTree ntree, Newick newick)
+  public Treenode[] makeTreeNodes(TreeModel treeModel, Newick newick)
   {
-    Vector<SequenceNode> leaves = ntree.findLeaves(ntree.getTopNode());
+    Vector<SequenceNode> leaves = treeModel
+            .findLeaves(treeModel.getTopNode());
     Vector tnv = new Vector();
     Enumeration l = leaves.elements();
     Hashtable nodespecs = new Hashtable();
@@ -411,10 +418,10 @@ public class Tree extends DatastoreItem
             else
             {
               System.err.println("WARNING: Unassociated treeNode "
-                      + tnode.element().toString()
-                      + " "
-                      + ((tnode.getName() != null) ? " label "
-                              + tnode.getName() : ""));
+                      + tnode.element().toString() + " "
+                      + ((tnode.getName() != null)
+                              ? " label " + tnode.getName()
+                              : ""));
             }
           }
         }
@@ -436,7 +443,7 @@ public class Tree extends DatastoreItem
     Integer nindx = (Integer) nodespecs.get(nname);
     if (nindx == null)
     {
-      nindx = new Integer(1);
+      nindx = Integer.valueOf(1);
     }
     nname = nindx.toString() + " " + nname;
     return nname;
@@ -458,7 +465,7 @@ public class Tree extends DatastoreItem
     String oval = nodespec.substring(0, nodespec.indexOf(' '));
     try
     {
-      occurence = new Integer(oval).intValue();
+      occurence = Integer.valueOf(oval).intValue();
     } catch (Exception e)
     {
       System.err.println("Invalid nodespec '" + nodespec + "'");
@@ -496,7 +503,7 @@ public class Tree extends DatastoreItem
     bindjvvobj(tp, tree);
     tree.setTitle(tp.getTitle());
     Newick newick = new Newick();
-    newick.setContent(tp.getTree().toString());
+    newick.setContent(tp.getTree().print());
     newick.setTitle(tp.getTitle());
     tree.addNewick(newick);
     tree.setProvenance(makeTreeProvenance(jal, tp));
@@ -525,8 +532,8 @@ public class Tree extends DatastoreItem
       {
         if (tp.getEntry(pe).getInputCount() > 1)
         {
-          Cache.log
-                  .warn("Ignoring additional input spec in provenance entry "
+          Cache.log.warn(
+                  "Ignoring additional input spec in provenance entry "
                           + tp.getEntry(pe).toString());
         }
         // LATER: deal sensibly with multiple inputs
@@ -534,8 +541,8 @@ public class Tree extends DatastoreItem
         // is this the whole alignment or a specific set of sequences ?
         if (vInput.getObjRefCount() == 0)
         {
-          if (tree.getV_parent() != null
-                  && tree.getV_parent() instanceof uk.ac.vamsas.objects.core.Alignment)
+          if (tree.getV_parent() != null && tree
+                  .getV_parent() instanceof uk.ac.vamsas.objects.core.Alignment)
           {
             javport = getViewport(tree.getV_parent());
             jal = javport.getAlignment();
@@ -545,26 +552,27 @@ public class Tree extends DatastoreItem
         else
         {
           // Explicit reference - to alignment, sequences or what.
-          if (vInput.getObjRefCount() == 1
-                  && vInput.getObjRef(0) instanceof uk.ac.vamsas.objects.core.Alignment)
+          if (vInput.getObjRefCount() == 1 && vInput.getObjRef(
+                  0) instanceof uk.ac.vamsas.objects.core.Alignment)
           {
             // recover an AlignmentView for the input data
             javport = getViewport((Vobject) vInput.getObjRef(0));
             jal = javport.getAlignment();
             view = javport.getAlignment().getCompactAlignment();
           }
-          else if (vInput.getObjRef(0) instanceof uk.ac.vamsas.objects.core.AlignmentSequence)
+          else if (vInput.getObjRef(
+                  0) instanceof uk.ac.vamsas.objects.core.AlignmentSequence)
           {
             // recover an AlignmentView for the input data
-            javport = getViewport(((Vobject) vInput.getObjRef(0))
-                    .getV_parent());
+            javport = getViewport(
+                    ((Vobject) vInput.getObjRef(0)).getV_parent());
             jal = javport.getAlignment();
             jalview.datamodel.SequenceI[] seqs = new jalview.datamodel.SequenceI[vInput
                     .getObjRefCount()];
             for (int i = 0, iSize = vInput.getObjRefCount(); i < iSize; i++)
             {
-              SequenceI seq = (SequenceI) getvObj2jv((Vobject) vInput
-                      .getObjRef(i));
+              SequenceI seq = (SequenceI) getvObj2jv(
+                      (Vobject) vInput.getObjRef(i));
               seqs[i] = seq;
             }
             view = new jalview.datamodel.Alignment(seqs)
@@ -604,8 +612,8 @@ public class Tree extends DatastoreItem
         return new Object[] { new AlignmentView(view), jal };
       }
     }
-    Cache.log
-            .debug("Returning null for input data recovery from provenance.");
+    Cache.log.debug(
+            "Returning null for input data recovery from provenance.");
     return null;
   }
 

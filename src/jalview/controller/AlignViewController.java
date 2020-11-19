@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,7 +33,9 @@ import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.io.FeaturesFile;
+import jalview.schemes.ColourSchemeI;
 import jalview.util.MessageManager;
 
 import java.awt.Color;
@@ -51,29 +53,20 @@ public class AlignViewController implements AlignViewControllerI
    */
   private AlignViewControllerGuiI avcg;
 
-  @Override
-  protected void finalize() throws Throwable
-  {
-    viewport = null;
-    alignPanel = null;
-    avcg = null;
-  };
-
   public AlignViewController(AlignViewControllerGuiI alignFrame,
-          AlignViewportI viewport, AlignmentViewPanel alignPanel)
+          AlignViewportI vp, AlignmentViewPanel ap)
   {
     this.avcg = alignFrame;
-    this.viewport = viewport;
-    this.alignPanel = alignPanel;
+    this.viewport = vp;
+    this.alignPanel = ap;
   }
 
   @Override
-  public void setViewportAndAlignmentPanel(AlignViewportI viewport,
-          AlignmentViewPanel alignPanel)
+  public void setViewportAndAlignmentPanel(AlignViewportI vp,
+          AlignmentViewPanel ap)
   {
-    this.alignPanel = alignPanel;
-    this.viewport = viewport;
-
+    this.alignPanel = ap;
+    this.viewport = vp;
   }
 
   @Override
@@ -84,10 +77,11 @@ public class AlignViewController implements AlignViewControllerI
     SequenceGroup[] gps = null;
     if (sg != null && (cs == null || cs.isEmpty()))
     {
-      gps = jalview.analysis.Grouping.makeGroupsFrom(viewport
-              .getSequenceSelection(), viewport.getAlignmentView(true)
-              .getSequenceStrings(viewport.getGapCharacter()), viewport
-              .getAlignment().getGroups());
+      gps = jalview.analysis.Grouping.makeGroupsFrom(
+              viewport.getSequenceSelection(),
+              viewport.getAlignmentView(true)
+                      .getSequenceStrings(viewport.getGapCharacter()),
+              viewport.getAlignment().getGroups());
     }
     else
     {
@@ -95,8 +89,9 @@ public class AlignViewController implements AlignViewControllerI
       {
         gps = jalview.analysis.Grouping.makeGroupsFromCols(
                 (sg == null) ? viewport.getAlignment().getSequencesArray()
-                        : sg.getSequences().toArray(new SequenceI[0]), cs,
-                viewport.getAlignment().getGroups());
+                        : sg.getSequences().toArray(new SequenceI[0]),
+                cs, viewport.getAlignment().getGroups(),
+                viewport.getAlignment().getHiddenColumns());
       }
     }
     if (gps != null)
@@ -104,19 +99,22 @@ public class AlignViewController implements AlignViewControllerI
       viewport.getAlignment().deleteAllGroups();
       viewport.clearSequenceColours();
       viewport.setSelectionGroup(null);
+      ColourSchemeI colours = viewport.getGlobalColourScheme();
       // set view properties for each group
       for (int g = 0; g < gps.length; g++)
       {
         // gps[g].setShowunconserved(viewport.getShowUnconserved());
         gps[g].setshowSequenceLogo(viewport.isShowSequenceLogo());
         viewport.getAlignment().addGroup(gps[g]);
+        if (colours != null)
+        {
+          gps[g].setColourScheme(colours.getInstance(viewport, gps[g]));
+        }
         Color col = new Color((int) (Math.random() * 255),
                 (int) (Math.random() * 255), (int) (Math.random() * 255));
-        col = col.brighter();
-        for (SequenceI sq : gps[g].getSequences(null))
-        {
-          viewport.setSequenceColour(sq, col);
-        }
+        gps[g].idColour = col;
+        viewport.setUpdateStructures(true);
+        viewport.addSequenceGroup(gps[g]);
       }
       return true;
     }
@@ -169,8 +167,10 @@ public class AlignViewController implements AlignViewControllerI
     // JBPNote this routine could also mark rows, not just columns.
     // need a decent query structure to allow all types of feature searches
     BitSet bs = new BitSet();
-    SequenceCollectionI sqcol = (viewport.getSelectionGroup() == null || extendCurrent) ? viewport
-            .getAlignment() : viewport.getSelectionGroup();
+    boolean searchSelection = viewport.getSelectionGroup() != null
+            && !extendCurrent;
+    SequenceCollectionI sqcol = searchSelection ? viewport
+            .getSelectionGroup() : viewport.getAlignment();
 
     int nseq = findColumnsWithFeature(featureType, sqcol, bs);
 
@@ -187,15 +187,15 @@ public class AlignViewController implements AlignViewControllerI
       if (changed)
       {
         viewport.setColumnSelection(cs);
-        alignPanel.paintAlignment(true);
-        int columnCount = invert ? (sqcol.getEndRes() - sqcol.getStartRes() + 1)
-                - bs.cardinality()
+        alignPanel.paintAlignment(false, false);
+        int columnCount = invert
+                ? (sqcol.getEndRes() - sqcol.getStartRes() + 1)
+                        - bs.cardinality()
                 : bs.cardinality();
         avcg.setStatus(MessageManager.formatMessage(
-                "label.view_controller_toggled_marked",
-                new String[] {
-                    toggle ? MessageManager.getString("label.toggled")
-                            : MessageManager.getString("label.marked"),
+                "label.view_controller_toggled_marked", new String[]
+                { toggle ? MessageManager.getString("label.toggled")
+                        : MessageManager.getString("label.marked"),
                     String.valueOf(columnCount),
                     invert ? MessageManager
                             .getString("label.not_containing")
@@ -206,13 +206,14 @@ public class AlignViewController implements AlignViewControllerI
     }
     else
     {
-      avcg.setStatus(MessageManager.formatMessage(
-              "label.no_feature_of_type_found",
+      String key = searchSelection ? "label.no_feature_found_selection"
+              : "label.no_feature_of_type_found";
+      avcg.setStatus(MessageManager.formatMessage(key,
               new String[] { featureType }));
       if (!extendCurrent)
       {
         cs.clear();
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(false, false);
       }
     }
     return false;
@@ -220,102 +221,87 @@ public class AlignViewController implements AlignViewControllerI
 
   /**
    * Sets a bit in the BitSet for each column (base 0) in the sequence
-   * collection which includes the specified feature type. Returns the number of
-   * sequences which have the feature in the selected range.
+   * collection which includes a visible feature of the specified feature type.
+   * Returns the number of sequences which have the feature visible in the
+   * selected range.
    * 
    * @param featureType
    * @param sqcol
    * @param bs
    * @return
    */
-  static int findColumnsWithFeature(String featureType,
+  int findColumnsWithFeature(String featureType,
           SequenceCollectionI sqcol, BitSet bs)
   {
-    final int startPosition = sqcol.getStartRes() + 1; // converted to base 1
-    final int endPosition = sqcol.getEndRes() + 1;
+    FeatureRenderer fr = alignPanel == null ? null : alignPanel
+            .getFeatureRenderer();
+
+    final int startColumn = sqcol.getStartRes() + 1; // converted to base 1
+    final int endColumn = sqcol.getEndRes() + 1;
     List<SequenceI> seqs = sqcol.getSequences();
     int nseq = 0;
     for (SequenceI sq : seqs)
     {
-      boolean sequenceHasFeature = false;
       if (sq != null)
       {
-        SequenceFeature[] sfs = sq.getSequenceFeatures();
-        if (sfs != null)
+        // int ist = sq.findPosition(sqcol.getStartRes());
+        List<SequenceFeature> sfs = sq.findFeatures(startColumn,
+                endColumn, featureType);
+
+        boolean found = false;
+        for (SequenceFeature sf : sfs)
         {
-          int ist = sq.findIndex(sq.getStart());
-          int iend = sq.findIndex(sq.getEnd());
-          if (iend < startPosition || ist > endPosition)
+          if (fr.getColour(sf) == null)
           {
-            // sequence not in region
             continue;
           }
-          for (SequenceFeature sf : sfs)
+          if (!found)
           {
-            // future functionality - featureType == null means mark columns
-            // containing all displayed features
-            if (sf != null && (featureType.equals(sf.getType())))
-            {
-              // optimisation - could consider 'spos,apos' like cursor argument
-              // - findIndex wastes time by starting from first character and
-              // counting
-
-              int sfStartCol = sq.findIndex(sf.getBegin());
-              int sfEndCol = sq.findIndex(sf.getEnd());
-
-              if (sf.isContactFeature())
-              {
-                /*
-                 * 'contact' feature - check for 'start' or 'end'
-                 * position within the selected region
-                 */
-                if (sfStartCol >= startPosition
-                        && sfStartCol <= endPosition)
-                {
-                  bs.set(sfStartCol - 1);
-                  sequenceHasFeature = true;
-                }
-                if (sfEndCol >= startPosition && sfEndCol <= endPosition)
-                {
-                  bs.set(sfEndCol - 1);
-                  sequenceHasFeature = true;
-                }
-                continue;
-              }
-
-              /*
-               * contiguous feature - select feature positions (if any) 
-               * within the selected region
-               */
-              if (sfStartCol > endPosition || sfEndCol < startPosition)
-              {
-                // feature is outside selected region
-                continue;
-              }
-              sequenceHasFeature = true;
-              if (sfStartCol < startPosition)
-              {
-                sfStartCol = startPosition;
-              }
-              if (sfStartCol < ist)
-              {
-                sfStartCol = ist;
-              }
-              if (sfEndCol > endPosition)
-              {
-                sfEndCol = endPosition;
-              }
-              for (; sfStartCol <= sfEndCol; sfStartCol++)
-              {
-                bs.set(sfStartCol - 1); // convert to base 0
-              }
-            }
+            nseq++;
           }
-        }
+          found = true;
 
-        if (sequenceHasFeature)
-        {
-          nseq++;
+          int sfStartCol = sq.findIndex(sf.getBegin());
+          int sfEndCol = sq.findIndex(sf.getEnd());
+
+          if (sf.isContactFeature())
+          {
+            /*
+             * 'contact' feature - check for 'start' or 'end'
+             * position within the selected region
+             */
+            if (sfStartCol >= startColumn && sfStartCol <= endColumn)
+            {
+              bs.set(sfStartCol - 1);
+            }
+            if (sfEndCol >= startColumn && sfEndCol <= endColumn)
+            {
+              bs.set(sfEndCol - 1);
+            }
+            continue;
+          }
+
+          /*
+           * contiguous feature - select feature positions (if any) 
+           * within the selected region
+           */
+          if (sfStartCol < startColumn)
+          {
+            sfStartCol = startColumn;
+          }
+          // not sure what the point of this is
+          // if (sfStartCol < ist)
+          // {
+          // sfStartCol = ist;
+          // }
+          if (sfEndCol > endColumn)
+          {
+            sfEndCol = endColumn;
+          }
+          for (; sfStartCol <= sfEndCol; sfStartCol++)
+          {
+            bs.set(sfStartCol - 1); // convert to base 0
+          }
         }
       }
     }
@@ -325,16 +311,34 @@ public class AlignViewController implements AlignViewControllerI
   @Override
   public void sortAlignmentByFeatureDensity(List<String> typ)
   {
-    sortBy(typ, "Sort by Density", AlignmentSorter.FEATURE_DENSITY);
+    String methodText = MessageManager.getString("label.sort_by_density");
+    sortByFeatures(typ, methodText, AlignmentSorter.FEATURE_DENSITY);
   }
 
-  protected void sortBy(List<String> typ, String methodText,
+  /**
+   * Sorts the alignment (or current selection) by either average score or density
+   * of the specified feature types, and adds to the command history. If
+   * {@code types} is null, all visible feature types are used for the sort. If no
+   * feature types apply, does nothing.
+   * 
+   * @param types
+   * @param methodText
+   *                     - text shown in Undo/Redo command
+   * @param method
+   *                     - passed to
+   *                     jalview.analysis.AlignmentSorter.sortByFeatures()
+   */
+  protected void sortByFeatures(List<String> types, String methodText,
           final String method)
   {
     FeatureRenderer fr = alignPanel.getFeatureRenderer();
-    if (typ == null && fr != null)
+    if (types == null && fr != null)
     {
-      typ = fr.getDisplayedFeatureTypes();
+      types = fr.getDisplayedFeatureTypes();
+    }
+    if (types.isEmpty())
+    {
+      return; // nothing to do
     }
     List<String> gps = null;
     if (fr != null)
@@ -356,50 +360,52 @@ public class AlignViewController implements AlignViewControllerI
       stop = al.getWidth();
     }
     SequenceI[] oldOrder = al.getSequencesArray();
-    AlignmentSorter.sortByFeature(typ, gps, start, stop, al, method);
-    avcg.addHistoryItem(new OrderCommand(methodText, oldOrder, viewport
-            .getAlignment()));
-    alignPanel.paintAlignment(true);
+    AlignmentSorter.sortByFeature(types, gps, start, stop, al, method);
+    avcg.addHistoryItem(new OrderCommand(methodText, oldOrder,
+            viewport.getAlignment()));
+    alignPanel.paintAlignment(true, false);
 
   }
 
   @Override
   public void sortAlignmentByFeatureScore(List<String> typ)
   {
-    sortBy(typ, "Sort by Feature Score", AlignmentSorter.FEATURE_SCORE);
+    String methodText = MessageManager.getString("label.sort_by_score");
+    sortByFeatures(typ, methodText, AlignmentSorter.FEATURE_SCORE);
   }
 
   @Override
-  public boolean parseFeaturesFile(String file, String protocol,
+  public boolean parseFeaturesFile(String file, DataSourceType protocol,
           boolean relaxedIdMatching)
   {
-    boolean featuresFile = false;
+    boolean featuresAdded = false;
+    FeatureRenderer fr = alignPanel.getFeatureRenderer();
     try
     {
-      featuresFile = new FeaturesFile(false, file, protocol).parse(viewport
-              .getAlignment().getDataset(), alignPanel.getFeatureRenderer()
-              .getFeatureColours(), false, relaxedIdMatching);
+      featuresAdded = new FeaturesFile(false, file, protocol).parse(
+              viewport.getAlignment().getDataset(), fr.getFeatureColours(),
+              fr.getFeatureFilters(), false, relaxedIdMatching);
     } catch (Exception ex)
     {
       ex.printStackTrace();
     }
 
-    if (featuresFile)
+    if (featuresAdded)
     {
       avcg.refreshFeatureUI(true);
-      if (alignPanel.getFeatureRenderer() != null)
+      if (fr != null)
       {
         // update the min/max ranges where necessary
-        alignPanel.getFeatureRenderer().findAllFeatures(true);
+        fr.findAllFeatures(true);
       }
       if (avcg.getFeatureSettingsUI() != null)
       {
         avcg.getFeatureSettingsUI().discoverAllFeatureData();
       }
-      alignPanel.paintAlignment(true);
+      alignPanel.paintAlignment(true, true);
     }
 
-    return featuresFile;
+    return featuresAdded;
 
   }
 
@@ -414,8 +420,9 @@ public class AlignViewController implements AlignViewControllerI
     }
     // JBPNote this routine could also mark rows, not just columns.
     BitSet bs = new BitSet();
-    SequenceCollectionI sqcol = (viewport.getSelectionGroup() == null || extendCurrent) ? viewport
-            .getAlignment() : viewport.getSelectionGroup();
+    SequenceCollectionI sqcol = (viewport.getSelectionGroup() == null
+            || extendCurrent) ? viewport.getAlignment()
+                    : viewport.getSelectionGroup();
 
     // this could be a lambda... - the remains of the method is boilerplate,
     // except for the different messages for reporting selection.
@@ -434,15 +441,15 @@ public class AlignViewController implements AlignViewControllerI
       if (changed)
       {
         viewport.setColumnSelection(cs);
-        alignPanel.paintAlignment(true);
-        int columnCount = invert ? (sqcol.getEndRes() - sqcol.getStartRes() + 1)
-                - bs.cardinality()
+        alignPanel.paintAlignment(false, false);
+        int columnCount = invert
+                ? (sqcol.getEndRes() - sqcol.getStartRes() + 1)
+                        - bs.cardinality()
                 : bs.cardinality();
         avcg.setStatus(MessageManager.formatMessage(
-                "label.view_controller_toggled_marked",
-                new String[] {
-                    toggle ? MessageManager.getString("label.toggled")
-                            : MessageManager.getString("label.marked"),
+                "label.view_controller_toggled_marked", new String[]
+                { toggle ? MessageManager.getString("label.toggled")
+                        : MessageManager.getString("label.marked"),
                     String.valueOf(columnCount),
                     invert ? MessageManager
                             .getString("label.not_containing")
@@ -458,7 +465,7 @@ public class AlignViewController implements AlignViewControllerI
       if (!extendCurrent)
       {
         cs.clear();
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(false, false);
       }
     }
     return false;

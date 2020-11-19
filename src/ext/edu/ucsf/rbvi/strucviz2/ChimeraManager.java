@@ -40,6 +40,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -83,7 +84,7 @@ public class ChimeraManager
     this.structureManager = structureManager;
     chimera = null;
     chimeraListenerThread = null;
-    currentModelsMap = new HashMap<Integer, ChimeraModel>();
+    currentModelsMap = new HashMap<>();
 
   }
 
@@ -98,7 +99,7 @@ public class ChimeraManager
   public List<ChimeraModel> getChimeraModels(String modelName,
           ModelType modelType)
   {
-    List<ChimeraModel> models = new ArrayList<ChimeraModel>();
+    List<ChimeraModel> models = new ArrayList<>();
     for (ChimeraModel model : currentModelsMap.values())
     {
       if (modelName.equals(model.getModelName())
@@ -112,7 +113,7 @@ public class ChimeraManager
 
   public Map<String, List<ChimeraModel>> getChimeraModelsMap()
   {
-    Map<String, List<ChimeraModel>> models = new HashMap<String, List<ChimeraModel>>();
+    Map<String, List<ChimeraModel>> models = new HashMap<>();
     for (ChimeraModel model : currentModelsMap.values())
     {
       String modelName = model.getModelName();
@@ -380,6 +381,8 @@ public class ChimeraManager
       sendChimeraCommand("stop really", false);
       try
       {
+        // TODO is this too violent? could it force close the process
+        // before it has done an orderly shutdown?
         chimera.destroy();
       } catch (Exception ex)
       {
@@ -391,7 +394,7 @@ public class ChimeraManager
 
   public Map<Integer, ChimeraModel> getSelectedModels()
   {
-    Map<Integer, ChimeraModel> selectedModelsMap = new HashMap<Integer, ChimeraModel>();
+    Map<Integer, ChimeraModel> selectedModelsMap = new HashMap<>();
     List<String> chimeraReply = sendChimeraCommand(
             "list selection level molecule", true);
     if (chimeraReply != null)
@@ -416,11 +419,16 @@ public class ChimeraManager
    */
   public List<String> getSelectedResidueSpecs()
   {
-    List<String> selectedResidues = new ArrayList<String>();
+    List<String> selectedResidues = new ArrayList<>();
     List<String> chimeraReply = sendChimeraCommand(
             "list selection level residue", true);
     if (chimeraReply != null)
     {
+      /*
+       * expect 0, 1 or more lines of the format
+       * residue id #0:43.A type GLY
+       * where we are only interested in the atomspec #0.43.A
+       */
       for (String inputLine : chimeraReply)
       {
         String[] inputLineParts = inputLine.split("\\s+");
@@ -464,7 +472,7 @@ public class ChimeraManager
   // TODO: [Optional] Handle smiles names in a better way in Chimera?
   public List<ChimeraModel> getModelList()
   {
-    List<ChimeraModel> modelList = new ArrayList<ChimeraModel>();
+    List<ChimeraModel> modelList = new ArrayList<>();
     List<String> list = sendChimeraCommand("list models type molecule",
             true);
     if (list != null)
@@ -487,7 +495,7 @@ public class ChimeraManager
    */
   public List<String> getPresets()
   {
-    ArrayList<String> presetList = new ArrayList<String>();
+    ArrayList<String> presetList = new ArrayList<>();
     List<String> output = sendChimeraCommand("preset list", true);
     if (output != null)
     {
@@ -543,17 +551,19 @@ public class ChimeraManager
     // iterate over possible paths for starting Chimera
     for (String chimeraPath : chimeraPaths)
     {
-      File path = new File(chimeraPath);
-      // uncomment the next line to simulate Chimera not installed
-      // path = new File(chimeraPath + "x");
-      if (!path.canExecute())
-      {
-        error += "File '" + path + "' does not exist.\n";
-        continue;
-      }
       try
       {
-        List<String> args = new ArrayList<String>();
+        // ensure symbolic links are resolved
+        chimeraPath = Paths.get(chimeraPath).toRealPath().toString();
+        File path = new File(chimeraPath);
+        // uncomment the next line to simulate Chimera not installed
+        // path = new File(chimeraPath + "x");
+        if (!path.canExecute())
+        {
+          error += "File '" + path + "' does not exist.\n";
+          continue;
+        }
+        List<String> args = new ArrayList<>();
         args.add(chimeraPath);
         // shows Chimera output window but suppresses REST responses:
         // args.add("--debug");
@@ -566,7 +576,7 @@ public class ChimeraManager
         break;
       } catch (Exception e)
       {
-        // Chimera could not be started
+        // Chimera could not be started using this path
         error += e.getMessage();
       }
     }
@@ -692,7 +702,7 @@ public class ChimeraManager
 
   public List<String> getAttrList()
   {
-    List<String> attributes = new ArrayList<String>();
+    List<String> attributes = new ArrayList<>();
     final List<String> reply = sendChimeraCommand("list resattr", true);
     if (reply != null)
     {
@@ -711,7 +721,7 @@ public class ChimeraManager
   public Map<ChimeraResidue, Object> getAttrValues(String aCommand,
           ChimeraModel model)
   {
-    Map<ChimeraResidue, Object> values = new HashMap<ChimeraResidue, Object>();
+    Map<ChimeraResidue, Object> values = new HashMap<>();
     final List<String> reply = sendChimeraCommand("list residue spec "
             + model.toSpec() + " attribute " + aCommand, true);
     if (reply != null)
@@ -811,10 +821,10 @@ public class ChimeraManager
   protected List<String> sendRestCommand(String command)
   {
     String restUrl = "http://127.0.0.1:" + this.chimeraRestPort + "/run";
-    List<NameValuePair> commands = new ArrayList<NameValuePair>(1);
+    List<NameValuePair> commands = new ArrayList<>(1);
     commands.add(new BasicNameValuePair("command", command));
 
-    List<String> reply = new ArrayList<String>();
+    List<String> reply = new ArrayList<>();
     BufferedReader response = null;
     try
     {
@@ -885,5 +895,10 @@ public class ChimeraManager
   public boolean isBusy()
   {
     return busy;
+  }
+
+  public Process getChimeraProcess()
+  {
+    return chimera;
   }
 }

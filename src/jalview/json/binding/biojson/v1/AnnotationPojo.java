@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -36,7 +36,8 @@ public class AnnotationPojo
 
   @Attributes(
     required = true,
-    enums = { "E", "H", "\u0000", ")", "(" },
+    enums =
+    { "E", "H", "\u0000", ")", "(" },
     description = "Determines what is rendered for the secondary </br>structure <ul><li>’E’ - indicates Beta Sheet/Strand <li>’H’ - indicates alpha helix </li><li> ‘\\u0000’ - indicates blank</li></ul></br>For RNA Helix (only shown when working with</br> nucleotide sequences): <ul><li> ‘(’ - indicates bases pair with columns upstream</br> (to right) </li><li> ’(’ - indicate region pairs with bases to the left</li></ul>")
   private char secondaryStructure;
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -75,16 +75,15 @@ public class GPairwiseAlignPanel extends JPanel
     textarea.setText("");
     textarea.setWrapStyleWord(false);
     viewInEditorButton.setFont(new java.awt.Font("Verdana", 0, 12));
-    viewInEditorButton.setText(MessageManager
-            .getString("label.view_alignment_editor"));
-    viewInEditorButton
-            .addActionListener(new java.awt.event.ActionListener()
-            {
-              public void actionPerformed(ActionEvent e)
-              {
-                viewInEditorButton_actionPerformed(e);
-              }
-            });
+    viewInEditorButton.setText(
+            MessageManager.getString("label.view_alignment_editor"));
+    viewInEditorButton.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(ActionEvent e)
+      {
+        viewInEditorButton_actionPerformed(e);
+      }
+    });
     this.add(scrollPane, BorderLayout.CENTER);
     scrollPane.getViewport().add(textarea, null);
     this.add(jPanel1, BorderLayout.SOUTH);

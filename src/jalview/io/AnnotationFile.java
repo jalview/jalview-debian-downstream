@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,13 +27,15 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.GraphLine;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.HiddenSequences;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.UserColourScheme;
+import jalview.util.ColorUtils;
 
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.InputStreamReader;
@@ -98,7 +100,8 @@ public class AnnotationFile
   public String printAnnotations(AlignmentAnnotation[] annotations,
           List<SequenceGroup> list, Hashtable properties)
   {
-    return printAnnotations(annotations, list, properties, null, null, null);
+    return printAnnotations(annotations, list, properties, null, null,
+            null);
 
   }
 
@@ -108,23 +111,22 @@ public class AnnotationFile
    */
   public class ViewDef
   {
-    public String viewname;
+    // TODO this class is not used - remove?
+    public final String viewname;
 
-    public HiddenSequences hidseqs;
+    public final HiddenSequences hidseqs;
 
-    public ColumnSelection hiddencols;
+    public final HiddenColumns hiddencols;
 
-    public Vector visibleGroups;
+    public final Hashtable hiddenRepSeqs;
 
-    public Hashtable hiddenRepSeqs;
-
-    public ViewDef(String viewname, HiddenSequences hidseqs,
-            ColumnSelection hiddencols, Hashtable hiddenRepSeqs)
+    public ViewDef(String vname, HiddenSequences hseqs, HiddenColumns hcols,
+            Hashtable hRepSeqs)
     {
-      this.viewname = viewname;
-      this.hidseqs = hidseqs;
-      this.hiddencols = hiddencols;
-      this.hiddenRepSeqs = hiddenRepSeqs;
+      this.viewname = vname;
+      this.hidseqs = hseqs;
+      this.hiddencols = hcols;
+      this.hiddenRepSeqs = hRepSeqs;
     }
   }
 
@@ -139,8 +141,8 @@ public class AnnotationFile
    * @return annotation file
    */
   public String printAnnotations(AlignmentAnnotation[] annotations,
-          List<SequenceGroup> list, Hashtable properties,
-          ColumnSelection cs, AlignmentI al, ViewDef view)
+          List<SequenceGroup> list, Hashtable properties, HiddenColumns cs,
+          AlignmentI al, ViewDef view)
   {
     if (view != null)
     {
@@ -150,7 +152,7 @@ public class AnnotationFile
       }
       if (list == null)
       {
-        list = view.visibleGroups;
+        // list = view.visibleGroups;
       }
       if (cs == null)
       {
@@ -169,22 +171,9 @@ public class AnnotationFile
     if (cs != null && cs.hasHiddenColumns())
     {
       text.append("VIEW_HIDECOLS\t");
-      List<int[]> hc = cs.getHiddenColumns();
-      boolean comma = false;
-      for (int[] r : hc)
-      {
-        if (!comma)
-        {
-          comma = true;
-        }
-        else
-        {
-          text.append(",");
-        }
-        text.append(r[0]);
-        text.append("-");
-        text.append(r[1]);
-      }
+
+      String regions = cs.regionsToString(",", "-");
+      text.append(regions);
       text.append("\n");
     }
     // TODO: allow efficient recovery of annotation data shown in several
@@ -200,8 +189,8 @@ public class AnnotationFile
       StringBuffer colours = new StringBuffer();
       StringBuffer graphLine = new StringBuffer();
       StringBuffer rowprops = new StringBuffer();
-      Hashtable<Integer, String> graphGroup = new Hashtable<Integer, String>();
-      Hashtable<Integer, Object[]> graphGroup_refs = new Hashtable<Integer, Object[]>();
+      Hashtable<Integer, String> graphGroup = new Hashtable<>();
+      Hashtable<Integer, Object[]> graphGroup_refs = new Hashtable<>();
       BitSet graphGroupSeen = new BitSet();
 
       java.awt.Color color;
@@ -210,10 +199,8 @@ public class AnnotationFile
       {
         row = annotations[i];
 
-        if (!row.visible
-                && !row.hasScore()
-                && !(row.graphGroup > -1 && graphGroupSeen
-                        .get(row.graphGroup)))
+        if (!row.visible && !row.hasScore() && !(row.graphGroup > -1
+                && graphGroupSeen.get(row.graphGroup)))
         {
           continue;
         }
@@ -228,7 +215,8 @@ public class AnnotationFile
         writeGroup_Ref(refGroup, row.groupRef);
         refGroup = row.groupRef;
 
-        boolean hasGlyphs = row.hasIcons, hasLabels = row.hasText, hasValues = row.hasScore, hasText = false;
+        boolean hasGlyphs = row.hasIcons, hasLabels = row.hasText,
+                hasValues = row.hasScore, hasText = false;
         // lookahead to check what the annotation row object actually contains.
         for (int j = 0; row.annotations != null
                 && j < row.annotations.length
@@ -237,14 +225,15 @@ public class AnnotationFile
           if (row.annotations[j] != null)
           {
             hasLabels |= (row.annotations[j].displayCharacter != null
-                    && row.annotations[j].displayCharacter.length() > 0 && !row.annotations[j].displayCharacter
-                    .equals(" "));
-            hasGlyphs |= (row.annotations[j].secondaryStructure != 0 && row.annotations[j].secondaryStructure != ' ');
+                    && row.annotations[j].displayCharacter.length() > 0
+                    && !row.annotations[j].displayCharacter.equals(" "));
+            hasGlyphs |= (row.annotations[j].secondaryStructure != 0
+                    && row.annotations[j].secondaryStructure != ' ');
             hasValues |= (!Float.isNaN(row.annotations[j].value)); // NaNs can't
             // be
             // rendered..
-            hasText |= (row.annotations[j].description != null && row.annotations[j].description
-                    .length() > 0);
+            hasText |= (row.annotations[j].description != null
+                    && row.annotations[j].description.length() > 0);
           }
         }
 
@@ -277,15 +266,15 @@ public class AnnotationFile
             graphLine.append("\t");
             graphLine.append(row.getThreshold().label);
             graphLine.append("\t");
-            graphLine.append(jalview.util.Format.getHexString(row
-                    .getThreshold().colour));
+            graphLine.append(jalview.util.Format
+                    .getHexString(row.getThreshold().colour));
             graphLine.append(newline);
           }
 
           if (row.graphGroup > -1)
           {
             graphGroupSeen.set(row.graphGroup);
-            Integer key = new Integer(row.graphGroup);
+            Integer key = Integer.valueOf(row.graphGroup);
             if (graphGroup.containsKey(key))
             {
               graphGroup.put(key, graphGroup.get(key) + "\t" + row.label);
@@ -373,11 +362,8 @@ public class AnnotationFile
             if (row.annotations[j].colour != null
                     && row.annotations[j].colour != java.awt.Color.black)
             {
-              text.append(comma
-                      + "["
-                      + jalview.util.Format
-                              .getHexString(row.annotations[j].colour)
-                      + "]");
+              text.append(comma + "[" + jalview.util.Format
+                      .getHexString(row.annotations[j].colour) + "]");
               comma = ",";
             }
           }
@@ -429,8 +415,8 @@ public class AnnotationFile
         for (Map.Entry<Integer, String> combine_statement : graphGroup
                 .entrySet())
         {
-          Object[] seqRefAndGroup = graphGroup_refs.get(combine_statement
-                  .getKey());
+          Object[] seqRefAndGroup = graphGroup_refs
+                  .get(combine_statement.getKey());
 
           writeSequence_Ref(refSeq, (SequenceI) seqRefAndGroup[0]);
           refSeq = (SequenceI) seqRefAndGroup[0];
@@ -535,7 +521,7 @@ public class AnnotationFile
     return false;
   }
 
-  public void printGroups(List<SequenceGroup> list)
+  protected void printGroups(List<SequenceGroup> list)
   {
     SequenceI seqrep = null;
     for (SequenceGroup sg : list)
@@ -581,7 +567,8 @@ public class AnnotationFile
       if (sg.cs != null)
       {
         text.append("colour=");
-        text.append(ColourSchemeProperty.getColourName(sg.cs));
+        text.append(ColourSchemeProperty
+                .getColourName(sg.cs.getColourScheme()));
         text.append("\t");
         if (sg.cs.getThreshold() != 0)
         {
@@ -659,50 +646,56 @@ public class AnnotationFile
 
   String refSeqId = null;
 
-  public boolean annotateAlignmentView(AlignViewportI viewport,
-          String file, String protocol)
+  public boolean annotateAlignmentView(AlignViewportI viewport, String file,
+          DataSourceType protocol)
   {
     ColumnSelection colSel = viewport.getColumnSelection();
+    HiddenColumns hidden = viewport.getAlignment().getHiddenColumns();
     if (colSel == null)
     {
       colSel = new ColumnSelection();
     }
-    boolean rslt = readAnnotationFile(viewport.getAlignment(), colSel,
-            file, protocol);
-    if (rslt && (colSel.hasSelectedColumns() || colSel.hasHiddenColumns()))
+    if (hidden == null)
+    {
+      hidden = new HiddenColumns();
+    }
+    boolean rslt = readAnnotationFile(viewport.getAlignment(), hidden, file,
+            protocol);
+    if (rslt && (colSel.hasSelectedColumns() || hidden.hasHiddenColumns()))
     {
       viewport.setColumnSelection(colSel);
+      viewport.getAlignment().setHiddenColumns(hidden);
     }
 
     return rslt;
   }
 
   public boolean readAnnotationFile(AlignmentI al, String file,
-          String protocol)
+          DataSourceType sourceType)
   {
-    return readAnnotationFile(al, null, file, protocol);
+    return readAnnotationFile(al, null, file, sourceType);
   }
 
-  public boolean readAnnotationFile(AlignmentI al, ColumnSelection colSel,
-          String file, String protocol)
+  public boolean readAnnotationFile(AlignmentI al, HiddenColumns hidden,
+          String file, DataSourceType sourceType)
   {
     BufferedReader in = null;
     try
     {
-      if (protocol.equals(AppletFormatAdapter.FILE))
+      if (sourceType == DataSourceType.FILE)
       {
         in = new BufferedReader(new FileReader(file));
       }
-      else if (protocol.equals(AppletFormatAdapter.URL))
+      else if (sourceType == DataSourceType.URL)
       {
         URL url = new URL(file);
         in = new BufferedReader(new InputStreamReader(url.openStream()));
       }
-      else if (protocol.equals(AppletFormatAdapter.PASTE))
+      else if (sourceType == DataSourceType.PASTE)
       {
         in = new BufferedReader(new StringReader(file));
       }
-      else if (protocol.equals(AppletFormatAdapter.CLASSLOADER))
+      else if (sourceType == DataSourceType.CLASSLOADER)
       {
         java.io.InputStream is = getClass().getResourceAsStream("/" + file);
         if (is != null)
@@ -712,7 +705,7 @@ public class AnnotationFile
       }
       if (in != null)
       {
-        return parseAnnotationFrom(al, colSel, in);
+        return parseAnnotationFrom(al, hidden, in);
       }
 
     } catch (Exception ex)
@@ -721,8 +714,8 @@ public class AnnotationFile
       System.out.println("Problem reading annotation file: " + ex);
       if (nlinesread > 0)
       {
-        System.out.println("Last read line " + nlinesread + ": '"
-                + lastread + "' (first 80 chars) ...");
+        System.out.println("Last read line " + nlinesread + ": '" + lastread
+                + "' (first 80 chars) ...");
       }
       return false;
     }
@@ -735,12 +728,12 @@ public class AnnotationFile
 
   private static String GRAPHLINE = "GRAPHLINE", COMBINE = "COMBINE";
 
-  public boolean parseAnnotationFrom(AlignmentI al, ColumnSelection colSel,
+  public boolean parseAnnotationFrom(AlignmentI al, HiddenColumns hidden,
           BufferedReader in) throws Exception
   {
     nlinesread = 0;
-    ArrayList<Object[]> combineAnnotation_calls = new ArrayList<Object[]>();
-    ArrayList<Object[]> deferredAnnotation_calls = new ArrayList<Object[]>();
+    ArrayList<Object[]> combineAnnotation_calls = new ArrayList<>();
+    ArrayList<Object[]> deferredAnnotation_calls = new ArrayList<>();
     boolean modified = false;
     String groupRef = null;
     Hashtable groupRefRows = new Hashtable();
@@ -769,7 +762,7 @@ public class AnnotationFile
                       autoAnnotsKey(aa[aai], aa[aai].sequenceRef,
                               (aa[aai].groupRef == null ? null
                                       : aa[aai].groupRef.getName())),
-                      new Integer(1));
+                      Integer.valueOf(1));
             }
           }
         }
@@ -830,7 +823,8 @@ public class AnnotationFile
         {
           // keep a record of current state and resolve groupRef at end
           combineAnnotation_calls
-                  .add(new Object[] { st, refSeq, groupRef });
+                  .add(new Object[]
+                  { st, refSeq, groupRef });
           modified = true;
           continue;
         }
@@ -843,8 +837,9 @@ public class AnnotationFile
         else if (token.equalsIgnoreCase(GRAPHLINE))
         {
           // resolve at end
-          deferredAnnotation_calls.add(new Object[] { GRAPHLINE, st,
-              refSeq, groupRef });
+          deferredAnnotation_calls
+                  .add(new Object[]
+                  { GRAPHLINE, st, refSeq, groupRef });
           modified = true;
           continue;
         }
@@ -864,8 +859,8 @@ public class AnnotationFile
               if (refSeqIndex < 1)
               {
                 refSeqIndex = 1;
-                System.out
-                        .println("WARNING: SEQUENCE_REF index must be > 0 in AnnotationFile");
+                System.out.println(
+                        "WARNING: SEQUENCE_REF index must be > 0 in AnnotationFile");
               }
             } catch (Exception ex)
             {
@@ -946,11 +941,11 @@ public class AnnotationFile
         {
           if (st.hasMoreTokens())
           {
-            if (colSel == null)
+            if (hidden == null)
             {
-              colSel = new ColumnSelection();
+              hidden = new HiddenColumns();
             }
-            parseHideCols(colSel, st.nextToken());
+            parseHideCols(hidden, st.nextToken());
           }
           modified = true;
           continue;
@@ -964,16 +959,16 @@ public class AnnotationFile
           }
           if (sr != null)
           {
-            if (colSel == null)
+            if (hidden == null)
             {
-              System.err
-                      .println("Cannot process HIDE_INSERTIONS without an alignment view: Ignoring line: "
+              System.err.println(
+                      "Cannot process HIDE_INSERTIONS without an alignment view: Ignoring line: "
                               + line);
             }
             else
             {
               // consider deferring this till after the file has been parsed ?
-              colSel.hideInsertionsFor(sr);
+              hidden.hideList(sr.getInsertions());
             }
           }
           modified = true;
@@ -1050,9 +1045,8 @@ public class AnnotationFile
                 (index == 0) ? null : annotations, 0, 0, graphStyle);
 
         annotation.score = score;
-        if (!overrideAutoAnnot
-                && autoAnnots.containsKey(autoAnnotsKey(annotation, refSeq,
-                        groupRef)))
+        if (!overrideAutoAnnot && autoAnnots
+                .containsKey(autoAnnotsKey(annotation, refSeq, groupRef)))
         {
           // skip - we've already got an automatic annotation of this type.
           continue;
@@ -1070,14 +1064,14 @@ public class AnnotationFile
             // TODO: verify that undo/redo with 1:many sequence associated
             // annotations can be undone correctly
             AlignmentAnnotation ann = new AlignmentAnnotation(annotation);
-            annotation
-                    .createSequenceMapping(referedSeq, refSeqIndex, false);
+            annotation.createSequenceMapping(referedSeq, refSeqIndex,
+                    false);
             annotation.adjustForAlignment();
             referedSeq.addAlignmentAnnotation(annotation);
             al.addAnnotation(annotation);
             al.setAnnotationIndex(annotation,
-                    al.getAlignmentAnnotation().length
-                            - existingAnnotations - 1);
+                    al.getAlignmentAnnotation().length - existingAnnotations
+                            - 1);
             if (groupRef != null)
             {
               ((Vector) groupRefRows.get(groupRef)).addElement(annotation);
@@ -1085,8 +1079,8 @@ public class AnnotationFile
             // and recover our virgin copy to use again if necessary.
             annotation = ann;
 
-          } while (refSeqId != null
-                  && (referedSeq = al.findName(referedSeq, refSeqId, true)) != null);
+          } while (refSeqId != null && (referedSeq = al.findName(referedSeq,
+                  refSeqId, true)) != null);
         }
         else
         {
@@ -1103,7 +1097,7 @@ public class AnnotationFile
         modified = true;
       }
       // Resolve the groupRefs
-      Hashtable<String, SequenceGroup> groupRefLookup = new Hashtable<String, SequenceGroup>();
+      Hashtable<String, SequenceGroup> groupRefLookup = new Hashtable<>();
       Enumeration en = groupRefRows.keys();
 
       while (en.hasMoreElements())
@@ -1119,8 +1113,8 @@ public class AnnotationFile
             {
               // TODO: specify and implement duplication of alignment annotation
               // for multiple group references.
-              System.err
-                      .println("Ignoring 1:many group reference mappings for group name '"
+              System.err.println(
+                      "Ignoring 1:many group reference mappings for group name '"
                               + groupRef + "'");
             }
             else
@@ -1131,7 +1125,8 @@ public class AnnotationFile
               if (rowset != null && rowset.size() > 0)
               {
                 AlignmentAnnotation alan = null;
-                for (int elm = 0, elmSize = rowset.size(); elm < elmSize; elm++)
+                for (int elm = 0, elmSize = rowset
+                        .size(); elm < elmSize; elm++)
                 {
                   alan = (AlignmentAnnotation) rowset.elementAt(elm);
                   alan.groupRef = theGroup;
@@ -1147,12 +1142,13 @@ public class AnnotationFile
       {
         if (_deferred_args[0] == GRAPHLINE)
         {
-          addLine(al,
-                  (StringTokenizer) _deferred_args[1], // st
+          addLine(al, (StringTokenizer) _deferred_args[1], // st
                   (SequenceI) _deferred_args[2], // refSeq
-                  (_deferred_args[3] == null) ? null : groupRefLookup
-                          .get(_deferred_args[3]) // the reference
-                                                  // group, or null
+                  (_deferred_args[3] == null) ? null
+                          : groupRefLookup.get(_deferred_args[3]) // the
+                                                                  // reference
+                                                                  // group, or
+                                                                  // null
           );
         }
       }
@@ -1166,20 +1162,20 @@ public class AnnotationFile
       int combinecount = 0;
       for (Object[] _combine_args : combineAnnotation_calls)
       {
-        combineAnnotations(al,
-                ++combinecount,
+        combineAnnotations(al, ++combinecount,
                 (StringTokenizer) _combine_args[0], // st
                 (SequenceI) _combine_args[1], // refSeq
-                (_combine_args[2] == null) ? null : groupRefLookup
-                        .get(_combine_args[2]) // the reference group,
-                                               // or null
+                (_combine_args[2] == null) ? null
+                        : groupRefLookup.get(_combine_args[2]) // the reference
+                                                               // group,
+                                                               // or null
         );
       }
     }
     return modified;
   }
 
-  private void parseHideCols(ColumnSelection colSel, String nextToken)
+  private void parseHideCols(HiddenColumns hidden, String nextToken)
   {
     StringTokenizer inval = new StringTokenizer(nextToken, ",");
     while (inval.hasMoreTokens())
@@ -1191,7 +1187,7 @@ public class AnnotationFile
         from = to = Integer.parseInt(range);
         if (from >= 0)
         {
-          colSel.hideColumns(from, to);
+          hidden.hideColumns(from, to);
         }
       }
       else
@@ -1207,7 +1203,7 @@ public class AnnotationFile
         }
         if (from > 0 && to >= from)
         {
-          colSel.hideColumns(from, to);
+          hidden.hideColumns(from, to);
         }
       }
     }
@@ -1223,29 +1219,20 @@ public class AnnotationFile
 
   Annotation parseAnnotation(String string, int graphStyle)
   {
-    boolean hasSymbols = (graphStyle == AlignmentAnnotation.NO_GRAPH); // don't
-    // do the
-    // glyph
-    // test
-    // if we
-    // don't
-    // want
-    // secondary
-    // structure
+    // don't do the glyph test if we don't want secondary structure
+    boolean hasSymbols = (graphStyle == AlignmentAnnotation.NO_GRAPH);
     String desc = null, displayChar = null;
     char ss = ' '; // secondaryStructure
     float value = 0;
     boolean parsedValue = false, dcset = false;
 
     // find colour here
-    java.awt.Color colour = null;
+    Color colour = null;
     int i = string.indexOf("[");
     int j = string.indexOf("]");
     if (i > -1 && j > -1)
     {
-      UserColourScheme ucs = new UserColourScheme();
-
-      colour = ucs.getColourFromString(string.substring(i + 1, j));
+      colour = ColorUtils.parseColourString(string.substring(i + 1, j));
       if (i > 0 && string.charAt(i - 1) == ',')
       {
         // clip the preceding comma as well
@@ -1284,7 +1271,7 @@ public class AnnotationFile
         {
           displayChar = token;
           // foo
-          value = new Float(token).floatValue();
+          value = Float.valueOf(token).floatValue();
           parsedValue = true;
           continue;
         } catch (NumberFormatException ex)
@@ -1298,8 +1285,8 @@ public class AnnotationFile
           displayChar = token;
         }
       }
-      if (hasSymbols
-              && (token.length() == 1 && "()<>[]{}AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz"
+      if (hasSymbols && (token.length() == 1
+              && "()<>[]{}AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz"
                       .contains(token)))
       {
         // Either this character represents a helix or sheet
@@ -1347,7 +1334,7 @@ public class AnnotationFile
 
   void colourAnnotations(AlignmentI al, String label, String colour)
   {
-    UserColourScheme ucs = new UserColourScheme(colour);
+    Color awtColour = ColorUtils.parseColourString(colour);
     Annotation[] annotations;
     for (int i = 0; i < al.getAlignmentAnnotation().length; i++)
     {
@@ -1358,7 +1345,7 @@ public class AnnotationFile
         {
           if (annotations[j] != null)
           {
-            annotations[j].colour = ucs.findColour('A');
+            annotations[j].colour = awtColour;
           }
         }
       }
@@ -1419,8 +1406,8 @@ public class AnnotationFile
     }
     else
     {
-      System.err
-              .println("Couldn't combine annotations. None are added to alignment yet!");
+      System.err.println(
+              "Couldn't combine annotations. None are added to alignment yet!");
     }
   }
 
@@ -1428,15 +1415,22 @@ public class AnnotationFile
           SequenceGroup groupRef)
   {
     String group = st.nextToken();
-    AlignmentAnnotation annotation = null, alannot[] = al
-            .getAlignmentAnnotation();
-    float value = new Float(st.nextToken()).floatValue();
+    AlignmentAnnotation[] alannot = al.getAlignmentAnnotation();
+    String nextToken = st.nextToken();
+    float value = 0f;
+    try
+    {
+      value = Float.valueOf(nextToken);
+    } catch (NumberFormatException e)
+    {
+      System.err.println("line " + nlinesread + ": Threshold '" + nextToken
+              + "' invalid, setting to zero");
+    }
     String label = st.hasMoreTokens() ? st.nextToken() : null;
-    java.awt.Color colour = null;
+    Color colour = null;
     if (st.hasMoreTokens())
     {
-      UserColourScheme ucs = new UserColourScheme(st.nextToken());
-      colour = ucs.findColour('A');
+      colour = ColorUtils.parseColourString(st.nextToken());
     }
     if (alannot != null)
     {
@@ -1449,10 +1443,6 @@ public class AnnotationFile
           alannot[i].setThreshold(new GraphLine(value, label, colour));
         }
       }
-    }
-    if (annotation == null)
-    {
-      return;
     }
   }
 
@@ -1483,8 +1473,8 @@ public class AnnotationFile
       }
     } catch (Exception e)
     {
-      System.err
-              .println("Couldn't parse Group Start or End Field as '*' or a valid column or sequence index: '"
+      System.err.println(
+              "Couldn't parse Group Start or End Field as '*' or a valid column or sequence index: '"
                       + rng + "' - assuming alignment width for group.");
       // assume group is full width
       sg.setStartRes(0);
@@ -1530,7 +1520,8 @@ public class AnnotationFile
         }
         else
         {
-          sg.addSequence(al.getSequenceAt(Integer.parseInt(tmp) - 1), false);
+          sg.addSequence(al.getSequenceAt(Integer.parseInt(tmp) - 1),
+                  false);
         }
       }
     }
@@ -1613,8 +1604,7 @@ public class AnnotationFile
     if (sg != null)
     {
       String keyValue, key, value;
-      ColourSchemeI def = sg.cs;
-      sg.cs = null;
+      ColourSchemeI def = sg.getColourScheme();
       while (st.hasMoreTokens())
       {
         keyValue = st.nextToken();
@@ -1627,7 +1617,10 @@ public class AnnotationFile
         }
         else if (key.equalsIgnoreCase("colour"))
         {
-          sg.cs = ColourSchemeProperty.getColour(al, value);
+          // TODO need to notify colourscheme of view reference once it is
+          // available
+          sg.cs.setColourScheme(
+                  ColourSchemeProperty.getColourScheme(null, al, value));
         }
         else if (key.equalsIgnoreCase("pidThreshold"))
         {
@@ -1648,7 +1641,7 @@ public class AnnotationFile
         }
         else if (key.equalsIgnoreCase("outlineColour"))
         {
-          sg.setOutlineColour(new UserColourScheme(value).findColour('A'));
+          sg.setOutlineColour(ColorUtils.parseColourString(value));
         }
         else if (key.equalsIgnoreCase("displayBoxes"))
         {
@@ -1668,11 +1661,11 @@ public class AnnotationFile
         }
         else if (key.equalsIgnoreCase("textCol1"))
         {
-          sg.textColour = new UserColourScheme(value).findColour('A');
+          sg.textColour = ColorUtils.parseColourString(value);
         }
         else if (key.equalsIgnoreCase("textCol2"))
         {
-          sg.textColour2 = new UserColourScheme(value).findColour('A');
+          sg.textColour2 = ColorUtils.parseColourString(value);
         }
         else if (key.equalsIgnoreCase("textColThreshold"))
         {
@@ -1680,9 +1673,8 @@ public class AnnotationFile
         }
         else if (key.equalsIgnoreCase("idColour"))
         {
-          // consider warning if colour doesn't resolve to a real colour
-          sg.setIdColour((def = new UserColourScheme(value))
-                  .findColour('A'));
+          Color idColour = ColorUtils.parseColourString(value);
+          sg.setIdColour(idColour == null ? Color.black : idColour);
         }
         else if (key.equalsIgnoreCase("hide"))
         {
@@ -1696,9 +1688,9 @@ public class AnnotationFile
         }
         sg.recalcConservation();
       }
-      if (sg.cs == null)
+      if (sg.getColourScheme() == null)
       {
-        sg.cs = def;
+        sg.setColourScheme(def);
       }
     }
   }
@@ -1709,8 +1701,8 @@ public class AnnotationFile
     AlignmentAnnotation aa, ala[] = al.getAlignmentAnnotation();
     if (ala == null)
     {
-      System.err
-              .print("Warning - no annotation to set below for sequence associated annotation:");
+      System.err.print(
+              "Warning - no annotation to set below for sequence associated annotation:");
     }
     while (st.hasMoreTokens())
     {
@@ -1789,10 +1781,13 @@ public class AnnotationFile
 
   public String printAnnotationsForView(AlignViewportI viewport)
   {
-    return printAnnotations(viewport.isShowAnnotation() ? viewport
-            .getAlignment().getAlignmentAnnotation() : null, viewport
-            .getAlignment().getGroups(), viewport.getAlignment()
-            .getProperties(), viewport.getColumnSelection(),
+    return printAnnotations(
+            viewport.isShowAnnotation()
+                    ? viewport.getAlignment().getAlignmentAnnotation()
+                    : null,
+            viewport.getAlignment().getGroups(),
+            viewport.getAlignment().getProperties(),
+            viewport.getAlignment().getHiddenColumns(),
             viewport.getAlignment(), null);
   }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,37 +20,10 @@
  */
 package jalview.analysis;
 
-import static jalview.io.gff.GffConstants.CLINICAL_SIGNIFICANCE;
-
-import jalview.datamodel.AlignedCodon;
-import jalview.datamodel.AlignedCodonFrame;
-import jalview.datamodel.AlignedCodonFrame.SequenceToSequenceMapping;
-import jalview.datamodel.Alignment;
-import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.IncompleteCodonException;
-import jalview.datamodel.Mapping;
-import jalview.datamodel.Sequence;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceGroup;
-import jalview.datamodel.SequenceI;
-import jalview.io.gff.SequenceOntologyFactory;
-import jalview.io.gff.SequenceOntologyI;
-import jalview.schemes.ResidueProperties;
-import jalview.util.Comparison;
-import jalview.util.DBRefUtils;
-import jalview.util.MapList;
-import jalview.util.MappingUtils;
-import jalview.util.StringUtils;
-
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -60,7 +33,33 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
+
+import jalview.bin.Cache;
+import jalview.commands.RemoveGapColCommand;
+import jalview.datamodel.AlignedCodon;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignedCodonFrame.SequenceToSequenceMapping;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.GeneLociI;
+import jalview.datamodel.IncompleteCodonException;
+import jalview.datamodel.Mapping;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceGroup;
+import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.SequenceFeatures;
+import jalview.io.gff.SequenceOntologyI;
+import jalview.schemes.ResidueProperties;
+import jalview.util.Comparison;
+import jalview.util.DBRefUtils;
+import jalview.util.IntRangeComparator;
+import jalview.util.MapList;
+import jalview.util.MappingUtils;
 
 /**
  * grab bag of useful alignment manipulation operations Expect these to be
@@ -71,12 +70,15 @@ import java.util.TreeMap;
  */
 public class AlignmentUtils
 {
-
   private static final int CODON_LENGTH = 3;
 
   private static final String SEQUENCE_VARIANT = "sequence_variant:";
 
-  private static final String ID = "ID";
+  /*
+   * the 'id' attribute is provided for variant features fetched from
+   * Ensembl using its REST service with JSON format 
+   */
+  public static final String VARIANT_ID = "id";
 
   /**
    * A data model to hold the 'normal' base value at a position, and an optional
@@ -104,6 +106,15 @@ public class AlignmentUtils
     {
       return variant == null ? null : variant.getFeatureGroup();
     }
+
+    /**
+     * toString for aid in the debugger only
+     */
+    @Override
+    public String toString()
+    {
+      return base + ":" + (variant == null ? "" : variant.getDescription());
+    }
   }
 
   /**
@@ -116,7 +127,7 @@ public class AlignmentUtils
    */
   public static AlignmentI expandContext(AlignmentI core, int flankSize)
   {
-    List<SequenceI> sq = new ArrayList<SequenceI>();
+    List<SequenceI> sq = new ArrayList<>();
     int maxoffset = 0;
     for (SequenceI s : core.getSequences())
     {
@@ -169,10 +180,12 @@ public class AlignmentUtils
         }
       }
       // TODO use Character.toLowerCase to avoid creating String objects?
-      char[] upstream = new String(ds.getSequence(s.getStart() - 1
-              - ustream_ds, s.getStart() - 1)).toLowerCase().toCharArray();
-      char[] downstream = new String(ds.getSequence(s_end - 1, s_end
-              + dstream_ds)).toLowerCase().toCharArray();
+      char[] upstream = new String(ds
+              .getSequence(s.getStart() - 1 - ustream_ds, s.getStart() - 1))
+                      .toLowerCase().toCharArray();
+      char[] downstream = new String(
+              ds.getSequence(s_end - 1, s_end + dstream_ds)).toLowerCase()
+                      .toCharArray();
       char[] coreseq = s.getSequence();
       char[] nseq = new char[offset + upstream.length + downstream.length
               + coreseq.length];
@@ -187,8 +200,8 @@ public class AlignmentUtils
       System.arraycopy(upstream, 0, nseq, p, upstream.length);
       System.arraycopy(coreseq, 0, nseq, p + upstream.length,
               coreseq.length);
-      System.arraycopy(downstream, 0, nseq, p + coreseq.length
-              + upstream.length, downstream.length);
+      System.arraycopy(downstream, 0, nseq,
+              p + coreseq.length + upstream.length, downstream.length);
       s.setSequence(new String(nseq));
       s.setStart(s.getStart() - ustream_ds);
       s.setEnd(s_end + downstream.length);
@@ -244,7 +257,7 @@ public class AlignmentUtils
   public static Map<String, List<SequenceI>> getSequencesByName(
           AlignmentI al)
   {
-    Map<String, List<SequenceI>> theMap = new LinkedHashMap<String, List<SequenceI>>();
+    Map<String, List<SequenceI>> theMap = new LinkedHashMap<>();
     for (SequenceI seq : al.getSequences())
     {
       String name = seq.getName();
@@ -253,7 +266,7 @@ public class AlignmentUtils
         List<SequenceI> seqs = theMap.get(name);
         if (seqs == null)
         {
-          seqs = new ArrayList<SequenceI>();
+          seqs = new ArrayList<>();
           theMap.put(name, seqs);
         }
         seqs.add(seq);
@@ -280,8 +293,8 @@ public class AlignmentUtils
       return false;
     }
 
-    Set<SequenceI> mappedDna = new HashSet<SequenceI>();
-    Set<SequenceI> mappedProtein = new HashSet<SequenceI>();
+    Set<SequenceI> mappedDna = new HashSet<>();
+    Set<SequenceI> mappedProtein = new HashSet<>();
 
     /*
      * First pass - map sequences where cross-references exist. This include
@@ -315,9 +328,9 @@ public class AlignmentUtils
    * @return
    */
   protected static boolean mapProteinToCdna(
-          final AlignmentI proteinAlignment,
-          final AlignmentI cdnaAlignment, Set<SequenceI> mappedDna,
-          Set<SequenceI> mappedProtein, boolean xrefsOnly)
+          final AlignmentI proteinAlignment, final AlignmentI cdnaAlignment,
+          Set<SequenceI> mappedDna, Set<SequenceI> mappedProtein,
+          boolean xrefsOnly)
   {
     boolean mappingExistsOrAdded = false;
     List<SequenceI> thisSeqs = proteinAlignment.getSequences();
@@ -346,9 +359,8 @@ public class AlignmentUtils
          * Don't map non-xrefd sequences more than once each. This heuristic
          * allows us to pair up similar sequences in ordered alignments.
          */
-        if (!xrefsOnly
-                && (mappedProtein.contains(aaSeq) || mappedDna
-                        .contains(cdnaSeq)))
+        if (!xrefsOnly && (mappedProtein.contains(aaSeq)
+                || mappedDna.contains(cdnaSeq)))
         {
           continue;
         }
@@ -382,7 +394,7 @@ public class AlignmentUtils
    * Answers true if the mappings include one between the given (dataset)
    * sequences.
    */
-  public static boolean mappingExists(List<AlignedCodonFrame> mappings,
+  protected static boolean mappingExists(List<AlignedCodonFrame> mappings,
           SequenceI aaSeq, SequenceI cdnaSeq)
   {
     if (mappings != null)
@@ -401,7 +413,8 @@ public class AlignmentUtils
   /**
    * Builds a mapping (if possible) of a cDNA to a protein sequence.
    * <ul>
-   * <li>first checks if the cdna translates exactly to the protein sequence</li>
+   * <li>first checks if the cdna translates exactly to the protein
+   * sequence</li>
    * <li>else checks for translation after removing a STOP codon</li>
    * <li>else checks for translation after removing a START codon</li>
    * <li>if that fails, inspect CDS features on the cDNA sequence</li>
@@ -423,8 +436,9 @@ public class AlignmentUtils
      * String objects.
      */
     final SequenceI proteinDataset = proteinSeq.getDatasetSequence();
-    char[] aaSeqChars = proteinDataset != null ? proteinDataset
-            .getSequence() : proteinSeq.getSequence();
+    char[] aaSeqChars = proteinDataset != null
+            ? proteinDataset.getSequence()
+            : proteinSeq.getSequence();
     final SequenceI cdnaDataset = cdnaSeq.getDatasetSequence();
     char[] cdnaSeqChars = cdnaDataset != null ? cdnaDataset.getSequence()
             : cdnaSeq.getSequence();
@@ -450,7 +464,7 @@ public class AlignmentUtils
     {
       String lastCodon = String.valueOf(cdnaSeqChars,
               cdnaLength - CODON_LENGTH, CODON_LENGTH).toUpperCase();
-      for (String stop : ResidueProperties.STOP)
+      for (String stop : ResidueProperties.STOP_CODONS)
       {
         if (lastCodon.equals(stop))
         {
@@ -465,8 +479,7 @@ public class AlignmentUtils
      * If lengths still don't match, try ignoring start codon.
      */
     int startOffset = 0;
-    if (cdnaLength != mappedLength
-            && cdnaLength > 2
+    if (cdnaLength != mappedLength && cdnaLength > 2
             && String.valueOf(cdnaSeqChars, 0, CODON_LENGTH).toUpperCase()
                     .equals(ResidueProperties.START))
     {
@@ -480,8 +493,9 @@ public class AlignmentUtils
       /*
        * protein is translation of dna (+/- start/stop codons)
        */
-      MapList map = new MapList(new int[] { cdnaStart, cdnaEnd }, new int[]
-      { proteinStart, proteinEnd }, CODON_LENGTH, 1);
+      MapList map = new MapList(new int[] { cdnaStart, cdnaEnd },
+              new int[]
+              { proteinStart, proteinEnd }, CODON_LENGTH, 1);
       return map;
     }
 
@@ -511,7 +525,8 @@ public class AlignmentUtils
 
     int aaPos = 0;
     int dnaPos = cdnaStart;
-    for (; dnaPos < cdnaSeqChars.length - 2 && aaPos < aaSeqChars.length; dnaPos += CODON_LENGTH, aaPos++)
+    for (; dnaPos < cdnaSeqChars.length - 2
+            && aaPos < aaSeqChars.length; dnaPos += CODON_LENGTH, aaPos++)
     {
       String codon = String.valueOf(cdnaSeqChars, dnaPos, CODON_LENGTH);
       final String translated = ResidueProperties.codonTranslate(codon);
@@ -520,7 +535,8 @@ public class AlignmentUtils
        * allow * in protein to match untranslatable in dna
        */
       final char aaRes = aaSeqChars[aaPos];
-      if ((translated == null || "STOP".equals(translated)) && aaRes == '*')
+      if ((translated == null || ResidueProperties.STOP.equals(translated))
+              && aaRes == '*')
       {
         continue;
       }
@@ -552,7 +568,8 @@ public class AlignmentUtils
     if (dnaPos == cdnaSeqChars.length - CODON_LENGTH)
     {
       String codon = String.valueOf(cdnaSeqChars, dnaPos, CODON_LENGTH);
-      if ("STOP".equals(ResidueProperties.codonTranslate(codon)))
+      if (ResidueProperties.STOP
+              .equals(ResidueProperties.codonTranslate(codon)))
       {
         return true;
       }
@@ -630,10 +647,9 @@ public class AlignmentUtils
    * @param preserveUnmappedGaps
    * @param preserveMappedGaps
    */
-  public static void alignSequenceAs(SequenceI alignTo,
-          SequenceI alignFrom, AlignedCodonFrame mapping, String myGap,
-          char sourceGap, boolean preserveMappedGaps,
-          boolean preserveUnmappedGaps)
+  public static void alignSequenceAs(SequenceI alignTo, SequenceI alignFrom,
+          AlignedCodonFrame mapping, String myGap, char sourceGap,
+          boolean preserveMappedGaps, boolean preserveUnmappedGaps)
   {
     // TODO generalise to work for Protein-Protein, dna-dna, dna-protein
 
@@ -649,15 +665,16 @@ public class AlignmentUtils
     int toOffset = alignTo.getStart() - 1;
     int sourceGapMappedLength = 0;
     boolean inExon = false;
-    final char[] thisSeq = alignTo.getSequence();
-    final char[] thatAligned = alignFrom.getSequence();
-    StringBuilder thisAligned = new StringBuilder(2 * thisSeq.length);
+    final int toLength = alignTo.getLength();
+    final int fromLength = alignFrom.getLength();
+    StringBuilder thisAligned = new StringBuilder(2 * toLength);
 
     /*
      * Traverse the 'model' aligned sequence
      */
-    for (char sourceChar : thatAligned)
+    for (int i = 0; i < fromLength; i++)
     {
+      char sourceChar = alignFrom.getCharAt(i);
       if (sourceChar == sourceGap)
       {
         sourceGapMappedLength += ratio;
@@ -697,9 +714,9 @@ public class AlignmentUtils
        */
       int intronLength = 0;
       while (basesWritten + toOffset < mappedCodonEnd
-              && thisSeqPos < thisSeq.length)
+              && thisSeqPos < toLength)
       {
-        final char c = thisSeq[thisSeqPos++];
+        final char c = alignTo.getCharAt(thisSeqPos++);
         if (c != myGapChar)
         {
           basesWritten++;
@@ -725,7 +742,7 @@ public class AlignmentUtils
             int gapsToAdd = calculateGapsToInsert(preserveMappedGaps,
                     preserveUnmappedGaps, sourceGapMappedLength, inExon,
                     trailingCopiedGap.length(), intronLength, startOfCodon);
-            for (int i = 0; i < gapsToAdd; i++)
+            for (int k = 0; k < gapsToAdd; k++)
             {
               thisAligned.append(myGapChar);
             }
@@ -753,9 +770,9 @@ public class AlignmentUtils
      * At end of model aligned sequence. Copy any remaining target sequence, optionally
      * including (intron) gaps.
      */
-    while (thisSeqPos < thisSeq.length)
+    while (thisSeqPos < toLength)
     {
-      final char c = thisSeq[thisSeqPos++];
+      final char c = alignTo.getCharAt(thisSeqPos++);
       if (c != myGapChar || preserveUnmappedGaps)
       {
         thisAligned.append(c);
@@ -828,8 +845,9 @@ public class AlignmentUtils
         }
         else
         {
-          gapsToAdd = Math.min(intronLength + trailingGapLength
-                  - sourceGapMappedLength, trailingGapLength);
+          gapsToAdd = Math.min(
+                  intronLength + trailingGapLength - sourceGapMappedLength,
+                  trailingGapLength);
         }
       }
     }
@@ -864,7 +882,7 @@ public class AlignmentUtils
       System.err.println("Wrong alignment type in alignProteinAsDna");
       return 0;
     }
-    List<SequenceI> unmappedProtein = new ArrayList<SequenceI>();
+    List<SequenceI> unmappedProtein = new ArrayList<>();
     Map<AlignedCodon, Map<SequenceI, AlignedCodon>> alignedCodons = buildCodonColumnsMap(
             protein, dna, unmappedProtein);
     return alignProteinAs(protein, alignedCodons, unmappedProtein);
@@ -928,7 +946,8 @@ public class AlignmentUtils
    * @return
    */
   static boolean alignCdsSequenceAsProtein(SequenceI cdsSeq,
-          AlignmentI protein, List<AlignedCodonFrame> mappings, char gapChar)
+          AlignmentI protein, List<AlignedCodonFrame> mappings,
+          char gapChar)
   {
     SequenceI cdsDss = cdsSeq.getDatasetSequence();
     if (cdsDss == null)
@@ -942,11 +961,12 @@ public class AlignmentUtils
             .findMappingsForSequence(cdsSeq, mappings);
     for (AlignedCodonFrame mapping : dnaMappings)
     {
-      SequenceI peptide = mapping.findAlignedSequence(cdsSeq, protein);
+      List<SequenceToSequenceMapping> foundMap=new ArrayList<>();
+      SequenceI peptide = mapping.findAlignedSequence(cdsSeq, protein,foundMap);
       if (peptide != null)
       {
-        int peptideLength = peptide.getLength();
-        Mapping map = mapping.getMappingBetween(cdsSeq, peptide);
+        final int peptideLength = peptide.getLength();
+        Mapping map = foundMap.get(0).getMapping();
         if (map != null)
         {
           MapList mapList = map.getMap();
@@ -954,21 +974,20 @@ public class AlignmentUtils
           {
             mapList = mapList.getInverse();
           }
-          int cdsLength = cdsDss.getLength();
+          final int cdsLength = cdsDss.getLength();
           int mappedFromLength = MappingUtils.getLength(mapList
                   .getFromRanges());
           int mappedToLength = MappingUtils
                   .getLength(mapList.getToRanges());
-          boolean addStopCodon = (cdsLength == mappedFromLength
+          boolean addStopCodon = peptide.getDatasetSequence().getEnd()==peptide.getEnd() && ((cdsLength == mappedFromLength
                   * CODON_LENGTH + CODON_LENGTH)
-                  || (peptide.getDatasetSequence().getLength() == mappedFromLength - 1);
+                  || (peptide.getDatasetSequence()
+                          .getLength() == mappedFromLength - 1));
           if (cdsLength != mappedToLength && !addStopCodon)
           {
-            System.err
-                    .println(String
-                            .format("Can't align cds as protein (length mismatch %d/%d): %s",
-                                    cdsLength, mappedToLength,
-                                    cdsSeq.getName()));
+            System.err.println(String.format(
+                    "Can't align cds as protein (length mismatch %d/%d): %s",
+                    cdsLength, mappedToLength, cdsSeq.getName()));
           }
 
           /*
@@ -982,14 +1001,15 @@ public class AlignmentUtils
            * walk over the aligned peptide sequence and insert mapped 
            * codons for residues in the aligned cds sequence 
            */
-          char[] alignedPeptide = peptide.getSequence();
-          char[] nucleotides = cdsDss.getSequence();
           int copiedBases = 0;
           int cdsStart = cdsDss.getStart();
           int proteinPos = peptide.getStart() - 1;
           int cdsCol = 0;
-          for (char residue : alignedPeptide)
+
+          for (int col = 0; col < peptideLength; col++)
           {
+            char residue = peptide.getCharAt(col);
+
             if (Comparison.isGap(residue))
             {
               cdsCol += CODON_LENGTH;
@@ -1007,7 +1027,7 @@ public class AlignmentUtils
               {
                 for (int j = codon[0]; j <= codon[1]; j++)
                 {
-                  char mappedBase = nucleotides[j - cdsStart];
+                  char mappedBase = cdsDss.getCharAt(j - cdsStart);
                   alignedCds[cdsCol++] = mappedBase;
                   copiedBases++;
                 }
@@ -1019,7 +1039,7 @@ public class AlignmentUtils
            * append stop codon if not mapped from protein,
            * closing it up to the end of the mapped sequence
            */
-          if (copiedBases == nucleotides.length - CODON_LENGTH)
+          if (copiedBases == cdsLength - CODON_LENGTH)
           {
             for (int i = alignedCds.length - 1; i >= 0; i--)
             {
@@ -1029,9 +1049,9 @@ public class AlignmentUtils
                 break;
               }
             }
-            for (int i = nucleotides.length - CODON_LENGTH; i < nucleotides.length; i++)
+            for (int i = cdsLength - CODON_LENGTH; i < cdsLength; i++)
             {
-              alignedCds[cdsCol++] = nucleotides[i];
+              alignedCds[cdsCol++] = cdsDss.getCharAt(i);
             }
           }
           cdsSeq.setSequence(new String(alignedCds));
@@ -1074,7 +1094,7 @@ public class AlignmentUtils
      * {dnaSequence, {proteinSequence, codonProduct}} at that position. The
      * comparator keeps the codon positions ordered.
      */
-    Map<AlignedCodon, Map<SequenceI, AlignedCodon>> alignedCodons = new TreeMap<AlignedCodon, Map<SequenceI, AlignedCodon>>(
+    Map<AlignedCodon, Map<SequenceI, AlignedCodon>> alignedCodons = new TreeMap<>(
             new CodonComparator());
 
     for (SequenceI dnaSeq : dna.getSequences())
@@ -1085,8 +1105,8 @@ public class AlignmentUtils
         if (prot != null)
         {
           Mapping seqMap = mapping.getMappingForSequence(dnaSeq);
-          addCodonPositions(dnaSeq, prot, protein.getGapCharacter(),
-                  seqMap, alignedCodons);
+          addCodonPositions(dnaSeq, prot, protein.getGapCharacter(), seqMap,
+                  alignedCodons);
           unmappedProtein.remove(prot);
         }
       }
@@ -1120,9 +1140,9 @@ public class AlignmentUtils
     // TODO delete this ugly hack once JAL-2022 is resolved
     // i.e. we can model startPhase > 0 (incomplete start codon)
 
-    List<SequenceI> sequencesChecked = new ArrayList<SequenceI>();
+    List<SequenceI> sequencesChecked = new ArrayList<>();
     AlignedCodon lastCodon = null;
-    Map<SequenceI, AlignedCodon> toAdd = new HashMap<SequenceI, AlignedCodon>();
+    Map<SequenceI, AlignedCodon> toAdd = new HashMap<>();
 
     for (Entry<AlignedCodon, Map<SequenceI, AlignedCodon>> entry : alignedCodons
             .entrySet())
@@ -1139,8 +1159,8 @@ public class AlignmentUtils
         AlignedCodon codon = sequenceCodon.getValue();
         if (codon.peptideCol > 1)
         {
-          System.err
-                  .println("Problem mapping protein with >1 unmapped start positions: "
+          System.err.println(
+                  "Problem mapping protein with >1 unmapped start positions: "
                           + seq.getName());
         }
         else if (codon.peptideCol == 1)
@@ -1151,8 +1171,8 @@ public class AlignmentUtils
           if (lastCodon != null)
           {
             AlignedCodon firstPeptide = new AlignedCodon(lastCodon.pos1,
-                    lastCodon.pos2, lastCodon.pos3, String.valueOf(seq
-                            .getCharAt(0)), 0);
+                    lastCodon.pos2, lastCodon.pos3,
+                    String.valueOf(seq.getCharAt(0)), 0);
             toAdd.put(seq, firstPeptide);
           }
           else
@@ -1201,21 +1221,26 @@ public class AlignmentUtils
           List<SequenceI> unmappedProtein)
   {
     /*
-     * Prefill aligned sequences with gaps before inserting aligned protein
-     * residues.
+     * prefill peptide sequences with gaps 
      */
     int alignedWidth = alignedCodons.size();
     char[] gaps = new char[alignedWidth];
     Arrays.fill(gaps, protein.getGapCharacter());
-    String allGaps = String.valueOf(gaps);
+    Map<SequenceI, char[]> peptides = new HashMap<>();
     for (SequenceI seq : protein.getSequences())
     {
       if (!unmappedProtein.contains(seq))
       {
-        seq.setSequence(allGaps);
+        peptides.put(seq, Arrays.copyOf(gaps, gaps.length));
       }
     }
 
+    /*
+     * Traverse the codons left to right (as defined by CodonComparator)
+     * and insert peptides in each column where the sequence is mapped.
+     * This gives a peptide 'alignment' where residues are aligned if their
+     * corresponding codons occupy the same columns in the cdna alignment.
+     */
     int column = 0;
     for (AlignedCodon codon : alignedCodons.keySet())
     {
@@ -1223,12 +1248,20 @@ public class AlignmentUtils
               .get(codon);
       for (Entry<SequenceI, AlignedCodon> entry : columnResidues.entrySet())
       {
-        // place translated codon at its column position in sequence
-        entry.getKey().getSequence()[column] = entry.getValue().product
-                .charAt(0);
+        char residue = entry.getValue().product.charAt(0);
+        peptides.get(entry.getKey())[column] = residue;
       }
       column++;
     }
+
+    /*
+     * and finally set the constructed sequences
+     */
+    for (Entry<SequenceI, char[]> entry : peptides.entrySet())
+    {
+      entry.getKey().setSequence(new String(entry.getValue()));
+    }
+
     return 0;
   }
 
@@ -1288,7 +1321,7 @@ public class AlignmentUtils
     Map<SequenceI, AlignedCodon> seqProduct = alignedCodons.get(codon);
     if (seqProduct == null)
     {
-      seqProduct = new HashMap<SequenceI, AlignedCodon>();
+      seqProduct = new HashMap<>();
       alignedCodons.put(codon, seqProduct);
     }
     seqProduct.put(protein, codon);
@@ -1301,7 +1334,8 @@ public class AlignmentUtils
    * <ul>
    * <li>One alignment must be nucleotide, and the other protein</li>
    * <li>At least one pair of sequences must be already mapped, or mappable</li>
-   * <li>Mappable means the nucleotide translation matches the protein sequence</li>
+   * <li>Mappable means the nucleotide translation matches the protein
+   * sequence</li>
    * <li>The translation may ignore start and stop codons if present in the
    * nucleotide</li>
    * </ul>
@@ -1357,9 +1391,10 @@ public class AlignmentUtils
       return false;
     }
 
-    SequenceI dnaDs = dnaSeq.getDatasetSequence() == null ? dnaSeq : dnaSeq
-            .getDatasetSequence();
-    SequenceI proteinDs = proteinSeq.getDatasetSequence() == null ? proteinSeq
+    SequenceI dnaDs = dnaSeq.getDatasetSequence() == null ? dnaSeq
+            : dnaSeq.getDatasetSequence();
+    SequenceI proteinDs = proteinSeq.getDatasetSequence() == null
+            ? proteinSeq
             : proteinSeq.getDatasetSequence();
 
     for (AlignedCodonFrame mapping : mappings)
@@ -1396,8 +1431,7 @@ public class AlignmentUtils
    *          the alignment to check for presence of annotations
    */
   public static void findAddableReferenceAnnotations(
-          List<SequenceI> sequenceScope,
-          Map<String, String> labelForCalcId,
+          List<SequenceI> sequenceScope, Map<String, String> labelForCalcId,
           final Map<SequenceI, List<AlignmentAnnotation>> candidates,
           AlignmentI al)
   {
@@ -1424,7 +1458,7 @@ public class AlignmentUtils
       {
         continue;
       }
-      final List<AlignmentAnnotation> result = new ArrayList<AlignmentAnnotation>();
+      final List<AlignmentAnnotation> result = new ArrayList<>();
       for (AlignmentAnnotation dsann : datasetAnnotations)
       {
         /*
@@ -1501,8 +1535,8 @@ public class AlignmentUtils
 
   /**
    * Set visibility of alignment annotations of specified types (labels), for
-   * specified sequences. This supports controls like
-   * "Show all secondary structure", "Hide all Temp factor", etc.
+   * specified sequences. This supports controls like "Show all secondary
+   * structure", "Hide all Temp factor", etc.
    * 
    * @al the alignment to scan for annotations
    * @param types
@@ -1526,9 +1560,8 @@ public class AlignmentUtils
       {
         if (anyType || types.contains(aa.label))
         {
-          if ((aa.sequenceRef != null)
-                  && (forSequences == null || forSequences
-                          .contains(aa.sequenceRef)))
+          if ((aa.sequenceRef != null) && (forSequences == null
+                  || forSequences.contains(aa.sequenceRef)))
           {
             aa.visible = doShow;
           }
@@ -1607,13 +1640,13 @@ public class AlignmentUtils
       throw new IllegalArgumentException(
               "IMPLEMENTATION ERROR: dataset.getDataset() must be null!");
     }
-    List<SequenceI> foundSeqs = new ArrayList<SequenceI>();
-    List<SequenceI> cdsSeqs = new ArrayList<SequenceI>();
+    List<SequenceI> foundSeqs = new ArrayList<>();
+    List<SequenceI> cdsSeqs = new ArrayList<>();
     List<AlignedCodonFrame> mappings = dataset.getCodonFrames();
     HashSet<SequenceI> productSeqs = null;
     if (products != null)
     {
-      productSeqs = new HashSet<SequenceI>();
+      productSeqs = new HashSet<>();
       for (SequenceI seq : products)
       {
         productSeqs.add(seq.getDatasetSequence() == null ? seq : seq
@@ -1700,31 +1733,36 @@ public class AlignmentUtils
 
           cdsSeqs.add(cdsSeq);
 
-          if (!dataset.getSequences().contains(cdsSeqDss))
-          {
-            // check if this sequence is a newly created one
-            // so needs adding to the dataset
-            dataset.addSequence(cdsSeqDss);
-          }
-
           /*
-           * add a mapping from CDS to the (unchanged) mapped to range
+           * build the mapping from CDS to protein
            */
-          List<int[]> cdsRange = Collections.singletonList(new int[] { 1,
-              cdsSeq.getLength() });
+          List<int[]> cdsRange = Collections
+                  .singletonList(new int[]
+                  { cdsSeq.getStart(),
+                      cdsSeq.getLength() + cdsSeq.getStart() - 1 });
           MapList cdsToProteinMap = new MapList(cdsRange,
                   mapList.getToRanges(), mapList.getFromRatio(),
                   mapList.getToRatio());
-          AlignedCodonFrame cdsToProteinMapping = new AlignedCodonFrame();
-          cdsToProteinMapping.addMap(cdsSeqDss, proteinProduct,
+
+          if (!dataset.getSequences().contains(cdsSeqDss))
+          {
+            /*
+             * if this sequence is a newly created one, add it to the dataset
+             * and made a CDS to protein mapping (if sequence already exists,
+             * CDS-to-protein mapping _is_ the transcript-to-protein mapping)
+             */
+            dataset.addSequence(cdsSeqDss);
+            AlignedCodonFrame cdsToProteinMapping = new AlignedCodonFrame();
+            cdsToProteinMapping.addMap(cdsSeqDss, proteinProduct,
                   cdsToProteinMap);
 
-          /*
-           * guard against duplicating the mapping if repeating this action
-           */
-          if (!mappings.contains(cdsToProteinMapping))
-          {
-            mappings.add(cdsToProteinMapping);
+            /*
+             * guard against duplicating the mapping if repeating this action
+             */
+            if (!mappings.contains(cdsToProteinMapping))
+            {
+              mappings.add(cdsToProteinMapping);
+            }
           }
 
           propagateDBRefsToCDS(cdsSeqDss, dnaSeq.getDatasetSequence(),
@@ -1733,7 +1771,7 @@ public class AlignmentUtils
            * add another mapping from original 'from' range to CDS
            */
           AlignedCodonFrame dnaToCdsMapping = new AlignedCodonFrame();
-          MapList dnaToCdsMap = new MapList(mapList.getFromRanges(),
+          final MapList dnaToCdsMap = new MapList(mapList.getFromRanges(),
                   cdsRange, 1, 1);
           dnaToCdsMapping.addMap(dnaSeq.getDatasetSequence(), cdsSeqDss,
                   dnaToCdsMap);
@@ -1741,6 +1779,13 @@ public class AlignmentUtils
           {
             mappings.add(dnaToCdsMapping);
           }
+
+          /*
+           * transfer dna chromosomal loci (if known) to the CDS
+           * sequence (via the mapping)
+           */
+          final MapList cdsToDnaMap = dnaToCdsMap.getInverse();
+          transferGeneLoci(dnaSeq, cdsToDnaMap, cdsSeq);
 
           /*
            * add DBRef with mapping from protein to CDS
@@ -1761,23 +1806,26 @@ public class AlignmentUtils
 
           for (DBRefEntry primRef : dnaDss.getPrimaryDBRefs())
           {
-            // creates a complementary cross-reference to the source sequence's
-            // primary reference.
-
-            DBRefEntry cdsCrossRef = new DBRefEntry(primRef.getSource(),
-                    primRef.getSource() + ":" + primRef.getVersion(),
-                    primRef.getAccessionId());
-            cdsCrossRef
-                    .setMap(new Mapping(dnaDss, new MapList(dnaToCdsMap)));
+            /*
+             * create a cross-reference from CDS to the source sequence's
+             * primary reference and vice versa
+             */
+            String source = primRef.getSource();
+            String version = primRef.getVersion();
+            DBRefEntry cdsCrossRef = new DBRefEntry(source, source + ":"
+                    + version, primRef.getAccessionId());
+            cdsCrossRef.setMap(new Mapping(dnaDss, new MapList(cdsToDnaMap)));
             cdsSeqDss.addDBRef(cdsCrossRef);
+
+            dnaSeq.addDBRef(new DBRefEntry(source, version, cdsSeq
+                    .getName(), new Mapping(cdsSeqDss, dnaToCdsMap)));
 
             // problem here is that the cross-reference is synthesized -
             // cdsSeq.getName() may be like 'CDS|dnaaccession' or
             // 'CDS|emblcdsacc'
             // assuming cds version same as dna ?!?
 
-            DBRefEntry proteinToCdsRef = new DBRefEntry(
-                    primRef.getSource(), primRef.getVersion(),
+            DBRefEntry proteinToCdsRef = new DBRefEntry(source, version,
                     cdsSeq.getName());
             //
             proteinToCdsRef.setMap(new Mapping(cdsSeqDss, cdsToProteinMap
@@ -1802,6 +1850,38 @@ public class AlignmentUtils
   }
 
   /**
+   * Tries to transfer gene loci (dbref to chromosome positions) from fromSeq to
+   * toSeq, mediated by the given mapping between the sequences
+   * 
+   * @param fromSeq
+   * @param targetToFrom
+   *          Map
+   * @param targetSeq
+   */
+  protected static void transferGeneLoci(SequenceI fromSeq,
+          MapList targetToFrom, SequenceI targetSeq)
+  {
+    if (targetSeq.getGeneLoci() != null)
+    {
+      // already have - don't override
+      return;
+    }
+    GeneLociI fromLoci = fromSeq.getGeneLoci();
+    if (fromLoci == null)
+    {
+      return;
+    }
+
+    MapList newMap = targetToFrom.traverse(fromLoci.getMapping());
+
+    if (newMap != null)
+    {
+      targetSeq.setGeneLoci(fromLoci.getSpeciesId(),
+              fromLoci.getAssemblyId(), fromLoci.getChromosomeId(), newMap);
+    }
+  }
+
+  /**
    * A helper method that finds a CDS sequence in the alignment dataset that is
    * mapped to the given protein sequence, and either is, or has a mapping from,
    * the given dna sequence.
@@ -1813,7 +1893,7 @@ public class AlignmentUtils
    * @param seqMappings
    *          the set of mappings involving dnaSeq
    * @param aMapping
-   *          an initial candidate from seqMappings
+   *          a transcript-to-peptide mapping
    * @return
    */
   static SequenceI findCdsForProtein(List<AlignedCodonFrame> mappings,
@@ -1832,13 +1912,21 @@ public class AlignmentUtils
      * is this mapping from the whole dna sequence (i.e. CDS)?
      * allowing for possible stop codon on dna but not peptide
      */
-    int mappedFromLength = MappingUtils.getLength(aMapping.getMap()
-            .getFromRanges());
+    int mappedFromLength = MappingUtils
+            .getLength(aMapping.getMap().getFromRanges());
     int dnaLength = seqDss.getLength();
     if (mappedFromLength == dnaLength
             || mappedFromLength == dnaLength - CODON_LENGTH)
     {
-      return seqDss;
+      /*
+       * if sequence has CDS features, this is a transcript with no UTR
+       * - do not take this as the CDS sequence! (JAL-2789)
+       */
+      if (seqDss.getFeatures().getFeaturesByOntology(SequenceOntologyI.CDS)
+              .isEmpty())
+      {
+        return seqDss;
+      }
     }
 
     /*
@@ -1857,16 +1945,18 @@ public class AlignmentUtils
                 && proteinProduct == mapping.getTo()
                 && seqDss != map.getFromSeq())
         {
-          mappedFromLength = MappingUtils.getLength(mapping.getMap()
-                  .getFromRanges());
+          mappedFromLength = MappingUtils
+                  .getLength(mapping.getMap().getFromRanges());
           if (mappedFromLength == map.getFromSeq().getLength())
           {
             /*
             * found a 3:1 mapping to the protein product which covers
-            * the whole dna sequence i.e. is from CDS; finally check it
-            * is from the dna start sequence
+            * the whole dna sequence i.e. is from CDS; finally check the CDS
+            * is mapped from the given dna start sequence
             */
             SequenceI cdsSeq = map.getFromSeq();
+            // todo this test is weak if seqMappings contains multiple mappings;
+            // we get away with it if transcript:cds relationship is 1:1
             List<AlignedCodonFrame> dnaToCdsMaps = MappingUtils
                     .findMappingsForSequence(cdsSeq, seqMappings);
             if (!dnaToCdsMaps.isEmpty())
@@ -1896,6 +1986,19 @@ public class AlignmentUtils
   static SequenceI makeCdsSequence(SequenceI seq, Mapping mapping,
           AlignmentI dataset)
   {
+    /*
+     * construct CDS sequence name as "CDS|" with 'from id' held in the mapping
+     * if set (e.g. EMBL protein_id), else sequence name appended
+     */
+    String mapFromId = mapping.getMappedFromId();
+    final String seqId = "CDS|"
+            + (mapFromId != null ? mapFromId : seq.getName());
+
+    SequenceI newSeq = null;
+
+    /*
+     * construct CDS sequence by splicing mapped from ranges
+     */
     char[] seqChars = seq.getSequence();
     List<int[]> fromRanges = mapping.getMap().getFromRanges();
     int cdsWidth = MappingUtils.getLength(fromRanges);
@@ -1920,15 +2023,10 @@ public class AlignmentUtils
           newSeqChars[newPos++] = Dna.getComplement(seqChars[i - 1]);
         }
       }
+
+      newSeq = new Sequence(seqId, newSeqChars, 1, newPos);
     }
 
-    /*
-     * assign 'from id' held in the mapping if set (e.g. EMBL protein_id),
-     * else generate a sequence name
-     */
-    String mapFromId = mapping.getMappedFromId();
-    String seqId = "CDS|" + (mapFromId != null ? mapFromId : seq.getName());
-    SequenceI newSeq = new Sequence(seqId, newSeqChars, 1, newPos);
     if (dataset != null)
     {
       SequenceI[] matches = dataset.findSequenceMatch(newSeq.getName());
@@ -1956,9 +2054,8 @@ public class AlignmentUtils
           }
           else
           {
-            System.err
-                    .println("JAL-2154 regression: warning - found (and ignnored a duplicate CDS sequence):"
-                            + mtch.toString());
+            Cache.log.error(
+                    "JAL-2154 regression: warning - found (and ignored) a duplicate CDS sequence:" + mtch.toString());
           }
         }
       }
@@ -1969,21 +2066,23 @@ public class AlignmentUtils
   }
 
   /**
-   * add any DBRefEntrys to cdsSeq from contig that have a Mapping congruent to
+   * Adds any DBRefEntrys to cdsSeq from contig that have a Mapping congruent to
    * the given mapping.
    * 
    * @param cdsSeq
    * @param contig
+   * @param proteinProduct
    * @param mapping
-   * @return list of DBRefEntrys added.
+   * @return list of DBRefEntrys added
    */
-  public static List<DBRefEntry> propagateDBRefsToCDS(SequenceI cdsSeq,
+  protected static List<DBRefEntry> propagateDBRefsToCDS(SequenceI cdsSeq,
           SequenceI contig, SequenceI proteinProduct, Mapping mapping)
   {
 
-    // gather direct refs from contig congrent with mapping
-    List<DBRefEntry> direct = new ArrayList<DBRefEntry>();
-    HashSet<String> directSources = new HashSet<String>();
+    // gather direct refs from contig congruent with mapping
+    List<DBRefEntry> direct = new ArrayList<>();
+    HashSet<String> directSources = new HashSet<>();
+
     if (contig.getDBRefs() != null)
     {
       for (DBRefEntry dbr : contig.getDBRefs())
@@ -2003,22 +2102,23 @@ public class AlignmentUtils
     DBRefEntry[] onSource = DBRefUtils.selectRefs(
             proteinProduct.getDBRefs(),
             directSources.toArray(new String[0]));
-    List<DBRefEntry> propagated = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> propagated = new ArrayList<>();
 
     // and generate appropriate mappings
     for (DBRefEntry cdsref : direct)
     {
       // clone maplist and mapping
-      MapList cdsposmap = new MapList(Arrays.asList(new int[][] { new int[]
-      { cdsSeq.getStart(), cdsSeq.getEnd() } }), cdsref.getMap().getMap()
-              .getToRanges(), 3, 1);
-      Mapping cdsmap = new Mapping(cdsref.getMap().getTo(), cdsref.getMap()
-              .getMap());
+      MapList cdsposmap = new MapList(
+              Arrays.asList(new int[][]
+              { new int[] { cdsSeq.getStart(), cdsSeq.getEnd() } }),
+              cdsref.getMap().getMap().getToRanges(), 3, 1);
+      Mapping cdsmap = new Mapping(cdsref.getMap().getTo(),
+              cdsref.getMap().getMap());
 
       // create dbref
       DBRefEntry newref = new DBRefEntry(cdsref.getSource(),
-              cdsref.getVersion(), cdsref.getAccessionId(), new Mapping(
-                      cdsmap.getTo(), cdsposmap));
+              cdsref.getVersion(), cdsref.getAccessionId(),
+              new Mapping(cdsmap.getTo(), cdsposmap));
 
       // and see if we can map to the protein product for this mapping.
       // onSource is the filtered set of accessions on protein that we are
@@ -2053,14 +2153,14 @@ public class AlignmentUtils
    * 
    * @param fromSeq
    * @param toSeq
+   * @param mapping
+   *          the mapping from 'fromSeq' to 'toSeq'
    * @param select
    *          if not null, only features of this type are copied (including
    *          subtypes in the Sequence Ontology)
-   * @param mapping
-   *          the mapping from 'fromSeq' to 'toSeq'
    * @param omitting
    */
-  public static int transferFeatures(SequenceI fromSeq, SequenceI toSeq,
+  protected static int transferFeatures(SequenceI fromSeq, SequenceI toSeq,
           MapList mapping, String select, String... omitting)
   {
     SequenceI copyTo = toSeq;
@@ -2068,75 +2168,78 @@ public class AlignmentUtils
     {
       copyTo = copyTo.getDatasetSequence();
     }
-
-    SequenceOntologyI so = SequenceOntologyFactory.getInstance();
-    int count = 0;
-    SequenceFeature[] sfs = fromSeq.getSequenceFeatures();
-    if (sfs != null)
+    if (fromSeq == copyTo || fromSeq.getDatasetSequence() == copyTo)
     {
-      for (SequenceFeature sf : sfs)
-      {
-        String type = sf.getType();
-        if (select != null && !so.isA(type, select))
-        {
-          continue;
-        }
-        boolean omit = false;
-        for (String toOmit : omitting)
-        {
-          if (type.equals(toOmit))
-          {
-            omit = true;
-          }
-        }
-        if (omit)
-        {
-          continue;
-        }
+      return 0; // shared dataset sequence
+    }
 
-        /*
-         * locate the mapped range - null if either start or end is
-         * not mapped (no partial overlaps are calculated)
-         */
-        int start = sf.getBegin();
-        int end = sf.getEnd();
-        int[] mappedTo = mapping.locateInTo(start, end);
-        /*
-         * if whole exon range doesn't map, try interpreting it
-         * as 5' or 3' exon overlapping the CDS range
-         */
-        if (mappedTo == null)
+    /*
+     * get features, optionally restricted by an ontology term
+     */
+    List<SequenceFeature> sfs = select == null ? fromSeq.getFeatures()
+            .getPositionalFeatures() : fromSeq.getFeatures()
+            .getFeaturesByOntology(select);
+
+    int count = 0;
+    for (SequenceFeature sf : sfs)
+    {
+      String type = sf.getType();
+      boolean omit = false;
+      for (String toOmit : omitting)
+      {
+        if (type.equals(toOmit))
         {
-          mappedTo = mapping.locateInTo(end, end);
-          if (mappedTo != null)
-          {
-            /*
-             * end of exon is in CDS range - 5' overlap
-             * to a range from the start of the peptide
-             */
-            mappedTo[0] = 1;
-          }
+          omit = true;
         }
-        if (mappedTo == null)
-        {
-          mappedTo = mapping.locateInTo(start, start);
-          if (mappedTo != null)
-          {
-            /*
-             * start of exon is in CDS range - 3' overlap
-             * to a range up to the end of the peptide
-             */
-            mappedTo[1] = toSeq.getLength();
-          }
-        }
+      }
+      if (omit)
+      {
+        continue;
+      }
+
+      /*
+       * locate the mapped range - null if either start or end is
+       * not mapped (no partial overlaps are calculated)
+       */
+      int start = sf.getBegin();
+      int end = sf.getEnd();
+      int[] mappedTo = mapping.locateInTo(start, end);
+      /*
+       * if whole exon range doesn't map, try interpreting it
+       * as 5' or 3' exon overlapping the CDS range
+       */
+      if (mappedTo == null)
+      {
+        mappedTo = mapping.locateInTo(end, end);
         if (mappedTo != null)
         {
-          SequenceFeature copy = new SequenceFeature(sf);
-          copy.setBegin(Math.min(mappedTo[0], mappedTo[1]));
-          copy.setEnd(Math.max(mappedTo[0], mappedTo[1]));
-          copyTo.addSequenceFeature(copy);
-          count++;
+          /*
+           * end of exon is in CDS range - 5' overlap
+           * to a range from the start of the peptide
+           */
+          mappedTo[0] = 1;
         }
+      }
+      if (mappedTo == null)
+      {
+        mappedTo = mapping.locateInTo(start, start);
+        if (mappedTo != null)
+        {
+          /*
+           * start of exon is in CDS range - 3' overlap
+           * to a range up to the end of the peptide
+           */
+          mappedTo[1] = toSeq.getLength();
+        }
+      }
+      if (mappedTo != null)
+      {
+        int newBegin = Math.min(mappedTo[0], mappedTo[1]);
+        int newEnd = Math.max(mappedTo[0], mappedTo[1]);
+        SequenceFeature copy = new SequenceFeature(sf, newBegin, newEnd,
+                sf.getFeatureGroup(), sf.getScore());
+        copyTo.addSequenceFeature(copy);
+        count++;
       }
     }
     return count;
@@ -2144,7 +2247,10 @@ public class AlignmentUtils
 
   /**
    * Returns a mapping from dna to protein by inspecting sequence features of
-   * type "CDS" on the dna.
+   * type "CDS" on the dna. A mapping is constructed if the total CDS feature
+   * length is 3 times the peptide length (optionally after dropping a trailing
+   * stop codon). This method does not check whether the CDS nucleotide sequence
+   * translates to the peptide sequence.
    * 
    * @param dnaSeq
    * @param proteinSeq
@@ -2155,6 +2261,16 @@ public class AlignmentUtils
   {
     List<int[]> ranges = findCdsPositions(dnaSeq);
     int mappedDnaLength = MappingUtils.getLength(ranges);
+
+    /*
+     * if not a whole number of codons, truncate mapping
+     */
+    int codonRemainder = mappedDnaLength % CODON_LENGTH;
+    if (codonRemainder > 0)
+    {
+      mappedDnaLength -= codonRemainder;
+      MappingUtils.removeEndPositions(codonRemainder, ranges);
+    }
 
     int proteinLength = proteinSeq.getLength();
     int proteinStart = proteinSeq.getStart();
@@ -2170,7 +2286,7 @@ public class AlignmentUtils
       proteinStart++;
       proteinLength--;
     }
-    List<int[]> proteinRange = new ArrayList<int[]>();
+    List<int[]> proteinRange = new ArrayList<>();
 
     /*
      * dna length should map to protein (or protein plus stop codon)
@@ -2179,8 +2295,12 @@ public class AlignmentUtils
     if (codesForResidues == (proteinLength + 1))
     {
       // assuming extra codon is for STOP and not in peptide
+      // todo: check trailing codon is indeed a STOP codon
       codesForResidues--;
+      mappedDnaLength -= CODON_LENGTH;
+      MappingUtils.removeEndPositions(CODON_LENGTH, ranges);
     }
+
     if (codesForResidues == proteinLength)
     {
       proteinRange.add(new int[] { proteinStart, proteinEnd });
@@ -2191,7 +2311,7 @@ public class AlignmentUtils
 
   /**
    * Returns a list of CDS ranges found (as sequence positions base 1), i.e. of
-   * start/end positions of sequence features of type "CDS" (or a sub-type of
+   * [start, end] positions of sequence features of type "CDS" (or a sub-type of
    * CDS in the Sequence Ontology). The ranges are sorted into ascending start
    * position order, so this method is only valid for linear CDS in the same
    * sense as the protein product.
@@ -2199,62 +2319,46 @@ public class AlignmentUtils
    * @param dnaSeq
    * @return
    */
-  public static List<int[]> findCdsPositions(SequenceI dnaSeq)
+  protected static List<int[]> findCdsPositions(SequenceI dnaSeq)
   {
-    List<int[]> result = new ArrayList<int[]>();
-    SequenceFeature[] sfs = dnaSeq.getSequenceFeatures();
-    if (sfs == null)
+    List<int[]> result = new ArrayList<>();
+
+    List<SequenceFeature> sfs = dnaSeq.getFeatures().getFeaturesByOntology(
+            SequenceOntologyI.CDS);
+    if (sfs.isEmpty())
     {
       return result;
     }
-
-    SequenceOntologyI so = SequenceOntologyFactory.getInstance();
-    int startPhase = 0;
+    SequenceFeatures.sortFeatures(sfs, true);
 
     for (SequenceFeature sf : sfs)
     {
-      /*
-       * process a CDS feature (or a sub-type of CDS)
-       */
-      if (so.isA(sf.getType(), SequenceOntologyI.CDS))
+      int phase = 0;
+      try
       {
-        int phase = 0;
-        try
-        {
-          phase = Integer.parseInt(sf.getPhase());
-        } catch (NumberFormatException e)
-        {
-          // ignore
-        }
-        /*
-         * phase > 0 on first codon means 5' incomplete - skip to the start
-         * of the next codon; example ENST00000496384
-         */
-        int begin = sf.getBegin();
-        int end = sf.getEnd();
-        if (result.isEmpty())
-        {
-          begin += phase;
-          if (begin > end)
-          {
-            // shouldn't happen!
-            System.err
-                    .println("Error: start phase extends beyond start CDS in "
-                            + dnaSeq.getName());
-          }
-        }
-        result.add(new int[] { begin, end });
+        phase = Integer.parseInt(sf.getPhase());
+      } catch (NumberFormatException e)
+      {
+        // ignore
       }
-    }
-
-    /*
-     * remove 'startPhase' positions (usually 0) from the first range 
-     * so we begin at the start of a complete codon
-     */
-    if (!result.isEmpty())
-    {
-      // TODO JAL-2022 correctly model start phase > 0
-      result.get(0)[0] += startPhase;
+      /*
+       * phase > 0 on first codon means 5' incomplete - skip to the start
+       * of the next codon; example ENST00000496384
+       */
+      int begin = sf.getBegin();
+      int end = sf.getEnd();
+      if (result.isEmpty() && phase > 0)
+      {
+        begin += phase;
+        if (begin > end)
+        {
+          // shouldn't happen!
+          System.err
+                  .println("Error: start phase extends beyond start CDS in "
+                          + dnaSeq.getName());
+        }
+      }
+      result.add(new int[] { begin, end });
     }
 
     /*
@@ -2264,378 +2368,8 @@ public class AlignmentUtils
      * ranges are assembled in order. Other cases should not use this method,
      * but instead construct an explicit mapping for CDS (e.g. EMBL parsing).
      */
-    Collections.sort(result, new Comparator<int[]>()
-    {
-      @Override
-      public int compare(int[] o1, int[] o2)
-      {
-        return Integer.compare(o1[0], o2[0]);
-      }
-    });
+    Collections.sort(result, IntRangeComparator.ASCENDING);
     return result;
-  }
-
-  /**
-   * Maps exon features from dna to protein, and computes variants in peptide
-   * product generated by variants in dna, and adds them as sequence_variant
-   * features on the protein sequence. Returns the number of variant features
-   * added.
-   * 
-   * @param dnaSeq
-   * @param peptide
-   * @param dnaToProtein
-   */
-  public static int computeProteinFeatures(SequenceI dnaSeq,
-          SequenceI peptide, MapList dnaToProtein)
-  {
-    while (dnaSeq.getDatasetSequence() != null)
-    {
-      dnaSeq = dnaSeq.getDatasetSequence();
-    }
-    while (peptide.getDatasetSequence() != null)
-    {
-      peptide = peptide.getDatasetSequence();
-    }
-
-    transferFeatures(dnaSeq, peptide, dnaToProtein, SequenceOntologyI.EXON);
-
-    /*
-     * compute protein variants from dna variants and codon mappings;
-     * NB - alternatively we could retrieve this using the REST service e.g.
-     * http://rest.ensembl.org/overlap/translation
-     * /ENSP00000288602?feature=transcript_variation;content-type=text/xml
-     * which would be a bit slower but possibly more reliable
-     */
-
-    /*
-     * build a map with codon variations for each potentially varying peptide
-     */
-    LinkedHashMap<Integer, List<DnaVariant>[]> variants = buildDnaVariantsMap(
-            dnaSeq, dnaToProtein);
-
-    /*
-     * scan codon variations, compute peptide variants and add to peptide sequence
-     */
-    int count = 0;
-    for (Entry<Integer, List<DnaVariant>[]> variant : variants.entrySet())
-    {
-      int peptidePos = variant.getKey();
-      List<DnaVariant>[] codonVariants = variant.getValue();
-      count += computePeptideVariants(peptide, peptidePos, codonVariants);
-    }
-
-    /*
-     * sort to get sequence features in start position order
-     * - would be better to store in Sequence as a TreeSet or NCList?
-     */
-    if (peptide.getSequenceFeatures() != null)
-    {
-      Arrays.sort(peptide.getSequenceFeatures(),
-              new Comparator<SequenceFeature>()
-              {
-                @Override
-                public int compare(SequenceFeature o1, SequenceFeature o2)
-                {
-                  int c = Integer.compare(o1.getBegin(), o2.getBegin());
-                  return c == 0 ? Integer.compare(o1.getEnd(), o2.getEnd())
-                          : c;
-                }
-              });
-    }
-    return count;
-  }
-
-  /**
-   * Computes non-synonymous peptide variants from codon variants and adds them
-   * as sequence_variant features on the protein sequence (one feature per
-   * allele variant). Selected attributes (variant id, clinical significance)
-   * are copied over to the new features.
-   * 
-   * @param peptide
-   *          the protein sequence
-   * @param peptidePos
-   *          the position to compute peptide variants for
-   * @param codonVariants
-   *          a list of dna variants per codon position
-   * @return the number of features added
-   */
-  static int computePeptideVariants(SequenceI peptide, int peptidePos,
-          List<DnaVariant>[] codonVariants)
-  {
-    String residue = String.valueOf(peptide.getCharAt(peptidePos - 1));
-    int count = 0;
-    String base1 = codonVariants[0].get(0).base;
-    String base2 = codonVariants[1].get(0).base;
-    String base3 = codonVariants[2].get(0).base;
-
-    /*
-     * variants in first codon base
-     */
-    for (DnaVariant var : codonVariants[0])
-    {
-      if (var.variant != null)
-      {
-        String alleles = (String) var.variant.getValue("alleles");
-        if (alleles != null)
-        {
-          for (String base : alleles.split(","))
-          {
-            String codon = base + base2 + base3;
-            if (addPeptideVariant(peptide, peptidePos, residue, var, codon))
-            {
-              count++;
-            }
-          }
-        }
-      }
-    }
-
-    /*
-     * variants in second codon base
-     */
-    for (DnaVariant var : codonVariants[1])
-    {
-      if (var.variant != null)
-      {
-        String alleles = (String) var.variant.getValue("alleles");
-        if (alleles != null)
-        {
-          for (String base : alleles.split(","))
-          {
-            String codon = base1 + base + base3;
-            if (addPeptideVariant(peptide, peptidePos, residue, var, codon))
-            {
-              count++;
-            }
-          }
-        }
-      }
-    }
-
-    /*
-     * variants in third codon base
-     */
-    for (DnaVariant var : codonVariants[2])
-    {
-      if (var.variant != null)
-      {
-        String alleles = (String) var.variant.getValue("alleles");
-        if (alleles != null)
-        {
-          for (String base : alleles.split(","))
-          {
-            String codon = base1 + base2 + base;
-            if (addPeptideVariant(peptide, peptidePos, residue, var, codon))
-            {
-              count++;
-            }
-          }
-        }
-      }
-    }
-
-    return count;
-  }
-
-  /**
-   * Helper method that adds a peptide variant feature, provided the given codon
-   * translates to a value different to the current residue (is a non-synonymous
-   * variant). ID and clinical_significance attributes of the dna variant (if
-   * present) are copied to the new feature.
-   * 
-   * @param peptide
-   * @param peptidePos
-   * @param residue
-   * @param var
-   * @param codon
-   * @return true if a feature was added, else false
-   */
-  static boolean addPeptideVariant(SequenceI peptide, int peptidePos,
-          String residue, DnaVariant var, String codon)
-  {
-    /*
-     * get peptide translation of codon e.g. GAT -> D
-     * note that variants which are not single alleles,
-     * e.g. multibase variants or HGMD_MUTATION etc
-     * are currently ignored here
-     */
-    String trans = codon.contains("-") ? "-"
-            : (codon.length() > CODON_LENGTH ? null : ResidueProperties
-                    .codonTranslate(codon));
-    if (trans != null && !trans.equals(residue))
-    {
-      String residue3Char = StringUtils
-              .toSentenceCase(ResidueProperties.aa2Triplet.get(residue));
-      String trans3Char = StringUtils
-              .toSentenceCase(ResidueProperties.aa2Triplet.get(trans));
-      String desc = "p." + residue3Char + peptidePos + trans3Char;
-      // set score to 0f so 'graduated colour' option is offered! JAL-2060
-      SequenceFeature sf = new SequenceFeature(
-              SequenceOntologyI.SEQUENCE_VARIANT, desc, peptidePos,
-              peptidePos, 0f, var.getSource());
-      StringBuilder attributes = new StringBuilder(32);
-      String id = (String) var.variant.getValue(ID);
-      if (id != null)
-      {
-        if (id.startsWith(SEQUENCE_VARIANT))
-        {
-          id = id.substring(SEQUENCE_VARIANT.length());
-        }
-        sf.setValue(ID, id);
-        attributes.append(ID).append("=").append(id);
-        // TODO handle other species variants JAL-2064
-        StringBuilder link = new StringBuilder(32);
-        try
-        {
-          link.append(desc)
-                  .append(" ")
-                  .append(id)
-                  .append("|http://www.ensembl.org/Homo_sapiens/Variation/Summary?v=")
-                  .append(URLEncoder.encode(id, "UTF-8"));
-          sf.addLink(link.toString());
-        } catch (UnsupportedEncodingException e)
-        {
-          // as if
-        }
-      }
-      String clinSig = (String) var.variant.getValue(CLINICAL_SIGNIFICANCE);
-      if (clinSig != null)
-      {
-        sf.setValue(CLINICAL_SIGNIFICANCE, clinSig);
-        attributes.append(";").append(CLINICAL_SIGNIFICANCE).append("=")
-                .append(clinSig);
-      }
-      peptide.addSequenceFeature(sf);
-      if (attributes.length() > 0)
-      {
-        sf.setAttributes(attributes.toString());
-      }
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Builds a map whose key is position in the protein sequence, and value is a
-   * list of the base and all variants for each corresponding codon position
-   * 
-   * @param dnaSeq
-   * @param dnaToProtein
-   * @return
-   */
-  @SuppressWarnings("unchecked")
-  static LinkedHashMap<Integer, List<DnaVariant>[]> buildDnaVariantsMap(
-          SequenceI dnaSeq, MapList dnaToProtein)
-  {
-    /*
-     * map from peptide position to all variants of the codon which codes for it
-     * LinkedHashMap ensures we keep the peptide features in sequence order
-     */
-    LinkedHashMap<Integer, List<DnaVariant>[]> variants = new LinkedHashMap<Integer, List<DnaVariant>[]>();
-    SequenceOntologyI so = SequenceOntologyFactory.getInstance();
-
-    SequenceFeature[] dnaFeatures = dnaSeq.getSequenceFeatures();
-    if (dnaFeatures == null)
-    {
-      return variants;
-    }
-
-    int dnaStart = dnaSeq.getStart();
-    int[] lastCodon = null;
-    int lastPeptidePostion = 0;
-
-    /*
-     * build a map of codon variations for peptides
-     */
-    for (SequenceFeature sf : dnaFeatures)
-    {
-      int dnaCol = sf.getBegin();
-      if (dnaCol != sf.getEnd())
-      {
-        // not handling multi-locus variant features
-        continue;
-      }
-      if (so.isA(sf.getType(), SequenceOntologyI.SEQUENCE_VARIANT))
-      {
-        int[] mapsTo = dnaToProtein.locateInTo(dnaCol, dnaCol);
-        if (mapsTo == null)
-        {
-          // feature doesn't lie within coding region
-          continue;
-        }
-        int peptidePosition = mapsTo[0];
-        List<DnaVariant>[] codonVariants = variants.get(peptidePosition);
-        if (codonVariants == null)
-        {
-          codonVariants = new ArrayList[CODON_LENGTH];
-          codonVariants[0] = new ArrayList<DnaVariant>();
-          codonVariants[1] = new ArrayList<DnaVariant>();
-          codonVariants[2] = new ArrayList<DnaVariant>();
-          variants.put(peptidePosition, codonVariants);
-        }
-
-        /*
-         * extract dna variants to a string array
-         */
-        String alls = (String) sf.getValue("alleles");
-        if (alls == null)
-        {
-          continue;
-        }
-        String[] alleles = alls.toUpperCase().split(",");
-        int i = 0;
-        for (String allele : alleles)
-        {
-          alleles[i++] = allele.trim(); // lose any space characters "A, G"
-        }
-
-        /*
-         * get this peptide's codon positions e.g. [3, 4, 5] or [4, 7, 10]
-         */
-        int[] codon = peptidePosition == lastPeptidePostion ? lastCodon
-                : MappingUtils.flattenRanges(dnaToProtein.locateInFrom(
-                        peptidePosition, peptidePosition));
-        lastPeptidePostion = peptidePosition;
-        lastCodon = codon;
-
-        /*
-         * save nucleotide (and any variant) for each codon position
-         */
-        for (int codonPos = 0; codonPos < CODON_LENGTH; codonPos++)
-        {
-          String nucleotide = String.valueOf(
-                  dnaSeq.getCharAt(codon[codonPos] - dnaStart))
-                  .toUpperCase();
-          List<DnaVariant> codonVariant = codonVariants[codonPos];
-          if (codon[codonPos] == dnaCol)
-          {
-            if (!codonVariant.isEmpty()
-                    && codonVariant.get(0).variant == null)
-            {
-              /*
-               * already recorded base value, add this variant
-               */
-              codonVariant.get(0).variant = sf;
-            }
-            else
-            {
-              /*
-               * add variant with base value
-               */
-              codonVariant.add(new DnaVariant(nucleotide, sf));
-            }
-          }
-          else if (codonVariant.isEmpty())
-          {
-            /*
-             * record (possibly non-varying) base value
-             */
-            codonVariant.add(new DnaVariant(nucleotide));
-          }
-        }
-      }
-    }
-    return variants;
   }
 
   /**
@@ -2711,7 +2445,7 @@ public class AlignmentUtils
     /*
      * fancy case - aligning via mappings between sequences
      */
-    List<SequenceI> unmapped = new ArrayList<SequenceI>();
+    List<SequenceI> unmapped = new ArrayList<>();
     Map<Integer, Map<SequenceI, Character>> columnMap = buildMappedColumnsMap(
             unaligned, aligned, unmapped);
     int width = columnMap.size();
@@ -2771,10 +2505,10 @@ public class AlignmentUtils
    * true; else returns false
    * 
    * @param unaligned
-   *          - sequences to be aligned based on aligned
+   *                    - sequences to be aligned based on aligned
    * @param aligned
-   *          - 'guide' alignment containing sequences derived from same dataset
-   *          as unaligned
+   *                    - 'guide' alignment containing sequences derived from same
+   *                    dataset as unaligned
    * @return
    */
   static boolean alignAsSameSequences(AlignmentI unaligned,
@@ -2786,7 +2520,7 @@ public class AlignmentUtils
     }
 
     // map from dataset sequence to alignment sequence(s)
-    Map<SequenceI, List<SequenceI>> alignedDatasets = new HashMap<SequenceI, List<SequenceI>>();
+    Map<SequenceI, List<SequenceI>> alignedDatasets = new HashMap<>();
     for (SequenceI seq : aligned.getSequences())
     {
       SequenceI ds = seq.getDatasetSequence();
@@ -2798,15 +2532,22 @@ public class AlignmentUtils
     }
 
     /*
-     * first pass - check whether all sequences to be aligned share a dataset
-     * sequence with an aligned sequence
+     * first pass - check whether all sequences to be aligned share a 
+     * dataset sequence with an aligned sequence; also note the leftmost
+     * ungapped column from which to copy
      */
+    int leftmost = Integer.MAX_VALUE;
     for (SequenceI seq : unaligned.getSequences())
     {
-      if (!alignedDatasets.containsKey(seq.getDatasetSequence()))
+      final SequenceI ds = seq.getDatasetSequence();
+      if (!alignedDatasets.containsKey(ds))
       {
         return false;
       }
+      SequenceI alignedSeq = alignedDatasets.get(ds)
+              .get(0);
+      int startCol = alignedSeq.findIndex(seq.getStart()); // 1..
+      leftmost = Math.min(leftmost, startCol);
     }
 
     /*
@@ -2814,19 +2555,44 @@ public class AlignmentUtils
      * heuristic rule: pair off sequences in order for the case where 
      * more than one shares the same dataset sequence 
      */
+    final char gapCharacter = aligned.getGapCharacter();
     for (SequenceI seq : unaligned.getSequences())
     {
-      List<SequenceI> alignedSequences = alignedDatasets.get(seq
-              .getDatasetSequence());
-      // TODO: getSequenceAsString() will be deprecated in the future
-      // TODO: need to leave to SequenceI implementor to update gaps
-      seq.setSequence(alignedSequences.get(0).getSequenceAsString());
+      List<SequenceI> alignedSequences = alignedDatasets
+              .get(seq.getDatasetSequence());
+      if (alignedSequences.isEmpty())
+      {
+        /*
+         * defensive check - shouldn't happen! (JAL-3536)
+         */
+        continue;
+      }
+      SequenceI alignedSeq = alignedSequences.get(0);
+
+      /*
+       * gap fill for leading (5') UTR if any
+       */
+      // TODO this copies intron columns - wrong!
+      int startCol = alignedSeq.findIndex(seq.getStart()); // 1..
+      int endCol = alignedSeq.findIndex(seq.getEnd());
+      char[] seqchars = new char[endCol - leftmost + 1];
+      Arrays.fill(seqchars, gapCharacter);
+      char[] toCopy = alignedSeq.getSequence(startCol - 1, endCol);
+      System.arraycopy(toCopy, 0, seqchars, startCol - leftmost,
+              toCopy.length);
+      seq.setSequence(String.valueOf(seqchars));
       if (alignedSequences.size() > 0)
       {
         // pop off aligned sequences (except the last one)
         alignedSequences.remove(0);
       }
     }
+
+    /*
+     * finally remove gapped columns (e.g. introns)
+     */
+    new RemoveGapColCommand("", unaligned.getSequencesArray(), 0,
+            unaligned.getWidth() - 1, unaligned);
 
     return true;
   }
@@ -2840,15 +2606,16 @@ public class AlignmentUtils
    * @param unmapped
    * @return
    */
-  static Map<Integer, Map<SequenceI, Character>> buildMappedColumnsMap(
-          AlignmentI unaligned, AlignmentI aligned, List<SequenceI> unmapped)
+  static SortedMap<Integer, Map<SequenceI, Character>> buildMappedColumnsMap(
+          AlignmentI unaligned, AlignmentI aligned,
+          List<SequenceI> unmapped)
   {
     /*
      * Map will hold, for each aligned column position, a map of
      * {unalignedSequence, characterPerSequence} at that position.
      * TreeMap keeps the entries in ascending column order. 
      */
-    Map<Integer, Map<SequenceI, Character>> map = new TreeMap<Integer, Map<SequenceI, Character>>();
+    SortedMap<Integer, Map<SequenceI, Character>> map = new TreeMap<>();
 
     /*
      * record any sequences that have no mapping so can't be realigned
@@ -2876,7 +2643,8 @@ public class AlignmentUtils
   }
 
   /**
-   * Helper method that adds to a map the mapped column positions of a sequence. <br>
+   * Helper method that adds to a map the mapped column positions of a sequence.
+   * <br>
    * For example if aaTT-Tg-gAAA is mapped to TTTAAA then the map should record
    * that columns 3,4,6,10,11,12 map to characters T,T,T,A,A,A of the mapped to
    * sequence.
@@ -2905,13 +2673,11 @@ public class AlignmentUtils
      */
     if (seqMap.getTo() == fromSeq.getDatasetSequence())
     {
-      seqMap = new Mapping(seq.getDatasetSequence(), seqMap.getMap()
-              .getInverse());
+      seqMap = new Mapping(seq.getDatasetSequence(),
+              seqMap.getMap().getInverse());
     }
 
-    char[] fromChars = fromSeq.getSequence();
     int toStart = seq.getStart();
-    char[] toChars = seq.getSequence();
 
     /*
      * traverse [start, end, start, end...] ranges in fromSeq
@@ -2942,10 +2708,10 @@ public class AlignmentUtils
          * of the next character of the mapped-to sequence; stop when all
          * the characters of the range have been counted
          */
-        while (mappedCharPos <= range[1] && fromCol <= fromChars.length
+        while (mappedCharPos <= range[1] && fromCol <= fromSeq.getLength()
                 && fromCol >= 0)
         {
-          if (!Comparison.isGap(fromChars[fromCol - 1]))
+          if (!Comparison.isGap(fromSeq.getCharAt(fromCol - 1)))
           {
             /*
              * mapped from sequence has a character in this column
@@ -2954,10 +2720,10 @@ public class AlignmentUtils
             Map<SequenceI, Character> seqsMap = map.get(fromCol);
             if (seqsMap == null)
             {
-              seqsMap = new HashMap<SequenceI, Character>();
+              seqsMap = new HashMap<>();
               map.put(fromCol, seqsMap);
             }
-            seqsMap.put(seq, toChars[mappedCharPos - toStart]);
+            seqsMap.put(seq, seq.getCharAt(mappedCharPos - toStart));
             mappedCharPos++;
           }
           fromCol += (forward ? 1 : -1);

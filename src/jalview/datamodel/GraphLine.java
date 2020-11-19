@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -61,12 +61,14 @@ public class GraphLine
     if (obj != null && obj instanceof GraphLine)
     {
       GraphLine other = (GraphLine) obj;
-      return displayed == other.displayed
-              && value == other.value
-              && (colour != null ? (other.colour != null && other.colour
-                      .equals(colour)) : other.colour == null)
-              && (label != null ? (other.label != null && other.label
-                      .equals(label)) : other.label == null);
+      return displayed == other.displayed && value == other.value
+              && (colour != null
+                      ? (other.colour != null
+                              && other.colour.equals(colour))
+                      : other.colour == null)
+              && (label != null
+                      ? (other.label != null && other.label.equals(label))
+                      : other.label == null);
     }
     return false;
   }

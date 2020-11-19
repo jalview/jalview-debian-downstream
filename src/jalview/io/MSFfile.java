@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringTokenizer;
 
 /**
@@ -58,7 +59,7 @@ public class MSFfile extends AlignFile
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public MSFfile(String inFile, String type) throws IOException
+  public MSFfile(String inFile, DataSourceType type) throws IOException
   {
     super(inFile, type);
   }
@@ -184,7 +185,7 @@ public class MSFfile extends AlignFile
   public int checkSum(String seq)
   {
     int check = 0;
-    String sequence = seq.toUpperCase();
+    String sequence = seq.toUpperCase(Locale.ROOT);
 
     for (int i = 0; i < sequence.length(); i++)
     {
@@ -216,7 +217,8 @@ public class MSFfile extends AlignFile
    * 
    * @return DOCUMENT ME!
    */
-  public String print(SequenceI[] sqs)
+  @Override
+  public String print(SequenceI[] sqs, boolean jvSuffix)
   {
 
     boolean is_NA = Comparison.isNucleotide(sqs);
@@ -277,10 +279,10 @@ public class MSFfile extends AlignFile
       i++;
     }
 
-    Format maxLenpad = new Format("%" + (new String("" + max)).length()
-            + "d");
-    Format maxChkpad = new Format("%" + (new String("1" + max)).length()
-            + "d");
+    Format maxLenpad = new Format(
+            "%" + (new String("" + max)).length() + "d");
+    Format maxChkpad = new Format(
+            "%" + (new String("1" + max)).length() + "d");
     i = 0;
 
     int bigChecksum = 0;
@@ -293,7 +295,7 @@ public class MSFfile extends AlignFile
     }
 
     long maxNB = 0;
-    out.append("   MSF: " + s[0].getSequence().length + "   Type: "
+    out.append("   MSF: " + s[0].getLength() + "   Type: "
             + (is_NA ? "N" : "P") + "    Check:  " + (bigChecksum % 10000)
             + "   ..");
     out.append(newline);
@@ -307,11 +309,11 @@ public class MSFfile extends AlignFile
     while ((i < s.length) && (s[i] != null))
     {
 
-      nameBlock[i] = new String("  Name: " + printId(s[i]) + " ");
+      nameBlock[i] = new String("  Name: " + printId(s[i], jvSuffix) + " ");
 
-      idBlock[i] = new String("Len: "
-              + maxLenpad.form(s[i].getSequence().length) + "  Check: "
-              + maxChkpad.form(checksums[i]) + "  Weight: 1.00" + newline);
+      idBlock[i] = new String("Len: " + maxLenpad.form(s[i].getLength())
+              + "  Check: " + maxChkpad.form(checksums[i])
+              + "  Weight: 1.00" + newline);
 
       if (s[i].getName().length() > maxid)
       {
@@ -359,7 +361,7 @@ public class MSFfile extends AlignFile
 
       while ((j < s.length) && (s[j] != null))
       {
-        String name = printId(s[j]);
+        String name = printId(s[j], jvSuffix);
 
         out.append(new Format("%-" + maxid + "s").form(name + " "));
 
@@ -368,8 +370,9 @@ public class MSFfile extends AlignFile
           int start = (i * 50) + (k * 10);
           int end = start + 10;
 
-          if ((end < s[j].getSequence().length)
-                  && (start < s[j].getSequence().length))
+          int length = s[j].getLength();
+          if ((end < length)
+                  && (start < length))
           {
             out.append(s[j].getSequence(start, end));
 
@@ -384,7 +387,7 @@ public class MSFfile extends AlignFile
           }
           else
           {
-            if (start < s[j].getSequence().length)
+            if (start < length)
             {
               out.append(s[j].getSequenceAsString().substring(start));
               out.append(newline);
@@ -406,16 +409,5 @@ public class MSFfile extends AlignFile
     }
 
     return out.toString();
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  @Override
-  public String print()
-  {
-    return print(getSeqsAsArray());
   }
 }

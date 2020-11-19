@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -55,20 +55,26 @@ public class FastaFile extends AlignFile
    * 
    * @param inFile
    *          DOCUMENT ME!
-   * @param type
+   * @param sourceType
    *          DOCUMENT ME!
    * 
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public FastaFile(String inFile, String type) throws IOException
+  public FastaFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public FastaFile(FileParse source) throws IOException
   {
     super(source);
+  }
+
+  public FastaFile(SequenceI[] seqs)
+  {
+    super(seqs);
   }
 
   /**
@@ -158,8 +164,8 @@ public class FastaFile extends AlignFile
         anots[i] = new Annotation("" + cn, null, ' ', Float.NaN);
       }
     }
-    AlignmentAnnotation aa = new AlignmentAnnotation(seq.getName()
-            .substring(2), seq.getDescription(), anots);
+    AlignmentAnnotation aa = new AlignmentAnnotation(
+            seq.getName().substring(2), seq.getDescription(), anots);
     return aa;
   }
 
@@ -180,28 +186,15 @@ public class FastaFile extends AlignFile
     }
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param s
-   *          DOCUMENT ME!
-   * @param len
-   *          DOCUMENT ME!
-   * @param gaps
-   *          DOCUMENT ME!
-   * @param displayId
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public String print(SequenceI[] s)
+  @Override
+  public String print(SequenceI[] s, boolean jvsuffix)
   {
     out = new StringBuffer();
     int i = 0;
 
     while ((i < s.length) && (s[i] != null))
     {
-      out.append(">" + printId(s[i]));
+      out.append(">" + printId(s[i], jvsuffix));
       if (s[i].getDescription() != null)
       {
         out.append(" " + s[i].getDescription());
@@ -232,16 +225,5 @@ public class FastaFile extends AlignFile
     }
 
     return out.toString();
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  @Override
-  public String print()
-  {
-    return print(getSeqsAsArray());
   }
 }

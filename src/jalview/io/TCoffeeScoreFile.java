@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,10 +37,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * A file parse for T-Coffee score ascii format. This file contains the
- * alignment consensus for each resude in any sequence.
+ * A file parser for T-Coffee score ascii format. This file contains the
+ * alignment consensus for each residue in any sequence.
  * <p>
- * This file is procuded by <code>t_coffee</code> providing the option
+ * This file is produced by <code>t_coffee</code> providing the option
  * <code>-output=score_ascii </code> to the program command line
  * 
  * An example file is the following
@@ -91,16 +91,26 @@ import java.util.regex.Pattern;
  */
 public class TCoffeeScoreFile extends AlignFile
 {
-  public TCoffeeScoreFile(String inFile, String type) throws IOException
-  {
-    super(inFile, type);
 
-  }
+  /**
+   * TCOFFEE score colourscheme
+   */
+  static final Color[] colors = { new Color(102, 102, 255), // 0: lilac #6666FF
+      new Color(0, 255, 0), // 1: green #00FF00
+      new Color(102, 255, 0), // 2: lime green #66FF00
+      new Color(204, 255, 0), // 3: greeny yellow #CCFF00
+      new Color(255, 255, 0), // 4: yellow #FFFF00
+      new Color(255, 204, 0), // 5: orange #FFCC00
+      new Color(255, 153, 0), // 6: deep orange #FF9900
+      new Color(255, 102, 0), // 7: ochre #FF6600
+      new Color(255, 51, 0), // 8: red #FF3300
+      new Color(255, 34, 0) // 9: redder #FF2000
+  };
 
-  public TCoffeeScoreFile(FileParse source) throws IOException
-  {
-    super(source);
-  }
+  public final static String TCOFFEE_SCORE = "TCoffeeScore";
+
+  static Pattern SCORES_WITH_RESIDUE_NUMS = Pattern
+          .compile("^\\d+\\s([^\\s]+)\\s+\\d+$");
 
   /** The {@link Header} structure holder */
   Header header;
@@ -112,6 +122,18 @@ public class TCoffeeScoreFile extends AlignFile
   LinkedHashMap<String, StringBuilder> scores;
 
   Integer fWidth;
+
+  public TCoffeeScoreFile(String inFile, DataSourceType fileSourceType)
+          throws IOException
+  {
+    super(inFile, fileSourceType);
+
+  }
+
+  public TCoffeeScoreFile(FileParse source) throws IOException
+  {
+    super(source);
+  }
 
   /**
    * Parse the provided reader for the T-Coffee scores file format
@@ -160,8 +182,9 @@ public class TCoffeeScoreFile extends AlignFile
    */
   public String getScoresFor(String id)
   {
-    return scores != null && scores.containsKey(id) ? scores.get(id)
-            .toString() : "";
+    return scores != null && scores.containsKey(id)
+            ? scores.get(id).toString()
+            : "";
   }
 
   /**
@@ -213,6 +236,7 @@ public class TCoffeeScoreFile extends AlignFile
     return result;
   }
 
+  @Override
   public void parse() throws IOException
   {
     /*
@@ -251,9 +275,9 @@ public class TCoffeeScoreFile extends AlignFile
         if (scoreStringBuilder == null)
         {
           error = true;
-          errormessage = String
-                  .format("Invalid T-Coffee score file: Sequence ID '%s' is not declared in header section",
-                          entry.getKey());
+          errormessage = String.format(
+                  "Invalid T-Coffee score file: Sequence ID '%s' is not declared in header section",
+                  entry.getKey());
           return;
         }
 
@@ -397,9 +421,6 @@ public class TCoffeeScoreFile extends AlignFile
     }
   }
 
-  static Pattern SCORES_WITH_RESIDUE_NUMS = Pattern
-          .compile("^\\d+\\s([^\\s]+)\\s+\\d+$");
-
   /**
    * Read a scores block ihe provided stream.
    * 
@@ -523,23 +544,6 @@ public class TCoffeeScoreFile extends AlignFile
   }
 
   /**
-   * TCOFFEE score colourscheme
-   */
-  static final Color[] colors = { new Color(102, 102, 255), // #6666FF
-      new Color(0, 255, 0), // #00FF00
-      new Color(102, 255, 0), // #66FF00
-      new Color(204, 255, 0), // #CCFF00
-      new Color(255, 255, 0), // #FFFF00
-      new Color(255, 204, 0), // #FFCC00
-      new Color(255, 153, 0), // #FF9900
-      new Color(255, 102, 0), // #FF6600
-      new Color(255, 51, 0), // #FF3300
-      new Color(255, 34, 0) // #FF2000
-  };
-
-  public final static String TCOFFEE_SCORE = "TCoffeeScore";
-
-  /**
    * generate annotation for this TCoffee score set on the given alignment
    * 
    * @param al
@@ -581,9 +585,9 @@ public class TCoffeeScoreFile extends AlignFile
       i++;
       if (s == null && i != scores.size() && !id.getKey().equals("cons"))
       {
-        System.err.println("No "
-                + (matchids ? "match " : " sequences left ")
-                + " for TCoffee score set : " + id.getKey());
+        System.err
+                .println("No " + (matchids ? "match " : " sequences left ")
+                        + " for TCoffee score set : " + id.getKey());
         continue;
       }
       int jSize = al.getWidth() < srow.length ? al.getWidth() : srow.length;
@@ -596,16 +600,16 @@ public class TCoffeeScoreFile extends AlignFile
           annotations[j] = null;
           if (val > 0)
           {
-            System.err
-                    .println("Warning: non-zero value for positional T-COFFEE score for gap at "
+            System.err.println(
+                    "Warning: non-zero value for positional T-COFFEE score for gap at "
                             + j + " in sequence " + s.getName());
           }
         }
         else
         {
           annotations[j] = new Annotation(s == null ? "" + val : null,
-                  s == null ? "" + val : null, '\0', val * 1f, val >= 0
-                          && val < colors.length ? colors[val]
+                  s == null ? "" + val : null, '\0', val * 1f,
+                  val >= 0 && val < colors.length ? colors[val]
                           : Color.white);
         }
       }
@@ -643,7 +647,7 @@ public class TCoffeeScoreFile extends AlignFile
   }
 
   @Override
-  public String print()
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     // TODO Auto-generated method stub
     return "Not valid.";

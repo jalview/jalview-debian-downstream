@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,44 +21,39 @@
 package jalview.gui;
 
 import jalview.api.AlignmentViewPanel;
+import jalview.api.structures.JalviewStructureDisplayI;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.ext.rbvi.chimera.JalviewChimeraBinding;
+import jalview.io.DataSourceType;
 import jalview.structure.StructureSelectionManager;
+import jalview.viewmodel.seqfeatures.FeatureRendererModel;
+
+import javax.swing.SwingUtilities;
 
 public class JalviewChimeraBindingModel extends JalviewChimeraBinding
 {
   private ChimeraViewFrame cvf;
 
-  private FeatureRenderer fr = null;
-
-
   public JalviewChimeraBindingModel(ChimeraViewFrame chimeraViewFrame,
           StructureSelectionManager ssm, PDBEntry[] pdbentry,
-          SequenceI[][] sequenceIs, String protocol)
+          SequenceI[][] sequenceIs, DataSourceType protocol)
   {
     super(ssm, pdbentry, sequenceIs, protocol);
     cvf = chimeraViewFrame;
   }
 
   @Override
-  public FeatureRenderer getFeatureRenderer(AlignmentViewPanel alignment)
+  public FeatureRendererModel getFeatureRenderer(AlignmentViewPanel alignment)
   {
     AlignmentPanel ap = (alignment == null) ? cvf.getAlignmentPanel()
             : (AlignmentPanel) alignment;
     if (ap.av.isShowSequenceFeatures())
     {
-      if (fr == null)
-      {
-        fr = (jalview.gui.FeatureRenderer) ap.cloneFeatureRenderer();
-      }
-      else
-      {
-        ap.updateFeatureRenderer(fr);
-      }
+      return ap.getSeqPanel().seqCanvas.fr;
     }
 
-    return fr;
+    return null;
   }
 
   @Override
@@ -93,7 +88,7 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
     }
     if (!isLoadingFromArchive())
     {
-      colourBySequence(ap.av.isShowSequenceFeatures(), ap);
+      colourBySequence(ap);
     }
   }
 
@@ -120,25 +115,30 @@ public class JalviewChimeraBindingModel extends JalviewChimeraBinding
   protected void sendAsynchronousCommand(final String command,
           final String progressMsg)
   {
-    Thread thread = new Thread(new Runnable()
+    final long handle = progressMsg == null ? 0
+            : cvf.startProgressBar(progressMsg);
+    SwingUtilities.invokeLater(new Runnable()
     {
-
       @Override
       public void run()
       {
-        long stm = cvf.startProgressBar(progressMsg);
         try
         {
           sendChimeraCommand(command, false);
         } finally
         {
-          cvf.stopProgressBar(null, stm);
+          if (progressMsg != null)
+          {
+            cvf.stopProgressBar(null, handle);
+          }
         }
       }
     });
-    thread.start();
-
   }
 
-
+  @Override
+  public JalviewStructureDisplayI getViewer()
+  {
+    return cvf;
+  }
 }

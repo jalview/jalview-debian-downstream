@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -92,8 +92,8 @@ public class Dbref extends Rangetype
     }
     else
     {
-      jalview.bin.Cache.log.debug("Ignoring mapless DbRef.Map "
-              + jvobj.getSrcAccString());
+      jalview.bin.Cache.log.debug(
+              "Ignoring mapless DbRef.Map " + jvobj.getSrcAccString());
     }
 
   }
@@ -106,7 +106,8 @@ public class Dbref extends Rangetype
    */
   private void updateMapTo(jalview.datamodel.Mapping mp)
   {
-    log.info("Performing updateMapTo remove this message when we know what we're doing.");
+    log.info(
+            "Performing updateMapTo remove this message when we know what we're doing.");
     // TODO determine how sequences associated with database mappings are stored
     // in the document
     if (mp != null && mp.getTo() != null)
@@ -120,12 +121,11 @@ public class Dbref extends Rangetype
           // sync the dataset sequence, if it hasn't been done already.
           // TODO: ensure real dataset sequence corresponding to getTo is
           // recovered
-          dssync = new Datasetsequence(
-                  datastore,
-                  mp.getTo(),
-                  (mp.getMappedWidth() == mp.getWidth()) ? sequence
-                          .getDictionary()
-                          : ((mp.getMappedWidth() == 3) ? uk.ac.vamsas.objects.utils.SymbolDictionary.STANDARD_NA
+          dssync = new Datasetsequence(datastore, mp.getTo(),
+                  (mp.getMappedWidth() == mp.getWidth())
+                          ? sequence.getDictionary()
+                          : ((mp.getMappedWidth() == 3)
+                                  ? uk.ac.vamsas.objects.utils.SymbolDictionary.STANDARD_NA
                                   : uk.ac.vamsas.objects.utils.SymbolDictionary.STANDARD_AA),
                   ds);
         }
@@ -175,9 +175,9 @@ public class Dbref extends Rangetype
   {
     DbRef vobj = (DbRef) this.vobj;
     DBRefEntry jvobj = (DBRefEntry) this.jvobj;
-    jalview.bin.Cache.log.debug("Conflict in dbentry update for "
-            + vobj.getAccessionId() + vobj.getSource() + " "
-            + vobj.getVorbaId());
+    jalview.bin.Cache.log
+            .debug("Conflict in dbentry update for " + vobj.getAccessionId()
+                    + vobj.getSource() + " " + vobj.getVorbaId());
     // TODO Auto-generated method stub
 
   }
@@ -187,9 +187,9 @@ public class Dbref extends Rangetype
     DbRef vobj = (DbRef) this.vobj;
     DBRefEntry jvobj = (DBRefEntry) this.jvobj;
     // add new dbref
-    sq.addDBRef(jvobj = new jalview.datamodel.DBRefEntry(vobj.getSource()
-            .toString(), vobj.getVersion().toString(), vobj
-            .getAccessionId().toString()));
+    sq.addDBRef(jvobj = new jalview.datamodel.DBRefEntry(
+            vobj.getSource().toString(), vobj.getVersion().toString(),
+            vobj.getAccessionId().toString()));
     if (vobj.getMapCount() > 0)
     {
       // TODO: Jalview ignores all the other maps
@@ -230,8 +230,8 @@ public class Dbref extends Rangetype
       }
       else
       {
-        jalview.bin.Cache.log.debug("Ignoring mapless DbRef.Map "
-                + jvobj.getSrcAccString());
+        jalview.bin.Cache.log.debug(
+                "Ignoring mapless DbRef.Map " + jvobj.getSrcAccString());
       }
     }
   }

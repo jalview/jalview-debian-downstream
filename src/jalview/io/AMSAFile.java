@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,9 @@ package jalview.io;
 
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.SequenceI;
+
+import java.io.IOException;
 
 public class AMSAFile extends jalview.io.FastaFile
 {
@@ -36,14 +39,26 @@ public class AMSAFile extends jalview.io.FastaFile
     this.al = al;
   }
 
+  public AMSAFile(String inFile, DataSourceType sourceType)
+          throws IOException
+  {
+    super(inFile, sourceType);
+  }
+
+  public AMSAFile(FileParse source) throws IOException
+  {
+    super(source);
+  }
+
   /**
    * DOCUMENT ME!
    * 
    * @return DOCUMENT ME!
    */
-  public String print()
+  @Override
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
-    super.print(getSeqsAsArray());
+    super.print(sqs, jvsuffix);
 
     AlignmentAnnotation aa;
     if (al.getAlignmentAnnotation() != null)

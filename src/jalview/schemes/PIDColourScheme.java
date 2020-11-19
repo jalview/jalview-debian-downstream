@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,8 @@
  */
 package jalview.schemes;
 
-import jalview.datamodel.ProfileI;
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AnnotatedCollectionI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.util.Comparison;
@@ -29,69 +30,76 @@ import java.awt.Color;
 
 public class PIDColourScheme extends ResidueColourScheme
 {
-  public Color[] pidColours;
+  private static final Color[] pidColours = { new Color(100, 100, 255),
+      new Color(153, 153, 255), new Color(204, 204, 255), };
 
-  public float[] thresholds;
+  private static final float[] thresholds = { 80, 60, 40, };
 
   SequenceGroup group;
 
   public PIDColourScheme()
   {
-    this.pidColours = ResidueProperties.pidColours;
-    this.thresholds = ResidueProperties.pidThresholds;
   }
 
   @Override
-  public Color findColour(char c, int j, SequenceI seq)
+  public Color findColour(char c, int j, SequenceI seq,
+          String consensusResidue, float pid)
   {
+    /*
+     * compare as upper case; note consensusResidue is 
+     * always computed as uppercase
+     */
     if ('a' <= c && c <= 'z')
     {
       c -= ('a' - 'A');
     }
 
-    if (consensus == null || consensus.get(j) == null)
+    if (consensusResidue == null || Comparison.isGap(c))
     {
       return Color.white;
     }
 
-    if ((threshold != 0) && !aboveThreshold(c, j))
-    {
-      return Color.white;
-    }
-
-    Color currentColour = Color.white;
-
-    double sc = 0;
-
+    Color colour = Color.white;
 
     /*
      * test whether this is the consensus (or joint consensus) residue
      */
-    ProfileI profile = consensus.get(j);
-    boolean matchesConsensus = profile.getModalResidue().contains(
-            String.valueOf(c));
+    boolean matchesConsensus = consensusResidue.contains(String.valueOf(c));
     if (matchesConsensus)
     {
-      sc = profile.getPercentageIdentity(ignoreGaps);
-
-      if (!Comparison.isGap(c))
+      for (int i = 0; i < thresholds.length; i++)
       {
-        for (int i = 0; i < thresholds.length; i++)
+        if (pid > thresholds[i])
         {
-          if (sc > thresholds[i])
-          {
-            currentColour = pidColours[i];
-            break;
-          }
+          colour = pidColours[i];
+          break;
         }
       }
     }
 
-    if (conservationColouring)
-    {
-      currentColour = applyConservation(currentColour, j);
-    }
+    return colour;
+  }
 
-    return currentColour;
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.PID.toString();
+  }
+
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
+  @Override
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
+  {
+    return new PIDColourScheme();
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
   }
 }

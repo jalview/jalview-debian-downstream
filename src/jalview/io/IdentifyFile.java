@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  *
  * This file is part of Jalview.
  *
@@ -21,6 +21,7 @@
 package jalview.io;
 
 import java.io.IOException;
+import java.util.Locale;
 
 /**
  * DOCUMENT ME!
@@ -30,8 +31,6 @@ import java.io.IOException;
  */
 public class IdentifyFile
 {
-  public static final String FeaturesFile = "GFF or Jalview features";
-
   /**
    * Identify a datasource's file content.
    *
@@ -39,18 +38,18 @@ public class IdentifyFile
    *       instead.
    *
    * @param file
-   *          DOCUMENT ME!
-   * @param protocol
-   *          DOCUMENT ME!
-   * @return ID String
+   * @param sourceType
+   * @return
+   * @throws FileFormatException
    */
-  public String identify(String file, String protocol)
+  public FileFormatI identify(String file, DataSourceType sourceType)
+          throws FileFormatException
   {
     String emessage = "UNIDENTIFIED FILE PARSING ERROR";
     FileParse parser = null;
     try
     {
-      parser = new FileParse(file, protocol);
+      parser = new FileParse(file, sourceType);
       if (parser.isValid())
       {
         return identify(parser);
@@ -63,15 +62,23 @@ public class IdentifyFile
     }
     if (parser != null)
     {
-      return parser.errormessage;
+      throw new FileFormatException(parser.errormessage);
     }
-    return emessage;
+    throw new FileFormatException(emessage);
   }
 
-  public String identify(FileParse source)
+  public FileFormatI identify(FileParse source) throws FileFormatException
   {
-    return identify(source, true); // preserves original behaviour prior to
-    // version 2.3
+    return identify(source, true);
+    // preserves original behaviour prior to version 2.3
+  }
+
+  public FileFormatI identify(AlignmentFileReaderI file,
+          boolean closeSource) throws IOException
+  {
+    FileParse fp = new FileParse(file.getInFile(),
+            file.getDataSourceType());
+    return identify(fp, closeSource);
   }
 
   /**
@@ -80,23 +87,28 @@ public class IdentifyFile
    *
    * @param source
    * @param closeSource
-   * @return filetype string
+   * @return (best guess at) file format
+   * @throws FileFormatException
    */
-  public String identify(FileParse source, boolean closeSource)
+  public FileFormatI identify(FileParse source, boolean closeSource)
+          throws FileFormatException
   {
-    String reply = "PFAM";
+    FileFormatI reply = FileFormat.Pfam;
     String data;
     int bytesRead = 0;
     int trimmedLength = 0;
     boolean lineswereskipped = false;
     boolean isBinary = false; // true if length is non-zero and non-printable
     // characters are encountered
+
     try
     {
       if (!closeSource)
       {
         source.mark();
       }
+      boolean aaIndexHeaderRead = false;
+
       while ((data = source.nextLine()) != null)
       {
         bytesRead += data.length();
@@ -123,38 +135,52 @@ public class IdentifyFile
             if (fileStr.lastIndexOf(".jar") > -1
                     || fileStr.lastIndexOf(".zip") > -1)
             {
-              reply = "Jalview";
+              reply = FileFormat.Jalview;
             }
           }
           if (!lineswereskipped && data.startsWith("PK"))
           {
-            reply = "Jalview"; // archive.
+            reply = FileFormat.Jalview; // archive.
             break;
           }
         }
-        data = data.toUpperCase();
+        data = data.toUpperCase(Locale.ROOT);
 
+        if (data.startsWith(ScoreMatrixFile.SCOREMATRIX))
+        {
+          reply = FileFormat.ScoreMatrix;
+          break;
+        }
+        if (data.startsWith("H ") && !aaIndexHeaderRead)
+        {
+          aaIndexHeaderRead = true;
+        }
+        if (data.startsWith("D ") && aaIndexHeaderRead)
+        {
+          reply = FileFormat.ScoreMatrix;
+          break;
+        }
         if (data.startsWith("##GFF-VERSION"))
         {
           // GFF - possibly embedded in a Jalview features file!
-          reply = FeaturesFile;
+          reply = FileFormat.Features;
           break;
         }
         if (looksLikeFeatureData(data))
         {
-          reply = FeaturesFile;
+          reply = FileFormat.Features;
           break;
         }
         if (data.indexOf("# STOCKHOLM") > -1)
         {
-          reply = "STH";
+          reply = FileFormat.Stockholm;
           break;
         }
         if (data.indexOf("_ENTRY.ID") > -1
                 || data.indexOf("_AUDIT_AUTHOR.NAME") > -1
                 || data.indexOf("_ATOM_SITE.") > -1)
         {
-          reply = "mmCIF";
+          reply = FileFormat.MMCif;
           break;
         }
         // if (data.indexOf(">") > -1)
@@ -166,14 +192,14 @@ public class IdentifyFile
           {
             // watch for PIR file attributes
             checkPIR = true;
-            reply = "PIR";
+            reply = FileFormat.PIR;
           }
           // could also be BLC file, read next line to confirm
           data = source.nextLine();
 
           if (data.indexOf(">") > -1)
           {
-            reply = "BLC";
+            reply = FileFormat.BLC;
           }
           else
           {
@@ -190,18 +216,19 @@ public class IdentifyFile
             {
               if (c1 == 0 && c1 == data2.indexOf("*"))
               {
-                reply = "BLC";
+                reply = FileFormat.BLC;
               }
               else
               {
-                reply = "FASTA"; // possibly a bad choice - may be recognised as
+                reply = FileFormat.Fasta; // possibly a bad choice - may be
+                                          // recognised as
                 // PIR
               }
               // otherwise can still possibly be a PIR file
             }
             else
             {
-              reply = "FASTA";
+              reply = FileFormat.Fasta;
               // TODO : AMSA File is indicated if there is annotation in the
               // FASTA file - but FASTA will automatically generate this at the
               // mo.
@@ -238,39 +265,39 @@ public class IdentifyFile
             }
             if (starterm)
             {
-              reply = "PIR";
+              reply = FileFormat.PIR;
               break;
             }
             else
             {
-              reply = "FASTA"; // probably a bad choice!
+              reply = FileFormat.Fasta; // probably a bad choice!
             }
           }
           // read as a FASTA (probably)
+          break;
+        }
+        if (data.indexOf("{\"") > -1)
+        {
+          reply = FileFormat.Json;
           break;
         }
         int lessThan = data.indexOf("<");
         if ((lessThan > -1)) // possible Markup Language data i.e HTML,
                              // RNAML, XML
         {
-          String upper = data.toUpperCase();
+          String upper = data.toUpperCase(Locale.ROOT);
           if (upper.substring(lessThan).startsWith("<HTML"))
           {
-            reply = HtmlFile.FILE_DESC;
+            reply = FileFormat.Html;
             break;
           }
           if (upper.substring(lessThan).startsWith("<RNAML"))
           {
-            reply = "RNAML";
+            reply = FileFormat.Rnaml;
             break;
           }
         }
 
-        if (data.indexOf("{\"") > -1)
-        {
-          reply = JSONFile.FILE_DESC;
-          break;
-        }
         if ((data.length() < 1) || (data.indexOf("#") == 0))
         {
           lineswereskipped = true;
@@ -279,41 +306,40 @@ public class IdentifyFile
 
         if (data.indexOf("PILEUP") > -1)
         {
-          reply = "PileUp";
+          reply = FileFormat.Pileup;
 
           break;
         }
 
-        if ((data.indexOf("//") == 0)
-                || ((data.indexOf("!!") > -1) && (data.indexOf("!!") < data
-                        .indexOf("_MULTIPLE_ALIGNMENT "))))
+        if ((data.indexOf("//") == 0) || ((data.indexOf("!!") > -1) && (data
+                .indexOf("!!") < data.indexOf("_MULTIPLE_ALIGNMENT "))))
         {
-          reply = "MSF";
+          reply = FileFormat.MSF;
 
           break;
         }
         else if (data.indexOf("CLUSTAL") > -1)
         {
-          reply = "CLUSTAL";
+          reply = FileFormat.Clustal;
 
           break;
         }
 
         else if (data.indexOf("HEADER") == 0 || data.indexOf("ATOM") == 0)
         {
-          reply = "PDB";
+          reply = FileFormat.PDB;
           break;
         }
         else if (data.matches("\\s*\\d+\\s+\\d+\\s*"))
         {
-          reply = PhylipFile.FILE_DESC;
+          reply = FileFormat.Phylip;
           break;
         }
         else
         {
           if (!lineswereskipped && looksLikeJnetData(data))
           {
-            reply = "JnetFile";
+            reply = FileFormat.Jnet;
             break;
           }
         }
@@ -332,14 +358,15 @@ public class IdentifyFile
     } catch (Exception ex)
     {
       System.err.println("File Identification failed!\n" + ex);
-      return source.errormessage;
+      throw new FileFormatException(source.errormessage);
     }
     if (trimmedLength == 0)
     {
-      System.err
-              .println("File Identification failed! - Empty file was read.");
-      return "EMPTY DATA FILE";
+      System.err.println(
+              "File Identification failed! - Empty file was read.");
+      throw new FileFormatException("EMPTY DATA FILE");
     }
+    System.out.println("File format identified as " + reply.toString());
     return reply;
   }
 
@@ -393,11 +420,19 @@ public class IdentifyFile
 
   public static void main(String[] args)
   {
-
     for (int i = 0; args != null && i < args.length; i++)
     {
       IdentifyFile ider = new IdentifyFile();
-      String type = ider.identify(args[i], AppletFormatAdapter.FILE);
+      FileFormatI type = null;
+      try
+      {
+        type = ider.identify(args[i], DataSourceType.FILE);
+      } catch (FileFormatException e)
+      {
+        System.err.println(
+                String.format("Error '%s' identifying file type for %s",
+                        args[i], e.getMessage()));
+      }
       System.out.println("Type of " + args[i] + " is " + type);
     }
     if (args == null || args.length == 0)

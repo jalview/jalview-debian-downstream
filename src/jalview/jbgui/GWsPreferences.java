@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -146,6 +146,7 @@ public class GWsPreferences extends JPanel
     refreshWs.setText(MessageManager.getString("action.refresh_services"));
     refreshWs.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         refreshWs_actionPerformed(e);
@@ -156,6 +157,7 @@ public class GWsPreferences extends JPanel
 
     resetWs.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         resetWs_actionPerformed(e);
@@ -167,6 +169,7 @@ public class GWsPreferences extends JPanel
             .getString("label.index_web_services_menu_by_host_site"));
     indexByHost.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         indexByHost_actionPerformed(e);
@@ -176,6 +179,7 @@ public class GWsPreferences extends JPanel
     indexByType.setText(MessageManager.getString("label.index_by_type"));
     indexByType.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         indexByType_actionPerformed(e);
@@ -183,24 +187,24 @@ public class GWsPreferences extends JPanel
     });
     enableJws2Services
             .setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    enableJws2Services.setText(MessageManager
-            .getString("label.enable_jabaws_services"));
+    enableJws2Services.setText(
+            MessageManager.getString("label.enable_jabaws_services"));
     enableJws2Services.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         enableJws2Services_actionPerformed(e);
       }
     });
     displayWsWarning.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    displayWsWarning.setText(MessageManager
-            .getString("label.display_warnings"));
     displayWsWarning
-            .setToolTipText("<html>"
-                    + MessageManager
-                            .getString("label.option_want_informed_web_service_URL_cannot_be_accessed_jalview_when_starts_up"));
+            .setText(MessageManager.getString("label.display_warnings"));
+    displayWsWarning.setToolTipText("<html>" + MessageManager.getString(
+            "label.option_want_informed_web_service_URL_cannot_be_accessed_jalview_when_starts_up"));
     displayWsWarning.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         displayWsWarning_actionPerformed(e);
@@ -210,6 +214,7 @@ public class GWsPreferences extends JPanel
     newWsUrl.setText(MessageManager.getString("label.new_service_url"));
     newWsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         newWsUrl_actionPerformed(e);
@@ -219,6 +224,7 @@ public class GWsPreferences extends JPanel
     editWsUrl.setText(MessageManager.getString("label.edit_service_url"));
     editWsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         editWsUrl_actionPerformed(e);
@@ -226,10 +232,11 @@ public class GWsPreferences extends JPanel
     });
 
     deleteWsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    deleteWsUrl.setText(MessageManager
-            .getString("label.delete_service_url"));
+    deleteWsUrl
+            .setText(MessageManager.getString("label.delete_service_url"));
     deleteWsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         deleteWsUrl_actionPerformed(e);
@@ -237,10 +244,11 @@ public class GWsPreferences extends JPanel
     });
     moveWsUrlUp.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     moveWsUrlUp.setText(MessageManager.getString("action.move_up"));
-    moveWsUrlUp.setToolTipText(MessageManager
-            .getString("label.move_url_up"));
+    moveWsUrlUp
+            .setToolTipText(MessageManager.getString("label.move_url_up"));
     moveWsUrlUp.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         moveWsUrlUp_actionPerformed(e);
@@ -248,30 +256,33 @@ public class GWsPreferences extends JPanel
     });
     moveWsUrlDown.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
     moveWsUrlDown.setText(MessageManager.getString("action.move_down"));
-    moveWsUrlDown.setToolTipText(MessageManager
-            .getString("label.move_url_down"));
+    moveWsUrlDown.setToolTipText(
+            MessageManager.getString("label.move_url_down"));
     moveWsUrlDown.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         moveWsUrlDown_actionPerformed(e);
       }
     });
     newSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    newSbrsUrl.setText(MessageManager
-            .getString("label.add_sbrs_definition"));
+    newSbrsUrl
+            .setText(MessageManager.getString("label.add_sbrs_definition"));
     newSbrsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         newSbrsUrl_actionPerformed(e);
       }
     });
     editSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    editSbrsUrl.setText(MessageManager
-            .getString("label.edit_sbrs_definition"));
+    editSbrsUrl.setText(
+            MessageManager.getString("label.edit_sbrs_definition"));
     editSbrsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         editSbrsUrl_actionPerformed(e);
@@ -279,10 +290,11 @@ public class GWsPreferences extends JPanel
     });
 
     deleteSbrsUrl.setFont(new java.awt.Font("Verdana", Font.PLAIN, 10));
-    deleteSbrsUrl.setText(MessageManager
-            .getString("label.delete_sbrs_definition"));
+    deleteSbrsUrl.setText(
+            MessageManager.getString("label.delete_sbrs_definition"));
     deleteSbrsUrl.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         deleteSbrsUrl_actionPerformed(e);
@@ -296,14 +308,16 @@ public class GWsPreferences extends JPanel
     wsListUrlPanel.setBorder(BorderFactory.createEtchedBorder());
     wsListUrlPanel.setLayout(new BorderLayout());
     wsListPane.setBorder(BorderFactory.createEtchedBorder());
-    wsListPane.getViewport().add(wsList);
     wsList.setPreferredSize(new Dimension(482, 202));
+    wsList.getTableHeader().setReorderingAllowed(false);
+    wsListPane.getViewport().add(wsList);
     wsListPane.setPreferredSize(new Dimension(380, 80));
     wsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     wsList.setColumnSelectionAllowed(false);
     wsList.addMouseListener(new MouseListener()
     {
 
+      @Override
       public void mouseClicked(MouseEvent e)
       {
         if (e.getClickCount() > 1)
@@ -313,20 +327,24 @@ public class GWsPreferences extends JPanel
 
       }
 
+      @Override
       public void mouseEntered(MouseEvent e)
       {
 
       }
 
+      @Override
       public void mouseExited(MouseEvent e)
       {
       }
 
+      @Override
       public void mousePressed(MouseEvent e)
       {
 
       }
 
+      @Override
       public void mouseReleased(MouseEvent e)
       {
 
@@ -358,6 +376,7 @@ public class GWsPreferences extends JPanel
     sbrsList.addMouseListener(new MouseListener()
     {
 
+      @Override
       public void mouseClicked(MouseEvent e)
       {
         if (e.getClickCount() > 1)
@@ -367,20 +386,24 @@ public class GWsPreferences extends JPanel
 
       }
 
+      @Override
       public void mouseEntered(MouseEvent e)
       {
 
       }
 
+      @Override
       public void mouseExited(MouseEvent e)
       {
       }
 
+      @Override
       public void mousePressed(MouseEvent e)
       {
 
       }
 
+      @Override
       public void mouseReleased(MouseEvent e)
       {
 

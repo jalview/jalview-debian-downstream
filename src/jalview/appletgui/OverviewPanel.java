@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,104 +20,73 @@
  */
 package jalview.appletgui;
 
-import jalview.datamodel.AlignmentI;
+import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.viewmodel.OverviewDimensions;
+import jalview.viewmodel.OverviewDimensionsHideHidden;
+import jalview.viewmodel.OverviewDimensionsShowHidden;
+import jalview.viewmodel.ViewportListenerI;
 
-import java.awt.Color;
+import java.awt.BorderLayout;
+import java.awt.CheckboxMenuItem;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Frame;
-import java.awt.Graphics;
-import java.awt.Image;
 import java.awt.Panel;
+import java.awt.PopupMenu;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.beans.PropertyChangeEvent;
 
 public class OverviewPanel extends Panel implements Runnable,
-        MouseMotionListener, MouseListener
+        MouseMotionListener, MouseListener, ViewportListenerI
 {
-  Image miniMe;
+  private OverviewDimensions od;
 
-  Image offscreen;
+  private OverviewCanvas oviewCanvas;
 
-  AlignViewport av;
+  private AlignViewport av;
 
-  AlignmentPanel ap;
+  private AlignmentPanel ap;
 
-  float scalew = 1f;
+  private boolean showHidden = true;
 
-  float scaleh = 1f;
+  private boolean updateRunning = false;
 
-  public int width, sequencesHeight;
+  private boolean draggingBox = false;
 
-  int graphHeight = 20;
-
-  int boxX = -1, boxY = -1, boxWidth = -1, boxHeight = -1;
-
-  boolean resizing = false;
-
-  // Can set different properties in this seqCanvas than
-  // main visible SeqCanvas
-  SequenceRenderer sr;
-
-  FeatureRenderer fr;
-
-  Frame nullFrame;
-
-  public OverviewPanel(AlignmentPanel ap)
+  public OverviewPanel(AlignmentPanel alPanel)
   {
-    this.av = ap.av;
-    this.ap = ap;
+    this.av = alPanel.av;
+    this.ap = alPanel;
     setLayout(null);
-    nullFrame = new Frame();
-    nullFrame.addNotify();
 
-    sr = new SequenceRenderer(av);
-    sr.graphics = nullFrame.getGraphics();
-    sr.renderGaps = false;
-    sr.forOverview = true;
-    fr = new FeatureRenderer(av);
+    od = new OverviewDimensionsShowHidden(av.getRanges(),
+            (av.isShowAnnotation()
+                    && av.getSequenceConsensusHash() != null));
 
-    // scale the initial size of overviewpanel to shape of alignment
-    float initialScale = (float) av.getAlignment().getWidth()
-            / (float) av.getAlignment().getHeight();
+    oviewCanvas = new OverviewCanvas(od, av);
+    setLayout(new BorderLayout());
+    add(oviewCanvas, BorderLayout.CENTER);
 
-    if (av.getSequenceConsensusHash() == null)
-    {
-      graphHeight = 0;
-    }
+    setSize(new Dimension(od.getWidth(), od.getHeight()));
 
-    if (av.getAlignment().getWidth() > av.getAlignment().getHeight())
-    {
-      // wider
-      width = 400;
-      sequencesHeight = (int) (400f / initialScale);
-      if (sequencesHeight < 40)
-      {
-        sequencesHeight = 40;
-      }
-    }
-    else
-    {
-      // taller
-      width = (int) (400f * initialScale);
-      sequencesHeight = 300;
-      if (width < 120)
-      {
-        width = 120;
-      }
-    }
+    av.getRanges().addPropertyChangeListener(this);
 
-    setSize(new Dimension(width, sequencesHeight + graphHeight));
     addComponentListener(new ComponentAdapter()
     {
 
       @Override
       public void componentResized(ComponentEvent evt)
       {
-        if (getSize().width != width
-                || getSize().height != sequencesHeight + graphHeight)
+        if ((getWidth() != od.getWidth())
+                || (getHeight() != (od.getHeight())))
         {
           updateOverviewImage();
         }
@@ -145,347 +114,236 @@ public class OverviewPanel extends Panel implements Runnable,
   @Override
   public void mouseClicked(MouseEvent evt)
   {
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
+    {
+      showPopupMenu(evt);
+    }
   }
 
   @Override
   public void mouseMoved(MouseEvent evt)
   {
+    if (od.isPositionInBox(evt.getX(), evt.getY()))
+    {
+      this.getParent()
+              .setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    }
+    else
+    {
+      this.getParent()
+              .setCursor(
+                      Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+    }
   }
 
   @Override
   public void mousePressed(MouseEvent evt)
   {
-    boxX = evt.getX();
-    boxY = evt.getY();
-    checkValid();
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
+    {
+      if (!Platform.isAMac())
+      {
+        showPopupMenu(evt);
+      }
+    }
+    else
+    {
+      // don't do anything if the mouse press is in the overview's box
+      // (wait to see if it's a drag instead)
+      // otherwise update the viewport
+      if (!od.isPositionInBox(evt.getX(), evt.getY()))
+      { 
+    	draggingBox = false;
+
+        // display drag cursor at mouse position
+        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+
+        od.updateViewportFromMouse(evt.getX(), evt.getY(),
+                av.getAlignment().getHiddenSequences(),
+                av.getAlignment().getHiddenColumns());
+        getParent()
+                .setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      }
+      else
+      {
+        draggingBox = true;
+        od.setDragPoint(evt.getX(), evt.getY(),
+                av.getAlignment().getHiddenSequences(),
+                av.getAlignment().getHiddenColumns());
+      }
+    }
   }
 
   @Override
   public void mouseReleased(MouseEvent evt)
   {
-    boxX = evt.getX();
-    boxY = evt.getY();
-    checkValid();
+    draggingBox = false;
   }
 
   @Override
   public void mouseDragged(MouseEvent evt)
   {
-    boxX = evt.getX();
-    boxY = evt.getY();
-    checkValid();
-  }
-
-  void checkValid()
-  {
-    if (boxY < 0)
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
     {
-      boxY = 0;
-    }
-
-    if (boxY > (sequencesHeight - boxHeight))
-    {
-      boxY = sequencesHeight - boxHeight + 1;
-    }
-
-    if (boxX < 0)
-    {
-      boxX = 0;
-    }
-
-    if (boxX > (width - boxWidth))
-    {
-      if (av.hasHiddenColumns())
+      if (!Platform.isAMac())
       {
-        // Try smallest possible box
-        boxWidth = (int) ((av.endRes - av.startRes + 1) * av.getCharWidth() * scalew);
+        showPopupMenu(evt);
       }
-      boxX = width - boxWidth;
     }
-
-    int col = (int) (boxX / scalew / av.getCharWidth());
-    int row = (int) (boxY / scaleh / av.getCharHeight());
-
-    if (av.hasHiddenColumns())
+    else
     {
-      if (!av.getColumnSelection().isVisible(col))
+      if (draggingBox)
       {
-        return;
+        // set the mouse position as a fixed point in the box
+        // and drag relative to that position
+        od.adjustViewportFromMouse(evt.getX(), evt.getY(),
+                av.getAlignment().getHiddenSequences(),
+                av.getAlignment().getHiddenColumns());
       }
-
-      col = av.getColumnSelection().findColumnPosition(col);
+      else
+      {
+        od.updateViewportFromMouse(evt.getX(), evt.getY(),
+                av.getAlignment().getHiddenSequences(),
+                av.getAlignment().getHiddenColumns());
+      }
+      ap.paintAlignment(false, false);
     }
-
-    if (av.hasHiddenRows())
-    {
-      row = av.getAlignment().getHiddenSequences()
-              .findIndexWithoutHiddenSeqs(row);
-    }
-
-    ap.setScrollValues(col, row);
-    ap.paintAlignment(false);
   }
 
   /**
-   * DOCUMENT ME!
+   * Updates the overview image when the related alignment panel is updated
    */
   public void updateOverviewImage()
   {
-    if (resizing)
+    if (oviewCanvas == null)
     {
-      resizeAgain = true;
+      /*
+       * panel has been disposed
+       */
       return;
     }
 
-    if (av.isShowSequenceFeatures())
-    {
-      fr.transferSettings(ap.seqPanel.seqCanvas.fr);
-    }
-
-    resizing = true;
-
     if ((getSize().width > 0) && (getSize().height > 0))
     {
-      width = getSize().width;
-      sequencesHeight = getSize().height - graphHeight;
+      od.setWidth(getSize().width);
+      od.setHeight(getSize().height);
     }
-    setSize(new Dimension(width, sequencesHeight + graphHeight));
+    setSize(new Dimension(od.getWidth(), od.getHeight()));
 
+    synchronized (this)
+    {
+      if (updateRunning)
+      {
+        oviewCanvas.restartDraw();
+        return;
+      }
+
+      updateRunning = true;
+    }
     Thread thread = new Thread(this);
     thread.start();
     repaint();
+    updateRunning = false;
   }
-
-  // This is set true if the user resizes whilst
-  // the overview is being calculated
-  boolean resizeAgain = false;
 
   @Override
   public void run()
   {
-    miniMe = null;
-    int alwidth = av.getAlignment().getWidth();
-    int alheight = av.getAlignment().getHeight()
-            + av.getAlignment().getHiddenSequences().getSize();
-
-    if (av.isShowSequenceFeatures())
-    {
-      fr.transferSettings(ap.seqPanel.seqCanvas.getFeatureRenderer());
-    }
-
-    if (getSize().width > 0 && getSize().height > 0)
-    {
-      width = getSize().width;
-      sequencesHeight = getSize().height - graphHeight;
-    }
-
-    setSize(new Dimension(width, sequencesHeight + graphHeight));
-
-    int fullsizeWidth = alwidth * av.getCharWidth();
-    int fullsizeHeight = alheight * av.getCharHeight();
-
-    scalew = (float) width / (float) fullsizeWidth;
-    scaleh = (float) sequencesHeight / (float) fullsizeHeight;
-
-    miniMe = nullFrame.createImage(width, sequencesHeight + graphHeight);
-    offscreen = nullFrame.createImage(width, sequencesHeight + graphHeight);
-
-    Graphics mg = miniMe.getGraphics();
-    float sampleCol = (float) alwidth / (float) width;
-    float sampleRow = (float) alheight / (float) sequencesHeight;
-
-    int lastcol = 0, lastrow = 0;
-    int xstart = 0, ystart = 0;
-    Color color = Color.yellow;
-    int row, col, sameRow = 0, sameCol = 0;
-    jalview.datamodel.SequenceI seq;
-    final boolean hasHiddenRows = av.hasHiddenRows(), hasHiddenCols = av
-            .hasHiddenColumns();
-    boolean hiddenRow = false;
-    AlignmentI alignment = av.getAlignment();
-    for (row = 0; row <= sequencesHeight; row++)
-    {
-      if (resizeAgain)
-      {
-        break;
-      }
-      if ((int) (row * sampleRow) == lastrow)
-      {
-        sameRow++;
-        continue;
-      }
-
-      hiddenRow = false;
-      if (hasHiddenRows)
-      {
-        seq = alignment.getHiddenSequences().getHiddenSequence(lastrow);
-        if (seq == null)
-        {
-          int index = alignment.getHiddenSequences()
-                  .findIndexWithoutHiddenSeqs(lastrow);
-
-          seq = alignment.getSequenceAt(index);
-        }
-        else
-        {
-          hiddenRow = true;
-        }
-      }
-      else
-      {
-        seq = alignment.getSequenceAt(lastrow);
-      }
-
-      for (col = 0; col < width; col++)
-      {
-        if ((int) (col * sampleCol) == lastcol
-                && (int) (row * sampleRow) == lastrow)
-        {
-          sameCol++;
-          continue;
-        }
-
-        lastcol = (int) (col * sampleCol);
-
-        if (seq.getLength() > lastcol)
-        {
-          color = sr.getResidueBoxColour(seq, lastcol);
-
-          if (av.isShowSequenceFeatures())
-          {
-            color = fr.findFeatureColour(color, seq, lastcol);
-          }
-        }
-        else
-        {
-          color = Color.white; // White
-        }
-
-        if (hiddenRow
-                || (hasHiddenCols && !av.getColumnSelection().isVisible(
-                        lastcol)))
-        {
-          color = color.darker().darker();
-        }
-
-        mg.setColor(color);
-        if (sameCol == 1 && sameRow == 1)
-        {
-          mg.drawLine(xstart, ystart, xstart, ystart);
-        }
-        else
-        {
-          mg.fillRect(xstart, ystart, sameCol, sameRow);
-        }
-
-        xstart = col;
-        sameCol = 1;
-      }
-      lastrow = (int) (row * sampleRow);
-      ystart = row;
-      sameRow = 1;
-    }
-
-    if (av.getAlignmentConservationAnnotation() != null)
-    {
-      for (col = 0; col < width; col++)
-      {
-        if (resizeAgain)
-        {
-          break;
-        }
-        lastcol = (int) (col * sampleCol);
-        {
-          mg.translate(col, sequencesHeight);
-          ap.annotationPanel.renderer.drawGraph(mg,
-                  av.getAlignmentConservationAnnotation(),
-                  av.getAlignmentConservationAnnotation().annotations,
-                  (int) (sampleCol) + 1, graphHeight,
-                  (int) (col * sampleCol), (int) (col * sampleCol) + 1);
-          mg.translate(-col, -sequencesHeight);
-        }
-      }
-    }
-    System.gc();
-
-    resizing = false;
-
+    oviewCanvas.draw(av.isShowSequenceFeatures(),
+            (av.isShowAnnotation()
+                    && av.getAlignmentConservationAnnotation() != null),
+            ap.seqPanel.seqCanvas.getFeatureRenderer());
     setBoxPosition();
-
-    if (resizeAgain)
-    {
-      resizeAgain = false;
-      updateOverviewImage();
-    }
   }
 
-  public void setBoxPosition()
+  /**
+   * Update the overview panel box when the associated alignment panel is
+   * changed
+   * 
+   */
+  private void setBoxPosition()
   {
-    int fullsizeWidth = av.getAlignment().getWidth() * av.getCharWidth();
-    int fullsizeHeight = (av.getAlignment().getHeight() + av.getAlignment()
-            .getHiddenSequences().getSize())
-            * av.getCharHeight();
-
-    int startRes = av.getStartRes();
-    int endRes = av.getEndRes();
-
-    if (av.hasHiddenColumns())
-    {
-      startRes = av.getColumnSelection().adjustForHiddenColumns(startRes);
-      endRes = av.getColumnSelection().adjustForHiddenColumns(endRes);
-    }
-
-    int startSeq = av.startSeq;
-    int endSeq = av.endSeq;
-
-    if (av.hasHiddenRows())
-    {
-      startSeq = av.getAlignment().getHiddenSequences()
-              .adjustForHiddenSeqs(startSeq);
-
-      endSeq = av.getAlignment().getHiddenSequences()
-              .adjustForHiddenSeqs(endSeq);
-
-    }
-
-    scalew = (float) width / (float) fullsizeWidth;
-    scaleh = (float) sequencesHeight / (float) fullsizeHeight;
-
-    boxX = (int) (startRes * av.getCharWidth() * scalew);
-    boxY = (int) (startSeq * av.getCharHeight() * scaleh);
-
-    if (av.hasHiddenColumns())
-    {
-      boxWidth = (int) ((endRes - startRes + 1) * av.getCharWidth() * scalew);
-    }
-    else
-    {
-      boxWidth = (int) ((endRes - startRes + 1) * av.getCharWidth() * scalew);
-    }
-
-    boxHeight = (int) ((endSeq - startSeq) * av.getCharHeight() * scaleh);
-
+    od.setBoxPosition(av.getAlignment().getHiddenSequences(),
+            av.getAlignment().getHiddenColumns());
     repaint();
   }
 
-  @Override
-  public void update(Graphics g)
+  /*
+   * Displays the popup menu and acts on user input
+   */
+  private void showPopupMenu(MouseEvent e)
   {
-    paint(g);
+    PopupMenu popup = new PopupMenu();
+    ItemListener menuListener = new ItemListener()
+    {
+      @Override
+      public void itemStateChanged(ItemEvent e)
+      {
+        toggleHiddenColumns();
+      }
+    };
+    CheckboxMenuItem item = new CheckboxMenuItem(
+            MessageManager.getString("label.togglehidden"));
+    item.setState(showHidden);
+    popup.add(item);
+    item.addItemListener(menuListener);
+    this.add(popup);
+    popup.show(this, e.getX(), e.getY());
   }
 
   @Override
-  public void paint(Graphics g)
+  public void propertyChange(PropertyChangeEvent evt)
   {
-    Graphics og = offscreen.getGraphics();
-    if (miniMe != null)
+    setBoxPosition();
+  }
+
+  /*
+   * Toggle overview display between showing hidden columns and hiding hidden columns
+   */
+  private void toggleHiddenColumns()
+  {
+    if (showHidden)
     {
-      og.drawImage(miniMe, 0, 0, this);
-      og.setColor(Color.red);
-      og.drawRect(boxX, boxY, boxWidth, boxHeight);
-      og.drawRect(boxX + 1, boxY + 1, boxWidth - 2, boxHeight - 2);
-      g.drawImage(offscreen, 0, 0, this);
+      showHidden = false;
+      od = new OverviewDimensionsHideHidden(av.getRanges(),
+              (av.isShowAnnotation()
+                      && av.getAlignmentConservationAnnotation() != null));
+    }
+    else
+    {
+      showHidden = true;
+      od = new OverviewDimensionsShowHidden(av.getRanges(),
+              (av.isShowAnnotation()
+                      && av.getAlignmentConservationAnnotation() != null));
+    }
+    oviewCanvas.resetOviewDims(od);
+    updateOverviewImage();
+  }
+
+  /**
+   * Removes this object as a property change listener, and nulls references
+   */
+  protected void dispose()
+  {
+    try
+    {
+      av.getRanges().removePropertyChangeListener(this);
+      Frame parent = (Frame) getParent();
+      parent.dispose();
+      parent.setVisible(false);
+    } finally
+    {
+      av = null;
+      if (oviewCanvas != null)
+      {
+        oviewCanvas.dispose();
+      }
+      oviewCanvas = null;
+      ap = null;
+      od = null;
     }
   }
-
 }

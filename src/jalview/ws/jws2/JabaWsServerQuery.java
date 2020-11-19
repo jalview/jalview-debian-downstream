@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -126,8 +126,8 @@ public class JabaWsServerQuery implements Runnable
             srv_set = registry.getSupportedServices();
 
             // dan test
-            System.out.println("registry.getSupportedServices: "
-                    + srv_set.toString());
+            System.out.println(
+                    "registry.getSupportedServices: " + srv_set.toString());
 
             svccategories = registry.getServiceCategories();
 

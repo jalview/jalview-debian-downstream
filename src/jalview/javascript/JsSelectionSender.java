@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,11 +23,12 @@ package jalview.javascript;
 import jalview.appletgui.AlignFrame;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
 import jalview.structure.SelectionSource;
 
-public class JsSelectionSender extends JSFunctionExec implements
-        jalview.structure.SelectionListener, JsCallBack
+public class JsSelectionSender extends JSFunctionExec
+        implements jalview.structure.SelectionListener, JsCallBack
 {
 
   AlignFrame _af;
@@ -44,9 +45,10 @@ public class JsSelectionSender extends JSFunctionExec implements
 
   @Override
   public void selection(SequenceGroup seqsel, ColumnSelection colsel,
-          SelectionSource source)
+          HiddenColumns hidden, SelectionSource source)
   {
-    // System.err.println("Testing selection event relay to jsfunction:"+_listener);
+    // System.err.println("Testing selection event relay to
+    // jsfunction:"+_listener);
     try
     {
       String setid = "";
@@ -63,8 +65,8 @@ public class JsSelectionSender extends JSFunctionExec implements
       }
       String[] seqs = new String[] {};
       String[] cols = new String[] {};
-      int strt = 0, end = (src == null) ? -1 : src.alignPanel.av
-              .getAlignment().getWidth();
+      int strt = 0, end = (src == null) ? -1
+              : src.alignPanel.av.getAlignment().getWidth();
       if (seqsel != null && seqsel.getSize() > 0)
       {
         seqs = new String[seqsel.getSize()];
@@ -106,12 +108,13 @@ public class JsSelectionSender extends JSFunctionExec implements
       }
       System.err.println("Relaying selection to jsfunction:" + _listener);
       executeJavascriptFunction(_listener,
-              new Object[] { src, setid, jvlite.arrayToSeparatorList(seqs),
+              new Object[]
+              { src, setid, jvlite.arrayToSeparatorList(seqs),
                   jvlite.arrayToSeparatorList(cols) });
     } catch (Exception ex)
     {
-      System.err
-              .println("Jalview Javascript exec error: Couldn't send selection message using function '"
+      System.err.println(
+              "Jalview Javascript exec error: Couldn't send selection message using function '"
                       + _listener + "'");
       ex.printStackTrace();
       if (ex instanceof netscape.javascript.JSException)

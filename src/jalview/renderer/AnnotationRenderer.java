@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,9 +28,12 @@ import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.ProfilesI;
 import jalview.schemes.ColourSchemeI;
+import jalview.schemes.NucleotideColourScheme;
 import jalview.schemes.ResidueProperties;
+import jalview.schemes.ZappoColourScheme;
 import jalview.util.Platform;
 
 import java.awt.BasicStroke;
@@ -70,9 +73,11 @@ public class AnnotationRenderer
   boolean av_renderHistogram = true, av_renderProfile = true,
           av_normaliseProfile = false;
 
-  ColourSchemeI profcolour = null;
+  ResidueShaderI profcolour = null;
 
   private ColumnSelection columnSelection;
+
+  private HiddenColumns hiddenColumns;
 
   private ProfilesI hconsensus;
 
@@ -145,6 +150,7 @@ public class AnnotationRenderer
    */
   public void dispose()
   {
+    hiddenColumns = null;
     hconsensus = null;
     complementConsensus = null;
     hStrucConsensus = null;
@@ -157,7 +163,8 @@ public class AnnotationRenderer
           boolean validRes, boolean validEnd)
   {
     g.setColor(STEM_COLOUR);
-    int sCol = (lastSSX / charWidth) + startRes;
+    int sCol = (lastSSX / charWidth)
+            + hiddenColumns.visibleToAbsoluteColumn(startRes);
     int x1 = lastSSX;
     int x2 = (x * charWidth);
 
@@ -181,8 +188,9 @@ public class AnnotationRenderer
          * display a backward arrow
          */
         g.fillPolygon(new int[] { lastSSX + 5, lastSSX + 5, lastSSX },
-                new int[] { y + iconOffset, y + 14 + iconOffset,
-                    y + 8 + iconOffset }, 3);
+                new int[]
+                { y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset },
+                3);
         x1 += 5;
       }
       if (diffdownstream)
@@ -199,8 +207,10 @@ public class AnnotationRenderer
          * if annotation ending with an opeing base pair half of the stem, 
          * display a forward arrow
          */
-        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 }, new int[] {
-            y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset }, 3);
+        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 },
+                new int[]
+                { y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset },
+                3);
         x2 -= 5;
       }
       if (diffupstream)
@@ -220,7 +230,8 @@ public class AnnotationRenderer
     // System.out.println(nonCanColor);
 
     g.setColor(nonCanColor);
-    int sCol = (lastSSX / charWidth) + startRes;
+    int sCol = (lastSSX / charWidth)
+            + hiddenColumns.visibleToAbsoluteColumn(startRes);
     int x1 = lastSSX;
     int x2 = (x * charWidth);
 
@@ -232,7 +243,8 @@ public class AnnotationRenderer
     boolean diffdownstream = !validRes || !validEnd
             || row_annotations[column] == null
             || !dc.equals(row_annotations[column].displayCharacter);
-    // System.out.println("Column "+column+" diff up: "+diffupstream+" down:"+diffdownstream);
+    // System.out.println("Column "+column+" diff up: "+diffupstream+"
+    // down:"+diffdownstream);
     // If a closing base pair half of the stem, display a backward arrow
     if (column > 0 && Rna.isClosingParenthesis(dc))
     {
@@ -242,8 +254,9 @@ public class AnnotationRenderer
       // dc.equals(row_annotations[column-2].displayCharacter))
       {
         g.fillPolygon(new int[] { lastSSX + 5, lastSSX + 5, lastSSX },
-                new int[] { y + iconOffset, y + 14 + iconOffset,
-                    y + 8 + iconOffset }, 3);
+                new int[]
+                { y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset },
+                3);
         x1 += 5;
       }
       if (diffdownstream)
@@ -257,8 +270,10 @@ public class AnnotationRenderer
       // display a forward arrow
       if (diffdownstream)
       {
-        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 }, new int[] {
-            y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset }, 3);
+        g.fillPolygon(new int[] { x2 - 5, x2 - 5, x2 },
+                new int[]
+                { y + iconOffset, y + 14 + iconOffset, y + 8 + iconOffset },
+                3);
         x2 -= 5;
       }
       if (diffupstream)
@@ -305,22 +320,28 @@ public class AnnotationRenderer
   public void updateFromAlignViewport(AlignViewportI av)
   {
     charWidth = av.getCharWidth();
-    endRes = av.getEndRes();
+    endRes = av.getRanges().getEndRes();
     charHeight = av.getCharHeight();
     hasHiddenColumns = av.hasHiddenColumns();
     validCharWidth = av.isValidCharWidth();
     av_renderHistogram = av.isShowConsensusHistogram();
     av_renderProfile = av.isShowSequenceLogo();
     av_normaliseProfile = av.isNormaliseSequenceLogo();
-    profcolour = av.getGlobalColourScheme();
-    if (profcolour == null)
+    profcolour = av.getResidueShading();
+    if (profcolour == null || profcolour.getColourScheme() == null)
     {
-      // Set the default colour for sequence logo if the alignnent has no
-      // colourscheme set
-      profcolour = av.getAlignment().isNucleotide() ? new jalview.schemes.NucleotideColourScheme()
-              : new jalview.schemes.ZappoColourScheme();
+      /*
+       * Use default colour for sequence logo if 
+       * the alignment has no colourscheme set
+       * (would like to use user preference but n/a for applet)
+       */
+      ColourSchemeI col = av.getAlignment().isNucleotide()
+              ? new NucleotideColourScheme()
+              : new ZappoColourScheme();
+      profcolour = new ResidueShader(col);
     }
     columnSelection = av.getColumnSelection();
+    hiddenColumns = av.getAlignment().getHiddenColumns();
     hconsensus = av.getSequenceConsensusHash();
     complementConsensus = av.getComplementConsensusHash();
     hStrucConsensus = av.getRnaStructureConsensusHash();
@@ -342,9 +363,8 @@ public class AnnotationRenderer
     // properties/rendering attributes as a global 'alignment group' which holds
     // all vis settings for the alignment as a whole rather than a subset
     //
-    if (aa.autoCalculated
-            && (aa.label.startsWith("Consensus") || aa.label
-                    .startsWith("cDNA Consensus")))
+    if (aa.autoCalculated && (aa.label.startsWith("Consensus")
+            || aa.label.startsWith("cDNA Consensus")))
     {
       boolean forComplement = aa.label.startsWith("cDNA Consensus");
       if (aa.groupRef != null && aa.groupRef.consensusData != null
@@ -361,13 +381,12 @@ public class AnnotationRenderer
       {
         if (forComplement)
         {
-          return AAFrequency.extractCdnaProfile(
-                  complementConsensus[column], av_ignoreGapsConsensus);
+          return AAFrequency.extractCdnaProfile(complementConsensus[column],
+                  av_ignoreGapsConsensus);
         }
         else
         {
-          return AAFrequency.extractProfile(
-hconsensus.get(column),
+          return AAFrequency.extractProfile(hconsensus.get(column),
                   av_ignoreGapsConsensus);
         }
       }
@@ -453,7 +472,8 @@ hconsensus.get(column),
             .getAlignmentStrucConsensusAnnotation();
     final AlignmentAnnotation complementConsensusAnnot = av
             .getComplementConsensusAnnotation();
-    boolean renderHistogram = true, renderProfile = true, normaliseProfile = false, isRNA = rna;
+    boolean renderHistogram = true, renderProfile = true,
+            normaliseProfile = false, isRNA = rna;
 
     BitSet graphGroupDrawn = new BitSet();
     int charOffset = 0; // offset for a label
@@ -504,8 +524,8 @@ hconsensus.get(column),
       lastSS = ' ';
       lastSSX = 0;
 
-      if (!useClip
-              || ((y - charHeight) < visHeight && (y + row.height + charHeight * 2) >= sOffset))
+      if (!useClip || ((y - charHeight) < visHeight
+              && (y + row.height + charHeight * 2) >= sOffset))
       {// if_in_visible_region
         if (!clipst)
         {
@@ -545,8 +565,8 @@ hconsensus.get(column),
         {
           y += charHeight;
           usedFaded = true;
-          g.drawImage(fadedImage, 0, y - row.height, imgWidth, y, 0, y
-                  - row.height, imgWidth, y, annotationPanel);
+          g.drawImage(fadedImage, 0, y - row.height, imgWidth, y, 0,
+                  y - row.height, imgWidth, y, annotationPanel);
           g.setColor(Color.black);
           // g.drawString("Calculating "+aa[i].label+"....",20, y-row.height/2);
 
@@ -583,7 +603,7 @@ hconsensus.get(column),
         {
           if (hasHiddenColumns)
           {
-            column = columnSelection.adjustForHiddenColumns(startRes + x);
+            column = hiddenColumns.visibleToAbsoluteColumn(startRes + x);
             if (column > row_annotations.length - 1)
             {
               break;
@@ -604,7 +624,8 @@ hconsensus.get(column),
           {
             validRes = true;
           }
-          final String displayChar = validRes ? row_annotations[column].displayCharacter
+          final String displayChar = validRes
+                  ? row_annotations[column].displayCharacter
                   : null;
           if (x > -1)
           {
@@ -674,17 +695,17 @@ hconsensus.get(column),
 
               if (column == 0 || row.graph > 0)
               {
-                g.drawString(displayChar, (x * charWidth) + charOffset, y
-                        + iconOffset);
+                g.drawString(displayChar, (x * charWidth) + charOffset,
+                        y + iconOffset);
               }
-              else if (row_annotations[column - 1] == null
-                      || (labelAllCols
-                              || !displayChar
-                                      .equals(row_annotations[column - 1].displayCharacter) || (displayChar
-                              .length() < 2 && row_annotations[column].secondaryStructure == ' ')))
+              else if (row_annotations[column - 1] == null || (labelAllCols
+                      || !displayChar.equals(
+                              row_annotations[column - 1].displayCharacter)
+                      || (displayChar.length() < 2
+                              && row_annotations[column].secondaryStructure == ' ')))
               {
-                g.drawString(displayChar, x * charWidth + charOffset, y
-                        + iconOffset);
+                g.drawString(displayChar, x * charWidth + charOffset,
+                        y + iconOffset);
               }
               g.setFont(ofont);
             }
@@ -748,7 +769,8 @@ hconsensus.get(column),
               {
 
                 int nb_annot = x - temp;
-                // System.out.println("\t type :"+lastSS+"\t x :"+x+"\t nbre annot :"+nb_annot);
+                // System.out.println("\t type :"+lastSS+"\t x :"+x+"\t nbre
+                // annot :"+nb_annot);
                 switch (lastSS)
                 {
                 case '(': // Stem case for RNA secondary structure
@@ -842,8 +864,8 @@ hconsensus.get(column),
                   break;
                 default:
                   g.setColor(Color.gray);
-                  g.fillRect(lastSSX, y + 6 + iconOffset, (x * charWidth)
-                          - lastSSX, 2);
+                  g.fillRect(lastSSX, y + 6 + iconOffset,
+                          (x * charWidth) - lastSSX, 2);
                   temp = x;
                   break;
                 }
@@ -1042,7 +1064,7 @@ hconsensus.get(column),
         {
           clipend = true;
         }
-      }// end if_in_visible_region
+      } // end if_in_visible_region
       if (row.graph > 0 && row.hasText)
       {
         y += charHeight;
@@ -1059,13 +1081,13 @@ hconsensus.get(column),
       {
         if (clipst)
         {
-          System.err.println("Start clip at : " + yfrom + " (index " + f_i
-                  + ")");
+          System.err.println(
+                  "Start clip at : " + yfrom + " (index " + f_i + ")");
         }
         if (clipend)
         {
-          System.err.println("End clip at : " + yto + " (index " + f_to
-                  + ")");
+          System.err.println(
+                  "End clip at : " + yto + " (index " + f_to + ")");
         }
       }
       ;
@@ -1088,8 +1110,8 @@ hconsensus.get(column),
   private Color sdNOTCANONICAL_COLOUR;
 
   void drawGlyphLine(Graphics g, Annotation[] row, int lastSSX, int x,
-          int y, int iconOffset, int startRes, int column,
-          boolean validRes, boolean validEnd)
+          int y, int iconOffset, int startRes, int column, boolean validRes,
+          boolean validEnd)
   {
     g.setColor(GLYPHLINE_COLOR);
     g.fillRect(lastSSX, y + 6 + iconOffset, (x * charWidth) - lastSSX, 2);
@@ -1097,35 +1119,39 @@ hconsensus.get(column),
 
   void drawSheetAnnot(Graphics g, Annotation[] row,
 
-  int lastSSX, int x, int y, int iconOffset, int startRes, int column,
-          boolean validRes, boolean validEnd)
+          int lastSSX, int x, int y, int iconOffset, int startRes,
+          int column, boolean validRes, boolean validEnd)
   {
     g.setColor(SHEET_COLOUR);
 
     if (!validEnd || !validRes || row == null || row[column] == null
             || row[column].secondaryStructure != 'E')
     {
-      g.fillRect(lastSSX, y + 4 + iconOffset,
-              (x * charWidth) - lastSSX - 4, 7);
-      g.fillPolygon(new int[] { (x * charWidth) - 4, (x * charWidth) - 4,
-          (x * charWidth) }, new int[] { y + iconOffset,
-          y + 14 + iconOffset, y + 7 + iconOffset }, 3);
+      g.fillRect(lastSSX, y + 4 + iconOffset, (x * charWidth) - lastSSX - 4,
+              7);
+      g.fillPolygon(
+              new int[]
+              { (x * charWidth) - 4, (x * charWidth) - 4, (x * charWidth) },
+              new int[]
+              { y + iconOffset, y + 14 + iconOffset, y + 7 + iconOffset },
+              3);
     }
     else
     {
-      g.fillRect(lastSSX, y + 4 + iconOffset,
-              (x + 1) * charWidth - lastSSX, 7);
+      g.fillRect(lastSSX, y + 4 + iconOffset, (x + 1) * charWidth - lastSSX,
+              7);
     }
 
   }
 
   void drawHelixAnnot(Graphics g, Annotation[] row, int lastSSX, int x,
-          int y, int iconOffset, int startRes, int column,
-          boolean validRes, boolean validEnd)
+          int y, int iconOffset, int startRes, int column, boolean validRes,
+          boolean validEnd)
   {
     g.setColor(HELIX_COLOUR);
 
-    int sCol = (lastSSX / charWidth) + startRes;
+    int sCol = (lastSSX / charWidth)
+            + hiddenColumns.visibleToAbsoluteColumn(startRes);
     int x1 = lastSSX;
     int x2 = (x * charWidth);
 
@@ -1153,8 +1179,8 @@ hconsensus.get(column),
       else
       {
         // g.setColor(Color.magenta);
-        g.fillRoundRect(lastSSX + ofs, y + 4 + iconOffset, x2 - x1 - ofs
-                + 1, 8, 0, 0);
+        g.fillRoundRect(lastSSX + ofs, y + 4 + iconOffset,
+                x2 - x1 - ofs + 1, 8, 0, 0);
 
       }
 
@@ -1180,8 +1206,8 @@ hconsensus.get(column),
   }
 
   void drawLineGraph(Graphics g, AlignmentAnnotation _aa,
-          Annotation[] aa_annotations, int sRes, int eRes, int y,
-          float min, float max, int graphHeight)
+          Annotation[] aa_annotations, int sRes, int eRes, int y, float min,
+          float max, int graphHeight)
   {
     if (sRes > aa_annotations.length)
     {
@@ -1225,7 +1251,7 @@ hconsensus.get(column),
       column = sRes + x;
       if (hasHiddenColumns)
       {
-        column = columnSelection.adjustForHiddenColumns(column);
+        column = hiddenColumns.visibleToAbsoluteColumn(column);
       }
 
       if (column > aaMax)
@@ -1249,13 +1275,13 @@ hconsensus.get(column),
         g.setColor(aa_annotations[column].colour);
       }
 
-      y1 = y
-              - (int) (((aa_annotations[column - 1].value - min) / range) * graphHeight);
-      y2 = y
-              - (int) (((aa_annotations[column].value - min) / range) * graphHeight);
+      y1 = y - (int) (((aa_annotations[column - 1].value - min) / range)
+              * graphHeight);
+      y2 = y - (int) (((aa_annotations[column].value - min) / range)
+              * graphHeight);
 
-      g.drawLine(x * charWidth - charWidth / 2, y1, x * charWidth
-              + charWidth / 2, y2);
+      g.drawLine(x * charWidth - charWidth / 2, y1,
+              x * charWidth + charWidth / 2, y2);
       x++;
     }
 
@@ -1264,7 +1290,8 @@ hconsensus.get(column),
       g.setColor(_aa.threshold.colour);
       Graphics2D g2 = (Graphics2D) g;
       g2.setStroke(new BasicStroke(1, BasicStroke.CAP_SQUARE,
-              BasicStroke.JOIN_ROUND, 3f, new float[] { 5f, 3f }, 0f));
+              BasicStroke.JOIN_ROUND, 3f, new float[]
+              { 5f, 3f }, 0f));
 
       y2 = (int) (y - ((_aa.threshold.value - min) / range) * graphHeight);
       g.drawLine(0, y2, (eRes - sRes) * charWidth, y2);
@@ -1304,7 +1331,7 @@ hconsensus.get(column),
       column = sRes + x;
       if (hasHiddenColumns)
       {
-        column = columnSelection.adjustForHiddenColumns(column);
+        column = hiddenColumns.visibleToAbsoluteColumn(column);
       }
 
       if (column > aaMax)
@@ -1326,8 +1353,8 @@ hconsensus.get(column),
         g.setColor(aa_annotations[column].colour);
       }
 
-      y1 = y
-              - (int) (((aa_annotations[column].value - min) / (range)) * _aa.graphHeight);
+      y1 = y - (int) (((aa_annotations[column].value - min) / (range))
+              * _aa.graphHeight);
 
       if (renderHistogram)
       {
@@ -1401,10 +1428,10 @@ hconsensus.get(column),
             ht += scl;
             // next profl[] position is profile % for the character(s)
             scl = htn * scale * profl[c++];
-            lm = ofont.getLineMetrics(dc, 0, 1, g.getFontMetrics()
-                    .getFontRenderContext());
-            Font font = ofont.deriveFont(AffineTransform.getScaleInstance(
-                    wdth, scl / lm.getAscent()));
+            lm = ofont.getLineMetrics(dc, 0, 1,
+                    g.getFontMetrics().getFontRenderContext());
+            Font font = ofont.deriveFont(AffineTransform
+                    .getScaleInstance(wdth, scl / lm.getAscent()));
             g.setFont(font);
             lm = g.getFontMetrics().getLineMetrics(dc, 0, 1, g);
 
@@ -1432,8 +1459,8 @@ hconsensus.get(column),
             }
             g.setColor(colour == Color.white ? Color.lightGray : colour);
 
-            hght = (ht + (scl - lm.getDescent() - lm.getBaselineOffsets()[lm
-                    .getBaselineIndex()]));
+            hght = (ht + (scl - lm.getDescent()
+                    - lm.getBaselineOffsets()[lm.getBaselineIndex()]));
 
             g.drawChars(dc, 0, dc.length, x * charWidth, (int) hght);
             valuesProcessed++;
@@ -1448,10 +1475,11 @@ hconsensus.get(column),
       g.setColor(_aa.threshold.colour);
       Graphics2D g2 = (Graphics2D) g;
       g2.setStroke(new BasicStroke(1, BasicStroke.CAP_SQUARE,
-              BasicStroke.JOIN_ROUND, 3f, new float[] { 5f, 3f }, 0f));
+              BasicStroke.JOIN_ROUND, 3f, new float[]
+              { 5f, 3f }, 0f));
 
-      y2 = (int) (y - ((_aa.threshold.value - min) / range)
-              * _aa.graphHeight);
+      y2 = (int) (y
+              - ((_aa.threshold.value - min) / range) * _aa.graphHeight);
       g.drawLine(0, y2, (eRes - sRes) * charWidth, y2);
       g2.setStroke(new BasicStroke());
     }

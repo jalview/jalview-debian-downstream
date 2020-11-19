@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -100,7 +100,7 @@ public interface SiftsClientI
    * @return Sequence<->Structure mapping as int[][]
    * @throws SiftsException
    */
-  public StringBuffer getMappingOutput(MappingOutputPojo mop)
+  public StringBuilder getMappingOutput(MappingOutputPojo mop)
           throws SiftsException;
 
   /**

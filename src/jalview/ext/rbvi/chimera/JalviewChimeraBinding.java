@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,14 +21,18 @@
 package jalview.ext.rbvi.chimera;
 
 import jalview.api.AlignmentViewPanel;
-import jalview.api.FeatureRenderer;
 import jalview.api.SequenceRenderer;
+import jalview.api.structures.JalviewStructureDisplayI;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SearchResultMatchI;
+import jalview.datamodel.SearchResultsI;
+import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.httpserver.AbstractRequestHandler;
+import jalview.io.DataSourceType;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ResidueProperties;
 import jalview.structure.AtomSpec;
@@ -38,8 +42,14 @@ import jalview.structures.models.AAStructureBindingModel;
 import jalview.util.MessageManager;
 
 import java.awt.Color;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.BindException;
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,6 +62,8 @@ import ext.edu.ucsf.rbvi.strucviz2.StructureManager.ModelType;
 
 public abstract class JalviewChimeraBinding extends AAStructureBindingModel
 {
+  public static final String CHIMERA_FEATURE_GROUP = "Chimera";
+
   // Chimera clause to exclude alternate locations in atom selection
   private static final String NO_ALTLOCS = "&~@.B-Z&~@.2-9";
 
@@ -67,6 +79,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   private List<String> chainNames = new ArrayList<String>();
 
   private Hashtable<String, String> chainFile = new Hashtable<String, String>();
+
   /*
    * Object through which we talk to Chimera
    */
@@ -90,20 +103,10 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    */
   private boolean loadingFinished = true;
 
-  public String fileLoadingError;
-
   /*
    * Map of ChimeraModel objects keyed by PDB full local file name
    */
   private Map<String, List<ChimeraModel>> chimeraMaps = new LinkedHashMap<String, List<ChimeraModel>>();
-
-  /*
-   * the default or current model displayed if the model cannot be identified
-   * from the selection message
-   */
-  private int frameNo = 0;
-
-  private String lastCommand;
 
   String lastHighlightCommand;
 
@@ -113,6 +116,8 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * referring to new structures.
    */
   private long loadNotifiesHandled = 0;
+
+  private Thread chimeraMonitor;
 
   /**
    * Open a PDB structure file in Chimera and set up mappings from Jalview.
@@ -167,13 +172,6 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       if (getSsm() != null)
       {
         getSsm().addStructureViewerListener(this);
-        // ssm.addSelectionListener(this);
-        FeatureRenderer fr = getFeatureRenderer(null);
-        if (fr != null)
-        {
-          fr.featuresAdded();
-        }
-        refreshGUI();
       }
       return true;
     } catch (Exception q)
@@ -191,15 +189,45 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * @param ssm
    * @param pdbentry
    * @param sequenceIs
-   * @param chains
    * @param protocol
    */
   public JalviewChimeraBinding(StructureSelectionManager ssm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String protocol)
+          PDBEntry[] pdbentry, SequenceI[][] sequenceIs,
+          DataSourceType protocol)
   {
     super(ssm, pdbentry, sequenceIs, protocol);
-    viewer = new ChimeraManager(
-            new ext.edu.ucsf.rbvi.strucviz2.StructureManager(true));
+    viewer = new ChimeraManager(new StructureManager(true));
+  }
+
+  /**
+   * Starts a thread that waits for the Chimera process to finish, so that we
+   * can then close the associated resources. This avoids leaving orphaned
+   * Chimera viewer panels in Jalview if the user closes Chimera.
+   */
+  protected void startChimeraProcessMonitor()
+  {
+    final Process p = viewer.getChimeraProcess();
+    chimeraMonitor = new Thread(new Runnable()
+    {
+
+      @Override
+      public void run()
+      {
+        try
+        {
+          p.waitFor();
+          JalviewStructureDisplayI display = getViewer();
+          if (display != null)
+          {
+            display.closeViewer(false);
+          }
+        } catch (InterruptedException e)
+        {
+          // exit thread if Chimera Viewer is closed in Jalview
+        }
+      }
+    });
+    chimeraMonitor.start();
   }
 
   /**
@@ -214,21 +242,9 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       viewer.startListening(chimeraListener.getUri());
     } catch (BindException e)
     {
-      System.err.println("Failed to start Chimera listener: "
-              + e.getMessage());
+      System.err.println(
+              "Failed to start Chimera listener: " + e.getMessage());
     }
-  }
-
-  /**
-   * Construct a title string for the viewer window based on the data Jalview
-   * knows about
-   * 
-   * @param verbose
-   * @return
-   */
-  public String getViewerTitle(boolean verbose)
-  {
-    return getViewerTitle("Chimera", verbose);
   }
 
   /**
@@ -248,8 +264,8 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     for (String chain : toshow)
     {
       int modelNumber = getModelNoForChain(chain);
-      String showChainCmd = modelNumber == -1 ? "" : modelNumber + ":."
-              + chain.split(":")[1];
+      String showChainCmd = modelNumber == -1 ? ""
+              : modelNumber + ":." + chain.split(":")[1];
       if (!first)
       {
         cmd.append(",");
@@ -274,7 +290,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    */
   public void closeViewer(boolean closeChimera)
   {
-    getSsm().removeStructureViewerListener(this, this.getPdbFile());
+    getSsm().removeStructureViewerListener(this, this.getStructureFiles());
     if (closeChimera)
     {
       viewer.exitChimera();
@@ -284,12 +300,16 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       chimeraListener.shutdown();
       chimeraListener = null;
     }
-    lastCommand = null;
     viewer = null;
 
+    if (chimeraMonitor != null)
+    {
+      chimeraMonitor.interrupt();
+    }
     releaseUIResources();
   }
 
+  @Override
   public void colourByChain()
   {
     colourBySequence = false;
@@ -305,6 +325,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * <li>all others - white</li>
    * </ul>
    */
+  @Override
   public void colourByCharge()
   {
     colourBySequence = false;
@@ -313,28 +334,18 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   }
 
   /**
-   * Construct and send a command to align structures against a reference
-   * structure, based on one or more sequence alignments
-   * 
-   * @param _alignment
-   *          an array of alignments to process
-   * @param _refStructure
-   *          an array of corresponding reference structures (index into pdb
-   *          file array); if a negative value is passed, the first PDB file
-   *          mapped to an alignment sequence is used as the reference for
-   *          superposition
-   * @param _hiddenCols
-   *          an array of corresponding hidden columns for each alignment
+   * {@inheritDoc}
    */
-  public void superposeStructures(AlignmentI[] _alignment,
-          int[] _refStructure, ColumnSelection[] _hiddenCols)
+  @Override
+  public String superposeStructures(AlignmentI[] _alignment,
+          int[] _refStructure, HiddenColumns[] _hiddenCols)
   {
     StringBuilder allComs = new StringBuilder(128);
-    String[] files = getPdbFile();
+    String[] files = getStructureFiles();
 
     if (!waitForFileLoad(files))
     {
-      return;
+      return null;
     }
 
     refreshPdbEntries();
@@ -343,7 +354,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     {
       int refStructure = _refStructure[a];
       AlignmentI alignment = _alignment[a];
-      ColumnSelection hiddenCols = _hiddenCols[a];
+      HiddenColumns hiddenCols = _hiddenCols[a];
 
       if (refStructure >= files.length)
       {
@@ -353,13 +364,16 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       }
 
       /*
-       * 'matched' array will hold 'true' for visible alignment columns where
+       * 'matched' bit i will be set for visible alignment columns i where
        * all sequences have a residue with a mapping to the PDB structure
        */
-      boolean matched[] = new boolean[alignment.getWidth()];
-      for (int m = 0; m < matched.length; m++)
+      BitSet matched = new BitSet();
+      for (int m = 0; m < alignment.getWidth(); m++)
       {
-        matched[m] = (hiddenCols != null) ? hiddenCols.isVisible(m) : true;
+        if (hiddenCols == null || hiddenCols.isVisible(m))
+        {
+          matched.set(m);
+        }
       }
 
       SuperposeData[] structures = new SuperposeData[files.length];
@@ -383,17 +397,11 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
         refStructure = candidateRefStructure;
       }
 
-      int nmatched = 0;
-      for (boolean b : matched)
-      {
-        if (b)
-        {
-          nmatched++;
-        }
-      }
+      int nmatched = matched.cardinality();
       if (nmatched < 4)
       {
-        // TODO: bail out here because superposition illdefined?
+        return MessageManager.formatMessage("label.insufficient_residues",
+                nmatched);
       }
 
       /*
@@ -406,41 +414,41 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
         int lpos = -1;
         boolean run = false;
         StringBuilder molsel = new StringBuilder();
-        for (int r = 0; r < matched.length; r++)
+
+        int nextColumnMatch = matched.nextSetBit(0);
+        while (nextColumnMatch != -1)
         {
-          if (matched[r])
+          int pdbResNum = structures[pdbfnum].pdbResNo[nextColumnMatch];
+          if (lpos != pdbResNum - 1)
           {
-            int pdbResNum = structures[pdbfnum].pdbResNo[r];
-            if (lpos != pdbResNum - 1)
+            /*
+             * discontiguous - append last residue now
+             */
+            if (lpos != -1)
             {
-              /*
-               * discontiguous - append last residue now
-               */
-              if (lpos != -1)
-              {
-                molsel.append(String.valueOf(lpos));
-                molsel.append(chainCd);
-                molsel.append(",");
-              }
-              run = false;
+              molsel.append(String.valueOf(lpos));
+              molsel.append(chainCd);
+              molsel.append(",");
             }
-            else
-            {
-              /*
-               * extending a contiguous run
-               */
-              if (!run)
-              {
-                /*
-                 * start the range selection
-                 */
-                molsel.append(String.valueOf(lpos));
-                molsel.append("-");
-              }
-              run = true;
-            }
-            lpos = pdbResNum;
+            run = false;
           }
+          else
+          {
+            /*
+             * extending a contiguous run
+             */
+            if (!run)
+            {
+              /*
+               * start the range selection
+               */
+              molsel.append(String.valueOf(lpos));
+              molsel.append("-");
+            }
+            run = true;
+          }
+          lpos = pdbResNum;
+          nextColumnMatch = matched.nextSetBit(nextColumnMatch + 1);
         }
 
         /*
@@ -508,14 +516,16 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
         if (debug)
         {
           System.out.println("Select regions:\n" + selectioncom.toString());
-          System.out.println("Superimpose command(s):\n"
-                  + command.toString());
+          System.out.println(
+                  "Superimpose command(s):\n" + command.toString());
         }
         allComs.append("~display all; chain @CA|P; ribbon ")
                 .append(selectioncom.toString())
                 .append(";" + command.toString());
       }
     }
+
+    String error = null;
     if (selectioncom.length() > 0)
     {
       // TODO: visually distinguish regions that were superposed
@@ -529,9 +539,17 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
       }
       allComs.append("; ~display all; chain @CA|P; ribbon ")
               .append(selectioncom.toString()).append("; focus");
-      sendChimeraCommand(allComs.toString(), false);
+      List<String> chimeraReplies = sendChimeraCommand(allComs.toString(),
+              true);
+      for (String reply : chimeraReplies)
+      {
+        if (reply.toLowerCase().contains("unequal numbers of atoms"))
+        {
+          error = reply;
+        }
+      }
     }
-
+    return error;
   }
 
   /**
@@ -560,30 +578,36 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
      * to the Chimera command 'list models type molecule', see
      * ChimeraManager.getModelList().
      */
-    List<ChimeraModel> maps = chimeraMaps.get(getPdbFile()[pdbfnum]);
+    List<ChimeraModel> maps = chimeraMaps.get(getStructureFiles()[pdbfnum]);
     boolean hasSubModels = maps != null && maps.size() > 1;
     return "#" + String.valueOf(pdbfnum) + (hasSubModels ? ".1" : "");
   }
 
   /**
    * Launch Chimera, unless an instance linked to this object is already
-   * running. Returns true if chimera is successfully launched, or already
+   * running. Returns true if Chimera is successfully launched, or already
    * running, else false.
    * 
    * @return
    */
   public boolean launchChimera()
   {
-    if (!viewer.isChimeraLaunched())
-    {
-      return viewer.launchChimera(StructureManager.getChimeraPaths());
-    }
     if (viewer.isChimeraLaunched())
     {
       return true;
     }
-    log("Failed to launch Chimera!");
-    return false;
+
+    boolean launched = viewer
+            .launchChimera(StructureManager.getChimeraPaths());
+    if (launched)
+    {
+      startChimeraProcessMonitor();
+    }
+    else
+    {
+      log("Failed to launch Chimera!");
+    }
+    return launched;
   }
 
   /**
@@ -598,31 +622,42 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   }
 
   /**
-   * Send a command to Chimera, and optionally log any responses.
+   * Send a command to Chimera, and optionally log and return any responses.
+   * <p>
+   * Does nothing, and returns null, if the command is the same as the last one
+   * sent [why?].
    * 
    * @param command
-   * @param logResponse
+   * @param getResponse
    */
-  public void sendChimeraCommand(final String command, boolean logResponse)
+  public List<String> sendChimeraCommand(final String command,
+          boolean getResponse)
   {
     if (viewer == null)
     {
       // ? thread running after viewer shut down
-      return;
+      return null;
     }
+    List<String> reply = null;
     viewerCommandHistory(false);
-    if (lastCommand == null || !lastCommand.equals(command))
+    if (true /*lastCommand == null || !lastCommand.equals(command)*/)
     {
       // trim command or it may never find a match in the replyLog!!
       List<String> lastReply = viewer.sendChimeraCommand(command.trim(),
-              logResponse);
-      if (logResponse && debug)
+              getResponse);
+      if (getResponse)
       {
-        log("Response from command ('" + command + "') was:\n" + lastReply);
+        reply = lastReply;
+        if (debug)
+        {
+          log("Response from command ('" + command + "') was:\n"
+                  + lastReply);
+        }
       }
     }
     viewerCommandHistory(true);
-    lastCommand = command;
+
+    return reply;
   }
 
   /**
@@ -636,34 +671,15 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
           String progressMsg);
 
   /**
-   * colour any structures associated with sequences in the given alignment
-   * using the getFeatureRenderer() and getSequenceRenderer() renderers but only
-   * if colourBySequence is enabled.
+   * Sends a set of colour commands to the structure viewer
+   * 
+   * @param colourBySequenceCommands
    */
-  public void colourBySequence(boolean showFeatures,
-          jalview.api.AlignmentViewPanel alignmentv)
+  @Override
+  protected void colourBySequence(
+          StructureMappingcommandSet[] colourBySequenceCommands)
   {
-    if (!colourBySequence || !loadingFinished)
-    {
-      return;
-    }
-    if (getSsm() == null)
-    {
-      return;
-    }
-    String[] files = getPdbFile();
-
-    SequenceRenderer sr = getSequenceRenderer(alignmentv);
-
-    FeatureRenderer fr = null;
-    if (showFeatures)
-    {
-      fr = getFeatureRenderer(alignmentv);
-    }
-    AlignmentI alignment = alignmentv.getAlignment();
-
-    for (jalview.structure.StructureMappingcommandSet cpdbbyseq : getColourBySequenceCommands(
-            files, sr, fr, alignment))
+    for (StructureMappingcommandSet cpdbbyseq : colourBySequenceCommands)
     {
       for (String command : cpdbbyseq.commands)
       {
@@ -675,16 +691,15 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   /**
    * @param files
    * @param sr
-   * @param fr
-   * @param alignment
+   * @param viewPanel
    * @return
    */
+  @Override
   protected StructureMappingcommandSet[] getColourBySequenceCommands(
-          String[] files, SequenceRenderer sr, FeatureRenderer fr,
-          AlignmentI alignment)
+          String[] files, SequenceRenderer sr, AlignmentViewPanel viewPanel)
   {
     return ChimeraCommands.getColourBySequenceCommand(getSsm(), files,
-            getSequence(), sr, fr, alignment);
+            getSequence(), sr, viewPanel);
   }
 
   /**
@@ -714,39 +729,11 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   // //////////////////////////
 
   /**
-   * returns the current featureRenderer that should be used to colour the
-   * structures
-   * 
-   * @param alignment
-   * 
-   * @return
-   */
-  public abstract FeatureRenderer getFeatureRenderer(
-          AlignmentViewPanel alignment);
-
-  /**
    * instruct the Jalview binding to update the pdbentries vector if necessary
    * prior to matching the viewer's contents to the list of structure files
    * Jalview knows about.
    */
   public abstract void refreshPdbEntries();
-
-  private int getModelNum(String modelFileName)
-  {
-    String[] mfn = getPdbFile();
-    if (mfn == null)
-    {
-      return -1;
-    }
-    for (int i = 0; i < mfn.length; i++)
-    {
-      if (mfn[i].equalsIgnoreCase(modelFileName))
-      {
-        return i;
-      }
-    }
-    return -1;
-  }
 
   /**
    * map between index of model filename returned from getPdbFile and the first
@@ -758,27 +745,16 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   // ////////////////////////////////
   // /StructureListener
   @Override
-  public synchronized String[] getPdbFile()
+  public synchronized String[] getStructureFiles()
   {
     if (viewer == null)
     {
       return new String[0];
     }
 
-    return chimeraMaps.keySet().toArray(
-            modelFileNames = new String[chimeraMaps.size()]);
+    return chimeraMaps.keySet()
+            .toArray(modelFileNames = new String[chimeraMaps.size()]);
   }
-
-  /**
-   * returns the current sequenceRenderer that should be used to colour the
-   * structures
-   * 
-   * @param alignment
-   * 
-   * @return
-   */
-  public abstract SequenceRenderer getSequenceRenderer(
-          AlignmentViewPanel alignment);
 
   /**
    * Construct and send a command to highlight zero, one or more atoms. We do
@@ -861,59 +837,65 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
      * Parse model number, residue and chain for each selected position,
      * formatted as #0:123.A or #1.2:87.B (#model.submodel:residue.chain)
      */
-    List<AtomSpec> atomSpecs = new ArrayList<AtomSpec>();
-    for (String atomSpec : selection)
-    {
-      int colonPos = atomSpec.indexOf(":");
-      if (colonPos == -1)
-      {
-        continue; // malformed
-      }
-
-      int hashPos = atomSpec.indexOf("#");
-      String modelSubmodel = atomSpec.substring(hashPos + 1, colonPos);
-      int dotPos = modelSubmodel.indexOf(".");
-      int modelId = 0;
-      try
-      {
-        modelId = Integer.valueOf(dotPos == -1 ? modelSubmodel
-                : modelSubmodel.substring(0, dotPos));
-      } catch (NumberFormatException e)
-      {
-        // ignore, default to model 0
-      }
-
-      String residueChain = atomSpec.substring(colonPos + 1);
-      dotPos = residueChain.indexOf(".");
-      int pdbResNum = Integer.parseInt(dotPos == -1 ? residueChain
-              : residueChain.substring(0, dotPos));
-
-      String chainId = dotPos == -1 ? "" : residueChain
-              .substring(dotPos + 1);
-
-      /*
-       * Work out the pdbfilename from the model number
-       */
-      String pdbfilename = modelFileNames[frameNo];
-      findfileloop: for (String pdbfile : this.chimeraMaps.keySet())
-      {
-        for (ChimeraModel cm : chimeraMaps.get(pdbfile))
-        {
-          if (cm.getModelNumber() == modelId)
-          {
-            pdbfilename = pdbfile;
-            break findfileloop;
-          }
-        }
-      }
-      atomSpecs.add(new AtomSpec(pdbfilename, chainId, pdbResNum, 0));
-    }
+    List<AtomSpec> atomSpecs = convertStructureResiduesToAlignment(
+            selection);
 
     /*
      * Broadcast the selection (which may be empty, if the user just cleared all
      * selections)
      */
     getSsm().mouseOverStructure(atomSpecs);
+  }
+
+  /**
+   * Converts a list of Chimera atomspecs to a list of AtomSpec representing the
+   * corresponding residues (if any) in Jalview
+   * 
+   * @param structureSelection
+   * @return
+   */
+  protected List<AtomSpec> convertStructureResiduesToAlignment(
+          List<String> structureSelection)
+  {
+    List<AtomSpec> atomSpecs = new ArrayList<AtomSpec>();
+    for (String atomSpec : structureSelection)
+    {
+      try
+      {
+        AtomSpec spec = AtomSpec.fromChimeraAtomspec(atomSpec);
+        String pdbfilename = getPdbFileForModel(spec.getModelNumber());
+        spec.setPdbFile(pdbfilename);
+        atomSpecs.add(spec);
+      } catch (IllegalArgumentException e)
+      {
+        System.err.println("Failed to parse atomspec: " + atomSpec);
+      }
+    }
+    return atomSpecs;
+  }
+
+  /**
+   * @param modelId
+   * @return
+   */
+  protected String getPdbFileForModel(int modelId)
+  {
+    /*
+     * Work out the pdbfilename from the model number
+     */
+    String pdbfilename = modelFileNames[0];
+    findfileloop: for (String pdbfile : this.chimeraMaps.keySet())
+    {
+      for (ChimeraModel cm : chimeraMaps.get(pdbfile))
+      {
+        if (cm.getModelNumber() == modelId)
+        {
+          pdbfilename = pdbfile;
+          break findfileloop;
+        }
+      }
+    }
+    return pdbfilename;
   }
 
   private void log(String message)
@@ -932,6 +914,7 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     return loadNotifiesHandled;
   }
 
+  @Override
   public void setJalviewColourScheme(ColourSchemeI cs)
   {
     colourBySequence = false;
@@ -948,12 +931,15 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
 
     List<String> residueSet = ResidueProperties.getResidues(isNucleotide(),
             false);
-    for (String res : residueSet)
+    for (String resName : residueSet)
     {
-      Color col = cs.findColour(res.charAt(0));
+      char res = resName.length() == 3
+              ? ResidueProperties.getSingleCharacterCode(resName)
+              : resName.charAt(0);
+      Color col = cs.findColour(res, 0, null, null, 0f);
       command.append("color " + col.getRed() / normalise + ","
-              + col.getGreen() / normalise + "," + col.getBlue()
-              / normalise + " ::" + res + ";");
+              + col.getGreen() / normalise + "," + col.getBlue() / normalise
+              + " ::" + resName + ";");
     }
 
     sendAsynchronousCommand(command.toString(), COLOURING_CHIMERA);
@@ -999,18 +985,19 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
   /**
    * Send the Chimera 'background solid <color>" command.
    * 
-   * @see https 
+   * @see https
    *      ://www.cgl.ucsf.edu/chimera/current/docs/UsersGuide/midas/background
    *      .html
    * @param col
    */
+  @Override
   public void setBackgroundColour(Color col)
   {
     viewerCommandHistory(false);
     double normalise = 255D;
     final String command = "background solid " + col.getRed() / normalise
-            + "," + col.getGreen() / normalise + "," + col.getBlue()
-            / normalise + ";";
+            + "," + col.getGreen() / normalise + ","
+            + col.getBlue() / normalise + ";";
     viewer.sendChimeraCommand(command, false);
     viewerCommandHistory(true);
   }
@@ -1061,6 +1048,11 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
    * 
    * @return
    */
+  @Override
+  public List<String> getChainNames()
+  {
+    return chainNames;
+  }
 
   /**
    * Send a 'focus' command to Chimera to recentre the visible display
@@ -1098,11 +1090,203 @@ public abstract class JalviewChimeraBinding extends AAStructureBindingModel
     }
   }
 
-
-  @Override
-  public List<String> getChainNames()
+  /**
+   * Constructs and send commands to Chimera to set attributes on residues for
+   * features visible in Jalview
+   * 
+   * @param avp
+   * @return
+   */
+  public int sendFeaturesToViewer(AlignmentViewPanel avp)
   {
-    return chainNames;
+    // TODO refactor as required to pull up to an interface
+    AlignmentI alignment = avp.getAlignment();
+
+    String[] files = getStructureFiles();
+    if (files == null)
+    {
+      return 0;
+    }
+
+    StructureMappingcommandSet commandSet = ChimeraCommands
+            .getSetAttributeCommandsForFeatures(getSsm(), files,
+                    getSequence(), avp);
+    String[] commands = commandSet.commands;
+    if (commands.length > 10)
+    {
+      sendCommandsByFile(commands);
+    }
+    else
+    {
+      for (String command : commands)
+      {
+        sendAsynchronousCommand(command, null);
+      }
+    }
+    return commands.length;
+  }
+
+  /**
+   * Write commands to a temporary file, and send a command to Chimera to open
+   * the file as a commands script. For use when sending a large number of
+   * separate commands would overload the REST interface mechanism.
+   * 
+   * @param commands
+   */
+  protected void sendCommandsByFile(String[] commands)
+  {
+    try
+    {
+      File tmp = File.createTempFile("chim", ".com");
+      tmp.deleteOnExit();
+      PrintWriter out = new PrintWriter(new FileOutputStream(tmp));
+      for (String command : commands)
+      {
+        out.println(command);
+      }
+      out.flush();
+      out.close();
+      String path = tmp.getAbsolutePath();
+      sendAsynchronousCommand("open cmd:" + path, null);
+    } catch (IOException e)
+    {
+      System.err.println("Sending commands to Chimera via file failed with "
+              + e.getMessage());
+    }
+  }
+
+  /**
+   * Get Chimera residues which have the named attribute, find the mapped
+   * positions in the Jalview sequence(s), and set as sequence features
+   * 
+   * @param attName
+   * @param alignmentPanel
+   */
+  public void copyStructureAttributesToFeatures(String attName,
+          AlignmentViewPanel alignmentPanel)
+  {
+    // todo pull up to AAStructureBindingModel (and interface?)
+
+    /*
+     * ask Chimera to list residues with the attribute, reporting its value
+     */
+    // this alternative command
+    // list residues spec ':*/attName' attr attName
+    // doesn't report 'None' values (which is good), but
+    // fails for 'average.bfactor' (which is bad):
+
+    String cmd = "list residues attr '" + attName + "'";
+    List<String> residues = sendChimeraCommand(cmd, true);
+
+    boolean featureAdded = createFeaturesForAttributes(attName, residues);
+    if (featureAdded)
+    {
+      alignmentPanel.getFeatureRenderer().featuresAdded();
+    }
+  }
+
+  /**
+   * Create features in Jalview for the given attribute name and structure
+   * residues.
+   * 
+   * <pre>
+   * The residue list should be 0, 1 or more reply lines of the format: 
+   *     residue id #0:5.A isHelix -155.000836316 index 5 
+   * or 
+   *     residue id #0:6.A isHelix None
+   * </pre>
+   * 
+   * @param attName
+   * @param residues
+   * @return
+   */
+  protected boolean createFeaturesForAttributes(String attName,
+          List<String> residues)
+  {
+    boolean featureAdded = false;
+    String featureGroup = getViewerFeatureGroup();
+
+    for (String residue : residues)
+    {
+      AtomSpec spec = null;
+      String[] tokens = residue.split(" ");
+      if (tokens.length < 5)
+      {
+        continue;
+      }
+      String atomSpec = tokens[2];
+      String attValue = tokens[4];
+
+      /*
+       * ignore 'None' (e.g. for phi) or 'False' (e.g. for isHelix)
+       */
+      if ("None".equalsIgnoreCase(attValue)
+              || "False".equalsIgnoreCase(attValue))
+      {
+        continue;
+      }
+
+      try
+      {
+        spec = AtomSpec.fromChimeraAtomspec(atomSpec);
+      } catch (IllegalArgumentException e)
+      {
+        System.err.println("Problem parsing atomspec " + atomSpec);
+        continue;
+      }
+
+      String chainId = spec.getChain();
+      String description = attValue;
+      float score = Float.NaN;
+      try
+      {
+        score = Float.valueOf(attValue);
+        description = chainId;
+      } catch (NumberFormatException e)
+      {
+        // was not a float value
+      }
+
+      String pdbFile = getPdbFileForModel(spec.getModelNumber());
+      spec.setPdbFile(pdbFile);
+
+      List<AtomSpec> atoms = Collections.singletonList(spec);
+
+      /*
+       * locate the mapped position in the alignment (if any)
+       */
+      SearchResultsI sr = getSsm()
+              .findAlignmentPositionsForStructurePositions(atoms);
+
+      /*
+       * expect one matched alignment position, or none 
+       * (if the structure position is not mapped)
+       */
+      for (SearchResultMatchI m : sr.getResults())
+      {
+        SequenceI seq = m.getSequence();
+        int start = m.getStart();
+        int end = m.getEnd();
+        SequenceFeature sf = new SequenceFeature(attName, description,
+                start, end, score, featureGroup);
+        // todo: should SequenceFeature have an explicit property for chain?
+        // note: repeating the action shouldn't duplicate features
+        featureAdded |= seq.addSequenceFeature(sf);
+      }
+    }
+    return featureAdded;
+  }
+
+  /**
+   * Answers the feature group name to apply to features created in Jalview from
+   * Chimera attributes
+   * 
+   * @return
+   */
+  protected String getViewerFeatureGroup()
+  {
+    // todo pull up to interface
+    return CHIMERA_FEATURE_GROUP;
   }
 
   public Hashtable<String, String> getChainFile()

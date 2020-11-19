@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,69 +20,64 @@
  */
 package jalview.schemes;
 
-import jalview.analysis.Conservation;
 import jalview.datamodel.AnnotatedCollectionI;
-import jalview.datamodel.ProfileI;
-import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceCollectionI;
+import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.util.ColorUtils;
-import jalview.util.Comparison;
-import jalview.util.MessageManager;
 
 import java.awt.Color;
 import java.util.Map;
 
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * Base class for residue-based colour schemes
  */
-public class ResidueColourScheme implements ColourSchemeI
+public abstract class ResidueColourScheme implements ColourSchemeI
 {
+  public static final String NONE = "None";
+
+  /*
+   * default display name for a user defined colour scheme
+   */
+  public static final String USER_DEFINED = "User Defined";
+
+  /*
+   * name for (new) "User Defined.." colour scheme menu item
+   */
+  public static final String USER_DEFINED_MENU = "*User Defined*";
+
+  /*
+   * the canonical name of the annotation colour scheme 
+   * (may be used to identify it in menu items)
+   */
+  public static final String ANNOTATION_COLOUR = "Annotation";
+
+  /*
+   * lookup up by character value e.g. 'G' to the colors array index
+   * e.g. if symbolIndex['K'] = 11 then colors[11] is the colour for K
+   */
   final int[] symbolIndex;
 
-  boolean conservationColouring = false;
-
+  /*
+   * colour for residue characters as indexed by symbolIndex
+   */
   Color[] colors = null;
-
-  int threshold = 0;
 
   /* Set when threshold colouring to either pid_gaps or pid_nogaps */
   protected boolean ignoreGaps = false;
 
-  /*
-   * Consensus data indexed by column
-   */
-  ProfilesI consensus;
-
-  /*
-   * Conservation string as a char array 
-   */
-  char[] conservation;
-
-  /*
-   * The conservation slider percentage setting 
-   */
-  int inc = 30;
-
   /**
    * Creates a new ResidueColourScheme object.
    * 
-   * @param final int[] index table into colors (ResidueProperties.naIndex or
-   *        ResidueProperties.aaIndex)
+   * @param final
+   *          int[] index table into colors (ResidueProperties.naIndex or
+   *          ResidueProperties.aaIndex)
    * @param colors
    *          colours for symbols in sequences
-   * @param threshold
-   *          threshold for conservation shading
    */
-  public ResidueColourScheme(int[] aaOrnaIndex, Color[] colours,
-          int threshold)
+  public ResidueColourScheme(int[] aaOrnaIndex, Color[] colours)
   {
     symbolIndex = aaOrnaIndex;
     this.colors = colours;
-    this.threshold = threshold;
   }
 
   /**
@@ -106,221 +101,44 @@ public class ResidueColourScheme implements ColourSchemeI
   /**
    * Find a colour without an index in a sequence
    */
-  @Override
   public Color findColour(char c)
   {
-    return colors == null ? Color.white : colors[symbolIndex[c]];
-  }
+    Color colour = Color.white;
 
-  @Override
-  public Color findColour(char c, int j, SequenceI seq)
-  {
-    Color currentColour;
-
-    if (colors != null && symbolIndex != null && (threshold == 0)
-            || aboveThreshold(c, j))
+    if (colors != null && symbolIndex != null && c < symbolIndex.length
+            && symbolIndex[c] < colors.length)
     {
-      currentColour = colors[symbolIndex[c]];
-    }
-    else
-    {
-      currentColour = Color.white;
+      colour = colors[symbolIndex[c]];
     }
 
-    if (conservationColouring)
-    {
-      currentColour = applyConservation(currentColour, j);
-    }
-
-    return currentColour;
+    return colour;
   }
 
   /**
-   * Get the percentage threshold for this colour scheme
-   * 
-   * @return Returns the percentage threshold
+   * Default is to call the overloaded method that ignores consensus. A colour
+   * scheme that depends on consensus (for example, Blosum62), should override
+   * this method instead.
    */
   @Override
-  public int getThreshold()
+  public Color findColour(char c, int j, SequenceI seq,
+          String consensusResidue, float pid)
   {
-    return threshold;
+    return findColour(c, j, seq);
   }
 
   /**
-   * Sets the percentage consensus threshold value, and whether gaps are ignored
-   * in percentage identity calculation
+   * Default implementation looks up the residue colour in a fixed scheme, or
+   * returns White if not found. Override this method for a colour scheme that
+   * depends on the column position or sequence.
    * 
-   * @param consensusThreshold
-   * @param ignoreGaps
-   */
-  @Override
-  public void setThreshold(int consensusThreshold, boolean ignoreGaps)
-  {
-    threshold = consensusThreshold;
-    this.ignoreGaps = ignoreGaps;
-  }
-
-  /**
-   * Answers true if there is a consensus profile for the specified column, and
-   * the given residue matches the consensus (or joint consensus) residue for
-   * the column, and the percentage identity for the profile is equal to or
-   * greater than the current threshold; else answers false. The percentage
-   * calculation depends on whether or not we are ignoring gapped sequences.
-   * 
-   * @param residue
-   * @param column
-   *          (index into consensus profiles)
-   * 
+   * @param c
+   * @param j
+   * @param seq
    * @return
-   * @see #setThreshold(int, boolean)
    */
-  public boolean aboveThreshold(char residue, int column)
+  protected Color findColour(char c, int j, SequenceI seq)
   {
-    if ('a' <= residue && residue <= 'z')
-    {
-      // TO UPPERCASE !!!
-      // Faster than toUpperCase
-      residue -= ('a' - 'A');
-    }
-
-    if (consensus == null)
-    {
-      return false;
-    }
-
-    ProfileI profile = consensus.get(column);
-
-    /*
-     * test whether this is the consensus (or joint consensus) residue
-     */
-    if (profile != null
-            && profile.getModalResidue().contains(String.valueOf(residue)))
-    {
-      if (profile.getPercentageIdentity(ignoreGaps) >= threshold)
-      {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  @Override
-  public boolean conservationApplied()
-  {
-    return conservationColouring;
-  }
-
-  @Override
-  public void setConservationApplied(boolean conservationApplied)
-  {
-    conservationColouring = conservationApplied;
-  }
-
-  @Override
-  public void setConservationInc(int i)
-  {
-    inc = i;
-  }
-
-  @Override
-  public int getConservationInc()
-  {
-    return inc;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param consensus
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void setConsensus(ProfilesI consensus)
-  {
-    if (consensus == null)
-    {
-      return;
-    }
-
-    this.consensus = consensus;
-  }
-
-  @Override
-  public void setConservation(Conservation cons)
-  {
-    if (cons == null)
-    {
-      conservationColouring = false;
-      conservation = null;
-    }
-    else
-    {
-      conservationColouring = true;
-      int iSize = cons.getConsSequence().getLength();
-      conservation = new char[iSize];
-      for (int i = 0; i < iSize; i++)
-      {
-        conservation[i] = cons.getConsSequence().getCharAt(i);
-      }
-    }
-
-  }
-
-  /**
-   * Applies a combination of column conservation score, and conservation
-   * percentage slider, to 'bleach' out the residue colours towards white.
-   * <p>
-   * If a column is fully conserved (identical residues, conservation score 11,
-   * shown as *), or all 10 physico-chemical properties are conserved
-   * (conservation score 10, shown as +), then the colour is left unchanged.
-   * <p>
-   * Otherwise a 'bleaching' factor is computed and applied to the colour. This
-   * is designed to fade colours for scores of 0-9 completely to white at slider
-   * positions ranging from 18% - 100% respectively.
-   * 
-   * @param currentColour
-   * @param column
-   * 
-   * @return bleached (or unmodified) colour
-   */
-  Color applyConservation(Color currentColour, int column)
-  {
-    if (conservation == null || conservation.length <= column)
-    {
-      return currentColour;
-    }
-    char conservationScore = conservation[column];
-
-    /*
-     * if residues are fully conserved (* or 11), or all properties
-     * are conserved (+ or 10), leave colour unchanged
-     */
-    if (conservationScore == '*' || conservationScore == '+'
-            || conservationScore == (char) 10
-            || conservationScore == (char) 11)
-    {
-      return currentColour;
-    }
-
-    if (Comparison.isGap(conservationScore))
-    {
-      return Color.white;
-    }
-
-    /*
-     * convert score 0-9 to a bleaching factor 1.1 - 0.2
-     */
-    float bleachFactor = (11 - (conservationScore - '0')) / 10f;
-
-    /*
-     * scale this up by 0-5 (percentage slider / 20)
-     * as a result, scores of:         0  1  2  3  4  5  6  7  8  9
-     * fade to white at slider value: 18 20 22 25 29 33 40 50 67 100%
-     */
-    bleachFactor *= (inc / 20f);
-
-    return ColorUtils.bleachColour(currentColour, bleachFactor);
+    return findColour(c);
   }
 
   @Override
@@ -329,18 +147,81 @@ public class ResidueColourScheme implements ColourSchemeI
   {
   }
 
+  /**
+   * Answers false if the colour scheme is nucleotide or peptide specific, and
+   * the data does not match, else true. Override to modify or extend this test
+   * as required.
+   */
   @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public boolean isApplicableTo(AnnotatedCollectionI ac)
   {
-    try
+    if (!isPeptideSpecific() && !isNucleotideSpecific())
     {
-      return getClass().newInstance();
-    } catch (Exception q)
-    {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_cannot_duplicate_colour_scheme",
-              new String[] { getClass().getName() }), q);
+      return true;
     }
+    if (ac == null)
+    {
+      return true;
+    }
+    /*
+     * pop-up menu on selection group before group created
+     * (no alignment context)
+     */
+    // TODO: add nucleotide flag to SequenceGroup?
+    if (ac instanceof SequenceGroup && ac.getContext() == null)
+    {
+      return true;
+    }
+
+    /*
+     * inspect the data context (alignment) for residue type
+     */
+    boolean nucleotide = ac.isNucleotide();
+
+    /*
+     * does data type match colour scheme type?
+     */
+    return (nucleotide && isNucleotideSpecific())
+            || (!nucleotide && isPeptideSpecific());
+  }
+
+  /**
+   * Answers true if the colour scheme is normally only for peptide data
+   * 
+   * @return
+   */
+  public boolean isPeptideSpecific()
+  {
+    return false;
+  }
+
+  /**
+   * Answers true if the colour scheme is normally only for nucleotide data
+   * 
+   * @return
+   */
+  public boolean isNucleotideSpecific()
+  {
+    return false;
+  }
+
+  /**
+   * Default method returns true. Override this to return false in colour
+   * schemes that are not determined solely by the sequence symbol.
+   */
+  @Override
+  public boolean isSimple()
+  {
+    return true;
+  }
+
+  /**
+   * Default method returns false. Override this to return true in colour
+   * schemes that have a colour associated with gap residues.
+   */
+  @Override
+  public boolean hasGapColour()
+  {
+    return false;
   }
 }

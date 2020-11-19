@@ -43,13 +43,13 @@ public class RegexTokenizer implements Enumeration
     if (r.searchFrom(toParse, pos))
     {
       v.addElement(r.left().substring(pos));
-      vi.addElement(new Integer(r.matchFrom() + r.charsMatched()));
+      vi.addElement(Integer.valueOf(r.matchFrom() + r.charsMatched()));
       for (int i = 0; i < r.numSubs(); i++)
       {
         if (r.substring() != null)
         {
           v.addElement(r.substring(i + offset));
-          vi.addElement(new Integer(r.matchFrom(i + offset)
+          vi.addElement(Integer.valueOf(r.matchFrom(i + offset)
                   + r.charsMatched(i + offset)));
         }
       }

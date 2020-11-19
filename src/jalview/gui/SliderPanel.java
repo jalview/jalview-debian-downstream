@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,20 +20,24 @@
  */
 package jalview.gui;
 
+import jalview.analysis.Conservation;
 import jalview.datamodel.SequenceGroup;
 import jalview.jbgui.GSliderPanel;
-import jalview.schemes.ColourSchemeI;
+import jalview.renderer.ResidueShaderI;
 import jalview.util.MessageManager;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Iterator;
+import java.beans.PropertyVetoException;
+import java.util.List;
 
 import javax.swing.JInternalFrame;
 import javax.swing.JLayeredPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
 
 /**
  * DOCUMENT ME!
@@ -43,6 +47,8 @@ import javax.swing.event.ChangeListener;
  */
 public class SliderPanel extends GSliderPanel
 {
+  private static final String BACKGROUND = "Background";
+
   static JInternalFrame conservationSlider;
 
   static JInternalFrame PIDSlider;
@@ -51,7 +57,25 @@ public class SliderPanel extends GSliderPanel
 
   boolean forConservation = true;
 
-  ColourSchemeI cs;
+  ResidueShaderI cs;
+
+  /**
+   * Returns the currently displayed slider panel (or null if none).
+   * 
+   * @return
+   */
+  public static SliderPanel getSliderPanel()
+  {
+    if (conservationSlider != null && conservationSlider.isVisible())
+    {
+      return (SliderPanel) conservationSlider.getContentPane();
+    }
+    if (PIDSlider != null && PIDSlider.isVisible())
+    {
+      return (SliderPanel) PIDSlider.getContentPane();
+    }
+    return null;
+  }
 
   /**
    * Creates a new SliderPanel object.
@@ -62,35 +86,36 @@ public class SliderPanel extends GSliderPanel
    *          DOCUMENT ME!
    * @param forConserve
    *          DOCUMENT ME!
-   * @param cs
+   * @param scheme
    *          DOCUMENT ME!
    */
   public SliderPanel(final AlignmentPanel ap, int value,
-          boolean forConserve, ColourSchemeI cs)
+          boolean forConserve, ResidueShaderI scheme)
   {
     this.ap = ap;
-    this.cs = cs;
+    this.cs = scheme;
     forConservation = forConserve;
     undoButton.setVisible(false);
     applyButton.setVisible(false);
 
     if (forConservation)
     {
-      label.setText(MessageManager
-              .getString("label.enter_value_increase_conservation_visibility"));
+      label.setText(MessageManager.getString(
+              "label.enter_value_increase_conservation_visibility"));
       slider.setMinimum(0);
       slider.setMaximum(100);
     }
     else
     {
-      label.setText(MessageManager
-              .getString("label.enter_percentage_identity_above_which_colour_residues"));
+      label.setText(MessageManager.getString(
+              "label.enter_percentage_identity_above_which_colour_residues"));
       slider.setMinimum(0);
       slider.setMaximum(100);
     }
 
     slider.addChangeListener(new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
         valueField.setText(slider.getValue() + "");
@@ -100,9 +125,10 @@ public class SliderPanel extends GSliderPanel
 
     slider.addMouseListener(new MouseAdapter()
     {
+      @Override
       public void mouseReleased(MouseEvent evt)
       {
-        ap.paintAlignment(true);
+        ap.paintAlignment(true, true);
       }
     });
 
@@ -111,50 +137,88 @@ public class SliderPanel extends GSliderPanel
   }
 
   /**
-   * DOCUMENT ME!
+   * Method to 'set focus' of the Conservation slider panel
    * 
    * @param ap
-   *          DOCUMENT ME!
-   * @param cs
-   *          DOCUMENT ME!
+   *          the panel to repaint on change of slider
+   * @param rs
+   *          the colour scheme to update on change of slider
    * @param source
-   *          DOCUMENT ME!
+   *          a text description for the panel's title
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   public static int setConservationSlider(AlignmentPanel ap,
-          ColourSchemeI cs, String source)
+          ResidueShaderI rs, String source)
   {
-    SliderPanel sp = null;
+    SliderPanel sliderPanel = null;
 
     if (conservationSlider == null)
     {
-      sp = new SliderPanel(ap, cs.getConservationInc(), true, cs);
+      sliderPanel = new SliderPanel(ap, rs.getConservationInc(), true, rs);
       conservationSlider = new JInternalFrame();
-      conservationSlider.setContentPane(sp);
+      conservationSlider.setContentPane(sliderPanel);
       conservationSlider.setLayer(JLayeredPane.PALETTE_LAYER);
     }
     else
     {
-      sp = (SliderPanel) conservationSlider.getContentPane();
-      sp.cs = cs;
+      sliderPanel = (SliderPanel) conservationSlider.getContentPane();
+      sliderPanel.valueField
+              .setText(String.valueOf(rs.getConservationInc()));
+      sliderPanel.cs = rs;
+      sliderPanel.ap = ap;
+      sliderPanel.slider.setValue(rs.getConservationInc());
     }
 
-    conservationSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.conservation_colour_increment",
-                    new String[] { source }));
+    conservationSlider.setTitle(MessageManager.formatMessage(
+            "label.conservation_colour_increment", new String[]
+            { source == null ? BACKGROUND : source }));
 
-    if (ap.av.getAlignment().getGroups() != null)
+    List<SequenceGroup> groups = ap.av.getAlignment().getGroups();
+    if (groups != null && !groups.isEmpty())
     {
-      sp.setAllGroupsCheckEnabled(true);
+      sliderPanel.setAllGroupsCheckEnabled(true);
     }
     else
     {
-      sp.setAllGroupsCheckEnabled(false);
+      sliderPanel.setAllGroupsCheckEnabled(false);
     }
 
-    return sp.getValue();
+    return sliderPanel.getValue();
+  }
+
+  /**
+   * Hides the PID slider panel if it is shown
+   */
+  public static void hidePIDSlider()
+  {
+    if (PIDSlider != null)
+    {
+      try
+      {
+        PIDSlider.setClosed(true);
+        PIDSlider = null;
+      } catch (PropertyVetoException ex)
+      {
+      }
+    }
+  }
+
+  /**
+   * Hides the conservation slider panel if it is shown
+   */
+  public static void hideConservationSlider()
+  {
+    if (conservationSlider != null)
+    {
+      try
+      {
+        conservationSlider.setClosed(true);
+        conservationSlider = null;
+      } catch (PropertyVetoException ex)
+      {
+      }
+    }
   }
 
   /**
@@ -162,157 +226,166 @@ public class SliderPanel extends GSliderPanel
    */
   public static void showConservationSlider()
   {
-    try
-    {
-      PIDSlider.setClosed(true);
-      PIDSlider = null;
-    } catch (Exception ex)
-    {
-    }
+    hidePIDSlider();
 
     if (!conservationSlider.isVisible())
     {
       Desktop.addInternalFrame(conservationSlider,
               conservationSlider.getTitle(), 420, 90, false);
-      conservationSlider
-              .addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
-              {
-                public void internalFrameClosed(
-                        javax.swing.event.InternalFrameEvent e)
-                {
-                  conservationSlider = null;
-                }
-              });
+      conservationSlider.addInternalFrameListener(new InternalFrameAdapter()
+      {
+        @Override
+        public void internalFrameClosed(InternalFrameEvent e)
+        {
+          conservationSlider = null;
+        }
+      });
       conservationSlider.setLayer(JLayeredPane.PALETTE_LAYER);
     }
   }
 
   /**
-   * DOCUMENT ME!
+   * Method to 'set focus' of the PID slider panel
    * 
    * @param ap
-   *          DOCUMENT ME!
-   * @param cs
-   *          DOCUMENT ME!
+   *          the panel to repaint on change of slider
+   * @param rs
+   *          the colour scheme to update on change of slider
    * @param source
-   *          DOCUMENT ME!
+   *          a text description for the panel's title
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
-  public static int setPIDSliderSource(AlignmentPanel ap, ColourSchemeI cs,
+  public static int setPIDSliderSource(AlignmentPanel ap, ResidueShaderI rs,
           String source)
   {
-    SliderPanel pid = null;
+    int threshold = rs.getThreshold();
 
-    int threshold = cs.getThreshold();
+    SliderPanel sliderPanel = null;
 
     if (PIDSlider == null)
     {
-      pid = new SliderPanel(ap, threshold, false, cs);
+      sliderPanel = new SliderPanel(ap, threshold, false, rs);
       PIDSlider = new JInternalFrame();
-      PIDSlider.setContentPane(pid);
+      PIDSlider.setContentPane(sliderPanel);
       PIDSlider.setLayer(JLayeredPane.PALETTE_LAYER);
     }
     else
     {
-      pid = (SliderPanel) PIDSlider.getContentPane();
-      pid.cs = cs;
+      sliderPanel = (SliderPanel) PIDSlider.getContentPane();
+      sliderPanel.cs = rs;
+      sliderPanel.ap = ap;
+      sliderPanel.valueField.setText(String.valueOf(rs.getThreshold()));
+      sliderPanel.slider.setValue(rs.getThreshold());
     }
 
-    PIDSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.percentage_identity_threshold",
-                    new String[] { source }));
+    PIDSlider.setTitle(MessageManager.formatMessage(
+            "label.percentage_identity_threshold", new String[]
+            { source == null ? BACKGROUND : source }));
 
     if (ap.av.getAlignment().getGroups() != null)
     {
-      pid.setAllGroupsCheckEnabled(true);
+      sliderPanel.setAllGroupsCheckEnabled(true);
     }
     else
     {
-      pid.setAllGroupsCheckEnabled(false);
+      sliderPanel.setAllGroupsCheckEnabled(false);
     }
 
-    return pid.getValue();
+    return sliderPanel.getValue();
   }
 
   /**
    * DOCUMENT ME!
+   * 
+   * @return
    */
-  public static void showPIDSlider()
+  public static JInternalFrame showPIDSlider()
   {
-    try
-    {
-      conservationSlider.setClosed(true);
-      conservationSlider = null;
-    } catch (Exception ex)
-    {
-    }
+    hideConservationSlider();
 
     if (!PIDSlider.isVisible())
     {
       Desktop.addInternalFrame(PIDSlider, PIDSlider.getTitle(), 420, 90,
               false);
       PIDSlider.setLayer(JLayeredPane.PALETTE_LAYER);
-      PIDSlider
-              .addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
-              {
-                public void internalFrameClosed(
-                        javax.swing.event.InternalFrameEvent e)
-                {
-                  PIDSlider = null;
-                }
-              });
+      PIDSlider.addInternalFrameListener(new InternalFrameAdapter()
+      {
+        @Override
+        public void internalFrameClosed(InternalFrameEvent e)
+        {
+          PIDSlider = null;
+        }
+      });
       PIDSlider.setLayer(JLayeredPane.PALETTE_LAYER);
     }
+    return PIDSlider;
   }
 
   /**
-   * DOCUMENT ME!
+   * Updates the colour scheme with the current (identity threshold or
+   * conservation) percentage value. Also updates all groups if 'apply to all
+   * groups' is selected.
    * 
-   * @param i
-   *          DOCUMENT ME!
+   * @param percent
    */
-  public void valueChanged(int i)
+  public void valueChanged(int percent)
   {
-    if (cs == null)
+    if (!forConservation)
     {
-      return;
+      ap.av.setThreshold(percent);
     }
-
-    ColourSchemeI toChange = cs;
-    Iterator<SequenceGroup> allGroups = null;
+    updateColourScheme(percent, cs, null);
 
     if (allGroupsCheck.isSelected())
     {
-      allGroups = ap.av.getAlignment().getGroups().listIterator();
-    }
-
-    while (toChange != null)
-    {
-      if (forConservation)
+      List<SequenceGroup> groups = ap.av.getAlignment().getGroups();
+      for (SequenceGroup sg : groups)
       {
-        toChange.setConservationInc(i);
-      }
-      else
-      {
-        toChange.setThreshold(i, ap.av.isIgnoreGapsConsensus());
-      }
-      if (allGroups != null && allGroups.hasNext())
-      {
-        while ((toChange = allGroups.next().cs) == null
-                && allGroups.hasNext())
-        {
-          ;
-        }
-      }
-      else
-      {
-        toChange = null;
+        updateColourScheme(percent, sg.getGroupColourScheme(), sg);
       }
     }
 
     ap.getSeqPanel().seqCanvas.repaint();
+  }
+
+  /**
+   * Updates the colour scheme (if not null) with the current (identity
+   * threshold or conservation) percentage value
+   * 
+   * @param percent
+   * @param scheme
+   * @param sg
+   */
+  protected void updateColourScheme(int percent, ResidueShaderI scheme,
+          SequenceGroup sg)
+  {
+    if (scheme == null)
+    {
+      return;
+    }
+    if (forConservation)
+    {
+      if (!scheme.conservationApplied() && sg != null)
+      {
+        /*
+         * first time the colour scheme has had Conservation shading applied
+         * - compute conservation
+         */
+        Conservation c = new Conservation("Group", sg.getSequences(null),
+                sg.getStartRes(), sg.getEndRes());
+        c.calculate();
+        c.verdict(false, ap.av.getConsPercGaps());
+        sg.cs.setConservation(c);
+
+      }
+      scheme.setConservationApplied(true);
+      scheme.setConservationInc(percent);
+    }
+    else
+    {
+      scheme.setThreshold(percent, ap.av.isIgnoreGapsConsensus());
+    }
   }
 
   /**
@@ -332,7 +405,8 @@ public class SliderPanel extends GSliderPanel
    * @param e
    *          DOCUMENT ME!
    */
-  public void valueField_actionPerformed(ActionEvent e)
+  @Override
+  public void valueField_actionPerformed()
   {
     try
     {
@@ -365,6 +439,7 @@ public class SliderPanel extends GSliderPanel
     return Integer.parseInt(valueField.getText());
   }
 
+  @Override
   public void slider_mouseReleased(MouseEvent e)
   {
     if (ap.overviewPanel != null)
@@ -373,4 +448,62 @@ public class SliderPanel extends GSliderPanel
     }
   }
 
+  public static int getConservationValue()
+  {
+    return getValue(conservationSlider);
+  }
+
+  static int getValue(JInternalFrame slider)
+  {
+    return slider == null ? 0
+            : ((SliderPanel) slider.getContentPane()).getValue();
+  }
+
+  public static int getPIDValue()
+  {
+    return getValue(PIDSlider);
+  }
+
+  /**
+   * Answers true if the SliderPanel is for Conservation, false if it is for PID
+   * threshold
+   * 
+   * @return
+   */
+  public boolean isForConservation()
+  {
+    return forConservation;
+  }
+
+  /**
+   * Answers the title for the slider panel; this may include 'Background' if
+   * for the alignment, or the group id if for a group
+   * 
+   * @return
+   */
+  public String getTitle()
+  {
+    String title = null;
+    if (isForConservation())
+    {
+      if (conservationSlider != null)
+      {
+        title = conservationSlider.getTitle();
+      }
+    }
+    else if (PIDSlider != null)
+    {
+      title = PIDSlider.getTitle();
+    }
+    return title;
+  }
+
+  @Override
+  protected void allGroupsCheck_actionPerformed(ActionEvent e)
+  {
+    if (allGroupsCheck.isSelected())
+    {
+      valueChanged(slider.getValue());
+    }
+  }
 }

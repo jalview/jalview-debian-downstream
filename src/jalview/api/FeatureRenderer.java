@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,13 @@
  */
 package jalview.api;
 
+import jalview.datamodel.MappedFeatures;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.FeatureMatcherSetI;
 
 import java.awt.Color;
+import java.awt.Graphics;
 import java.util.List;
 import java.util.Map;
 
@@ -37,18 +40,33 @@ public interface FeatureRenderer
 {
 
   /**
-   * compute the perceived colour for a given column position in sequenceI,
-   * taking transparency and feature visibility into account.
+   * Computes the feature colour for a given sequence and column position,
+   * taking into account sequence feature locations, feature colour schemes,
+   * render ordering, feature and feature group visibility, and transparency.
+   * <p>
+   * The graphics argument should be provided if transparency is applied
+   * (getTransparency() < 1). With feature transparency, visible features are
+   * written to the graphics context and the composite colour may be read off
+   * from it. In this case, the returned feature colour is not the composite
+   * colour but that of the last feature drawn.
+   * <p>
+   * If no transparency applies, then the graphics argument may be null, and the
+   * returned colour is the one that would be drawn for the feature.
+   * <p>
+   * Returns null if there is no visible feature at the position.
+   * <p>
+   * This is provided to support rendering of feature colours other than on the
+   * sequence alignment, including by structure viewers and the overview window.
+   * Note this method takes no account of whether the sequence or column is
+   * hidden.
    * 
-   * @param col
-   *          - background colour (due to alignment/group shading schemes, etc).
-   * @param sequenceI
-   *          - sequence providing features
-   * @param r
-   *          - column position
+   * @param sequence
+   * @param column
+   *          aligned column position (1..)
+   * @param g
    * @return
    */
-  Color findFeatureColour(Color col, SequenceI sequenceI, int r);
+  Color findFeatureColour(SequenceI sequence, int column, Graphics g);
 
   /**
    * trigger the feature discovery process for a newly created feature renderer.
@@ -116,7 +134,7 @@ public interface FeatureRenderer
   List<String> getGroups(boolean visible);
 
   /**
-   * change visibility for a range of groups
+   * Set visibility for a list of groups
    * 
    * @param toset
    * @param visible
@@ -124,7 +142,7 @@ public interface FeatureRenderer
   void setGroupVisibility(List<String> toset, boolean visible);
 
   /**
-   * change visibiilty of given group
+   * Set visibility of the given feature group
    * 
    * @param group
    * @param visible
@@ -132,14 +150,30 @@ public interface FeatureRenderer
   void setGroupVisibility(String group, boolean visible);
 
   /**
-   * Returns features at the specified position on the given sequence.
-   * Non-positional features are not included.
+   * Returns visible features at the specified aligned column on the given
+   * sequence. Non-positional features are not included. If the column has a gap,
+   * then enclosing features are included (but not contact features).
    * 
    * @param sequence
-   * @param res
+   * @param column
+   *          aligned column position (1..)
    * @return
    */
-  List<SequenceFeature> findFeaturesAtRes(SequenceI sequence, int res);
+  List<SequenceFeature> findFeaturesAtColumn(SequenceI sequence, int column);
+
+  /**
+   * Returns features at the specified residue positions on the given sequence.
+   * Non-positional features are not included. Features are returned in render
+   * order of their feature type (last is on top). Within feature type, ordering
+   * is undefined.
+   * 
+   * @param sequence
+   * @param fromResNo
+   * @param toResNo
+   * @return
+   */
+  List<SequenceFeature> findFeaturesAtResidue(SequenceI sequence,
+          int fromResNo, int toResNo);
 
   /**
    * get current displayed types, in ordering of rendering (on top last)
@@ -150,9 +184,9 @@ public interface FeatureRenderer
   List<String> getDisplayedFeatureTypes();
 
   /**
-   * get current displayed groups
+   * Returns a (possibly empty) list of currently visible feature groups
    * 
-   * @return a (possibly empty) list of feature groups
+   * @return
    */
   List<String> getDisplayedFeatureGroups();
 
@@ -169,5 +203,105 @@ public interface FeatureRenderer
    * @param featureType
    */
   void setVisible(String featureType);
+
+  /**
+   * Sets the transparency value, between 0 (full transparency) and 1 (no
+   * transparency)
+   * 
+   * @param value
+   */
+  void setTransparency(float value);
+
+  /**
+   * Returns the transparency value, between 0 (full transparency) and 1 (no
+   * transparency)
+   * 
+   * @return
+   */
+  float getTransparency();
+
+  /**
+   * Answers the filters applied to the given feature type, or null if none is
+   * set
+   * 
+   * @param featureType
+   * @return
+   */
+  FeatureMatcherSetI getFeatureFilter(String featureType);
+
+  /**
+   * Answers the feature filters map
+   * 
+   * @return
+   */
+  public Map<String, FeatureMatcherSetI> getFeatureFilters();
+
+  /**
+   * Sets the filters for the feature type, or removes them if a null or empty
+   * filter is passed
+   * 
+   * @param featureType
+   * @param filter
+   */
+  void setFeatureFilter(String featureType, FeatureMatcherSetI filter);
+
+  /**
+   * Replaces all feature filters with the given map
+   * 
+   * @param filters
+   */
+  void setFeatureFilters(Map<String, FeatureMatcherSetI> filters);
+
+  /**
+   * Returns the colour for a particular feature instance. This includes
+   * calculation of 'colour by label', or of a graduated score colour, if
+   * applicable.
+   * <p>
+   * Returns null if
+   * <ul>
+   * <li>feature group is not visible, or</li>
+   * <li>feature values lie outside any colour threshold, or</li>
+   * <li>feature is excluded by filter conditions</li>
+   * </ul>
+   * This method does not check feature type visibility.
+   * 
+   * @param feature
+   * @return
+   */
+  Color getColour(SequenceFeature feature);
+
+  /**
+   * Answers true if feature would be shown, else false. A feature is shown if
+   * <ul>
+   * <li>its feature type is set to visible</li>
+   * <li>its feature group is either null, or set to visible</li>
+   * <li>it is not excluded by a colour threshold on score or other numeric
+   * attribute</li>
+   * <li>it is not excluded by a filter condition</li>
+   * </ul>
+   * 
+   * @param feature
+   * @return
+   */
+  boolean isVisible(SequenceFeature feature);
+
+  /**
+   * Answers a bean containing a mapping, and a list of visible features in this
+   * alignment at a position (or range) which is mappable from the given sequence
+   * residue position in a mapped alignment. Features are returned in render order
+   * of feature type (on top last), with order within feature type undefined. If
+   * no features or mapping are found, answers null.
+   * 
+   * @param sequence
+   * @param pos
+   * @return
+   */
+  MappedFeatures findComplementFeaturesAtResidue(SequenceI sequence, int pos);
+
+  /**
+   * Sends a message to let any registered parties know that something about
+   * feature rendering has changed
+   */
+  void notifyFeaturesChanged();
 
 }

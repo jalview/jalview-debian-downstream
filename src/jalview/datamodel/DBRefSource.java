@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -96,7 +96,7 @@ public class DBRefSource
    * List of databases whose sequences might have coding regions annotated
    */
   public static final String[] DNACODINGDBS = { EMBL, EMBLCDS, GENEDB,
-      ENSEMBL };
+      ENSEMBL, ENSEMBLGENOMES };
 
   public static final String[] CODINGDBS = { EMBLCDS, GENEDB, ENSEMBL };
 
@@ -105,7 +105,7 @@ public class DBRefSource
 
   public static String[] allSources()
   {
-    List<String> src = new ArrayList<String>();
+    List<String> src = new ArrayList<>();
     for (Field f : DBRefSource.class.getFields())
     {
       if (String.class.equals(f.getType()))

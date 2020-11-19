@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,9 +20,12 @@
  */
 package jalview.appletgui;
 
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.analysis.scoremodels.SimilarityParams;
+import jalview.api.analysis.ScoreModelI;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SeqCigar;
 import jalview.datamodel.SequenceI;
 import jalview.util.MessageManager;
@@ -45,8 +48,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
-public class PCAPanel extends EmbmenuFrame implements Runnable,
-        ActionListener, ItemListener
+public class PCAPanel extends EmbmenuFrame
+        implements Runnable, ActionListener, ItemListener
 {
   RotatableCanvas rc;
 
@@ -56,7 +59,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
 
   int top = 0;
 
-  public PCAPanel(AlignViewport av)
+  public PCAPanel(AlignViewport viewport)
   {
     try
     {
@@ -73,19 +76,20 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
       zCombobox.addItem("dim " + i);
     }
 
-    this.av = av;
-    boolean selected = av.getSelectionGroup() != null
-            && av.getSelectionGroup().getSize() > 0;
-    AlignmentView seqstrings = av.getAlignmentView(selected);
-    boolean nucleotide = av.getAlignment().isNucleotide();
+    this.av = viewport;
+    boolean selected = viewport.getSelectionGroup() != null
+            && viewport.getSelectionGroup().getSize() > 0;
+    AlignmentView seqstrings = viewport.getAlignmentView(selected);
+    boolean nucleotide = viewport.getAlignment().isNucleotide();
     SequenceI[] seqs;
     if (!selected)
     {
-      seqs = av.getAlignment().getSequencesArray();
+      seqs = viewport.getAlignment().getSequencesArray();
     }
     else
     {
-      seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
+      seqs = viewport.getSelectionGroup()
+              .getSequencesInOrder(viewport.getAlignment());
     }
     SeqCigar sq[] = seqstrings.getSequences();
     int length = sq[0].getWidth();
@@ -99,9 +103,13 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
         return;
       }
     }
-    pcaModel = new PCAModel(seqstrings, seqs, nucleotide);
 
-    rc = new RotatableCanvas(av);
+    ScoreModelI scoreModel = ScoreModels.getInstance()
+            .getDefaultModel(!nucleotide);
+    pcaModel = new PCAModel(seqstrings, seqs, nucleotide, scoreModel,
+            SimilarityParams.SeqSpace);
+
+    rc = new RotatableCanvas(viewport);
     embedMenuIfNeeded(rc);
     add(rc, BorderLayout.CENTER);
 
@@ -116,6 +124,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void run()
   {
     // TODO progress indicator
@@ -125,7 +134,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     {
       nuclSetting.setState(pcaModel.isNucleotide());
       protSetting.setState(!pcaModel.isNucleotide());
-      pcaModel.run();
+      pcaModel.calculate();
       // ////////////////
       xCombobox.select(0);
       yCombobox.select(1);
@@ -158,12 +167,11 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     int dim2 = top - yCombobox.getSelectedIndex();
     int dim3 = top - zCombobox.getSelectedIndex();
     pcaModel.updateRcView(dim1, dim2, dim3);
-    rc.img = null;
-    rc.rotmat.setIdentity();
-    rc.initAxes();
+    rc.resetView();
     rc.paint(rc.getGraphics());
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == inputData)
@@ -183,6 +191,7 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     }
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == xCombobox)
@@ -206,6 +215,9 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
       if (!pcaModel.isNucleotide())
       {
         pcaModel.setNucleotide(true);
+        ScoreModelI scoreModel = ScoreModels.getInstance()
+                .getDefaultModel(false);
+        pcaModel.setScoreModel(scoreModel);
         new Thread(this).start();
       }
     }
@@ -214,6 +226,9 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
       if (pcaModel.isNucleotide())
       {
         pcaModel.setNucleotide(false);
+        ScoreModelI scoreModel = ScoreModels.getInstance()
+                .getDefaultModel(true);
+        pcaModel.setScoreModel(scoreModel);
         new Thread(this).start();
       }
     }
@@ -264,16 +279,17 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     {
     }
     ;
-    Object[] alAndColsel = pcaModel.getSeqtrings()
-            .getAlignmentAndColumnSelection(gc);
+    Object[] alAndColsel = pcaModel.getInputData()
+            .getAlignmentAndHiddenColumns(gc);
 
     if (alAndColsel != null && alAndColsel[0] != null)
     {
       Alignment al = new Alignment((SequenceI[]) alAndColsel[0]);
-      AlignFrame af = new AlignFrame(al, av.applet,
-              "Original Data for PCA", false);
+      AlignFrame af = new AlignFrame(al, av.applet, "Original Data for PCA",
+              false);
 
-      af.viewport.setHiddenColumns((ColumnSelection) alAndColsel[1]);
+      af.viewport.getAlignment()
+              .setHiddenColumns((HiddenColumns) alAndColsel[1]);
     }
   }
 
@@ -349,8 +365,8 @@ public class PCAPanel extends EmbmenuFrame implements Runnable,
     values.setLabel(MessageManager.getString("label.output_values"));
     values.addActionListener(this);
     inputData.setLabel(MessageManager.getString("label.input_data"));
-    nuclSetting.setLabel(MessageManager
-            .getString("label.nucleotide_matrix"));
+    nuclSetting
+            .setLabel(MessageManager.getString("label.nucleotide_matrix"));
     nuclSetting.addItemListener(this);
     protSetting.setLabel(MessageManager.getString("label.protein_matrix"));
     protSetting.addItemListener(this);

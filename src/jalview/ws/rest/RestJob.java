@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -77,8 +77,8 @@ public class RestJob extends AWsJob
    * @param viscontigs
    *          visible contigs of an alignment view from which _input was derived
    */
-  public RestJob(int jobNum, RestJobThread restJobThread,
-          AlignmentI _input, int[] viscontigs)
+  public RestJob(int jobNum, RestJobThread restJobThread, AlignmentI _input,
+          int[] viscontigs)
   {
     rsd = restJobThread.restClient.service;
     jobnum = jobNum;
@@ -90,8 +90,8 @@ public class RestJob extends AWsJob
     // get sequences for the alignmentI
     // get groups trimmed to alignment columns
     // get any annotation trimmed to start/end columns, too.
-    squniq = jalview.analysis.SeqsetUtils.uniquify(
-            _input.getSequencesArray(), true);
+    squniq = jalview.analysis.SeqsetUtils
+            .uniquify(_input.getSequencesArray(), true);
     // prepare input
     // form alignment+groups+annotation,preprocess and then record references
     // for formatters
@@ -122,8 +122,8 @@ public class RestJob extends AWsJob
           }
           else
           {
-            statMessage = ("Not enough groups defined on the alignment - need at least " + prm
-                    .getValue().min);
+            statMessage = ("Not enough groups defined on the alignment - need at least "
+                    + prm.getValue().min);
           }
         }
       }

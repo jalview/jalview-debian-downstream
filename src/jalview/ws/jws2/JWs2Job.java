@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -128,8 +128,9 @@ public abstract class JWs2Job extends AWsJob
   @Override
   public boolean isQueued()
   {
-    return status == null ? false : status.equals(status.SUBMITTED)
-            || status.equals(status.PENDING);
+    return status == null ? false
+            : status.equals(status.SUBMITTED)
+                    || status.equals(status.PENDING);
   }
 
   /*
@@ -141,9 +142,8 @@ public abstract class JWs2Job extends AWsJob
   public boolean isRunning()
   {
     // TODO Auto-generated method stub
-    return status != null
-            && (status.equals(status.RUNNING) || status
-                    .equals(status.STARTED));
+    return status != null && (status.equals(status.RUNNING)
+            || status.equals(status.STARTED));
   }
 
   /*

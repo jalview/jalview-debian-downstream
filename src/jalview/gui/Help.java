@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.gui;
 
+import java.awt.Point;
 import java.net.URL;
 
 import javax.help.BadIDException;
@@ -28,17 +29,17 @@ import javax.help.HelpSet;
 import javax.help.HelpSetException;
 
 /**
- * Utility class to show the help documentation window.
+ * Utility class to show the help documentation window
  * 
  * @author gmcarstairs
- *
  */
 public class Help
 {
   public enum HelpId
   {
     Home("home"), SequenceFeatureSettings("seqfeatures.settings"),
-    StructureViewer("viewingpdbs");
+    StructureViewer("viewingpdbs"), PdbFts("pdbfts"),
+    UniprotFts("uniprotfts");
 
     private String id;
 
@@ -54,9 +55,7 @@ public class Help
     }
   }
 
-  private static final long HALF_A_MO = 500; // half a second
-
-  private static long lastOpenedTime = 0L;
+  private static HelpBroker hb;
 
   /**
    * Not instantiable
@@ -67,42 +66,50 @@ public class Help
   }
 
   /**
-   * Show help text in a new window. But do nothing if within half a second of
-   * the last invocation.
-   * 
-   * This is a workaround for issue JAL-914 - both Desktop and AlignFrame
-   * responding to F1 key, resulting in duplicate help windows opened.
+   * Shows the help window, at the entry specified by the given helpId
    * 
    * @param id
-   *          TODO
    * 
    * @throws HelpSetException
    */
   public static void showHelpWindow(HelpId id) throws HelpSetException
   {
-    long timeNow = System.currentTimeMillis();
+    ClassLoader cl = Desktop.class.getClassLoader();
+    URL url = HelpSet.findHelpSet(cl, "help/help"); // $NON-NLS-$
+    HelpSet hs = new HelpSet(cl, url);
 
-    if (timeNow - lastOpenedTime > HALF_A_MO)
+    if (hb == null)
     {
-      lastOpenedTime = timeNow;
-      ClassLoader cl = Desktop.class.getClassLoader();
-      URL url = HelpSet.findHelpSet(cl, "help/help"); // $NON-NLS-$
-      HelpSet hs = new HelpSet(cl, url);
-
-      HelpBroker hb = hs.createHelpBroker();
-      try
-      {
-        hb.setCurrentID(id.toString());
-      } catch (BadIDException bad)
-      {
-        System.out.println("Bad help link: " + id.toString()
-                + ": must match a target in help.jhm");
-        throw bad;
-      }
-      hb.setDisplayed(true);
+      /*
+       * create help broker first time (only)
+       */
+      hb = hs.createHelpBroker();
     }
+
+    try
+    {
+      hb.setCurrentID(id.toString());
+    } catch (BadIDException bad)
+    {
+      System.out.println("Bad help link: " + id.toString()
+              + ": must match a target in help.jhm");
+      throw bad;
+    }
+
+    /*
+     * set Help visible - at its current location if it is already shown,
+     * else at a location as determined by the window manager
+     */
+    Point p = hb.getLocation();
+    hb.setLocation(p);
+    hb.setDisplayed(true);
   }
 
+  /**
+   * Show the Help window at the root entry
+   * 
+   * @throws HelpSetException
+   */
   public static void showHelpWindow() throws HelpSetException
   {
     showHelpWindow(HelpId.Home);

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,11 @@
 package jalview.ext.ensembl;
 
 import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.io.gff.SequenceOntologyI;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A client to fetch genomic sequence from Ensembl
@@ -94,22 +99,31 @@ public class EnsemblGenome extends EnsemblSeqProxy
   }
 
   /**
-   * Answers true if the sequence feature type is 'transcript' (or a subtype of
-   * transcript in the Sequence Ontology), and the ID of the feature is the
-   * transcript we are retrieving
+   * Answers a list of sequence features (if any) whose type is 'transcript' (or
+   * a subtype of transcript in the Sequence Ontology), and whose ID is the
+   * accession we are retrieving.
+   * <p>
+   * Note we also include features of type "NMD_transcript_variant", although
+   * not strictly 'transcript' in the SO, as they used in Ensembl as if they
+   * were.
    */
   @Override
-  protected boolean identifiesSequence(SequenceFeature sf, String accId)
+  protected List<SequenceFeature> getIdentifyingFeatures(SequenceI seq,
+          String accId)
   {
-    if (isTranscript(sf.getType()))
+    List<SequenceFeature> result = new ArrayList<>();
+    List<SequenceFeature> sfs = seq.getFeatures().getFeaturesByOntology(
+            SequenceOntologyI.TRANSCRIPT,
+            SequenceOntologyI.NMD_TRANSCRIPT_VARIANT);
+    for (SequenceFeature sf : sfs)
     {
-      String id = (String) sf.getValue(ID);
-      if (("transcript:" + accId).equals(id))
+      String id = (String) sf.getValue(JSON_ID);
+      if (accId.equals(id))
       {
-        return true;
+        result.add(sf);
       }
     }
-    return false;
+    return result;
   }
 
 }

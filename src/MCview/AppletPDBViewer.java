@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.appletgui.AlignmentPanel;
 import jalview.appletgui.EmbmenuFrame;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.schemes.BuriedColourScheme;
 import jalview.schemes.HelixColourScheme;
 import jalview.schemes.HydrophobicColourScheme;
@@ -45,13 +46,13 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 
-public class AppletPDBViewer extends EmbmenuFrame implements
-        ActionListener, ItemListener
+public class AppletPDBViewer extends EmbmenuFrame
+        implements ActionListener, ItemListener
 {
   AppletPDBCanvas pdbcanvas;
 
   public AppletPDBViewer(PDBEntry pdbentry, SequenceI[] seq,
-          String[] chains, AlignmentPanel ap, String protocol)
+          String[] chains, AlignmentPanel ap, DataSourceType protocol)
   {
     try
     {
@@ -66,13 +67,14 @@ public class AppletPDBViewer extends EmbmenuFrame implements
     embedMenuIfNeeded(pdbcanvas);
     add(pdbcanvas, BorderLayout.CENTER);
 
-    StringBuffer title = new StringBuffer(seq[0].getName() + ":"
-            + pdbcanvas.pdbentry.getFile());
+    StringBuffer title = new StringBuffer(
+            seq[0].getName() + ":" + pdbcanvas.pdbentry.getFile());
 
     jalview.bin.JalviewLite.addFrame(this, title.toString(), 400, 400);
 
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == mapping)
@@ -143,6 +145,7 @@ public class AppletPDBViewer extends EmbmenuFrame implements
 
   }
 
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     if (evt.getSource() == allchains)
@@ -182,7 +185,8 @@ public class AppletPDBViewer extends EmbmenuFrame implements
     zbuffer.addItemListener(this);
     charge.setLabel(MessageManager.getString("label.charge_cysteine"));
     charge.addActionListener(this);
-    hydro.setLabel(MessageManager.getString("label.hydrophobicity"));
+    hydro.setLabel(
+            MessageManager.getString("label.colourScheme_hydrophobic"));
     hydro.addActionListener(this);
     chain.setLabel(MessageManager.getString("action.by_chain"));
     chain.addActionListener(this);
@@ -192,17 +196,21 @@ public class AppletPDBViewer extends EmbmenuFrame implements
             .setLabel(MessageManager.getString("label.all_chains_visible"));
     allchains.addItemListener(this);
     viewMenu.setLabel(MessageManager.getString("action.view"));
-    zappo.setLabel(MessageManager.getString("label.zappo"));
+    zappo.setLabel(MessageManager.getString("label.colourScheme_zappo"));
     zappo.addActionListener(this);
-    taylor.setLabel(MessageManager.getString("label.taylor"));
+    taylor.setLabel(MessageManager.getString("label.colourScheme_taylor"));
     taylor.addActionListener(this);
-    helix.setLabel(MessageManager.getString("label.helix_propensity"));
+    helix.setLabel(MessageManager
+            .getString("label.colourScheme_helix_propensity"));
     helix.addActionListener(this);
-    strand.setLabel(MessageManager.getString("label.strand_propensity"));
+    strand.setLabel(MessageManager
+            .getString("label.colourScheme_strand_propensity"));
     strand.addActionListener(this);
-    turn.setLabel(MessageManager.getString("label.turn_propensity"));
+    turn.setLabel(
+            MessageManager.getString("label.colourScheme_turn_propensity"));
     turn.addActionListener(this);
-    buried.setLabel(MessageManager.getString("label.buried_index"));
+    buried.setLabel(
+            MessageManager.getString("label.colourScheme_buried_index"));
     buried.addActionListener(this);
     user.setLabel(MessageManager.getString("action.user_defined"));
     user.addActionListener(this);

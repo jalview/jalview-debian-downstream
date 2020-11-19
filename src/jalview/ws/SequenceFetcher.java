@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,6 @@
 package jalview.ws;
 
 import jalview.ext.ensembl.EnsemblGene;
-import jalview.ext.ensembl.EnsemblGenomes;
 import jalview.ws.dbsources.EmblCdsSource;
 import jalview.ws.dbsources.EmblSource;
 import jalview.ws.dbsources.Pdb;
@@ -29,12 +28,10 @@ import jalview.ws.dbsources.PfamFull;
 import jalview.ws.dbsources.PfamSeed;
 import jalview.ws.dbsources.RfamSeed;
 import jalview.ws.dbsources.Uniprot;
-import jalview.ws.dbsources.das.api.jalviewSourceI;
 import jalview.ws.seqfetcher.ASequenceFetcher;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * This implements the run-time discovery of sequence database clients.
@@ -50,13 +47,8 @@ public class SequenceFetcher extends ASequenceFetcher
    */
   public SequenceFetcher()
   {
-    this(true);
-  }
-
-  public SequenceFetcher(boolean addDas)
-  {
     addDBRefSourceImpl(EnsemblGene.class);
-    addDBRefSourceImpl(EnsemblGenomes.class);
+    // addDBRefSourceImpl(EnsemblGenomes.class);
     addDBRefSourceImpl(EmblSource.class);
     addDBRefSourceImpl(EmblCdsSource.class);
     addDBRefSourceImpl(Uniprot.class);
@@ -64,25 +56,19 @@ public class SequenceFetcher extends ASequenceFetcher
     addDBRefSourceImpl(PfamFull.class);
     addDBRefSourceImpl(PfamSeed.class);
     addDBRefSourceImpl(RfamSeed.class);
-
-    if (addDas)
-    {
-      registerDasSequenceSources();
-    }
   }
 
   /**
-   * return an ordered list of database sources where non-das database classes
-   * appear before das database classes
+   * return an ordered list of database sources excluding alignment only databases
    */
   public String[] getOrderedSupportedSources()
   {
     String[] srcs = this.getSupportedDb();
-    ArrayList<String> dassrc = new ArrayList<String>(), nondas = new ArrayList<String>();
+    ArrayList<String> src = new ArrayList<>();
+
     for (int i = 0; i < srcs.length; i++)
     {
-      boolean das = false, skip = false;
-      String nm;
+      boolean skip = false;
       for (DbSourceProxy dbs : getSourceProxy(srcs[i]))
       {
         // Skip the alignment databases for the moment - they're not useful for
@@ -91,85 +77,28 @@ public class SequenceFetcher extends ASequenceFetcher
         {
           skip = true;
         }
-        else
-        {
-          nm = dbs.getDbName();
-          if (getSourceProxy(srcs[i]) instanceof jalview.ws.dbsources.das.datamodel.DasSequenceSource)
-          {
-            if (nm.startsWith("das:"))
-            {
-              nm = nm.substring(4);
-              das = true;
-            }
-            break;
-          }
-        }
       }
       if (skip)
       {
         continue;
       }
-      if (das)
       {
-        dassrc.add(srcs[i]);
-      }
-      else
-      {
-        nondas.add(srcs[i]);
+        src.add(srcs[i]);
       }
     }
-    String[] tosort = nondas.toArray(new String[0]), sorted = nondas
-            .toArray(new String[0]);
+    String[] tosort = src.toArray(new String[0]),
+            sorted = src.toArray(new String[0]);
     for (int j = 0, jSize = sorted.length; j < jSize; j++)
     {
       tosort[j] = tosort[j].toLowerCase();
     }
     jalview.util.QuickSort.sort(tosort, sorted);
     // construct array with all sources listed
-
-    srcs = new String[sorted.length + dassrc.size()];
     int i = 0;
     for (int j = sorted.length - 1; j >= 0; j--, i++)
     {
-      srcs[i] = sorted[j];
-      sorted[j] = null;
+      tosort[i] = sorted[j];
     }
-
-    sorted = dassrc.toArray(new String[0]);
-    tosort = dassrc.toArray(new String[0]);
-    for (int j = 0, jSize = sorted.length; j < jSize; j++)
-    {
-      tosort[j] = tosort[j].toLowerCase();
-    }
-    jalview.util.QuickSort.sort(tosort, sorted);
-    for (int j = sorted.length - 1; j >= 0; j--, i++)
-    {
-      srcs[i] = sorted[j];
-    }
-    return srcs;
+    return tosort;
   }
-
-  /**
-   * query the currently defined DAS source registry for sequence sources and
-   * add a DasSequenceSource instance for each source to the SequenceFetcher
-   * source list.
-   */
-  public void registerDasSequenceSources()
-  {
-    // TODO: define a context as a registry provider (either desktop,
-    // jalview.bin.cache, or something else).
-    for (jalviewSourceI source : jalview.bin.Cache.getDasSourceRegistry()
-            .getSources())
-    {
-      if (source.isSequenceSource())
-      {
-        List<DbSourceProxy> dassources = source.getSequenceSourceProxies();
-        for (DbSourceProxy seqsrc : dassources)
-        {
-          addDbRefSourceImpl(seqsrc);
-        }
-      }
-    }
-  }
-
 }

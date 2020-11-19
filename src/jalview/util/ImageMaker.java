@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -42,6 +42,22 @@ import org.jibble.epsgraphics.EpsGraphics2D;
 
 public class ImageMaker
 {
+  public static final String SVG_DESCRIPTION = "Scalable Vector Graphics";
+
+  public static final String SVG_EXTENSION = "svg";
+
+  public static final String EPS_DESCRIPTION = "Encapsulated Postscript";
+
+  public static final String EPS_EXTENSION = "eps";
+
+  public static final String PNG_EXTENSION = "png";
+
+  public static final String PNG_DESCRIPTION = "Portable  network graphics";
+
+  public static final String HTML_EXTENSION = "html";
+
+  public static final String HTML_DESCRIPTION = "Hypertext Markup Language";
+
   EpsGraphics2D pg;
 
   SVGGraphics2D g2;
@@ -62,21 +78,26 @@ public class ImageMaker
 
   public enum TYPE
   {
-    EPS("EPS", MessageManager.getString("label.eps_file"), getEPSChooser()),
-    PNG("PNG", MessageManager.getString("label.png_image"), getPNGChooser()),
-    SVG("SVG", "SVG", getSVGChooser());
-
-    private JalviewFileChooser chooser;
+    EPS("EPS", MessageManager.getString("label.eps_file"), EPS_EXTENSION,
+            EPS_DESCRIPTION),
+    PNG("PNG", MessageManager.getString("label.png_image"),
+            PNG_EXTENSION, PNG_DESCRIPTION),
+    SVG("SVG", "SVG", SVG_EXTENSION, SVG_DESCRIPTION);
 
     private String name;
 
     private String label;
 
-    TYPE(String name, String label, JalviewFileChooser chooser)
+    private String extension;
+
+    private String description;
+
+    TYPE(String name, String label, String ext, String desc)
     {
       this.name = name;
       this.label = label;
-      this.chooser = chooser;
+      this.extension = ext;
+      this.description = desc;
     }
 
     public String getName()
@@ -84,9 +105,9 @@ public class ImageMaker
       return name;
     }
 
-    public JalviewFileChooser getChooser()
+    public JalviewFileChooser getFileChooser()
     {
-      return chooser;
+      return new JalviewFileChooser(extension, description);
     }
 
     public String getLabel()
@@ -109,7 +130,7 @@ public class ImageMaker
       setProgressMessage(MessageManager.formatMessage(
               "status.waiting_for_user_to_select_output_file", type.name));
       JalviewFileChooser chooser;
-      chooser = type.getChooser();
+      chooser = type.getFileChooser();
       chooser.setFileView(new jalview.io.JalviewFileView());
       chooser.setDialogTitle(title);
       chooser.setToolTipText(MessageManager.getString("action.save"));
@@ -117,8 +138,8 @@ public class ImageMaker
 
       if (value == jalview.io.JalviewFileChooser.APPROVE_OPTION)
       {
-        jalview.bin.Cache.setProperty("LAST_DIRECTORY", chooser
-                .getSelectedFile().getParent());
+        jalview.bin.Cache.setProperty("LAST_DIRECTORY",
+                chooser.getSelectedFile().getParent());
         file = chooser.getSelectedFile();
       }
       else
@@ -153,8 +174,8 @@ public class ImageMaker
       {
         System.out.println("Error creating " + type.getName() + " file.");
 
-        setProgressMessage(MessageManager.formatMessage(
-                "info.error_creating_file", type.getName()));
+        setProgressMessage(MessageManager
+                .formatMessage("info.error_creating_file", type.getName()));
       }
     }
   }
@@ -181,7 +202,7 @@ public class ImageMaker
         out.close();
         break;
       case PNG:
-        ImageIO.write(bi, "png", out);
+        ImageIO.write(bi, PNG_EXTENSION, out);
         out.flush();
         out.close();
         break;
@@ -231,8 +252,8 @@ public class ImageMaker
       pg.setAccurateTextMode(accurateText);
 
       graphics = pg;
-      setProgressMessage(MessageManager.formatMessage(
-              "status.export_complete", type.getName()));
+      setProgressMessage(MessageManager
+              .formatMessage("status.export_complete", type.getName()));
     } catch (Exception ex)
     {
     }
@@ -245,8 +266,8 @@ public class ImageMaker
     Graphics2D ig2 = (Graphics2D) graphics;
     ig2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
             RenderingHints.VALUE_ANTIALIAS_ON);
-    setProgressMessage(MessageManager.formatMessage(
-            "status.export_complete", type.getName()));
+    setProgressMessage(MessageManager
+            .formatMessage("status.export_complete", type.getName()));
 
   }
 
@@ -282,8 +303,8 @@ public class ImageMaker
               SVGHints.VALUE_DRAW_STRING_TYPE_VECTOR);
     }
 
-    setProgressMessage(MessageManager.formatMessage(
-            "status.export_complete", type.getName()));
+    setProgressMessage(MessageManager
+            .formatMessage("status.export_complete", type.getName()));
     graphics = g2;
   }
 
@@ -293,11 +314,7 @@ public class ImageMaker
     {
       return null;
     }
-    return new jalview.io.JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "png" },
-            new String[] { "Portable network graphics" },
-            "Portable network graphics");
+    return new JalviewFileChooser(PNG_EXTENSION, PNG_DESCRIPTION);
   }
 
   static JalviewFileChooser getEPSChooser()
@@ -306,11 +323,7 @@ public class ImageMaker
     {
       return null;
     }
-    return new jalview.io.JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "eps" },
-            new String[] { "Encapsulated Postscript" },
-            "Encapsulated Postscript");
+    return new JalviewFileChooser(EPS_EXTENSION, EPS_DESCRIPTION);
   }
 
   private void setProgressMessage(String message)
@@ -327,10 +340,6 @@ public class ImageMaker
     {
       return null;
     }
-    return new jalview.io.JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"),
-            new String[] { "svg" },
-            new String[] { "Scalable Vector Graphics" },
-            "Scalable Vector Graphics");
+    return new JalviewFileChooser(SVG_EXTENSION, SVG_DESCRIPTION);
   }
 }

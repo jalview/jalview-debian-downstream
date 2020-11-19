@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 
 package jalview.fts.service.uniprot;
 
+import jalview.bin.Cache;
 import jalview.fts.api.FTSData;
 import jalview.fts.api.FTSDataColumnI;
 import jalview.fts.api.FTSRestClientI;
@@ -44,9 +45,18 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 public class UniProtFTSRestClient extends FTSRestClient
 {
+  private static final String DEFAULT_UNIPROT_DOMAIN = "https://www.uniprot.org";
+
   private static FTSRestClientI instance = null;
 
-  public static final String UNIPROT_SEARCH_ENDPOINT = "http://www.uniprot.org/uniprot/?";
+  public final String uniprotSearchEndpoint;
+
+  public UniProtFTSRestClient()
+  {
+    super();
+    uniprotSearchEndpoint = Cache.getDefault("UNIPROT_DOMAIN",
+            DEFAULT_UNIPROT_DOMAIN) + "/uniprot/?";
+  }
 
   @Override
   public FTSRestResponse executeRequest(FTSRestRequest uniportRestRequest)
@@ -57,9 +67,10 @@ public class UniProtFTSRestClient extends FTSRestClient
       ClientConfig clientConfig = new DefaultClientConfig();
       Client client = Client.create(clientConfig);
 
-      String wantedFields = getDataColumnsFieldsAsCommaDelimitedString(uniportRestRequest
-              .getWantedFields());
-      int responseSize = (uniportRestRequest.getResponseSize() == 0) ? getDefaultResponsePageSize()
+      String wantedFields = getDataColumnsFieldsAsCommaDelimitedString(
+              uniportRestRequest.getWantedFields());
+      int responseSize = (uniportRestRequest.getResponseSize() == 0)
+              ? getDefaultResponsePageSize()
               : uniportRestRequest.getResponseSize();
 
       int offSet = uniportRestRequest.getOffSet();
@@ -70,23 +81,25 @@ public class UniProtFTSRestClient extends FTSRestClient
       }
       else
       {
-        query = uniportRestRequest.getFieldToSearchBy().equalsIgnoreCase(
-                "Search All") ? uniportRestRequest.getSearchTerm()
-                + " or mnemonic:" + uniportRestRequest.getSearchTerm()
-                : uniportRestRequest.getFieldToSearchBy() + ":"
-                        + uniportRestRequest.getSearchTerm();
+        query = uniportRestRequest.getFieldToSearchBy()
+                .equalsIgnoreCase("Search All")
+                        ? uniportRestRequest.getSearchTerm()
+                                + " or mnemonic:"
+                                + uniportRestRequest.getSearchTerm()
+                        : uniportRestRequest.getFieldToSearchBy() + ":"
+                                + uniportRestRequest.getSearchTerm();
       }
 
       WebResource webResource = null;
-      webResource = client.resource(UNIPROT_SEARCH_ENDPOINT)
+      webResource = client.resource(uniprotSearchEndpoint)
               .queryParam("format", "tab")
               .queryParam("columns", wantedFields)
               .queryParam("limit", String.valueOf(responseSize))
               .queryParam("offset", String.valueOf(offSet))
               .queryParam("sort", "score").queryParam("query", query);
       // Execute the REST request
-      ClientResponse clientResponse = webResource.accept(
-              MediaType.TEXT_PLAIN).get(ClientResponse.class);
+      ClientResponse clientResponse = webResource
+              .accept(MediaType.TEXT_PLAIN).get(ClientResponse.class);
       String uniProtTabDelimittedResponseString = clientResponse
               .getEntity(String.class);
       // Make redundant objects eligible for garbage collection to conserve
@@ -100,8 +113,8 @@ public class UniProtFTSRestClient extends FTSRestClient
         throw new Exception(errorMessage);
 
       }
-      int xTotalResults = Integer.valueOf(clientResponse.getHeaders()
-              .get("X-Total-Results").get(0));
+      int xTotalResults = Integer.valueOf(
+              clientResponse.getHeaders().get("X-Total-Results").get(0));
       clientResponse = null;
       client = null;
       return parseUniprotResponse(uniProtTabDelimittedResponseString,
@@ -112,9 +125,8 @@ public class UniProtFTSRestClient extends FTSRestClient
       if (exceptionMsg.contains("SocketException"))
       {
         // No internet connection
-        throw new Exception(
-                MessageManager
-                        .getString("exception.unable_to_detect_internet_connection"));
+        throw new Exception(MessageManager.getString(
+                "exception.unable_to_detect_internet_connection"));
       }
       else if (exceptionMsg.contains("UnknownHostException"))
       {
@@ -156,15 +168,15 @@ public class UniProtFTSRestClient extends FTSRestClient
     String[] foundDataRow = uniProtTabDelimittedResponseString.split("\n");
     if (foundDataRow != null && foundDataRow.length > 0)
     {
-      result = new ArrayList<FTSData>();
-      String titleRow = getDataColumnsFieldsAsTabDelimitedString(uniprotRestRequest
-              .getWantedFields());
-      // System.out.println(">>>>Title row : " + titleRow);
+      result = new ArrayList<>();
+      boolean firstRow = true;
       for (String dataRow : foundDataRow)
       {
-        if (dataRow.equalsIgnoreCase(titleRow))
+        // The first data row is usually the header data. This should be
+        // filtered out from the rest of the data See: JAL-2485
+        if (firstRow)
         {
-          // System.out.println(">>>>>>>>>> matched!!!");
+          firstRow = false;
           continue;
         }
         // System.out.println(dataRow);
@@ -239,10 +251,12 @@ public class UniProtFTSRestClient extends FTSRestClient
           try
           {
             summaryRowData[colCounter++] = (field.getDataType()
-                    .getDataTypeClass() == Integer.class) ? Integer
-                    .valueOf(fieldData.replace(",", ""))
-                    : (field.getDataType().getDataTypeClass() == Double.class) ? Double
-                            .valueOf(fieldData) : fieldData;
+                    .getDataTypeClass() == Integer.class)
+                            ? Integer.valueOf(fieldData.replace(",", ""))
+                            : (field.getDataType()
+                                    .getDataTypeClass() == Double.class)
+                                            ? Double.valueOf(fieldData)
+                                            : fieldData;
           } catch (Exception e)
           {
             e.printStackTrace();

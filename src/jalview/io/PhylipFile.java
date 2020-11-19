@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,9 +27,9 @@ import java.io.IOException;
 
 /**
  * <p>
- * Parser and exporter for PHYLIP file format, as defined <a
- * href="http://evolution.genetics.washington.edu/phylip/doc/main.html">in the
- * documentation</a>. The parser imports PHYLIP files in both sequential and
+ * Parser and exporter for PHYLIP file format, as defined
+ * <a href="http://evolution.genetics.washington.edu/phylip/doc/main.html">in
+ * the documentation</a>. The parser imports PHYLIP files in both sequential and
  * interleaved format, and (currently) exports in interleaved format (using 60
  * characters per matrix for the sequence).
  * <p>
@@ -38,7 +38,8 @@ import java.io.IOException;
  * The following assumptions have been made for input
  * <ul>
  * <li>Sequences are expressed as letters, not real numbers with decimal points
- * separated by blanks (which is a valid option according to the specification)</li>
+ * separated by blanks (which is a valid option according to the
+ * specification)</li>
  * </ul>
  *
  * The following assumptions have been made for output
@@ -58,9 +59,6 @@ import java.io.IOException;
  */
 public class PhylipFile extends AlignFile
 {
-
-  // Define file extension and description to save repeating it elsewhere
-  public static final String FILE_EXT = "phy";
 
   public static final String FILE_DESC = "PHYLIP";
 
@@ -85,13 +83,14 @@ public class PhylipFile extends AlignFile
 
   /**
    * @param inFile
-   * @param type
+   * @param sourceType
    * @throws IOException
    * @see {@link AlignFile#AlignFile(FileParse)}
    */
-  public PhylipFile(String inFile, String type) throws IOException
+  public PhylipFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   /**
@@ -114,8 +113,8 @@ public class PhylipFile extends AlignFile
                 "First line must contain the number of specifies and number of characters");
       }
 
-      int numberSpecies = Integer.parseInt(lineElements[0]), numberCharacters = Integer
-              .parseInt(lineElements[1]);
+      int numberSpecies = Integer.parseInt(lineElements[0]),
+              numberCharacters = Integer.parseInt(lineElements[1]);
 
       if (numberSpecies <= 0)
       {
@@ -146,8 +145,8 @@ public class PhylipFile extends AlignFile
         }
         else
         {
-          sequenceElements[i] = parseId(validateName(potentialName
-                  .substring(0, tabIndex)));
+          sequenceElements[i] = parseId(
+                  validateName(potentialName.substring(0, tabIndex)));
           sequences[i] = new StringBuffer(
                   removeWhitespace(line.substring(tabIndex)));
         }
@@ -224,8 +223,8 @@ public class PhylipFile extends AlignFile
     {
       if (name.indexOf(c) > -1)
       {
-        throw new IOException("Species name contains illegal character "
-                + c);
+        throw new IOException(
+                "Species name contains illegal character " + c);
       }
     }
     return name;
@@ -242,15 +241,15 @@ public class PhylipFile extends AlignFile
    * @see {@link AlignFile#print()}
    */
   @Override
-  public String print()
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
 
-    StringBuffer sb = new StringBuffer(Integer.toString(seqs.size()));
+    StringBuffer sb = new StringBuffer(Integer.toString(sqs.length));
     sb.append(" ");
     // if there are no sequences, then define the number of characters as 0
     sb.append(
-            (seqs.size() > 0) ? Integer
-                    .toString(seqs.get(0).getSequence().length) : "0")
+(sqs.length > 0) ? Integer.toString(sqs[0].getLength())
+                    : "0")
             .append(newline);
 
     // Due to how IO is handled, there doesn't appear to be a way to store
@@ -262,7 +261,7 @@ public class PhylipFile extends AlignFile
     int numInterleavedColumns = 60;
 
     int sequenceLength = 0;
-    for (SequenceI s : seqs)
+    for (SequenceI s : sqs)
     {
 
       // ensure name is only 10 characters
@@ -281,13 +280,13 @@ public class PhylipFile extends AlignFile
       // sequential has the entire sequence following the name
       if (sequential)
       {
-        sb.append(s.getSequence());
+        sb.append(s.getSequenceAsString());
       }
       else
       {
         // Jalview ensures all sequences are of same length so no need
         // to keep track of min/max length
-        sequenceLength = s.getSequence().length;
+        sequenceLength = s.getLength();
         // interleaved breaks the sequence into chunks for
         // interleavedColumns characters
         sb.append(s.getSequence(0,
@@ -313,11 +312,10 @@ public class PhylipFile extends AlignFile
         // add blank line to separate this matrix from previous
         sb.append(newline);
         int start = i * numInterleavedColumns;
-        for (SequenceI s : seqs)
+        for (SequenceI s : sqs)
         {
-          sb.append(
-                  s.getSequence(start, Math.min(start
-                          + numInterleavedColumns, sequenceLength)))
+          sb.append(s.getSequence(start,
+                  Math.min(start + numInterleavedColumns, sequenceLength)))
                   .append(newline);
         }
       }
