@@ -1,3 +1,4 @@
 newer-mime4j-api.diff
 #java8-compatibility.patch
 change_package_jfree.patch
+get_rid_of_quaqua.patch

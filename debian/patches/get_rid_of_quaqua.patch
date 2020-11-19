@@ -1,0 +1,59 @@
+Description: get rid of Quaqua look and feel, only licensed for Mac
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: not-needed
+Last-Update: 2020-11-14
+
+--- a/src/jalview/bin/Jalview.java
++++ b/src/jalview/bin/Jalview.java
+@@ -744,7 +744,7 @@
+     // property laf = "crossplatform", "system", "gtk", "metal", "nimbus" or
+     // "mac"
+     // If not set (or chosen laf fails), use the normal SystemLaF and if on Mac,
+-    // try Quaqua/Vaqua.
++    // try Vaqua.
+     String lafProp = System.getProperty("laf");
+     String lafSetting = Cache.getDefault("PREFERRED_LAF", null);
+     String laf = "none";
+@@ -794,13 +794,6 @@
+         Cache.log.error("Could not set requested laf=" + laf);
+       }
+       break;
+-    case "quaqua":
+-      lafSet = setQuaquaLookAndFeel();
+-      if (!lafSet)
+-      {
+-        Cache.log.error("Could not set requested laf=" + laf);
+-      }
+-      break;
+     case "vaqua":
+       lafSet = setVaquaLookAndFeel();
+       if (!lafSet)
+@@ -908,14 +901,6 @@
+             "javax.swing.plaf.nimbus.NimbusLookAndFeel", false);
+   }
+ 
+-  private static boolean setQuaquaLookAndFeel()
+-  {
+-    return setSpecificLookAndFeel("quaqua",
+-            ch.randelshofer.quaqua.QuaquaManager.getLookAndFeel().getClass()
+-                    .getName(),
+-            false);
+-  }
+-
+   private static boolean setVaquaLookAndFeel()
+   {
+     return setSpecificLookAndFeel("vaqua",
+@@ -928,12 +913,7 @@
+     System.setProperty("com.apple.mrj.application.apple.menu.about.name",
+             "Jalview");
+     System.setProperty("apple.laf.useScreenMenuBar", "true");
+-    set = setQuaquaLookAndFeel();
+-    if ((!set) || !UIManager.getLookAndFeel().getClass().toString()
+-            .toLowerCase().contains("quaqua"))
+-    {
+-      set = setVaquaLookAndFeel();
+-    }
++    set = setVaquaLookAndFeel();
+     return set;
+   }
+ 
