@@ -5,3 +5,4 @@ get_rid_of_quaqua.patch
 using_right_json_simple_package.patch
 deactivate_getdown.patch
 deactivate_classgraph.patch
+remove_last_assertion_MemorySettingTest.patch
