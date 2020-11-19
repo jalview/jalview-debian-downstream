@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.analysis;
 
+import jalview.analysis.scoremodels.PIDModel;
+import jalview.analysis.scoremodels.SimilarityParams;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
@@ -27,12 +29,11 @@ import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequenceNode;
-import jalview.util.Comparison;
-import jalview.util.MessageManager;
 import jalview.util.QuickSort;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -52,7 +53,7 @@ import java.util.List;
  */
 public class AlignmentSorter
 {
-  /**
+  /*
    * todo: refactor searches to follow a basic pattern: (search property, last
    * search state, current sort direction)
    */
@@ -66,67 +67,50 @@ public class AlignmentSorter
 
   static boolean sortOrderAscending = true;
 
-  static NJTree lastTree = null;
+  static TreeModel lastTree = null;
 
   static boolean sortTreeAscending = true;
 
-  /**
-   * last Annotation Label used by sortByScore
+  /*
+   * last Annotation Label used for sort by Annotation score
    */
-  private static String lastSortByScore;
+  private static String lastSortByAnnotation;
 
-  private static boolean sortByScoreAscending = true;
-
-  /**
-   * compact representation of last arguments to SortByFeatureScore
+  /*
+   * string hash of last arguments to sortByFeature
+   * (sort order toggles if this is unchanged between sorts)
    */
-  private static String lastSortByFeatureScore;
+  private static String sortByFeatureCriteria;
 
-  private static boolean sortByFeatureScoreAscending = true;
+  private static boolean sortByFeatureAscending = true;
 
   private static boolean sortLengthAscending;
 
   /**
-   * Sort by Percentage Identity w.r.t. s
+   * Sorts sequences in the alignment by Percentage Identity with the given
+   * reference sequence, sorting the highest identity to the top
    * 
    * @param align
    *          AlignmentI
    * @param s
    *          SequenceI
-   * @param tosort
-   *          sequences from align that are to be sorted.
-   */
-  public static void sortByPID(AlignmentI align, SequenceI s,
-          SequenceI[] tosort)
-  {
-    sortByPID(align, s, tosort, 0, -1);
-  }
-
-  /**
-   * Sort by Percentage Identity w.r.t. s
-   * 
-   * @param align
-   *          AlignmentI
-   * @param s
-   *          SequenceI
-   * @param tosort
-   *          sequences from align that are to be sorted.
-   * @param start
-   *          start column (0 for beginning
    * @param end
    */
-  public static void sortByPID(AlignmentI align, SequenceI s,
-          SequenceI[] tosort, int start, int end)
+  public static void sortByPID(AlignmentI align, SequenceI s)
   {
     int nSeq = align.getHeight();
 
     float[] scores = new float[nSeq];
     SequenceI[] seqs = new SequenceI[nSeq];
+    String refSeq = s.getSequenceAsString();
 
+    SimilarityParams pidParams = new SimilarityParams(true, true, true,
+            true);
     for (int i = 0; i < nSeq; i++)
     {
-      scores[i] = Comparison.PID(align.getSequenceAt(i)
-              .getSequenceAsString(), s.getSequenceAsString());
+      scores[i] = (float) PIDModel.computePID(
+              align.getSequenceAt(i).getSequenceAsString(), refSeq,
+              pidParams);
       seqs[i] = align.getSequenceAt(i);
     }
 
@@ -432,7 +416,8 @@ public class AlignmentSorter
     }
     else
     {
-      setReverseOrder(align, vectorSubsetToArray(tmp, align.getSequences()));
+      setReverseOrder(align,
+              vectorSubsetToArray(tmp, align.getSequences()));
     }
   }
 
@@ -447,7 +432,7 @@ public class AlignmentSorter
    * @return DOCUMENT ME!
    */
   private static List<SequenceI> getOrderByTree(AlignmentI align,
-          NJTree tree)
+          TreeModel tree)
   {
     int nSeq = align.getHeight();
 
@@ -467,12 +452,9 @@ public class AlignmentSorter
 
       if (tmp.size() != nSeq)
       {
-        System.err
-                .println("WARNING: tmp.size()="
-                        + tmp.size()
-                        + " != nseq="
-                        + nSeq
-                        + " in getOrderByTree - tree contains sequences not in alignment");
+        System.err.println("WARNING: tmp.size()=" + tmp.size() + " != nseq="
+                + nSeq
+                + " in getOrderByTree - tree contains sequences not in alignment");
       }
     }
 
@@ -487,7 +469,7 @@ public class AlignmentSorter
    * @param tree
    *          tree which has
    */
-  public static void sortByTree(AlignmentI align, NJTree tree)
+  public static void sortByTree(AlignmentI align, TreeModel tree)
   {
     List<SequenceI> tmp = getOrderByTree(align, tree);
 
@@ -508,7 +490,8 @@ public class AlignmentSorter
     }
     else
     {
-      setReverseOrder(align, vectorSubsetToArray(tmp, align.getSequences()));
+      setReverseOrder(align,
+              vectorSubsetToArray(tmp, align.getSequences()));
     }
   }
 
@@ -603,7 +586,7 @@ public class AlignmentSorter
 
     for (int i = 0; i < alignment.length; i++)
     {
-      ids[i] = (new Float(alignment[i].getName().substring(8)))
+      ids[i] = (Float.valueOf(alignment[i].getName().substring(8)))
               .floatValue();
     }
 
@@ -675,9 +658,9 @@ public class AlignmentSorter
     }
 
     jalview.util.QuickSort.sort(scores, seqs);
-    if (lastSortByScore != scoreLabel)
+    if (lastSortByAnnotation != scoreLabel)
     {
-      lastSortByScore = scoreLabel;
+      lastSortByAnnotation = scoreLabel;
       setOrder(alignment, seqs);
     }
     else
@@ -699,100 +682,40 @@ public class AlignmentSorter
   public static String FEATURE_DENSITY = "density";
 
   /**
-   * sort the alignment using the features on each sequence found between start
-   * and stop with the given featureLabel (and optional group qualifier)
+   * Sort sequences by feature score or density, optionally restricted by
+   * feature types, feature groups, or alignment start/end positions.
+   * <p>
+   * If the sort is repeated for the same combination of types and groups, sort
+   * order is reversed.
    * 
-   * @param featureLabel
-   *          (may not be null)
-   * @param groupLabel
-   *          (may be null)
-   * @param start
-   *          (-1 to include non-positional features)
-   * @param stop
-   *          (-1 to only sort on non-positional features)
+   * @param featureTypes
+   *          a list of feature types to include (or null for all)
+   * @param groups
+   *          a list of feature groups to include (or null for all)
+   * @param startCol
+   *          start column position to include (base zero)
+   * @param endCol
+   *          end column position to include (base zero)
    * @param alignment
-   *          - aligned sequences containing features
+   *          the alignment to be sorted
    * @param method
-   *          - one of the string constants FEATURE_SCORE, FEATURE_LABEL,
-   *          FEATURE_DENSITY
+   *          either "average_score" or "density" ("text" not yet implemented)
    */
-  public static void sortByFeature(String featureLabel, String groupLabel,
-          int start, int stop, AlignmentI alignment, String method)
-  {
-    sortByFeature(
-            featureLabel == null ? null
-                    : Arrays.asList(new String[] { featureLabel }),
-            groupLabel == null ? null : Arrays
-                    .asList(new String[] { groupLabel }), start, stop,
-            alignment, method);
-  }
-
-  private static boolean containsIgnoreCase(final String lab,
-          final List<String> labs)
-  {
-    if (labs == null)
-    {
-      return true;
-    }
-    if (lab == null)
-    {
-      return false;
-    }
-    for (String label : labs)
-    {
-      if (lab.equalsIgnoreCase(label))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public static void sortByFeature(List<String> featureLabels,
-          List<String> groupLabels, int start, int stop,
+  public static void sortByFeature(List<String> featureTypes,
+          List<String> groups, final int startCol, final int endCol,
           AlignmentI alignment, String method)
   {
     if (method != FEATURE_SCORE && method != FEATURE_LABEL
             && method != FEATURE_DENSITY)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_sortbyfeature"));
+      String msg = String
+              .format("Implementation Error - sortByFeature method must be either '%s' or '%s'",
+                      FEATURE_SCORE, FEATURE_DENSITY);
+      System.err.println(msg);
+      return;
     }
 
-    boolean ignoreScore = method != FEATURE_SCORE;
-    StringBuffer scoreLabel = new StringBuffer();
-    scoreLabel.append(start + stop + method);
-    // This doesn't quite work yet - we'd like to have a canonical ordering that
-    // can be preserved from call to call
-    if (featureLabels != null)
-    {
-      for (String label : featureLabels)
-      {
-        scoreLabel.append(label);
-      }
-    }
-    if (groupLabels != null)
-    {
-      for (String label : groupLabels)
-      {
-        scoreLabel.append(label);
-      }
-    }
-
-    /*
-     * if resorting the same feature, toggle sort order
-     */
-    if (lastSortByFeatureScore == null
-            || !scoreLabel.toString().equals(lastSortByFeatureScore))
-    {
-      sortByFeatureScoreAscending = true;
-    }
-    else
-    {
-      sortByFeatureScoreAscending = !sortByFeatureScoreAscending;
-    }
-    lastSortByFeatureScore = scoreLabel.toString();
+    flipFeatureSortIfUnchanged(method, featureTypes, groups, startCol, endCol);
 
     SequenceI[] seqs = alignment.getSequencesArray();
 
@@ -801,52 +724,44 @@ public class AlignmentSorter
     int hasScores = 0; // number of scores present on set
     double[] scores = new double[seqs.length];
     int[] seqScores = new int[seqs.length];
-    Object[] feats = new Object[seqs.length];
-    double min = 0, max = 0;
+    Object[][] feats = new Object[seqs.length][];
+    double min = 0d;
+    double max = 0d;
+
     for (int i = 0; i < seqs.length; i++)
     {
-      SequenceFeature[] sf = seqs[i].getSequenceFeatures();
-      if (sf == null)
-      {
-        sf = new SequenceFeature[0];
-      }
-      else
-      {
-        SequenceFeature[] tmp = new SequenceFeature[sf.length];
-        for (int s = 0; s < tmp.length; s++)
-        {
-          tmp[s] = sf[s];
-        }
-        sf = tmp;
-      }
-      int sstart = (start == -1) ? start : seqs[i].findPosition(start);
-      int sstop = (stop == -1) ? stop : seqs[i].findPosition(stop);
+      /*
+       * get sequence residues overlapping column region
+       * and features for residue positions and specified types
+       */
+      String[] types = featureTypes == null ? null : featureTypes
+              .toArray(new String[featureTypes.size()]);
+      List<SequenceFeature> sfs = seqs[i].findFeatures(startCol + 1,
+              endCol + 1, types);
+
       seqScores[i] = 0;
       scores[i] = 0.0;
-      int n = sf.length;
-      for (int f = 0; f < sf.length; f++)
+
+      Iterator<SequenceFeature> it = sfs.listIterator();
+      while (it.hasNext())
       {
-        // filter for selection criteria
-        if (
-        // ignore features outwith alignment start-stop positions.
-        (sf[f].end < sstart || sf[f].begin > sstop) ||
-        // or ignore based on selection criteria
-                (featureLabels != null && !AlignmentSorter
-                        .containsIgnoreCase(sf[f].type, featureLabels))
-                || (groupLabels != null
-                // problem here: we cannot eliminate null feature group features
-                && (sf[f].getFeatureGroup() != null && !AlignmentSorter
-                        .containsIgnoreCase(sf[f].getFeatureGroup(),
-                                groupLabels))))
+        SequenceFeature sf = it.next();
+
+        /*
+         * accept all features with null or empty group, otherwise
+         * check group is one of the currently visible groups
+         */
+        String featureGroup = sf.getFeatureGroup();
+        if (groups != null && featureGroup != null
+                && !"".equals(featureGroup)
+                && !groups.contains(featureGroup))
         {
-          // forget about this feature
-          sf[f] = null;
-          n--;
+          it.remove();
         }
         else
         {
-          // or, also take a look at the scores if necessary.
-          if (!ignoreScore && !Float.isNaN(sf[f].getScore()))
+          float score = sf.getScore();
+          if (FEATURE_SCORE.equals(method) && !Float.isNaN(score))
           {
             if (seqScores[i] == 0)
             {
@@ -854,33 +769,26 @@ public class AlignmentSorter
             }
             seqScores[i]++;
             hasScore[i] = true;
-            scores[i] += sf[f].getScore(); // take the first instance of this
-            // score.
+            scores[i] += score;
+            // take the first instance of this score // ??
           }
         }
       }
-      SequenceFeature[] fs;
-      feats[i] = fs = new SequenceFeature[n];
-      if (n > 0)
+
+      feats[i] = sfs.toArray(new SequenceFeature[sfs.size()]);
+      if (!sfs.isEmpty())
       {
-        n = 0;
-        for (int f = 0; f < sf.length; f++)
-        {
-          if (sf[f] != null)
-          {
-            ((SequenceFeature[]) feats[i])[n++] = sf[f];
-          }
-        }
         if (method == FEATURE_LABEL)
         {
-          // order the labels by alphabet
-          String[] labs = new String[fs.length];
-          for (int l = 0; l < labs.length; l++)
+          // order the labels by alphabet (not yet implemented)
+          String[] labs = new String[sfs.size()];
+          for (int l = 0; l < sfs.size(); l++)
           {
-            labs[l] = (fs[l].getDescription() != null ? fs[l]
-                    .getDescription() : fs[l].getType());
+            SequenceFeature sf = sfs.get(l);
+            String description = sf.getDescription();
+            labs[l] = (description != null ? description : sf.getType());
           }
-          QuickSort.sort(labs, ((Object[]) feats[i]));
+          QuickSort.sort(labs, feats[i]);
         }
       }
       if (hasScore[i])
@@ -890,23 +798,18 @@ public class AlignmentSorter
         // update the score bounds.
         if (hasScores == 1)
         {
-          max = min = scores[i];
+          min = scores[i];
+          max = min;
         }
         else
         {
-          if (max < scores[i])
-          {
-            max = scores[i];
-          }
-          if (min > scores[i])
-          {
-            min = scores[i];
-          }
+          max = Math.max(max, scores[i]);
+          min = Math.min(min, scores[i]);
         }
       }
     }
 
-    if (method == FEATURE_SCORE)
+    if (FEATURE_SCORE.equals(method))
     {
       if (hasScores == 0)
       {
@@ -931,9 +834,9 @@ public class AlignmentSorter
           }
         }
       }
-      QuickSort.sortByDouble(scores, seqs, sortByFeatureScoreAscending);
+      QuickSort.sortByDouble(scores, seqs, sortByFeatureAscending);
     }
-    else if (method == FEATURE_DENSITY)
+    else if (FEATURE_DENSITY.equals(method))
     {
       for (int i = 0; i < seqs.length; i++)
       {
@@ -943,18 +846,53 @@ public class AlignmentSorter
         // System.err.println("Sorting on Density: seq "+seqs[i].getName()+
         // " Feats: "+featureCount+" Score : "+scores[i]);
       }
-      QuickSort.sortByDouble(scores, seqs, sortByFeatureScoreAscending);
-    }
-    else
-    {
-      if (method == FEATURE_LABEL)
-      {
-        throw new Error(
-                MessageManager.getString("error.not_yet_implemented"));
-      }
+      QuickSort.sortByDouble(scores, seqs, sortByFeatureAscending);
     }
 
     setOrder(alignment, seqs);
+  }
+
+  /**
+   * Builds a string hash of criteria for sorting, and if unchanged from last
+   * time, reverse the sort order
+   * 
+   * @param method
+   * @param featureTypes
+   * @param groups
+   * @param startCol
+   * @param endCol
+   */
+  protected static void flipFeatureSortIfUnchanged(String method,
+          List<String> featureTypes, List<String> groups,
+          final int startCol, final int endCol)
+  {
+    StringBuilder sb = new StringBuilder(64);
+    sb.append(startCol).append(method).append(endCol);
+    if (featureTypes != null)
+    {
+      Collections.sort(featureTypes);
+      sb.append(featureTypes.toString());
+    }
+    if (groups != null)
+    {
+      Collections.sort(groups);
+      sb.append(groups.toString());
+    }
+    String scoreCriteria = sb.toString();
+
+    /*
+     * if resorting on the same criteria, toggle sort order
+     */
+    if (sortByFeatureCriteria == null
+            || !scoreCriteria.equals(sortByFeatureCriteria))
+    {
+      sortByFeatureAscending = true;
+    }
+    else
+    {
+      sortByFeatureAscending = !sortByFeatureAscending;
+    }
+    sortByFeatureCriteria = scoreCriteria;
   }
 
 }

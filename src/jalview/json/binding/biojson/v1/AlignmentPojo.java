@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -65,10 +65,11 @@ public class AlignmentPojo
 
   @Attributes(
     required = false,
-    enums = { "None", "User Defined", "Clustal", "Zappo", "Taylor",
-        "Nucleotide", "Pyrimidine", "Purine", "Turn", "Helix", "Strand",
-        "Buried", "Hydro", "T-Coffee Scores", "RNA Interaction type",
-        "Blosum62", "RNA Helices", "% Identity" },
+    enums =
+    { "None", "User Defined", "Clustal", "Zappo", "Taylor", "Nucleotide",
+        "Pyrimidine", "Purine", "Turn", "Helix", "Strand", "Buried",
+        "Hydro", "T-Coffee Scores", "RNA Interaction type", "Blosum62",
+        "RNA Helices", "% Identity" },
     description = "The <a href=\"#colourScheme\">Colour Scheme</a> applied to the alignment")
   private String colourScheme;
 

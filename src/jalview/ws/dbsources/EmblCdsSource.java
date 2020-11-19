@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,9 +23,7 @@ package jalview.ws.dbsources;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefSource;
 
-import com.stevesoft.pat.Regex;
-
-public class EmblCdsSource extends EmblXmlSource
+public class EmblCdsSource extends EmblFlatfileSource // was EmblXmlSource
 {
 
   public EmblCdsSource()
@@ -34,28 +32,9 @@ public class EmblCdsSource extends EmblXmlSource
   }
 
   @Override
-  public String getAccessionSeparator()
-  {
-    return null;
-  }
-
-  @Override
-  public Regex getAccessionValidator()
-  {
-    return new Regex("^[A-Z]+[0-9]+");
-  }
-
-  @Override
   public String getDbSource()
   {
     return DBRefSource.EMBLCDS;
-  }
-
-  @Override
-  public String getDbVersion()
-  {
-    return "0"; // TODO : this is dynamically set for a returned record - not
-    // tied to proxy
   }
 
   @Override
@@ -66,15 +45,6 @@ public class EmblCdsSource extends EmblXmlSource
       queries = queries.substring(0, queries.indexOf("."));
     }
     return getEmblSequenceRecords(DBRefSource.EMBLCDS, queries);
-  }
-
-  @Override
-  public boolean isValidReference(String accession)
-  {
-    // most embl CDS refs look like ..
-    // TODO: improve EMBLCDS regex
-    return (accession == null || accession.length() < 2) ? false
-            : getAccessionValidator().search(accession);
   }
 
   /**
@@ -90,12 +60,6 @@ public class EmblCdsSource extends EmblXmlSource
   public String getDbName()
   {
     return "EMBL (CDS)";
-  }
-
-  @Override
-  public int getTier()
-  {
-    return 0;
   }
 
 }

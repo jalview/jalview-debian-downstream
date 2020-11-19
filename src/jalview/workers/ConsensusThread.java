@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,7 +28,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.ColourSchemeI;
+import jalview.renderer.ResidueShaderI;
 
 public class ConsensusThread extends AlignCalcWorker
 {
@@ -50,19 +50,21 @@ public class ConsensusThread extends AlignCalcWorker
     try
     {
       AlignmentAnnotation consensus = getConsensusAnnotation();
-      if (consensus == null || calcMan.isPending(this))
+      AlignmentAnnotation gap = getGapAnnotation();
+      if ((consensus == null && gap == null) || calcMan.isPending(this))
       {
         calcMan.workerComplete(this);
         return;
       }
       while (!calcMan.notifyWorking(this))
       {
-        // System.err.println("Thread (Consensus"+Thread.currentThread().getName()+") Waiting around.");
+        // System.err.println("Thread
+        // (Consensus"+Thread.currentThread().getName()+") Waiting around.");
         try
         {
           if (ap != null)
           {
-            ap.paintAlignment(false);
+            ap.paintAlignment(false, false);
           }
           Thread.sleep(200);
         } catch (Exception ex)
@@ -91,7 +93,7 @@ public class ConsensusThread extends AlignCalcWorker
 
       if (ap != null)
       {
-        ap.paintAlignment(true);
+        ap.paintAlignment(true, true);
       }
     } catch (OutOfMemoryError error)
     {
@@ -116,7 +118,15 @@ public class ConsensusThread extends AlignCalcWorker
   protected void eraseConsensus(int aWidth)
   {
     AlignmentAnnotation consensus = getConsensusAnnotation();
-    consensus.annotations = new Annotation[aWidth];
+    if (consensus != null)
+    {
+      consensus.annotations = new Annotation[aWidth];
+    }
+    AlignmentAnnotation gap = getGapAnnotation();
+    if (gap != null)
+    {
+      gap.annotations = new Annotation[aWidth];
+    }
   }
 
   /**
@@ -127,8 +137,8 @@ public class ConsensusThread extends AlignCalcWorker
 
     SequenceI[] aseqs = getSequences();
     int width = alignment.getWidth();
-    ProfilesI hconsensus = AAFrequency.calculate(aseqs, width, 0,
-            width, true);
+    ProfilesI hconsensus = AAFrequency.calculate(aseqs, width, 0, width,
+            true);
 
     alignViewport.setSequenceConsensusHash(hconsensus);
     setColourSchemeConsensus(hconsensus);
@@ -147,11 +157,10 @@ public class ConsensusThread extends AlignCalcWorker
    */
   protected void setColourSchemeConsensus(ProfilesI hconsensus)
   {
-    ColourSchemeI globalColourScheme = alignViewport
-            .getGlobalColourScheme();
-    if (globalColourScheme != null)
+    ResidueShaderI cs = alignViewport.getResidueShading();
+    if (cs != null)
     {
-      globalColourScheme.setConsensus(hconsensus);
+      cs.setConsensus(hconsensus);
     }
   }
 
@@ -163,6 +172,16 @@ public class ConsensusThread extends AlignCalcWorker
   protected AlignmentAnnotation getConsensusAnnotation()
   {
     return alignViewport.getAlignmentConsensusAnnotation();
+  }
+
+  /**
+   * Get the Gap annotation for the alignment
+   * 
+   * @return
+   */
+  protected AlignmentAnnotation getGapAnnotation()
+  {
+    return alignViewport.getAlignmentGapAnnotation();
   }
 
   /**
@@ -183,6 +202,11 @@ public class ConsensusThread extends AlignCalcWorker
             && hconsensus != null)
     {
       deriveConsensus(consensus, hconsensus);
+      AlignmentAnnotation gap = getGapAnnotation();
+      if (gap != null)
+      {
+        deriveGap(gap, hconsensus);
+      }
     }
   }
 
@@ -201,10 +225,26 @@ public class ConsensusThread extends AlignCalcWorker
 
     long nseq = getSequences().length;
     AAFrequency.completeConsensus(consensusAnnotation, hconsensus,
-            hconsensus.getStartColumn(),
-            hconsensus.getEndColumn() + 1,
+            hconsensus.getStartColumn(), hconsensus.getEndColumn() + 1,
             alignViewport.isIgnoreGapsConsensus(),
             alignViewport.isShowSequenceLogo(), nseq);
+  }
+
+  /**
+   * Convert the computed consensus data into a gap annotation row for display.
+   * 
+   * @param gapAnnotation
+   *          the annotation to be populated
+   * @param hconsensus
+   *          the computed consensus data
+   */
+  protected void deriveGap(AlignmentAnnotation gapAnnotation,
+          ProfilesI hconsensus)
+  {
+    long nseq = getSequences().length;
+    AAFrequency.completeGapAnnot(gapAnnotation, hconsensus,
+            hconsensus.getStartColumn(), hconsensus.getEndColumn() + 1,
+            nseq);
   }
 
   /**

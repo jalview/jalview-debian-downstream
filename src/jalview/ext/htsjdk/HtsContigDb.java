@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,23 +20,28 @@
  */
 package jalview.ext.htsjdk;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.reference.ReferenceSequence;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.StringUtil;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import htsjdk.samtools.SAMException;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.FastaSequenceIndexCreator;
+import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.StringUtil;
 
 /**
  * a source of sequence data accessed via the HTSJDK
@@ -46,14 +51,25 @@ import java.util.Set;
  */
 public class HtsContigDb
 {
-
   private String name;
 
   private File dbLocation;
 
   private htsjdk.samtools.reference.ReferenceSequenceFile refFile = null;
 
-  public HtsContigDb(String name, File descriptor) throws Exception
+  public static void createFastaSequenceIndex(Path path, boolean overwrite)
+          throws IOException
+  {
+    try
+    {
+      FastaSequenceIndexCreator.create(path, overwrite);
+    } catch (SAMException e)
+    {
+      throw new IOException(e.getMessage());
+    }
+  }
+
+  public HtsContigDb(String name, File descriptor)
   {
     if (descriptor.isFile())
     {
@@ -63,15 +79,29 @@ public class HtsContigDb
     initSource();
   }
 
-  private void initSource() throws Exception
+  public void close()
+  {
+    if (refFile != null)
+    {
+      try
+      {
+        refFile.close();
+      } catch (IOException e)
+      {
+        // ignore
+      }
+    }
+  }
+
+  private void initSource()
   {
     if (refFile != null)
     {
       return;
     }
 
-    refFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(
-            dbLocation, true);
+    refFile = ReferenceSequenceFileFactory
+            .getReferenceSequenceFile(dbLocation, true);
     if (refFile == null || refFile.getSequenceDictionary() == null)
     {
       // refFile = initSequenceDictionaryFor(dbLocation);
@@ -142,9 +172,10 @@ public class HtsContigDb
     final ReferenceSequenceFile refSeqFile = ReferenceSequenceFileFactory
             .getReferenceSequenceFile(f, truncate);
     ReferenceSequence refSeq;
-    List<SAMSequenceRecord> ret = new ArrayList<SAMSequenceRecord>();
-    Set<String> sequenceNames = new HashSet<String>();
-    for (int numSequences = 0; (refSeq = refSeqFile.nextSequence()) != null; ++numSequences)
+    List<SAMSequenceRecord> ret = new ArrayList<>();
+    Set<String> sequenceNames = new HashSet<>();
+    for (int numSequences = 0; (refSeq = refSeqFile
+            .nextSequence()) != null; ++numSequences)
     {
       if (sequenceNames.contains(refSeq.getName()))
       {
@@ -219,14 +250,29 @@ public class HtsContigDb
 
   // ///// end of hts bits.
 
-  SequenceI getSequenceProxy(String id)
+  /**
+   * Reads the contig with the given id and returns as a Jalview SequenceI object.
+   * Note the database must be indexed for this operation to succeed.
+   * 
+   * @param id
+   * @return
+   */
+  public SequenceI getSequenceProxy(String id)
   {
-    if (!isValid())
+    if (!isValid() || !refFile.isIndexed())
     {
+      System.err.println(
+              "Cannot read contig as file is invalid or not indexed");
       return null;
     }
 
     ReferenceSequence sseq = refFile.getSequence(id);
     return new Sequence(sseq.getName(), new String(sseq.getBases()));
   }
+
+  public boolean isIndexed()
+  {
+    return refFile != null && refFile.isIndexed();
+  }
+
 }

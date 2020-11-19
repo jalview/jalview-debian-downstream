@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.ext.ensembl;
 
+import jalview.analysis.AlignmentUtils;
+import jalview.bin.Cache;
 import jalview.datamodel.DBRefSource;
 import jalview.ws.seqfetcher.DbSourceProxyImpl;
 
@@ -32,17 +34,41 @@ import com.stevesoft.pat.Regex;
  */
 abstract class EnsemblSequenceFetcher extends DbSourceProxyImpl
 {
+  // domain properties lookup keys:
+  protected static final String ENSEMBL_BASEURL = "ENSEMBL_BASEURL";
+
+  protected static final String ENSEMBL_GENOMES_BASEURL = "ENSEMBL_GENOMES_BASEURL";
+
+  // domain properties default values:
+  protected static final String DEFAULT_ENSEMBL_BASEURL = "https://rest.ensembl.org";
+
+  // ensemblgenomes REST service merged to ensembl 9th April 2019
+  protected static final String DEFAULT_ENSEMBL_GENOMES_BASEURL = DEFAULT_ENSEMBL_BASEURL;
+
   /*
    * accepts ENSG/T/E/P with 11 digits
    * or ENSMUSP or similar for other species
    * or CCDSnnnnn.nn with at least 3 digits
    */
   private static final Regex ACCESSION_REGEX = new Regex(
-          "(ENS([A-Z]{3}|)[GTEP]{1}[0-9]{11}$)" + "|" + "(CCDS[0-9.]{3,}$)");
+          "(ENS([A-Z]{3}|)[GTEP]{1}[0-9]{11}$)" + "|"
+                  + "(CCDS[0-9.]{3,}$)");
 
-  protected static final String ENSEMBL_GENOMES_REST = "http://rest.ensemblgenomes.org";
+  protected final String ensemblGenomesDomain;
 
-  protected static final String ENSEMBL_REST = "http://rest.ensembl.org";
+  protected final String ensemblDomain;
+
+  protected static final String OBJECT_TYPE_TRANSLATION = "Translation";
+
+  protected static final String OBJECT_TYPE_TRANSCRIPT = "Transcript";
+
+  protected static final String OBJECT_TYPE_GENE = "Gene";
+
+  protected static final String PARENT = "Parent";
+
+  protected static final String JSON_ID = AlignmentUtils.VARIANT_ID; // "id";
+
+  protected static final String OBJECT_TYPE = "object_type";
 
   /*
    * possible values for the 'feature' parameter of the /overlap REST service
@@ -55,16 +81,28 @@ abstract class EnsemblSequenceFetcher extends DbSourceProxyImpl
     constrained, regulatory
   }
 
-  private String domain = ENSEMBL_REST;
+  private String domain;
+
+  /**
+   * Constructor
+   */
+  public EnsemblSequenceFetcher()
+  {
+    /*
+     * the default domain names may be overridden in .jalview_properties;
+     * this allows an easy change from http to https in future if needed
+     */
+    ensemblDomain = Cache.getDefault(ENSEMBL_BASEURL,
+            DEFAULT_ENSEMBL_BASEURL).trim();
+    ensemblGenomesDomain = Cache.getDefault(ENSEMBL_GENOMES_BASEURL,
+            DEFAULT_ENSEMBL_GENOMES_BASEURL).trim();
+    domain = ensemblDomain;
+  }
 
   @Override
   public String getDbSource()
   {
     // NB ensure Uniprot xrefs are canonicalised from "Ensembl" to "ENSEMBL"
-    if (ENSEMBL_GENOMES_REST.equals(getDomain()))
-    {
-      return DBRefSource.ENSEMBLGENOMES;
-    }
     return DBRefSource.ENSEMBL;
   }
 
@@ -128,6 +166,6 @@ abstract class EnsemblSequenceFetcher extends DbSourceProxyImpl
 
   protected void setDomain(String d)
   {
-    domain = d;
+    domain = d == null ? null : d.trim();
   }
 }

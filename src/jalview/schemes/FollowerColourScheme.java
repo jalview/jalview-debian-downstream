@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,8 @@
  */
 package jalview.schemes;
 
-import jalview.analysis.Conservation;
-import jalview.datamodel.ProfilesI;
+import jalview.api.AlignViewportI;
+import jalview.datamodel.AnnotatedCollectionI;
 
 /**
  * Colourscheme that takes its colours from some other colourscheme
@@ -32,7 +32,7 @@ import jalview.datamodel.ProfilesI;
 public class FollowerColourScheme extends ResidueColourScheme
 {
 
-  protected ColourSchemeI colourScheme;
+  private ColourSchemeI colourScheme;
 
   public ColourSchemeI getBaseColour()
   {
@@ -40,30 +40,30 @@ public class FollowerColourScheme extends ResidueColourScheme
   }
 
   @Override
-  public void setConsensus(ProfilesI consensus)
+  public String getSchemeName()
   {
-    if (colourScheme != null)
-    {
-      colourScheme.setConsensus(consensus);
-    }
+    return "Follower";
   }
 
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
   @Override
-  public void setConservation(Conservation cons)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
   {
-    if (colourScheme != null)
-    {
-      colourScheme.setConservation(cons);
-    }
+    return new FollowerColourScheme();
   }
 
-  @Override
-  public void setConservationInc(int i)
+  protected ColourSchemeI getColourScheme()
   {
-    if (colourScheme != null)
-    {
-      colourScheme.setConservationInc(i);
-    }
+    return colourScheme;
+  }
+
+  protected void setColourScheme(ColourSchemeI colourScheme)
+  {
+    this.colourScheme = colourScheme;
   }
 
 }

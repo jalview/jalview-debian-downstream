@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,10 @@
 package jalview.ws.rest.params;
 
 import jalview.datamodel.AlignmentI;
+import jalview.io.FileFormat;
+import jalview.io.FileFormatI;
+import jalview.io.FileFormats;
+import jalview.io.FormatAdapter;
 import jalview.ws.params.OptionI;
 import jalview.ws.params.simple.BooleanOption;
 import jalview.ws.params.simple.Option;
@@ -35,7 +39,6 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.http.entity.mime.content.ContentBody;
@@ -55,7 +58,7 @@ public class Alignment extends InputType
     super(new Class[] { AlignmentI.class });
   }
 
-  String format = "FASTA";
+  FileFormatI format = FileFormat.Fasta;
 
   molType type;
 
@@ -76,11 +79,11 @@ public class Alignment extends InputType
       try
       {
         File fa = File.createTempFile("jvmime", ".fa");
-        PrintWriter pw = new PrintWriter(
-                new OutputStreamWriter(new BufferedOutputStream(
-                        new FileOutputStream(fa)), "UTF-8"));
-        pw.append(new jalview.io.FormatAdapter().formatSequences(format,
-                alignment, jvsuffix));
+        PrintWriter pw = new PrintWriter(new OutputStreamWriter(
+                new BufferedOutputStream(new FileOutputStream(fa)),
+                "UTF-8"));
+        pw.append(new FormatAdapter().formatSequences(format, alignment,
+                jvsuffix));
         pw.close();
         return new FileBody(fa, "text/plain");
       } catch (Exception ex)
@@ -91,7 +94,7 @@ public class Alignment extends InputType
     }
     else
     {
-      jalview.io.FormatAdapter fa = new jalview.io.FormatAdapter();
+      FormatAdapter fa = new FormatAdapter();
       fa.setNewlineString("\r\n");
       return new StringBody(
               (fa.formatSequences(format, alignment, jvsuffix)));
@@ -105,8 +108,8 @@ public class Alignment extends InputType
   @Override
   public List<String> getURLEncodedParameter()
   {
-    ArrayList<String> prms = new ArrayList<String>();
-    prms.add("format='" + format + "'");
+    List<String> prms = new ArrayList<String>();
+    prms.add("format='" + format.getName() + "'");
     if (type != null)
     {
       prms.add("type='" + type.toString() + "'");
@@ -115,12 +118,10 @@ public class Alignment extends InputType
     {
       prms.add("jvsuffix");
     }
-    ;
     if (writeAsFile)
     {
       prms.add("writeasfile");
     }
-    ;
     return prms;
   }
 
@@ -147,19 +148,19 @@ public class Alignment extends InputType
 
     if (tok.startsWith("format"))
     {
-      for (String fmt : jalview.io.FormatAdapter.WRITEABLE_FORMATS)
+      for (FileFormatI fmt : FileFormats.getInstance().getFormats())
       {
-        if (val.equalsIgnoreCase(fmt))
+        if (fmt.isWritable() && val.equalsIgnoreCase(fmt.getName()))
         {
           format = fmt;
           return true;
         }
       }
-      warnings.append("Invalid alignment format '" + val
-              + "'. Must be one of (");
-      for (String fmt : jalview.io.FormatAdapter.WRITEABLE_FORMATS)
+      warnings.append(
+              "Invalid alignment format '" + val + "'. Must be one of (");
+      for (String fmt : FileFormats.getInstance().getWritableFormats(true))
       {
-        warnings.append(" " + fmt);
+        warnings.append(" ").append(fmt);
       }
       warnings.append(")\n");
     }
@@ -171,8 +172,8 @@ public class Alignment extends InputType
         return true;
       } catch (Exception x)
       {
-        warnings.append("Invalid molecule type '" + val
-                + "'. Must be one of (");
+        warnings.append(
+                "Invalid molecule type '" + val + "'. Must be one of (");
         for (molType v : molType.values())
         {
           warnings.append(" " + v);
@@ -194,11 +195,12 @@ public class Alignment extends InputType
             "Append jalview style /start-end suffix to ID", false, false,
             writeAsFile, null));
 
-    lst.add(new Option("format", "Alignment upload format", true, "FASTA",
-            format, Arrays
-                    .asList(jalview.io.FormatAdapter.WRITEABLE_FORMATS),
+    List<String> writable = FileFormats.getInstance()
+            .getWritableFormats(true);
+    lst.add(new Option("format", "Alignment upload format", true,
+            FileFormat.Fasta.toString(), format.getName(), writable, null));
+    lst.add(createMolTypeOption("type", "Sequence type", false, type,
             null));
-    lst.add(createMolTypeOption("type", "Sequence type", false, type, null));
 
     return lst;
   }

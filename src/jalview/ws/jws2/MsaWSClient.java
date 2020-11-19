@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.gui.JvSwingUtils;
 import jalview.util.MessageManager;
 import jalview.ws.jws2.jabaws2.Jws2Instance;
@@ -37,7 +38,6 @@ import java.util.List;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.ToolTipManager;
 
 import compbio.data.msa.MsaWS;
@@ -107,22 +107,24 @@ public class MsaWSClient extends Jws2Client
     if (!(sh.service instanceof MsaWS))
     {
       // redundant at mo - but may change
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.service_called_is_not_msa_service",
-                      new String[] { sh.serviceType }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
+                      "label.service_called_is_not_msa_service",
+                      new String[]
+                      { sh.serviceType }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
     server = (MsaWS) sh.service;
     if ((wsInfo = setWebService(sh, false)) == null)
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.msa_service_is_unknown",
-                      new String[] { sh.serviceType }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop, MessageManager
+              .formatMessage("label.msa_service_is_unknown", new String[]
+              { sh.serviceType }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
@@ -150,9 +152,8 @@ public class MsaWSClient extends Jws2Client
     String jobtitle = WebServiceName.toLowerCase();
     if (jobtitle.endsWith("alignment"))
     {
-      if (submitGaps
-              && (!jobtitle.endsWith("realignment") || jobtitle
-                      .indexOf("profile") == -1))
+      if (submitGaps && (!jobtitle.endsWith("realignment")
+              || jobtitle.indexOf("profile") == -1))
       {
         int pos = jobtitle.indexOf("alignment");
         jobtitle = WebServiceName.substring(0, pos) + "re-alignment of "
@@ -169,9 +170,9 @@ public class MsaWSClient extends Jws2Client
               + "alignment of " + altitle;
     }
 
-    MsaWSThread msathread = new MsaWSThread(server, preset, paramset,
-            WsURL, wsInfo, alignFrame, WebServiceName, jobtitle, msa,
-            submitGaps, preserveOrder, seqdataset);
+    MsaWSThread msathread = new MsaWSThread(server, preset, paramset, WsURL,
+            wsInfo, alignFrame, WebServiceName, jobtitle, msa, submitGaps,
+            preserveOrder, seqdataset);
     if (msathread.hasValidInput())
     {
       wsInfo.setthisService(msathread);
@@ -180,10 +181,10 @@ public class MsaWSClient extends Jws2Client
     }
     else
     {
-      JOptionPane.showMessageDialog(alignFrame,
+      JvOptionPane.showMessageDialog(alignFrame,
               MessageManager.getString("info.invalid_msa_input_mininfo"),
               MessageManager.getString("info.invalid_msa_notenough"),
-              JOptionPane.INFORMATION_MESSAGE);
+              JvOptionPane.INFORMATION_MESSAGE);
       wsInfo.setVisible(false);
     }
   }
@@ -247,8 +248,9 @@ public class MsaWSClient extends Jws2Client
       if (submitGaps == true)
       {
         action = "Realign ";
-        msawsmenu = new JMenu(MessageManager.formatMessage(
-                "label.realign_with_params", new String[] { svcname }));
+        msawsmenu = new JMenu(MessageManager
+                .formatMessage("label.realign_with_params", new String[]
+                { svcname }));
         msawsmenu.setToolTipText(MessageManager
                 .getString("label.align_sequences_to_existing_alignment"));
         rmsawsmenu.add(msawsmenu);
@@ -256,11 +258,11 @@ public class MsaWSClient extends Jws2Client
       final boolean withGaps = submitGaps;
 
       JMenuItem method = new JMenuItem(MessageManager.formatMessage(
-              "label.calcname_with_default_settings",
-              new String[] { calcName }));
-      method.setToolTipText(MessageManager
-              .formatMessage("label.action_with_default_settings",
-                      new String[] { action }));
+              "label.calcname_with_default_settings", new String[]
+              { calcName }));
+      method.setToolTipText(MessageManager.formatMessage(
+              "label.action_with_default_settings", new String[]
+              { action }));
 
       method.addActionListener(new ActionListener()
       {
@@ -272,8 +274,9 @@ public class MsaWSClient extends Jws2Client
           if (msa != null)
           {
             new MsaWSClient(service, alignFrame.getTitle(), msa, withGaps,
-                    true, alignFrame.getViewport().getAlignment()
-                            .getDataset(), alignFrame);
+                    true,
+                    alignFrame.getViewport().getAlignment().getDataset(),
+                    alignFrame);
           }
 
         }
@@ -285,8 +288,8 @@ public class MsaWSClient extends Jws2Client
         // arguments
         method = new JMenuItem(
                 MessageManager.getString("label.edit_settings_and_run"));
-        method.setToolTipText(MessageManager
-                .getString("label.view_and_change_parameters_before_alignment"));
+        method.setToolTipText(MessageManager.getString(
+                "label.view_and_change_parameters_before_alignment"));
 
         method.addActionListener(new ActionListener()
         {
@@ -296,9 +299,9 @@ public class MsaWSClient extends Jws2Client
             AlignmentView msa = alignFrame.gatherSequencesForAlignment();
             if (msa != null)
             {
-              new MsaWSClient(service, null, null, true, alignFrame
-                      .getTitle(), msa, withGaps, true, alignFrame
-                      .getViewport().getAlignment().getDataset(),
+              new MsaWSClient(service, null, null, true,
+                      alignFrame.getTitle(), msa, withGaps, true,
+                      alignFrame.getViewport().getAlignment().getDataset(),
                       alignFrame);
             }
 
@@ -308,10 +311,9 @@ public class MsaWSClient extends Jws2Client
         List<WsParamSetI> presets = service.getParamStore().getPresets();
         if (presets != null && presets.size() > 0)
         {
-          JMenu presetlist = new JMenu(
-                  MessageManager.formatMessage(
-                          "label.run_with_preset_params",
-                          new String[] { calcName }));
+          JMenu presetlist = new JMenu(MessageManager.formatMessage(
+                  "label.run_with_preset_params", new String[]
+                  { calcName }));
 
           final int showToolTipFor = ToolTipManager.sharedInstance()
                   .getDismissDelay();
@@ -326,28 +328,24 @@ public class MsaWSClient extends Jws2Client
               @Override
               public void mouseEntered(MouseEvent e)
               {
-                ToolTipManager.sharedInstance().setDismissDelay(
-                        QUICK_TOOLTIP);
+                ToolTipManager.sharedInstance()
+                        .setDismissDelay(QUICK_TOOLTIP);
               }
 
               @Override
               public void mouseExited(MouseEvent e)
               {
-                ToolTipManager.sharedInstance().setDismissDelay(
-                        showToolTipFor);
+                ToolTipManager.sharedInstance()
+                        .setDismissDelay(showToolTipFor);
               }
 
             });
-            String tooltip = JvSwingUtils
-                    .wrapTooltip(
-                            true,
-                            "<strong>"
-                                    + (preset.isModifiable() ? MessageManager
-                                            .getString("label.user_preset")
-                                            : MessageManager
-                                                    .getString("label.service_preset"))
-                                    + "</strong><br/>"
-                                    + preset.getDescription());
+            String tooltip = JvSwingUtils.wrapTooltip(true, "<strong>"
+                    + (preset.isModifiable()
+                            ? MessageManager.getString("label.user_preset")
+                            : MessageManager
+                                    .getString("label.service_preset"))
+                    + "</strong><br/>" + preset.getDescription());
             methodR.setToolTipText(tooltip);
             methodR.addActionListener(new ActionListener()
             {
@@ -362,7 +360,8 @@ public class MsaWSClient extends Jws2Client
                   MsaWSClient msac = new MsaWSClient(service, preset,
                           alignFrame.getTitle(), msa, false, true,
                           alignFrame.getViewport().getAlignment()
-                                  .getDataset(), alignFrame);
+                                  .getDataset(),
+                          alignFrame);
                 }
 
               }

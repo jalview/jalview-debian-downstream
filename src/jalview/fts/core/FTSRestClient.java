@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,13 +43,13 @@ import java.util.Objects;
  */
 public abstract class FTSRestClient implements FTSRestClientI
 {
-  protected Collection<FTSDataColumnI> dataColumns = new ArrayList<FTSDataColumnI>();
+  protected Collection<FTSDataColumnI> dataColumns = new ArrayList<>();
 
-  protected Collection<FTSDataColumnGroupI> dataColumnGroups = new ArrayList<FTSDataColumnGroupI>();
+  protected Collection<FTSDataColumnGroupI> dataColumnGroups = new ArrayList<>();
 
-  protected Collection<FTSDataColumnI> searchableDataColumns = new ArrayList<FTSDataColumnI>();
+  protected Collection<FTSDataColumnI> searchableDataColumns = new ArrayList<>();
 
-  protected Collection<FTSDataColumnI> defaulDisplayedDataColumns = new ArrayList<FTSDataColumnI>();
+  protected Collection<FTSDataColumnI> defaulDisplayedDataColumns = new ArrayList<>();
 
   protected FTSDataColumnI primaryKeyColumn;
 
@@ -82,8 +82,8 @@ public abstract class FTSRestClient implements FTSRestClientI
             {
               primaryKeyColumnCode = lineData[1];
             }
-            if (lineData[0]
-                    .equalsIgnoreCase("_data_column.default_response_page_size"))
+            if (lineData[0].equalsIgnoreCase(
+                    "_data_column.default_response_page_size"))
             {
               defaultResponsePageSize = Integer.valueOf(lineData[1]);
             }
@@ -158,8 +158,9 @@ public abstract class FTSRestClient implements FTSRestClientI
               @Override
               public String getAltCode()
               {
-                return lineData[1].split("\\|").length > 1 ? lineData[1]
-                        .split("\\|")[1] : getCode();
+                return lineData[1].split("\\|").length > 1
+                        ? lineData[1].split("\\|")[1]
+                        : getCode();
               }
 
               @Override
@@ -283,7 +284,8 @@ public abstract class FTSRestClient implements FTSRestClientI
               public boolean equals(Object otherObject)
               {
                 FTSDataColumnI that = (FTSDataColumnI) otherObject;
-                return this.getCode().equals(that.getCode())
+                return otherObject == null ? false
+                        : this.getCode().equals(that.getCode())
                         && this.getName().equals(that.getName())
                         && this.getGroup().equals(that.getGroup());
               }
@@ -313,7 +315,8 @@ public abstract class FTSRestClient implements FTSRestClientI
       }
       try
       {
-        this.primaryKeyColumn = getDataColumnByNameOrCode(primaryKeyColumnCode);
+        this.primaryKeyColumn = getDataColumnByNameOrCode(
+                primaryKeyColumnCode);
       } catch (Exception e)
       {
         e.printStackTrace();
@@ -421,8 +424,8 @@ public abstract class FTSRestClient implements FTSRestClientI
         return column;
       }
     }
-    throw new Exception("Couldn't find data column with name : "
-            + nameOrCode);
+    throw new Exception(
+            "Couldn't find data column with name : " + nameOrCode);
   }
 
   @Override
@@ -443,22 +446,22 @@ public abstract class FTSRestClient implements FTSRestClientI
     throw new Exception("Couldn't find data column group with id : " + id);
   }
 
-  public String getMessageByHTTPStatusCode(int code, String service)
+  public static String getMessageByHTTPStatusCode(int code, String service)
   {
     String message = "";
     switch (code)
     {
     case 400:
-      message = MessageManager.getString("exception.bad_request");
+      message = "Bad request. There is a problem with your input.";
       break;
 
     case 410:
       message = MessageManager.formatMessage(
-              "exception.fts_rest_service_no_longer_available", service);
+              service + " rest services no longer available!");
       break;
     case 403:
     case 404:
-      message = MessageManager.getString("exception.resource_not_be_found");
+      message = "The requested resource could not be found";
       break;
     case 408:
     case 409:
@@ -467,16 +470,16 @@ public abstract class FTSRestClient implements FTSRestClientI
     case 502:
     case 504:
     case 505:
-      message = MessageManager.formatMessage("exception.fts_server_error",
-              service);
+      message = "There seems to be an error from the " + service
+              + " server";
       break;
     case 503:
-      message = MessageManager.getString("exception.service_not_available");
+      message = "Service not available. The server is being updated, try again later.";
       break;
     default:
       break;
     }
-    return message;
+    return String.valueOf(code) + " " + message;
   }
 
   protected String getResourceFile(String fileName)

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -34,7 +34,8 @@ public interface IProgressIndicator
    * is removed with a second call with same ID.
    * 
    * @param message
-   *          - displayed message for operation
+   *          - displayed message for operation. Please ensure message is
+   *          internationalised.
    * @param id
    *          - unique handle for this indicator
    */

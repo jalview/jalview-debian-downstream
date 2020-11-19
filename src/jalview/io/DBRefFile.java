@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,8 @@
  */
 package jalview.io;
 
+import jalview.datamodel.SequenceI;
+
 import java.io.IOException;
 
 /**
@@ -32,13 +34,15 @@ import java.io.IOException;
 public class DBRefFile extends AlignFile
 {
 
+  @Override
   public void parse() throws IOException
   {
     // TODO Auto-generated method stub
 
   }
 
-  public String print()
+  @Override
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     // TODO Auto-generated method stub
     return null;

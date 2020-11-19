@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -54,9 +54,8 @@ public class JabaWsParamSet implements WsParamSetI
       {
         if (!allJaba(jobParams))
         {
-          throw new Error(
-                  MessageManager
-                          .getString("error.cannot_create_jabaws_param_set"));
+          throw new Error(MessageManager
+                  .getString("error.cannot_create_jabaws_param_set"));
         }
         else
         {
@@ -179,9 +178,8 @@ public class JabaWsParamSet implements WsParamSetI
   {
     if (!allJaba(args))
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.cannot_set_arguments_to_jabaws_param_set"));
+      throw new Error(MessageManager
+              .getString("error.cannot_set_arguments_to_jabaws_param_set"));
     }
     jabaArguments = new ArrayList<Option>();
     for (ArgumentI rg : args)

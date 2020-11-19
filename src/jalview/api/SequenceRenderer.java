@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,14 +21,14 @@
 package jalview.api;
 
 import jalview.datamodel.SequenceI;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 
 import java.awt.Color;
 
 public interface SequenceRenderer
 {
 
-  Color getResidueBoxColour(SequenceI sequenceI, int r);
-
-  Color getResidueColour(SequenceI seq, int position, FeatureRenderer fr);
+  Color getResidueColour(SequenceI seq, int position,
+          FeatureColourFinder finder);
 
 }

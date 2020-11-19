@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,8 +26,8 @@ import jalview.datamodel.SequenceI;
 import jalview.structure.VamsasListener;
 import jalview.structure.VamsasSource;
 
-public class MouseOverListener extends JSFunctionExec implements
-        VamsasListener, JsCallBack
+public class MouseOverListener extends JSFunctionExec
+        implements VamsasListener, JsCallBack
 {
   AlignFrame _af;
 
@@ -65,13 +65,14 @@ public class MouseOverListener extends JSFunctionExec implements
           // function
         }
         executeJavascriptFunction(_listener,
-                new Object[] { src, seq.getDisplayId(false), "" + (1 + i),
+                new Object[]
+                { src, seq.getDisplayId(false), "" + (1 + i),
                     "" + seq.findPosition(i) });
       } catch (Exception ex)
       {
 
-        System.err
-                .println("JalviewLite javascript error: Couldn't send mouseOver with handler '"
+        System.err.println(
+                "JalviewLite javascript error: Couldn't send mouseOver with handler '"
                         + _listener + "'");
         if (ex instanceof netscape.javascript.JSException)
         {

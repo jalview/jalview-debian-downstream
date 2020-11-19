@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -38,17 +38,7 @@ public class Gff2Helper extends GffHelperBase
    */
   public static Map<String, List<String>> parseNameValuePairs(String text)
   {
-    // TODO: can a value include a comma? if so it will be broken by this
     return parseNameValuePairs(text, ";", ' ', ",");
-  }
-
-  /**
-   * Return ' ' as the name-value separator used in column 9 attributes.
-   */
-  @Override
-  protected char getNameValueSeparator()
-  {
-    return ' ';
   }
 
   /**

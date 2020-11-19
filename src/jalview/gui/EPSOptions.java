@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -58,8 +58,9 @@ public class EPSOptions extends JPanel
     bg.add(lineart);
     bg.add(text);
 
-    JOptionPane pane = new JOptionPane(null, JOptionPane.DEFAULT_OPTION,
-            JOptionPane.DEFAULT_OPTION, null, new Object[] { this });
+    JOptionPane pane = new JOptionPane(null, JvOptionPane.DEFAULT_OPTION,
+            JvOptionPane.DEFAULT_OPTION, null, new Object[]
+            { this });
 
     dialog = pane.createDialog(Desktop.desktop, "EPS Rendering options");
     dialog.setVisible(true);
@@ -78,6 +79,7 @@ public class EPSOptions extends JPanel
     ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ok_actionPerformed(e);
@@ -86,6 +88,7 @@ public class EPSOptions extends JPanel
     cancel.setText(MessageManager.getString("action.cancel"));
     cancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancel_actionPerformed(e);

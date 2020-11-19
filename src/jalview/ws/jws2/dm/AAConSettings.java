@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -76,7 +76,8 @@ public class AAConSettings extends jalview.ws.params.AutoCalcSetting
         preset = pr;
         return;
       }
-      List<ArgumentI> oldargs = new ArrayList<ArgumentI>(), newargs = new ArrayList<ArgumentI>();
+      List<ArgumentI> oldargs = new ArrayList<ArgumentI>(),
+              newargs = new ArrayList<ArgumentI>();
       oldargs.addAll(preset.getArguments());
       // need to compare parameters
       for (ArgumentI newparg : pr.getArguments())
@@ -93,23 +94,22 @@ public class AAConSettings extends jalview.ws.params.AutoCalcSetting
         return;
       }
       // Try even harder to migrate arguments.
-      throw new Error(
-              MessageManager
-                      .getString("error.parameter_migration_not_implemented_yet"));
+      throw new Error(MessageManager
+              .getString("error.parameter_migration_not_implemented_yet"));
     }
   }
 
   public List<Argument> getJobArgset()
   {
-    return jobArgset == null ? null : JabaParamStore
-            .getJabafromJwsArgs(jobArgset);
+    return jobArgset == null ? null
+            : JabaParamStore.getJabafromJwsArgs(jobArgset);
   }
 
   public void setJobArgset(List<Argument> jobArgset)
   {
     // TODO: test if parameters valid for service
-    this.jobArgset = jobArgset == null ? null : JabaParamStore
-            .getJwsArgsfromJaba(jobArgset);
+    this.jobArgset = jobArgset == null ? null
+            : JabaParamStore.getJwsArgsfromJaba(jobArgset);
   }
 
   public String getWsParamFile()

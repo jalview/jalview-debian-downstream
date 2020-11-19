@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,14 +20,12 @@
  */
 package jalview.appletgui;
 
-import static jalview.util.UrlConstants.EMBLEBI_STRING;
-import static jalview.util.UrlConstants.SRS_STRING;
-
-import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.util.UrlLink;
+import jalview.urls.api.UrlProviderFactoryI;
+import jalview.urls.api.UrlProviderI;
+import jalview.urls.applet.AppletUrlProviderFactory;
 import jalview.viewmodel.AlignmentViewport;
 
 import java.awt.BorderLayout;
@@ -36,11 +34,12 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Vector;
 
-public class IdPanel extends Panel implements MouseListener,
-        MouseMotionListener
+public class IdPanel extends Panel
+        implements MouseListener, MouseMotionListener
 {
 
   protected IdCanvas idCanvas;
@@ -55,13 +54,13 @@ public class IdPanel extends Panel implements MouseListener,
 
   boolean mouseDragging = false;
 
-  java.util.Vector links = new java.util.Vector();
+  UrlProviderI urlProvider = null;
 
-  public IdPanel(AlignViewport av, AlignmentPanel parent)
+  public IdPanel(AlignViewport viewport, AlignmentPanel parent)
   {
-    this.av = av;
+    this.av = viewport;
     alignPanel = parent;
-    idCanvas = new IdCanvas(av);
+    idCanvas = new IdCanvas(viewport);
     setLayout(new BorderLayout());
     add(idCanvas, BorderLayout.CENTER);
     idCanvas.addMouseListener(this);
@@ -69,32 +68,31 @@ public class IdPanel extends Panel implements MouseListener,
 
     String label, url;
     // TODO: add in group link parameter
-    if (av.applet != null)
+
+    // make a list of label,url pairs
+    HashMap<String, String> urlList = new HashMap<>();
+    if (viewport.applet != null)
     {
       for (int i = 1; i < 10; i++)
       {
-        label = av.applet.getParameter("linkLabel_" + i);
-        url = av.applet.getParameter("linkURL_" + i);
+        label = viewport.applet.getParameter("linkLabel_" + i);
+        url = viewport.applet.getParameter("linkURL_" + i);
 
-        if (label != null && url != null)
+        // only add non-null parameters
+        if (label != null)
         {
-          links.addElement(label + "|" + url);
+          urlList.put(label, url);
         }
+      }
 
-      }
-    }
-    {
-      // upgrade old SRS link
-      int srsPos = links.indexOf(SRS_STRING);
-      if (srsPos > -1)
+      if (!urlList.isEmpty())
       {
-        links.setElementAt(EMBLEBI_STRING, srsPos);
+        // set default as first entry in list
+        String defaultUrl = viewport.applet.getParameter("linkLabel_1");
+        UrlProviderFactoryI factory = new AppletUrlProviderFactory(
+                defaultUrl, urlList);
+        urlProvider = factory.createUrlProvider();
       }
-    }
-    if (links.size() < 1)
-    {
-      links = new java.util.Vector();
-      links.addElement(EMBLEBI_STRING);
     }
   }
 
@@ -107,64 +105,57 @@ public class IdPanel extends Panel implements MouseListener,
 
     SequenceI sequence = av.getAlignment().getSequenceAt(seq);
 
-    // look for non-pos features
     StringBuffer tooltiptext = new StringBuffer();
-    if (sequence != null)
+    if (sequence == null)
     {
-      if (sequence.getDescription() != null)
+      return;
+    }
+    if (sequence.getDescription() != null)
+    {
+      tooltiptext.append(sequence.getDescription());
+      tooltiptext.append("\n");
+    }
+
+    for (SequenceFeature sf : sequence.getFeatures()
+            .getNonPositionalFeatures())
+    {
+      boolean nl = false;
+      if (sf.getFeatureGroup() != null)
       {
-        tooltiptext.append(sequence.getDescription());
+        tooltiptext.append(sf.getFeatureGroup());
+        nl = true;
+      }
+      if (sf.getType() != null)
+      {
+        tooltiptext.append(" ");
+        tooltiptext.append(sf.getType());
+        nl = true;
+      }
+      if (sf.getDescription() != null)
+      {
+        tooltiptext.append(" ");
+        tooltiptext.append(sf.getDescription());
+        nl = true;
+      }
+      if (!Float.isNaN(sf.getScore()) && sf.getScore() != 0f)
+      {
+        tooltiptext.append(" Score = ");
+        tooltiptext.append(sf.getScore());
+        nl = true;
+      }
+      if (sf.getStatus() != null && sf.getStatus().length() > 0)
+      {
+        tooltiptext.append(" (");
+        tooltiptext.append(sf.getStatus());
+        tooltiptext.append(")");
+        nl = true;
+      }
+      if (nl)
+      {
         tooltiptext.append("\n");
       }
-
-      SequenceFeature sf[] = sequence.getSequenceFeatures();
-      for (int sl = 0; sf != null && sl < sf.length; sl++)
-      {
-        if (sf[sl].begin == sf[sl].end && sf[sl].begin == 0)
-        {
-          boolean nl = false;
-          if (sf[sl].getFeatureGroup() != null)
-          {
-            tooltiptext.append(sf[sl].getFeatureGroup());
-            nl = true;
-          }
-          ;
-          if (sf[sl].getType() != null)
-          {
-            tooltiptext.append(" ");
-            tooltiptext.append(sf[sl].getType());
-            nl = true;
-          }
-          ;
-          if (sf[sl].getDescription() != null)
-          {
-            tooltiptext.append(" ");
-            tooltiptext.append(sf[sl].getDescription());
-            nl = true;
-          }
-          ;
-          if (!Float.isNaN(sf[sl].getScore()) && sf[sl].getScore() != 0f)
-          {
-            tooltiptext.append(" Score = ");
-            tooltiptext.append(sf[sl].getScore());
-            nl = true;
-          }
-          ;
-          if (sf[sl].getStatus() != null && sf[sl].getStatus().length() > 0)
-          {
-            tooltiptext.append(" (");
-            tooltiptext.append(sf[sl].getStatus());
-            tooltiptext.append(")");
-            nl = true;
-          }
-          ;
-          if (nl)
-          {
-            tooltiptext.append("\n");
-          }
-        }
-      }
     }
+
     if (tooltiptext.length() == 0)
     {
       // nothing to display - so clear tooltip if one is visible
@@ -178,13 +169,14 @@ public class IdPanel extends Panel implements MouseListener,
     }
     if (tooltip == null)
     {
-      tooltip = new Tooltip(sequence.getDisplayId(true) + "\n"
-              + tooltiptext.toString(), idCanvas);
+      tooltip = new Tooltip(
+              sequence.getDisplayId(true) + "\n" + tooltiptext.toString(),
+              idCanvas);
     }
     else
     {
-      tooltip.setTip(sequence.getDisplayId(true) + "\n"
-              + tooltiptext.toString());
+      tooltip.setTip(
+              sequence.getDisplayId(true) + "\n" + tooltiptext.toString());
     }
     tooltiptext = null;
   }
@@ -206,7 +198,7 @@ public class IdPanel extends Panel implements MouseListener,
     }
 
     lastid = seq;
-    alignPanel.paintAlignment(false);
+    alignPanel.paintAlignment(false, false);
   }
 
   @Override
@@ -217,7 +209,7 @@ public class IdPanel extends Panel implements MouseListener,
       return;
     }
 
-    // DEFAULT LINK IS FIRST IN THE LINK LIST
+    // get the sequence details
     int seq = alignPanel.seqPanel.findSeq(e);
     SequenceI sq = av.getAlignment().getSequenceAt(seq);
     if (sq == null)
@@ -226,53 +218,15 @@ public class IdPanel extends Panel implements MouseListener,
     }
     String id = sq.getName();
 
-    String target = null;
-    String url = null;
-    int i = 0;
-    while (url == null && i < links.size())
+    // get the default url with the sequence details filled in
+    if (urlProvider == null)
     {
-      // DEFAULT LINK IS FIRST IN THE LINK LIST
-      // BUT IF ITS A REGEX AND DOES NOT MATCH THE NEXT ONE WILL BE TRIED
-      url = links.elementAt(i++).toString();
-      jalview.util.UrlLink urlLink = null;
-      try
-      {
-        urlLink = new UrlLink(url);
-        target = urlLink.getTarget();
-      } catch (Exception foo)
-      {
-        System.err.println("Exception for URLLink '" + url + "'");
-        foo.printStackTrace();
-        url = null;
-        continue;
-      }
-
-      if (urlLink.usesDBAccession())
-      {
-        // this URL requires an accession id, not the name of a sequence
-        url = null;
-        continue;
-      }
-
-      if (!urlLink.isValid())
-      {
-        System.err.println(urlLink.getInvalidMessage());
-        url = null;
-        continue;
-      }
-
-      String urls[] = urlLink.makeUrls(id, true);
-      if (urls == null || urls[0] == null || urls[0].length() < 1)
-      {
-        url = null;
-        continue;
-      }
-      // just take first URL made from regex
-      url = urls[1];
+      return;
     }
+    String url = urlProvider.getPrimaryUrl(id);
+    String target = urlProvider.getPrimaryTarget(id);
     try
     {
-
       alignPanel.alignFrame.showURL(url, target);
     } catch (Exception ex)
     {
@@ -297,13 +251,13 @@ public class IdPanel extends Panel implements MouseListener,
       return;
     }
 
-    if (mouseDragging && e.getY() < 0 && av.getStartSeq() > 0)
+    if (mouseDragging && e.getY() < 0 && av.getRanges().getStartSeq() > 0)
     {
       scrollThread = new ScrollThread(true);
     }
 
     if (mouseDragging && e.getY() >= getSize().height
-            && av.getAlignment().getHeight() > av.getEndSeq())
+            && av.getAlignment().getHeight() > av.getRanges().getEndSeq())
     {
       scrollThread = new ScrollThread(false);
     }
@@ -325,28 +279,32 @@ public class IdPanel extends Panel implements MouseListener,
 
     int seq = alignPanel.seqPanel.findSeq(e);
 
-    if ((e.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK)
+    if ((e.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
     {
-      Sequence sq = (Sequence) av.getAlignment().getSequenceAt(seq);
+      SequenceI sq = av.getAlignment().getSequenceAt(seq);
 
-      // build a new links menu based on the current links + any non-positional
-      // features
-      Vector nlinks = new Vector();
-      for (int l = 0, lSize = links.size(); l < lSize; l++)
+      /*
+       *  build a new links menu based on the current links
+       *  and any non-positional features
+       */
+      List<String> nlinks;
+      if (urlProvider != null)
       {
-        nlinks.addElement(links.elementAt(l));
+        nlinks = urlProvider.getLinksForMenu();
       }
-      SequenceFeature sf[] = sq == null ? null : sq.getSequenceFeatures();
-      for (int sl = 0; sf != null && sl < sf.length; sl++)
+      else
       {
-        if (sf[sl].begin == sf[sl].end && sf[sl].begin == 0)
+        nlinks = new ArrayList<>();
+      }
+
+      for (SequenceFeature sf : sq.getFeatures().getNonPositionalFeatures())
+      {
+        if (sf.links != null)
         {
-          if (sf[sl].links != null && sf[sl].links.size() > 0)
+          for (String link : sf.links)
           {
-            for (int l = 0, lSize = sf[sl].links.size(); l < lSize; l++)
-            {
-              nlinks.addElement(sf[sl].links.elementAt(l));
-            }
+            nlinks.add(link);
           }
         }
       }
@@ -358,8 +316,8 @@ public class IdPanel extends Panel implements MouseListener,
     }
 
     if ((av.getSelectionGroup() == null)
-            || ((!jalview.util.Platform.isControlDown(e) && !e
-                    .isShiftDown()) && av.getSelectionGroup() != null))
+            || ((!jalview.util.Platform.isControlDown(e)
+                    && !e.isShiftDown()) && av.getSelectionGroup() != null))
     {
       av.setSelectionGroup(new SequenceGroup());
       av.getSelectionGroup().setStartRes(0);
@@ -375,7 +333,7 @@ public class IdPanel extends Panel implements MouseListener,
       selectSeq(seq);
     }
 
-    alignPanel.paintAlignment(false);
+    alignPanel.paintAlignment(false, false);
   }
 
   void selectSeq(int seq)
@@ -408,8 +366,8 @@ public class IdPanel extends Panel implements MouseListener,
     }
     for (int i = start; i <= end; i++)
     {
-      av.getSelectionGroup().addSequence(
-              av.getAlignment().getSequenceAt(i), i == end);
+      av.getSelectionGroup().addSequence(av.getAlignment().getSequenceAt(i),
+              i == end);
     }
 
   }
@@ -437,7 +395,7 @@ public class IdPanel extends Panel implements MouseListener,
   {
     idCanvas.setHighlighted(list);
 
-    if (list == null)
+    if (list == null || list.isEmpty())
     {
       return;
     }
@@ -445,9 +403,10 @@ public class IdPanel extends Panel implements MouseListener,
     int index = av.getAlignment().findIndex(list.get(0));
 
     // do we need to scroll the panel?
-    if (av.getStartSeq() > index || av.getEndSeq() < index)
+    if (av.getRanges().getStartSeq() > index
+            || av.getRanges().getEndSeq() < index)
     {
-      alignPanel.setScrollValues(av.getStartRes(), index);
+      av.getRanges().setStartSeq(index);
     }
   }
 
@@ -458,9 +417,9 @@ public class IdPanel extends Panel implements MouseListener,
 
     boolean up = true;
 
-    public ScrollThread(boolean up)
+    public ScrollThread(boolean isUp)
     {
-      this.up = up;
+      this.up = isUp;
       start();
     }
 
@@ -475,13 +434,13 @@ public class IdPanel extends Panel implements MouseListener,
       running = true;
       while (running)
       {
-        if (alignPanel.scrollUp(up))
+        if (av.getRanges().scrollUp(up))
         {
           // scroll was ok, so add new sequence to selection
-          int seq = av.getStartSeq();
+          int seq = av.getRanges().getStartSeq();
           if (!up)
           {
-            seq = av.getEndSeq();
+            seq = av.getRanges().getEndSeq();
           }
 
           if (seq < lastid)
@@ -500,7 +459,7 @@ public class IdPanel extends Panel implements MouseListener,
           running = false;
         }
 
-        alignPanel.paintAlignment(true);
+        alignPanel.paintAlignment(true, false);
         try
         {
           Thread.sleep(100);

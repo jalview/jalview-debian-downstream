@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -98,8 +98,8 @@ public class ASequenceFetcher
     {
       return null;
     }
-    String[] sf = fetchableDbs.keySet().toArray(
-            new String[fetchableDbs.size()]);
+    String[] sf = fetchableDbs.keySet()
+            .toArray(new String[fetchableDbs.size()]);
     return sf;
   }
 
@@ -126,15 +126,16 @@ public class ASequenceFetcher
    */
   public SequenceI[] getSequences(List<DBRefEntry> refs, boolean dna)
   {
-    Vector<SequenceI> rseqs = new Vector<SequenceI>();
-    Hashtable<String, List<String>> queries = new Hashtable<String, List<String>>();
+    Vector<SequenceI> rseqs = new Vector<>();
+    Hashtable<String, List<String>> queries = new Hashtable<>();
     for (DBRefEntry ref : refs)
     {
-      if (!queries.containsKey(ref.getSource()))
+      String canonical = DBRefUtils.getCanonicalName(ref.getSource());
+      if (!queries.containsKey(canonical))
       {
-        queries.put(ref.getSource(), new ArrayList<String>());
+        queries.put(canonical, new ArrayList<String>());
       }
-      List<String> qset = queries.get(ref.getSource());
+      List<String> qset = queries.get(canonical);
       if (!qset.contains(ref.getAccessionId()))
       {
         qset.add(ref.getAccessionId());
@@ -154,14 +155,14 @@ public class ASequenceFetcher
         continue;
       }
 
-      Stack<String> queriesLeft = new Stack<String>();
+      Stack<String> queriesLeft = new Stack<>();
       queriesLeft.addAll(query);
 
       List<DbSourceProxy> proxies = getSourceProxy(db);
       for (DbSourceProxy fetcher : proxies)
       {
-        List<String> queriesMade = new ArrayList<String>();
-        HashSet<String> queriesFound = new HashSet<String>();
+        List<String> queriesMade = new ArrayList<>();
+        HashSet<String> queriesFound = new HashSet<>();
         try
         {
           if (fetcher.isDnaCoding() != dna)
@@ -190,8 +191,8 @@ public class ASequenceFetcher
               seqset = fetcher.getSequenceRecords(qsb.toString());
             } catch (Exception ex)
             {
-              System.err.println("Failed to retrieve the following from "
-                      + db);
+              System.err.println(
+                      "Failed to retrieve the following from " + db);
               System.err.println(qsb);
               ex.printStackTrace(System.err);
             }
@@ -204,8 +205,9 @@ public class ASequenceFetcher
                 for (int is = 0; is < seqs.length; is++)
                 {
                   rseqs.addElement(seqs[is]);
-                  List<DBRefEntry> frefs = DBRefUtils.searchRefs(seqs[is]
-                          .getDBRefs(), new DBRefEntry(db, null, null));
+                  List<DBRefEntry> frefs = DBRefUtils.searchRefs(
+                          seqs[is].getDBRefs(),
+                          new DBRefEntry(db, null, null));
                   for (DBRefEntry dbr : frefs)
                   {
                     queriesFound.add(dbr.getAccessionId());
@@ -218,8 +220,8 @@ public class ASequenceFetcher
               {
                 if (fetcher.getRawRecords() != null)
                 {
-                  System.out.println("# Retrieved from " + db + ":"
-                          + qsb.toString());
+                  System.out.println(
+                          "# Retrieved from " + db + ":" + qsb.toString());
                   StringBuffer rrb = fetcher.getRawRecords();
                   /*
                    * for (int rr = 0; rr<rrb.length; rr++) {
@@ -275,8 +277,8 @@ public class ASequenceFetcher
           Exception ex)
   {
 
-    System.err.println("Failed to retrieve the following references from "
-            + db);
+    System.err.println(
+            "Failed to retrieve the following references from " + db);
     int n = 0;
     for (String qv : queriesMade)
     {
@@ -305,13 +307,13 @@ public class ASequenceFetcher
     Map<String, DbSourceProxy> dblist = fetchableDbs.get(db);
     if (dblist == null)
     {
-      return new ArrayList<DbSourceProxy>();
+      return new ArrayList<>();
     }
 
     /*
      * sort so that primary sources precede secondary
      */
-    List<DbSourceProxy> dbs = new ArrayList<DbSourceProxy>(dblist.values());
+    List<DbSourceProxy> dbs = new ArrayList<>(dblist.values());
     Collections.sort(dbs, proxyComparator);
     return dbs;
   }
@@ -338,10 +340,8 @@ public class ASequenceFetcher
     } catch (Exception e)
     {
       // Serious problems if this happens.
-      throw new Error(
-              MessageManager
-                      .getString("error.dbrefsource_implementation_exception"),
-              e);
+      throw new Error(MessageManager
+              .getString("error.dbrefsource_implementation_exception"), e);
     }
     addDbRefSourceImpl(proxy);
   }
@@ -358,14 +358,14 @@ public class ASequenceFetcher
     {
       if (fetchableDbs == null)
       {
-        fetchableDbs = new Hashtable<String, Map<String, DbSourceProxy>>();
+        fetchableDbs = new Hashtable<>();
       }
-      Map<String, DbSourceProxy> slist = fetchableDbs.get(proxy
-              .getDbSource());
+      Map<String, DbSourceProxy> slist = fetchableDbs
+              .get(proxy.getDbSource());
       if (slist == null)
       {
         fetchableDbs.put(proxy.getDbSource(),
-                slist = new Hashtable<String, DbSourceProxy>());
+                slist = new Hashtable<>());
       }
       slist.put(proxy.getDbName(), proxy);
     }
@@ -374,25 +374,25 @@ public class ASequenceFetcher
   /**
    * select sources which are implemented by instances of the given class
    * 
-   * @param class that implements DbSourceProxy
+   * @param class
+   *          that implements DbSourceProxy
    * @return null or vector of source names for fetchers
    */
   public String[] getDbInstances(Class class1)
   {
     if (!DbSourceProxy.class.isAssignableFrom(class1))
     {
-      throw new Error(
-              MessageManager
-                      .formatMessage(
-                              "error.implementation_error_dbinstance_must_implement_interface",
-                              new String[] { class1.toString() }));
+      throw new Error(MessageManager.formatMessage(
+              "error.implementation_error_dbinstance_must_implement_interface",
+              new String[]
+              { class1.toString() }));
     }
     if (fetchableDbs == null)
     {
       return null;
     }
     String[] sources = null;
-    Vector<String> src = new Vector<String>();
+    Vector<String> src = new Vector<>();
     Enumeration<String> dbs = fetchableDbs.keys();
     while (dbs.hasMoreElements())
     {
@@ -414,7 +414,7 @@ public class ASequenceFetcher
 
   public DbSourceProxy[] getDbSourceProxyInstances(Class class1)
   {
-    List<DbSourceProxy> prlist = new ArrayList<DbSourceProxy>();
+    List<DbSourceProxy> prlist = new ArrayList<>();
     for (String fetchable : getSupportedDb())
     {
       for (DbSourceProxy pr : getSourceProxy(fetchable))

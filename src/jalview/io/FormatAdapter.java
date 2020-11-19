@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,13 +22,18 @@ package jalview.io;
 
 import jalview.api.AlignExportSettingI;
 import jalview.api.AlignmentViewPanel;
+import jalview.bin.Cache;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.util.Comparison;
+
+import java.io.IOException;
+import java.util.Locale;
 
 /**
  * Additional formatting methods used by the application in a number of places.
@@ -76,7 +81,7 @@ public class FormatAdapter extends AppletFormatAdapter
     }
   }
 
-  public String formatSequences(String format, SequenceI[] seqs,
+  public String formatSequences(FileFormatI format, SequenceI[] seqs,
           String[] omitHiddenColumns, int[] exportRange)
   {
 
@@ -112,14 +117,14 @@ public class FormatAdapter extends AppletFormatAdapter
           startIndex = startEnd[0];
           endIndex = startEnd[1];
           // get first non-gaped residue start position
-          while (jalview.util.Comparison.isGap(seqs[i]
-                  .getCharAt(startIndex)) && startIndex < endIndex)
+          while (Comparison.isGap(seqs[i].getCharAt(startIndex))
+                  && startIndex < endIndex)
           {
             startIndex++;
           }
 
           // get last non-gaped residue end position
-          while (jalview.util.Comparison.isGap(seqs[i].getCharAt(endIndex))
+          while (Comparison.isGap(seqs[i].getCharAt(endIndex))
                   && endIndex > startIndex)
           {
             endIndex--;
@@ -144,114 +149,32 @@ public class FormatAdapter extends AppletFormatAdapter
    * 
    * 
    * @param format
-   *          Format string as givien in the AppletFormatAdaptor list (exact
-   *          match to name of class implementing file io for that format)
    * @param seqs
    *          vector of sequences to write
    * 
    * @return String containing sequences in desired format
    */
-  public String formatSequences(String format, SequenceI[] seqs)
+  public String formatSequences(FileFormatI format, SequenceI[] seqs)
   {
-
-    try
-    {
-      AlignFile afile = null;
-
-      if (format.equalsIgnoreCase("FASTA"))
-      {
-        afile = new FastaFile();
-        afile.addJVSuffix(jalview.bin.Cache.getDefault("FASTA_JVSUFFIX",
-                true));
-      }
-      else if (format.equalsIgnoreCase("MSF"))
-      {
-        afile = new MSFfile();
-        afile.addJVSuffix(jalview.bin.Cache
-                .getDefault("MSF_JVSUFFIX", true));
-      }
-      else if (format.equalsIgnoreCase("PileUp"))
-      {
-        afile = new PileUpfile();
-        afile.addJVSuffix(jalview.bin.Cache.getDefault("PILEUP_JVSUFFIX",
-                true));
-      }
-      else if (format.equalsIgnoreCase("CLUSTAL"))
-      {
-        afile = new ClustalFile();
-        afile.addJVSuffix(jalview.bin.Cache.getDefault("CLUSTAL_JVSUFFIX",
-                true));
-      }
-      else if (format.equalsIgnoreCase("BLC"))
-      {
-        afile = new BLCFile();
-        afile.addJVSuffix(jalview.bin.Cache
-                .getDefault("BLC_JVSUFFIX", true));
-      }
-      else if (format.equalsIgnoreCase("PIR"))
-      {
-        afile = new PIRFile();
-        afile.addJVSuffix(jalview.bin.Cache
-                .getDefault("PIR_JVSUFFIX", true));
-      }
-      else if (format.equalsIgnoreCase("PFAM"))
-      {
-        afile = new PfamFile();
-        afile.addJVSuffix(jalview.bin.Cache.getDefault("PFAM_JVSUFFIX",
-                true));
-      }
-      /*
-       * amsa is not supported by this function - it requires an alignment
-       * rather than a sequence vector else if (format.equalsIgnoreCase("AMSA"))
-       * { afile = new AMSAFile(); afile.addJVSuffix(
-       * jalview.bin.Cache.getDefault("AMSA_JVSUFFIX", true)); }
-       */
-
-      afile.setSeqs(seqs);
-      String afileresp = afile.print();
-      if (afile.hasWarningMessage())
-      {
-        System.err.println("Warning raised when writing as " + format
-                + " : " + afile.getWarningMessage());
-      }
-      return afileresp;
-    } catch (Exception e)
-    {
-      System.err.println("Failed to write alignment as a '" + format
-              + "' file\n");
-      e.printStackTrace();
-    }
-
-    return null;
+    boolean withSuffix = getCacheSuffixDefault(format);
+    return format.getWriter(null).print(seqs, withSuffix);
   }
 
-  public boolean getCacheSuffixDefault(String format)
+  public boolean getCacheSuffixDefault(FileFormatI format)
   {
-    if (isValidFormat(format))
-    {
-      return jalview.bin.Cache.getDefault(format.toUpperCase()
-              + "_JVSUFFIX", true);
-    }
-    return false;
+    return Cache.getDefault(format.getName().toUpperCase(Locale.ROOT) + "_JVSUFFIX",
+            true);
   }
 
-  public String formatSequences(String format, AlignmentI alignment,
-          String[] omitHidden, int[] exportRange, ColumnSelection colSel)
+  public String formatSequences(FileFormatI format, AlignmentI alignment,
+          String[] omitHidden, int[] exportRange, HiddenColumns hidden)
   {
     return formatSequences(format, alignment, omitHidden, exportRange,
-            getCacheSuffixDefault(format), colSel, null);
-  }
-
-  public String formatSequences(String format, AlignmentI alignment,
-          String[] omitHidden, int[] exportRange, ColumnSelection colSel,
-          SequenceGroup sgp)
-  {
-    return formatSequences(format, alignment, omitHidden, exportRange,
-            getCacheSuffixDefault(format), colSel, sgp);
+            getCacheSuffixDefault(format), hidden, null);
   }
 
   /**
-   * hack function to replace seuqences with visible sequence strings before
+   * hack function to replace sequences with visible sequence strings before
    * generating a string of the alignment in the given format.
    * 
    * @param format
@@ -262,17 +185,17 @@ public class FormatAdapter extends AppletFormatAdapter
    *          defines hidden columns that are edited out of annotation
    * @return string representation of the alignment formatted as format
    */
-  public String formatSequences(String format, AlignmentI alignment,
+  public String formatSequences(FileFormatI format, AlignmentI alignment,
           String[] omitHidden, int[] exportRange, boolean suffix,
-          ColumnSelection colSel)
+          HiddenColumns hidden)
   {
     return formatSequences(format, alignment, omitHidden, exportRange,
-            suffix, colSel, null);
+            suffix, hidden, null);
   }
 
-  public String formatSequences(String format, AlignmentI alignment,
+  public String formatSequences(FileFormatI format, AlignmentI alignment,
           String[] omitHidden, int[] exportRange, boolean suffix,
-          ColumnSelection colSel, jalview.datamodel.SequenceGroup selgp)
+          HiddenColumns hidden, SequenceGroup selgp)
   {
     if (omitHidden != null)
     {
@@ -290,12 +213,12 @@ public class FormatAdapter extends AppletFormatAdapter
           AlignmentAnnotation na = new AlignmentAnnotation(ala[i]);
           if (selgp != null)
           {
-            colSel.makeVisibleAnnotation(selgp.getStartRes(),
-                    selgp.getEndRes(), na);
+            na.makeVisibleAnnotation(selgp.getStartRes(), selgp.getEndRes(),
+                    hidden);
           }
           else
           {
-            colSel.makeVisibleAnnotation(na);
+            na.makeVisibleAnnotation(hidden);
           }
           alv.addAnnotation(na);
         }
@@ -305,26 +228,20 @@ public class FormatAdapter extends AppletFormatAdapter
     return this.formatSequences(format, alignment, suffix);
   }
 
-  /**
-   * validate format is valid for IO in Application. This is basically the
-   * AppletFormatAdapter.isValidFormat call with additional checks for
-   * Application only formats like 'Jalview'.
-   * 
-   * @param format
-   *          a format string to be compared with list of readable or writable
-   *          formats (READABLE_FORMATS or WRITABLE_FORMATS)
-   * @param forwriting
-   *          when true, format is checked against list of writable formats.
-   * @return true if format is valid
-   */
-  public static final boolean isValidIOFormat(String format,
-          boolean forwriting)
+  @Override
+  public AlignmentI readFile(String file, DataSourceType sourceType,
+          FileFormatI fileFormat) throws IOException
   {
-    if (format.equalsIgnoreCase("jalview"))
-    {
-      return true;
-    }
-    return AppletFormatAdapter.isValidFormat(format, forwriting);
+    AlignmentI al = super.readFile(file, sourceType, fileFormat);
+    return al;
+  }
+
+  @Override
+  public AlignmentI readFromFile(FileParse source, FileFormatI format)
+          throws IOException
+  {
+    AlignmentI al = super.readFromFile(source, format);
+    return al;
   }
 
   /**
@@ -336,11 +253,19 @@ public class FormatAdapter extends AppletFormatAdapter
    *          alignment panel originating the view
    * @return String containing flat file
    */
-  public String formatSequences(String format, AlignmentViewPanel ap,
+  public String formatSequences(FileFormatI format, AlignmentViewPanel ap,
           boolean selectedOnly)
   {
     return formatSequences(format, getCacheSuffixDefault(format), ap,
             selectedOnly);
+  }
+
+  public AlignmentI readFromFile(AlignmentFileReaderI source,
+          FileFormatI format) throws IOException
+  {
+    FileParse fp = new FileParse(source.getInFile(),
+            source.getDataSourceType());
+    return readFromFile(fp, format);
   }
 
 }

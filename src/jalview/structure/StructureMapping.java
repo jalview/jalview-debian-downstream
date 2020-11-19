@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,12 +21,21 @@
 package jalview.structure;
 
 import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.Mapping;
 import jalview.datamodel.SequenceI;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class StructureMapping
 {
+  public static final int UNASSIGNED_VALUE = Integer.MIN_VALUE;
+
+  private static final int PDB_RES_NUM_INDEX = 0;
+
+  private static final int PDB_ATOM_NUM_INDEX = 1;
+
   String mappingDetails;
 
   SequenceI sequence;
@@ -37,16 +46,24 @@ public class StructureMapping
 
   String pdbchain;
 
-  public static final int UNASSIGNED_VALUE = -1;
-
-  private static final int PDB_RES_NUM_INDEX = 0;
-
-  private static final int PDB_ATOM_NUM_INDEX = 1;
-
   // Mapping key is residue index while value is an array containing PDB resNum,
   // and atomNo
   HashMap<Integer, int[]> mapping;
 
+  jalview.datamodel.Mapping seqToPdbMapping = null;
+
+  /**
+   * Constructor
+   * 
+   * @param seq
+   * @param pdbfile
+   * @param pdbid
+   * @param chain
+   * @param mapping
+   *          a map from sequence to two values, { resNo, atomNo } in the
+   *          structure
+   * @param mappingDetails
+   */
   public StructureMapping(SequenceI seq, String pdbfile, String pdbid,
           String chain, HashMap<Integer, int[]> mapping,
           String mappingDetails)
@@ -57,6 +74,14 @@ public class StructureMapping
     this.pdbchain = chain;
     this.mapping = mapping;
     this.mappingDetails = mappingDetails;
+  }
+
+  public StructureMapping(SequenceI seq, String pdbFile2, String pdbId2,
+          String chain, HashMap<Integer, int[]> mapping2,
+          String mappingOutput, Mapping seqToPdbMapping)
+  {
+    this(seq, pdbFile2, pdbId2, chain, mapping2, mappingOutput);
+    this.seqToPdbMapping = seqToPdbMapping;
   }
 
   public SequenceI getSequence()
@@ -95,7 +120,8 @@ public class StructureMapping
   /**
    * 
    * @param seqpos
-   * @return 0 or the corresponding residue number for the sequence position
+   * @return UNASSIGNED_VALUE or the corresponding residue number for the
+   *         sequence position
    */
   public int getPDBResNum(int seqpos)
   {
@@ -108,6 +134,70 @@ public class StructureMapping
     {
       return UNASSIGNED_VALUE;
     }
+  }
+
+  /**
+   * Returns a (possibly empty) list of [start, end] residue positions in the
+   * mapped structure, corresponding to the given range of sequence positions
+   * 
+   * @param fromSeqPos
+   * @param toSeqPos
+   * @return
+   */
+  public List<int[]> getPDBResNumRanges(int fromSeqPos, int toSeqPos)
+  {
+    List<int[]> result = new ArrayList<>();
+    int startRes = -1;
+    int endRes = -1;
+
+    for (int i = fromSeqPos; i <= toSeqPos; i++)
+    {
+      int resNo = getPDBResNum(i);
+      if (resNo == UNASSIGNED_VALUE)
+      {
+        continue; // no mapping from this sequence position
+      }
+      if (startRes == -1)
+      {
+        startRes = resNo;
+        endRes = resNo;
+      }
+      if (resNo >= startRes && resNo <= endRes)
+      {
+        // within the current range - no change
+        continue;
+      }
+      if (resNo == startRes - 1)
+      {
+        // extend beginning of current range
+        startRes--;
+        continue;
+      }
+      if (resNo == endRes + 1)
+      {
+        // extend end of current range
+        endRes++;
+        continue;
+      }
+
+      /*
+       * resNo is not within or contiguous with last range,
+       * so write out the last range
+       */
+      result.add(new int[] { startRes, endRes });
+      startRes = resNo;
+      endRes = resNo;
+    }
+
+    /*
+     * and add the last range
+     */
+    if (startRes != -1)
+    {
+      result.add(new int[] { startRes, endRes });
+    }
+
+    return result;
   }
 
   /**
@@ -168,5 +258,111 @@ public class StructureMapping
   public HashMap<Integer, int[]> getMapping()
   {
     return mapping;
+  }
+
+  public Mapping getSeqToPdbMapping()
+  {
+    return seqToPdbMapping;
+  }
+
+  /**
+   * A hash function that satisfies the contract that if two mappings are
+   * equal(), they have the same hashCode
+   */
+  @Override
+  public int hashCode()
+  {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result
+            + ((mappingDetails == null) ? 0 : mappingDetails.hashCode());
+    result = prime * result
+            + ((pdbchain == null) ? 0 : pdbchain.hashCode());
+    result = prime * result + ((pdbfile == null) ? 0 : pdbfile.hashCode());
+    result = prime * result + ((pdbid == null) ? 0 : pdbid.hashCode());
+    result = prime * result
+            + ((seqToPdbMapping == null) ? 0 : seqToPdbMapping.hashCode());
+    result = prime * result
+            + ((sequence == null) ? 0 : sequence.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj)
+  {
+    if (this == obj)
+    {
+      return true;
+    }
+    if (obj == null)
+    {
+      return false;
+    }
+    if (getClass() != obj.getClass())
+    {
+      return false;
+    }
+    StructureMapping other = (StructureMapping) obj;
+    if (mappingDetails == null)
+    {
+      if (other.mappingDetails != null)
+      {
+        return false;
+      }
+    }
+    else if (!mappingDetails.equals(other.mappingDetails))
+    {
+      return false;
+    }
+    if (pdbchain == null)
+    {
+      if (other.pdbchain != null)
+      {
+        return false;
+      }
+    }
+    else if (!pdbchain.equals(other.pdbchain))
+    {
+      return false;
+    }
+    if (pdbfile == null)
+    {
+      if (other.pdbfile != null)
+      {
+        return false;
+      }
+    }
+    else if (!pdbfile.equals(other.pdbfile))
+    {
+      return false;
+    }
+    if (pdbid == null)
+    {
+      if (other.pdbid != null)
+      {
+        return false;
+      }
+    }
+    else if (!pdbid.equals(other.pdbid))
+    {
+      return false;
+    }
+    if (seqToPdbMapping == null)
+    {
+      if (other.seqToPdbMapping != null)
+      {
+        return false;
+      }
+    }
+    else if (!seqToPdbMapping.equals(other.seqToPdbMapping))
+    {
+      return false;
+    }
+    if (sequence != other.sequence)
+    {
+      return false;
+    }
+
+    return true;
   }
 }

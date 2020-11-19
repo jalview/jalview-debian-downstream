@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,6 +24,7 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.gui.AlignFrame;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.gui.WebserviceInfo;
 import jalview.util.MessageManager;
 
@@ -37,7 +38,6 @@ import java.util.Vector;
 
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 
 import ext.vamsas.SeqSearchServiceLocator;
 import ext.vamsas.SeqSearchServiceSoapBindingStub;
@@ -84,23 +84,25 @@ public class SeqSearchWSClient extends WS1Client
     // name to service client name
     if (!sh.getAbstractName().equals(this.getServiceActionKey()))
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage(
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
                       "label.service_called_is_not_seq_search_service",
-                      new String[] { sh.getName() }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+                      new String[]
+                      { sh.getName() }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
 
     if ((wsInfo = setWebService(sh)) == null)
     {
-      JOptionPane.showMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.seq_search_service_is_unknown",
-                      new String[] { sh.getName() }), MessageManager
-              .getString("label.internal_jalview_error"),
-              JOptionPane.WARNING_MESSAGE);
+      JvOptionPane.showMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
+                      "label.seq_search_service_is_unknown", new String[]
+                      { sh.getName() }),
+              MessageManager.getString("label.internal_jalview_error"),
+              JvOptionPane.WARNING_MESSAGE);
 
       return;
     }
@@ -138,20 +140,21 @@ public class SeqSearchWSClient extends WS1Client
     // sequence db
     boolean profileSearch = msa.getSequences().length > 2 ? true : false;
     // single sequence or profile from alignment view
-    wsInfo.setProgressText("Searching "
-            + visdb
-            + (!profileSearch ? " with sequence "
-                    + msa.getSequences()[0].getRefSeq().getName()
-                    : " with profile") + " from " + altitle
-            + "\nJob details\n");
+    wsInfo.setProgressText("Searching " + visdb
+            + (!profileSearch
+                    ? " with sequence "
+                            + msa.getSequences()[0].getRefSeq().getName()
+                    : " with profile")
+            + " from " + altitle + "\nJob details\n");
 
     String jobtitle = WebServiceName
             + ((WebServiceName.indexOf("earch") > -1) ? " " : " search ")
-            + " of "
-            + visdb
-            + (!profileSearch ? " with sequence "
-                    + msa.getSequences()[0].getRefSeq().getName()
-                    : " with profile") + " from " + altitle;
+            + " of " + visdb
+            + (!profileSearch
+                    ? " with sequence "
+                            + msa.getSequences()[0].getRefSeq().getName()
+                    : " with profile")
+            + " from " + altitle;
     SeqSearchWSThread ssthread = new SeqSearchWSThread(server, WsURL,
             wsInfo, alignFrame, WebServiceName, jobtitle, msa, db,
             seqdataset);
@@ -220,8 +223,8 @@ public class SeqSearchWSClient extends WS1Client
     if (!locateWebService())
     {
       throw new Exception(MessageManager.formatMessage(
-              "exception.cannot_contact_service_endpoint_at",
-              new String[] { WsURL }));
+              "exception.cannot_contact_service_endpoint_at", new String[]
+              { WsURL }));
     }
     String database = server.getDatabase();
     if (database == null)
@@ -257,8 +260,8 @@ public class SeqSearchWSClient extends WS1Client
     JMenu defmenu = (JMenu) dbsrchs.get("Default Database");
     if (defmenu == null)
     {
-      dbsrchs.put("Default Database", defmenu = new JMenu(
-              "Default Database"));
+      dbsrchs.put("Default Database",
+              defmenu = new JMenu("Default Database"));
       newdbsrch.addElement(defmenu);
     }
 
@@ -271,7 +274,8 @@ public class SeqSearchWSClient extends WS1Client
     {
       jalview.bin.Cache.log.warn(
               "Database list request failed, so disabling SeqSearch Service client "
-                      + sh.getName() + " at " + sh.getEndpointURL(), e);
+                      + sh.getName() + " at " + sh.getEndpointURL(),
+              e);
       return;
     }
     JMenuItem method;

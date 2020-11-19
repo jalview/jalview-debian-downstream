@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,25 +19,6 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.commands;
-
-/*
- * Jalview - A Sequence Alignment Editor and Viewer Copyright (C) 2007 AM
- * Waterhouse, J Procter, G Barton, M Clamp, S Searle
- * 
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any later
- * version.
- * 
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
- * details.
- * 
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
- */
 
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
@@ -109,9 +90,10 @@ public class RemoveGapsCommand extends EditCommand
 
         if (!delete && startCol > -1)
         {
-          this.appendEdit(Action.DELETE_GAP, new SequenceI[] { seqs[s] },
-                  start + startCol - deletedCols, endCol - startCol, al,
-                  false, null);
+          this.appendEdit(
+                  Action.DELETE_GAP, new SequenceI[]
+                  { seqs[s] }, start + startCol - deletedCols,
+                  endCol - startCol, al, false, null);
 
           deletedCols += (endCol - startCol);
           startCol = -1;
@@ -120,9 +102,10 @@ public class RemoveGapsCommand extends EditCommand
       }
       if (delete && startCol > -1)
       {
-        this.appendEdit(Action.DELETE_GAP, new SequenceI[] { seqs[s] },
-                start + startCol - deletedCols, jSize - startCol, al,
-                false, null);
+        this.appendEdit(
+                Action.DELETE_GAP, new SequenceI[]
+                { seqs[s] }, start + startCol - deletedCols,
+                jSize - startCol, al, false, null);
       }
 
     }

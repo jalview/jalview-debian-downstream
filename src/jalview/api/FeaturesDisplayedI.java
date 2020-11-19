@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,12 +21,15 @@
 package jalview.api;
 
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Set;
 
 public interface FeaturesDisplayedI
 {
 
-  Iterator<String> getVisibleFeatures();
+  /**
+   * answers an unmodifiable view of the set of visible feature types
+   */
+  Set<String> getVisibleFeatures();
 
   boolean isVisible(String featureType);
 
@@ -36,6 +39,14 @@ public interface FeaturesDisplayedI
 
   void setVisible(String featureType);
 
+  void setHidden(String featureType);
+
+  /**
+   * Sets all the specified feature types to visible. Visibility of other
+   * feature types is not changed.
+   * 
+   * @param featureTypes
+   */
   void setAllVisible(Collection<String> featureTypes);
 
   boolean isRegistered(String type);

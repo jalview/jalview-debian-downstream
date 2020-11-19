@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,8 @@ package jalview.ws.seqfetcher;
 
 import jalview.api.FeatureSettingsModelI;
 import jalview.datamodel.AlignmentI;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormatI;
 import jalview.io.FormatAdapter;
 import jalview.io.IdentifyFile;
 
@@ -92,11 +94,12 @@ public abstract class DbSourceProxyImpl implements DbSourceProxy
   protected AlignmentI parseResult(String result) throws Exception
   {
     AlignmentI sequences = null;
-    String format = new IdentifyFile().identify(result, "Paste");
-    if (FormatAdapter.isValidFormat(format))
+    FileFormatI format = new IdentifyFile().identify(result,
+            DataSourceType.PASTE);
+    if (format != null)
     {
-      sequences = new FormatAdapter().readFile(result.toString(), "Paste",
-              format);
+      sequences = new FormatAdapter().readFile(result.toString(),
+              DataSourceType.PASTE, format);
     }
     return sequences;
   }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,20 +21,26 @@
 package jalview.appletgui;
 
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.datamodel.VisibleContigsIterator;
 import jalview.renderer.ScaleRenderer;
 import jalview.renderer.ScaleRenderer.ScaleMark;
 import jalview.viewmodel.AlignmentViewport;
+import jalview.viewmodel.ViewportListenerI;
+import jalview.viewmodel.ViewportRanges;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.Panel;
+import java.beans.PropertyChangeEvent;
+import java.util.Iterator;
 
-public class SeqCanvas extends Panel
+public class SeqCanvas extends Panel implements ViewportListenerI
 {
   FeatureRenderer fr;
 
@@ -63,6 +69,8 @@ public class SeqCanvas extends Panel
     sr = new SequenceRenderer(av);
     PaintRefresher.Register(this, av.getSequenceSetId());
     updateViewport();
+
+    av.getRanges().addPropertyChangeListener(this);
   }
 
   int avcharHeight = 0, avcharWidth = 0;
@@ -106,12 +114,12 @@ public class SeqCanvas extends Panel
       {
         if (mstring != null)
         {
-          g.drawString(mstring, mpos * avcharWidth, ypos
-                  - (avcharHeight / 2));
+          g.drawString(mstring, mpos * avcharWidth,
+                  ypos - (avcharHeight / 2));
         }
-        g.drawLine((mpos * avcharWidth) + (avcharWidth / 2), (ypos + 2)
-                - (avcharHeight / 2), (mpos * avcharWidth)
-                + (avcharWidth / 2), ypos - 2);
+        g.drawLine((mpos * avcharWidth) + (avcharWidth / 2),
+                (ypos + 2) - (avcharHeight / 2),
+                (mpos * avcharWidth) + (avcharWidth / 2), ypos - 2);
       }
     }
   }
@@ -122,14 +130,10 @@ public class SeqCanvas extends Panel
     ypos += avcharHeight;
     if (av.hasHiddenColumns())
     {
-      startx = av.getColumnSelection().adjustForHiddenColumns(startx);
-      endx = av.getColumnSelection().adjustForHiddenColumns(endx);
-    }
-
-    int maxwidth = av.getAlignment().getWidth();
-    if (av.hasHiddenColumns())
-    {
-      maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
+      startx = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(startx);
+      endx = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(endx);
     }
 
     // WEST SCALE
@@ -157,8 +161,8 @@ public class SeqCanvas extends Panel
       {
         int x = LABEL_WEST - fm.stringWidth(String.valueOf(value))
                 - avcharWidth / 2;
-        g.drawString(value + "", x, (ypos + (i * avcharHeight))
-                - (avcharHeight / 5));
+        g.drawString(value + "", x,
+                (ypos + (i * avcharHeight)) - (avcharHeight / 5));
       }
     }
   }
@@ -169,7 +173,8 @@ public class SeqCanvas extends Panel
 
     if (av.hasHiddenColumns())
     {
-      endx = av.getColumnSelection().adjustForHiddenColumns(endx);
+      endx = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(endx);
     }
 
     SequenceI seq;
@@ -196,8 +201,8 @@ public class SeqCanvas extends Panel
 
       if (value != -1)
       {
-        g.drawString(String.valueOf(value), 0, (ypos + (i * avcharHeight))
-                - (avcharHeight / 5));
+        g.drawString(String.valueOf(value), 0,
+                (ypos + (i * avcharHeight)) - (avcharHeight / 5));
       }
     }
   }
@@ -211,25 +216,29 @@ public class SeqCanvas extends Panel
       return;
     }
 
+    ViewportRanges ranges = av.getRanges();
+
     updateViewport();
 
     // Its possible on certain browsers that the call to fastpaint
     // is faster than it can paint, so this check here catches
     // this possibility
-    if (lastsr + horizontal != av.startRes)
+    if (lastsr + horizontal != ranges.getStartRes())
     {
-      horizontal = av.startRes - lastsr;
+      horizontal = ranges.getStartRes() - lastsr;
     }
 
-    lastsr = av.startRes;
+    lastsr = ranges.getStartRes();
 
     fastPaint = true;
-    gg.copyArea(horizontal * avcharWidth, vertical * avcharHeight, imgWidth
-            - horizontal * avcharWidth,
+    gg.copyArea(horizontal * avcharWidth, vertical * avcharHeight,
+            imgWidth - horizontal * avcharWidth,
             imgHeight - vertical * avcharHeight, -horizontal * avcharWidth,
             -vertical * avcharHeight);
 
-    int sr = av.startRes, er = av.endRes, ss = av.startSeq, es = av.endSeq, transX = 0, transY = 0;
+    int sr = ranges.getStartRes(), er = ranges.getEndRes(),
+            ss = ranges.getStartSeq(), es = ranges.getEndSeq(), transX = 0,
+            transY = 0;
 
     if (horizontal > 0) // scrollbar pulled right, image to the left
     {
@@ -244,21 +253,23 @@ public class SeqCanvas extends Panel
     else if (vertical > 0) // scroll down
     {
       ss = es - vertical;
-      if (ss < av.startSeq) // ie scrolling too fast, more than a page at a time
+      if (ss < ranges.getStartSeq()) // ie scrolling too fast, more than a page
+                                     // at a
+      // time
       {
-        ss = av.startSeq;
+        ss = ranges.getStartSeq();
       }
       else
       {
-        transY = imgHeight - vertical * avcharHeight;
+        transY = imgHeight - ((vertical + 1) * avcharHeight);
       }
     }
     else if (vertical < 0)
     {
       es = ss - vertical;
-      if (es > av.endSeq)
+      if (es > ranges.getEndSeq())
       {
-        es = av.endSeq;
+        es = ranges.getEndSeq();
       }
     }
 
@@ -290,8 +301,8 @@ public class SeqCanvas extends Panel
   {
 
     if (img != null
-            && (fastPaint || (getSize().width != g.getClipBounds().width) || (getSize().height != g
-                    .getClipBounds().height)))
+            && (fastPaint || (getSize().width != g.getClipBounds().width)
+                    || (getSize().height != g.getClipBounds().height)))
     {
       g.drawImage(img, 0, 0, this);
       fastPaint = false;
@@ -329,13 +340,16 @@ public class SeqCanvas extends Panel
     gg.setColor(Color.white);
     gg.fillRect(0, 0, imgWidth, imgHeight);
 
+    ViewportRanges ranges = av.getRanges();
+
     if (av.getWrapAlignment())
     {
-      drawWrappedPanel(gg, imgWidth, imgHeight, av.startRes);
+      drawWrappedPanel(gg, imgWidth, imgHeight, ranges.getStartRes());
     }
     else
     {
-      drawPanel(gg, av.startRes, av.endRes, av.startSeq, av.endSeq, 0);
+      drawPanel(gg, ranges.getStartRes(), ranges.getEndRes(),
+              ranges.getStartSeq(), ranges.getEndSeq(), 0);
     }
 
     g.drawImage(img, 0, 0, this);
@@ -397,103 +411,95 @@ public class SeqCanvas extends Panel
           int canvasHeight, int startRes)
   {
     AlignmentI al = av.getAlignment();
-
+  
     FontMetrics fm = getFontMetrics(av.getFont());
-
+  
+    LABEL_EAST = 0;
+    LABEL_WEST = 0;
+  
     if (av.getScaleRightWrapped())
     {
       LABEL_EAST = fm.stringWidth(getMask());
     }
-
+  
     if (av.getScaleLeftWrapped())
     {
       LABEL_WEST = fm.stringWidth(getMask());
     }
-
+  
     int hgap = avcharHeight;
     if (av.getScaleAboveWrapped())
     {
       hgap += avcharHeight;
     }
-
+  
     int cWidth = (canvasWidth - LABEL_EAST - LABEL_WEST) / avcharWidth;
     int cHeight = av.getAlignment().getHeight() * avcharHeight;
-
+  
     av.setWrappedWidth(cWidth);
-
-    av.endRes = av.startRes + cWidth;
-
+  
+    av.getRanges().setViewportStartAndWidth(startRes, cWidth);
+  
     int endx;
     int ypos = hgap;
-
-    int maxwidth = av.getAlignment().getWidth() - 1;
-
-    if (av.hasHiddenColumns())
-    {
-      maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
-    }
-
+  
+    int maxwidth = av.getAlignment().getVisibleWidth();
+  
     while ((ypos <= canvasHeight) && (startRes < maxwidth))
     {
       endx = startRes + cWidth - 1;
-
+  
       if (endx > maxwidth)
       {
         endx = maxwidth;
       }
-
+  
       g.setColor(Color.black);
-
+  
       if (av.getScaleLeftWrapped())
       {
         drawWestScale(g, startRes, endx, ypos);
       }
-
+  
       if (av.getScaleRightWrapped())
       {
         g.translate(canvasWidth - LABEL_EAST, 0);
         drawEastScale(g, startRes, endx, ypos);
         g.translate(-(canvasWidth - LABEL_EAST), 0);
       }
-
+  
       g.translate(LABEL_WEST, 0);
-
+  
       if (av.getScaleAboveWrapped())
       {
         drawNorthScale(g, startRes, endx, ypos);
       }
       if (av.hasHiddenColumns() && av.getShowHiddenMarkers())
       {
+        HiddenColumns hidden = av.getAlignment().getHiddenColumns();
         g.setColor(Color.blue);
         int res;
-        for (int i = 0; i < av.getColumnSelection().getHiddenColumns()
-                .size(); i++)
+        Iterator<Integer> it = hidden.getStartRegionIterator(startRes,
+                endx + 1);
+        while (it.hasNext())
         {
-          res = av.getColumnSelection().findHiddenRegionPosition(i)
-                  - startRes;
-
-          if (res < 0 || res > endx - startRes)
-          {
-            continue;
-          }
-
-          gg.fillPolygon(new int[] { res * avcharWidth - avcharHeight / 4,
-              res * avcharWidth + avcharHeight / 4, res * avcharWidth },
-                  new int[] { ypos - (avcharHeight / 2),
-                      ypos - (avcharHeight / 2),
-                      ypos - (avcharHeight / 2) + 8 }, 3);
-
+          res = it.next() - startRes;
+          gg.fillPolygon(
+                  new int[]
+                  { res * avcharWidth - avcharHeight / 4, res * avcharWidth + avcharHeight / 4, res * avcharWidth },
+                  new int[]
+                  { ypos - (avcharHeight / 2), ypos - (avcharHeight / 2), ypos - (avcharHeight / 2) + 8 }, 3);
         }
       }
-
+  
       if (g.getClip() == null)
       {
         g.setClip(0, 0, cWidth * avcharWidth, canvasHeight);
       }
-
-      drawPanel(g, startRes, endx, 0, al.getHeight(), ypos);
+  
+      drawPanel(g, startRes, endx, 0, al.getHeight() - 1, ypos);
       g.setClip(null);
-
+  
       if (av.isShowAnnotation())
       {
         g.translate(0, cHeight + ypos + 4);
@@ -501,17 +507,17 @@ public class SeqCanvas extends Panel
         {
           annotations = new AnnotationPanel(av);
         }
-
+  
         annotations.drawComponent(g, startRes, endx + 1);
         g.translate(0, -cHeight - ypos - 4);
       }
       g.translate(-LABEL_WEST, 0);
-
+  
       ypos += cHeight + getAnnotationHeight() + hgap;
-
+  
       startRes += cWidth;
     }
-
+  
   }
 
   AnnotationPanel annotations;
@@ -531,8 +537,8 @@ public class SeqCanvas extends Panel
     return annotations.adjustPanelHeight();
   }
 
-  private void drawPanel(Graphics g1, int startRes, int endRes,
-          int startSeq, int endSeq, int offset)
+  private void drawPanel(Graphics g1, final int startRes, final int endRes,
+          final int startSeq, final int endSeq, final int offset)
   {
 
     if (!av.hasHiddenColumns())
@@ -541,61 +547,45 @@ public class SeqCanvas extends Panel
     }
     else
     {
-
       int screenY = 0;
-      int blockStart = startRes;
-      int blockEnd = endRes;
+      int blockStart;
+      int blockEnd;
 
-      if (av.hasHiddenColumns())
+      HiddenColumns hidden = av.getAlignment().getHiddenColumns();
+      VisibleContigsIterator regions = hidden
+              .getVisContigsIterator(startRes, endRes + 1, true);
+
+      while (regions.hasNext())
       {
-        for (int[] region : av.getColumnSelection().getHiddenColumns())
-        {
-          int hideStart = region[0];
-          int hideEnd = region[1];
+        int[] region = regions.next();
+        blockEnd = region[1];
+        blockStart = region[0];
 
-          if (hideStart <= blockStart)
-          {
-            blockStart += (hideEnd - hideStart) + 1;
-            continue;
-          }
-
-          blockEnd = hideStart - 1;
-
-          g1.translate(screenY * avcharWidth, 0);
-
-          draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
-
-          if (av.getShowHiddenMarkers())
-          {
-            g1.setColor(Color.blue);
-            g1.drawLine((blockEnd - blockStart + 1) * avcharWidth - 1,
-                    0 + offset, (blockEnd - blockStart + 1) * avcharWidth
-                            - 1, (endSeq - startSeq) * avcharHeight
-                            + offset);
-          }
-
-          g1.translate(-screenY * avcharWidth, 0);
-          screenY += blockEnd - blockStart + 1;
-          blockStart = hideEnd + 1;
-
-          if (screenY > (endRes - startRes))
-          {
-            // already rendered last block
-            return;
-          }
-        }
-      }
-      if (screenY <= (endRes - startRes))
-      {
-        // remaining visible region to render
-        blockEnd = blockStart + (endRes - startRes) - screenY;
+        /*
+         * draw up to just before the next hidden region, or the end of
+         * the visible region, whichever comes first
+         */
         g1.translate(screenY * avcharWidth, 0);
+
         draw(g1, blockStart, blockEnd, startSeq, endSeq, offset);
 
+        /*
+         * draw the downline of the hidden column marker (ScalePanel draws the
+         * triangle on top) if we reached it
+         */
+        if (av.getShowHiddenMarkers()
+                && (regions.hasNext() || regions.endsAtHidden()))
+        {
+          g1.setColor(Color.blue);
+          g1.drawLine((blockEnd - blockStart + 1) * avcharWidth - 1,
+                  0 + offset, (blockEnd - blockStart + 1) * avcharWidth - 1,
+                  (endSeq - startSeq + 1) * avcharHeight + offset);
+        }
+
         g1.translate(-screenY * avcharWidth, 0);
+        screenY += blockEnd - blockStart + 1;
       }
     }
-
   }
 
   // int startRes, int endRes, int startSeq, int endSeq, int x, int y,
@@ -610,7 +600,7 @@ public class SeqCanvas extends Panel
 
     // / First draw the sequences
     // ///////////////////////////
-    for (int i = startSeq; i < endSeq; i++)
+    for (int i = startSeq; i <= endSeq; i++)
     {
       nextSeq = av.getAlignment().getSequenceAt(i);
 
@@ -624,8 +614,8 @@ public class SeqCanvas extends Panel
 
       if (av.isShowSequenceFeatures())
       {
-        fr.drawSequence(g, nextSeq, startRes, endRes, offset
-                + ((i - startSeq) * avcharHeight));
+        fr.drawSequence(g, nextSeq, startRes, endRes,
+                offset + ((i - startSeq) * avcharHeight), false);
       }
 
       // / Highlight search Results once all sequences have been drawn
@@ -633,16 +623,15 @@ public class SeqCanvas extends Panel
       if (av.hasSearchResults())
       {
         int[] visibleResults = av.getSearchResults().getResults(nextSeq,
-                startRes,
-                endRes);
+                startRes, endRes);
         if (visibleResults != null)
         {
           for (int r = 0; r < visibleResults.length; r += 2)
           {
             sr.drawHighlightedText(nextSeq, visibleResults[r],
-                    visibleResults[r + 1], (visibleResults[r] - startRes)
-                            * avcharWidth, offset
-                            + ((i - startSeq) * avcharHeight));
+                    visibleResults[r + 1],
+                    (visibleResults[r] - startRes) * avcharWidth,
+                    offset + ((i - startSeq) * avcharHeight));
           }
         }
       }
@@ -694,11 +683,12 @@ public class SeqCanvas extends Panel
         int bottom = -1;
         int alHeight = av.getAlignment().getHeight() - 1;
 
-        for (i = startSeq; i < endSeq; i++)
+        for (i = startSeq; i <= endSeq; i++)
         {
           sx = (group.getStartRes() - startRes) * avcharWidth;
           sy = offset + ((i - startSeq) * avcharHeight);
-          ex = (((group.getEndRes() + 1) - group.getStartRes()) * avcharWidth) - 1;
+          ex = (((group.getEndRes() + 1) - group.getStartRes())
+                  * avcharWidth) - 1;
 
           if (sx + ex < 0 || sx > imgWidth)
           {
@@ -706,22 +696,20 @@ public class SeqCanvas extends Panel
           }
 
           if ((sx <= (endRes - startRes) * avcharWidth)
-                  && group.getSequences(null).contains(
-                          av.getAlignment().getSequenceAt(i)))
+                  && group.getSequences(null)
+                          .contains(av.getAlignment().getSequenceAt(i)))
           {
             if ((bottom == -1)
-                    && (i >= alHeight || !group.getSequences(null)
-                            .contains(
-                                    av.getAlignment().getSequenceAt(i + 1))))
+                    && (i >= alHeight || !group.getSequences(null).contains(
+                            av.getAlignment().getSequenceAt(i + 1))))
             {
               bottom = sy + avcharHeight;
             }
 
             if (!inGroup)
             {
-              if (((top == -1) && (i == 0))
-                      || !group.getSequences(null).contains(
-                              av.getAlignment().getSequenceAt(i - 1)))
+              if (((top == -1) && (i == 0)) || !group.getSequences(null)
+                      .contains(av.getAlignment().getSequenceAt(i - 1)))
               {
                 top = sy;
               }
@@ -846,6 +834,75 @@ public class SeqCanvas extends Panel
   {
     av.setSearchResults(results);
     repaint();
+  }
+
+  @Override
+  public void propertyChange(PropertyChangeEvent evt)
+  {
+    String eventName = evt.getPropertyName();
+
+    if (eventName.equals(SequenceGroup.SEQ_GROUP_CHANGED))
+    {
+      fastPaint = true;
+      repaint();
+      return;
+    }
+    else if (eventName.equals(ViewportRanges.MOVE_VIEWPORT))
+    {
+      fastPaint = false;
+      repaint();
+      return;
+    }
+
+    if (!av.getWrapAlignment())
+    {
+      int scrollX = 0;
+      if (eventName.equals(ViewportRanges.STARTRES)
+              || eventName.equals(ViewportRanges.STARTRESANDSEQ))
+      {
+        // Make sure we're not trying to draw a panel
+        // larger than the visible window
+        if (eventName.equals(ViewportRanges.STARTRES))
+        {
+          scrollX = (int) evt.getNewValue() - (int) evt.getOldValue();
+        }
+        else
+        {
+          scrollX = ((int[]) evt.getNewValue())[0]
+                  - ((int[]) evt.getOldValue())[0];
+        }
+        ViewportRanges vpRanges = av.getRanges();
+        int range = vpRanges.getEndRes() - vpRanges.getStartRes();
+        if (scrollX > range)
+        {
+          scrollX = range;
+        }
+        else if (scrollX < -range)
+        {
+          scrollX = -range;
+        }
+      }
+
+      // Both scrolling and resizing change viewport ranges: scrolling changes
+      // both start and end points, but resize only changes end values.
+      // Here we only want to fastpaint on a scroll, with resize using a normal
+      // paint, so scroll events are identified as changes to the horizontal or
+      // vertical start value.
+      if (eventName.equals(ViewportRanges.STARTRES))
+      {
+        // scroll - startres and endres both change
+        fastPaint(scrollX, 0);
+      }
+      else if (eventName.equals(ViewportRanges.STARTSEQ))
+      {
+        // scroll
+        fastPaint(0, (int) evt.getNewValue() - (int) evt.getOldValue());
+      }
+      else if (eventName.equals(ViewportRanges.STARTRESANDSEQ))
+      {
+        fastPaint(scrollX, 0);
+      }
+    }
   }
 
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,10 +21,12 @@
 package jalview.gui;
 
 import jalview.api.AlignmentViewPanel;
+import jalview.api.structures.JalviewStructureDisplayI;
 import jalview.bin.Cache;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.ext.jmol.JalviewJmolBinding;
+import jalview.io.DataSourceType;
 import jalview.structure.StructureSelectionManager;
 
 import java.awt.Container;
@@ -38,33 +40,18 @@ public class AppJmolBinding extends JalviewJmolBinding
 {
   private AppJmol appJmolWindow;
 
-  private FeatureRenderer fr = null;
-
   public AppJmolBinding(AppJmol appJmol, StructureSelectionManager sSm,
-          PDBEntry[] pdbentry, SequenceI[][] sequenceIs, String protocol)
+          PDBEntry[] pdbentry, SequenceI[][] sequenceIs,
+          DataSourceType protocol)
   {
     super(sSm, pdbentry, sequenceIs, protocol);
     appJmolWindow = appJmol;
   }
 
   @Override
-  public FeatureRenderer getFeatureRenderer(AlignmentViewPanel alignment)
+  protected IProgressIndicator getIProgressIndicator()
   {
-    AlignmentPanel ap = (alignment == null) ? appJmolWindow
-            .getAlignmentPanel() : (AlignmentPanel) alignment;
-    if (ap.av.isShowSequenceFeatures())
-    {
-      if (fr == null)
-      {
-        fr = (jalview.gui.FeatureRenderer) ap.cloneFeatureRenderer();
-      }
-      else
-      {
-        ap.updateFeatureRenderer(fr);
-      }
-    }
-
-    return fr;
+    return appJmolWindow.progressBar;
   }
 
   @Override
@@ -206,5 +193,21 @@ public class AppJmolBinding extends JalviewJmolBinding
   {
     // TODO Auto-generated method stub
     return null;
+  }
+
+  @Override
+  public JalviewStructureDisplayI getViewer()
+  {
+    return appJmolWindow;
+  }
+
+  @Override
+  public jalview.api.FeatureRenderer getFeatureRenderer(
+          AlignmentViewPanel alignment)
+  {
+    AlignmentPanel ap = (alignment == null)
+            ? appJmolWindow.getAlignmentPanel()
+            : (AlignmentPanel) alignment;
+    return ap.av.getAlignPanel().getFeatureRenderer();
   }
 }

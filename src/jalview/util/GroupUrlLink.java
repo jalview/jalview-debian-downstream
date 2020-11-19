@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -198,9 +198,8 @@ public class GroupUrlLink
     for (int pass = 0; pass < mtch.length; pass++)
     {
       int mlength = 3 + mtch[pass].length();
-      if (link.indexOf("$" + mtch[pass] + "=/") == ptok[pass]
-              && (p = link.indexOf("/=$", ptok[pass] + mlength)) > ptok[pass]
-                      + mlength)
+      if (link.indexOf("$" + mtch[pass] + "=/") == ptok[pass] && (p = link
+              .indexOf("/=$", ptok[pass] + mlength)) > ptok[pass] + mlength)
       {
         // Extract Regex and suffix
         if (ptok[pass + 1] < p + 3)
@@ -215,8 +214,8 @@ public class GroupUrlLink
         regexReplace[pass] = link.substring(ptok[pass] + mlength, p);
         try
         {
-          com.stevesoft.pat.Regex rg = com.stevesoft.pat.Regex.perlCode("/"
-                  + regexReplace[pass] + "/");
+          com.stevesoft.pat.Regex rg = com.stevesoft.pat.Regex
+                  .perlCode("/" + regexReplace[pass] + "/");
           if (rg == null)
           {
             invalidMessage = "Invalid Regular Expression : '"
@@ -384,8 +383,8 @@ public class GroupUrlLink
    * @param dsstring
    * @return
    */
-  private Hashtable replacementArgs(String[] idstrings,
-          String[] seqstrings, String dsstring)
+  private Hashtable replacementArgs(String[] idstrings, String[] seqstrings,
+          String dsstring)
   {
     Hashtable rstrings = new Hashtable();
     rstrings.put(tokens[0], idstrings);
@@ -393,9 +392,8 @@ public class GroupUrlLink
     rstrings.put(tokens[2], new String[] { dsstring });
     if (idstrings.length != seqstrings.length)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.idstring_seqstrings_only_one_per_sequence"));
+      throw new Error(MessageManager.getString(
+              "error.idstring_seqstrings_only_one_per_sequence"));
     }
     return rstrings;
   }
@@ -415,15 +413,16 @@ public class GroupUrlLink
    * @return URL stub objects ready to pass to constructFrom
    * @throws UrlStringTooLongException
    */
-  public Object[] makeUrlStubs(String[] ids, String[] seqstr,
-          String string, boolean b) throws UrlStringTooLongException
+  public Object[] makeUrlStubs(String[] ids, String[] seqstr, String string,
+          boolean b) throws UrlStringTooLongException
   {
     Hashtable rstrings = replacementArgs(ids, seqstr, string);
     Object[] stubs = makeUrlsIf(false, rstrings, b);
     if (stubs != null)
     {
       return new Object[] { stubs[0], stubs[1], rstrings,
-          new boolean[] { b } };
+          new boolean[]
+          { b } };
     }
     // TODO Auto-generated method stub
     return null;
@@ -458,9 +457,8 @@ public class GroupUrlLink
    *         }, String[] { url })}
    * @throws UrlStringTooLongException
    */
-  protected Object[] makeUrlsIf(boolean createFullUrl,
-          Hashtable repstrings, boolean onlyIfMatches)
-          throws UrlStringTooLongException
+  protected Object[] makeUrlsIf(boolean createFullUrl, Hashtable repstrings,
+          boolean onlyIfMatches) throws UrlStringTooLongException
   {
     int pass = 0;
 
@@ -486,7 +484,8 @@ public class GroupUrlLink
           {
             throw new Error(MessageManager.formatMessage(
                     "error.cannot_have_mixed_length_replacement_vectors",
-                    new String[] { (mtch[i]),
+                    new String[]
+                    { (mtch[i]),
                         Integer.valueOf(idseq[i].length).toString(),
                         Integer.valueOf(maxs).toString() }));
           }
@@ -494,9 +493,8 @@ public class GroupUrlLink
       }
       else
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.cannot_have_zero_length_vector_replacement_strings"));
+        throw new Error(MessageManager.getString(
+                "error.cannot_have_zero_length_vector_replacement_strings"));
       }
     }
     // iterate through input, collating segments to be inserted into url
@@ -508,8 +506,8 @@ public class GroupUrlLink
       matched[pass] = new StringBuffer();
       if (regexReplace[pass] != null)
       {
-        rgxs[pass] = com.stevesoft.pat.Regex.perlCode("/"
-                + regexReplace[pass] + "/");
+        rgxs[pass] = com.stevesoft.pat.Regex
+                .perlCode("/" + regexReplace[pass] + "/");
       }
       else
       {
@@ -708,7 +706,8 @@ public class GroupUrlLink
     }
 
     return new Object[] { new int[] { seqsmatched }, thismatched, matched,
-        new String[] { submiturl.toString() } };
+        new String[]
+        { submiturl.toString() } };
   }
 
   /**
@@ -825,16 +824,16 @@ public class GroupUrlLink
         "EnVision2|Seqs|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=$SEQUENCEIDS$&datasetName=$DATASETID$&input=$SEQUENCES$&inputType=1|,",
         "EnVision2 Seqs|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=Default&datasetName=JalviewSeqs$DATASETID$&input=$SEQUENCES=/([a-zA-Z]+)/=$&inputType=1|,",
         "EnVision2 Seqs|http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?workflow=Default&datasetName=JalviewSeqs$DATASETID$&input=$SEQUENCES=/[A-Za-z]+/=$&inputType=1|,"
-    /*
-     * http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?input=P38389,P38398
-     * &inputType=0&workflow=Enfin%20Default%20Workflow&datasetName=
-     * linkInDatasetFromPRIDE
-     */
+        /*
+         * http://www.ebi.ac.uk/enfin-srv/envision2/pages/linkin.jsf?input=P38389,P38398
+         * &inputType=0&workflow=Enfin%20Default%20Workflow&datasetName=
+         * linkInDatasetFromPRIDE
+         */
     };
 
-    SequenceI[] seqs = new SequenceI[] { new Sequence(
-            "StupidLabel:gi|9234|pdb|102L|A",
-            "asdiasdpasdpadpwpadasdpaspdw"), };
+    SequenceI[] seqs = new SequenceI[] {
+        new Sequence("StupidLabel:gi|9234|pdb|102L|A",
+                "asdiasdpasdpadpwpadasdpaspdw"), };
     String[][] seqsandids = formStrings(seqs);
     for (int i = 0; i < links.length; i++)
     {
@@ -842,15 +841,15 @@ public class GroupUrlLink
       if (ul.isValid())
       {
         System.out.println("\n\n\n");
-        System.out.println("Link " + i + " " + links[i] + " : "
-                + ul.toString());
+        System.out.println(
+                "Link " + i + " " + links[i] + " : " + ul.toString());
         System.out.println(" pref : " + ul.getUrl_prefix());
         System.out.println(" IdReplace : " + ul.getIDRegexReplace());
         System.out.println(" SeqReplace : " + ul.getSeqRegexReplace());
         System.out.println(" Suffixes : " + ul.getUrl_suffix());
 
-        System.out
-                .println("<insert input id and sequence strings here> Without onlyIfMatches:");
+        System.out.println(
+                "<insert input id and sequence strings here> Without onlyIfMatches:");
         Object[] urls;
         try
         {
@@ -861,8 +860,8 @@ public class GroupUrlLink
         {
           System.out.println("too long exception " + ex);
         }
-        System.out
-                .println("<insert input id and sequence strings here> With onlyIfMatches set:");
+        System.out.println(
+                "<insert input id and sequence strings here> With onlyIfMatches set:");
         try
         {
           urls = ul.makeUrls(seqsandids[0], seqsandids[1], "mydataset",

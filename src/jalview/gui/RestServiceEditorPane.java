@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -241,8 +241,8 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
   protected void iprmsAdd_actionPerformed(ActionEvent e)
   {
     RestInputParamEditDialog dialog = new RestInputParamEditDialog(this,
-            currentservice, "param"
-                    + (1 + currentservice.getInputParams().size()));
+            currentservice,
+            "param" + (1 + currentservice.getInputParams().size()));
     if (dialog.wasUpdated())
     {
       currentservice.getInputParams().put(dialog.current.token,
@@ -274,8 +274,8 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
               MessageManager.getString("label.select_return_type"));
       for (final JvDataType type : JvDataType.values())
       {
-        popup.add(new JMenuItem(type.name())).addActionListener(
-                new ActionListener()
+        popup.add(new JMenuItem(type.name()))
+                .addActionListener(new ActionListener()
                 {
 
                   @Override
@@ -304,8 +304,9 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
       currentservice.addResultDatatype(JvDataType.ANNOTATION);
     }
     initGuiWith(currentservice);
-    rdata.setSelectedIndex(p == -1 ? currentservice.getResultDataTypes()
-            .size() - 1 : p + 1);
+    rdata.setSelectedIndex(
+            p == -1 ? currentservice.getResultDataTypes().size() - 1
+                    : p + 1);
   }
 
   @Override
@@ -354,26 +355,26 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
     StringBuffer warnings = new StringBuffer();
     for (String its : _iparam)
     {
-      Matcher mtch = Pattern.compile("(\\S+)\\s(\\S+):\\[(.+)]").matcher(
-              its);
+      Matcher mtch = Pattern.compile("(\\S+)\\s(\\S+):\\[(.+)]")
+              .matcher(its);
       if (mtch.find())
       {
-        if (!RestServiceDescription.parseTypeString(mtch.group(2) + ":"
-                + mtch.group(3), mtch.group(1), mtch.group(2),
-                mtch.group(3), inputTypes, warnings))
+        if (!RestServiceDescription.parseTypeString(
+                mtch.group(2) + ":" + mtch.group(3), mtch.group(1),
+                mtch.group(2), mtch.group(3), inputTypes, warnings))
         {
-          System.err
-                  .println("IMPLEMENTATION PROBLEM: Cannot parse RestService input parameter string '"
+          System.err.println(
+                  "IMPLEMENTATION PROBLEM: Cannot parse RestService input parameter string '"
                           + its + "'" + "\n" + warnings);
         }
       }
     }
-    char gc = gapChar.getSelectedItem() == null ? ' ' : ((String) gapChar
-            .getSelectedItem()).charAt(0);
+    char gc = gapChar.getSelectedItem() == null ? ' '
+            : ((String) gapChar.getSelectedItem()).charAt(0);
     RestServiceDescription newService = new RestServiceDescription(
-            (String) action.getSelectedItem(), descr.getText().trim(), name
-                    .getText().trim(), url.getText().trim(), urlsuff
-                    .getText().trim(), inputTypes, hSeparable.isSelected(),
+            (String) action.getSelectedItem(), descr.getText().trim(),
+            name.getText().trim(), url.getText().trim(),
+            urlsuff.getText().trim(), inputTypes, hSeparable.isSelected(),
             vSeparable.isSelected(), gc);
 
     if (newService.isValid())
@@ -388,8 +389,8 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
         } catch (Throwable x)
         {
 
-          System.err
-                  .println("IMPLEMENTATION PROBLEM: Cannot parse RestService output parameter string '"
+          System.err.println(
+                  "IMPLEMENTATION PROBLEM: Cannot parse RestService output parameter string '"
                           + its + "'" + "\n" + warnings);
         }
       }
@@ -398,8 +399,8 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
     }
     else
     {
-      System.err
-              .println("IMPLEMENTATION PROBLEM: Restservice generated from GUI is invalid\n"
+      System.err.println(
+              "IMPLEMENTATION PROBLEM: Restservice generated from GUI is invalid\n"
                       + warnings);
 
     }
@@ -432,19 +433,19 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
             }
             else
             {
-              parseRes.setText(MessageManager
-                      .formatMessage(
-                              "label.parsing_failed_syntax_errors_shown_below_param",
-                              new String[] { rsd.getInvalidMessage() }));
+              parseRes.setText(MessageManager.formatMessage(
+                      "label.parsing_failed_syntax_errors_shown_below_param",
+                      new String[]
+                      { rsd.getInvalidMessage() }));
               parseWarnings.setVisible(true);
             }
           } catch (Throwable e)
           {
             e.printStackTrace();
-            parseRes.setText(MessageManager
-                    .formatMessage(
-                            "label.parsing_failed_unrecoverable_exception_thrown_param",
-                            new String[] { e.toString() }));
+            parseRes.setText(MessageManager.formatMessage(
+                    "label.parsing_failed_unrecoverable_exception_thrown_param",
+                    new String[]
+                    { e.toString() }));
             parseWarnings.setVisible(true);
           }
         }
@@ -470,13 +471,10 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
             final Thread runner = Thread.currentThread();
             JFrame df = new JFrame();
             df.getContentPane().setLayout(new BorderLayout());
-            df.getContentPane().add(
-                    (nulserv = !nulserv) ? new RestServiceEditorPane(
-                            jalview.ws.rest.RestClient
-                                    .makeShmmrRestClient()
-                                    .getRestDescription())
-                            : new RestServiceEditorPane(),
-                    BorderLayout.CENTER);
+            df.getContentPane().add((nulserv = !nulserv)
+                    ? new RestServiceEditorPane(jalview.ws.rest.RestClient
+                            .makeShmmrRestClient().getRestDescription())
+                    : new RestServiceEditorPane(), BorderLayout.CENTER);
             df.setBounds(100, 100, 600, 400);
             df.addComponentListener(new ComponentListener()
             {
@@ -557,8 +555,8 @@ public class RestServiceEditorPane extends GRestServiceEditorPane
 
       }
     };
-    JPanel pane = new JPanel(new BorderLayout()), okcancel = new JPanel(
-            new FlowLayout());
+    JPanel pane = new JPanel(new BorderLayout()),
+            okcancel = new JPanel(new FlowLayout());
     pane.add(this, BorderLayout.CENTER);
     okcancel.add(jvd.ok);
     okcancel.add(jvd.cancel);

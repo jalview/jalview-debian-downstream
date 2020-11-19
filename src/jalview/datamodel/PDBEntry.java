@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -46,7 +46,39 @@ public class PDBEntry
 
   public enum Type
   {
-    PDB, MMCIF, FILE;
+    // TODO is FILE needed; if not is this enum needed, or can we
+    // use FileFormatI for PDB, MMCIF?
+    PDB("pdb", "pdb"), MMCIF("mmcif", "cif"), FILE("?", "?");
+
+    /*
+     * file extension for cached structure file; must be one that
+     * is recognised by Chimera 'open' command
+     * @see https://www.cgl.ucsf.edu/chimera/current/docs/UsersGuide/filetypes.html
+     */
+    String ext;
+
+    /*
+     * format specifier used in dbfetch request
+     * @see http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/dbfetch.databases#pdb
+     */
+    String format;
+
+    private Type(String fmt, String ex)
+    {
+      format = fmt;
+      ext = ex;
+    }
+
+    public String getFormat()
+    {
+      return format;
+    }
+
+    public String getExtension()
+    {
+      return ext;
+    }
+
     /**
      * case insensitive matching for Type enum
      * 
@@ -76,7 +108,6 @@ public class PDBEntry
       return (this.toString().equalsIgnoreCase(t));
     }
   }
-
 
   /**
    * Answers true if obj is a PDBEntry with the same id and chain code (both
@@ -121,7 +152,6 @@ public class PDBEntry
   {
   }
 
-
   public PDBEntry(String pdbId, String chain, PDBEntry.Type type,
           String filePath)
   {
@@ -134,7 +164,8 @@ public class PDBEntry
    * @param entryType
    * @param filePath
    */
-  void init(String pdbId, String chain, PDBEntry.Type entryType, String filePath)
+  void init(String pdbId, String chain, PDBEntry.Type entryType,
+          String filePath)
   {
     this.id = pdbId;
     this.type = entryType == null ? null : entryType.toString();
@@ -169,8 +200,8 @@ public class PDBEntry
   {
     if (!DBRefSource.PDB.equals(dbr.getSource()))
     {
-      throw new IllegalArgumentException("Invalid source: "
-              + dbr.getSource());
+      throw new IllegalArgumentException(
+              "Invalid source: " + dbr.getSource());
     }
 
     String pdbId = dbr.getAccessionId();

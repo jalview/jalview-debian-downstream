@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,6 +19,8 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.api;
+
+import jalview.io.DataSourceType;
 
 import java.util.List;
 
@@ -88,13 +90,13 @@ public interface AlignViewControllerI
    * add a features file of some kind to the current view
    * 
    * @param file
-   * @param protocol
+   * @param sourceType
    * @param relaxedIdMatching
    *          if true, try harder to match up IDs with local sequence data
    * @return true if parsing resulted in something being imported to the view or
    *         dataset
    */
-  public boolean parseFeaturesFile(String file, String protocol,
+  public boolean parseFeaturesFile(String file, DataSourceType sourceType,
           boolean relaxedIdMatching);
 
   /**

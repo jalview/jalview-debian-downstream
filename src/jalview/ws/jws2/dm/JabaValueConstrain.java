@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -46,11 +46,10 @@ public class JabaValueConstrain implements ValueConstrainI
     {
       return ValueType.Integer;
     }
-    throw new Error(
-            MessageManager
-                    .formatMessage(
-                            "error.implementation_error_valuetype_doesnt_support_jabaws_type",
-                            new String[] { vc.toString() }));
+    throw new Error(MessageManager.formatMessage(
+            "error.implementation_error_valuetype_doesnt_support_jabaws_type",
+            new String[]
+            { vc.toString() }));
   }
 
   @Override

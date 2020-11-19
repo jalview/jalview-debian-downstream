@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.ws.jws2;
 
-import jalview.api.AlignCalcWorkerI;
 import jalview.api.FeatureColourI;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentAnnotation;
@@ -29,7 +28,7 @@ import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.schemes.FeatureColour;
-import jalview.schemes.UserColourScheme;
+import jalview.util.ColorUtils;
 import jalview.ws.jws2.jabaws2.Jws2Instance;
 import jalview.ws.params.WsParamSetI;
 
@@ -63,9 +62,9 @@ public class AADisorderClient extends JabawsCalcWorker
   AlignFrame af;
 
   public AADisorderClient(Jws2Instance sh, AlignFrame alignFrame,
-          WsParamSetI preset, List<Argument> paramset)
+          WsParamSetI thePreset, List<Argument> paramset)
   {
-    super(sh, alignFrame, preset, paramset);
+    super(sh, alignFrame, thePreset, paramset);
     af = alignFrame;
     typeName = sh.action;
     methodName = sh.serviceType;
@@ -100,29 +99,32 @@ public class AADisorderClient extends JabawsCalcWorker
   {
     // TODO: turn this into some kind of configuration file that's a bit easier
     // to edit
-    featureMap = new HashMap<String, Map<String, String[]>>();
+    featureMap = new HashMap<>();
     Map<String, String[]> fmap;
     featureMap.put(compbio.ws.client.Services.IUPredWS.toString(),
-            fmap = new HashMap<String, String[]>());
-    fmap.put("Glob", new String[] { "Globular Domain",
-        "Predicted globular domain" });
+            fmap = new HashMap<>());
+    fmap.put("Glob",
+            new String[]
+            { "Globular Domain", "Predicted globular domain" });
     featureMap.put(compbio.ws.client.Services.JronnWS.toString(),
-            fmap = new HashMap<String, String[]>());
+            fmap = new HashMap<>());
     featureMap.put(compbio.ws.client.Services.DisemblWS.toString(),
-            fmap = new HashMap<String, String[]>());
+            fmap = new HashMap<>());
     fmap.put("REM465", new String[] { "REM465", "Missing density" });
     fmap.put("HOTLOOPS", new String[] { "HOTLOOPS", "Flexible loops" });
     fmap.put("COILS", new String[] { "COILS", "Random coil" });
     featureMap.put(compbio.ws.client.Services.GlobPlotWS.toString(),
-            fmap = new HashMap<String, String[]>());
-    fmap.put("GlobDoms", new String[] { "Globular Domain",
-        "Predicted globular domain" });
-    fmap.put("Disorder", new String[] { "Protein Disorder",
-        "Probable unstructured peptide region" });
+            fmap = new HashMap<>());
+    fmap.put("GlobDoms",
+            new String[]
+            { "Globular Domain", "Predicted globular domain" });
+    fmap.put("Disorder",
+            new String[]
+            { "Protein Disorder", "Probable unstructured peptide region" });
     Map<String, Map<String, Object>> amap;
-    annotMap = new HashMap<String, Map<String, Map<String, Object>>>();
+    annotMap = new HashMap<>();
     annotMap.put(compbio.ws.client.Services.GlobPlotWS.toString(),
-            amap = new HashMap<String, Map<String, Object>>());
+            amap = new HashMap<>());
     amap.put("Dydx", new HashMap<String, Object>());
     amap.get("Dydx").put(DONTCOMBINE, DONTCOMBINE);
     amap.get("Dydx").put(THRESHOLD, new double[] { 1, 0 });
@@ -133,7 +135,7 @@ public class AADisorderClient extends JabawsCalcWorker
     amap.put("RawScore", new HashMap<String, Object>());
     amap.get("RawScore").put(INVISIBLE, INVISIBLE);
     annotMap.put(compbio.ws.client.Services.DisemblWS.toString(),
-            amap = new HashMap<String, Map<String, Object>>());
+            amap = new HashMap<>());
     amap.put("COILS", new HashMap<String, Object>());
     amap.put("HOTLOOPS", new HashMap<String, Object>());
     amap.put("REM465", new HashMap<String, Object>());
@@ -146,7 +148,7 @@ public class AADisorderClient extends JabawsCalcWorker
     amap.get("REM465").put(RANGE, new float[] { 0, 1 });
 
     annotMap.put(compbio.ws.client.Services.IUPredWS.toString(),
-            amap = new HashMap<String, Map<String, Object>>());
+            amap = new HashMap<>());
     amap.put("Long", new HashMap<String, Object>());
     amap.put("Short", new HashMap<String, Object>());
     amap.get("Long").put(THRESHOLD, new double[] { 1, 0.5 });
@@ -154,7 +156,7 @@ public class AADisorderClient extends JabawsCalcWorker
     amap.get("Short").put(THRESHOLD, new double[] { 1, 0.5 });
     amap.get("Short").put(RANGE, new float[] { 0, 1 });
     annotMap.put(compbio.ws.client.Services.JronnWS.toString(),
-            amap = new HashMap<String, Map<String, Object>>());
+            amap = new HashMap<>());
     amap.put("JRonn", new HashMap<String, Object>());
     amap.get("JRonn").put(THRESHOLD, new double[] { 1, 0.5 });
     amap.get("JRonn").put(RANGE, new float[] { 0, 1 });
@@ -171,8 +173,8 @@ public class AADisorderClient extends JabawsCalcWorker
       Map<String, Map<String, Object>> annotTypeMap = annotMap
               .get(service.serviceType);
       boolean dispFeatures = false;
-      Map<String, Object> fc = new Hashtable<String, Object>();
-      List<AlignmentAnnotation> ourAnnot = new ArrayList<AlignmentAnnotation>();
+      Map<String, Object> fc = new Hashtable<>();
+      List<AlignmentAnnotation> ourAnnot = new ArrayList<>();
       /**
        * grouping for any annotation rows created
        */
@@ -207,9 +209,7 @@ public class AADisorderClient extends JabawsCalcWorker
         {
           Cache.log
                   .info("Couldn't recover disorder prediction for sequence "
-                          + seq.getName()
-                          + "(Prediction name was "
-                          + seqId
+                          + seq.getName() + "(Prediction name was " + seqId
                           + ")"
                           + "\nSee http://issues.jalview.org/browse/JAL-1319 for one possible reason why disorder predictions might fail.");
         }
@@ -238,14 +238,14 @@ public class AADisorderClient extends JabawsCalcWorker
                 }
                 if (vals.hasNext())
                 {
+                  val = vals.next().floatValue();
                   sf = new SequenceFeature(type[0], type[1],
-                          base + rn.from, base + rn.to, val = vals.next()
-                                  .floatValue(), methodName);
+                          base + rn.from, base + rn.to, val, methodName);
                 }
                 else
                 {
-                  sf = new SequenceFeature(type[0], type[1], null, base
-                          + rn.from, base + rn.to, methodName);
+                  sf = new SequenceFeature(type[0], type[1],
+                          base + rn.from, base + rn.to, methodName);
                 }
                 dseq.addSequenceFeature(sf);
                 if (last != val && !Float.isNaN(last))
@@ -268,13 +268,15 @@ public class AADisorderClient extends JabawsCalcWorker
                       typename = service.serviceType + " ("
                               + scr.getMethod() + ")",
                       calcName = service.getServiceTypeURI() + "/"
-                              + scr.getMethod(), aseq, base + 1, scr);
+                              + scr.getMethod(),
+                      aseq, base + 1, scr);
               annot.graph = AlignmentAnnotation.LINE_GRAPH;
 
               Map<String, Object> styleMap = (annotTypeMap == null) ? null
                       : annotTypeMap.get(scr.getMethod());
 
-              annot.visible = (styleMap == null || styleMap.get(INVISIBLE) == null);
+              annot.visible = (styleMap == null
+                      || styleMap.get(INVISIBLE) == null);
               double[] thrsh = (styleMap == null) ? null
                       : (double[]) styleMap.get(THRESHOLD);
               float[] range = (styleMap == null) ? null
@@ -308,8 +310,8 @@ public class AADisorderClient extends JabawsCalcWorker
                 annot.description += "<br/>" + threshNote;
               }
               annot.description += "</html>";
-              Color col = UserColourScheme.createColourFromName(typeName
-                      + scr.getMethod());
+              Color col = ColorUtils
+                      .createColourFromName(typeName + scr.getMethod());
               for (int p = 0, ps = annot.annotations.length; p < ps; p++)
               {
                 if (annot.annotations[p] != null)
@@ -342,8 +344,9 @@ public class AADisorderClient extends JabawsCalcWorker
             {
               // set graduated color as fading to white for minimum, and
               // autoscaling to values on alignment
-              FeatureColourI ggc = new FeatureColour(Color.white,
-                      gc.getColour(), Float.MIN_VALUE, Float.MAX_VALUE);
+              FeatureColourI ggc = new FeatureColour(gc.getColour(),
+                      Color.white, gc.getColour(), Color.white,
+                      Float.MIN_VALUE, Float.MAX_VALUE);
               ggc.setAutoScaled(true);
               fr.setColour(ft, ggc);
             }
@@ -356,7 +359,6 @@ public class AADisorderClient extends JabawsCalcWorker
             // only do this if the alignFrame is currently showing this view.
             af.setShowSeqFeatures(true);
           }
-          ap.paintAlignment(true);
         }
         if (ourAnnot.size() > 0)
         {
@@ -364,6 +366,7 @@ public class AADisorderClient extends JabawsCalcWorker
           // new alignment annotation rows created.
           updateOurAnnots(ourAnnot);
           ap.adjustAnnotationHeight();
+          ap.paintAlignment(true, true);
         }
       }
     }

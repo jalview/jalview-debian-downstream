@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,7 @@
  */
 package jalview.api;
 
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 
 /**
@@ -50,7 +50,7 @@ public interface ComplexAlignFile
    * 
    * @return
    */
-  public ColumnSelection getColumnSelection();
+  public HiddenColumns getHiddenColumns();
 
   /**
    * Retrieves hidden sequences from a complex file parser

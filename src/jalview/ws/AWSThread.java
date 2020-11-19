@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -134,8 +134,8 @@ public abstract class AWSThread extends Thread
           {
             // Deal with Transaction exceptions
             wsInfo.appendProgressText(jobs[j].jobnum, MessageManager
-                    .formatMessage("info.server_exception", new Object[] {
-                        WebServiceName, ex.getMessage() }));
+                    .formatMessage("info.server_exception", new Object[]
+                    { WebServiceName, ex.getMessage() }));
             // always output the exception's stack trace to the log
             Cache.log.warn(WebServiceName + " job(" + jobs[j].jobnum
                     + ") Server exception.");
@@ -169,8 +169,8 @@ public abstract class AWSThread extends Thread
                     WebserviceInfo.STATE_STOPPED_ERROR);
             Cache.log.error("Out of memory when retrieving Job " + j
                     + " id:" + WsUrl + "/" + jobs[j].jobId, er);
-            new jalview.gui.OOMWarning("retrieving result for "
-                    + WebServiceName, er);
+            new jalview.gui.OOMWarning(
+                    "retrieving result for " + WebServiceName, er);
             System.gc();
           }
         }
@@ -185,8 +185,8 @@ public abstract class AWSThread extends Thread
           Thread.sleep(5000);
         } catch (InterruptedException e)
         {
-          Cache.log
-                  .debug("Interrupted sleep waiting for next job poll.", e);
+          Cache.log.debug("Interrupted sleep waiting for next job poll.",
+                  e);
         }
         // System.out.println("I'm alive "+alTitle);
       }
@@ -197,11 +197,11 @@ public abstract class AWSThread extends Thread
     }
     else
     {
-      Cache.log
-              .debug("WebServiceJob poll loop finished with no jobs created.");
+      Cache.log.debug(
+              "WebServiceJob poll loop finished with no jobs created.");
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
-      wsInfo.appendProgressText(MessageManager
-              .getString("info.no_jobs_ran"));
+      wsInfo.appendProgressText(
+              MessageManager.getString("info.no_jobs_ran"));
       wsInfo.setFinishedNoResults();
     }
   }

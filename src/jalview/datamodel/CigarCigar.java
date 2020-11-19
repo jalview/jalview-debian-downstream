@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -52,8 +52,8 @@ public class CigarCigar extends CigarSimple
     String refString = refCigar.getSequenceString(GapChar);
     if (refString != null)
     {
-      return (length == 0) ? "" : (String) getSequenceAndDeletions(
-              refString, GapChar)[0];
+      return (length == 0) ? ""
+              : (String) getSequenceAndDeletions(refString, GapChar)[0];
     }
     else
     {

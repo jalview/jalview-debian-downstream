@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -97,12 +97,12 @@ public class ParseHtmlBodyAndLinks
   public ParseHtmlBodyAndLinks(String description, boolean removeHTML,
           String newline)
   {
-    StringBuilder sb = new StringBuilder(description.length());
     if (description == null || description.length() == 0)
     {
       htmlContent = false;
       return;
     }
+    StringBuilder sb = new StringBuilder(description.length());
     if (description.toUpperCase().indexOf("<HTML>") == -1)
     {
       htmlContent = false;
@@ -153,8 +153,8 @@ public class ParseHtmlBodyAndLinks
     {
       // instead of parsing the html into plaintext
       // clean the description ready for embedding in html
-      sb = new StringBuilder(LEFT_ANGLE_BRACKET_PATTERN
-              .matcher(description).replaceAll("&lt;"));
+      sb = new StringBuilder(LEFT_ANGLE_BRACKET_PATTERN.matcher(description)
+              .replaceAll("&lt;"));
     }
     content = translateEntities(sb.toString());
   }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,12 +25,14 @@ import jalview.api.ComplexAlignFile;
 import jalview.api.FeaturesSourceI;
 import jalview.bin.JalviewLite;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.AlignmentFileReaderI;
 import jalview.io.AnnotationFile;
 import jalview.io.AppletFormatAdapter;
-import jalview.io.FileParse;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormatI;
 import jalview.io.IdentifyFile;
 import jalview.io.NewickFile;
 import jalview.io.TCoffeeScoreFile;
@@ -51,9 +53,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.IOException;
 
-public class CutAndPasteTransfer extends Panel implements ActionListener,
-        MouseListener
+public class CutAndPasteTransfer extends Panel
+        implements ActionListener, MouseListener
 {
   boolean pdbImport = false;
 
@@ -65,7 +68,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
 
   AlignFrame alignFrame;
 
-  FileParse source = null;
+  AlignmentFileReaderI source = null;
 
   public CutAndPasteTransfer(boolean forImport, AlignFrame alignFrame)
   {
@@ -194,7 +197,8 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   {
     try
     {
-      NewickFile fin = new NewickFile(textarea.getText(), "Paste");
+      NewickFile fin = new NewickFile(textarea.getText(),
+              DataSourceType.PASTE);
 
       fin.parse();
       if (fin.getTree() != null)
@@ -207,8 +211,8 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
       // TODO: JAL-1102 - should have a warning message in dialog, not simply
       // overwrite the broken input data with the exception
       textarea.setText(MessageManager.formatMessage(
-              "label.could_not_parse_newick_file",
-              new Object[] { ex.getMessage() }));
+              "label.could_not_parse_newick_file", new Object[]
+              { ex.getMessage() }));
       return false;
     }
     return false;
@@ -225,76 +229,76 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   {
     AlignmentI al = null;
 
-    String format = new IdentifyFile().identify(text,
-            AppletFormatAdapter.PASTE);
-    AppletFormatAdapter afa = new AppletFormatAdapter(alignFrame.alignPanel);
     try
     {
-      al = afa.readFile(text, AppletFormatAdapter.PASTE, format);
+      FileFormatI format = new IdentifyFile().identify(text,
+              DataSourceType.PASTE);
+      AppletFormatAdapter afa = new AppletFormatAdapter(
+              alignFrame.alignPanel);
+      al = afa.readFile(text, DataSourceType.PASTE, format);
       source = afa.getAlignFile();
-    } catch (java.io.IOException ex)
-    {
-      ex.printStackTrace();
-    }
 
-    if (al != null)
-    {
-      al.setDataset(null); // set dataset on alignment/sequences
-
-      /*
-       * SplitFrame option dependent on applet parameter for now.
-       */
-      boolean allowSplitFrame = alignFrame.viewport.applet
-              .getDefaultParameter("enableSplitFrame", false);
-      if (allowSplitFrame && openSplitFrame(al, format))
+      if (al != null)
       {
-        return;
-      }
-      if (newWindow)
-      {
-        AlignFrame af;
+        al.setDataset(null); // set dataset on alignment/sequences
 
-        if (source instanceof ComplexAlignFile)
+        /*
+         * SplitFrame option dependent on applet parameter for now.
+         */
+        boolean allowSplitFrame = alignFrame.viewport.applet
+                .getDefaultParameter("enableSplitFrame", false);
+        if (allowSplitFrame && openSplitFrame(al, format))
         {
-          ColumnSelection colSel = ((ComplexAlignFile) source)
-                  .getColumnSelection();
-          SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
-                  .getHiddenSequences();
-          boolean showSeqFeatures = ((ComplexAlignFile) source)
-                  .isShowSeqFeatures();
-          String colourSchemeName = ((ComplexAlignFile) source)
-                  .getGlobalColourScheme();
-          af = new AlignFrame(al, hiddenSeqs, colSel,
-                  alignFrame.viewport.applet, "Cut & Paste input - "
-                          + format, false);
-          af.getAlignViewport().setShowSequenceFeatures(showSeqFeatures);
-          ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
-                  colourSchemeName, al);
-          if (cs != null)
+          return;
+        }
+        if (newWindow)
+        {
+          AlignFrame af;
+
+          if (source instanceof ComplexAlignFile)
           {
-            af.changeColour(cs);
+            HiddenColumns colSel = ((ComplexAlignFile) source)
+                    .getHiddenColumns();
+            SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
+                    .getHiddenSequences();
+            boolean showSeqFeatures = ((ComplexAlignFile) source)
+                    .isShowSeqFeatures();
+            String colourSchemeName = ((ComplexAlignFile) source)
+                    .getGlobalColourScheme();
+            af = new AlignFrame(al, hiddenSeqs, colSel,
+                    alignFrame.viewport.applet,
+                    "Cut & Paste input - " + format, false);
+            af.getAlignViewport().setShowSequenceFeatures(showSeqFeatures);
+            ColourSchemeI cs = ColourSchemeMapper
+                    .getJalviewColourScheme(colourSchemeName, al);
+            if (cs != null)
+            {
+              af.changeColour(cs);
+            }
           }
+          else
+          {
+            af = new AlignFrame(al, alignFrame.viewport.applet,
+                    "Cut & Paste input - " + format, false);
+            if (source instanceof FeaturesSourceI)
+            {
+              af.getAlignViewport().setShowSequenceFeatures(true);
+            }
+          }
+
+          af.statusBar.setText(MessageManager.getString(
+                  "label.successfully_pasted_annotation_to_alignment"));
         }
         else
         {
-          af = new AlignFrame(al, alignFrame.viewport.applet,
-                  "Cut & Paste input - " + format, false);
-          if (source instanceof FeaturesSourceI)
-          {
-            af.getAlignViewport().setShowSequenceFeatures(true);
-          }
+          alignFrame.addSequences(al.getSequencesArray());
+          alignFrame.statusBar.setText(MessageManager
+                  .getString("label.successfully_pasted_alignment_file"));
         }
-
-        af.statusBar
-                .setText(MessageManager
-                        .getString("label.successfully_pasted_annotation_to_alignment"));
       }
-      else
-      {
-        alignFrame.addSequences(al.getSequencesArray());
-        alignFrame.statusBar.setText(MessageManager
-                .getString("label.successfully_pasted_alignment_file"));
-      }
+    } catch (IOException ex)
+    {
+      ex.printStackTrace();
     }
   }
 
@@ -306,7 +310,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
    * @param al
    * @return
    */
-  protected boolean openSplitFrame(AlignmentI al, String format)
+  protected boolean openSplitFrame(AlignmentI al, FileFormatI format)
   {
     final AlignmentI thisAlignment = this.alignFrame.getAlignViewport()
             .getAlignment();
@@ -376,7 +380,7 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     try
     {
       tcf = new TCoffeeScoreFile(textarea.getText(),
-              jalview.io.AppletFormatAdapter.PASTE);
+              jalview.io.DataSourceType.PASTE);
       if (tcf.isValid())
       {
         if (tcf.annotateAlignment(alignFrame.viewport.getAlignment(), true))
@@ -385,17 +389,17 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
           alignFrame.alignPanel.fontChanged();
           alignFrame.changeColour(new TCoffeeColourScheme(
                   alignFrame.viewport.getAlignment()));
-          alignFrame.statusBar
-                  .setText(MessageManager
-                          .getString("label.successfully_pasted_tcoffee_scores_to_alignment"));
+          alignFrame.statusBar.setText(MessageManager.getString(
+                  "label.successfully_pasted_tcoffee_scores_to_alignment"));
         }
         else
         {
           // file valid but didn't get added to alignment for some reason
           alignFrame.statusBar.setText(MessageManager.formatMessage(
-                  "label.failed_add_tcoffee_scores",
-                  new Object[] { (tcf.getWarningMessage() != null ? tcf
-                          .getWarningMessage() : "") }));
+                  "label.failed_add_tcoffee_scores", new Object[]
+                  { (tcf.getWarningMessage() != null
+                          ? tcf.getWarningMessage()
+                          : "") }));
         }
       }
       else
@@ -409,23 +413,21 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     if (tcf == null)
     {
       if (new AnnotationFile().annotateAlignmentView(alignFrame.viewport,
-              textarea.getText(), jalview.io.AppletFormatAdapter.PASTE))
+              textarea.getText(), jalview.io.DataSourceType.PASTE))
       {
         alignFrame.alignPanel.fontChanged();
         alignFrame.alignPanel.setScrollValues(0, 0);
-        alignFrame.statusBar
-                .setText(MessageManager
-                        .getString("label.successfully_pasted_annotation_to_alignment"));
+        alignFrame.statusBar.setText(MessageManager.getString(
+                "label.successfully_pasted_annotation_to_alignment"));
 
       }
       else
       {
         if (!alignFrame.parseFeaturesFile(textarea.getText(),
-                jalview.io.AppletFormatAdapter.PASTE))
+                jalview.io.DataSourceType.PASTE))
         {
-          alignFrame.statusBar
-                  .setText(MessageManager
-                          .getString("label.couldnt_parse_pasted_text_as_valid_annotation_feature_GFF_tcoffee_file"));
+          alignFrame.statusBar.setText(MessageManager.getString(
+                  "label.couldnt_parse_pasted_text_as_valid_annotation_feature_GFF_tcoffee_file"));
         }
       }
     }
@@ -445,12 +447,12 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
     if (alignFrame.alignPanel.av.applet.jmolAvailable)
     {
       new jalview.appletgui.AppletJmol(pdb, new SequenceI[] { seq }, null,
-              alignFrame.alignPanel, AppletFormatAdapter.PASTE);
+              alignFrame.alignPanel, DataSourceType.PASTE);
     }
     else
     {
       new MCview.AppletPDBViewer(pdb, new SequenceI[] { seq }, null,
-              alignFrame.alignPanel, AppletFormatAdapter.PASTE);
+              alignFrame.alignPanel, DataSourceType.PASTE);
     }
   }
 
@@ -482,8 +484,8 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   private void jbInit() throws Exception
   {
     textarea.setFont(new java.awt.Font("Monospaced", Font.PLAIN, 10));
-    textarea.setText(MessageManager
-            .getString("label.paste_your_alignment_file"));
+    textarea.setText(
+            MessageManager.getString("label.paste_your_alignment_file"));
     textarea.addMouseListener(this);
     this.setLayout(borderLayout1);
     accept.addActionListener(this);
@@ -499,8 +501,8 @@ public class CutAndPasteTransfer extends Panel implements ActionListener,
   @Override
   public void mousePressed(MouseEvent evt)
   {
-    if (textarea.getText().startsWith(
-            MessageManager.getString("label.paste_your")))
+    if (textarea.getText()
+            .startsWith(MessageManager.getString("label.paste_your")))
     {
       textarea.setText("");
     }

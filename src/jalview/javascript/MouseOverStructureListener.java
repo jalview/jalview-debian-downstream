@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -70,8 +70,8 @@ import java.util.List;
  * @author Jim Procter (jprocter)
  * 
  */
-public class MouseOverStructureListener extends JSFunctionExec implements
-        JsCallBack, StructureListener
+public class MouseOverStructureListener extends JSFunctionExec
+        implements JsCallBack, StructureListener
 {
 
   String _listenerfn;
@@ -126,7 +126,7 @@ public class MouseOverStructureListener extends JSFunctionExec implements
   }
 
   @Override
-  public String[] getPdbFile()
+  public String[] getStructureFiles()
   {
     return modelSet;
   }
@@ -152,9 +152,9 @@ public class MouseOverStructureListener extends JSFunctionExec implements
         // JBPComment: yep - this is right! the Javascript harness uses the
         // absolute pdbFile URI to locate the PDB file in the external viewer
         executeJavascriptFunction(_listenerfn,
-                new String[] { "mouseover", "" + atom.getPdbFile(),
-                    "" + atom.getChain(), "" + (atom.getPdbResNum()),
-                    "" + atom.getAtomIndex() });
+                new String[]
+                { "mouseover", "" + atom.getPdbFile(), "" + atom.getChain(),
+                    "" + (atom.getPdbResNum()), "" + atom.getAtomIndex() });
       } catch (Exception ex)
       {
         System.err.println("Couldn't execute callback with " + _listenerfn
@@ -173,8 +173,8 @@ public class MouseOverStructureListener extends JSFunctionExec implements
 
     if (JalviewLite.debug)
     {
-      System.err.println(this.getClass().getName() + " modelSet[0]: "
-              + modelSet[0]);
+      System.err.println(
+              this.getClass().getName() + " modelSet[0]: " + modelSet[0]);
       ssm.reportMapping();
     }
 
@@ -206,12 +206,14 @@ public class MouseOverStructureListener extends JSFunctionExec implements
       SequenceRenderer sr = ((jalview.appletgui.AlignmentPanel) source)
               .getSequenceRenderer();
       FeatureRenderer fr = ((jalview.appletgui.AlignmentPanel) source).av
-              .isShowSequenceFeatures() ? new jalview.appletgui.FeatureRenderer(
-              ((jalview.appletgui.AlignmentPanel) source).av) : null;
+              .isShowSequenceFeatures()
+                      ? new jalview.appletgui.FeatureRenderer(
+                              ((jalview.appletgui.AlignmentPanel) source).av)
+                      : null;
       if (fr != null)
       {
-        ((jalview.appletgui.FeatureRenderer) fr)
-                .transferSettings(((jalview.appletgui.AlignmentPanel) source)
+        ((jalview.appletgui.FeatureRenderer) fr).transferSettings(
+                ((jalview.appletgui.AlignmentPanel) source)
                         .getFeatureRenderer());
       }
       ;
@@ -221,8 +223,8 @@ public class MouseOverStructureListener extends JSFunctionExec implements
       ArrayList<String[]> ccomands = new ArrayList<String[]>();
       ArrayList<String> pdbfn = new ArrayList<String>();
       StructureMappingcommandSet[] colcommands = JmolCommands
-              .getColourBySequenceCommand(ssm, modelSet, sequence, sr, fr,
-                      ((AlignmentViewPanel) source).getAlignment());
+              .getColourBySequenceCommand(ssm, modelSet, sequence, sr,
+                      (AlignmentViewPanel) source);
       if (colcommands == null)
       {
         return;
@@ -243,27 +245,25 @@ public class MouseOverStructureListener extends JSFunctionExec implements
         System.arraycopy(ccset, 0, ccomandset, sz, ccset.length);
         sz += ccset.length;
       }
-      if (jvlite.isJsMessageSetChanged(
-              mclass = "colourstruct",
+      if (jvlite.isJsMessageSetChanged(mclass = "colourstruct",
               mhandle = ((jalview.appletgui.AlignmentPanel) source).av
-                      .getViewId(), ccomandset))
+                      .getViewId(),
+              ccomandset))
       {
         jvlite.setJsMessageSet(mclass, mhandle, ccomandset);
         // and notify javascript handler
-        String st[] = new String[] {
-            "colourstruct",
+        String st[] = new String[] { "colourstruct",
             "" + ((jalview.appletgui.AlignmentPanel) source).av.getViewId(),
-            "" + ccomandset.length,
-            jvlite.arrayToSeparatorList(pdbfn.toArray(new String[pdbfn
-                    .size()])) };
+            "" + ccomandset.length, jvlite.arrayToSeparatorList(
+                    pdbfn.toArray(new String[pdbfn.size()])) };
         try
         {
           executeJavascriptFunction(true, _listenerfn, st);
         } catch (Exception ex)
         {
-          System.err.println("Couldn't execute callback with "
-                  + _listenerfn + " using args { " + st[0] + ", " + st[1]
-                  + ", " + st[2] + "," + st[3] + "}"); // + ","+st[4]+"\n");
+          System.err.println("Couldn't execute callback with " + _listenerfn
+                  + " using args { " + st[0] + ", " + st[1] + ", " + st[2]
+                  + "," + st[3] + "}"); // + ","+st[4]+"\n");
           ex.printStackTrace();
 
         }
@@ -296,12 +296,6 @@ public class MouseOverStructureListener extends JSFunctionExec implements
   public String getListenerFunction()
   {
     return _listenerfn;
-  }
-
-  public void finalize() throws Throwable
-  {
-    jvlite = null;
-    super.finalize();
   }
 
   @Override

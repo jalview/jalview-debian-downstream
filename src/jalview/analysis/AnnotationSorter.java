@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -50,8 +50,8 @@ public class AnnotationSorter
   public enum SequenceAnnotationOrder
   {
     // Text descriptions surface in the Preferences Sort by... options
-    SEQUENCE_AND_LABEL("Sequence"), LABEL_AND_SEQUENCE("Label"), NONE(
-            "No sort");
+    SEQUENCE_AND_LABEL("Sequence"), LABEL_AND_SEQUENCE("Label"),
+    NONE("No sort");
 
     private String description;
 
@@ -108,7 +108,8 @@ public class AnnotationSorter
    * <ul>
    * <li>annotations with a reference to a sequence in the alignment are sorted
    * on sequence ordering</li>
-   * <li>other annotations go 'at the end', with their mutual order unchanged</li>
+   * <li>other annotations go 'at the end', with their mutual order
+   * unchanged</li>
    * <li>within the same sequence ref, sort by label (non-case-sensitive)</li>
    * </ul>
    */
@@ -169,7 +170,8 @@ public class AnnotationSorter
    * <ul>
    * <li>annotations with a reference to a sequence in the alignment are sorted
    * on label (non-case-sensitive)</li>
-   * <li>other annotations go 'at the end', with their mutual order unchanged</li>
+   * <li>other annotations go 'at the end', with their mutual order
+   * unchanged</li>
    * <li>within the same label, sort by order of the related sequences</li>
    * </ul>
    */
@@ -278,7 +280,8 @@ public class AnnotationSorter
     // cache 'alignment sequence position' for the annotations
     saveSequenceIndices(alignmentAnnotations);
 
-    Comparator<? super AlignmentAnnotation> comparator = getComparator(order);
+    Comparator<? super AlignmentAnnotation> comparator = getComparator(
+            order);
 
     if (alignmentAnnotations != null)
     {

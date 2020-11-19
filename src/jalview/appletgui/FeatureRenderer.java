@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,7 +27,7 @@ import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.io.FeaturesFile;
 import jalview.schemes.FeatureColour;
-import jalview.schemes.UserColourScheme;
+import jalview.util.ColorUtils;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
 
@@ -36,7 +36,9 @@ import java.awt.Button;
 import java.awt.Choice;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.Label;
@@ -48,7 +50,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.TextEvent;
+import java.awt.event.TextListener;
 import java.util.Hashtable;
+import java.util.List;
 
 /**
  * DOCUMENT ME!
@@ -56,9 +61,16 @@ import java.util.Hashtable;
  * @author $author$
  * @version $Revision$
  */
-public class FeatureRenderer extends
-        jalview.renderer.seqfeatures.FeatureRenderer
+public class FeatureRenderer
+        extends jalview.renderer.seqfeatures.FeatureRenderer
 {
+  /*
+   * creating a new feature defaults to the type and group as
+   * the last one created
+   */
+  static String lastFeatureAdded = "feature_1";
+
+  static String lastFeatureGroupAdded = "Jalview";
 
   // Holds web links for feature groups and feature types
   // in the form label|link
@@ -74,12 +86,6 @@ public class FeatureRenderer extends
     super(av);
 
   }
-
-  static String lastFeatureAdded;
-
-  static String lastFeatureGroupAdded;
-
-  static String lastDescriptionAdded;
 
   int featureIndex = 0;
 
@@ -165,13 +171,25 @@ public class FeatureRenderer extends
 
   }
 
-  boolean amendFeatures(final SequenceI[] sequences,
-          final SequenceFeature[] features, boolean newFeatures,
+  /**
+   * Shows a dialog allowing the user to create, or amend or delete, sequence
+   * features. If null in the supplied feature(s), feature type and group
+   * default to those for the last feature created (with initial defaults of
+   * "feature_1" and "Jalview").
+   * 
+   * @param sequences
+   * @param features
+   * @param create
+   * @param ap
+   * @return
+   */
+  boolean amendFeatures(final List<SequenceI> sequences,
+          final List<SequenceFeature> features, boolean create,
           final AlignmentPanel ap)
   {
-    Panel bigPanel = new Panel(new BorderLayout());
+    final Panel bigPanel = new Panel(new BorderLayout());
     final TextField name = new TextField(16);
-    final TextField source = new TextField(16);
+    final TextField group = new TextField(16);
     final TextArea description = new TextArea(3, 35);
     final TextField start = new TextField(8);
     final TextField end = new TextField(8);
@@ -179,6 +197,22 @@ public class FeatureRenderer extends
     Button deleteButton = new Button("Delete");
     deleteFeature = false;
 
+    name.addTextListener(new TextListener()
+    {
+      @Override
+      public void textValueChanged(TextEvent e)
+      {
+        warnIfTypeHidden(ap.alignFrame, name.getText());
+      }
+    });
+    group.addTextListener(new TextListener()
+    {
+      @Override
+      public void textValueChanged(TextEvent e)
+      {
+        warnIfGroupHidden(ap.alignFrame, group.getText());
+      }
+    });
     colourPanel = new FeatureColourPanel();
     colourPanel.setSize(110, 15);
     final FeatureRenderer fr = this;
@@ -190,22 +224,20 @@ public class FeatureRenderer extends
 
     // /////////////////////////////////////
     // /MULTIPLE FEATURES AT SELECTED RESIDUE
-    if (!newFeatures && features.length > 1)
+    if (!create && features.size() > 1)
     {
       panel = new Panel(new GridLayout(4, 1));
       tmp = new Panel();
       tmp.add(new Label("Select Feature: "));
       overlaps = new Choice();
-      for (int i = 0; i < features.length; i++)
+      for (SequenceFeature sf : features)
       {
-        String item = features[i].getType() + "/" + features[i].getBegin()
-                + "-" + features[i].getEnd();
-
-        if (features[i].getFeatureGroup() != null)
+        String item = sf.getType() + "/" + sf.getBegin() + "-"
+                + sf.getEnd();
+        if (sf.getFeatureGroup() != null)
         {
-          item += " (" + features[i].getFeatureGroup() + ")";
+          item += " (" + sf.getFeatureGroup() + ")";
         }
-
         overlaps.addItem(item);
       }
 
@@ -220,15 +252,16 @@ public class FeatureRenderer extends
           if (index != -1)
           {
             featureIndex = index;
-            name.setText(features[index].getType());
-            description.setText(features[index].getDescription());
-            source.setText(features[index].getFeatureGroup());
-            start.setText(features[index].getBegin() + "");
-            end.setText(features[index].getEnd() + "");
+            SequenceFeature sf = features.get(index);
+            name.setText(sf.getType());
+            description.setText(sf.getDescription());
+            group.setText(sf.getFeatureGroup());
+            start.setText(sf.getBegin() + "");
+            end.setText(sf.getEnd() + "");
 
             SearchResultsI highlight = new SearchResults();
-            highlight.addResult(sequences[0], features[index].getBegin(),
-                    features[index].getEnd());
+            highlight.addResult(sequences.get(0), sf.getBegin(),
+                    sf.getEnd());
 
             ap.seqPanel.seqCanvas.highlightSearchResults(highlight);
 
@@ -236,7 +269,7 @@ public class FeatureRenderer extends
           FeatureColourI col = getFeatureStyle(name.getText());
           if (col == null)
           {
-            Color generatedColour = UserColourScheme
+            Color generatedColour = ColorUtils
                     .createColourFromName(name.getText());
             col = new FeatureColour(generatedColour);
           }
@@ -252,17 +285,20 @@ public class FeatureRenderer extends
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label(MessageManager.getString("label.name:"), Label.RIGHT));
+    tmp.add(new Label(MessageManager.getString("label.name:"),
+            Label.RIGHT));
     tmp.add(name);
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label(MessageManager.getString("label.group:"), Label.RIGHT));
-    tmp.add(source);
+    tmp.add(new Label(MessageManager.getString("label.group:"),
+            Label.RIGHT));
+    tmp.add(group);
 
     tmp = new Panel();
     panel.add(tmp);
-    tmp.add(new Label(MessageManager.getString("label.colour"), Label.RIGHT));
+    tmp.add(new Label(MessageManager.getString("label.colour"),
+            Label.RIGHT));
     tmp.add(colourPanel);
 
     bigPanel.add(panel, BorderLayout.NORTH);
@@ -272,7 +308,7 @@ public class FeatureRenderer extends
             Label.RIGHT));
     panel.add(new ScrollPane().add(description));
 
-    if (!newFeatures)
+    if (!create)
     {
       bigPanel.add(panel, BorderLayout.SOUTH);
 
@@ -290,46 +326,33 @@ public class FeatureRenderer extends
       bigPanel.add(panel, BorderLayout.CENTER);
     }
 
-    if (lastFeatureAdded == null)
-    {
-      if (features[0].type != null)
-      {
-        lastFeatureAdded = features[0].type;
-      }
-      else
-      {
-        lastFeatureAdded = "feature_1";
-      }
-    }
+    /*
+     * use defaults for type and group (and update them on Confirm) only
+     * if feature type has not been supplied by the caller
+     * (e.g. for Amend, or create features from Find) 
+     */
+    SequenceFeature firstFeature = features.get(0);
+    boolean useLastDefaults = firstFeature.getType() == null;
+    String featureType = useLastDefaults ? lastFeatureAdded
+            : firstFeature.getType();
+    String featureGroup = useLastDefaults ? lastFeatureGroupAdded
+            : firstFeature.getFeatureGroup();
 
-    if (lastFeatureGroupAdded == null)
-    {
-      if (features[0].featureGroup != null)
-      {
-        lastFeatureGroupAdded = features[0].featureGroup;
-      }
-      else
-      {
-        lastFeatureAdded = "Jalview";
-      }
-    }
-
-    String title = newFeatures ? MessageManager
-            .getString("label.create_new_sequence_features")
+    String title = create
+            ? MessageManager.getString("label.create_new_sequence_features")
             : MessageManager.formatMessage("label.amend_delete_features",
-                    new String[] { sequences[0].getName() });
+                    new String[]
+                    { sequences.get(0).getName() });
 
     final JVDialog dialog = new JVDialog(ap.alignFrame, title, true, 385,
             240);
 
     dialog.setMainPanel(bigPanel);
 
-    if (newFeatures)
-    {
-      name.setText(lastFeatureAdded);
-      source.setText(lastFeatureGroupAdded);
-    }
-    else
+    name.setText(featureType);
+    group.setText(featureGroup);
+
+    if (!create)
     {
       dialog.ok.setLabel(MessageManager.getString("label.amend"));
       dialog.buttonPanel.add(deleteButton, 1);
@@ -342,13 +365,11 @@ public class FeatureRenderer extends
           dialog.setVisible(false);
         }
       });
-      name.setText(features[0].getType());
-      source.setText(features[0].getFeatureGroup());
     }
 
-    start.setText(features[0].getBegin() + "");
-    end.setText(features[0].getEnd() + "");
-    description.setText(features[0].getDescription());
+    start.setText(firstFeature.getBegin() + "");
+    end.setText(firstFeature.getEnd() + "");
+    description.setText(firstFeature.getDescription());
     // lookup (or generate) the feature colour
     FeatureColourI fcol = getFeatureStyle(name.getText());
     // simply display the feature color in a box
@@ -375,77 +396,89 @@ public class FeatureRenderer extends
 
     FeaturesFile ffile = new FeaturesFile();
 
-    if (dialog.accept)
+    /*
+     * only update default type and group if we used defaults
+     */
+    final String enteredType = name.getText().trim();
+    final String enteredGroup = group.getText().trim();
+    final String enteredDesc = description.getText().replace('\n', ' ');
+
+    if (dialog.accept && useLastDefaults)
     {
-      // This ensures that the last sequence
-      // is refreshed and new features are rendered
-      lastSeq = null;
-      lastFeatureAdded = name.getText().trim();
-      lastFeatureGroupAdded = source.getText().trim();
-      lastDescriptionAdded = description.getText().replace('\n', ' ');
+      lastFeatureAdded = enteredType;
+      lastFeatureGroupAdded = enteredGroup;
     }
 
-    if (lastFeatureGroupAdded != null && lastFeatureGroupAdded.length() < 1)
+    if (!create)
     {
-      lastFeatureGroupAdded = null;
-    }
-
-    if (!newFeatures)
-    {
-
-      SequenceFeature sf = features[featureIndex];
+      SequenceFeature sf = features.get(featureIndex);
       if (dialog.accept)
       {
-        sf.type = lastFeatureAdded;
-        sf.featureGroup = lastFeatureGroupAdded;
-        sf.description = lastDescriptionAdded;
         if (!colourPanel.isGcol)
         {
           // update colour - otherwise its already done.
-          setColour(sf.type, new FeatureColour(colourPanel.getBackground()));
+          setColour(enteredType,
+                  new FeatureColour(colourPanel.getBackground()));
         }
+        int newBegin = sf.begin;
+        int newEnd = sf.end;
         try
         {
-          sf.begin = Integer.parseInt(start.getText());
-          sf.end = Integer.parseInt(end.getText());
+          newBegin = Integer.parseInt(start.getText());
+          newEnd = Integer.parseInt(end.getText());
         } catch (NumberFormatException ex)
         {
+          // 
         }
 
+        /*
+         * replace the feature by deleting it and adding a new one
+         * (to ensure integrity of SequenceFeatures data store)
+         */
+        sequences.get(0).deleteFeature(sf);
+        SequenceFeature newSf = new SequenceFeature(sf, enteredType,
+                newBegin, newEnd, enteredGroup, sf.getScore());
+        newSf.setDescription(enteredDesc);
+        ffile.parseDescriptionHTML(newSf, false);
+        // amend features dialog only updates one sequence at a time
+        sequences.get(0).addSequenceFeature(newSf);
+        boolean typeOrGroupChanged = (!featureType.equals(newSf.getType()) || !featureGroup
+                .equals(newSf.getFeatureGroup()));
+
         ffile.parseDescriptionHTML(sf, false);
-        setVisible(lastFeatureAdded); // if user edited name then make sure new
-                                      // type is visible
+        if (typeOrGroupChanged)
+        {
+          featuresAdded();
+        }
       }
       if (deleteFeature)
       {
-        sequences[0].deleteFeature(sf);
+        sequences.get(0).deleteFeature(sf);
+        // ensure Feature Settings reflects removal of feature / group
+        featuresAdded();
       }
-
     }
     else
     {
+      /*
+       * adding feature(s)
+       */
       if (dialog.accept && name.getText().length() > 0)
       {
-        for (int i = 0; i < sequences.length; i++)
+        for (int i = 0; i < sequences.size(); i++)
         {
-          features[i].type = lastFeatureAdded;
-          features[i].featureGroup = lastFeatureGroupAdded;
-          features[i].description = lastDescriptionAdded;
-          sequences[i].addSequenceFeature(features[i]);
-          ffile.parseDescriptionHTML(features[i], false);
+          SequenceFeature sf = features.get(i);
+          SequenceFeature sf2 = new SequenceFeature(enteredType,
+                  enteredDesc, sf.getBegin(), sf.getEnd(), enteredGroup);
+          ffile.parseDescriptionHTML(sf2, false);
+          sequences.get(i).addSequenceFeature(sf2);
         }
 
         Color newColour = colourPanel.getBackground();
         // setColour(lastFeatureAdded, fcol);
 
-        if (lastFeatureGroupAdded != null)
-        {
-          setGroupVisibility(lastFeatureGroupAdded, true);
-        }
-        setColour(lastFeatureAdded, new FeatureColour(newColour)); // was fcol
-        setVisible(lastFeatureAdded);
-        findAllFeatures(false); // different to original applet behaviour ?
-        // findAllFeatures();
+        setColour(enteredType, new FeatureColour(newColour)); // was fcol
+        featuresAdded();
       }
       else
       {
@@ -460,8 +493,47 @@ public class FeatureRenderer extends
     }
     // findAllFeatures();
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
 
     return true;
+  }
+
+  protected void warnIfGroupHidden(Frame frame, String group)
+  {
+    if (featureGroups.containsKey(group) && !featureGroups.get(group))
+    {
+      String msg = MessageManager.formatMessage("label.warning_hidden",
+              MessageManager.getString("label.group"), group);
+      showWarning(frame, msg);
+    }
+  }
+
+  protected void warnIfTypeHidden(Frame frame, String type)
+  {
+    if (getRenderOrder().contains(type))
+    {
+      if (!showFeatureOfType(type))
+      {
+        String msg = MessageManager.formatMessage("label.warning_hidden",
+                MessageManager.getString("label.feature_type"), type);
+        showWarning(frame, msg);
+      }
+    }
+  }
+
+  /**
+   * @param frame
+   * @param msg
+   */
+  protected void showWarning(Frame frame, String msg)
+  {
+    JVDialog d = new JVDialog(frame, "", true, 350, 200);
+    Panel mp = new Panel();
+    d.ok.setLabel(MessageManager.getString("action.ok"));
+    d.cancel.setVisible(false);
+    mp.setLayout(new FlowLayout());
+    mp.add(new Label(msg));
+    d.setMainPanel(mp);
+    d.setVisible(true);
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,6 +27,7 @@ import jalview.datamodel.Sequence;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.CutAndPasteTransfer;
 import jalview.gui.Desktop;
+import jalview.gui.JvOptionPane;
 import jalview.util.MessageManager;
 
 import java.util.ArrayList;
@@ -35,7 +36,6 @@ import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.swing.ImageIcon;
-import javax.swing.JOptionPane;
 
 import uk.ac.ebi.www.Data;
 import uk.ac.ebi.www.InputParams;
@@ -74,12 +74,11 @@ public class WSWUBlastClient
   {
     this.ap = ap;
     this.al = al;
-    output.setText(MessageManager
-            .getString("label.wswublast_client_credits"));
+    output.setText(
+            MessageManager.getString("label.wswublast_client_credits"));
 
-    Desktop.addInternalFrame(output, MessageManager
-            .getString("label.blasting_for_unidentified_sequence"), 800,
-            300);
+    Desktop.addInternalFrame(output, MessageManager.getString(
+            "label.blasting_for_unidentified_sequence"), 800, 300);
 
     for (int i = 0; i < ids.size(); i++)
     {
@@ -129,8 +128,8 @@ public class WSWUBlastClient
           {
             identitiesFound = true;
 
-            int value = Integer.parseInt(data.substring(
-                    data.indexOf("(") + 1, data.indexOf("%")));
+            int value = Integer.parseInt(data
+                    .substring(data.indexOf("(") + 1, data.indexOf("%")));
 
             if (value >= maxFound)
             {
@@ -150,11 +149,11 @@ public class WSWUBlastClient
   {
     // This must be outside the run() body as java 1.5
     // will not return any value from the OptionPane to the expired thread.
-    int reply = JOptionPane.showConfirmDialog(Desktop.desktop,
+    int reply = JvOptionPane.showConfirmDialog(Desktop.desktop,
             "Automatically update suggested ids?",
-            "Auto replace sequence ids", JOptionPane.YES_NO_OPTION);
+            "Auto replace sequence ids", JvOptionPane.YES_NO_OPTION);
 
-    if (reply == JOptionPane.YES_OPTION)
+    if (reply == JvOptionPane.YES_OPTION)
     {
       Enumeration keys = suggestedIds.elements();
       while (keys.hasMoreElements())
@@ -180,12 +179,12 @@ public class WSWUBlastClient
         if (entries != null)
         {
           oldseq.addDBRef(new jalview.datamodel.DBRefEntry(
-                  jalview.datamodel.DBRefSource.UNIPROT, "0", entries[0]
-                          .getAccessionId()));
+                  jalview.datamodel.DBRefSource.UNIPROT, "0",
+                  entries[0].getAccessionId()));
         }
       }
     }
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, false);
 
   }
 
@@ -201,8 +200,8 @@ public class WSWUBlastClient
 
       for (int i = 0; i < 9; i++)
       {
-        java.net.URL url = getClass().getResource(
-                "/images/dna" + (i + 1) + ".gif");
+        java.net.URL url = getClass()
+                .getResource("/images/dna" + (i + 1) + ".gif");
 
         if (url != null)
         {
@@ -211,6 +210,7 @@ public class WSWUBlastClient
       }
     }
 
+    @Override
     public void run()
     {
       while (jobsRunning > 0)
@@ -223,7 +223,8 @@ public class WSWUBlastClient
           output.setFrameIcon(imageIcon[imageIndex]);
           output.setTitle(MessageManager.formatMessage(
                   "label.blasting_for_unidentified_sequence_jobs_running",
-                  new String[] { Integer.valueOf(jobsRunning).toString() }));
+                  new String[]
+                  { Integer.valueOf(jobsRunning).toString() }));
         } catch (Exception ex)
         {
         }
@@ -250,6 +251,7 @@ public class WSWUBlastClient
       this.sequence = sequence;
     }
 
+    @Override
     public void run()
     {
       StartJob();

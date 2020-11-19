@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,6 +33,7 @@ import jalview.util.MessageManager;
 
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Locale;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -70,15 +71,16 @@ public class JPredFile extends AlignFile
    * 
    * @param inFile
    *          DOCUMENT ME!
-   * @param type
+   * @param sourceType
    *          DOCUMENT ME!
    * 
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public JPredFile(String inFile, String type) throws IOException
+  public JPredFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   public JPredFile(FileParse source) throws IOException
@@ -130,6 +132,7 @@ public class JPredFile extends AlignFile
   /**
    * DOCUMENT ME!
    */
+  @Override
   public void initData()
   {
     super.initData();
@@ -141,6 +144,7 @@ public class JPredFile extends AlignFile
   /**
    * parse a JPred concise file into a sequence-alignment like object.
    */
+  @Override
   public void parse() throws IOException
   {
     // JBPNote log.System.out.println("all read in ");
@@ -204,8 +208,8 @@ public class JPredFile extends AlignFile
           {
             ascore = symbols.nextToken();
 
-            Float score = new Float(ascore);
-            scores.addElement((Object) score);
+            Float score = Float.valueOf(ascore);
+            scores.addElement(score);
           }
 
           Scores.put(id, scores);
@@ -216,16 +220,16 @@ public class JPredFile extends AlignFile
 
           for (int j = 0; j < i; j++)
           {
-            scores.setElementAt(
-                    (Object) ((Float) scores.elementAt(j)).toString(), j);
+            scores.setElementAt(((Float) scores.elementAt(j)).toString(),
+                    j);
           }
 
-          scores.addElement((Object) ascore);
+          scores.addElement(ascore);
 
           while (symbols.hasMoreTokens())
           {
             ascore = symbols.nextToken();
-            scores.addElement((Object) ascore);
+            scores.addElement(ascore);
           }
 
           Scores.put(id, scores);
@@ -265,7 +269,9 @@ public class JPredFile extends AlignFile
           }
 
           if (QuerySeqPosition == -1)
+          {
             QuerySeqPosition = ids.size();
+          }
           ids.addElement(name);
           noSeqs++;
         }
@@ -278,7 +284,7 @@ public class JPredFile extends AlignFile
 
           seq_entries.addElement(newseq.toString());
           ids.addElement(id);
-          Symscores.put((Object) id, (Object) new Integer(ids.size() - 1));
+          Symscores.put(id, Integer.valueOf(ids.size() - 1));
         }
       }
     }
@@ -294,20 +300,20 @@ public class JPredFile extends AlignFile
     {
       // Add all sequence like objects
       Sequence newSeq = new Sequence(ids.elementAt(i).toString(),
-              seq_entries.elementAt(i).toString(), 1, seq_entries
-                      .elementAt(i).toString().length());
+              seq_entries.elementAt(i).toString(), 1,
+              seq_entries.elementAt(i).toString().length());
 
       if (maxLength != seq_entries.elementAt(i).toString().length())
       {
-        throw new IOException(
-                MessageManager
-                        .formatMessage(
-                                "exception.jpredconcide_entry_has_unexpected_number_of_columns",
-                                new String[] { ids.elementAt(i).toString() }));
+        throw new IOException(MessageManager.formatMessage(
+                "exception.jpredconcide_entry_has_unexpected_number_of_columns",
+                new String[]
+                { ids.elementAt(i).toString() }));
       }
 
-      if ((newSeq.getName().startsWith("QUERY") || newSeq.getName()
-              .startsWith("align;")) && (QuerySeqPosition == -1))
+      if ((newSeq.getName().startsWith("QUERY")
+              || newSeq.getName().startsWith("align;"))
+              && (QuerySeqPosition == -1))
       {
         QuerySeqPosition = seqs.size();
       }
@@ -327,11 +333,10 @@ public class JPredFile extends AlignFile
       } catch (Exception e)
       {
         tal = null;
-        IOException ex = new IOException(
-                MessageManager
-                        .formatMessage(
-                                "exception.couldnt_parse_concise_annotation_for_prediction",
-                                new String[] { e.getMessage() }));
+        IOException ex = new IOException(MessageManager.formatMessage(
+                "exception.couldnt_parse_concise_annotation_for_prediction",
+                new String[]
+                { e.getMessage() }));
         e.printStackTrace(); // java 1.1 does not have :
                              // ex.setStackTrace(e.getStackTrace());
         throw ex;
@@ -350,7 +355,8 @@ public class JPredFile extends AlignFile
    * 
    * @return String
    */
-  public String print()
+  @Override
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     return "Not Supported";
   }
@@ -365,13 +371,13 @@ public class JPredFile extends AlignFile
   {
     try
     {
-      JPredFile blc = new JPredFile(args[0], "File");
+      JPredFile jpred = new JPredFile(args[0], DataSourceType.FILE);
 
-      for (int i = 0; i < blc.seqs.size(); i++)
+      for (int i = 0; i < jpred.seqs.size(); i++)
       {
-        System.out.println(((Sequence) blc.seqs.elementAt(i)).getName()
+        System.out.println(((Sequence) jpred.seqs.elementAt(i)).getName()
                 + "\n"
-                + ((Sequence) blc.seqs.elementAt(i)).getSequenceAsString()
+                + ((Sequence) jpred.seqs.elementAt(i)).getSequenceAsString()
                 + "\n");
       }
     } catch (java.io.IOException e)
@@ -402,8 +408,8 @@ public class JPredFile extends AlignFile
     }
     // check that no stray annotations have been added at the end.
     {
-      SequenceI sq = (SequenceI) seqs.elementAt(j - 1);
-      if (sq.getName().toUpperCase().startsWith("JPRED"))
+      SequenceI sq = seqs.elementAt(j - 1);
+      if (sq.getName().toUpperCase(Locale.ROOT).startsWith("JPRED"))
       {
         annotSeqs.addElement(sq);
         seqs.removeElementAt(--j);

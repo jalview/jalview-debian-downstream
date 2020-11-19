@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -36,8 +36,8 @@ import ext.vamsas.ServiceHandle;
  * @author JimP
  * 
  */
-public abstract class WS1Client extends WSClient implements
-        WSMenuEntryProviderI
+public abstract class WS1Client extends WSClient
+        implements WSMenuEntryProviderI
 {
 
   /**
@@ -111,9 +111,8 @@ public abstract class WS1Client extends WSClient implements
   {
     if (serviceHandle == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_cannot_attach_ws_menu_entry"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_cannot_attach_ws_menu_entry"));
     }
     attachWSMenuEntry(wsmenu, serviceHandle, alignFrame);
   }

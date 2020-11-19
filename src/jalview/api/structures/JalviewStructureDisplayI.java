@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,9 @@
  */
 package jalview.api.structures;
 
+import jalview.api.AlignmentViewPanel;
+import jalview.datamodel.PDBEntry;
+import jalview.datamodel.SequenceI;
 import jalview.schemes.ColourSchemeI;
 import jalview.structures.models.AAStructureBindingModel;
 
@@ -61,5 +64,65 @@ public interface JalviewStructureDisplayI
    * @param colourScheme
    */
   void setJalviewColourScheme(ColourSchemeI colourScheme);
+
+  /**
+   * 
+   * @return true if all background sequence/structure binding threads have
+   *         completed for this viewer instance
+   */
+  boolean hasMapping();
+
+  /**
+   * Checks if the PDB file is already loaded in this viewer, if so just adds
+   * mappings as necessary and answers true, else answers false. This supports
+   * the use case of adding additional chains of the same structure to a viewer.
+   * 
+   * @param seq
+   * @param chains
+   * @param apanel
+   * @param pdbId
+   * @return
+   */
+  boolean addAlreadyLoadedFile(SequenceI[] seq, String[] chains,
+          AlignmentViewPanel apanel, String pdbId);
+
+  /**
+   * Adds one or more chains (sequences) of a PDB structure to this structure
+   * viewer
+   * 
+   * @param pdbentry
+   * @param seq
+   * @param chains
+   * @param apanel
+   * @param pdbId
+   * @return
+   */
+  void addToExistingViewer(PDBEntry pdbentry, SequenceI[] seq,
+          String[] chains, AlignmentViewPanel apanel, String pdbId);
+
+  /**
+   * refresh GUI after reconfiguring structure(s) and alignment panels
+   */
+  void updateTitleAndMenus();
+
+  /**
+   * Answers true if the viewer should attempt to align any added structures,
+   * else false
+   * 
+   * @return
+   */
+  boolean isAlignAddedStructures();
+
+  /**
+   * Sets the flag for whether added structures should be aligned
+   * 
+   * @param alignAdded
+   */
+  void setAlignAddedStructures(boolean alignAdded);
+
+  /**
+   * Raise the panel to the top of the stack...
+   */
+  void raiseViewer();
 
 }

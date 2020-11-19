@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,41 +20,62 @@
  */
 package jalview.datamodel;
 
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.Vector;
 
+import jalview.datamodel.features.FeatureAttributeType;
+import jalview.datamodel.features.FeatureAttributes;
+import jalview.datamodel.features.FeatureLocationI;
+import jalview.datamodel.features.FeatureSourceI;
+import jalview.datamodel.features.FeatureSources;
+import jalview.util.StringUtils;
+
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * A class that models a single contiguous feature on a sequence. If flag
+ * 'contactFeature' is true, the start and end positions are interpreted instead
+ * as two contact points.
  */
-public class SequenceFeature
+public class SequenceFeature implements FeatureLocationI
 {
+  /*
+   * score value if none is set; preferably Float.Nan, but see
+   * JAL-2060 and JAL-2554 for a couple of blockers to that
+   */
+  private static final float NO_SCORE = 0f;
+
   private static final String STATUS = "status";
 
-  private static final String STRAND = "STRAND";
+  public static final String STRAND = "STRAND";
 
-  // private key for Phase designed not to conflict with real GFF data
-  private static final String PHASE = "!Phase";
+  // key for Phase designed not to conflict with real GFF data
+  public static final String PHASE = "!Phase";
 
   // private key for ENA location designed not to conflict with real GFF data
   private static final String LOCATION = "!Location";
 
+  private static final String ROW_DATA = "<tr><td>%s</td><td>%s</td><td>%s</td></tr>";
+
   /*
-   * ATTRIBUTES is reserved for the GFF 'column 9' data, formatted as
-   * name1=value1;name2=value2,value3;...etc
+   * type, begin, end, featureGroup, score and contactFeature are final 
+   * to ensure that the integrity of SequenceFeatures data store 
+   * can't be broken by direct update of these fields
    */
-  private static final String ATTRIBUTES = "ATTRIBUTES";
+  public final String type;
 
-  public int begin;
+  public final int begin;
 
-  public int end;
+  public final int end;
 
-  public float score;
+  public final String featureGroup;
 
-  public String type;
+  public final float score;
+
+  private final boolean contactFeature;
 
   public String description;
 
@@ -66,13 +87,11 @@ public class SequenceFeature
 
   public Vector<String> links;
 
-  // Feature group can be set from a features file
-  // as a group of features between STARTGROUP and ENDGROUP markers
-  public String featureGroup;
-
-  public SequenceFeature()
-  {
-  }
+  /*
+   * the identifier (if known) for the FeatureSource held in FeatureSources,
+   * as a provider of metadata about feature attributes 
+   */
+  private String source;
 
   /**
    * Constructs a duplicate feature. Note: Uses makes a shallow copy of the
@@ -83,96 +102,95 @@ public class SequenceFeature
    */
   public SequenceFeature(SequenceFeature cpy)
   {
-    if (cpy != null)
-    {
-      begin = cpy.begin;
-      end = cpy.end;
-      score = cpy.score;
-      if (cpy.type != null)
-      {
-        type = new String(cpy.type);
-      }
-      if (cpy.description != null)
-      {
-        description = new String(cpy.description);
-      }
-      if (cpy.featureGroup != null)
-      {
-        featureGroup = new String(cpy.featureGroup);
-      }
-      if (cpy.otherDetails != null)
-      {
-        try
-        {
-          otherDetails = (Map<String, Object>) ((HashMap<String, Object>) cpy.otherDetails)
-                  .clone();
-        } catch (Exception e)
-        {
-          // ignore
-        }
-      }
-      if (cpy.links != null && cpy.links.size() > 0)
-      {
-        links = new Vector<String>();
-        for (int i = 0, iSize = cpy.links.size(); i < iSize; i++)
-        {
-          links.addElement(cpy.links.elementAt(i));
-        }
-      }
-    }
-  }
-
-  /**
-   * Constructor including a Status value
-   * 
-   * @param type
-   * @param desc
-   * @param status
-   * @param begin
-   * @param end
-   * @param featureGroup
-   */
-  public SequenceFeature(String type, String desc, String status,
-          int begin, int end, String featureGroup)
-  {
-    this(type, desc, begin, end, featureGroup);
-    setStatus(status);
+    this(cpy, cpy.getBegin(), cpy.getEnd(), cpy.getFeatureGroup(), cpy
+            .getScore());
   }
 
   /**
    * Constructor
    * 
-   * @param type
-   * @param desc
-   * @param begin
-   * @param end
-   * @param featureGroup
+   * @param theType
+   * @param theDesc
+   * @param theBegin
+   * @param theEnd
+   * @param group
    */
-  SequenceFeature(String type, String desc, int begin, int end,
-          String featureGroup)
+  public SequenceFeature(String theType, String theDesc, int theBegin,
+          int theEnd, String group)
   {
-    this.type = type;
-    this.description = desc;
-    this.begin = begin;
-    this.end = end;
-    this.featureGroup = featureGroup;
+    this(theType, theDesc, theBegin, theEnd, NO_SCORE, group);
   }
 
   /**
    * Constructor including a score value
    * 
-   * @param type
-   * @param desc
-   * @param begin
-   * @param end
-   * @param score
-   * @param featureGroup
+   * @param theType
+   * @param theDesc
+   * @param theBegin
+   * @param theEnd
+   * @param theScore
+   * @param group
    */
-  public SequenceFeature(String type, String desc, int begin, int end,
-          float score, String featureGroup)
+  public SequenceFeature(String theType, String theDesc, int theBegin,
+          int theEnd, float theScore, String group)
   {
-    this(type, desc, begin, end, featureGroup);
-    this.score = score;
+    this.type = theType;
+    this.description = theDesc;
+    this.begin = theBegin;
+    this.end = theEnd;
+    this.featureGroup = group;
+    this.score = theScore;
+
+    /*
+     * for now, only "Disulfide/disulphide bond" is treated as a contact feature
+     */
+    this.contactFeature = "disulfide bond".equalsIgnoreCase(type)
+            || "disulphide bond".equalsIgnoreCase(type);
+  }
+
+  /**
+   * A copy constructor that allows the value of final fields to be 'modified'
+   * 
+   * @param sf
+   * @param newType
+   * @param newBegin
+   * @param newEnd
+   * @param newGroup
+   * @param newScore
+   */
+  public SequenceFeature(SequenceFeature sf, String newType, int newBegin,
+          int newEnd, String newGroup, float newScore)
+  {
+    this(newType, sf.getDescription(), newBegin, newEnd, newScore,
+            newGroup);
+
+    this.source = sf.source;
+
+    if (sf.otherDetails != null)
+    {
+      otherDetails = new LinkedHashMap<>();
+      otherDetails.putAll(sf.otherDetails);
+    }
+    if (sf.links != null && sf.links.size() > 0)
+    {
+      links = new Vector<>();
+      links.addAll(sf.links);
+    }
+  }
+
+  /**
+   * A copy constructor that allows the value of final fields to be 'modified'
+   * 
+   * @param sf
+   * @param newBegin
+   * @param newEnd
+   * @param newGroup
+   * @param newScore
+   */
+  public SequenceFeature(SequenceFeature sf, int newBegin, int newEnd,
+          String newGroup, float newScore)
+  {
+    this(sf, sf.getType(), newBegin, newEnd, newGroup, newScore);
   }
 
   /**
@@ -220,8 +238,8 @@ public class SequenceFeature
       return false;
     }
 
-    if (!(type + description + featureGroup + getPhase()).equals(sf.type
-            + sf.description + sf.featureGroup + sf.getPhase()))
+    if (!(type + description + featureGroup + getPhase()).equals(
+            sf.type + sf.description + sf.featureGroup + sf.getPhase()))
     {
       return false;
     }
@@ -268,14 +286,10 @@ public class SequenceFeature
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public int getBegin()
   {
     return begin;
-  }
-
-  public void setBegin(int start)
-  {
-    this.begin = start;
   }
 
   /**
@@ -283,14 +297,10 @@ public class SequenceFeature
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public int getEnd()
   {
     return end;
-  }
-
-  public void setEnd(int end)
-  {
-    this.end = end;
   }
 
   /**
@@ -301,11 +311,6 @@ public class SequenceFeature
   public String getType()
   {
     return type;
-  }
-
-  public void setType(String type)
-  {
-    this.type = type;
   }
 
   /**
@@ -328,29 +333,27 @@ public class SequenceFeature
     return featureGroup;
   }
 
-  public void setFeatureGroup(String featureGroup)
-  {
-    this.featureGroup = featureGroup;
-  }
-
+  /**
+   * Adds a hyperlink for the feature. This should have the format label|url.
+   * 
+   * @param labelLink
+   */
   public void addLink(String labelLink)
   {
     if (links == null)
     {
-      links = new Vector<String>();
+      links = new Vector<>();
     }
 
-    links.insertElementAt(labelLink, 0);
+    if (!links.contains(labelLink))
+    {
+      links.insertElementAt(labelLink, 0);
+    }
   }
 
   public float getScore()
   {
     return score;
-  }
-
-  public void setScore(float value)
-  {
-    score = value;
   }
 
   /**
@@ -370,6 +373,30 @@ public class SequenceFeature
     {
       return otherDetails.get(key);
     }
+  }
+
+  /**
+   * Answers the value of the specified attribute as string, or null if no such
+   * value. If more than one attribute name is provided, tries to resolve as keys
+   * to nested maps. For example, if attribute "CSQ" holds a map of key-value
+   * pairs, then getValueAsString("CSQ", "Allele") returns the value of "Allele"
+   * in that map.
+   * 
+   * @param key
+   * @return
+   */
+  public String getValueAsString(String... key)
+  {
+    if (otherDetails == null)
+    {
+      return null;
+    }
+    Object value = otherDetails.get(key[0]);
+    if (key.length > 1 && value instanceof Map<?, ?>)
+    {
+      value = ((Map) value).get(key[1]);
+    }
+    return value == null ? null : value.toString();
   }
 
   /**
@@ -401,11 +428,36 @@ public class SequenceFeature
     {
       if (otherDetails == null)
       {
-        otherDetails = new HashMap<String, Object>();
+        /*
+         * LinkedHashMap preserves insertion order of attributes
+         */
+        otherDetails = new LinkedHashMap<>();
       }
 
       otherDetails.put(key, value);
+      recordAttribute(key, value);
     }
+  }
+
+  /**
+   * Notifies the addition of a feature attribute. This lets us keep track of
+   * which attributes are present on each feature type, and also the range of
+   * numerical-valued attributes.
+   * 
+   * @param key
+   * @param value
+   */
+  protected void recordAttribute(String key, Object value)
+  {
+    String attDesc = null;
+    if (source != null)
+    {
+      attDesc = FeatureSources.getInstance().getSource(source)
+              .getAttributeName(key);
+    }
+
+    FeatureAttributes.getInstance().addAttribute(this.type, attDesc, value,
+            key);
   }
 
   /*
@@ -420,27 +472,6 @@ public class SequenceFeature
   public String getStatus()
   {
     return (String) getValue(STATUS);
-  }
-
-  public void setAttributes(String attr)
-  {
-    setValue(ATTRIBUTES, attr);
-  }
-
-  public String getAttributes()
-  {
-    return (String) getValue(ATTRIBUTES);
-  }
-
-  public void setPosition(int pos)
-  {
-    begin = pos;
-    end = pos;
-  }
-
-  public int getPosition()
-  {
-    return begin;
   }
 
   /**
@@ -538,14 +569,200 @@ public class SequenceFeature
    * positions, rather than ends of a range. Such features may be visualised or
    * reported differently to features on a range.
    */
+  @Override
   public boolean isContactFeature()
   {
-    // TODO abstract one day to a FeatureType class
-    if ("disulfide bond".equalsIgnoreCase(type)
-            || "disulphide bond".equalsIgnoreCase(type))
+    return contactFeature;
+  }
+
+  /**
+   * Answers true if the sequence has zero start and end position
+   * 
+   * @return
+   */
+  public boolean isNonPositional()
+  {
+    return begin == 0 && end == 0;
+  }
+
+  /**
+   * Answers an html-formatted report of feature details. If parameter
+   * {@code mf} is not null, the feature is a virtual linked feature, and
+   * details included both the original location and the mapped location
+   * (CDS/peptide).
+   * 
+   * @param seqName
+   * @param mf
+   * 
+   * @return
+   */
+  public String getDetailsReport(String seqName, MappedFeatures mf)
+  {
+    FeatureSourceI metadata = FeatureSources.getInstance()
+            .getSource(source);
+
+    StringBuilder sb = new StringBuilder(128);
+    sb.append("<br>");
+    sb.append("<table>");
+    String name = mf == null ? seqName : mf.getLinkedSequenceName();
+    sb.append(String.format(ROW_DATA, "Location", name,
+            begin == end ? begin
+                    : begin + (isContactFeature() ? ":" : "-") + end));
+
+    String consequence = "";
+    if (mf != null)
+    {
+      int[] localRange = mf.getMappedPositions(begin, end);
+      int from = localRange[0];
+      int to = localRange[localRange.length - 1];
+      String s = mf.isFromCds() ? "Peptide Location" : "Coding location";
+      sb.append(String.format(ROW_DATA, s, seqName, from == to ? from
+              : from + (isContactFeature() ? ":" : "-") + to));
+      if (mf.isFromCds())
+      {
+        consequence = mf.findProteinVariants(this);
+      }
+    }
+    sb.append(String.format(ROW_DATA, "Type", type, ""));
+    String desc = StringUtils.stripHtmlTags(description);
+    sb.append(String.format(ROW_DATA, "Description", desc, ""));
+    if (!Float.isNaN(score) && score != 0f)
+    {
+      sb.append(String.format(ROW_DATA, "Score", score, ""));
+    }
+    if (featureGroup != null)
+    {
+      sb.append(String.format(ROW_DATA, "Group", featureGroup, ""));
+    }
+
+    if (!consequence.isEmpty())
+    {
+      sb.append(String.format(ROW_DATA, "Consequence",
+              "<i>Translated by Jalview</i>", consequence));
+    }
+
+    if (otherDetails != null)
+    {
+      TreeMap<String, Object> ordered = new TreeMap<>(
+              String.CASE_INSENSITIVE_ORDER);
+      ordered.putAll(otherDetails);
+
+      for (Entry<String, Object> entry : ordered.entrySet())
+      {
+        String key = entry.getKey();
+
+        Object value = entry.getValue();
+        if (value instanceof Map<?, ?>)
+        {
+          /*
+           * expand values in a Map attribute across separate lines
+           * copy to a TreeMap for alphabetical ordering
+           */
+          Map<String, Object> values = (Map<String, Object>) value;
+          SortedMap<String, Object> sm = new TreeMap<>(
+                  String.CASE_INSENSITIVE_ORDER);
+          sm.putAll(values);
+          for (Entry<?, ?> e : sm.entrySet())
+          {
+            sb.append(String.format(ROW_DATA, key, e.getKey().toString(), e
+                    .getValue().toString()));
+          }
+        }
+        else
+        {
+          // tried <td title="key"> but it failed to provide a tooltip :-(
+          String attDesc = null;
+          if (metadata != null)
+          {
+            attDesc = metadata.getAttributeName(key);
+          }
+          String s = entry.getValue().toString();
+          if (isValueInteresting(key, s, metadata))
+          {
+            sb.append(String.format(ROW_DATA, key, attDesc == null ? ""
+                    : attDesc, s));
+          }
+        }
+      }
+    }
+    sb.append("</table>");
+
+    String text = sb.toString();
+    return text;
+  }
+
+  /**
+   * Answers true if we judge the value is worth displaying, by some heuristic
+   * rules, else false
+   * 
+   * @param key
+   * @param value
+   * @param metadata
+   * @return
+   */
+  boolean isValueInteresting(String key, String value,
+          FeatureSourceI metadata)
+  {
+    /*
+     * currently suppressing zero values as well as null or empty
+     */
+    if (value == null || "".equals(value) || ".".equals(value)
+            || "0".equals(value))
+    {
+      return false;
+    }
+
+    if (metadata == null)
     {
       return true;
     }
-    return false;
+
+    FeatureAttributeType attType = metadata.getAttributeType(key);
+    if (attType != null
+            && (attType == FeatureAttributeType.Float || attType
+                    .equals(FeatureAttributeType.Integer)))
+    {
+      try
+      {
+        float fval = Float.valueOf(value);
+        if (fval == 0f)
+        {
+          return false;
+        }
+      } catch (NumberFormatException e)
+      {
+        // ignore
+      }
+    }
+
+    return true; // default to interesting
+  }
+
+  /**
+   * Sets the feature source identifier
+   * 
+   * @param theSource
+   */
+  public void setSource(String theSource)
+  {
+    source = theSource;
+  }
+}
+
+class SFSortByEnd implements Comparator<SequenceFeature>
+{
+  @Override
+  public int compare(SequenceFeature a, SequenceFeature b)
+  {
+    return a.getEnd() - b.getEnd();
+  }
+}
+
+class SFSortByBegin implements Comparator<SequenceFeature>
+{
+  @Override
+  public int compare(SequenceFeature a, SequenceFeature b)
+  {
+    return a.getBegin() - b.getBegin();
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -71,9 +71,8 @@ public class AnnotationFile extends InputType
     AlignmentI al = rj.getAlignmentForInput(token, molType.MIX);
     if (format.equals(JVANNOT))
     {
-      return new StringBody(
-              new jalview.io.AnnotationFile()
-                      .printAnnotationsForAlignment(al));
+      return new StringBody(new jalview.io.AnnotationFile()
+              .printAnnotationsForAlignment(al));
     }
     else
     {
@@ -83,9 +82,8 @@ public class AnnotationFile extends InputType
                 "Unrecognised format for exporting Annotation (" + format
                         + ")");
       }
-      return new StringBody(
-              new jalview.io.AnnotationFile().printCSVAnnotations(al
-                      .getAlignmentAnnotation()));
+      return new StringBody(new jalview.io.AnnotationFile()
+              .printCSVAnnotations(al.getAlignmentAnnotation()));
     }
   }
 
@@ -135,9 +133,9 @@ public class AnnotationFile extends InputType
   {
     // TODO - consider disregarding base options here.
     List<OptionI> lst = getBaseOptions();
-    lst.add(new Option("format", "Alignment annotation upload format",
-            true, JVANNOT, format, Arrays.asList(new String[] { JVANNOT,
-                CSVANNOT }), null));
+    lst.add(new Option("format", "Alignment annotation upload format", true,
+            JVANNOT, format, Arrays.asList(new String[]
+            { JVANNOT, CSVANNOT }), null));
     return lst;
   }
 }

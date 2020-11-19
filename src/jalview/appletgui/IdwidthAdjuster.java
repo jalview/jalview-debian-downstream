@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,22 +21,19 @@
 package jalview.appletgui;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Image;
 import java.awt.Panel;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 
-public class IdwidthAdjuster extends Panel implements MouseListener,
-        MouseMotionListener
+public class IdwidthAdjuster extends Panel
+        implements MouseListener, MouseMotionListener
 {
   boolean active = false;
 
   int oldX = 0;
-
-  Image image;
 
   AlignmentPanel ap;
 
@@ -44,21 +41,18 @@ public class IdwidthAdjuster extends Panel implements MouseListener,
   {
     setLayout(null);
     this.ap = ap;
-    java.net.URL url = getClass().getResource("/images/idwidth.gif");
-    if (url != null)
-    {
-      image = java.awt.Toolkit.getDefaultToolkit().getImage(url);
-    }
-
+    setBackground(Color.WHITE);
     addMouseListener(this);
     addMouseMotionListener(this);
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     oldX = evt.getX();
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
     active = false;
@@ -85,18 +79,24 @@ public class IdwidthAdjuster extends Panel implements MouseListener,
     // }
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
     active = true;
+    setCursor(Cursor.getPredefinedCursor(Cursor.W_RESIZE_CURSOR));
+
     repaint();
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
     active = false;
+    setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
     repaint();
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
     active = true;
@@ -112,25 +112,13 @@ public class IdwidthAdjuster extends Panel implements MouseListener,
     }
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
-
-  public void paint(Graphics g)
-  {
-    g.setColor(Color.white);
-    g.fillRect(0, 0, getSize().width, getSize().height);
-    if (active)
-    {
-      if (image != null)
-      {
-        g.drawImage(image, getSize().width - 20, 2, this);
-      }
-    }
-  }
-
 }

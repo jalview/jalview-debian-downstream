@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -19,26 +19,6 @@
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
 package jalview.ws.sifts;
-
-import jalview.analysis.AlignSeq;
-import jalview.api.DBRefEntryI;
-import jalview.api.SiftsClientI;
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.DBRefSource;
-import jalview.datamodel.SequenceI;
-import jalview.io.StructureFile;
-import jalview.schemes.ResidueProperties;
-import jalview.structure.StructureMapping;
-import jalview.util.Comparison;
-import jalview.util.DBRefUtils;
-import jalview.util.Format;
-import jalview.xml.binding.sifts.Entry;
-import jalview.xml.binding.sifts.Entry.Entity;
-import jalview.xml.binding.sifts.Entry.Entity.Segment;
-import jalview.xml.binding.sifts.Entry.Entity.Segment.ListMapRegion.MapRegion;
-import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue;
-import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue.CrossRefDb;
-import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue.ResidueDetail;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -71,9 +51,37 @@ import javax.xml.stream.XMLStreamReader;
 
 import MCview.Atom;
 import MCview.PDBChain;
+import jalview.analysis.AlignSeq;
+import jalview.analysis.scoremodels.ScoreMatrix;
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.api.DBRefEntryI;
+import jalview.api.SiftsClientI;
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
+import jalview.datamodel.SequenceI;
+import jalview.io.BackupFiles;
+import jalview.io.StructureFile;
+import jalview.schemes.ResidueProperties;
+import jalview.structure.StructureMapping;
+import jalview.util.Comparison;
+import jalview.util.DBRefUtils;
+import jalview.util.Format;
+import jalview.xml.binding.sifts.Entry;
+import jalview.xml.binding.sifts.Entry.Entity;
+import jalview.xml.binding.sifts.Entry.Entity.Segment;
+import jalview.xml.binding.sifts.Entry.Entity.Segment.ListMapRegion.MapRegion;
+import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue;
+import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue.CrossRefDb;
+import jalview.xml.binding.sifts.Entry.Entity.Segment.ListResidue.Residue.ResidueDetail;
 
 public class SiftsClient implements SiftsClientI
 {
+  /*
+   * for use in mocking out file fetch for tests only
+   * - reset to null after testing!
+   */
+  private static File mockSiftsFile;
+
   private Entry siftsEntry;
 
   private StructureFile pdb;
@@ -84,13 +92,23 @@ public class SiftsClient implements SiftsClientI
 
   private CoordinateSys seqCoordSys = CoordinateSys.UNIPROT;
 
+  /**
+   * PDB sequence position to sequence coordinate mapping as derived from SIFTS
+   * record for the identified SeqCoordSys Used for lift-over from sequence
+   * derived from PDB (with first extracted PDBRESNUM as 'start' to the sequence
+   * being annotated with PDB data
+   */
+  private jalview.datamodel.Mapping seqFromPdbMapping;
+
   private static final int BUFFER_SIZE = 4096;
 
-  public static final int UNASSIGNED = -1;
+  public static final int UNASSIGNED = Integer.MIN_VALUE;
 
   private static final int PDB_RES_POS = 0;
 
   private static final int PDB_ATOM_POS = 1;
+
+  private static final int PDBE_POS = 2;
 
   private static final String NOT_OBSERVED = "Not_Observed";
 
@@ -105,6 +123,7 @@ public class SiftsClient implements SiftsClientI
   private enum CoordinateSys
   {
     UNIPROT("UniProt"), PDB("PDBresnum"), PDBe("PDBe");
+
     private String name;
 
     private CoordinateSys(String name)
@@ -120,8 +139,9 @@ public class SiftsClient implements SiftsClientI
 
   private enum ResidueDetailType
   {
-    NAME_SEC_STRUCTURE("nameSecondaryStructure"), CODE_SEC_STRUCTURE(
-            "codeSecondaryStructure"), ANNOTATION("Annotation");
+    NAME_SEC_STRUCTURE("nameSecondaryStructure"),
+    CODE_SEC_STRUCTURE("codeSecondaryStructure"), ANNOTATION("Annotation");
+
     private String code;
 
     private ResidueDetailType(String code)
@@ -187,6 +207,14 @@ public class SiftsClient implements SiftsClientI
    */
   public static File getSiftsFile(String pdbId) throws SiftsException
   {
+    /*
+     * return mocked file if it has been set
+     */
+    if (mockSiftsFile != null)
+    {
+      return mockSiftsFile;
+    }
+
     String siftsFileName = SiftsSettings.getSiftDownloadDirectory()
             + pdbId.toLowerCase() + ".xml.gz";
     File siftsFile = new File(siftsFileName);
@@ -199,7 +227,7 @@ public class SiftsClient implements SiftsClientI
               SiftsSettings.getCacheThresholdInDays()))
       {
         File oldSiftsFile = new File(siftsFileName + "_old");
-        siftsFile.renameTo(oldSiftsFile);
+        BackupFiles.moveFileToFile(siftsFile, oldSiftsFile);
         try
         {
           siftsFile = downloadSiftsFile(pdbId.toLowerCase());
@@ -208,9 +236,13 @@ public class SiftsClient implements SiftsClientI
         } catch (IOException e)
         {
           e.printStackTrace();
-          oldSiftsFile.renameTo(siftsFile);
+          BackupFiles.moveFileToFile(oldSiftsFile, siftsFile);
           return new File(siftsFileName);
         }
+      }
+      else
+      {
+        return siftsFile;
       }
     }
     try
@@ -241,8 +273,9 @@ public class SiftsClient implements SiftsClientI
     try
     {
       attr = Files.readAttributes(filePath, BasicFileAttributes.class);
-      diffInDays = (int) ((new Date().getTime() - attr.lastModifiedTime()
-              .toMillis()) / (1000 * 60 * 60 * 24));
+      diffInDays = (int) ((new Date().getTime()
+              - attr.lastModifiedTime().toMillis())
+              / (1000 * 60 * 60 * 24));
       // System.out.println("Diff in days : " + diffInDays);
     } catch (IOException e)
     {
@@ -259,8 +292,8 @@ public class SiftsClient implements SiftsClientI
    * @throws SiftsException
    * @throws IOException
    */
-  public static File downloadSiftsFile(String pdbId) throws SiftsException,
-          IOException
+  public static File downloadSiftsFile(String pdbId)
+          throws SiftsException, IOException
   {
     if (pdbId.contains(".cif"))
     {
@@ -277,6 +310,7 @@ public class SiftsClient implements SiftsClientI
       siftsDownloadDir.mkdirs();
     }
     // System.out.println(">> Download ftp url : " + siftsFileFTPURL);
+    // long now = System.currentTimeMillis();
     URL url = new URL(siftsFileFTPURL);
     URLConnection conn = url.openConnection();
     InputStream inputStream = conn.getInputStream();
@@ -290,7 +324,8 @@ public class SiftsClient implements SiftsClientI
     }
     outputStream.close();
     inputStream.close();
-    // System.out.println(">>> File downloaded : " + downloadedSiftsFile);
+    // System.out.println(">>> File downloaded : " + downloadedSiftsFile
+    // + " took " + (System.currentTimeMillis() - now) + "ms");
     return new File(downloadedSiftsFile);
   }
 
@@ -338,11 +373,11 @@ public class SiftsClient implements SiftsClientI
       {
         continue;
       }
-      String canonicalSource = DBRefUtils.getCanonicalName(dbRef
-              .getSource());
+      String canonicalSource = DBRefUtils
+              .getCanonicalName(dbRef.getSource());
       if (isValidDBRefEntry(dbRef)
-              && (canonicalSource.equalsIgnoreCase(DBRefSource.UNIPROT) || canonicalSource
-                      .equalsIgnoreCase(DBRefSource.PDB)))
+              && (canonicalSource.equalsIgnoreCase(DBRefSource.UNIPROT)
+                      || canonicalSource.equalsIgnoreCase(DBRefSource.PDB)))
       {
         return dbRef;
       }
@@ -390,6 +425,11 @@ public class SiftsClient implements SiftsClientI
   public StructureMapping getSiftsStructureMapping(SequenceI seq,
           String pdbFile, String chain) throws SiftsException
   {
+    SequenceI aseq = seq;
+    while (seq.getDatasetSequence() != null)
+    {
+      seq = seq.getDatasetSequence();
+    }
     structId = (chain == null) ? pdbId : pdbId + "|" + chain;
     System.out.println("Getting SIFTS mapping for " + structId + ": seq "
             + seq.getName());
@@ -412,8 +452,9 @@ public class SiftsClient implements SiftsClientI
     HashMap<Integer, int[]> mapping = getGreedyMapping(chain, seq, ps);
 
     String mappingOutput = mappingDetails.toString();
-    StructureMapping siftsMapping = new StructureMapping(seq, pdbFile,
-            pdbId, chain, mapping, mappingOutput);
+    StructureMapping siftsMapping = new StructureMapping(aseq, pdbFile,
+            pdbId, chain, mapping, mappingOutput, seqFromPdbMapping);
+
     return siftsMapping;
   }
 
@@ -421,8 +462,8 @@ public class SiftsClient implements SiftsClientI
   public HashMap<Integer, int[]> getGreedyMapping(String entityId,
           SequenceI seq, java.io.PrintStream os) throws SiftsException
   {
-    List<Integer> omitNonObserved = new ArrayList<Integer>();
-    int nonObservedShiftIndex = 0;
+    List<Integer> omitNonObserved = new ArrayList<>();
+    int nonObservedShiftIndex = 0, pdbeNonObserved = 0;
     // System.out.println("Generating mappings for : " + entityId);
     Entity entity = null;
     entity = getEntityById(entityId);
@@ -453,7 +494,7 @@ public class SiftsClient implements SiftsClientI
     TreeMap<Integer, String> resNumMap = new TreeMap<Integer, String>();
     List<Segment> segments = entity.getSegment();
     SegmentHelperPojo shp = new SegmentHelperPojo(seq, mapping, resNumMap,
-            omitNonObserved, nonObservedShiftIndex);
+            omitNonObserved, nonObservedShiftIndex, pdbeNonObserved);
     processSegments(segments, shp);
     try
     {
@@ -475,22 +516,74 @@ public class SiftsClient implements SiftsClientI
     {
       throw new SiftsException("SIFTS mapping failed");
     }
+    // also construct a mapping object between the seq-coord sys and the PDB
+    // seq's coord sys
 
     Integer[] keys = mapping.keySet().toArray(new Integer[0]);
     Arrays.sort(keys);
     seqStart = keys[0];
     seqEnd = keys[keys.length - 1];
-
+    List<int[]> from = new ArrayList<>(), to = new ArrayList<>();
+    int[] _cfrom = null, _cto = null;
     String matchedSeq = originalSeq;
-    if (seqStart != UNASSIGNED)
+    if (seqStart != UNASSIGNED) // fixme! seqStart can map to -1 for a pdb
+                                // sequence that starts <-1
     {
+      for (int seqps : keys)
+      {
+        int pdbpos = mapping.get(seqps)[PDBE_POS];
+        if (pdbpos == UNASSIGNED)
+        {
+          // not correct - pdbpos might be -1, but leave it for now
+          continue;
+        }
+        if (_cfrom == null || seqps != _cfrom[1] + 1)
+        {
+          _cfrom = new int[] { seqps, seqps };
+          from.add(_cfrom);
+          _cto = null; // discontinuity
+        }
+        else
+        {
+          _cfrom[1] = seqps;
+        }
+        if (_cto == null || pdbpos != 1 + _cto[1])
+        {
+          _cto = new int[] { pdbpos, pdbpos };
+          to.add(_cto);
+        }
+        else
+        {
+          _cto[1] = pdbpos;
+        }
+      }
+      _cfrom = new int[from.size() * 2];
+      _cto = new int[to.size() * 2];
+      int p = 0;
+      for (int[] range : from)
+      {
+        _cfrom[p++] = range[0];
+        _cfrom[p++] = range[1];
+      }
+      ;
+      p = 0;
+      for (int[] range : to)
+      {
+        _cto[p++] = range[0];
+        _cto[p++] = range[1];
+      }
+      ;
+
+      seqFromPdbMapping = new jalview.datamodel.Mapping(null, _cto, _cfrom,
+              1, 1);
       pdbStart = mapping.get(seqStart)[PDB_RES_POS];
       pdbEnd = mapping.get(seqEnd)[PDB_RES_POS];
       int orignalSeqStart = seq.getStart();
       if (orignalSeqStart >= 1)
       {
-        int subSeqStart = (seqStart >= orignalSeqStart) ? seqStart
-                - orignalSeqStart : 0;
+        int subSeqStart = (seqStart >= orignalSeqStart)
+                ? seqStart - orignalSeqStart
+                : 0;
         int subSeqEnd = seqEnd - (orignalSeqStart - 1);
         subSeqEnd = originalSeq.length() < subSeqEnd ? originalSeq.length()
                 : subSeqEnd;
@@ -535,6 +628,8 @@ public class SiftsClient implements SiftsClientI
     TreeMap<Integer, String> resNumMap = shp.getResNumMap();
     List<Integer> omitNonObserved = shp.getOmitNonObserved();
     int nonObservedShiftIndex = shp.getNonObservedShiftIndex();
+    int pdbeNonObservedCount = shp.getPdbeNonObserved();
+    int firstPDBResNum = UNASSIGNED;
     for (Segment segment : segments)
     {
       // System.out.println("Mapping segments : " + segment.getSegId() + "\\"s
@@ -542,6 +637,9 @@ public class SiftsClient implements SiftsClientI
       List<Residue> residues = segment.getListResidue().getResidue();
       for (Residue residue : residues)
       {
+        boolean isObserved = isResidueObserved(residue);
+        int pdbeIndex = getLeadingIntegerValue(residue.getDbResNum(),
+                UNASSIGNED);
         int currSeqIndex = UNASSIGNED;
         List<CrossRefDb> cRefDbs = residue.getCrossRefDb();
         CrossRefDb pdbRefDb = null;
@@ -550,67 +648,116 @@ public class SiftsClient implements SiftsClientI
           if (cRefDb.getDbSource().equalsIgnoreCase(DBRefSource.PDB))
           {
             pdbRefDb = cRefDb;
+            if (firstPDBResNum == UNASSIGNED)
+            {
+              firstPDBResNum = getLeadingIntegerValue(cRefDb.getDbResNum(),
+                      UNASSIGNED);
+            }
+            else
+            {
+              if (isObserved)
+              {
+                // after we find the first observed residue we just increment
+                firstPDBResNum++;
+              }
+            }
           }
-          if (cRefDb.getDbCoordSys()
-                  .equalsIgnoreCase(seqCoordSys.getName())
+          if (cRefDb.getDbCoordSys().equalsIgnoreCase(seqCoordSys.getName())
                   && isAccessionMatched(cRefDb.getDbAccessionId()))
           {
-            String resNumIndexString = cRefDb.getDbResNum()
-                    .equalsIgnoreCase("None") ? String.valueOf(UNASSIGNED)
-                    : cRefDb.getDbResNum();
-            try
-            {
-              currSeqIndex = Integer.valueOf(resNumIndexString);
-            } catch (NumberFormatException nfe)
-            {
-              currSeqIndex = Integer.valueOf(resNumIndexString
-                      .split("[a-zA-Z]")[0]);
-              continue;
-            }
+            currSeqIndex = getLeadingIntegerValue(cRefDb.getDbResNum(),
+                    UNASSIGNED);
             if (pdbRefDb != null)
             {
               break;// exit loop if pdb and uniprot are already found
             }
           }
         }
+        if (!isObserved)
+        {
+          ++pdbeNonObservedCount;
+        }
+        if (seqCoordSys == seqCoordSys.PDB) // FIXME: is seqCoordSys ever PDBe
+                                            // ???
+        {
+          // if the sequence has a primary reference to the PDB, then we are
+          // dealing with a sequence extracted directly from the PDB. In that
+          // case, numbering is PDBe - non-observed residues
+          currSeqIndex = seq.getStart() - 1 + pdbeIndex;
+        }
+        if (!isObserved)
+        {
+          if (seqCoordSys != CoordinateSys.UNIPROT) // FIXME: PDB or PDBe only
+                                                    // here
+          {
+            // mapping to PDB or PDBe so we need to bookkeep for the
+            // non-observed
+            // SEQRES positions
+            omitNonObserved.add(currSeqIndex);
+            ++nonObservedShiftIndex;
+          }
+        }
         if (currSeqIndex == UNASSIGNED)
         {
+          // change in logic - unobserved residues with no currSeqIndex
+          // corresponding are still counted in both nonObservedShiftIndex and
+          // pdbeIndex...
           continue;
         }
-        if (currSeqIndex >= seq.getStart() && currSeqIndex <= seq.getEnd())
+        // if (currSeqIndex >= seq.getStart() && currSeqIndex <= seqlength) //
+        // true
+        // numbering
+        // is
+        // not
+        // up
+        // to
+        // seq.getEnd()
         {
-          int resNum;
-          try
-          {
-            resNum = (pdbRefDb == null) ? Integer.valueOf(residue
-                    .getDbResNum()) : Integer.valueOf(pdbRefDb
-                    .getDbResNum());
-          } catch (NumberFormatException nfe)
-          {
-            resNum = (pdbRefDb == null) ? Integer.valueOf(residue
-                    .getDbResNum()) : Integer.valueOf(pdbRefDb
-                    .getDbResNum().split("[a-zA-Z]")[0]);
-            continue;
-          }
 
-          if (isResidueObserved(residue)
-                  || seqCoordSys == CoordinateSys.UNIPROT)
+          int resNum = (pdbRefDb == null)
+                  ? getLeadingIntegerValue(residue.getDbResNum(),
+                          UNASSIGNED)
+                  : getLeadingIntegerValue(pdbRefDb.getDbResNum(),
+                          UNASSIGNED);
+
+          if (isObserved)
           {
             char resCharCode = ResidueProperties
                     .getSingleCharacterCode(ResidueProperties
                             .getCanonicalAminoAcid(residue.getDbResName()));
             resNumMap.put(currSeqIndex, String.valueOf(resCharCode));
+
+            int[] mappingcols = new int[] { Integer.valueOf(resNum),
+                UNASSIGNED, isObserved ? firstPDBResNum : UNASSIGNED };
+
+            mapping.put(currSeqIndex - nonObservedShiftIndex, mappingcols);
           }
-          else
-          {
-            omitNonObserved.add(currSeqIndex);
-            ++nonObservedShiftIndex;
-          }
-          mapping.put(currSeqIndex - nonObservedShiftIndex, new int[] {
-              Integer.valueOf(resNum), UNASSIGNED });
         }
       }
     }
+  }
+
+  /**
+   * Get the leading integer part of a string that begins with an integer.
+   * 
+   * @param input
+   *          - the string input to process
+   * @param failValue
+   *          - value returned if unsuccessful
+   * @return
+   */
+  static int getLeadingIntegerValue(String input, int failValue)
+  {
+    if (input == null)
+    {
+      return failValue;
+    }
+    String[] parts = input.split("(?=\\D)(?<=\\d)");
+    if (parts != null && parts.length > 0 && parts[0].matches("[0-9]+"))
+    {
+      return Integer.valueOf(parts[0]);
+    }
+    return failValue;
   }
 
   /**
@@ -787,7 +934,8 @@ public class SiftsClient implements SiftsClientI
    */
   public Entity getEntityByMostOptimalMatchedId(String chainId)
   {
-    // System.out.println("---> advanced greedy entityId matching block entered..");
+    // System.out.println("---> advanced greedy entityId matching block
+    // entered..");
     List<Entity> entities = siftsEntry.getEntity();
     SiftsEntitySortPojo[] sPojo = new SiftsEntitySortPojo[entities.size()];
     int count = 0;
@@ -843,8 +991,8 @@ public class SiftsClient implements SiftsClientI
     return null;
   }
 
-  private class SiftsEntitySortPojo implements
-          Comparable<SiftsEntitySortPojo>
+  private class SiftsEntitySortPojo
+          implements Comparable<SiftsEntitySortPojo>
   {
     public String entityId;
 
@@ -873,16 +1021,35 @@ public class SiftsClient implements SiftsClientI
 
     private int nonObservedShiftIndex;
 
-    public SegmentHelperPojo(SequenceI seq,
-            HashMap<Integer, int[]> mapping,
+    /**
+     * count of number of 'not observed' positions in the PDB record's SEQRES
+     * (total number of residues with coordinates == length(SEQRES) -
+     * pdbeNonObserved
+     */
+    private int pdbeNonObserved;
+
+    public SegmentHelperPojo(SequenceI seq, HashMap<Integer, int[]> mapping,
             TreeMap<Integer, String> resNumMap,
-            List<Integer> omitNonObserved, int nonObservedShiftIndex)
+            List<Integer> omitNonObserved, int nonObservedShiftIndex,
+            int pdbeNonObserved)
     {
       setSeq(seq);
       setMapping(mapping);
       setResNumMap(resNumMap);
       setOmitNonObserved(omitNonObserved);
       setNonObservedShiftIndex(nonObservedShiftIndex);
+      setPdbeNonObserved(pdbeNonObserved);
+
+    }
+
+    public void setPdbeNonObserved(int pdbeNonObserved2)
+    {
+      this.pdbeNonObserved = pdbeNonObserved2;
+    }
+
+    public int getPdbeNonObserved()
+    {
+      return pdbeNonObserved;
     }
 
     public SequenceI getSeq()
@@ -934,10 +1101,11 @@ public class SiftsClient implements SiftsClientI
     {
       this.nonObservedShiftIndex = nonObservedShiftIndex;
     }
+
   }
 
   @Override
-  public StringBuffer getMappingOutput(MappingOutputPojo mp)
+  public StringBuilder getMappingOutput(MappingOutputPojo mp)
           throws SiftsException
   {
     String seqRes = mp.getSeqResidue();
@@ -959,10 +1127,10 @@ public class SiftsClient implements SiftsClientI
     int nochunks = ((seqRes.length()) / len)
             + ((seqRes.length()) % len > 0 ? 1 : 0);
     // output mappings
-    StringBuffer output = new StringBuffer();
+    StringBuilder output = new StringBuilder(512);
     output.append(NEWLINE);
-    output.append("Sequence \u27f7 Structure mapping details").append(
-            NEWLINE);
+    output.append("Sequence \u27f7 Structure mapping details")
+            .append(NEWLINE);
     output.append("Method: SIFTS");
     output.append(NEWLINE).append(NEWLINE);
 
@@ -980,12 +1148,13 @@ public class SiftsClient implements SiftsClientI
     output.append(String.valueOf(pdbEnd));
     output.append(NEWLINE).append(NEWLINE);
 
+    ScoreMatrix pam250 = ScoreModels.getInstance().getPam250();
     int matchedSeqCount = 0;
     for (int j = 0; j < nochunks; j++)
     {
       // Print the first aligned sequence
-      output.append(new Format("%" + (maxid) + "s").form(seqName)).append(
-              " ");
+      output.append(new Format("%" + (maxid) + "s").form(seqName))
+              .append(" ");
 
       for (int i = 0; i < len; i++)
       {
@@ -998,27 +1167,29 @@ public class SiftsClient implements SiftsClientI
       output.append(NEWLINE);
       output.append(new Format("%" + (maxid) + "s").form(" ")).append(" ");
 
-      // Print out the matching chars
+      /*
+       * Print out the match symbols:
+       * | for exact match (ignoring case)
+       * . if PAM250 score is positive
+       * else a space
+       */
       for (int i = 0; i < len; i++)
       {
         try
         {
           if ((i + (j * len)) < seqRes.length())
           {
-            boolean sameChar = Comparison.isSameResidue(
-                    seqRes.charAt(i + (j * len)),
-                    strRes.charAt(i + (j * len)), false);
-            if (sameChar
-                    && !jalview.util.Comparison.isGap(seqRes.charAt(i
-                            + (j * len))))
+            char c1 = seqRes.charAt(i + (j * len));
+            char c2 = strRes.charAt(i + (j * len));
+            boolean sameChar = Comparison.isSameResidue(c1, c2, false);
+            if (sameChar && !Comparison.isGap(c1))
             {
               matchedSeqCount++;
               output.append("|");
             }
             else if (type.equals("pep"))
             {
-              if (ResidueProperties.getPAM250(seqRes.charAt(i + (j * len)),
-                      strRes.charAt(i + (j * len))) > 0)
+              if (pam250.getPairwiseScore(c1, c2) > 0)
               {
                 output.append(".");
               }
@@ -1055,8 +1226,8 @@ public class SiftsClient implements SiftsClientI
     {
       throw new SiftsException(">>> Low PID detected for SIFTs mapping...");
     }
-    output.append("Length of alignment = " + seqRes.length()).append(
-            NEWLINE);
+    output.append("Length of alignment = " + seqRes.length())
+            .append(NEWLINE);
     output.append(new Format("Percentage ID = %2.2f").form(pid));
     return output;
   }
@@ -1089,6 +1260,11 @@ public class SiftsClient implements SiftsClientI
   public String getDbVersion()
   {
     return siftsEntry.getDbVersion();
+  }
+
+  public static void setMockSiftsFile(File file)
+  {
+    mockSiftsFile = file;
   }
 
 }

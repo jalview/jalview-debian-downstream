@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.ws.dbsources;
 
+import jalview.bin.Cache;
 import jalview.datamodel.DBRefSource;
 
 import com.stevesoft.pat.Regex;
@@ -31,6 +32,20 @@ import com.stevesoft.pat.Regex;
  */
 abstract public class Rfam extends Xfam
 {
+  static final String RFAM_BASEURL_KEY = "RFAM_BASEURL";
+
+  private static final String DEFAULT_RFAM_BASEURL = "https://rfam.xfam.org";
+
+  /*
+   * append to URLs to retrieve as a gzipped file
+   */
+  protected static final String GZIPPED = "?gzip=1&download=1";
+
+  @Override
+  protected String getURLPrefix()
+  {
+    return Cache.getDefault(RFAM_BASEURL_KEY, DEFAULT_RFAM_BASEURL);
+  }
 
   public Rfam()
   {
@@ -46,7 +61,6 @@ abstract public class Rfam extends Xfam
   @Override
   public String getAccessionSeparator()
   {
-    // TODO Auto-generated method stub
     return null;
   }
 
@@ -58,7 +72,6 @@ abstract public class Rfam extends Xfam
   @Override
   public Regex getAccessionValidator()
   {
-    // TODO Auto-generated method stub
     return null;
   }
 
@@ -82,17 +95,8 @@ abstract public class Rfam extends Xfam
   @Override
   public String getDbVersion()
   {
-    // TODO Auto-generated method stub
     return null;
   }
-
-  /**
-   * Returns base URL for selected Rfam alignment type
-   * 
-   * @return RFAM URL stub for this DbSource
-   */
-  @Override
-  protected abstract String getXFAMURL();
 
   /*
    * (non-Javadoc)

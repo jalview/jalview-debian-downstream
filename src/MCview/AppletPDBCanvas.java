@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,9 @@ import jalview.appletgui.FeatureRenderer;
 import jalview.appletgui.SequenceRenderer;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.io.StructureFile;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 import jalview.structure.AtomSpec;
 import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
@@ -35,8 +37,7 @@ import jalview.util.MessageManager;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Event;
-import java.awt.Font;
+import java.awt.event.InputEvent;import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Image;
 // JBPNote TODO: This class is quite noisy - needs proper log.info/log.debug
@@ -50,8 +51,8 @@ import java.io.PrintStream;
 import java.util.List;
 import java.util.Vector;
 
-public class AppletPDBCanvas extends Panel implements MouseListener,
-        MouseMotionListener, StructureListener
+public class AppletPDBCanvas extends Panel
+        implements MouseListener, MouseMotionListener, StructureListener
 {
 
   MCMatrix idmat = new MCMatrix(3, 3);
@@ -145,7 +146,7 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
   StructureSelectionManager ssm;
 
   public AppletPDBCanvas(PDBEntry pdbentry, SequenceI[] seq,
-          String[] chains, AlignmentPanel ap, String protocol)
+          String[] chains, AlignmentPanel ap, DataSourceType protocol)
 
   {
     this.ap = ap;
@@ -157,9 +158,9 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
 
     try
     {
-      pdb = ssm.setMapping(seq, chains, pdbentry.getFile(), protocol);
+      pdb = ssm.setMapping(seq, chains, pdbentry.getFile(), protocol, null);
 
-      if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
+      if (protocol == DataSourceType.PASTE)
       {
         pdbentry.setFile("INLINE" + pdb.getId());
       }
@@ -176,7 +177,7 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
 
     colourBySequence();
 
-    int max = -10;
+    float max = -10;
     int maxchain = -1;
     int pdbstart = 0;
     int pdbend = 0;
@@ -189,10 +190,9 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
     for (int i = 0; i < pdb.getChains().size(); i++)
     {
 
-      mappingDetails
-              .append("\n\nPDB Sequence is :\nSequence = "
-                      + pdb.getChains().elementAt(i).sequence
-                              .getSequenceAsString());
+      mappingDetails.append("\n\nPDB Sequence is :\nSequence = "
+              + pdb.getChains().elementAt(i).sequence
+                      .getSequenceAsString());
       mappingDetails.append("\nNo of residues = "
               + pdb.getChains().elementAt(i).residues.size() + "\n\n");
 
@@ -201,8 +201,9 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
       // Align the sequence to the pdb
       // TODO: DNa/Pep switch
       AlignSeq as = new AlignSeq(sequence,
-              pdb.getChains().elementAt(i).sequence, pdb.getChains()
-                      .elementAt(i).isNa ? AlignSeq.DNA : AlignSeq.PEP);
+              pdb.getChains().elementAt(i).sequence,
+              pdb.getChains().elementAt(i).isNa ? AlignSeq.DNA
+                      : AlignSeq.PEP);
       as.calcScoreMatrix();
       as.traceAlignment();
       PrintStream ps = new PrintStream(System.out)
@@ -486,9 +487,8 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
       g.fillRect(0, 0, getSize().width, getSize().height);
       g.setColor(Color.black);
       g.setFont(new Font("Verdana", Font.BOLD, 14));
-      g.drawString(
-              MessageManager.getString("label.error_loading_pdb_data"), 50,
-              getSize().height / 2);
+      g.drawString(MessageManager.getString("label.error_loading_pdb_data"),
+              50, getSize().height / 2);
       return;
     }
 
@@ -576,6 +576,8 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
       showFeatures = true;
     }
 
+    FeatureColourFinder finder = new FeatureColourFinder(fr);
+
     PDBChain chain;
     if (bysequence && pdb != null)
     {
@@ -603,25 +605,16 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
                 if (pos > 0)
                 {
                   pos = sequence[s].findIndex(pos);
-                  tmp.startCol = sr.getResidueBoxColour(sequence[s], pos);
-                  if (showFeatures)
-                  {
-                    tmp.startCol = fr.findFeatureColour(tmp.startCol,
-                            sequence[s], pos);
-                  }
+                  tmp.startCol = sr.getResidueColour(sequence[s], pos,
+                          finder);
                 }
                 pos = mapping[m].getSeqPos(tmp.at2.resNumber) - 1;
                 if (pos > 0)
                 {
                   pos = sequence[s].findIndex(pos);
-                  tmp.endCol = sr.getResidueBoxColour(sequence[s], pos);
-                  if (showFeatures)
-                  {
-                    tmp.endCol = fr.findFeatureColour(tmp.endCol,
-                            sequence[s], pos);
-                  }
+                  tmp.endCol = sr.getResidueColour(sequence[s], pos,
+                          finder);
                 }
-
               }
             }
           }
@@ -649,11 +642,15 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
     {
       tmpBond = visiblebonds.elementAt(i);
 
-      xstart = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getSize().width / 2));
-      ystart = (int) (((centre[1] - tmpBond.start[1]) * scale) + (getSize().height / 2));
+      xstart = (int) (((tmpBond.start[0] - centre[0]) * scale)
+              + (getSize().width / 2));
+      ystart = (int) (((centre[1] - tmpBond.start[1]) * scale)
+              + (getSize().height / 2));
 
-      xend = (int) (((tmpBond.end[0] - centre[0]) * scale) + (getSize().width / 2));
-      yend = (int) (((centre[1] - tmpBond.end[1]) * scale) + (getSize().height / 2));
+      xend = (int) (((tmpBond.end[0] - centre[0]) * scale)
+              + (getSize().width / 2));
+      yend = (int) (((centre[1] - tmpBond.end[1]) * scale)
+              + (getSize().height / 2));
 
       xmid = (xend + xstart) / 2;
       ymid = (yend + ystart) / 2;
@@ -895,7 +892,7 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
     MCMatrix objmat = new MCMatrix(3, 3);
     objmat.setIdentity();
 
-    if ((evt.getModifiers() & Event.META_MASK) != 0)
+    if ((evt.getModifiersEx() & InputEvent.META_DOWN_MASK) != 0)
     {
       objmat.rotatez(((mx - omx)));
     }
@@ -970,8 +967,10 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
 
     if (n == 1)
     {
-      int xstart = (int) (((b.start[0] - centre[0]) * scale) + (getSize().width / 2));
-      int ystart = (int) (((centre[1] - b.start[1]) * scale) + (getSize().height / 2));
+      int xstart = (int) (((b.start[0] - centre[0]) * scale)
+              + (getSize().width / 2));
+      int ystart = (int) (((centre[1] - b.start[1]) * scale)
+              + (getSize().height / 2));
 
       g.setColor(Color.red);
       g.drawString(b.at1.resName + "-" + b.at1.resNumber, xstart, ystart);
@@ -979,8 +978,10 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
 
     if (n == 2)
     {
-      int xstart = (int) (((b.end[0] - centre[0]) * scale) + (getSize().width / 2));
-      int ystart = (int) (((centre[1] - b.end[1]) * scale) + (getSize().height / 2));
+      int xstart = (int) (((b.end[0] - centre[0]) * scale)
+              + (getSize().width / 2));
+      int ystart = (int) (((centre[1] - b.end[1]) * scale)
+              + (getSize().height / 2));
 
       g.setColor(Color.red);
       g.drawString(b.at2.resName + "-" + b.at2.resNumber, xstart, ystart);
@@ -1009,11 +1010,13 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
         {
           tmpBond = bonds.elementAt(i);
 
-          truex = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getSize().width / 2));
+          truex = (int) (((tmpBond.start[0] - centre[0]) * scale)
+                  + (getSize().width / 2));
 
           if (Math.abs(truex - x) <= 2)
           {
-            int truey = (int) (((centre[1] - tmpBond.start[1]) * scale) + (getSize().height / 2));
+            int truey = (int) (((centre[1] - tmpBond.start[1]) * scale)
+                    + (getSize().height / 2));
 
             if (Math.abs(truey - y) <= 2)
             {
@@ -1026,11 +1029,13 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
 
         // Still here? Maybe its the last bond
 
-        truex = (int) (((tmpBond.end[0] - centre[0]) * scale) + (getSize().width / 2));
+        truex = (int) (((tmpBond.end[0] - centre[0]) * scale)
+                + (getSize().width / 2));
 
         if (Math.abs(truex - x) <= 2)
         {
-          int truey = (int) (((tmpBond.end[1] - centre[1]) * scale) + (getSize().height / 2));
+          int truey = (int) (((tmpBond.end[1] - centre[1]) * scale)
+                  + (getSize().height / 2));
 
           if (Math.abs(truey - y) <= 2)
           {
@@ -1124,7 +1129,7 @@ public class AppletPDBCanvas extends Panel implements MouseListener,
   // ////////////////////////////////
   // /StructureListener
   @Override
-  public String[] getPdbFile()
+  public String[] getStructureFiles()
   {
     return new String[] { pdbentry.getFile() };
   }

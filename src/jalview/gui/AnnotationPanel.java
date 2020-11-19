@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,14 +21,19 @@
 package jalview.gui;
 
 import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 import jalview.renderer.AnnotationRenderer;
 import jalview.renderer.AwtRenderPanelI;
 import jalview.schemes.ResidueProperties;
 import jalview.util.Comparison;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
+import jalview.viewmodel.ViewportListenerI;
+import jalview.viewmodel.ViewportRanges;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -49,13 +54,13 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import javax.swing.JColorChooser;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.Scrollable;
@@ -70,8 +75,13 @@ import javax.swing.ToolTipManager;
  */
 public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         MouseListener, MouseWheelListener, MouseMotionListener,
-        ActionListener, AdjustmentListener, Scrollable
+        ActionListener, AdjustmentListener, Scrollable, ViewportListenerI
 {
+  enum DragMode
+  {
+    Select, Resize, Undefined
+  };
+
   String HELIX = MessageManager.getString("label.helix");
 
   String SHEET = MessageManager.getString("label.sheet");
@@ -115,11 +125,11 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   // Used For mouse Dragging and resizing graphs
   int graphStretch = -1;
 
-  int graphStretchY = -1;
+  int mouseDragLastX = -1;
 
-  int min; // used by mouseDragged to see if user
+  int mouseDragLastY = -1;
 
-  int max; // used by mouseDragged to see if user
+  DragMode dragMode = DragMode.Undefined;
 
   boolean mouseDragging = false;
 
@@ -156,6 +166,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     // and then set our own listener to consume all mousewheel events
     ap.annotationScroller.addMouseWheelListener(this);
     renderer = new AnnotationRenderer();
+
+    av.getRanges().addPropertyChangeListener(this);
   }
 
   public AnnotationPanel(AlignViewport av)
@@ -170,13 +182,14 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     if (e.isShiftDown())
     {
       e.consume();
-      if (e.getWheelRotation() > 0)
+      double wheelRotation = e.getPreciseWheelRotation();
+      if (wheelRotation > 0)
       {
-        ap.scrollRight(true);
+        av.getRanges().scrollRight(true);
       }
-      else
+      else if (wheelRotation < 0)
       {
-        ap.scrollRight(false);
+        av.getRanges().scrollRight(false);
       }
     }
     else
@@ -200,7 +213,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   @Override
   public Dimension getPreferredScrollableViewportSize()
   {
-    return getPreferredSize();
+    Dimension ps = getPreferredSize();
+    return new Dimension(ps.width, adjustForAlignFrame(false, ps.height));
   }
 
   @Override
@@ -280,7 +294,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
 
     if (anot.length < av.getColumnSelection().getMax())
     {
-      Annotation[] temp = new Annotation[av.getColumnSelection().getMax() + 2];
+      Annotation[] temp = new Annotation[av.getColumnSelection().getMax()
+              + 2];
       System.arraycopy(anot, 0, temp, 0, anot.length);
       anot = temp;
       aa[activeRow].annotations = anot;
@@ -291,7 +306,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     {
       for (int index : av.getColumnSelection().getSelected())
       {
-        if (av.getColumnSelection().isVisible(index))
+        if (av.getAlignment().getHiddenColumns().isVisible(index))
         {
           anot[index] = null;
         }
@@ -300,7 +315,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     else if (action.equals(LABEL))
     {
       String exMesg = collectAnnotVals(anot, LABEL);
-      String label = JOptionPane.showInputDialog(this,
+      String label = JvOptionPane.showInputDialog(this,
               MessageManager.getString("label.enter_label"), exMesg);
 
       if (label == null)
@@ -315,7 +330,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
 
       for (int index : av.getColumnSelection().getSelected())
       {
-        if (!av.getColumnSelection().isVisible(index))
+        if (!av.getAlignment().getHiddenColumns().isVisible(index))
         {
           continue;
         }
@@ -338,7 +353,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
 
       for (int index : av.getColumnSelection().getSelected())
       {
-        if (!av.getColumnSelection().isVisible(index))
+        if (!av.getAlignment().getHiddenColumns().isVisible(index))
         {
           continue;
         }
@@ -380,7 +395,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         aa[activeRow].hasIcons = true;
       }
 
-      String label = JOptionPane.showInputDialog(MessageManager
+      String label = JvOptionPane.showInputDialog(MessageManager
               .getString("label.enter_label_for_the_structure"), symbol);
 
       if (label == null)
@@ -398,7 +413,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       }
       for (int index : av.getColumnSelection().getSelected())
       {
-        if (!av.getColumnSelection().isVisible(index))
+        if (!av.getAlignment().getHiddenColumns().isVisible(index))
         {
           continue;
         }
@@ -408,8 +423,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
           anot[index] = new Annotation(label, "", type, 0);
         }
 
-        anot[index].secondaryStructure = type != 'S' ? type : label
-                .length() == 0 ? ' ' : label.charAt(0);
+        anot[index].secondaryStructure = type != 'S' ? type
+                : label.length() == 0 ? ' ' : label.charAt(0);
         anot[index].displayCharacter = label;
 
       }
@@ -441,17 +456,18 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     StringBuilder collatedInput = new StringBuilder(64);
     String last = "";
     ColumnSelection viscols = av.getColumnSelection();
+    HiddenColumns hidden = av.getAlignment().getHiddenColumns();
 
     /*
      * the selection list (read-only view) is in selection order, not
      * column order; make a copy so we can sort it
      */
-    List<Integer> selected = new ArrayList<Integer>(viscols.getSelected());
+    List<Integer> selected = new ArrayList<>(viscols.getSelected());
     Collections.sort(selected);
     for (int index : selected)
     {
       // always check for current display state - just in case
-      if (!viscols.isVisible(index))
+      if (!hidden.isVisible(index))
       {
         continue;
       }
@@ -489,10 +505,11 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on right mouse pressed on Mac is to show a pop-up menu for the
+   * annotation. Action on left mouse pressed is to find which annotation is
+   * pressed and mark the start of a column selection or graph resize operation.
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mousePressed(MouseEvent evt)
@@ -503,7 +520,13 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     {
       return;
     }
+    mouseDragLastX = evt.getX();
+    mouseDragLastY = evt.getY();
 
+    /*
+     * add visible annotation heights until we reach the y
+     * position, to find which annotation it is in
+     */
     int height = 0;
     activeRow = -1;
 
@@ -523,11 +546,11 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         }
         else if (aa[i].graph > 0)
         {
-          // Stretch Graph
+          /*
+           * we have clicked on a resizable graph annotation
+           */
           graphStretch = i;
-          graphStretchY = y;
         }
-
         break;
       }
     }
@@ -593,17 +616,24 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on mouse up is to clear mouse drag data and call mouseReleased on
+   * ScalePanel, to deal with defining the selection group (if any) defined by
+   * the mouse drag
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseReleased(MouseEvent evt)
   {
     graphStretch = -1;
-    graphStretchY = -1;
+    mouseDragLastX = -1;
+    mouseDragLastY = -1;
     mouseDragging = false;
+    if (dragMode == DragMode.Resize)
+    {
+      ap.adjustAnnotationHeight();
+    }
+    dragMode = DragMode.Undefined;
     ap.getScalePanel().mouseReleased(evt);
 
     /*
@@ -642,29 +672,90 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on starting or continuing a mouse drag. There are two possible
+   * actions:
+   * <ul>
+   * <li>drag up or down on a graphed annotation increases or decreases the
+   * height of the graph</li>
+   * <li>dragging left or right selects the columns dragged across</li>
+   * </ul>
+   * A drag on a graph annotation is treated as column selection if it starts
+   * with more horizontal than vertical movement, and as resize if it starts
+   * with more vertical than horizontal movement. Once started, the drag does
+   * not change mode.
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseDragged(MouseEvent evt)
   {
-    if (graphStretch > -1)
+    /*
+     * if dragMode is Undefined:
+     * - set to Select if dx > dy
+     * - set to Resize if dy > dx
+     * - do nothing if dx == dy
+     */
+    final int x = evt.getX();
+    final int y = evt.getY();
+    if (dragMode == DragMode.Undefined)
     {
-      av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight += graphStretchY
-              - evt.getY();
-      if (av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight < 0)
+      int dx = Math.abs(x - mouseDragLastX);
+      int dy = Math.abs(y - mouseDragLastY);
+      if (graphStretch == -1 || dx > dy)
       {
-        av.getAlignment().getAlignmentAnnotation()[graphStretch].graphHeight = 0;
+        /*
+         * mostly horizontal drag, or not a graph annotation
+         */
+        dragMode = DragMode.Select;
       }
-      graphStretchY = evt.getY();
-      adjustPanelHeight();
-      ap.paintAlignment(true);
+      else if (dy > dx)
+      {
+        /*
+         * mostly vertical drag
+         */
+        dragMode = DragMode.Resize;
+      }
     }
-    else
+
+    if (dragMode == DragMode.Undefined)
     {
-      ap.getScalePanel().mouseDragged(evt);
+      /*
+       * drag is diagonal - defer deciding whether to
+       * treat as up/down or left/right
+       */
+      return;
+    }
+
+    try
+    {
+      if (dragMode == DragMode.Resize)
+      {
+        /*
+         * resize graph annotation if mouse was dragged up or down
+         */
+        int deltaY = mouseDragLastY - evt.getY();
+        if (deltaY != 0)
+        {
+          AlignmentAnnotation graphAnnotation = av.getAlignment()
+                  .getAlignmentAnnotation()[graphStretch];
+          int newHeight = Math.max(0, graphAnnotation.graphHeight + deltaY);
+          graphAnnotation.graphHeight = newHeight;
+          adjustPanelHeight();
+          ap.paintAlignment(false, false);
+        }
+      }
+      else
+      {
+        /*
+         * for mouse drag left or right, delegate to 
+         * ScalePanel to adjust the column selection
+         */
+        ap.getScalePanel().mouseDragged(evt);
+      }
+    } finally
+    {
+      mouseDragLastX = x;
+      mouseDragLastY = y;
     }
   }
 
@@ -677,14 +768,58 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   @Override
   public void mouseMoved(MouseEvent evt)
   {
+    int yPos = evt.getY();
     AlignmentAnnotation[] aa = av.getAlignment().getAlignmentAnnotation();
 
-    if (aa == null)
+    int row = getRowIndex(yPos, aa);
+
+    if (row == -1)
     {
       this.setToolTipText(null);
       return;
     }
 
+    int column = (evt.getX() / av.getCharWidth())
+            + av.getRanges().getStartRes();
+    column = Math.min(column, av.getRanges().getEndRes());
+
+    if (av.hasHiddenColumns())
+    {
+      column = av.getAlignment().getHiddenColumns()
+              .visibleToAbsoluteColumn(column);
+    }
+
+    AlignmentAnnotation ann = aa[row];
+    if (row > -1 && ann.annotations != null
+            && column < ann.annotations.length)
+    {
+      setToolTipText(buildToolTip(ann, column, aa));
+      String msg = getStatusMessage(av.getAlignment(), column, ann);
+      ap.alignFrame.setStatus(msg);
+    }
+    else
+    {
+      this.setToolTipText(null);
+      ap.alignFrame.setStatus(" ");
+    }
+  }
+
+  /**
+   * Answers the index in the annotations array of the visible annotation at the
+   * given y position. This is done by adding the heights of visible annotations
+   * until the y position has been exceeded. Answers -1 if no annotations are
+   * visible, or the y position is below all annotations.
+   * 
+   * @param yPos
+   * @param aa
+   * @return
+   */
+  static int getRowIndex(int yPos, AlignmentAnnotation[] aa)
+  {
+    if (aa == null)
+    {
+      return -1;
+    }
     int row = -1;
     int height = 0;
 
@@ -695,50 +830,26 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         height += aa[i].height;
       }
 
-      if (evt.getY() < height)
+      if (height > yPos)
       {
         row = i;
         break;
       }
     }
-
-    if (row == -1)
-    {
-      this.setToolTipText(null);
-      return;
-    }
-
-    int column = (evt.getX() / av.getCharWidth()) + av.getStartRes();
-
-    if (av.hasHiddenColumns())
-    {
-      column = av.getColumnSelection().adjustForHiddenColumns(column);
-    }
-
-    AlignmentAnnotation ann = aa[row];
-    if (row > -1 && ann.annotations != null
-            && column < ann.annotations.length)
-    {
-      buildToolTip(ann, column, aa);
-      setStatusMessage(column, ann);
-    }
-    else
-    {
-      this.setToolTipText(null);
-      ap.alignFrame.statusBar.setText(" ");
-    }
+    return row;
   }
 
   /**
-   * Builds a tooltip for the annotation at the current mouse position.
+   * Answers a tooltip for the annotation at the current mouse position
    * 
    * @param ann
    * @param column
    * @param anns
    */
-  void buildToolTip(AlignmentAnnotation ann, int column,
+  static String buildToolTip(AlignmentAnnotation ann, int column,
           AlignmentAnnotation[] anns)
   {
+    String tooltip = null;
     if (ann.graphGroup > -1)
     {
       StringBuilder tip = new StringBuilder(32);
@@ -760,31 +871,39 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       if (tip.length() != 6)
       {
         tip.setLength(tip.length() - 4);
-        this.setToolTipText(tip.toString() + "</html>");
+        tooltip = tip.toString() + "</html>";
       }
     }
-    else if (ann.annotations[column] != null)
+    else if (column < ann.annotations.length
+            && ann.annotations[column] != null)
     {
       String description = ann.annotations[column].description;
       if (description != null && description.length() > 0)
       {
-        this.setToolTipText(JvSwingUtils.wrapTooltip(true, description));
+        tooltip = JvSwingUtils.wrapTooltip(true, description);
+      }
+      else
+      {
+        tooltip = null; // no tooltip if null or empty description
       }
     }
     else
     {
       // clear the tooltip.
-      this.setToolTipText(null);
+      tooltip = null;
     }
+    return tooltip;
   }
 
   /**
-   * Constructs and displays the status bar message
+   * Constructs and returns the status bar message
    * 
+   * @param al
    * @param column
    * @param ann
    */
-  void setStatusMessage(int column, AlignmentAnnotation ann)
+  static String getStatusMessage(AlignmentI al, int column,
+          AlignmentAnnotation ann)
   {
     /*
      * show alignment column and annotation description if any
@@ -793,7 +912,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     text.append(MessageManager.getString("label.column")).append(" ")
             .append(column + 1);
 
-    if (ann.annotations[column] != null)
+    if (column < ann.annotations.length && ann.annotations[column] != null)
     {
       String description = ann.annotations[column].description;
       if (description != null && description.trim().length() > 0)
@@ -809,29 +928,29 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     SequenceI seqref = ann.sequenceRef;
     if (seqref != null)
     {
-      int seqIndex = av.getAlignment().findIndex(seqref);
+      int seqIndex = al.findIndex(seqref);
       if (seqIndex != -1)
       {
-        text.append(", ")
-                .append(MessageManager.getString("label.sequence"))
+        text.append(", ").append(MessageManager.getString("label.sequence"))
                 .append(" ").append(seqIndex + 1);
         char residue = seqref.getCharAt(column);
         if (!Comparison.isGap(residue))
         {
           text.append(" ");
           String name;
-          if (av.getAlignment().isNucleotide())
+          if (al.isNucleotide())
           {
-            name = ResidueProperties.nucleotideName.get(String
-                    .valueOf(residue));
-            text.append(" Nucleotide: ").append(
-                    name != null ? name : residue);
+            name = ResidueProperties.nucleotideName
+                    .get(String.valueOf(residue));
+            text.append(" Nucleotide: ")
+                    .append(name != null ? name : residue);
           }
           else
           {
-            name = 'X' == residue ? "X" : ('*' == residue ? "STOP"
-                    : ResidueProperties.aa2Triplet.get(String
-                            .valueOf(residue)));
+            name = 'X' == residue ? "X"
+                    : ('*' == residue ? "STOP"
+                            : ResidueProperties.aa2Triplet
+                                    .get(String.valueOf(residue)));
             text.append(" Residue: ").append(name != null ? name : residue);
           }
           int residuePos = seqref.findPosition(column);
@@ -840,7 +959,7 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       }
     }
 
-    ap.alignFrame.statusBar.setText(text.toString());
+    return text.toString();
   }
 
   /**
@@ -892,6 +1011,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
   @Override
   public void paintComponent(Graphics g)
   {
+    super.paintComponent(g);
+
     g.setColor(Color.white);
     g.fillRect(0, 0, getWidth(), getHeight());
 
@@ -905,7 +1026,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         return;
       }
     }
-    imgWidth = (av.endRes - av.startRes + 1) * av.getCharWidth();
+    imgWidth = (av.getRanges().getEndRes() - av.getRanges().getStartRes()
+            + 1) * av.getCharWidth();
     if (imgWidth < 1)
     {
       return;
@@ -915,8 +1037,9 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     {
       try
       {
-        image = new BufferedImage(imgWidth, ap.getAnnotationPanel()
-                .getHeight(), BufferedImage.TYPE_INT_RGB);
+        image = new BufferedImage(imgWidth,
+                ap.getAnnotationPanel().getHeight(),
+                BufferedImage.TYPE_INT_RGB);
       } catch (OutOfMemoryError oom)
       {
         try
@@ -945,8 +1068,9 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       gg.fillRect(0, 0, imgWidth, image.getHeight());
       imageFresh = true;
     }
-
-    drawComponent(gg, av.startRes, av.endRes + 1);
+    
+    drawComponent(gg, av.getRanges().getStartRes(),
+            av.getRanges().getEndRes() + 1);
     imageFresh = false;
     g.drawImage(image, 0, 0, this);
   }
@@ -972,13 +1096,13 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       repaint();
       return;
     }
-    long stime = System.currentTimeMillis();
+
+    int sr = av.getRanges().getStartRes();
+    int er = av.getRanges().getEndRes() + 1;
+    int transX = 0;
+
     gg.copyArea(0, 0, imgWidth, getHeight(),
             -horizontal * av.getCharWidth(), 0);
-    long mtime = System.currentTimeMillis();
-    int sr = av.startRes;
-    int er = av.endRes + 1;
-    int transX = 0;
 
     if (horizontal > 0) // scrollbar pulled right, image to the left
     {
@@ -995,17 +1119,13 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     drawComponent(gg, sr, er);
 
     gg.translate(-transX, 0);
-    long dtime = System.currentTimeMillis();
-    fastPaint = true;
-    repaint();
-    long rtime = System.currentTimeMillis();
-    if (debugRedraw)
-    {
-      System.err.println("Scroll:\t" + horizontal + "\tCopyArea:\t"
-              + (mtime - stime) + "\tDraw component:\t" + (dtime - mtime)
-              + "\tRepaint call:\t" + (rtime - dtime));
-    }
 
+    fastPaint = true;
+
+    // Call repaint on alignment panel so that repaints from other alignment
+    // panel components can be aggregated. Otherwise performance of the overview
+    // window and others may be adversely affected.
+    av.getAlignPanel().repaint();
   }
 
   private volatile boolean lastImageGood = false;
@@ -1034,8 +1154,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
       // and draw a faded image until the calculation
       // has completed
       if (lastImageGood
-              && (fadedImage == null || fadedImage.getWidth() != imgWidth || fadedImage
-                      .getHeight() != image.getHeight()))
+              && (fadedImage == null || fadedImage.getWidth() != imgWidth
+                      || fadedImage.getHeight() != image.getHeight()))
       {
         // System.err.println("redraw faded image ("+(fadedImage==null ?
         // "null image" : "") + " lastGood="+lastImageGood+")");
@@ -1047,8 +1167,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
         fadedG.setColor(Color.white);
         fadedG.fillRect(0, 0, imgWidth, image.getHeight());
 
-        fadedG.setComposite(AlphaComposite.getInstance(
-                AlphaComposite.SRC_OVER, .3f));
+        fadedG.setComposite(
+                AlphaComposite.getInstance(AlphaComposite.SRC_OVER, .3f));
         fadedG.drawImage(image, 0, 0, this);
 
       }
@@ -1089,8 +1209,8 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
 
       return;
     }
-    lastImageGood = renderer.drawComponent(this, av, g, activeRow,
-            startRes, endRes);
+    lastImageGood = renderer.drawComponent(this, av, g, activeRow, startRes,
+            endRes);
     if (!lastImageGood && fadedImage == null)
     {
       fadedImage = oldFaded;
@@ -1153,5 +1273,74 @@ public class AnnotationPanel extends JPanel implements AwtRenderPanelI,
     {
       renderer.dispose();
     }
+  }
+
+  @Override
+  public void propertyChange(PropertyChangeEvent evt)
+  {
+    // Respond to viewport range changes (e.g. alignment panel was scrolled)
+    // Both scrolling and resizing change viewport ranges: scrolling changes
+    // both start and end points, but resize only changes end values.
+    // Here we only want to fastpaint on a scroll, with resize using a normal
+    // paint, so scroll events are identified as changes to the horizontal or
+    // vertical start value.
+    if (evt.getPropertyName().equals(ViewportRanges.STARTRES))
+    {
+      fastPaint((int) evt.getNewValue() - (int) evt.getOldValue());
+    }
+    else if (evt.getPropertyName().equals(ViewportRanges.STARTRESANDSEQ))
+    {
+      fastPaint(((int[]) evt.getNewValue())[0]
+              - ((int[]) evt.getOldValue())[0]);
+    }
+    else if (evt.getPropertyName().equals(ViewportRanges.MOVE_VIEWPORT))
+    {
+      repaint();
+    }
+  }
+
+  /**
+   * computes the visible height of the annotation panel
+   * 
+   * @param adjustPanelHeight
+   *          - when false, just adjust existing height according to other
+   *          windows
+   * @param annotationHeight
+   * @return height to use for the ScrollerPreferredVisibleSize
+   */
+  public int adjustForAlignFrame(boolean adjustPanelHeight,
+          int annotationHeight)
+  {
+    /*
+     * Estimate available height in the AlignFrame for alignment +
+     * annotations. Deduct an estimate for title bar, menu bar, scale panel,
+     * hscroll, status bar, insets. 
+     */
+    int stuff = (ap.getViewName() != null ? 30 : 0)
+            + (Platform.isAMac() ? 120 : 140);
+    int availableHeight = ap.alignFrame.getHeight() - stuff;
+    int rowHeight = av.getCharHeight();
+
+    if (adjustPanelHeight)
+    {
+      int alignmentHeight = rowHeight * av.getAlignment().getHeight();
+
+      /*
+       * If not enough vertical space, maximize annotation height while keeping
+       * at least two rows of alignment visible
+       */
+      if (annotationHeight + alignmentHeight > availableHeight)
+      {
+        annotationHeight = Math.min(annotationHeight,
+                availableHeight - 2 * rowHeight);
+      }
+    }
+    else
+    {
+      // maintain same window layout whilst updating sliders
+      annotationHeight = Math.min(ap.annotationScroller.getSize().height,
+              availableHeight - 2 * rowHeight);
+    }
+    return annotationHeight;
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -62,8 +62,8 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
     }
     else
     {
-      seqs = ap.av.getSelectionGroup().getSequencesInOrder(
-              ap.av.getAlignment());
+      seqs = ap.av.getSelectionGroup()
+              .getSequencesInOrder(ap.av.getAlignment());
     }
 
     float scores[][] = new float[seqs.length][seqs.length];
@@ -102,13 +102,13 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
 
     if (count > 2)
     {
-      System.out
-              .println("Pairwise alignment scaled similarity score matrix\n");
+      System.out.println(
+              "Pairwise alignment scaled similarity score matrix\n");
 
       for (int i = 0; i < count; i++)
       {
-        jalview.util.Format.print(System.out, "%s \n", ("" + i) + " "
-                + seqs[i].getName());
+        jalview.util.Format.print(System.out, "%s \n",
+                ("" + i) + " " + seqs[i].getName());
       }
 
       System.out.println("\n");
@@ -117,8 +117,8 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
       {
         for (int j = 0; j < i; j++)
         {
-          jalview.util.Format.print(System.out, "%7.3f", scores[i][j]
-                  / totscore);
+          jalview.util.Format.print(System.out, "%7.3f",
+                  scores[i][j] / totscore);
         }
       }
 
@@ -165,8 +165,8 @@ public class PairwiseAlignPanel extends Panel implements ActionListener
     textarea.setFont(new java.awt.Font("Monospaced", 0, 12));
     textarea.setText("");
     viewInEditorButton.setFont(new java.awt.Font("Verdana", 0, 12));
-    viewInEditorButton.setLabel(MessageManager
-            .getString("label.view_alignment_editor"));
+    viewInEditorButton.setLabel(
+            MessageManager.getString("label.view_alignment_editor"));
     viewInEditorButton.addActionListener(this);
     this.add(scrollPane, BorderLayout.CENTER);
     scrollPane.add(textarea);

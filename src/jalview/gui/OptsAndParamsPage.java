@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -53,7 +53,6 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.JSlider;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.TitledBorder;
@@ -76,8 +75,8 @@ public class OptsAndParamsPage
    */
   boolean compact = false;
 
-  public class OptionBox extends JPanel implements MouseListener,
-          ActionListener
+  public class OptionBox extends JPanel
+          implements MouseListener, ActionListener
   {
     JCheckBox enabled = new JCheckBox();
 
@@ -93,7 +92,7 @@ public class OptsAndParamsPage
 
     JLabel optlabel = new JLabel();
 
-    JComboBox val = new JComboBox();
+    JComboBox<String> val = new JComboBox<>();
 
     public OptionBox(OptionI opt)
     {
@@ -110,25 +109,24 @@ public class OptsAndParamsPage
       {
         hasLink = true;
 
-        enabled.setToolTipText(JvSwingUtils
-                .wrapTooltip(
-                        true,
-                        ((desc == null || desc.trim().length() == 0) ? MessageManager
-                                .getString("label.opt_and_params_further_details")
-                                : desc)
-                                + "<br><img src=\"" + linkImageURL + "\"/>"));
+        enabled.setToolTipText(JvSwingUtils.wrapTooltip(true,
+                ((desc == null || desc.trim().length() == 0)
+                        ? MessageManager.getString(
+                                "label.opt_and_params_further_details")
+                        : desc) + "<br><img src=\"" + linkImageURL
+                        + "\"/>"));
         enabled.addMouseListener(this);
       }
       else
       {
         if (desc != null && desc.trim().length() > 0)
         {
-          enabled.setToolTipText(JvSwingUtils.wrapTooltip(true,
-                  opt.getDescription()));
+          enabled.setToolTipText(
+                  JvSwingUtils.wrapTooltip(true, opt.getDescription()));
         }
       }
       add(enabled, BorderLayout.NORTH);
-      for (Object str : opt.getPossibleValues())
+      for (String str : opt.getPossibleValues())
       {
         val.addItem(str);
       }
@@ -271,14 +269,14 @@ public class OptsAndParamsPage
 
   }
 
-  public class ParamBox extends JPanel implements ChangeListener,
-          ActionListener, MouseListener
+  public class ParamBox extends JPanel
+          implements ChangeListener, ActionListener, MouseListener
   {
     boolean adjusting = false;
 
     boolean choice = false;
 
-    JComboBox choicebox;
+    JComboBox<String> choicebox;
 
     JPanel controlPanel = new JPanel();
 
@@ -290,7 +288,7 @@ public class OptsAndParamsPage
 
     boolean integ = false;
 
-    Object lastVal;
+    String lastVal;
 
     ParameterI parameter;
 
@@ -300,7 +298,7 @@ public class OptsAndParamsPage
 
     JButton showDesc = new JButton();
 
-    JSlider slider = null;
+    Slider slider = null;
 
     JTextArea string = new JTextArea();
 
@@ -308,7 +306,8 @@ public class OptsAndParamsPage
 
     JTextField valueField = null;
 
-    public ParamBox(final OptsParametersContainerI pmlayout, ParameterI parm)
+    public ParamBox(final OptsParametersContainerI pmlayout,
+            ParameterI parm)
     {
       pmdialogbox = pmlayout;
       finfo = parm.getFurtherDetails();
@@ -349,25 +348,21 @@ public class OptsAndParamsPage
               && parm.getDescription().trim().length() > 0)
       {
         // Only create description boxes if there actually is a description.
-        ttipText = (JvSwingUtils
-                .wrapTooltip(
-                        true,
-                        parm.getDescription()
-                                + (finfo != null ? "<br><img src=\""
-                                        + linkImageURL
-                                        + "\"/>"
-                                        + MessageManager
-                                                .getString("label.opt_and_params_further_details")
-                                        : "")));
+        ttipText = (JvSwingUtils.wrapTooltip(true,
+                parm.getDescription() + (finfo != null ? "<br><img src=\""
+                        + linkImageURL + "\"/>"
+                        + MessageManager.getString(
+                                "label.opt_and_params_further_details")
+                        : "")));
       }
 
-      JvSwingUtils.mgAddtoLayout(this, ttipText,
-              new JLabel(parm.getName()), controlPanel, "");
+      JvSwingUtils.mgAddtoLayout(this, ttipText, new JLabel(parm.getName()),
+              controlPanel, "");
       updateControls(parm);
       validate();
     }
 
-    private void makeExpanderParam(ParameterI parm)
+    private void makeExpanderParam(final ParameterI parm)
     {
       setPreferredSize(new Dimension(PARAM_WIDTH, PARAM_CLOSEDHEIGHT));
       setBorder(new TitledBorder(parm.getName()));
@@ -399,21 +394,18 @@ public class OptsAndParamsPage
         // Only create description boxes if there actually is a description.
         if (finfo != null)
         {
-          showDesc.setToolTipText(JvSwingUtils.wrapTooltip(
-                  true,
-                  MessageManager
-                          .formatMessage(
-                                  "label.opt_and_params_show_brief_desc_image_link",
-                                  new String[] { linkImageURL
-                                          .toExternalForm() })));
+          showDesc.setToolTipText(JvSwingUtils.wrapTooltip(true,
+                  MessageManager.formatMessage(
+                          "label.opt_and_params_show_brief_desc_image_link",
+                          new String[]
+                          { linkImageURL.toExternalForm() })));
           showDesc.addMouseListener(this);
         }
         else
         {
-          showDesc.setToolTipText(JvSwingUtils.wrapTooltip(
-                  true,
-                  MessageManager
-                          .getString("label.opt_and_params_show_brief_desc")));
+          showDesc.setToolTipText(
+                  JvSwingUtils.wrapTooltip(true, MessageManager.getString(
+                          "label.opt_and_params_show_brief_desc")));
         }
         showDesc.addActionListener(new ActionListener()
         {
@@ -458,6 +450,9 @@ public class OptsAndParamsPage
       validate();
     }
 
+    /**
+     * Action on input in text field
+     */
     @Override
     public void actionPerformed(ActionEvent e)
     {
@@ -474,24 +469,20 @@ public class OptsAndParamsPage
 
     private void checkIfModified()
     {
-      Object cstate = updateSliderFromValueField();
-      boolean notmod = false;
-      if (cstate.getClass() == lastVal.getClass())
-      {
-        if (cstate instanceof int[])
-        {
-          notmod = (((int[]) cstate)[0] == ((int[]) lastVal)[0]);
-        }
-        else if (cstate instanceof float[])
-        {
-          notmod = (((float[]) cstate)[0] == ((float[]) lastVal)[0]);
-        }
-        else if (cstate instanceof String[])
-        {
-          notmod = (((String[]) cstate)[0].equals(((String[]) lastVal)[0]));
-        }
-      }
-      pmdialogbox.argSetModified(this, !notmod);
+      Object cstate = getCurrentValue();
+      boolean modified = !cstate.equals(lastVal);
+      pmdialogbox.argSetModified(this, modified);
+    }
+
+    /**
+     * Answers the current value of the parameter, as text
+     * 
+     * @return
+     */
+    private String getCurrentValue()
+    {
+      return choice ? (String) choicebox.getSelectedItem()
+              : valueField.getText();
     }
 
     @Override
@@ -573,17 +564,20 @@ public class OptsAndParamsPage
 
     }
 
+    /**
+     * Action on change of slider value
+     */
     @Override
     public void stateChanged(ChangeEvent e)
     {
       if (!adjusting)
       {
-        valueField.setText(""
-                + ((integ) ? ("" + slider.getValue()) : ("" + slider
-                        .getValue() / 1000f)));
+        float value = slider.getSliderValue();
+        valueField.setText(
+                integ ? Integer.toString((int) value)
+                        : Float.toString(value));
         checkIfModified();
       }
-
     }
 
     public void updateControls(ParameterI parm)
@@ -594,14 +588,12 @@ public class OptsAndParamsPage
       {
         if (choice)
         {
-          choicebox = new JComboBox();
+          choicebox = new JComboBox<>();
           choicebox.addActionListener(this);
           controlPanel.add(choicebox, BorderLayout.CENTER);
         }
         else
         {
-          slider = new JSlider();
-          slider.addChangeListener(this);
           valueField = new JTextField();
           valueField.addActionListener(this);
           valueField.addKeyListener(new KeyListener()
@@ -630,9 +622,13 @@ public class OptsAndParamsPage
             }
           });
           valueField.setPreferredSize(new Dimension(60, 25));
+          valueField.setText(parm.getValue());
+          slider = makeSlider(parm.getValidValue());
+          updateSliderFromValueField();
+          slider.addChangeListener(this);
+
           controlPanel.add(slider, BorderLayout.WEST);
           controlPanel.add(valueField, BorderLayout.EAST);
-
         }
       }
 
@@ -642,8 +638,8 @@ public class OptsAndParamsPage
         {
           if (init)
           {
-            List vals = parm.getPossibleValues();
-            for (Object val : vals)
+            List<String> vals = parm.getPossibleValues();
+            for (String val : vals)
             {
               choicebox.addItem(val);
             }
@@ -659,96 +655,105 @@ public class OptsAndParamsPage
           valueField.setText(parm.getValue());
         }
       }
-      lastVal = updateSliderFromValueField();
+      lastVal = getCurrentValue();
       adjusting = false;
     }
 
-    public Object updateSliderFromValueField()
+    private Slider makeSlider(ValueConstrainI validValue)
     {
-      int iVal;
-      float fVal;
+      if (validValue != null)
+      {
+        final Number minValue = validValue.getMin();
+        final Number maxValue = validValue.getMax();
+        if (minValue != null && maxValue != null)
+        {
+          return new Slider(minValue.floatValue(), maxValue.floatValue(),
+                  minValue.floatValue());
+        }
+      }
+
+      /*
+       * otherwise, a nominal slider which will not be visible
+       */
+      return new Slider(0, 100, 50);
+    }
+
+    public void updateSliderFromValueField()
+    {
       if (validator != null)
       {
+        final Number minValue = validator.getMin();
+        final Number maxValue = validator.getMax();
         if (integ)
         {
-          iVal = 0;
+          int iVal = 0;
           try
           {
             valueField.setText(valueField.getText().trim());
             iVal = Integer.valueOf(valueField.getText());
-            if (validator.getMin() != null
-                    && validator.getMin().intValue() > iVal)
+            if (minValue != null
+                    && minValue.intValue() > iVal)
             {
-              iVal = validator.getMin().intValue();
+              iVal = minValue.intValue();
               // TODO: provide visual indication that hard limit was reached for
               // this parameter
             }
-            if (validator.getMax() != null
-                    && validator.getMax().intValue() < iVal)
+            if (maxValue != null && maxValue.intValue() < iVal)
             {
-              iVal = validator.getMax().intValue();
-              // TODO: provide visual indication that hard limit was reached for
-              // this parameter
+              iVal = maxValue.intValue();
             }
-          } catch (Exception e)
+          } catch (NumberFormatException e)
           {
+            System.err.println(e.toString());
           }
-          ;
-          // update value field to reflect any bound checking we performed.
-          valueField.setText("" + iVal);
-          if (validator.getMin() != null && validator.getMax() != null)
+          if (minValue != null || maxValue != null)
           {
-            slider.getModel().setRangeProperties(iVal, 1,
-                    validator.getMin().intValue(),
-                    validator.getMax().intValue() + 1, true);
+            valueField.setText(String.valueOf(iVal));
+            slider.setSliderValue(iVal);
           }
           else
           {
             slider.setVisible(false);
           }
-          return new int[] { iVal };
         }
         else
         {
-          fVal = 0f;
+          float fVal = 0f;
           try
           {
             valueField.setText(valueField.getText().trim());
             fVal = Float.valueOf(valueField.getText());
-            if (validator.getMin() != null
-                    && validator.getMin().floatValue() > fVal)
+            if (minValue != null
+                    && minValue.floatValue() > fVal)
             {
-              fVal = validator.getMin().floatValue();
+              fVal = minValue.floatValue();
               // TODO: provide visual indication that hard limit was reached for
               // this parameter
               // update value field to reflect any bound checking we performed.
               valueField.setText("" + fVal);
             }
-            if (validator.getMax() != null
-                    && validator.getMax().floatValue() < fVal)
+            if (maxValue != null
+                    && maxValue.floatValue() < fVal)
             {
-              fVal = validator.getMax().floatValue();
+              fVal = maxValue.floatValue();
               // TODO: provide visual indication that hard limit was reached for
               // this parameter
               // update value field to reflect any bound checking we performed.
               valueField.setText("" + fVal);
             }
-          } catch (Exception e)
+          } catch (NumberFormatException e)
           {
+            System.err.println(e.toString());
           }
-          ;
-          if (validator.getMin() != null && validator.getMax() != null)
+          if (minValue != null && maxValue != null)
           {
-            slider.getModel().setRangeProperties((int) (fVal * 1000f), 1,
-                    (int) (validator.getMin().floatValue() * 1000f),
-                    1 + (int) (validator.getMax().floatValue() * 1000f),
-                    true);
+            slider.setSliderModel(minValue.floatValue(),
+                    maxValue.floatValue(), fVal);
           }
           else
           {
             slider.setVisible(false);
           }
-          return new float[] { fVal };
         }
       }
       else
@@ -756,14 +761,8 @@ public class OptsAndParamsPage
         if (!choice)
         {
           slider.setVisible(false);
-          return new String[] { valueField.getText().trim() };
-        }
-        else
-        {
-          return new String[] { (String) choicebox.getSelectedItem() };
         }
       }
-
     }
   }
 
@@ -790,8 +789,9 @@ public class OptsAndParamsPage
   {
 
     JPopupMenu mnu = new JPopupMenu();
-    JMenuItem mitem = new JMenuItem(MessageManager.formatMessage(
-            "label.view_params", new String[] { finfo }));
+    JMenuItem mitem = new JMenuItem(
+            MessageManager.formatMessage("label.view_params", new String[]
+            { finfo }));
     mitem.addActionListener(new ActionListener()
     {
 
@@ -808,9 +808,9 @@ public class OptsAndParamsPage
 
   URL linkImageURL = getClass().getResource("/images/link.gif");
 
-  Map<String, OptionBox> optSet = new java.util.LinkedHashMap<String, OptionBox>();
+  Map<String, OptionBox> optSet = new java.util.LinkedHashMap<>();
 
-  Map<String, ParamBox> paramSet = new java.util.LinkedHashMap<String, ParamBox>();
+  Map<String, ParamBox> paramSet = new java.util.LinkedHashMap<>();
 
   public Map<String, OptionBox> getOptSet()
   {
@@ -878,8 +878,8 @@ public class OptsAndParamsPage
       else
       {
         throw new Error(MessageManager.formatMessage(
-                "error.invalid_value_for_option", new String[] { string,
-                    option.getName() }));
+                "error.invalid_value_for_option", new String[]
+                { string, option.getName() }));
       }
 
     }
@@ -911,7 +911,7 @@ public class OptsAndParamsPage
    */
   public List<ArgumentI> getCurrentSettings()
   {
-    List<ArgumentI> argSet = new ArrayList<ArgumentI>();
+    List<ArgumentI> argSet = new ArrayList<>();
     for (OptionBox opts : getOptSet().values())
     {
       OptionI opt = opts.getOptionIfEnabled();

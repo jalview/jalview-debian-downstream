@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,19 +37,6 @@ public class JSFunctionExec implements Runnable
 
     jsExecQueue = jvlite.getJsExecQueue();
     jvlite.setExecutor(this);
-  }
-
-  @Override
-  protected void finalize() throws Throwable
-  {
-    jvlite = null;
-    executor = null;
-    if (jsExecQueue != null)
-    {
-      jsExecQueue.clear();
-    }
-    jsExecQueue = null;
-    super.finalize();
   }
 
   private Vector jsExecQueue;
@@ -205,8 +192,8 @@ public class JSFunctionExec implements Runnable
               {
                 System.err.println("Falling back to javascript: url call");
               }
-              StringBuffer sb = new StringBuffer("javascript:" + _listener
-                      + "(");
+              StringBuffer sb = new StringBuffer(
+                      "javascript:" + _listener + "(");
               for (int i = 0; objects != null && i < objects.length; i++)
               {
                 if (i > 0)
@@ -216,9 +203,8 @@ public class JSFunctionExec implements Runnable
                 sb.append("\"");
                 // strip out nulls and complex objects that we can't pass this
                 // way.
-                if (objects[i] != null
-                        && !(objects[i].getClass().getName()
-                                .indexOf("jalview") == 0))
+                if (objects[i] != null && !(objects[i].getClass().getName()
+                        .indexOf("jalview") == 0))
                 {
                   sb.append(objects[i].toString());
                 }

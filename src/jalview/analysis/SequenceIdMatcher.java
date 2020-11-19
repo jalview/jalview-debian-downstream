@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -147,9 +147,8 @@ public class SequenceIdMatcher
       names.put(new SeqIdName(cand.getName()), cand);
       int q, w, candlen = cand.getName().length();
       // keep the one with an id 'closer' to the given seqnam string
-      if ((q = Math.abs(matchlen - namlen)) > (w = Math.abs(candlen
-              - namlen))
-              && candlen > matchlen)
+      if ((q = Math.abs(matchlen - namlen)) > (w = Math
+              .abs(candlen - namlen)) && candlen > matchlen)
       {
         best.clear();
         match = cand;
@@ -301,8 +300,8 @@ public class SequenceIdMatcher
     @Override
     public int hashCode()
     {
-      return ((id.length() >= 4) ? id.substring(0, 4).hashCode() : id
-              .hashCode());
+      return ((id.length() >= 4) ? id.substring(0, 4).hashCode()
+              : id.hashCode());
     }
 
     @Override
@@ -348,13 +347,16 @@ public class SequenceIdMatcher
     {
       if (id.length() > s.length())
       {
-        return id.startsWith(s) ? (WORD_SEP.indexOf(id.charAt(s.length())) > -1)
+        return id.startsWith(s)
+                ? (WORD_SEP.indexOf(id.charAt(s.length())) > -1)
                 : false;
       }
       else
       {
-        return s.startsWith(id) ? (s.equals(id) ? true : (WORD_SEP
-                .indexOf(s.charAt(id.length())) > -1)) : false;
+        return s.startsWith(id)
+                ? (s.equals(id) ? true
+                        : (WORD_SEP.indexOf(s.charAt(id.length())) > -1))
+                : false;
       }
     }
 

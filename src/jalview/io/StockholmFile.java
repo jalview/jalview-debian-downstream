@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,11 +28,14 @@ import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
 import jalview.datamodel.Mapping;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.schemes.ResidueProperties;
+import jalview.util.Comparison;
+import jalview.util.DBRefUtils;
 import jalview.util.Format;
 import jalview.util.MessageManager;
 
@@ -45,7 +48,6 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 import java.util.Vector;
 
 import com.stevesoft.pat.Regex;
@@ -74,12 +76,22 @@ import fr.orsay.lri.varna.models.rna.RNA;
  */
 public class StockholmFile extends AlignFile
 {
+  private static final String ANNOTATION = "annotation";
+
   private static final Regex OPEN_PAREN = new Regex("(<|\\[)", "(");
 
   private static final Regex CLOSE_PAREN = new Regex("(>|\\])", ")");
 
-  private static final Regex DETECT_BRACKETS = new Regex(
-          "(<|>|\\[|\\]|\\(|\\))");
+  public static final Regex DETECT_BRACKETS = new Regex(
+          "(<|>|\\[|\\]|\\(|\\)|\\{|\\})");
+
+  // WUSS extended symbols. Avoid ambiguity with protein SS annotations by using NOT_RNASS first.
+  public static final String RNASS_BRACKETS = "<>[](){}AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz";
+
+  // use the following regex to decide an annotations (whole) line is NOT an RNA
+  // SS (it contains only E,H,e,h and other non-brace/non-alpha chars)
+  private static final Regex NOT_RNASS = new Regex(
+          "^[^<>[\\](){}A-DF-Za-df-z]*$");
 
   StringBuffer out; // output buffer
 
@@ -97,7 +109,8 @@ public class StockholmFile extends AlignFile
     this.al = al;
   }
 
-  public StockholmFile(String inFile, String type) throws IOException
+  public StockholmFile(String inFile, DataSourceType type)
+          throws IOException
   {
     super(inFile, type);
   }
@@ -162,8 +175,8 @@ public class StockholmFile extends AlignFile
 
       for (int k = 0; k < rna.length(); k++)
       {
-        ann[k] = new Annotation(annot[k], "", Rna.getRNASecStrucState(
-                annot[k]).charAt(0), 0f);
+        ann[k] = new Annotation(annot[k], "",
+                Rna.getRNASecStrucState(annot[k]).charAt(0), 0f);
 
       }
       AlignmentAnnotation align = new AlignmentAnnotation("Sec. str.",
@@ -194,7 +207,7 @@ public class StockholmFile extends AlignFile
     String version;
     // String id;
     Hashtable seqAnn = new Hashtable(); // Sequence related annotations
-    LinkedHashMap<String, String> seqs = new LinkedHashMap<String, String>();
+    LinkedHashMap<String, String> seqs = new LinkedHashMap<>();
     Regex p, r, rend, s, x;
     // Temporary line for processing RNA annotation
     // String RNAannot = "";
@@ -206,9 +219,8 @@ public class StockholmFile extends AlignFile
     r = new Regex("# STOCKHOLM ([\\d\\.]+)");
     if (!r.search(nextLine()))
     {
-      throw new IOException(
-              MessageManager
-                      .getString("exception.stockholm_invalid_format"));
+      throw new IOException(MessageManager
+              .getString("exception.stockholm_invalid_format"));
     }
     else
     {
@@ -322,17 +334,14 @@ public class StockholmFile extends AlignFile
 
           if (accAnnotations != null && accAnnotations.containsKey("AC"))
           {
-            if (dbsource != null)
+            String dbr = (String) accAnnotations.get("AC");
+            if (dbr != null)
             {
-              String dbr = (String) accAnnotations.get("AC");
-              if (dbr != null)
-              {
-                // we could get very clever here - but for now - just try to
-                // guess accession type from source of alignment plus structure
-                // of accession
-                guessDatabaseFor(seqO, dbr, dbsource);
-
-              }
+              // we could get very clever here - but for now - just try to
+              // guess accession type from type of sequence, source of alignment plus
+              // structure
+              // of accession
+              guessDatabaseFor(seqO, dbr, dbsource);
             }
             // else - do what ? add the data anyway and prompt the user to
             // specify what references these are ?
@@ -365,6 +374,11 @@ public class StockholmFile extends AlignFile
 
               // add alignment annotation for this feature
               String key = type2id(type);
+
+              /*
+               * have we added annotation rows for this type ?
+               */
+              boolean annotsAdded = false;
               if (key != null)
               {
                 if (accAnnotations != null
@@ -373,6 +387,7 @@ public class StockholmFile extends AlignFile
                   Vector vv = (Vector) accAnnotations.get(key);
                   for (int ii = 0; ii < vv.size(); ii++)
                   {
+                    annotsAdded = true;
                     AlignmentAnnotation an = (AlignmentAnnotation) vv
                             .elementAt(ii);
                     seqO.addAlignmentAnnotation(an);
@@ -385,6 +400,11 @@ public class StockholmFile extends AlignFile
               while (j.hasMoreElements())
               {
                 String desc = j.nextElement().toString();
+                if (ANNOTATION.equals(desc) && annotsAdded)
+                {
+                  // don't add features if we already added an annotation row
+                  continue;
+                }
                 String ns = content.get(desc).toString();
                 char[] byChar = ns.toCharArray();
                 for (int k = 0; k < byChar.length; k++)
@@ -400,7 +420,7 @@ public class StockholmFile extends AlignFile
                     int new_pos = posmap[k]; // look up nearest seqeunce
                     // position to this column
                     SequenceFeature feat = new SequenceFeature(type, desc,
-                            new_pos, new_pos, 0f, null);
+                            new_pos, new_pos, null);
 
                     seqO.addSequenceFeature(feat);
                   }
@@ -427,8 +447,8 @@ public class StockholmFile extends AlignFile
         {
           // logger.error("Could not parse sequence line: " + line);
           throw new IOException(MessageManager.formatMessage(
-                  "exception.couldnt_parse_sequence_line",
-                  new String[] { line }));
+                  "exception.couldnt_parse_sequence_line", new String[]
+                  { line }));
         }
         String ns = seqs.get(x.stringMatched(1));
         if (ns == null)
@@ -506,6 +526,9 @@ public class StockholmFile extends AlignFile
               treeName = an.stringMatched(2);
               treeString = new StringBuffer();
             }
+            // TODO: JAL-3532 - this is where GF comments and database references are lost
+            // suggest overriding this method for Stockholm files to catch and properly
+            // process CC, DR etc into multivalued properties
             setAlignmentProperty(an.stringMatched(1), an.stringMatched(2));
           }
         }
@@ -571,22 +594,11 @@ public class StockholmFile extends AlignFile
           {
             String acc = s.stringMatched(1);
             String type = s.stringMatched(2);
-            String seq = new String(s.stringMatched(3));
-            String description = null;
-            // Check for additional information about the current annotation
-            // We use a simple string tokenizer here for speed
-            StringTokenizer sep = new StringTokenizer(seq, " \t");
-            description = sep.nextToken();
-            if (sep.hasMoreTokens())
-            {
-              seq = sep.nextToken();
-            }
-            else
-            {
-              seq = description;
-              description = new String();
-            }
-            // sequence id with from-to fields
+            String oseq = s.stringMatched(3);
+            /*
+             * copy of annotation field that may be processed into whitespace chunks
+             */
+            String seq = new String(oseq);
 
             Hashtable ann;
             // Get an object with all the annotations for this sequence
@@ -601,8 +613,12 @@ public class StockholmFile extends AlignFile
               ann = new Hashtable();
               seqAnn.put(acc, ann);
             }
+
+            // // start of block for appending annotation lines for wrapped
+            // stokchholm file
             // TODO test structure, call parseAnnotationRow with vector from
             // hashtable for specific sequence
+
             Hashtable features;
             // Get an object with all the content for an annotation
             if (ann.containsKey("features"))
@@ -630,15 +646,18 @@ public class StockholmFile extends AlignFile
               content = new Hashtable();
               features.put(this.id2type(type), content);
             }
-            String ns = (String) content.get(description);
+            String ns = (String) content.get(ANNOTATION);
+
             if (ns == null)
             {
               ns = "";
             }
+            // finally, append the annotation line
             ns += seq;
-            content.put(description, ns);
+            content.put(ANNOTATION, ns);
+            // // end of wrapped annotation block.
+            // // Now a new row is created with the current set of data
 
-            // if(type.equals("SS")){
             Hashtable strucAnn;
             if (seqAnn.containsKey(acc))
             {
@@ -649,21 +668,22 @@ public class StockholmFile extends AlignFile
               strucAnn = new Hashtable();
             }
 
-            Vector<AlignmentAnnotation> newStruc = new Vector<AlignmentAnnotation>();
+            Vector<AlignmentAnnotation> newStruc = new Vector<>();
             parseAnnotationRow(newStruc, type, ns);
             for (AlignmentAnnotation alan : newStruc)
             {
               alan.visible = false;
             }
-            // annotations.addAll(newStruc);
+            // new annotation overwrites any existing annotation...
+
             strucAnn.put(type, newStruc);
             seqAnn.put(acc, strucAnn);
           }
           // }
           else
           {
-            System.err
-                    .println("Warning - couldn't parse sequence annotation row line:\n"
+            System.err.println(
+                    "Warning - couldn't parse sequence annotation row line:\n"
                             + line);
             // throw new IOException("Error parsing " + line);
           }
@@ -671,8 +691,8 @@ public class StockholmFile extends AlignFile
         else
         {
           throw new IOException(MessageManager.formatMessage(
-                  "exception.unknown_annotation_detected", new String[] {
-                      annType, annContent }));
+                  "exception.unknown_annotation_detected", new String[]
+                  { annType, annContent }));
         }
       }
     }
@@ -700,7 +720,7 @@ public class StockholmFile extends AlignFile
   private void guessDatabaseFor(Sequence seqO, String dbr, String dbsource)
   {
     DBRefEntry dbrf = null;
-    List<DBRefEntry> dbrs = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> dbrs = new ArrayList<>();
     String seqdb = "Unknown", sdbac = "" + dbr;
     int st = -1, en = -1, p;
     if ((st = sdbac.indexOf("/")) > -1)
@@ -736,6 +756,12 @@ public class StockholmFile extends AlignFile
         // could warn here that index is invalid
         st = -1;
       }
+    }
+    if (dbsource == null)
+    {
+      // make up an origin based on whether the sequence looks like it is nucleotide
+      // or protein
+      dbsource = (seqO.isProtein()) ? "PFAM" : "RFAM";
     }
     if (dbsource.equals("PFAM"))
     {
@@ -785,8 +811,10 @@ public class StockholmFile extends AlignFile
     {
       for (DBRefEntry d : dbrs)
       {
-        jalview.util.MapList mp = new jalview.util.MapList(new int[] {
-            seqO.getStart(), seqO.getEnd() }, new int[] { st, en }, 1, 1);
+        jalview.util.MapList mp = new jalview.util.MapList(
+                new int[]
+                { seqO.getStart(), seqO.getEnd() }, new int[] { st, en }, 1,
+                1);
         jalview.datamodel.Mapping mping = new Mapping(mp);
         d.setMap(mping);
       }
@@ -799,21 +827,31 @@ public class StockholmFile extends AlignFile
   {
     String convert1, convert2 = null;
 
-    convert1 = OPEN_PAREN.replaceAll(annots);
-    convert2 = CLOSE_PAREN.replaceAll(convert1);
-    annots = convert2;
+    // convert1 = OPEN_PAREN.replaceAll(annots);
+    // convert2 = CLOSE_PAREN.replaceAll(convert1);
+    // annots = convert2;
 
     String type = label;
     if (label.contains("_cons"))
     {
-      type = (label.indexOf("_cons") == label.length() - 5) ? label
-              .substring(0, label.length() - 5) : label;
+      type = (label.indexOf("_cons") == label.length() - 5)
+              ? label.substring(0, label.length() - 5)
+              : label;
     }
-    boolean ss = false;
+    boolean ss = false, posterior = false;
     type = id2type(type);
-    if (type.equals("secondary structure"))
+
+    boolean isrnass = false;
+    if (type.equalsIgnoreCase("secondary structure"))
     {
       ss = true;
+      isrnass = !NOT_RNASS.search(annots); // sorry about the double negative
+                                           // here (it's easier for dealing with
+                                           // other non-alpha-non-brace chars)
+    }
+    if (type.equalsIgnoreCase("posterior probability"))
+    {
+      posterior = true;
     }
     // decide on secondary structure or not.
     Annotation[] els = new Annotation[annots.length()];
@@ -827,26 +865,46 @@ public class StockholmFile extends AlignFile
       {
         // if (" .-_".indexOf(pos) == -1)
         {
-          if (DETECT_BRACKETS.search(pos))
+          if (isrnass && RNASS_BRACKETS.indexOf(pos) >= 0)
           {
             ann.secondaryStructure = Rna.getRNASecStrucState(pos).charAt(0);
+            ann.displayCharacter = "" + pos.charAt(0);
           }
           else
           {
             ann.secondaryStructure = ResidueProperties.getDssp3state(pos)
                     .charAt(0);
-          }
 
-          if (ann.secondaryStructure == pos.charAt(0))
-          {
-            ann.displayCharacter = ""; // null; // " ";
-          }
-          else
-          {
-            ann.displayCharacter = " " + ann.displayCharacter;
+            if (ann.secondaryStructure == pos.charAt(0))
+            {
+              ann.displayCharacter = ""; // null; // " ";
+            }
+            else
+            {
+              ann.displayCharacter = " " + ann.displayCharacter;
+            }
           }
         }
 
+      }
+      if (posterior && !ann.isWhitespace()
+              && !Comparison.isGap(pos.charAt(0)))
+      {
+        float val = 0;
+        // symbol encodes values - 0..*==0..10
+        if (pos.charAt(0) == '*')
+        {
+          val = 10;
+        }
+        else
+        {
+          val = pos.charAt(0) - '0';
+          if (val > 9)
+          {
+            val = 10;
+          }
+        }
+        ann.value = val;
       }
 
       els[i] = ann;
@@ -880,20 +938,29 @@ public class StockholmFile extends AlignFile
     return annot;
   }
 
-  public String print(SequenceI[] s)
+  private String dbref_to_ac_record(DBRefEntry ref)
   {
+    return ref.getSource().toString() + " ; "
+            + ref.getAccessionId().toString();
+  }
+  @Override
+  public String print(SequenceI[] s, boolean jvSuffix)
+  {
+    out = new StringBuffer();
+    out.append("# STOCKHOLM 1.0");
+    out.append(newline);
+
     // find max length of id
     int max = 0;
     int maxid = 0;
     int in = 0;
     Hashtable dataRef = null;
+    boolean isAA = s[in].isProtein();
     while ((in < s.length) && (s[in] != null))
     {
-      String tmp = printId(s[in]);
-      if (s[in].getSequence().length > max)
-      {
-        max = s[in].getSequence().length;
-      }
+
+      String tmp = printId(s[in], jvSuffix);
+      max = Math.max(max, s[in].getLength());
 
       if (tmp.length() > maxid)
       {
@@ -901,17 +968,33 @@ public class StockholmFile extends AlignFile
       }
       if (s[in].getDBRefs() != null)
       {
-        for (int idb = 0; idb < s[in].getDBRefs().length; idb++)
+        if (dataRef == null)
         {
-          if (dataRef == null)
+          dataRef = new Hashtable();
+        }
+        List<DBRefEntry> primrefs = s[in].getPrimaryDBRefs();
+        if (primrefs.size() >= 1)
+        {
+          dataRef.put(tmp, dbref_to_ac_record(primrefs.get(0)));
+        }
+        else
+        {
+          for (int idb = 0; idb < s[in].getDBRefs().length; idb++)
           {
-            dataRef = new Hashtable();
+            DBRefEntry dbref = s[in].getDBRefs()[idb];
+            dataRef.put(tmp, dbref_to_ac_record(dbref));
+            // if we put in a uniprot or EMBL record then we're done:
+            if (isAA && DBRefSource.UNIPROT
+                    .equals(DBRefUtils.getCanonicalName(dbref.getSource())))
+            {
+              break;
+            }
+            if (!isAA && DBRefSource.EMBL
+                    .equals(DBRefUtils.getCanonicalName(dbref.getSource())))
+            {
+              break;
+            }
           }
-
-          String datAs1 = s[in].getDBRefs()[idb].getSource().toString()
-                  + " ; "
-                  + s[in].getDBRefs()[idb].getAccessionId().toString();
-          dataRef.put(tmp, datAs1);
         }
       }
       in++;
@@ -942,9 +1025,10 @@ public class StockholmFile extends AlignFile
       {
         Object idd = en.nextElement();
         String type = (String) dataRef.remove(idd);
-        out.append(new Format("%-" + (maxid - 2) + "s").form("#=GS "
-                + idd.toString() + " "));
-        if (type.contains("PFAM") || type.contains("RFAM"))
+        out.append(new Format("%-" + (maxid - 2) + "s")
+                .form("#=GS " + idd.toString() + " "));
+        if (isAA && type.contains("UNIPROT")
+                || (!isAA && type.contains("EMBL")))
         {
 
           out.append(" AC " + type.substring(type.indexOf(";") + 1));
@@ -960,47 +1044,44 @@ public class StockholmFile extends AlignFile
     // output annotations
     while (i < s.length && s[i] != null)
     {
-      if (s[i].getDatasetSequence() != null)
+      AlignmentAnnotation[] alAnot = s[i].getAnnotation();
+      if (alAnot != null)
       {
-        SequenceI ds = s[i].getDatasetSequence();
-        AlignmentAnnotation[] alAnot;
         Annotation[] ann;
-        Annotation annot;
-        alAnot = s[i].getAnnotation();
-        String feature = "";
-        if (alAnot != null)
+        for (int j = 0; j < alAnot.length; j++)
         {
-          for (int j = 0; j < alAnot.length; j++)
+
+          String key = type2id(alAnot[j].label);
+          boolean isrna = alAnot[j].isValidStruc();
+
+          if (isrna)
           {
-            if (ds.getSequenceFeatures() != null)
-            {
-              feature = ds.getSequenceFeatures()[0].type;
-            }
-            // ?bug - feature may still have previous loop value
-            String key = type2id(feature);
-
-            if (key == null)
-            {
-              continue;
-            }
-
-            // out.append("#=GR ");
-            out.append(new Format("%-" + maxid + "s").form("#=GR "
-                    + printId(s[i]) + " " + key + " "));
-            ann = alAnot[j].annotations;
-            boolean isrna = alAnot[j].isValidStruc();
-            String seq = "";
-            for (int k = 0; k < ann.length; k++)
-            {
-              seq += outputCharacter(key, k, isrna, ann, s[i]);
-            }
-            out.append(seq);
-            out.append(newline);
+            // hardwire to secondary structure if there is RNA secondary
+            // structure on the annotation
+            key = "SS";
           }
+          if (key == null)
+          {
+
+            continue;
+          }
+
+          // out.append("#=GR ");
+          out.append(new Format("%-" + maxid + "s").form(
+                  "#=GR " + printId(s[i], jvSuffix) + " " + key + " "));
+          ann = alAnot[j].annotations;
+          String seq = "";
+          for (int k = 0; k < ann.length; k++)
+          {
+            seq += outputCharacter(key, k, isrna, ann, s[i]);
+          }
+          out.append(seq);
+          out.append(newline);
         }
       }
 
-      out.append(new Format("%-" + maxid + "s").form(printId(s[i]) + " "));
+      out.append(new Format("%-" + maxid + "s")
+              .form(printId(s[i], jvSuffix) + " "));
       out.append(s[i].getSequenceAsString());
       out.append(newline);
       i++;
@@ -1042,8 +1123,8 @@ public class StockholmFile extends AlignFile
         }
         label = label.replace(" ", "_");
 
-        out.append(new Format("%-" + maxid + "s").form("#=GC " + label
-                + " "));
+        out.append(
+                new Format("%-" + maxid + "s").form("#=GC " + label + " "));
         boolean isrna = aa.isValidStruc();
         for (int j = 0; j < aa.annotations.length; j++)
         {
@@ -1053,6 +1134,10 @@ public class StockholmFile extends AlignFile
         out.append(newline);
       }
     }
+
+    out.append("//");
+    out.append(newline);
+
     return out.toString();
   }
 
@@ -1071,22 +1156,38 @@ public class StockholmFile extends AlignFile
   {
     char seq = ' ';
     Annotation annot = ann[k];
-    String ch = (annot == null) ? ((sequenceI == null) ? "-" : Character
-            .toString(sequenceI.getCharAt(k))) : annot.displayCharacter;
+    String ch = (annot == null)
+            ? ((sequenceI == null) ? "-"
+                    : Character.toString(sequenceI.getCharAt(k)))
+            : (annot.displayCharacter == null
+                    ? String.valueOf(annot.secondaryStructure)
+                    : annot.displayCharacter);
+    if (ch == null)
+    {
+      ch = " ";
+    }
     if (key != null && key.equals("SS"))
     {
+      char ssannotchar = ' ';
+      boolean charset = false;
       if (annot == null)
       {
-        // sensible gap character if one is available or make one up
-        return sequenceI == null ? '-' : sequenceI.getCharAt(k);
+        // sensible gap character
+        ssannotchar = ' ';
+        charset = true;
       }
       else
       {
         // valid secondary structure AND no alternative label (e.g. ' B')
         if (annot.secondaryStructure > ' ' && ch.length() < 2)
         {
-          return annot.secondaryStructure;
+          ssannotchar = annot.secondaryStructure;
+          charset = true;
         }
+      }
+      if (charset)
+      {
+        return (ssannotchar == ' ' && isrna) ? '.' : ssannotchar;
       }
     }
 
@@ -1102,16 +1203,17 @@ public class StockholmFile extends AlignFile
     {
       seq = ch.charAt(1);
     }
-    return seq;
+
+    return (seq == ' ' && key != null && key.equals("SS") && isrna) ? '.'
+            : seq;
   }
 
-  @Override
   public String print()
   {
     out = new StringBuffer();
     out.append("# STOCKHOLM 1.0");
     out.append(newline);
-    print(getSeqsAsArray());
+    print(getSeqsAsArray(), false);
 
     out.append("//");
     out.append(newline);
@@ -1125,10 +1227,10 @@ public class StockholmFile extends AlignFile
     if (typeIds == null)
     {
       typeIds = new Hashtable();
-      typeIds.put("SS", "secondary structure");
-      typeIds.put("SA", "surface accessibility");
+      typeIds.put("SS", "Secondary Structure");
+      typeIds.put("SA", "Surface Accessibility");
       typeIds.put("TM", "transmembrane");
-      typeIds.put("PP", "posterior probability");
+      typeIds.put("PP", "Posterior Probability");
       typeIds.put("LI", "ligand binding");
       typeIds.put("AS", "active site");
       typeIds.put("IN", "intron");
@@ -1139,7 +1241,7 @@ public class StockholmFile extends AlignFile
       typeIds.put("DE", "description");
       typeIds.put("DR", "reference");
       typeIds.put("LO", "look");
-      typeIds.put("RF", "reference positions");
+      typeIds.put("RF", "Reference Positions");
 
     }
   }
@@ -1150,8 +1252,8 @@ public class StockholmFile extends AlignFile
     {
       return (String) typeIds.get(id);
     }
-    System.err.println("Warning : Unknown Stockholm annotation type code "
-            + id);
+    System.err.println(
+            "Warning : Unknown Stockholm annotation type code " + id);
     return id;
   }
 
@@ -1162,7 +1264,7 @@ public class StockholmFile extends AlignFile
     while (e.hasMoreElements())
     {
       Object ll = e.nextElement();
-      if (typeIds.get(ll).toString().equals(type))
+      if (typeIds.get(ll).toString().equalsIgnoreCase(type))
       {
         key = (String) ll;
         break;
@@ -1172,8 +1274,8 @@ public class StockholmFile extends AlignFile
     {
       return key;
     }
-    System.err.println("Warning : Unknown Stockholm annotation type: "
-            + type);
+    System.err.println(
+            "Warning : Unknown Stockholm annotation type: " + type);
     return key;
   }
 

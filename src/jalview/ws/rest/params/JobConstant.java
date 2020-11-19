@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -80,8 +80,9 @@ public class JobConstant extends InputType
         prm.add(URLEncoder.encode(value, "UTF-8"));
       } catch (UnsupportedEncodingException ex)
       {
-        throw new Error(MessageManager.formatMessage(
-                "error.couldnt_encode_as_utf8", new String[] { value }), ex);
+        throw new Error(MessageManager
+                .formatMessage("error.couldnt_encode_as_utf8", new String[]
+                { value }), ex);
 
       }
     }
@@ -100,7 +101,8 @@ public class JobConstant extends InputType
   {
     if (tokenstring.size() > 1)
     {
-      warnings.append("IMPLEMENTATION ERROR: Constant POST parameters cannot have more than one value.");
+      warnings.append(
+              "IMPLEMENTATION ERROR: Constant POST parameters cannot have more than one value.");
       return false;
     }
     if (tokenstring.size() == 1)
@@ -114,7 +116,8 @@ public class JobConstant extends InputType
   public boolean configureProperty(String tok, String val,
           StringBuffer warnings)
   {
-    warnings.append("IMPLEMENTATION ERROR: No Properties to configure for a Constant parameter.");
+    warnings.append(
+            "IMPLEMENTATION ERROR: No Properties to configure for a Constant parameter.");
     return false;
   }
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,6 +26,7 @@ import jalview.api.SequenceRenderer;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.ext.jmol.JalviewJmolBinding;
+import jalview.io.DataSourceType;
 
 import java.awt.Container;
 import java.util.ArrayList;
@@ -48,9 +49,8 @@ public class ExtJmol extends JalviewJmolBinding
 
   private AlignmentPanel ap;
 
-  protected ExtJmol(jalview.appletgui.AlignFrame alframe,
-          PDBEntry[] pdbentry, SequenceI[][] seq,
-          String protocol)
+  protected ExtJmol(AlignFrame alframe, PDBEntry[] pdbentry,
+          SequenceI[][] seq, DataSourceType protocol)
   {
     super(alframe.alignPanel.getStructureSelectionManager(), pdbentry, seq,
             protocol);
@@ -67,9 +67,6 @@ public class ExtJmol extends JalviewJmolBinding
   @Override
   public void updateColours(Object source)
   {
-
-    // TODO Auto-generated method stub
-
   }
 
   @Override
@@ -81,16 +78,17 @@ public class ExtJmol extends JalviewJmolBinding
   @Override
   public FeatureRenderer getFeatureRenderer(AlignmentViewPanel alignment)
   {
-    AlignmentPanel ap = (AlignmentPanel) alignment;
-    if (ap.av.isShowSequenceFeatures())
+    AlignmentPanel alignPanel = (AlignmentPanel) alignment;
+    if (alignPanel.av.isShowSequenceFeatures())
     {
-      return ap.getFeatureRenderer();
+      return alignPanel.getFeatureRenderer();
     }
     else
     {
       return null;
     }
   }
+
 
   @Override
   public SequenceRenderer getSequenceRenderer(AlignmentViewPanel alignment)
@@ -137,8 +135,8 @@ public class ExtJmol extends JalviewJmolBinding
   @Override
   public void refreshPdbEntries()
   {
-    List<PDBEntry> pdbe = new ArrayList<PDBEntry>();
-    List<String> fileids = new ArrayList<String>();
+    List<PDBEntry> pdbe = new ArrayList<>();
+    List<String> fileids = new ArrayList<>();
     SequenceI[] sq = ap.av.getAlignment().getSequencesArray();
     for (int s = 0; s < sq.length; s++)
     {
@@ -172,8 +170,8 @@ public class ExtJmol extends JalviewJmolBinding
   {
     // This never gets called because we haven't overriden the associated Jmol's
     // console
-    System.err
-            .println("WARNING: unexpected call to ExtJmol's showConsole method. (showConsole="
+    System.err.println(
+            "WARNING: unexpected call to ExtJmol's showConsole method. (showConsole="
                     + show);
   }
 
@@ -181,7 +179,6 @@ public class ExtJmol extends JalviewJmolBinding
   protected JmolAppConsoleInterface createJmolConsole(
           Container consolePanel, String buttonsToShow)
   {
-    // TODO Auto-generated method stub
     return null;
   }
 
@@ -196,14 +193,11 @@ public class ExtJmol extends JalviewJmolBinding
   @Override
   public void releaseReferences(Object svl)
   {
-    // TODO Auto-generated method stub
-
   }
 
   @Override
   public Map<String, Object> getJSpecViewProperty(String arg0)
   {
-    // TODO Auto-generated method stub
     return null;
   }
 

@@ -1,0 +1,96 @@
+<html>
+<!--
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
+ * 
+ * This file is part of Jalview.
+ * 
+ * Jalview is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License 
+ * as published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *  
+ * Jalview is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty 
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE.  See the GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
+ * The Jalview Authors are detailed in the 'AUTHORS' file.
+ -->
+<head>
+<title>Running Jalview from the command line</title>
+</head>
+<body>
+  <p>
+    <strong>Running Jalview from the command line</strong>
+  </p>
+  <p>
+    Jalview can be run from the command line, and provides a <a
+      href="clarguments.html">range of arguments</a>. These arguments
+    can also be passed via <strong>.JVL</strong> files, which are opened
+    automatically by the Jalview application when double-clicked in a
+    file browser on Windows and OSX.
+  </p>
+  The way that you launch Jalview from the command line depends on the
+  platform you are on, and how it has been installed.
+
+  <ul>
+    <li>Standard installation on Linux/Unix:<pre>
+       /PATH_TO_JALVIEW/Jalview -open https://www.jalview.org/examples/jpred_msa.fasta -annotations https://www.jalview.org/examples/jpred_msa.seq.concise -colour Clustal</pre>
+    </li>
+    <li>Standard installation on Windows:<pre>
+      \PATH_TO_JALVIEW\Jalview.exe -open %HOMEPATH%\myalignment.fa</pre>
+    </li>
+    <li>OSX Application:<pre>
+open /Applications/Jalview.app --args -open ~/myalignment.fa</pre><em>(put
+        all the Jalview arguments <em>after</em> the --args parameter)
+    </em><br />
+    <br /></li>
+    <li>Jalview standalone executable Jar<pre>
+        &lt;Path to Java home&gt;/bin/java -jar &lt;Path to Jalview Jar&gt;/jalview-all-1.8.jar -open myalignment.fa</pre></li>
+  </ul>
+  <p>
+    If you have installed Jalview via <em>conda</em> or another package
+    manager then you most likely have a 'jalview' command available in
+    your terminal shell's default path. Alternately, if you have built
+    Jalview from source, then take a look at the doc/building.md file
+    included in the source distribution.
+  </p>
+  <p>
+    Use '-help' to get more information on the <a
+      href="clarguments.html">command line arguments</a> that Jalview
+    accepts.
+  </p>
+  <p>
+    <strong>Passing JVM Arguments to Jalview</strong><br /> If you need
+    to modify parameters for Jalview's Java Virtual Machine, or
+    configure system properties, then take a look at the instructions
+    for how to <a href="../memory.html#jvm">setting the JVM's
+      maximum memory</a>.<br /> 
+  <p>
+    <strong>Changing Jalview's 'Look and Feel'</strong> <br />If you
+    are experiencing issues with the font size or layout of Jalview's
+    GUI, you can try changing Jalview's 'Look and feel' by
+    specifying a custom system property 'laf' on startup (see <a
+      href="../memory.html#jvm">setting the JVM's memory</a> for
+    instructions on how to do this for your platform). <br />For the
+    Jalview standalone executable jar, simply provide one of the
+    property settings before the -jar argument
+  </p>
+  <ul>
+    <li>-Dlaf=system (default look and feel for the OS)</li>
+    <li>-Dlaf=crossplatform (Java's Metal Look and Feel)</li>
+    <li>-Dlaf=nimbus (Java's alternative Nimbus Look and Feel)</li>
+    <li>-Dlaf=mac (only has an effect on OSX)</li>
+    <li>-Dlaf=gtk (only has an effect on Linux)</li>
+  </ul>
+  The currently configured look and feel is logged to Jalview's console.
+  Once the look and feel has been changed, it will be stored in
+  Jalview's .jalview_properties file for future Jalview sessions.
+
+  <p>&nbsp;</p>
+  <p>&nbsp;</p>
+</body>
+</html>

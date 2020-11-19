@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,38 +20,29 @@
  */
 package jalview.renderer.seqfeatures;
 
-import jalview.api.AlignViewportI;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.viewmodel.seqfeatures.FeatureRendererModel;
-
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
+import java.util.List;
+
+import jalview.api.AlignViewportI;
+import jalview.api.FeatureColourI;
+import jalview.datamodel.ContiguousI;
+import jalview.datamodel.MappedFeatures;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.gui.AlignFrame;
+import jalview.gui.Desktop;
+import jalview.util.Comparison;
+import jalview.util.ReverseListIterator;
+import jalview.viewmodel.seqfeatures.FeatureRendererModel;
 
 public class FeatureRenderer extends FeatureRendererModel
 {
-
-  FontMetrics fm;
-
-  int charOffset;
-
-  boolean offscreenRender = false;
-
-  protected SequenceI lastSeq;
-
-  char s;
-
-  int i;
-
-  int av_charHeight, av_charWidth;
-
-  boolean av_validCharWidth, av_isShowSeqFeatureHeight;
-
-  private Integer currentColour;
+  private static final AlphaComposite NO_TRANSPARENCY = AlphaComposite
+          .getInstance(AlphaComposite.SRC_OVER, 1.0f);
 
   /**
    * Constructor given a viewport
@@ -63,273 +54,263 @@ public class FeatureRenderer extends FeatureRendererModel
     this.av = viewport;
   }
 
-  protected void updateAvConfig()
-  {
-    av_charHeight = av.getCharHeight();
-    av_charWidth = av.getCharWidth();
-    av_validCharWidth = av.isValidCharWidth();
-    av_isShowSeqFeatureHeight = av.isShowSequenceFeaturesHeight();
-  }
-
-  void renderFeature(Graphics g, SequenceI seq, int fstart, int fend,
-          Color featureColour, int start, int end, int y1)
-  {
-    updateAvConfig();
-    if (((fstart <= end) && (fend >= start)))
-    {
-      if (fstart < start)
-      { // fix for if the feature we have starts before the sequence start,
-        fstart = start; // but the feature end is still valid!!
-      }
-
-      if (fend >= end)
-      {
-        fend = end;
-      }
-      int pady = (y1 + av_charHeight) - av_charHeight / 5;
-      for (i = fstart; i <= fend; i++)
-      {
-        s = seq.getCharAt(i);
-
-        if (jalview.util.Comparison.isGap(s))
-        {
-          continue;
-        }
-
-        g.setColor(featureColour);
-
-        g.fillRect((i - start) * av_charWidth, y1, av_charWidth,
-                av_charHeight);
-
-        if (offscreenRender || !av_validCharWidth)
-        {
-          continue;
-        }
-
-        g.setColor(Color.white);
-        charOffset = (av_charWidth - fm.charWidth(s)) / 2;
-        g.drawString(String.valueOf(s), charOffset
-                + (av_charWidth * (i - start)), pady);
-
-      }
-    }
-  }
-
-  void renderScoreFeature(Graphics g, SequenceI seq, int fstart, int fend,
-          Color featureColour, int start, int end, int y1, byte[] bs)
-  {
-    updateAvConfig();
-    if (((fstart <= end) && (fend >= start)))
-    {
-      if (fstart < start)
-      { // fix for if the feature we have starts before the sequence start,
-        fstart = start; // but the feature end is still valid!!
-      }
-
-      if (fend >= end)
-      {
-        fend = end;
-      }
-      int pady = (y1 + av_charHeight) - av_charHeight / 5;
-      int ystrt = 0, yend = av_charHeight;
-      if (bs[0] != 0)
-      {
-        // signed - zero is always middle of residue line.
-        if (bs[1] < 128)
-        {
-          yend = av_charHeight * (128 - bs[1]) / 512;
-          ystrt = av_charHeight - yend / 2;
-        }
-        else
-        {
-          ystrt = av_charHeight / 2;
-          yend = av_charHeight * (bs[1] - 128) / 512;
-        }
-      }
-      else
-      {
-        yend = av_charHeight * bs[1] / 255;
-        ystrt = av_charHeight - yend;
-
-      }
-      for (i = fstart; i <= fend; i++)
-      {
-        s = seq.getCharAt(i);
-
-        if (jalview.util.Comparison.isGap(s))
-        {
-          continue;
-        }
-
-        g.setColor(featureColour);
-        int x = (i - start) * av_charWidth;
-        g.drawRect(x, y1, av_charWidth, av_charHeight);
-        g.fillRect(x, y1 + ystrt, av_charWidth, yend);
-
-        if (offscreenRender || !av_validCharWidth)
-        {
-          continue;
-        }
-
-        g.setColor(Color.black);
-        charOffset = (av_charWidth - fm.charWidth(s)) / 2;
-        g.drawString(String.valueOf(s), charOffset
-                + (av_charWidth * (i - start)), pady);
-      }
-    }
-  }
-
-  BufferedImage offscreenImage;
-
-  @Override
-  public Color findFeatureColour(Color initialCol, SequenceI seq, int res)
-  {
-    return new Color(findFeatureColour(initialCol.getRGB(), seq, res));
-  }
-
   /**
-   * This is used by Structure Viewers and the Overview Window to get the
-   * feature colour of the rendered sequence, returned as an RGB value
-   * 
-   * @param defaultColour
-   * @param seq
-   * @param column
-   * @return
-   */
-  public synchronized int findFeatureColour(int defaultColour,
-          final SequenceI seq, int column)
-  {
-    if (!av.isShowSequenceFeatures())
-    {
-      return defaultColour;
-    }
-
-    SequenceFeature[] sequenceFeatures = seq.getSequenceFeatures();
-    if (seq != lastSeq)
-    {
-      lastSeq = seq;
-      lastSequenceFeatures = sequenceFeatures;
-      if (lastSequenceFeatures != null)
-      {
-        sfSize = lastSequenceFeatures.length;
-      }
-    }
-    else
-    {
-      if (lastSequenceFeatures != sequenceFeatures)
-      {
-        lastSequenceFeatures = sequenceFeatures;
-        if (lastSequenceFeatures != null)
-        {
-          sfSize = lastSequenceFeatures.length;
-        }
-      }
-    }
-
-    if (lastSequenceFeatures == null || sfSize == 0)
-    {
-      return defaultColour;
-    }
-
-    if (jalview.util.Comparison.isGap(lastSeq.getCharAt(column)))
-    {
-      return Color.white.getRGB();
-    }
-
-    // Only bother making an offscreen image if transparency is applied
-    if (transparency != 1.0f && offscreenImage == null)
-    {
-      offscreenImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-    }
-
-    currentColour = null;
-    // TODO: non-threadsafe - each rendering thread needs its own instance of
-    // the feature renderer - or this should be synchronized.
-    offscreenRender = true;
-
-    if (offscreenImage != null)
-    {
-      offscreenImage.setRGB(0, 0, defaultColour);
-      drawSequence(offscreenImage.getGraphics(), lastSeq, column, column, 0);
-
-      return offscreenImage.getRGB(0, 0);
-    }
-    else
-    {
-      drawSequence(null, lastSeq, lastSeq.findPosition(column), -1, -1);
-
-      if (currentColour == null)
-      {
-        return defaultColour;
-      }
-      else
-      {
-        return currentColour.intValue();
-      }
-    }
-
-  }
-
-  private volatile SequenceFeature[] lastSequenceFeatures;
-
-  int sfSize;
-
-  int sfindex;
-
-  int spos;
-
-  int epos;
-
-  /**
-   * Draws the sequence on the graphics context, or just determines the colour
-   * that would be drawn (if flag offscreenrender is true).
+   * Renders the sequence using the given feature colour between the given start
+   * and end columns. Returns true if at least one column is drawn, else false
+   * (the feature range does not overlap the start and end positions).
    * 
    * @param g
    * @param seq
+   * @param featureStart
+   * @param featureEnd
+   * @param featureColour
    * @param start
-   *          start column (or sequence position in offscreenrender mode)
    * @param end
-   *          end column (not used in offscreenrender mode)
    * @param y1
-   *          vertical offset at which to draw on the graphics
+   * @param colourOnly
+   * @return
    */
-  public synchronized void drawSequence(Graphics g, final SequenceI seq,
-          int start, int end, int y1)
+  boolean renderFeature(Graphics g, SequenceI seq, int featureStart,
+          int featureEnd, Color featureColour, int start, int end, int y1,
+          boolean colourOnly)
   {
-    SequenceFeature[] sequenceFeatures = seq.getSequenceFeatures();
-    if (sequenceFeatures == null || sequenceFeatures.length == 0)
+    int charHeight = av.getCharHeight();
+    int charWidth = av.getCharWidth();
+    boolean validCharWidth = av.isValidCharWidth();
+
+    if (featureStart > end || featureEnd < start)
     {
-      return;
+      return false;
     }
 
-    if (g != null)
+    if (featureStart < start)
     {
-      fm = g.getFontMetrics();
+      featureStart = start;
+    }
+    if (featureEnd >= end)
+    {
+      featureEnd = end;
+    }
+    int pady = (y1 + charHeight) - charHeight / 5;
+
+    FontMetrics fm = g.getFontMetrics();
+    for (int i = featureStart; i <= featureEnd; i++)
+    {
+      char s = seq.getCharAt(i);
+
+      if (Comparison.isGap(s))
+      {
+        continue;
+      }
+
+      g.setColor(featureColour);
+
+      g.fillRect((i - start) * charWidth, y1, charWidth, charHeight);
+
+      if (colourOnly || !validCharWidth)
+      {
+        continue;
+      }
+
+      /*
+       * JAL-3045 text is always drawn over features, even if
+       * 'Show Text' is unchecked in the format menu
+       */
+      g.setColor(Color.white);
+      int charOffset = (charWidth - fm.charWidth(s)) / 2;
+      g.drawString(String.valueOf(s),
+              charOffset + (charWidth * (i - start)), pady);
+    }
+    return true;
+  }
+
+  /**
+   * Renders the sequence using the given SCORE feature colour between the given
+   * start and end columns. Returns true if at least one column is drawn, else
+   * false (the feature range does not overlap the start and end positions).
+   * 
+   * @param g
+   * @param seq
+   * @param fstart
+   * @param fend
+   * @param featureColour
+   * @param start
+   * @param end
+   * @param y1
+   * @param bs
+   * @param colourOnly
+   * @return
+   */
+  boolean renderScoreFeature(Graphics g, SequenceI seq, int fstart,
+          int fend, Color featureColour, int start, int end, int y1,
+          byte[] bs, boolean colourOnly)
+  {
+    if (fstart > end || fend < start)
+    {
+      return false;
+    }
+
+    if (fstart < start)
+    { // fix for if the feature we have starts before the sequence start,
+      fstart = start; // but the feature end is still valid!!
+    }
+
+    if (fend >= end)
+    {
+      fend = end;
+    }
+    int charHeight = av.getCharHeight();
+    int pady = (y1 + charHeight) - charHeight / 5;
+    int ystrt = 0, yend = charHeight;
+    if (bs[0] != 0)
+    {
+      // signed - zero is always middle of residue line.
+      if (bs[1] < 128)
+      {
+        yend = charHeight * (128 - bs[1]) / 512;
+        ystrt = charHeight - yend / 2;
+      }
+      else
+      {
+        ystrt = charHeight / 2;
+        yend = charHeight * (bs[1] - 128) / 512;
+      }
+    }
+    else
+    {
+      yend = charHeight * bs[1] / 255;
+      ystrt = charHeight - yend;
+
+    }
+
+    FontMetrics fm = g.getFontMetrics();
+    int charWidth = av.getCharWidth();
+
+    for (int i = fstart; i <= fend; i++)
+    {
+      char s = seq.getCharAt(i);
+
+      if (Comparison.isGap(s))
+      {
+        continue;
+      }
+
+      g.setColor(featureColour);
+      int x = (i - start) * charWidth;
+      g.drawRect(x, y1, charWidth, charHeight);
+      g.fillRect(x, y1 + ystrt, charWidth, yend);
+
+      if (colourOnly || !av.isValidCharWidth())
+      {
+        continue;
+      }
+
+      g.setColor(Color.black);
+      int charOffset = (charWidth - fm.charWidth(s)) / 2;
+      g.drawString(String.valueOf(s),
+              charOffset + (charWidth * (i - start)), pady);
+    }
+    return true;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Color findFeatureColour(SequenceI seq, int column, Graphics g)
+  {
+    if (!av.isShowSequenceFeatures())
+    {
+      return null;
+    }
+
+    // column is 'base 1' but getCharAt is an array index (ie from 0)
+    if (Comparison.isGap(seq.getCharAt(column - 1)))
+    {
+      /*
+       * returning null allows the colour scheme to provide gap colour
+       * - normally white, but can be customised
+       */
+      return null;
+    }
+
+    Color renderedColour = null;
+    if (transparency == 1.0f)
+    {
+      /*
+       * simple case - just find the topmost rendered visible feature colour
+       */
+      renderedColour = findFeatureColour(seq, column);
+    }
+    else
+    {
+      /*
+       * transparency case - draw all visible features in render order to
+       * build up a composite colour on the graphics context
+       */
+      renderedColour = drawSequence(g, seq, column, column, 0, true);
+    }
+    return renderedColour;
+  }
+
+  /**
+   * Draws the sequence features on the graphics context, or just determines the
+   * colour that would be drawn (if flag colourOnly is true). Returns the last
+   * colour drawn (which may not be the effective colour if transparency
+   * applies), or null if no feature is drawn in the range given.
+   * 
+   * @param g
+   *          the graphics context to draw on (may be null if colourOnly==true)
+   * @param seq
+   * @param start
+   *          start column
+   * @param end
+   *          end column
+   * @param y1
+   *          vertical offset at which to draw on the graphics
+   * @param colourOnly
+   *          if true, only do enough to determine the colour for the position,
+   *          do not draw the character
+   * @return
+   */
+  public synchronized Color drawSequence(final Graphics g,
+          final SequenceI seq, int start, int end, int y1,
+          boolean colourOnly)
+  {
+    /*
+     * if columns are all gapped, or sequence has no features, nothing to do
+     */
+    ContiguousI visiblePositions = seq.findPositions(start + 1, end + 1);
+    if (visiblePositions == null || !seq.getFeatures().hasFeatures()
+            && !av.isShowComplementFeatures())
+    {
+      return null;
     }
 
     updateFeatures();
 
-    if (lastSeq == null || seq != lastSeq
-            || sequenceFeatures != lastSequenceFeatures)
-    {
-      lastSeq = seq;
-      lastSequenceFeatures = sequenceFeatures;
-    }
-
-    if (transparency != 1 && g != null)
+    if (transparency != 1f && g != null)
     {
       Graphics2D g2 = (Graphics2D) g;
       g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
               transparency));
     }
 
-    if (!offscreenRender)
+    Color drawnColour = null;
+
+    /*
+     * draw 'complement' features below ours if configured to do so
+     */
+    if (av.isShowComplementFeatures()
+            && !av.isShowComplementFeaturesOnTop())
     {
-      spos = lastSeq.findPosition(start);
-      epos = lastSeq.findPosition(end);
+      drawnColour = drawComplementFeatures(g, seq, start, end, y1,
+              colourOnly, visiblePositions, drawnColour);
     }
 
-    sfSize = lastSequenceFeatures.length;
+    /*
+     * iterate over features in ordering of their rendering (last is on top)
+     */
     for (int renderIndex = 0; renderIndex < renderOrder.length; renderIndex++)
     {
       String type = renderOrder[renderIndex];
@@ -338,117 +319,165 @@ public class FeatureRenderer extends FeatureRendererModel
         continue;
       }
 
-      // loop through all features in sequence to find
-      // current feature to render
-      for (sfindex = 0; sfindex < sfSize; sfindex++)
-      {
-        final SequenceFeature sequenceFeature = lastSequenceFeatures[sfindex];
-        if (!sequenceFeature.type.equals(type))
-        {
-          continue;
-        }
+      FeatureColourI fc = getFeatureStyle(type);
+      List<SequenceFeature> overlaps = seq.getFeatures().findFeatures(
+              visiblePositions.getBegin(), visiblePositions.getEnd(), type);
 
-        if (featureGroupNotShown(sequenceFeature))
+      if (fc.isSimpleColour())
+      {
+        filterFeaturesForDisplay(overlaps);
+      }
+
+      for (SequenceFeature sf : overlaps)
+      {
+        Color featureColour = getColor(sf, fc);
+        if (featureColour == null)
         {
+          /*
+           * feature excluded by filters, or colour threshold
+           */
           continue;
         }
 
         /*
-         * check feature overlaps the visible part of the alignment, 
-         * unless doing offscreenRender (to the Overview window or a 
-         * structure viewer) which is not limited 
+         * if feature starts/ends outside the visible range,
+         * restrict to visible positions (or if a contact feature,
+         * to a single position)
          */
-        if (!offscreenRender
-                && (sequenceFeature.getBegin() > epos || sequenceFeature
-                        .getEnd() < spos))
+        int visibleStart = sf.getBegin();
+        if (visibleStart < visiblePositions.getBegin())
         {
-          continue;
+          visibleStart = sf.isContactFeature() ? sf.getEnd()
+                  : visiblePositions.getBegin();
+        }
+        int visibleEnd = sf.getEnd();
+        if (visibleEnd > visiblePositions.getEnd())
+        {
+          visibleEnd = sf.isContactFeature() ? sf.getBegin()
+                  : visiblePositions.getEnd();
         }
 
-        Color featureColour = getColour(sequenceFeature);
-        boolean isContactFeature = sequenceFeature.isContactFeature();
+        int featureStartCol = seq.findIndex(visibleStart);
+        int featureEndCol = sf.begin == sf.end ? featureStartCol : seq
+                .findIndex(visibleEnd);
 
-        if (offscreenRender && offscreenImage == null)
+        // Color featureColour = getColour(sequenceFeature);
+
+        boolean isContactFeature = sf.isContactFeature();
+
+        if (isContactFeature)
+        {
+          boolean drawn = renderFeature(g, seq, featureStartCol - 1,
+                  featureStartCol - 1, featureColour, start, end, y1,
+                  colourOnly);
+          drawn |= renderFeature(g, seq, featureEndCol - 1,
+                  featureEndCol - 1, featureColour, start, end, y1,
+                  colourOnly);
+          if (drawn)
+          {
+            drawnColour = featureColour;
+          }
+        }
+        else
         {
           /*
-           * offscreen mode with no image (image is only needed if transparency 
-           * is applied to feature colours) - just check feature is rendered at 
-           * the requested position (start == sequence position in this mode)
-           */
-          boolean featureIsAtPosition = sequenceFeature.begin <= start
-                  && sequenceFeature.end >= start;
-          if (isContactFeature)
-          {
-            featureIsAtPosition = sequenceFeature.begin == start
-                    || sequenceFeature.end == start;
-          }
-          if (featureIsAtPosition)
-          {
-            // this is passed out to the overview and other sequence renderers
-            // (e.g. molecule viewer) to get displayed colour for rendered
-            // sequence
-            currentColour = new Integer(featureColour.getRGB());
-            // used to be retreived from av.featuresDisplayed
-            // currentColour = av.featuresDisplayed
-            // .get(sequenceFeatures[sfindex].type);
-
-          }
-        }
-        else if (isContactFeature)
-        {
-          renderFeature(g, seq, seq.findIndex(sequenceFeature.begin) - 1,
-                  seq.findIndex(sequenceFeature.begin) - 1, featureColour,
-                  start, end, y1);
-          renderFeature(g, seq, seq.findIndex(sequenceFeature.end) - 1,
-                  seq.findIndex(sequenceFeature.end) - 1, featureColour,
-                  start, end, y1);
-
-        }
-        else if (showFeature(sequenceFeature))
-        {
-          if (av_isShowSeqFeatureHeight
+           * showing feature score by height of colour
+           * is not implemented as a selectable option 
+           *
+          if (av.isShowSequenceFeaturesHeight()
                   && !Float.isNaN(sequenceFeature.score))
           {
-            renderScoreFeature(g, seq,
+            boolean drawn = renderScoreFeature(g, seq,
                     seq.findIndex(sequenceFeature.begin) - 1,
-                    seq.findIndex(sequenceFeature.end) - 1,
-                    featureColour, start, end, y1,
-                    normaliseScore(sequenceFeature));
+                    seq.findIndex(sequenceFeature.end) - 1, featureColour,
+                    start, end, y1, normaliseScore(sequenceFeature),
+                    colourOnly);
+            if (drawn)
+            {
+              drawnColour = featureColour;
+            }
           }
           else
           {
-            renderFeature(g, seq, seq.findIndex(sequenceFeature.begin) - 1,
-                    seq.findIndex(sequenceFeature.end) - 1,
-                    featureColour, start, end, y1);
-          }
+          */
+            boolean drawn = renderFeature(g, seq,
+                    featureStartCol - 1,
+                    featureEndCol - 1, featureColour,
+                    start, end, y1, colourOnly);
+            if (drawn)
+            {
+              drawnColour = featureColour;
+            }
+          /*}*/
         }
       }
     }
 
+    /*
+     * draw 'complement' features above ours if configured to do so
+     */
+    if (av.isShowComplementFeatures() && av.isShowComplementFeaturesOnTop())
+    {
+      drawnColour = drawComplementFeatures(g, seq, start, end, y1,
+              colourOnly, visiblePositions, drawnColour);
+    }
+
     if (transparency != 1.0f && g != null)
     {
+      /*
+       * reset transparency
+       */
       Graphics2D g2 = (Graphics2D) g;
-      g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
-              1.0f));
+      g2.setComposite(NO_TRANSPARENCY);
     }
+
+    return drawnColour;
   }
 
   /**
-   * Answers true if the feature belongs to a feature group which is not
-   * currently displayed, else false
+   * Find any features on the CDS/protein complement of the sequence region and
+   * draw them, with visibility and colouring as configured in the complementary
+   * viewport
    * 
-   * @param sequenceFeature
+   * @param g
+   * @param seq
+   * @param start
+   * @param end
+   * @param y1
+   * @param colourOnly
+   * @param visiblePositions
+   * @param drawnColour
    * @return
    */
-  protected boolean featureGroupNotShown(
-          final SequenceFeature sequenceFeature)
+  Color drawComplementFeatures(final Graphics g, final SequenceI seq,
+          int start, int end, int y1, boolean colourOnly,
+          ContiguousI visiblePositions, Color drawnColour)
   {
-    return featureGroups != null
-            && sequenceFeature.featureGroup != null
-            && sequenceFeature.featureGroup.length() != 0
-            && featureGroups.containsKey(sequenceFeature.featureGroup)
-            && !featureGroups.get(sequenceFeature.featureGroup)
-                    .booleanValue();
+    AlignViewportI comp = av.getCodingComplement();
+    FeatureRenderer fr2 = Desktop.getAlignFrameFor(comp)
+            .getFeatureRenderer();
+
+    final int visibleStart = visiblePositions.getBegin();
+    final int visibleEnd = visiblePositions.getEnd();
+
+    for (int pos = visibleStart; pos <= visibleEnd; pos++)
+    {
+      int column = seq.findIndex(pos);
+      MappedFeatures mf = fr2
+              .findComplementFeaturesAtResidue(seq, pos);
+      if (mf != null)
+      {
+        for (SequenceFeature sf : mf.features)
+        {
+          FeatureColourI fc = fr2.getFeatureStyle(sf.getType());
+          Color featureColour = fr2.getColor(sf, fc);
+          renderFeature(g, seq, column - 1, column - 1, featureColour,
+                  start, end, y1, colourOnly);
+          drawnColour = featureColour;
+        }
+      }
+    }
+    return drawnColour;
   }
 
   /**
@@ -459,7 +488,110 @@ public class FeatureRenderer extends FeatureRendererModel
   @Override
   public void featuresAdded()
   {
-    lastSeq = null;
     findAllFeatures();
+  }
+
+  /**
+   * Returns the sequence feature colour rendered at the given column position,
+   * or null if none found. The feature of highest render order (i.e. on top) is
+   * found, subject to both feature type and feature group being visible, and
+   * its colour returned. This method is suitable when no feature transparency
+   * applied (only the topmost visible feature colour is rendered).
+   * <p>
+   * Note this method does not check for a gap in the column so would return the
+   * colour for features enclosing a gapped column. Check for gap before calling
+   * if different behaviour is wanted.
+   * 
+   * @param seq
+   * @param column
+   *          (1..)
+   * @return
+   */
+  Color findFeatureColour(SequenceI seq, int column)
+  {
+    /*
+     * check for new feature added while processing
+     */
+    updateFeatures();
+
+    /*
+     * show complement features on top (if configured to show them)
+     */
+    if (av.isShowComplementFeatures() && av.isShowComplementFeaturesOnTop())
+    {
+      Color col = findComplementFeatureColour(seq, column);
+      if (col != null)
+      {
+        return col;
+      }
+    }
+
+    /*
+     * inspect features in reverse renderOrder (the last in the array is 
+     * displayed on top) until we find one that is rendered at the position
+     */
+    for (int renderIndex = renderOrder.length
+            - 1; renderIndex >= 0; renderIndex--)
+    {
+      String type = renderOrder[renderIndex];
+      if (!showFeatureOfType(type))
+      {
+        continue;
+      }
+
+      List<SequenceFeature> overlaps = seq.findFeatures(column, column,
+              type);
+      for (SequenceFeature sequenceFeature : overlaps)
+      {
+        if (!featureGroupNotShown(sequenceFeature))
+        {
+          Color col = getColour(sequenceFeature);
+          if (col != null)
+          {
+            return col;
+          }
+        }
+      }
+    }
+
+    /*
+     * show complement features underneath (if configured to show them)
+     */
+    Color col = null;
+    if (av.isShowComplementFeatures()
+            && !av.isShowComplementFeaturesOnTop())
+    {
+      col = findComplementFeatureColour(seq, column);
+    }
+
+    return col;
+  }
+
+  Color findComplementFeatureColour(SequenceI seq, int column)
+  {
+    AlignViewportI complement = av.getCodingComplement();
+    AlignFrame af = Desktop.getAlignFrameFor(complement);
+    FeatureRendererModel fr2 = af.getFeatureRenderer();
+    MappedFeatures mf = fr2.findComplementFeaturesAtResidue(
+            seq, seq.findPosition(column - 1));
+    if (mf == null)
+    {
+      return null;
+    }
+    ReverseListIterator<SequenceFeature> it = new ReverseListIterator<>(
+            mf.features);
+    while (it.hasNext())
+    {
+      SequenceFeature sf = it.next();
+      if (!fr2.featureGroupNotShown(sf))
+      {
+        Color col = fr2.getColour(sf);
+        if (col != null)
+        {
+          return col;
+        }
+      }
+    }
+    return null;
   }
 }

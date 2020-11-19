@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,17 +20,19 @@
  */
 package jalview.schemes;
 
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.api.AlignViewportI;
+import jalview.api.analysis.PairwiseScoreModelI;
 import jalview.datamodel.AnnotatedCollectionI;
-import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
 import jalview.util.Comparison;
 
 import java.awt.Color;
-import java.util.Map;
 
 public class Blosum62ColourScheme extends ResidueColourScheme
 {
   private static final Color LIGHT_BLUE = new Color(204, 204, 255);
+
   private static final Color DARK_BLUE = new Color(154, 154, 255);
 
   public Blosum62ColourScheme()
@@ -38,73 +40,79 @@ public class Blosum62ColourScheme extends ResidueColourScheme
     super();
   }
 
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
   @Override
-  public Color findColour(char res, int j, SequenceI seq)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
   {
-    if ('a' <= res && res <= 'z')
-    {
-      // TO UPPERCASE !!!
-      res -= ('a' - 'A');
-    }
-
-    if (consensus == null || consensus.get(j) == null
-            || (threshold != 0 && !aboveThreshold(res, j)))
-    {
-      return Color.white;
-    }
-
-    Color currentColour;
-
-    if (!Comparison.isGap(res))
-    {
-      /*
-       * test if this is the consensus (or joint consensus) residue
-       */
-      String max = consensus.get(j).getModalResidue();
-
-      if (max.indexOf(res) > -1)
-      {
-        currentColour = DARK_BLUE;
-      }
-      else
-      {
-        int c = 0;
-        int max_aa = 0;
-        int n = max.length();
-
-        do
-        {
-          c += ResidueProperties.getBLOSUM62(max.charAt(max_aa), res);
-        } while (++max_aa < n);
-
-        if (c > 0)
-        {
-          currentColour = LIGHT_BLUE;
-        }
-        else
-        {
-          currentColour = Color.white;
-        }
-      }
-
-      if (conservationColouring)
-      {
-        currentColour = applyConservation(currentColour, j);
-      }
-    }
-    else
-    {
-      return Color.white;
-    }
-
-    return currentColour;
+    return new Blosum62ColourScheme();
   }
 
   @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public Color findColour(char res, int j, SequenceI seq,
+          String consensusResidue, float pid)
   {
-    ColourSchemeI newcs = super.applyTo(sg, hiddenRepSequences);
-    return newcs;
+    PairwiseScoreModelI sm = ScoreModels.getInstance().getBlosum62();
+
+    /*
+     * compare as upper case; note consensusResidue is 
+     * always computed as uppercase
+     */
+    if ('a' <= res && res <= 'z')
+    {
+      res -= ('a' - 'A');
+    }
+
+    if (Comparison.isGap(res) || consensusResidue == null)
+    {
+      return Color.white;
+    }
+
+    Color colour;
+
+    if (consensusResidue.indexOf(res) > -1)
+    {
+      colour = DARK_BLUE;
+    }
+    else
+    {
+      float score = 0;
+
+      for (char consensus : consensusResidue.toCharArray())
+      {
+        score += sm.getPairwiseScore(consensus, res);
+      }
+
+      if (score > 0)
+      {
+        colour = LIGHT_BLUE;
+      }
+      else
+      {
+        colour = Color.white;
+      }
+    }
+    return colour;
+  }
+
+  @Override
+  public boolean isPeptideSpecific()
+  {
+    return true;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.Blosum62.toString();
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
   }
 }

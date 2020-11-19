@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -54,7 +54,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
   AlignmentPanel ap;
 
-  Stack<CommandI> historyList = new Stack<CommandI>();
+  Stack<CommandI> historyList = new Stack<>();
 
   // simpler than synching with alignFrame.
 
@@ -82,6 +82,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
     slider.addChangeListener(new ChangeListener()
     {
+      @Override
       public void stateChanged(ChangeEvent evt)
       {
         valueField.setText(slider.getValue() + "");
@@ -100,11 +101,13 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
 
     frame = new JInternalFrame();
     frame.setContentPane(this);
-    Desktop.addInternalFrame(frame, MessageManager
-            .getString("label.redundancy_threshold_selection"), 400, 100,
-            false);
+    Desktop.addInternalFrame(frame,
+            MessageManager
+                    .getString("label.redundancy_threshold_selection"),
+            400, 100, false);
     frame.addInternalFrameListener(new InternalFrameAdapter()
     {
+      @Override
       public void internalFrameClosing(InternalFrameEvent evt)
       {
         ap.getIdPanel().getIdCanvas().setHighlighted(null);
@@ -125,6 +128,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public void run()
   {
     JProgressBar progress = new JProgressBar();
@@ -171,8 +175,8 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
     progress.setVisible(false);
     progress = null;
 
-    label.setText(MessageManager
-            .getString("label.enter_redundancy_threshold"));
+    label.setText(
+            MessageManager.getString("label.enter_redundancy_threshold"));
     slider.setVisible(true);
     applyButton.setEnabled(true);
     valueField.setVisible(true);
@@ -190,7 +194,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
     }
 
     float value = slider.getValue();
-    List<SequenceI> redundantSequences = new ArrayList<SequenceI>();
+    List<SequenceI> redundantSequences = new ArrayList<>();
     for (int i = 0; i < redundancy.length; i++)
     {
       if (value <= redundancy[i])
@@ -207,6 +211,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void applyButton_actionPerformed(ActionEvent e)
   {
     Vector del = new Vector();
@@ -259,8 +264,8 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
       ap.alignFrame.addHistoryItem(cut);
 
       PaintRefresher.Refresh(this, ap.av.getSequenceSetId(), true, true);
-      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-              .getSequences());
+      ap.av.firePropertyChange("alignment", null,
+              ap.av.getAlignment().getSequences());
     }
 
   }
@@ -271,6 +276,7 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
    * @param e
    *          DOCUMENT ME!
    */
+  @Override
   public void undoButton_actionPerformed(ActionEvent e)
   {
     if (historyList == null || historyList.isEmpty())
@@ -284,34 +290,16 @@ public class RedundancyPanel extends GSliderPanel implements Runnable
     {
       command.undoCommand(af.getViewAlignments());
       ap.av.getHistoryList().remove(command);
-      ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-              .getSequences());
+      ap.av.firePropertyChange("alignment", null,
+              ap.av.getAlignment().getSequences());
       af.updateEditMenuBar();
     }
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
 
     if (historyList.size() == 0)
     {
       undoButton.setEnabled(false);
-    }
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  public void valueField_actionPerformed(ActionEvent e)
-  {
-    try
-    {
-      int i = Integer.parseInt(valueField.getText());
-      slider.setValue(i);
-    } catch (Exception ex)
-    {
-      valueField.setText(slider.getValue() + "");
     }
   }
 

@@ -1,0 +1,1811 @@
+/* Convention for properties.  Read from gradle.properties, use lower_case_underlines for property names.
+ * For properties set within build.gradle, use camelCaseNoSpace.
+ */
+import org.apache.tools.ant.filters.ReplaceTokens
+import org.gradle.internal.os.OperatingSystem
+import org.gradle.plugins.ide.eclipse.model.Output
+import org.gradle.plugins.ide.eclipse.model.Library
+import java.security.MessageDigest
+import groovy.transform.ExternalizeMethods
+import groovy.util.XmlParser
+import groovy.xml.XmlUtil
+
+
+buildscript {
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+}
+
+
+plugins {
+  id 'java'
+  id 'application'
+  id 'eclipse'
+  id 'com.github.johnrengelman.shadow' version '4.0.3'
+  id 'com.install4j.gradle' version '8.0.4'
+  id 'com.dorongold.task-tree' version '1.5' // only needed to display task dependency tree with  gradle task1 [task2 ...] taskTree
+}
+
+repositories {
+  jcenter()
+  mavenCentral()
+  mavenLocal()
+}
+
+
+// in ext the values are cast to Object. Ensure string values are cast as String (and not GStringImpl) for later use
+def string(Object o) {
+  return o == null ? "" : o.toString()
+}
+
+
+ext {
+  jalviewDirAbsolutePath = file(jalviewDir).getAbsolutePath()
+  jalviewDirRelativePath = jalviewDir
+
+  // local build environment properties
+  // can be "projectDir/local.properties"
+  def localProps = "${projectDir}/local.properties"
+  def propsFile = null;
+  if (file(localProps).exists()) {
+    propsFile = localProps
+  }
+  // or "../projectDir_local.properties"
+  def dirLocalProps = projectDir.getParent() + "/" + projectDir.getName() + "_local.properties"
+  if (file(dirLocalProps).exists()) {
+    propsFile = dirLocalProps
+  }
+  if (propsFile != null) {
+    try {
+      def p = new Properties()
+      def localPropsFIS = new FileInputStream(propsFile)
+      p.load(localPropsFIS)
+      localPropsFIS.close()
+      p.each {
+        key, val -> 
+          def oldval = findProperty(key)
+          setProperty(key, val)
+          if (oldval != null) {
+            println("Overriding property '${key}' ('${oldval}') with ${file(propsFile).getName()} value '${val}'")
+          } else {
+            println("Setting unknown property '${key}' with ${file(propsFile).getName()}s value '${val}'")
+          }
+      }
+    } catch (Exception e) {
+      System.out.println("Exception reading local.properties")
+    }
+  }
+
+  ////  
+  // Import releaseProps from the RELEASE file
+  // or a file specified via JALVIEW_RELEASE_FILE if defined
+  // Expect jalview.version and target release branch in jalview.release        
+  def releaseProps = new Properties();
+  def releasePropFile = findProperty("JALVIEW_RELEASE_FILE");
+  def defaultReleasePropFile = "${jalviewDirAbsolutePath}/RELEASE";
+  try {
+    (new File(releasePropFile!=null ? releasePropFile : defaultReleasePropFile)).withInputStream { 
+     releaseProps.load(it)
+    }
+  } catch (Exception fileLoadError) {
+    throw new Error("Couldn't load release properties file "+(releasePropFile==null ? defaultReleasePropFile : "from custom location: releasePropFile"),fileLoadError);
+  }
+  ////
+  // Set JALVIEW_VERSION if it is not already set
+  if (findProperty("JALVIEW_VERSION")==null || "".equals(JALVIEW_VERSION)) {
+    JALVIEW_VERSION = releaseProps.get("jalview.version")
+  }
+  
+  // this property set when running Eclipse headlessly
+  j2sHeadlessBuildProperty = string("net.sf.j2s.core.headlessbuild")
+  // this property set by Eclipse
+  eclipseApplicationProperty = string("eclipse.application")
+  // CHECK IF RUNNING FROM WITHIN ECLIPSE
+  def eclipseApplicationPropertyVal = System.properties[eclipseApplicationProperty]
+  IN_ECLIPSE = eclipseApplicationPropertyVal != null && eclipseApplicationPropertyVal.startsWith("org.eclipse.ui.")
+  // BUT WITHOUT THE HEADLESS BUILD PROPERTY SET
+  if (System.properties[j2sHeadlessBuildProperty].equals("true")) {
+    println("Setting IN_ECLIPSE to ${IN_ECLIPSE} as System.properties['${j2sHeadlessBuildProperty}'] == '${System.properties[j2sHeadlessBuildProperty]}'")
+    IN_ECLIPSE = false
+  }
+  if (IN_ECLIPSE) {
+    println("WITHIN ECLIPSE IDE")
+  } else {
+    println("HEADLESS BUILD")
+  }
+  /* *-/
+  System.properties.sort { it.key }.each {
+    key, val -> println("SYSTEM PROPERTY ${key}='${val}'")
+  }
+  /-* *-/
+  if (false && IN_ECLIPSE) {
+    jalviewDir = jalviewDirAbsolutePath
+  }
+  */
+
+  // essentials
+  bareSourceDir = string(source_dir)
+  sourceDir = string("${jalviewDir}/${bareSourceDir}")
+  resourceDir = string("${jalviewDir}/${resource_dir}")
+  bareTestSourceDir = string(test_source_dir)
+  testDir = string("${jalviewDir}/${bareTestSourceDir}")
+
+  classesDir = string("${jalviewDir}/${classes_dir}")
+
+  // clover
+  useClover = clover.equals("true")
+  cloverBuildDir = "${buildDir}/clover"
+  cloverInstrDir = file("${cloverBuildDir}/clover-instr")
+  cloverClassesDir = file("${cloverBuildDir}/clover-classes")
+  cloverReportDir = file("${buildDir}/reports/clover")
+  cloverTestInstrDir = file("${cloverBuildDir}/clover-test-instr")
+  cloverTestClassesDir = file("${cloverBuildDir}/clover-test-classes")
+  //cloverTestClassesDir = cloverClassesDir
+  cloverDb = string("${cloverBuildDir}/clover.db")
+
+  resourceClassesDir = useClover ? cloverClassesDir : classesDir
+
+  testSourceDir = useClover ? cloverTestInstrDir : testDir
+  testClassesDir = useClover ? cloverTestClassesDir : "${jalviewDir}/${test_output_dir}"
+
+  getdownWebsiteDir = string("${jalviewDir}/${getdown_website_dir}/${JAVA_VERSION}")
+  buildDist = true
+
+  // the following values might be overridden by the CHANNEL switch
+  getdownChannelName = CHANNEL.toLowerCase()
+  getdownDir = string("${getdownChannelName}/${JAVA_VERSION}")
+  getdownAppBase = string("${getdown_channel_base}/${getdownDir}")
+  getdownLauncher = string("${jalviewDir}/${getdown_lib_dir}/${getdown_launcher}")
+  getdownAppDistDir = getdown_app_dir_alt
+  buildProperties = string("${classesDir}/${build_properties_file}")
+  reportRsyncCommand = false
+  jvlChannelName = CHANNEL.toLowerCase()
+  install4jSuffix = CHANNEL.substring(0, 1).toUpperCase() + CHANNEL.substring(1).toLowerCase(); // BUILD -> Build
+  install4jDSStore = "DS_Store-NON-RELEASE"
+  install4jDMGBackgroundImage = "jalview_dmg_background-NON-RELEASE.png"
+  install4jInstallerName = "${jalview_name} Non-Release Installer"
+  install4jExecutableName = jalview_name.replaceAll("[^\\w]+", "_").toLowerCase()
+  install4jExtraScheme = "jalviewx"
+  switch (CHANNEL) {
+
+    case "BUILD":
+    // TODO: get bamboo build artifact URL for getdown artifacts
+    getdown_channel_base = bamboo_channelbase
+    getdownChannelName = string("${bamboo_planKey}/${JAVA_VERSION}")
+    getdownAppBase = string("${bamboo_channelbase}/${bamboo_planKey}${bamboo_getdown_channel_suffix}/${JAVA_VERSION}")
+    jvlChannelName += "_${getdownChannelName}"
+    // automatically add the test group Not-bamboo for exclusion 
+    if ("".equals(testng_excluded_groups)) { 
+      testng_excluded_groups = "Not-bamboo"
+    }
+    install4jExtraScheme = "jalviewb"
+    break
+
+    case "RELEASE":
+    getdownAppDistDir = getdown_app_dir_release
+    reportRsyncCommand = true
+    install4jSuffix = ""
+    install4jDSStore = "DS_Store"
+    install4jDMGBackgroundImage = "jalview_dmg_background.png"
+    install4jInstallerName = "${jalview_name} Installer"
+    break
+
+    case "ARCHIVE":
+    getdownChannelName = CHANNEL.toLowerCase()+"/${JALVIEW_VERSION}"
+    getdownDir = string("${getdownChannelName}/${JAVA_VERSION}")
+    getdownAppBase = string("${getdown_channel_base}/${getdownDir}")
+    if (!file("${ARCHIVEDIR}/${package_dir}").exists()) {
+      throw new GradleException("Must provide an ARCHIVEDIR value to produce an archive distribution")
+    } else {
+      package_dir = string("${ARCHIVEDIR}/${package_dir}")
+      buildProperties = string("${ARCHIVEDIR}/${classes_dir}/${build_properties_file}")
+      buildDist = false
+    }
+    reportRsyncCommand = true
+    install4jExtraScheme = "jalviewa"
+    break
+
+    case "ARCHIVELOCAL":
+    getdownChannelName = string("archive/${JALVIEW_VERSION}")
+    getdownDir = string("${getdownChannelName}/${JAVA_VERSION}")
+    getdownAppBase = file(getdownWebsiteDir).toURI().toString()
+    if (!file("${ARCHIVEDIR}/${package_dir}").exists()) {
+      throw new GradleException("Must provide an ARCHIVEDIR value to produce an archive distribution")
+    } else {
+      package_dir = string("${ARCHIVEDIR}/${package_dir}")
+      buildProperties = string("${ARCHIVEDIR}/${classes_dir}/${build_properties_file}")
+      buildDist = false
+    }
+    reportRsyncCommand = true
+    getdownLauncher = string("${jalviewDir}/${getdown_lib_dir}/${getdown_launcher_local}")
+    install4jSuffix = "Archive"
+    install4jExtraScheme = "jalviewa"
+    break
+
+    case "DEVELOP":
+    reportRsyncCommand = true
+    
+    // DEVELOP-RELEASE is usually associated with a Jalview release series so set the version
+    JALVIEW_VERSION=JALVIEW_VERSION+"-develop"
+    
+    install4jSuffix = "Develop"
+    install4jDSStore = "DS_Store-DEVELOP"
+    install4jDMGBackgroundImage = "jalview_dmg_background-DEVELOP.png"
+    install4jExtraScheme = "jalviewd"
+    install4jInstallerName = "${jalview_name} Develop Installer"
+    break
+
+    case "TEST-RELEASE":
+    reportRsyncCommand = true
+    
+    // TEST-RELEASE is usually associated with a Jalview release series so set the version
+    JALVIEW_VERSION=JALVIEW_VERSION+"-test"
+    
+    install4jSuffix = "Test"
+    install4jDSStore = "DS_Store-TEST-RELEASE"
+    install4jDMGBackgroundImage = "jalview_dmg_background-TEST.png"
+    install4jExtraScheme = "jalviewt"
+    install4jInstallerName = "${jalview_name} Test Installer"
+    break
+
+    case ~/^SCRATCH(|-[-\w]*)$/:
+    getdownChannelName = CHANNEL
+    getdownDir = string("${getdownChannelName}/${JAVA_VERSION}")
+    getdownAppBase = string("${getdown_channel_base}/${getdownDir}")
+    reportRsyncCommand = true
+    install4jSuffix = "Scratch"
+    break
+
+    case "TEST-LOCAL":
+    if (!file("${LOCALDIR}").exists()) {
+      throw new GradleException("Must provide a LOCALDIR value to produce a local distribution")
+    } else {
+      getdownAppBase = file(file("${LOCALDIR}").getAbsolutePath()).toURI().toString()
+      getdownLauncher = string("${jalviewDir}/${getdown_lib_dir}/${getdown_launcher_local}")
+    }
+    JALVIEW_VERSION = "TEST"
+    install4jSuffix = "Test-Local"
+    install4jDSStore = "DS_Store-TEST-RELEASE"
+    install4jDMGBackgroundImage = "jalview_dmg_background-TEST.png"
+    install4jExtraScheme = "jalviewt"
+    install4jInstallerName = "${jalview_name} Test Installer"
+    break
+
+    case "LOCAL":
+    getdownAppBase = file(getdownWebsiteDir).toURI().toString()
+    getdownLauncher = string("${jalviewDir}/${getdown_lib_dir}/${getdown_launcher_local}")
+    install4jExtraScheme = "jalviewl"
+    break
+
+    default: // something wrong specified
+    throw new GradleException("CHANNEL must be one of BUILD, RELEASE, ARCHIVE, DEVELOP, TEST-RELEASE, SCRATCH-..., LOCAL [default]")
+    break
+
+  }
+  // override getdownAppBase if requested
+  if (findProperty("getdown_appbase_override") != null) {
+    getdownAppBase = string(getProperty("getdown_appbase_override"))
+    println("Overriding getdown appbase with '${getdownAppBase}'")
+  }
+  // sanitise file name for jalview launcher file for this channel
+  jvlChannelName = jvlChannelName.replaceAll("[^\\w\\-]+", "_")
+  // install4j application and folder names
+  if (install4jSuffix == "") {
+    install4jApplicationName = "${jalview_name}"
+    install4jBundleId = "${install4j_bundle_id}"
+    install4jWinApplicationId = install4j_release_win_application_id
+  } else {
+    install4jApplicationName = "${jalview_name} ${install4jSuffix}"
+    install4jBundleId = "${install4j_bundle_id}-" + install4jSuffix.toLowerCase()
+    // add int hash of install4jSuffix to the last part of the application_id
+    def id = install4j_release_win_application_id
+    def idsplitreverse = id.split("-").reverse()
+    idsplitreverse[0] = idsplitreverse[0].toInteger() + install4jSuffix.hashCode()
+    install4jWinApplicationId = idsplitreverse.reverse().join("-")
+  }
+  // sanitise folder and id names
+  // install4jApplicationFolder = e.g. "Jalview Build"
+  install4jApplicationFolder = install4jApplicationName
+                                    .replaceAll("[\"'~:/\\\\\\s]", "_") // replace all awkward filename chars " ' ~ : / \
+                                    .replaceAll("_+", "_") // collapse __
+  install4jInternalId = install4jApplicationName
+                                    .replaceAll(" ","_")
+                                    .replaceAll("[^\\w\\-\\.]", "_") // replace other non [alphanumeric,_,-,.]
+                                    .replaceAll("_+", "") // collapse __
+                                    //.replaceAll("_*-_*", "-") // collapse _-_
+  install4jUnixApplicationFolder = install4jApplicationName
+                                    .replaceAll(" ","_")
+                                    .replaceAll("[^\\w\\-\\.]", "_") // replace other non [alphanumeric,_,-,.]
+                                    .replaceAll("_+", "_") // collapse __
+                                    .replaceAll("_*-_*", "-") // collapse _-_
+                                    .toLowerCase()
+
+  getdownAppDir = string("${getdownWebsiteDir}/${getdownAppDistDir}")
+  //getdownJ11libDir = "${getdownWebsiteDir}/${getdown_j11lib_dir}"
+  getdownResourceDir = string("${getdownWebsiteDir}/${getdown_resource_dir}")
+  getdownInstallDir = string("${getdownWebsiteDir}/${getdown_install_dir}")
+  getdownFilesDir = string("${jalviewDir}/${getdown_files_dir}/${JAVA_VERSION}/")
+  getdownFilesInstallDir = string("${getdownFilesDir}/${getdown_install_dir}")
+  /* compile without modules -- using classpath libraries
+  modules_compileClasspath = fileTree(dir: "${jalviewDir}/${j11modDir}", include: ["*.jar"])
+  modules_runtimeClasspath = modules_compileClasspath
+  */
+  gitHash = string("")
+  gitBranch = string("")
+
+  println("Using a ${CHANNEL} profile.")
+
+  additional_compiler_args = []
+  // configure classpath/args for j8/j11 compilation
+  if (JAVA_VERSION.equals("1.8")) {
+    JAVA_INTEGER_VERSION = string("8")
+    //libDir = j8libDir
+    libDir = j11libDir
+    libDistDir = j8libDir
+    digestonlyDir = j8digestonlyDir
+    compile_source_compatibility = 1.8
+    compile_target_compatibility = 1.8
+    // these are getdown.txt properties defined dependent on the JAVA_VERSION
+    getdownAltJavaMinVersion = string(findProperty("getdown_alt_java8_min_version"))
+    getdownAltJavaMaxVersion = string(findProperty("getdown_alt_java8_max_version"))
+    // this property is assigned below and expanded to multiple lines in the getdown task
+    getdownAltMultiJavaLocation = string(findProperty("getdown_alt_java8_txt_multi_java_location"))
+    // this property is for the Java library used in eclipse
+    eclipseJavaRuntimeName = string("JavaSE-1.8")
+  } else if (JAVA_VERSION.equals("11")) {
+    JAVA_INTEGER_VERSION = string("11")
+    libDir = j11libDir
+    libDistDir = j11libDir
+    digestonlyDir = j11digestonlyDir
+    compile_source_compatibility = 11
+    compile_target_compatibility = 11
+    getdownAltJavaMinVersion = string(findProperty("getdown_alt_java11_min_version"))
+    getdownAltJavaMaxVersion = string(findProperty("getdown_alt_java11_max_version"))
+    getdownAltMultiJavaLocation = string(findProperty("getdown_alt_java11_txt_multi_java_location"))
+    eclipseJavaRuntimeName = string("JavaSE-11")
+    /* compile without modules -- using classpath libraries
+    additional_compiler_args += [
+    '--module-path', modules_compileClasspath.asPath,
+    '--add-modules', j11modules
+    ]
+     */
+  } else if (JAVA_VERSION.equals("12") || JAVA_VERSION.equals("13")) {
+    JAVA_INTEGER_VERSION = JAVA_VERSION
+    libDir = j11libDir
+    libDistDir = j11libDir
+    compile_source_compatibility = JAVA_VERSION
+    compile_target_compatibility = JAVA_VERSION
+    getdownAltJavaMinVersion = string(findProperty("getdown_alt_java11_min_version"))
+    getdownAltJavaMaxVersion = string(findProperty("getdown_alt_java11_max_version"))
+    getdownAltMultiJavaLocation = string(findProperty("getdown_alt_java11_txt_multi_java_location"))
+    eclipseJavaRuntimeName = string("JavaSE-11")
+    /* compile without modules -- using classpath libraries
+    additional_compiler_args += [
+    '--module-path', modules_compileClasspath.asPath,
+    '--add-modules', j11modules
+    ]
+     */
+  } else {
+    throw new GradleException("JAVA_VERSION=${JAVA_VERSION} not currently supported by Jalview")
+  }
+
+
+  // for install4j
+  JAVA_MIN_VERSION = JAVA_VERSION
+  JAVA_MAX_VERSION = JAVA_VERSION
+  def jreInstallsDir = string(jre_installs_dir)
+  if (jreInstallsDir.startsWith("~/")) {
+    jreInstallsDir = System.getProperty("user.home") + jreInstallsDir.substring(1)
+  }
+  macosJavaVMDir = string("${jreInstallsDir}/jre-${JAVA_INTEGER_VERSION}-mac-x64/jre")
+  macosJavaVMTgz = string("${jreInstallsDir}/tgz/jre-${JAVA_INTEGER_VERSION}-mac-x64.tar.gz")
+  windowsJavaVMDir = string("${jreInstallsDir}/jre-${JAVA_INTEGER_VERSION}-windows-x64/jre")
+  windowsJavaVMTgz = string("${jreInstallsDir}/tgz/jre-${JAVA_INTEGER_VERSION}-windows-x64.tar.gz")
+  linuxJavaVMDir = string("${jreInstallsDir}/jre-${JAVA_INTEGER_VERSION}-linux-x64/jre")
+  linuxJavaVMTgz = string("${jreInstallsDir}/tgz/jre-${JAVA_INTEGER_VERSION}-linux-x64.tar.gz")
+  install4jDir = string("${jalviewDir}/${install4j_utils_dir}")
+  install4jConfFileName = string("jalview-install4j-conf.install4j")
+  install4jConfFile = file("${install4jDir}/${install4jConfFileName}")
+  install4jHomeDir = install4j_home_dir
+  if (install4jHomeDir.startsWith("~/")) {
+    install4jHomeDir = System.getProperty("user.home") + install4jHomeDir.substring(1)
+  }
+
+
+
+  buildingHTML = string("${jalviewDir}/${doc_dir}/building.html")
+  helpFile = string("${resourceClassesDir}/${help_dir}/help.jhm")
+  helpParentDir = string("${jalviewDir}/${help_parent_dir}")
+  helpSourceDir = string("${helpParentDir}/${help_dir}")
+
+
+  relativeBuildDir = file(jalviewDirAbsolutePath).toPath().relativize(buildDir.toPath())
+  jalviewjsBuildDir = string("${relativeBuildDir}/jalviewjs")
+  jalviewjsSiteDir = string("${jalviewjsBuildDir}/${jalviewjs_site_dir}")
+  if (IN_ECLIPSE) {
+    jalviewjsTransferSiteJsDir = string(jalviewjsSiteDir)
+  } else {
+    jalviewjsTransferSiteJsDir = string("${jalviewjsBuildDir}/tmp/${jalviewjs_site_dir}_js")
+  }
+  jalviewjsTransferSiteLibDir = string("${jalviewjsBuildDir}/tmp/${jalviewjs_site_dir}_lib")
+  jalviewjsTransferSiteSwingJsDir = string("${jalviewjsBuildDir}/tmp/${jalviewjs_site_dir}_swingjs")
+  jalviewjsTransferSiteCoreDir = string("${jalviewjsBuildDir}/tmp/${jalviewjs_site_dir}_core")
+  jalviewjsJalviewCoreHtmlFile = string("")
+  jalviewjsJalviewCoreName = string(jalviewjs_core_name)
+  jalviewjsCoreClasslists = []
+  jalviewjsJalviewTemplateName = string(jalviewjs_name)
+  jalviewjsJ2sSettingsFileName = string("${jalviewDir}/${jalviewjs_j2s_settings}")
+  jalviewjsJ2sProps = null
+
+  eclipseWorkspace = null
+  eclipseBinary = string("")
+  eclipseVersion = string("")
+  eclipseDebug = false
+  // ENDEXT
+}
+
+
+sourceSets {
+  main {
+    java {
+      srcDirs sourceDir
+      outputDir = file(classesDir)
+    }
+
+    resources {
+      srcDirs resourceDir
+      srcDirs += helpParentDir
+    }
+
+    jar.destinationDir = file("${jalviewDir}/${package_dir}")
+
+    compileClasspath = files(sourceSets.main.java.outputDir)
+    compileClasspath += fileTree(dir: "${jalviewDir}/${libDir}", include: ["*.jar"])
+
+    runtimeClasspath = compileClasspath
+  }
+
+  clover {
+    java {
+      srcDirs cloverInstrDir
+      outputDir = cloverClassesDir
+    }
+
+    resources {
+      srcDirs = sourceSets.main.resources.srcDirs
+    }
+
+    compileClasspath = files( sourceSets.clover.java.outputDir )
+    //compileClasspath += files( testClassesDir )
+    compileClasspath += fileTree(dir: "${jalviewDir}/${libDir}", include: ["*.jar"])
+    compileClasspath += fileTree(dir: "${jalviewDir}/${clover_lib_dir}", include: ["*.jar"])
+    compileClasspath += fileTree(dir: "${jalviewDir}/${utils_dir}/testnglibs", include: ["**/*.jar"])
+
+    runtimeClasspath = compileClasspath
+  }
+
+  test {
+    java {
+      srcDirs testSourceDir
+      outputDir = file(testClassesDir)
+    }
+
+    resources {
+      srcDirs = useClover ? sourceSets.clover.resources.srcDirs : sourceSets.main.resources.srcDirs
+    }
+
+    compileClasspath = files( sourceSets.test.java.outputDir )
+    compileClasspath += useClover ? sourceSets.clover.compileClasspath : sourceSets.main.compileClasspath
+    compileClasspath += fileTree(dir: "${jalviewDir}/${utils_dir}/testnglibs", include: ["**/*.jar"])
+
+    runtimeClasspath = compileClasspath
+  }
+
+}
+
+
+// eclipse project and settings files creation, also used by buildship
+eclipse {
+  project {
+    name = eclipse_project_name
+
+    natures 'org.eclipse.jdt.core.javanature',
+    'org.eclipse.jdt.groovy.core.groovyNature',
+    'org.eclipse.buildship.core.gradleprojectnature'
+
+    buildCommand 'org.eclipse.jdt.core.javabuilder'
+    buildCommand 'org.eclipse.buildship.core.gradleprojectbuilder'
+  }
+
+  classpath {
+    //defaultOutputDir = sourceSets.main.java.outputDir
+    def removeThese = []
+    configurations.each{
+      if (it.isCanBeResolved()) {
+        removeThese += it
+      }
+    }
+
+    minusConfigurations += removeThese
+    plusConfigurations = [ ]
+    file {
+
+      whenMerged { cp ->
+        def removeTheseToo = []
+        HashMap<String, Boolean> alreadyAddedSrcPath = new HashMap<>();
+        cp.entries.each { entry ->
+          // This conditional removes all src classpathentries that a) have already been added or b) aren't "src" or "test".
+          // e.g. this removes the resources dir being copied into bin/main, bin/test AND bin/clover
+          // we add the resources and help/help dirs in as libs afterwards (see below)
+          if (entry.kind == 'src') {
+            if (alreadyAddedSrcPath.getAt(entry.path) || !(entry.path == bareSourceDir || entry.path == bareTestSourceDir)) {
+              removeTheseToo += entry
+            } else {
+              alreadyAddedSrcPath.putAt(entry.path, true)
+            }
+          }
+
+        }
+        cp.entries.removeAll(removeTheseToo)
+
+        //cp.entries += new Output("${eclipse_bin_dir}/main")
+        if (file(helpParentDir).isDirectory()) {
+          cp.entries += new Library(fileReference(helpParentDir))
+        }
+        if (file(resourceDir).isDirectory()) {
+          cp.entries += new Library(fileReference(resourceDir))
+        }
+
+        HashMap<String, Boolean> alreadyAddedLibPath = new HashMap<>();
+
+        sourceSets.main.compileClasspath.findAll { it.name.endsWith(".jar") }.any {
+          //don't want to add outputDir as eclipse is using its own output dir in bin/main
+          if (it.isDirectory() || ! it.exists()) {
+            // don't add dirs to classpath, especially if they don't exist
+            return false // groovy "continue" in .any closure
+          }
+          def itPath = it.toString()
+          if (itPath.startsWith("${jalviewDirAbsolutePath}/")) {
+            // make relative path
+            itPath = itPath.substring(jalviewDirAbsolutePath.length()+1)
+          }
+          if (alreadyAddedLibPath.get(itPath)) {
+            //println("Not adding duplicate entry "+itPath)
+          } else {
+            //println("Adding entry "+itPath)
+            cp.entries += new Library(fileReference(itPath))
+            alreadyAddedLibPath.put(itPath, true)
+          }
+        }
+
+        sourceSets.test.compileClasspath.findAll { it.name.endsWith(".jar") }.any {
+          //no longer want to add outputDir as eclipse is using its own output dir in bin/main
+          if (it.isDirectory() || ! it.exists()) {
+            // don't add dirs to classpath
+            return false // groovy "continue" in .any closure
+          }
+
+          def itPath = it.toString()
+          if (itPath.startsWith("${jalviewDirAbsolutePath}/")) {
+            itPath = itPath.substring(jalviewDirAbsolutePath.length()+1)
+          }
+          if (alreadyAddedLibPath.get(itPath)) {
+            // don't duplicate
+          } else {
+            def lib = new Library(fileReference(itPath))
+            lib.entryAttributes["test"] = "true"
+            cp.entries += lib
+            alreadyAddedLibPath.put(itPath, true)
+          }
+        }
+
+      } // whenMerged
+
+    } // file
+
+    containers 'org.eclipse.buildship.core.gradleclasspathcontainer'
+
+  } // classpath
+
+  jdt {
+    // for the IDE, use java 11 compatibility
+    sourceCompatibility = compile_source_compatibility
+    targetCompatibility = compile_target_compatibility
+    javaRuntimeName = eclipseJavaRuntimeName
+
+    // add in jalview project specific properties/preferences into eclipse core preferences
+    file {
+      withProperties { props ->
+        def jalview_prefs = new Properties()
+        def ins = new FileInputStream("${jalviewDirAbsolutePath}/${eclipse_extra_jdt_prefs_file}")
+        jalview_prefs.load(ins)
+        ins.close()
+        jalview_prefs.forEach { t, v ->
+          if (props.getAt(t) == null) {
+            props.putAt(t, v)
+          }
+        }
+      }
+    }
+
+  } // jdt
+
+  if (IN_ECLIPSE) {
+    // Don't want these to be activated if in headless build
+    synchronizationTasks "eclipseSynchronizationTask"
+    autoBuildTasks "eclipseAutoBuildTask"
+
+  }
+}
+
+
+// clover bits
+
+
+task cleanClover {
+  doFirst {
+    delete cloverBuildDir
+    delete cloverReportDir
+  }
+}
+
+
+task cloverInstrJava(type: JavaExec) {
+  group = "Verification"
+  description = "Create clover instrumented source java files"
+
+  dependsOn cleanClover
+
+  inputs.files(sourceSets.main.allJava)
+  outputs.dir(cloverInstrDir)
+
+  //classpath = fileTree(dir: "${jalviewDir}/${clover_lib_dir}", include: ["*.jar"])
+  classpath = sourceSets.clover.compileClasspath
+  main = "com.atlassian.clover.CloverInstr"
+
+  def argsList = [
+    "--encoding",
+    "UTF-8",
+    "--initstring",
+    cloverDb,
+    "--destdir",
+    cloverInstrDir.getPath(),
+  ]
+  def srcFiles = sourceSets.main.allJava.files
+  argsList.addAll(
+    srcFiles.collect(
+      { file -> file.absolutePath }
+    )
+  )
+  args argsList.toArray()
+
+  doFirst {
+    delete cloverInstrDir
+    println("Clover: About to instrument "+srcFiles.size() +" files")
+  }
+}
+
+
+task cloverInstrTests(type: JavaExec) {
+  group = "Verification"
+  description = "Create clover instrumented source test files"
+
+  dependsOn cleanClover
+
+  inputs.files(testDir)
+  outputs.dir(cloverTestInstrDir)
+
+  classpath = sourceSets.clover.compileClasspath
+  main = "com.atlassian.clover.CloverInstr"
+
+  def argsList = [
+    "--encoding",
+    "UTF-8",
+    "--initstring",
+    cloverDb,
+    "--srcdir",
+    testDir,
+    "--destdir",
+    cloverTestInstrDir.getPath(),
+  ]
+  args argsList.toArray()
+
+  doFirst {
+    delete cloverTestInstrDir
+    println("Clover: About to instrument test files")
+  }
+}
+
+
+task cloverInstr {
+  group = "Verification"
+  description = "Create clover instrumented all source files"
+
+  dependsOn cloverInstrJava
+  dependsOn cloverInstrTests
+}
+
+
+cloverClasses.dependsOn cloverInstr
+
+
+task cloverConsoleReport(type: JavaExec) {
+  group = "Verification"
+  description = "Creates clover console report"
+
+  onlyIf {
+    file(cloverDb).exists()
+  }
+
+  inputs.dir cloverClassesDir
+
+  classpath = sourceSets.clover.runtimeClasspath
+  main = "com.atlassian.clover.reporters.console.ConsoleReporter"
+
+  if (cloverreport_mem.length() > 0) {
+    maxHeapSize = cloverreport_mem
+  }
+  if (cloverreport_jvmargs.length() > 0) {
+    jvmArgs Arrays.asList(cloverreport_jvmargs.split(" "))
+  }
+
+  def argsList = [
+    "--alwaysreport",
+    "--initstring",
+    cloverDb,
+    "--unittests"
+  ]
+
+  args argsList.toArray()
+}
+
+
+task cloverHtmlReport(type: JavaExec) {
+  group = "Verification"
+  description = "Creates clover HTML report"
+
+  onlyIf {
+    file(cloverDb).exists()
+  }
+
+  def cloverHtmlDir = cloverReportDir
+  inputs.dir cloverClassesDir
+  outputs.dir cloverHtmlDir
+
+  classpath = sourceSets.clover.runtimeClasspath
+  main = "com.atlassian.clover.reporters.html.HtmlReporter"
+
+  if (cloverreport_mem.length() > 0) {
+    maxHeapSize = cloverreport_mem
+  }
+  if (cloverreport_jvmargs.length() > 0) {
+    jvmArgs Arrays.asList(cloverreport_jvmargs.split(" "))
+  }
+
+  def argsList = [
+    "--alwaysreport",
+    "--initstring",
+    cloverDb,
+    "--outputdir",
+    cloverHtmlDir
+  ]
+
+  if (cloverreport_html_options.length() > 0) {
+    argsList += cloverreport_html_options.split(" ")
+  }
+
+  args argsList.toArray()
+}
+
+
+task cloverXmlReport(type: JavaExec) {
+  group = "Verification"
+  description = "Creates clover XML report"
+
+  onlyIf {
+    file(cloverDb).exists()
+  }
+
+  def cloverXmlFile = "${cloverReportDir}/clover.xml"
+  inputs.dir cloverClassesDir
+  outputs.file cloverXmlFile
+
+  classpath = sourceSets.clover.runtimeClasspath
+  main = "com.atlassian.clover.reporters.xml.XMLReporter"
+
+  if (cloverreport_mem.length() > 0) {
+    maxHeapSize = cloverreport_mem
+  }
+  if (cloverreport_jvmargs.length() > 0) {
+    jvmArgs Arrays.asList(cloverreport_jvmargs.split(" "))
+  }
+
+  def argsList = [
+    "--alwaysreport",
+    "--initstring",
+    cloverDb,
+    "--outfile",
+    cloverXmlFile
+  ]
+
+  if (cloverreport_xml_options.length() > 0) {
+    argsList += cloverreport_xml_options.split(" ")
+  }
+
+  args argsList.toArray()
+}
+
+
+task cloverReport {
+  group = "Verification"
+  description = "Creates clover reports"
+
+  dependsOn cloverXmlReport
+  dependsOn cloverHtmlReport
+}
+
+
+compileCloverJava {
+
+  doFirst {
+    sourceCompatibility = compile_source_compatibility
+    targetCompatibility = compile_target_compatibility
+    options.compilerArgs += additional_compiler_args
+    print ("Setting target compatibility to "+targetCompatibility+"\n")
+  }
+  //classpath += configurations.cloverRuntime
+}
+// end clover bits
+
+
+compileJava {
+
+  doFirst {
+    sourceCompatibility = compile_source_compatibility
+    targetCompatibility = compile_target_compatibility
+    options.compilerArgs = additional_compiler_args
+    print ("Setting target compatibility to "+targetCompatibility+"\n")
+  }
+
+}
+
+
+compileTestJava {
+  doFirst {
+    sourceCompatibility = compile_source_compatibility
+    targetCompatibility = compile_target_compatibility
+    options.compilerArgs = additional_compiler_args
+    print ("Setting target compatibility to "+targetCompatibility+"\n")
+  }
+}
+
+
+clean {
+  doFirst {
+    delete sourceSets.main.java.outputDir
+  }
+}
+
+
+cleanTest {
+  dependsOn cleanClover
+  doFirst {
+    delete sourceSets.test.java.outputDir
+  }
+}
+
+
+// format is a string like date.format("dd MMMM yyyy")
+def getDate(format) {
+  def date = new Date()
+  return date.format(format)
+}
+
+
+task setGitVals {
+  def hashStdOut = new ByteArrayOutputStream()
+  exec {
+    commandLine "git", "rev-parse", "--short", "HEAD"
+    standardOutput = hashStdOut
+    ignoreExitValue true
+  }
+
+  def branchStdOut = new ByteArrayOutputStream()
+  exec {
+    commandLine "git", "rev-parse", "--abbrev-ref", "HEAD"
+    standardOutput = branchStdOut
+    ignoreExitValue true
+  }
+
+  gitHash = hashStdOut.toString().trim()
+  gitBranch = branchStdOut.toString().trim()
+
+  outputs.upToDateWhen { false }
+}
+
+
+task createBuildProperties(type: WriteProperties) {
+  dependsOn setGitVals
+  inputs.dir(sourceDir)
+  inputs.dir(resourceDir)
+  file(buildProperties).getParentFile().mkdirs()
+  outputFile (buildProperties)
+  // taking time specific comment out to allow better incremental builds
+  comment "--Jalview Build Details--\n"+getDate("yyyy-MM-dd HH:mm:ss")
+  //comment "--Jalview Build Details--\n"+getDate("yyyy-MM-dd")
+  property "BUILD_DATE", getDate("HH:mm:ss dd MMMM yyyy")
+  property "VERSION", JALVIEW_VERSION
+  property "INSTALLATION", INSTALLATION+" git-commit:"+gitHash+" ["+gitBranch+"]"
+  outputs.file(outputFile)
+}
+
+
+task cleanBuildingHTML(type: Delete) {
+  doFirst {
+    delete buildingHTML
+  }
+}
+
+
+task convertBuildingMD(type: Exec) {
+  dependsOn cleanBuildingHTML
+  def buildingMD = "${jalviewDir}/${doc_dir}/building.md"
+  def css = "${jalviewDir}/${doc_dir}/github.css"
+
+  def pandoc = null
+  pandoc_exec.split(",").each {
+    if (file(it.trim()).exists()) {
+      pandoc = it.trim()
+      return true
+    }
+  }
+
+  def hostname = "hostname".execute().text.trim()
+  def buildtoolsPandoc = System.getProperty("user.home")+"/buildtools/pandoc/bin/pandoc"
+  if ((pandoc == null || ! file(pandoc).exists()) && file(buildtoolsPandoc).exists()) {
+    pandoc = System.getProperty("user.home")+"/buildtools/pandoc/bin/pandoc"
+  }
+
+  doFirst {
+    if (pandoc != null && file(pandoc).exists()) {
+        commandLine pandoc, '-s', '-o', buildingHTML, '--metadata', 'pagetitle="Building Jalview from Source"', '--toc', '-H', css, buildingMD
+    } else {
+        println("Cannot find pandoc. Skipping convert building.md to HTML")
+        throw new StopExecutionException("Cannot find pandoc. Skipping convert building.md to HTML")
+    }
+  }
+
+  ignoreExitValue true
+
+  inputs.file(buildingMD)
+  inputs.file(css)
+  outputs.file(buildingHTML)
+}
+
+
+clean {
+  doFirst {
+    delete buildingHTML
+  }
+}
+
+
+task syncDocs(type: Sync) {
+  dependsOn convertBuildingMD
+  def syncDir = "${resourceClassesDir}/${doc_dir}"
+  from fileTree("${jalviewDir}/${doc_dir}")
+  into syncDir
+
+}
+
+
+task copyHelp(type: Copy) {
+  def inputDir = helpSourceDir
+  def outputDir = "${resourceClassesDir}/${help_dir}"
+  from(inputDir) {
+    exclude '**/*.gif'
+    exclude '**/*.jpg'
+    exclude '**/*.png'
+    filter(ReplaceTokens,
+      beginToken: '$$',
+      endToken: '$$',
+      tokens: [
+        'Version-Rel': JALVIEW_VERSION,
+        'Year-Rel': getDate("yyyy")
+      ]
+    )
+  }
+  from(inputDir) {
+    include '**/*.gif'
+    include '**/*.jpg'
+    include '**/*.png'
+  }
+  into outputDir
+
+  inputs.dir(inputDir)
+  outputs.files(helpFile)
+  outputs.dir(outputDir)
+}
+
+
+task syncLib(type: Sync) {
+  def syncDir = "${resourceClassesDir}/${libDistDir}"
+  from fileTree("${jalviewDir}/${libDistDir}")
+  into syncDir
+}
+
+
+task syncResources(type: Sync) {
+  from resourceDir
+  include "**/*.*"
+  into "${resourceClassesDir}"
+  preserve {
+    include "**"
+  }
+}
+
+
+task prepare {
+  dependsOn syncResources
+  dependsOn syncDocs
+  dependsOn copyHelp
+}
+
+
+//testReportDirName = "test-reports" // note that test workingDir will be $jalviewDir
+test {
+  dependsOn prepare
+  //dependsOn compileJava ////? DELETE
+
+  if (useClover) {
+    dependsOn cloverClasses
+   } else { //?
+     dependsOn compileJava //?
+  }
+
+  useTestNG() {
+    includeGroups testng_groups
+    excludeGroups testng_excluded_groups
+    preserveOrder true
+    useDefaultListeners=true
+  }
+
+  maxHeapSize = "1024m"
+
+  workingDir = jalviewDir
+  //systemProperties 'clover.jar' System.properties.clover.jar
+  def testLaf = project.findProperty("test_laf")
+  if (testLaf != null) {
+    println("Setting Test LaF to '${testLaf}'")
+    systemProperty "laf", testLaf
+  }
+  def testHiDPIScale = project.findProperty("test_HiDPIScale")
+  if (testHiDPIScale != null) {
+    println("Setting Test HiDPI Scale to '${testHiDPIScale}'")
+    systemProperty "sun.java2d.uiScale", testHiDPIScale
+  }
+  sourceCompatibility = compile_source_compatibility
+  targetCompatibility = compile_target_compatibility
+  jvmArgs += additional_compiler_args
+
+  doFirst {
+    if (useClover) {
+      println("Running tests " + (useClover?"WITH":"WITHOUT") + " clover")
+    }
+  }
+}
+
+
+task buildIndices(type: JavaExec) {
+  dependsOn copyHelp
+  classpath = sourceSets.main.compileClasspath
+  main = "com.sun.java.help.search.Indexer"
+  workingDir = "${classesDir}/${help_dir}"
+  def argDir = "html"
+  args = [ argDir ]
+  inputs.dir("${workingDir}/${argDir}")
+
+  outputs.dir("${classesDir}/doc")
+  outputs.dir("${classesDir}/help")
+  outputs.file("${workingDir}/JavaHelpSearch/DOCS")
+  outputs.file("${workingDir}/JavaHelpSearch/DOCS.TAB")
+  outputs.file("${workingDir}/JavaHelpSearch/OFFSETS")
+  outputs.file("${workingDir}/JavaHelpSearch/POSITIONS")
+  outputs.file("${workingDir}/JavaHelpSearch/SCHEMA")
+  outputs.file("${workingDir}/JavaHelpSearch/TMAP")
+}
+
+
+task compileLinkCheck(type: JavaCompile) {
+  options.fork = true
+  classpath = files("${jalviewDir}/${utils_dir}")
+  destinationDir = file("${jalviewDir}/${utils_dir}")
+  source = fileTree(dir: "${jalviewDir}/${utils_dir}", include: ["HelpLinksChecker.java", "BufferedLineReader.java"])
+
+  inputs.file("${jalviewDir}/${utils_dir}/HelpLinksChecker.java")
+  inputs.file("${jalviewDir}/${utils_dir}/HelpLinksChecker.java")
+  outputs.file("${jalviewDir}/${utils_dir}/HelpLinksChecker.class")
+  outputs.file("${jalviewDir}/${utils_dir}/BufferedLineReader.class")
+}
+
+
+task linkCheck(type: JavaExec) {
+  dependsOn prepare, compileLinkCheck
+
+  def helpLinksCheckerOutFile = file("${jalviewDir}/${utils_dir}/HelpLinksChecker.out")
+  classpath = files("${jalviewDir}/${utils_dir}")
+  main = "HelpLinksChecker"
+  workingDir = jalviewDir
+  args = [ "${classesDir}/${help_dir}", "-nointernet" ]
+
+  def outFOS = new FileOutputStream(helpLinksCheckerOutFile, false) // false == don't append
+  def errFOS = outFOS
+  standardOutput = new org.apache.tools.ant.util.TeeOutputStream(
+    outFOS,
+    standardOutput)
+  errorOutput = new org.apache.tools.ant.util.TeeOutputStream(
+    outFOS,
+    errorOutput)
+
+  inputs.dir("${classesDir}/${help_dir}")
+  outputs.file(helpLinksCheckerOutFile)
+}
+
+// import the pubhtmlhelp target
+ant.properties.basedir = "${jalviewDir}"
+ant.properties.helpBuildDir = "${jalviewDirAbsolutePath}/${classes_dir}/${help_dir}"
+ant.importBuild "${utils_dir}/publishHelp.xml"
+
+
+task cleanPackageDir(type: Delete) {
+  doFirst {
+    delete fileTree(dir: "${jalviewDir}/${package_dir}", include: "*.jar")
+  }
+}
+
+jar {
+  dependsOn linkCheck
+  dependsOn buildIndices
+  dependsOn createBuildProperties
+
+  manifest {
+    attributes "Main-Class": main_class,
+    "Permissions": "all-permissions",
+    "Application-Name": "Jalview Desktop",
+    "Codebase": application_codebase
+  }
+
+  destinationDir = file("${jalviewDir}/${package_dir}")
+  archiveName = rootProject.name+".jar"
+
+  exclude "cache*/**"
+  exclude "*.jar"
+  exclude "*.jar.*"
+  exclude "**/*.jar"
+  exclude "**/*.jar.*"
+
+  inputs.dir(classesDir)
+  outputs.file("${jalviewDir}/${package_dir}/${archiveName}")
+}
+
+
+task copyJars(type: Copy) {
+  from fileTree(dir: classesDir, include: "**/*.jar").files
+  into "${jalviewDir}/${package_dir}"
+}
+
+
+// doing a Sync instead of Copy as Copy doesn't deal with "outputs" very well
+task syncJars(type: Sync) {
+  from fileTree(dir: "${jalviewDir}/${libDistDir}", include: "**/*.jar").files
+  into "${jalviewDir}/${package_dir}"
+  preserve {
+    include jar.archiveName
+  }
+}
+
+
+task makeDist {
+  group = "build"
+  description = "Put all required libraries in dist"
+  // order of "cleanPackageDir", "copyJars", "jar" important!
+  jar.mustRunAfter cleanPackageDir
+  syncJars.mustRunAfter cleanPackageDir
+  dependsOn cleanPackageDir
+  dependsOn syncJars
+  dependsOn jar
+  outputs.dir("${jalviewDir}/${package_dir}")
+}
+
+
+task cleanDist {
+  dependsOn cleanPackageDir
+  dependsOn cleanTest
+  dependsOn clean
+}
+
+shadowJar {
+  group = "distribution"
+  if (buildDist) {
+    dependsOn makeDist
+  }
+  from ("${jalviewDir}/${libDistDir}") {
+    include("*.jar")
+  }
+  manifest {
+    attributes 'Implementation-Version': JALVIEW_VERSION
+  }
+  mainClassName = shadow_jar_main_class
+  mergeServiceFiles()
+  classifier = "all-"+JALVIEW_VERSION+"-j"+JAVA_VERSION
+  minimize()
+}
+
+
+task getdownWebsite() {
+  group = "distribution"
+  description = "Create the getdown minimal app folder, and website folder for this version of jalview. Website folder also used for offline app installer"
+  if (buildDist) {
+    dependsOn makeDist
+  }
+
+  def getdownWebsiteResourceFilenames = []
+  def getdownTextString = ""
+  def getdownResourceDir = getdownResourceDir
+  def getdownResourceFilenames = []
+
+  doFirst {
+    // clean the getdown website and files dir before creating getdown folders
+    delete getdownWebsiteDir
+    delete getdownFilesDir
+
+    copy {
+      from buildProperties
+      rename(build_properties_file, getdown_build_properties)
+      into getdownAppDir
+    }
+    getdownWebsiteResourceFilenames += "${getdownAppDistDir}/${getdown_build_properties}"
+
+    // set some getdown_txt_ properties then go through all properties looking for getdown_txt_...
+    def props = project.properties.sort { it.key }
+    if (getdownAltJavaMinVersion != null && getdownAltJavaMinVersion.length() > 0) {
+      props.put("getdown_txt_java_min_version", getdownAltJavaMinVersion)
+    }
+    if (getdownAltJavaMaxVersion != null && getdownAltJavaMaxVersion.length() > 0) {
+      props.put("getdown_txt_java_max_version", getdownAltJavaMaxVersion)
+    }
+    if (getdownAltMultiJavaLocation != null && getdownAltMultiJavaLocation.length() > 0) {
+      props.put("getdown_txt_multi_java_location", getdownAltMultiJavaLocation)
+    }
+
+    props.put("getdown_txt_title", jalview_name)
+    props.put("getdown_txt_ui.name", install4jApplicationName)
+
+    // start with appbase
+    getdownTextString += "appbase = ${getdownAppBase}\n"
+    props.each{ prop, val ->
+      if (prop.startsWith("getdown_txt_") && val != null) {
+        if (prop.startsWith("getdown_txt_multi_")) {
+          def key = prop.substring(18)
+          val.split(",").each{ v ->
+            def line = "${key} = ${v}\n"
+            getdownTextString += line
+          }
+        } else {
+          // file values rationalised
+          if (val.indexOf('/') > -1 || prop.startsWith("getdown_txt_resource")) {
+            def r = null
+            if (val.indexOf('/') == 0) {
+              // absolute path
+              r = file(val)
+            } else if (val.indexOf('/') > 0) {
+              // relative path (relative to jalviewDir)
+              r = file( "${jalviewDir}/${val}" )
+            }
+            if (r.exists()) {
+              val = "${getdown_resource_dir}/" + r.getName()
+              getdownWebsiteResourceFilenames += val
+              getdownResourceFilenames += r.getPath()
+            }
+          }
+          if (! prop.startsWith("getdown_txt_resource")) {
+            def line = prop.substring(12) + " = ${val}\n"
+            getdownTextString += line
+          }
+        }
+      }
+    }
+
+    getdownWebsiteResourceFilenames.each{ filename ->
+      getdownTextString += "resource = ${filename}\n"
+    }
+    getdownResourceFilenames.each{ filename ->
+      copy {
+        from filename
+        into getdownResourceDir
+      }
+    }
+
+    def codeFiles = []
+    fileTree(file(package_dir)).each{ f ->
+      if (f.isDirectory()) {
+        def files = fileTree(dir: f, include: ["*"]).getFiles()
+        codeFiles += files
+      } else if (f.exists()) {
+        codeFiles += f
+      }
+    }
+    codeFiles.sort().each{f ->
+      def name = f.getName()
+      def line = "code = ${getdownAppDistDir}/${name}\n"
+      getdownTextString += line
+      copy {
+        from f.getPath()
+        into getdownAppDir
+      }
+    }
+
+    fileTree(dir: digestonlyDir, include: ["*"]).getFiles().sort().each{f ->
+      def name = f.getName()
+      def line = "digestonly = ${getdownAppDistDir}/${name}\n"
+      getdownTextString += line
+      copy {
+        from f.getPath()
+        into getdownAppDir
+      }
+    }
+    
+    // NOT USING MODULES YET, EVERYTHING SHOULD BE IN dist
+    /*
+    if (JAVA_VERSION.equals("11")) {
+    def j11libFiles = fileTree(dir: "${jalviewDir}/${j11libDir}", include: ["*.jar"]).getFiles()
+    j11libFiles.sort().each{f ->
+    def name = f.getName()
+    def line = "code = ${getdown_j11lib_dir}/${name}\n"
+    getdownTextString += line
+    copy {
+    from f.getPath()
+    into getdownJ11libDir
+    }
+    }
+    }
+     */
+
+    // getdown-launcher.jar should not be in main application class path so the main application can move it when updated.  Listed as a resource so it gets updated.
+    //getdownTextString += "class = " + file(getdownLauncher).getName() + "\n"
+    getdownTextString += "resource = ${getdown_launcher_new}\n"
+    getdownTextString += "class = ${main_class}\n"
+    /* NOT setting these properties so that getdownappbase and getdowndistdir will default to release version
+     * getdownTextString += "jvmarg = -Dgetdowndistdir=${getdownAppDistDir}\n"
+     * getdownTextString += "jvmarg = -Dgetdownappbase=${getdownAppBase}\n"
+     */
+
+    def getdown_txt = file("${getdownWebsiteDir}/getdown.txt")
+    getdown_txt.write(getdownTextString)
+
+    def getdownLaunchJvl = getdown_launch_jvl_name + ( (jvlChannelName != null && jvlChannelName.length() > 0)?"-${jvlChannelName}":"" ) + ".jvl"
+    def launchJvl = file("${getdownWebsiteDir}/${getdownLaunchJvl}")
+    launchJvl.write("appbase=${getdownAppBase}")
+
+    copy {
+      from getdownLauncher
+      rename(file(getdownLauncher).getName(), getdown_launcher_new)
+      into getdownWebsiteDir
+    }
+
+    copy {
+      from getdownLauncher
+      if (file(getdownLauncher).getName() != getdown_launcher) {
+        rename(file(getdownLauncher).getName(), getdown_launcher)
+      }
+      into getdownWebsiteDir
+    }
+
+    if (! (CHANNEL.startsWith("ARCHIVE") || CHANNEL.startsWith("DEVELOP"))) {
+      copy {
+        from getdown_txt
+        from getdownLauncher
+        from "${getdownAppDir}/${getdown_build_properties}"
+        if (file(getdownLauncher).getName() != getdown_launcher) {
+          rename(file(getdownLauncher).getName(), getdown_launcher)
+        }
+        into getdownInstallDir
+      }
+
+      copy {
+        from getdownInstallDir
+        into getdownFilesInstallDir
+      }
+    }
+
+    copy {
+      from getdown_txt
+      from launchJvl
+      from getdownLauncher
+      from "${getdownWebsiteDir}/${getdown_build_properties}"
+      if (file(getdownLauncher).getName() != getdown_launcher) {
+        rename(file(getdownLauncher).getName(), getdown_launcher)
+      }
+      into getdownFilesDir
+    }
+
+    copy {
+      from getdownResourceDir
+      into "${getdownFilesDir}/${getdown_resource_dir}"
+    }
+  }
+
+  if (buildDist) {
+    inputs.dir("${jalviewDir}/${package_dir}")
+  }
+  outputs.dir(getdownWebsiteDir)
+  outputs.dir(getdownFilesDir)
+}
+
+
+// a helper task to allow getdown digest of any dir: `gradle getdownDigestDir -PDIGESTDIR=/path/to/my/random/getdown/dir
+task getdownDigestDir(type: JavaExec) {
+  group "Help"
+  description "A task to run a getdown Digest on a dir with getdown.txt. Provide a DIGESTDIR property via -PDIGESTDIR=..."
+
+  def digestDirPropertyName = "DIGESTDIR"
+  doFirst {
+    classpath = files(getdownLauncher)
+    def digestDir = findProperty(digestDirPropertyName)
+    if (digestDir == null) {
+      throw new GradleException("Must provide a DIGESTDIR value to produce an alternative getdown digest")
+    }
+    args digestDir
+  }
+  main = "com.threerings.getdown.tools.Digester"
+}
+
+
+task getdownDigest(type: JavaExec) {
+  group = "distribution"
+  description = "Digest the getdown website folder"
+  dependsOn getdownWebsite
+  doFirst {
+    classpath = files(getdownLauncher)
+  }
+  main = "com.threerings.getdown.tools.Digester"
+  args getdownWebsiteDir
+  inputs.dir(getdownWebsiteDir)
+  outputs.file("${getdownWebsiteDir}/digest2.txt")
+}
+
+
+task getdown() {
+  group = "distribution"
+  description = "Create the minimal and full getdown app folder for installers and website and create digest file"
+  dependsOn getdownDigest
+  doLast {
+    if (reportRsyncCommand) {
+      def fromDir = getdownWebsiteDir + (getdownWebsiteDir.endsWith('/')?'':'/')
+      def toDir = "${getdown_rsync_dest}/${getdownDir}" + (getdownDir.endsWith('/')?'':'/')
+      println "LIKELY RSYNC COMMAND:"
+      println "mkdir -p '$toDir'\nrsync -avh --delete '$fromDir' '$toDir'"
+      if (RUNRSYNC == "true") {
+        exec {
+          commandLine "mkdir", "-p", toDir
+        }
+        exec {
+          commandLine "rsync", "-avh", "--delete", fromDir, toDir
+        }
+      }
+    }
+  }
+}
+
+
+clean {
+  doFirst {
+    delete getdownWebsiteDir
+    delete getdownFilesDir
+  }
+}
+
+
+install4j {
+  if (file(install4jHomeDir).exists()) {
+    // good to go!
+  } else if (file(System.getProperty("user.home")+"/buildtools/install4j").exists()) {
+    install4jHomeDir = System.getProperty("user.home")+"/buildtools/install4j"
+  } else if (file("/Applications/install4j.app/Contents/Resources/app").exists()) {
+    install4jHomeDir = "/Applications/install4j.app/Contents/Resources/app"
+  }
+  installDir(file(install4jHomeDir))
+
+  mediaTypes = Arrays.asList(install4j_media_types.split(","))
+}
+
+
+task copyInstall4jTemplate {
+  def install4jTemplateFile = file("${install4jDir}/${install4j_template}")
+  def install4jFileAssociationsFile = file("${install4jDir}/${install4j_installer_file_associations}")
+  inputs.file(install4jTemplateFile)
+  inputs.file(install4jFileAssociationsFile)
+  inputs.property("CHANNEL", { CHANNEL })
+  outputs.file(install4jConfFile)
+
+  doLast {
+    def install4jConfigXml = new XmlParser().parse(install4jTemplateFile)
+
+    // turn off code signing if no OSX_KEYPASS
+    if (OSX_KEYPASS == "") {
+      install4jConfigXml.'**'.codeSigning.each { codeSigning ->
+        codeSigning.'@macEnabled' = "false"
+      }
+      install4jConfigXml.'**'.windows.each { windows ->
+        windows.'@runPostProcessor' = "false"
+      }
+    }
+
+    // turn off checksum creation for LOCAL channel
+    def e = install4jConfigXml.application[0]
+    if (CHANNEL == "LOCAL") {
+      e.'@createChecksums' = "false"
+    } else {
+      e.'@createChecksums' = "true"
+    }
+
+    // put file association actions where placeholder action is
+    def install4jFileAssociationsText = install4jFileAssociationsFile.text
+    def fileAssociationActions = new XmlParser().parseText("<actions>${install4jFileAssociationsText}</actions>")
+    install4jConfigXml.'**'.action.any { a -> // .any{} stops after the first one that returns true
+      if (a.'@name' == 'EXTENSIONS_REPLACED_BY_GRADLE') {
+        def parent = a.parent()
+        parent.remove(a)
+        fileAssociationActions.each { faa ->
+            parent.append(faa)
+        }
+        // don't need to continue in .any loop once replacements have been made
+        return true
+      }
+    }
+
+    // use Windows Program Group with Examples folder for RELEASE, and Program Group without Examples for everything else
+    // NB we're deleting the /other/ one!
+    // Also remove the examples subdir from non-release versions
+    def customizedIdToDelete = "PROGRAM_GROUP_RELEASE"
+    // 2.11.1.0 NOT releasing with the Examples folder in the Program Group
+    if (false && CHANNEL=="RELEASE") { // remove 'false && ' to include Examples folder in RELEASE channel
+      customizedIdToDelete = "PROGRAM_GROUP_NON_RELEASE"
+    } else {
+      // remove the examples subdir from Full File Set
+      def files = install4jConfigXml.files[0]
+      def fileset = files.filesets.fileset.find { fs -> fs.'@customizedId' == "FULL_FILE_SET" }
+      def root = files.roots.root.find { r -> r.'@fileset' == fileset.'@id' }
+      def mountPoint = files.mountPoints.mountPoint.find { mp -> mp.'@root' == root.'@id' }
+      def dirEntry = files.entries.dirEntry.find { de -> de.'@mountPoint' == mountPoint.'@id' && de.'@subDirectory' == "examples" }
+      dirEntry.parent().remove(dirEntry)
+    }
+    install4jConfigXml.'**'.action.any { a ->
+      if (a.'@customizedId' == customizedIdToDelete) {
+        def parent = a.parent()
+        parent.remove(a)
+        return true
+      }
+    }
+
+    // remove the "Uninstall Old Jalview (optional)" symlink from DMG for non-release DS_Stores
+    if (! (CHANNEL == "RELEASE" || CHANNEL == "TEST-RELEASE" ) ) {
+      def symlink = install4jConfigXml.'**'.topLevelFiles.symlink.find { sl -> sl.'@name' == "Uninstall Old Jalview (optional).app" }
+      symlink.parent().remove(symlink)
+    }
+
+    // write install4j file
+    install4jConfFile.text = XmlUtil.serialize(install4jConfigXml)
+  }
+}
+
+
+clean {
+  doFirst {
+    delete install4jConfFile
+  }
+}
+
+
+task installers(type: com.install4j.gradle.Install4jTask) {
+  group = "distribution"
+  description = "Create the install4j installers"
+  dependsOn setGitVals
+  dependsOn getdown
+  dependsOn copyInstall4jTemplate
+
+  projectFile = install4jConfFile
+
+  // create an md5 for the input files to use as version for install4j conf file
+  def digest = MessageDigest.getInstance("MD5")
+  digest.update(
+    (file("${install4jDir}/${install4j_template}").text + 
+    file("${install4jDir}/${install4j_info_plist_file_associations}").text +
+    file("${install4jDir}/${install4j_installer_file_associations}").text).bytes)
+  def filesMd5 = new BigInteger(1, digest.digest()).toString(16)
+  if (filesMd5.length() >= 8) {
+    filesMd5 = filesMd5.substring(0,8)
+  }
+  def install4jTemplateVersion = "${JALVIEW_VERSION}_F${filesMd5}_C${gitHash}"
+  // make install4jBuildDir relative to jalviewDir
+  def install4jBuildDir = "${install4j_build_dir}/${JAVA_VERSION}"
+
+  variables = [
+    'JALVIEW_NAME': jalview_name,
+    'JALVIEW_APPLICATION_NAME': install4jApplicationName,
+    'JALVIEW_DIR': "../..",
+    'OSX_KEYSTORE': OSX_KEYSTORE,
+    'JSIGN_SH': JSIGN_SH,
+    'JRE_DIR': getdown_app_dir_java,
+    'INSTALLER_TEMPLATE_VERSION': install4jTemplateVersion,
+    'JALVIEW_VERSION': JALVIEW_VERSION,
+    'JAVA_MIN_VERSION': JAVA_MIN_VERSION,
+    'JAVA_MAX_VERSION': JAVA_MAX_VERSION,
+    'JAVA_VERSION': JAVA_VERSION,
+    'JAVA_INTEGER_VERSION': JAVA_INTEGER_VERSION,
+    'VERSION': JALVIEW_VERSION,
+    'MACOS_JAVA_VM_DIR': macosJavaVMDir,
+    'WINDOWS_JAVA_VM_DIR': windowsJavaVMDir,
+    'LINUX_JAVA_VM_DIR': linuxJavaVMDir,
+    'MACOS_JAVA_VM_TGZ': macosJavaVMTgz,
+    'WINDOWS_JAVA_VM_TGZ': windowsJavaVMTgz,
+    'LINUX_JAVA_VM_TGZ': linuxJavaVMTgz,
+    'COPYRIGHT_MESSAGE': install4j_copyright_message,
+    'BUNDLE_ID': install4jBundleId,
+    'INTERNAL_ID': install4jInternalId,
+    'WINDOWS_APPLICATION_ID': install4jWinApplicationId,
+    'MACOS_DS_STORE': install4jDSStore,
+    'MACOS_DMG_BG_IMAGE': install4jDMGBackgroundImage,
+    'INSTALLER_NAME': install4jInstallerName,
+    'INSTALL4J_UTILS_DIR': install4j_utils_dir,
+    'GETDOWN_WEBSITE_DIR': getdown_website_dir,
+    'GETDOWN_FILES_DIR': getdown_files_dir,
+    'GETDOWN_RESOURCE_DIR': getdown_resource_dir,
+    'GETDOWN_DIST_DIR': getdownAppDistDir,
+    'GETDOWN_ALT_DIR': getdown_app_dir_alt,
+    'GETDOWN_INSTALL_DIR': getdown_install_dir,
+    'INFO_PLIST_FILE_ASSOCIATIONS_FILE': install4j_info_plist_file_associations,
+    'BUILD_DIR': install4jBuildDir,
+    'APPLICATION_CATEGORIES': install4j_application_categories,
+    'APPLICATION_FOLDER': install4jApplicationFolder,
+    'UNIX_APPLICATION_FOLDER': install4jUnixApplicationFolder,
+    'EXECUTABLE_NAME': install4jExecutableName,
+    'EXTRA_SCHEME': install4jExtraScheme,
+  ]
+
+  //println("INSTALL4J VARIABLES:")
+  //variables.each{k,v->println("${k}=${v}")}
+
+  destination = "${jalviewDir}/${install4jBuildDir}"
+  buildSelected = true
+
+  if (install4j_faster.equals("true") || CHANNEL.startsWith("LOCAL")) {
+    faster = true
+    disableSigning = true
+  }
+
+  if (OSX_KEYPASS) {
+    macKeystorePassword = OSX_KEYPASS
+  }
+
+  doFirst {
+    println("Using projectFile "+projectFile)
+  }
+
+  inputs.dir(getdownWebsiteDir)
+  inputs.file(install4jConfFile)
+  inputs.file("${install4jDir}/${install4j_info_plist_file_associations}")
+  inputs.dir(macosJavaVMDir)
+  inputs.dir(windowsJavaVMDir)
+  outputs.dir("${jalviewDir}/${install4j_build_dir}/${JAVA_VERSION}")
+}
+
+
+task sourceDist(type: Tar) {
+  
+  def VERSION_UNDERSCORES = JALVIEW_VERSION.replaceAll("\\.", "_")
+  def outputFileName = "${project.name}_${VERSION_UNDERSCORES}.tar.gz"
+  // cater for buildship < 3.1 [3.0.1 is max version in eclipse 2018-09]
+  try {
+    archiveFileName = outputFileName
+  } catch (Exception e) {
+    archiveName = outputFileName
+  }
+  
+  compression Compression.GZIP
+  
+  into project.name
+
+  def EXCLUDE_FILES=[
+    "build/*",
+    "bin/*",
+    "test-output/",
+    "test-reports",
+    "tests",
+    "clover*/*",
+    ".*",
+    "benchmarking/*",
+    "**/.*",
+    "*.class",
+    "**/*.class","$j11modDir/**/*.jar","appletlib","**/*locales",
+    "*locales/**",
+    "utils/InstallAnywhere",
+    "**/*.log",
+  ] 
+  def PROCESS_FILES=[
+    "AUTHORS",
+    "CITATION",
+    "FEATURETODO",
+    "JAVA-11-README",
+    "FEATURETODO",
+    "LICENSE",
+    "**/README",
+    "RELEASE",
+    "THIRDPARTYLIBS",
+    "TESTNG",
+    "build.gradle",
+    "gradle.properties",
+    "**/*.java",
+    "**/*.html",
+    "**/*.xml",
+    "**/*.gradle",
+    "**/*.groovy",
+    "**/*.properties",
+    "**/*.perl",
+    "**/*.sh",
+  ]
+  def INCLUDE_FILES=[
+    ".settings/org.eclipse.jdt.core.jalview.prefs",
+  ]
+
+  from(jalviewDir) {
+    exclude (EXCLUDE_FILES)
+    include (PROCESS_FILES)
+    filter(ReplaceTokens,
+      beginToken: '$$',
+      endToken: '$$',
+      tokens: [
+        'Version-Rel': JALVIEW_VERSION,
+        'Year-Rel': getDate("yyyy")
+      ]
+    )
+  }
+  from(jalviewDir) {
+    exclude (EXCLUDE_FILES)
+    exclude (PROCESS_FILES)
+    exclude ("appletlib")
+    exclude ("**/*locales")
+    exclude ("*locales/**")
+    exclude ("utils/InstallAnywhere")
+
+    exclude (getdown_files_dir)
+    exclude (getdown_website_dir)
+
+    // exluding these as not using jars as modules yet
+    exclude ("$j11modDir/**/*.jar")
+  }
+  from(jalviewDir) {
+    include(INCLUDE_FILES)
+  }
+//  from (jalviewDir) {
+//    // explicit includes for stuff that seemed to not get included
+//    include(fileTree("test/**/*."))
+//    exclude(EXCLUDE_FILES)
+//    exclude(PROCESS_FILES)
+//  }
+}
+
+
+task helppages {
+  dependsOn copyHelp
+  dependsOn pubhtmlhelp
+  
+  inputs.dir("${classesDir}/${help_dir}")
+  outputs.dir("${buildDir}/distributions/${help_dir}")
+}
+
+// LARGE AMOUNT OF JALVIEWJS STUFF DELETED HERE
+task eclipseAutoBuildTask {}
+task eclipseSynchronizationTask {}

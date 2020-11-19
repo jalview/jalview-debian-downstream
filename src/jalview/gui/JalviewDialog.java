@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,11 +23,12 @@ package jalview.gui;
 import jalview.util.MessageManager;
 
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -89,6 +90,9 @@ public abstract class JalviewDialog extends JPanel
     {
       frame.setSize(width, height);
     }
+    int minWidth = width - 100;
+    int minHeight = height - 100;
+    frame.setMinimumSize(new Dimension(minWidth, minHeight));
     frame.setContentPane(content);
     this.block = block;
 
@@ -114,54 +118,13 @@ public abstract class JalviewDialog extends JPanel
         closeDialog();
       }
     });
-    frame.addWindowListener(new WindowListener()
+    frame.addWindowListener(new WindowAdapter()
     {
-
-      @Override
-      public void windowOpened(WindowEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-
-      @Override
-      public void windowIconified(WindowEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-
-      @Override
-      public void windowDeiconified(WindowEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-
-      @Override
-      public void windowDeactivated(WindowEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-
       @Override
       public void windowClosing(WindowEvent e)
       {
         // user has cancelled the dialog
         closeDialog();
-      }
-
-      @Override
-      public void windowClosed(WindowEvent e)
-      {
-      }
-
-      @Override
-      public void windowActivated(WindowEvent e)
-      {
-        // TODO Auto-generated method stub
-
       }
     });
   }
@@ -173,8 +136,8 @@ public abstract class JalviewDialog extends JPanel
   {
     try
     {
-      frame.dispose();
       raiseClosed();
+      frame.dispose();
     } catch (Exception ex)
     {
     }

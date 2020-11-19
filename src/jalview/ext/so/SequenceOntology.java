@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -102,8 +102,8 @@ public class SequenceOntology implements SequenceOntologyI
     try
     {
       String zipFile = ontologyFile + ".zip";
-      InputStream inStream = this.getClass().getResourceAsStream(
-              "/" + zipFile);
+      InputStream inStream = this.getClass()
+              .getResourceAsStream("/" + zipFile);
       zipStream = new ZipInputStream(new BufferedInputStream(inStream));
       ZipEntry entry;
       while ((entry = zipStream.getNextEntry()) != null)
@@ -151,8 +151,8 @@ public class SequenceOntology implements SequenceOntologyI
    * @throws ParseException
    * @throws IOException
    */
-  protected void loadOboFile(InputStream is) throws ParseException,
-          IOException
+  protected void loadOboFile(InputStream is)
+          throws ParseException, IOException
   {
     BufferedReader oboFile = new BufferedReader(new InputStreamReader(is));
     OboParser parser = new OboParser();

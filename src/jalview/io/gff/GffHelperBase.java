@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,7 +43,13 @@ import java.util.Map.Entry;
  */
 public abstract class GffHelperBase implements GffHelperI
 {
-  private static final String NOTE = "Note";
+  private static final String INVALID_GFF_ATTRIBUTE_FORMAT = "Invalid GFF attribute format: ";
+
+  protected static final String COMMA = ",";
+
+  protected static final String EQUALS = "=";
+
+  protected static final String NOTE = "Note";
 
   /*
    * GFF columns 1-9 (zero-indexed):
@@ -150,8 +156,8 @@ public abstract class GffHelperBase implements GffHelperI
        * restrict from range to make them match up
        * it's kind of arbitrary which end we truncate - here it is the end
        */
-      System.err.print("Truncating mapping from " + Arrays.toString(from)
-              + " to ");
+      System.err.print(
+              "Truncating mapping from " + Arrays.toString(from) + " to ");
       if (from[1] > from[0])
       {
         from[1] -= fromOverlap / toRatio;
@@ -169,8 +175,8 @@ public abstract class GffHelperBase implements GffHelperI
       /*
        * restrict to range to make them match up
        */
-      System.err.print("Truncating mapping to " + Arrays.toString(to)
-              + " to ");
+      System.err.print(
+              "Truncating mapping to " + Arrays.toString(to) + " to ");
       if (to[1] > to[0])
       {
         to[1] -= fromOverlap / fromRatio;
@@ -260,8 +266,12 @@ public abstract class GffHelperBase implements GffHelperI
 
   /**
    * Parses the input line to a map of name / value(s) pairs. For example the
-   * line <br>
-   * Notes=Fe-S;Method=manual curation, prediction; source = Pfam; Notes = Metal <br>
+   * line
+   * 
+   * <pre>
+   * Notes=Fe-S;Method=manual curation, prediction; source = Pfam; Notes = Metal
+   * </pre>
+   * 
    * if parsed with delimiter=";" and separators {' ', '='} <br>
    * would return a map with { Notes={Fe=S, Metal}, Method={manual curation,
    * prediction}, source={Pfam}} <br>
@@ -271,57 +281,80 @@ public abstract class GffHelperBase implements GffHelperI
    * name), or GFF3 format (which uses '=' as the name/value delimiter, and
    * strictly does not allow repeat occurrences of the same name - but does
    * allow a comma-separated list of values).
+   * <p>
+   * Returns a (possibly empty) map of lists of values by attribute name.
    * 
    * @param text
    * @param namesDelimiter
    *          the major delimiter between name-value pairs
    * @param nameValueSeparator
-   *          one or more separators used between name and value
+   *          separator used between name and value
    * @param valuesDelimiter
    *          delimits a list of more than one value
-   * @return the name-values map (which may be empty but never null)
+   * @return
    */
   public static Map<String, List<String>> parseNameValuePairs(String text,
           String namesDelimiter, char nameValueSeparator,
           String valuesDelimiter)
   {
-    Map<String, List<String>> map = new HashMap<String, List<String>>();
+    Map<String, List<String>> map = new HashMap<>();
     if (text == null || text.trim().length() == 0)
     {
       return map;
     }
 
-    for (String pair : text.trim().split(namesDelimiter))
+    /*
+     * split by major delimiter (; for GFF3)
+     */
+    for (String nameValuePair : text.trim().split(namesDelimiter))
     {
-      pair = pair.trim();
-      if (pair.length() == 0)
+      nameValuePair = nameValuePair.trim();
+      if (nameValuePair.length() == 0)
       {
         continue;
       }
 
-      int sepPos = pair.indexOf(nameValueSeparator);
+      /*
+       * find name/value separator (= for GFF3)
+       */
+      int sepPos = nameValuePair.indexOf(nameValueSeparator);
       if (sepPos == -1)
       {
-        // no name=value present
+        // no name=value found
         continue;
       }
 
-      String key = pair.substring(0, sepPos).trim();
-      String values = pair.substring(sepPos + 1).trim();
-      if (values.length() > 0)
+      String name = nameValuePair.substring(0, sepPos).trim();
+      String values = nameValuePair.substring(sepPos + 1).trim();
+      if (values.isEmpty())
       {
-        List<String> vals = map.get(key);
-        if (vals == null)
-        {
-          vals = new ArrayList<String>();
-          map.put(key, vals);
-        }
+        continue;
+      }
+
+      List<String> vals = map.get(name);
+      if (vals == null)
+      {
+        vals = new ArrayList<>();
+        map.put(name, vals);
+      }
+
+      /*
+       * if 'values' contains more name/value separators, parse as a map
+       * (nested sub-attribute values)
+       */
+      if (values.indexOf(nameValueSeparator) != -1)
+      {
+        vals.add(values);
+      }
+      else
+      {
         for (String val : values.split(valuesDelimiter))
         {
           vals.add(val);
         }
       }
     }
+
     return map;
   }
 
@@ -337,14 +370,26 @@ public abstract class GffHelperBase implements GffHelperI
   protected SequenceFeature buildSequenceFeature(String[] gff,
           Map<String, List<String>> attributes)
   {
+    return buildSequenceFeature(gff, TYPE_COL, gff[SOURCE_COL], attributes);
+  }
+
+  /**
+   * @param gff
+   * @param typeColumn
+   * @param group
+   * @param attributes
+   * @return
+   */
+  protected SequenceFeature buildSequenceFeature(String[] gff,
+          int typeColumn, String group, Map<String, List<String>> attributes)
+  {
     try
     {
       int start = Integer.parseInt(gff[START_COL]);
       int end = Integer.parseInt(gff[END_COL]);
 
       /*
-       * default 'score' is 0 rather than Float.NaN as the latter currently
-       * disables the 'graduated colour => colour by label' option
+       * default 'score' is 0 rather than Float.NaN - see JAL-2554
        */
       float score = 0f;
       try
@@ -355,8 +400,8 @@ public abstract class GffHelperBase implements GffHelperI
         // e.g. '.' - leave as zero
       }
 
-      SequenceFeature sf = new SequenceFeature(gff[TYPE_COL],
-              gff[SOURCE_COL], start, end, score, gff[SOURCE_COL]);
+      SequenceFeature sf = new SequenceFeature(gff[typeColumn],
+              gff[SOURCE_COL], start, end, score, group);
 
       sf.setStrand(gff[STRAND_COL]);
 
@@ -365,22 +410,32 @@ public abstract class GffHelperBase implements GffHelperI
       if (attributes != null)
       {
         /*
-         * save 'raw' column 9 to allow roundtrip output as input
-         */
-        sf.setAttributes(gff[ATTRIBUTES_COL]);
-
-        /*
          * Add attributes in column 9 to the sequence feature's 
-         * 'otherData' table; use Note as a best proxy for description
+         * 'otherData' table; use Note as a best proxy for description;
+         * decode any encoded comma, equals, semi-colon as per GFF3 spec
          */
         for (Entry<String, List<String>> attr : attributes.entrySet())
         {
-          String values = StringUtils.listToDelimitedString(
-                  attr.getValue(), ",");
-          sf.setValue(attr.getKey(), values);
-          if (NOTE.equals(attr.getKey()))
+          String key = attr.getKey();
+          List<String> values = attr.getValue();
+          if (values.size() == 1 && values.get(0).contains(EQUALS))
           {
-            sf.setDescription(values);
+            /*
+             * 'value' is actually nested subattributes as x=a,y=b,z=c
+             */
+            Map<String, String> valueMap = parseAttributeMap(values.get(0));
+            sf.setValue(key, valueMap);
+          }
+          else
+          {
+            String csvValues = StringUtils.listToDelimitedString(values,
+                    COMMA);
+            csvValues = StringUtils.urlDecode(csvValues, GFF_ENCODABLE);
+            sf.setValue(key, csvValues);
+            if (NOTE.equals(key))
+            {
+              sf.setDescription(csvValues);
+            }
           }
         }
       }
@@ -394,12 +449,102 @@ public abstract class GffHelperBase implements GffHelperI
   }
 
   /**
-   * Returns the character used to separate attributes names from values in GFF
-   * column 9. This is space for GFF2, '=' for GFF3.
+   * Parses a (GFF3 format) list of comma-separated key=value pairs into a Map
+   * of {@code key,
+   * value} <br>
+   * An input string like {@code a=b,c,d=e,f=g,h} is parsed to
+   * 
+   * <pre>
+   * a = "b,c"
+   * d = "e"
+   * f = "g,h"
+   * </pre>
+   * 
+   * @param s
    * 
    * @return
    */
-  protected abstract char getNameValueSeparator();
+  protected static Map<String, String> parseAttributeMap(String s)
+  {
+    Map<String, String> map = new HashMap<>();
+    String[] fields = s.split(EQUALS);
+
+    /*
+     * format validation
+     */
+    boolean valid = true;
+    if (fields.length < 2)
+    {
+      /*
+       * need at least A=B here
+       */
+      valid = false;
+    }
+    else if (fields[0].isEmpty() || fields[0].contains(COMMA))
+    {
+      /*
+       * A,B=C is not a valid start, nor is =C
+       */
+      valid = false;
+    }
+    else
+    {
+      for (int i = 1; i < fields.length - 1; i++)
+      {
+        if (fields[i].isEmpty() || !fields[i].contains(COMMA))
+        {
+          /*
+           * intermediate tokens must include value,name
+           */
+          valid = false;
+        }
+      }
+    }
+
+    if (!valid)
+    {
+      System.err.println(INVALID_GFF_ATTRIBUTE_FORMAT + s);
+      return map;
+    }
+
+    int i = 0;
+    while (i < fields.length - 1)
+    {
+      boolean lastPair = i == fields.length - 2;
+      String before = fields[i];
+      String after = fields[i + 1];
+
+      /*
+       * if 'key' looks like a,b,c then the last token is the
+       * key
+       */
+      String theKey = before.contains(COMMA)
+              ? before.substring(before.lastIndexOf(COMMA) + 1)
+              : before;
+
+      theKey = theKey.trim();
+      if (theKey.isEmpty())
+      {
+        System.err.println(INVALID_GFF_ATTRIBUTE_FORMAT + s);
+        map.clear();
+        return map;
+      }
+
+      /*
+       * if 'value' looks like a,b,c then all but the last token is the value,
+       * unless this is the last field (no more = to follow), in which case
+       * all of it makes up the value
+       */
+      String theValue = after.contains(COMMA) && !lastPair
+              ? after.substring(0, after.lastIndexOf(COMMA))
+              : after;
+      map.put(StringUtils.urlDecode(theKey, GFF_ENCODABLE),
+              StringUtils.urlDecode(theValue, GFF_ENCODABLE));
+      i += 1;
+    }
+
+    return map;
+  }
 
   /**
    * Returns any existing mapping held on the alignment between the given

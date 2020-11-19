@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -71,7 +71,7 @@ public final class CaseInsensitiveString
   @Override
   public int hashCode()
   {
-    return value == null ? super.hashCode() : value.toUpperCase()
-            .hashCode();
+    return value == null ? super.hashCode()
+            : value.toUpperCase().hashCode();
   }
 }

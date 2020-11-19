@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,8 +23,8 @@ package jalview.gui;
 import jalview.api.AlignViewportI;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Graphics;
-import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
@@ -37,14 +37,12 @@ import javax.swing.JPanel;
  * @author $author$
  * @version $Revision$
  */
-public class IdwidthAdjuster extends JPanel implements MouseListener,
-        MouseMotionListener
+public class IdwidthAdjuster extends JPanel
+        implements MouseListener, MouseMotionListener
 {
-  boolean active = false;
+  public static final int MIN_ID_WIDTH = 20;
 
   int oldX = 0;
-
-  Image image;
 
   AlignmentPanel ap;
 
@@ -57,141 +55,120 @@ public class IdwidthAdjuster extends JPanel implements MouseListener,
   public IdwidthAdjuster(AlignmentPanel ap)
   {
     this.ap = ap;
-
-    java.net.URL url = getClass().getResource("/images/idwidth.gif");
-
-    if (url != null)
-    {
-      image = java.awt.Toolkit.getDefaultToolkit().createImage(url);
-    }
-
+    setBackground(Color.white);
     addMouseListener(this);
     addMouseMotionListener(this);
   }
 
   /**
-   * DOCUMENT ME!
+   * Action on mouse pressed is to save the start position for any drag
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     oldX = evt.getX();
   }
 
   /**
-   * DOCUMENT ME!
+   * On release of mouse drag to resize the width, if there is a complementary
+   * alignment in a split frame, sets the complement to the same id width and
+   * repaints the split frame. Note this is done whether or not the protein
+   * characters are scaled to codon width.
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
-    active = false;
     repaint();
 
     /*
-     * If in a SplitFrame with co-scaled alignments, set the other's id width to
-     * match
+     * If in a SplitFrame, set the other's id width to match
      */
     final AlignViewportI viewport = ap.getAlignViewport();
-    if (viewport.getCodingComplement() != null
-            && viewport.isScaleProteinAsCdna())
+    if (viewport.getCodingComplement() != null)
     {
       viewport.getCodingComplement().setIdWidth(viewport.getIdWidth());
       SplitFrame sf = (SplitFrame) ap.alignFrame.getSplitViewContainer();
       sf.repaint();
     }
-
   }
 
   /**
-   * DOCUMENT ME!
+   * When this region is entered, repaints to show a left-right move cursor
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
-    active = true;
     repaint();
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
+  @Override
   public void mouseExited(MouseEvent evt)
   {
-    active = false;
-    repaint();
   }
 
   /**
-   * DOCUMENT ME!
+   * Adjusts the id panel width for a mouse drag left or right (subject to a
+   * minimum of 20 pixels) and repaints the alignment
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
-    active = true;
-
+    int mouseX = evt.getX();
     final AlignViewportI viewport = ap.getAlignViewport();
     int curwidth = viewport.getIdWidth();
-    int dif = evt.getX() - oldX;
+    int dif = mouseX - oldX;
 
     final int newWidth = curwidth + dif;
-    if ((newWidth > 20) || (dif > 0))
-    {
-      viewport.setIdWidth(newWidth);
 
-      ap.paintAlignment(true);
+    /*
+     * don't drag below minimum width
+     */
+    if (newWidth < MIN_ID_WIDTH)
+    {
+      return;
     }
 
     oldX = evt.getX();
+
+    /*
+     * don't drag right if mouse is to the left of the region
+     */
+    if (dif > 0 && mouseX < 0)
+    {
+      return;
+    }
+    viewport.setIdWidth(newWidth);
+    ap.paintAlignment(true, false);
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
   /**
-   * DOCUMENT ME!
+   * Paints this region, showing a left-right move cursor if currently 'active'
    * 
    * @param g
-   *          DOCUMENT ME!
    */
+  @Override
   public void paintComponent(Graphics g)
   {
     g.setColor(Color.white);
     g.fillRect(0, 0, getWidth(), getHeight());
-
-    if (active)
-    {
-      if (image != null)
-      {
-        g.drawImage(image, getWidth() - 20, 2, this);
-      }
-    }
+    setCursor(Cursor.getPredefinedCursor(Cursor.W_RESIZE_CURSOR));
   }
 }

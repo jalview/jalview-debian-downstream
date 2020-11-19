@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,58 +22,71 @@ package jalview.viewmodel;
 
 import jalview.analysis.PCA;
 import jalview.api.RotatableCanvasI;
+import jalview.api.analysis.ScoreModelI;
+import jalview.api.analysis.SimilarityParamsI;
 import jalview.datamodel.AlignmentView;
+import jalview.datamodel.Point;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequencePoint;
 
+import java.util.List;
 import java.util.Vector;
 
 public class PCAModel
 {
+  /*
+   * inputs
+   */
+  private AlignmentView inputData;
 
-  public PCAModel(AlignmentView seqstrings2, SequenceI[] seqs2,
-          boolean nucleotide2)
-  {
-    seqstrings = seqstrings2;
-    seqs = seqs2;
-    nucleotide = nucleotide2;
-    score_matrix = nucleotide2 ? "PID" : "BLOSUM62";
-  }
+  private final SequenceI[] seqs;
 
-  private volatile PCA pca;
+  private final SimilarityParamsI similarityParams;
+
+  /*
+   * options - score model, nucleotide / protein
+   */
+  private ScoreModelI scoreModel;
+
+  private boolean nucleotide = false;
+
+  /*
+   * outputs
+   */
+  private PCA pca;
 
   int top;
 
-  AlignmentView seqstrings;
-
-  SequenceI[] seqs;
+  private List<SequencePoint> points;
 
   /**
-   * Score matrix used to calculate PC
+   * Constructor given sequence data, score model and score calculation
+   * parameter options.
+   * 
+   * @param seqData
+   * @param sqs
+   * @param nuc
+   * @param modelName
+   * @param params
    */
-  String score_matrix;
-
-  /**
-   * use the identity matrix for calculating similarity between sequences.
-   */
-  private boolean nucleotide = false;
-
-  private Vector<SequencePoint> points;
-
-  private boolean jvCalcMode = true;
-
-  public boolean isJvCalcMode()
+  public PCAModel(AlignmentView seqData, SequenceI[] sqs, boolean nuc,
+          ScoreModelI modelName, SimilarityParamsI params)
   {
-    return jvCalcMode;
+    inputData = seqData;
+    seqs = sqs;
+    nucleotide = nuc;
+    scoreModel = modelName;
+    similarityParams = params;
   }
 
-  public void run()
+  /**
+   * Performs the PCA calculation (in the same thread) and extracts result data
+   * needed for visualisation by PCAPanel
+   */
+  public void calculate()
   {
-
-    pca = new PCA(seqstrings.getSequenceStrings(' '), nucleotide,
-            score_matrix);
-    pca.setJvCalcMode(jvCalcMode);
-    pca.run();
+    pca = new PCA(inputData, scoreModel, similarityParams);
+    pca.run(); // executes in same thread, wait for completion
 
     // Now find the component coordinates
     int ii = 0;
@@ -83,32 +96,23 @@ public class PCAModel
       ii++;
     }
 
-    double[][] comps = new double[ii][ii];
+    int height = pca.getHeight();
+    // top = pca.getM().height() - 1;
+    top = height - 1;
 
-    for (int i = 0; i < ii; i++)
-    {
-      if (pca.getEigenvalue(i) > 1e-4)
-      {
-        comps[i] = pca.component(i);
-      }
-    }
+    points = new Vector<>();
+    Point[] scores = pca.getComponents(top - 1, top - 2, top - 3, 100);
 
-    top = pca.getM().rows - 1;
-
-    points = new Vector<SequencePoint>();
-    float[][] scores = pca.getComponents(top - 1, top - 2, top - 3, 100);
-
-    for (int i = 0; i < pca.getM().rows; i++)
+    for (int i = 0; i < height; i++)
     {
       SequencePoint sp = new SequencePoint(seqs[i], scores[i]);
-      points.addElement(sp);
+      points.add(sp);
     }
-
   }
 
   public void updateRc(RotatableCanvasI rc)
   {
-    rc.setPoints(points, pca.getM().rows);
+    rc.setPoints(points, pca.getHeight());
   }
 
   public boolean isNucleotide()
@@ -122,17 +126,22 @@ public class PCAModel
   }
 
   /**
+   * Answers the index of the principal dimension of the PCA
    * 
-   * 
-   * @return index of principle dimension of PCA
+   * @return
    */
   public int getTop()
   {
     return top;
   }
 
+  public void setTop(int t)
+  {
+    top = t;
+  }
+
   /**
-   * update the 2d coordinates for the list of points to the given dimensions
+   * Updates the 3D coordinates for the list of points to the given dimensions.
    * Principal dimension is getTop(). Next greatest eigenvector is getTop()-1.
    * Note - pca.getComponents starts counting the spectrum from rank-2 to zero,
    * rather than rank-1, so getComponents(dimN ...) == updateRcView(dimN+1 ..)
@@ -144,11 +153,11 @@ public class PCAModel
   public void updateRcView(int dim1, int dim2, int dim3)
   {
     // note: actual indices for components are dim1-1, etc (patch for JAL-1123)
-    float[][] scores = pca.getComponents(dim1 - 1, dim2 - 1, dim3 - 1, 100);
+    Point[] scores = pca.getComponents(dim1 - 1, dim2 - 1, dim3 - 1, 100);
 
-    for (int i = 0; i < pca.getM().rows; i++)
+    for (int i = 0; i < pca.getHeight(); i++)
     {
-      ((SequencePoint) points.elementAt(i)).coord = scores[i];
+      points.get(i).coord = scores[i];
     }
   }
 
@@ -157,9 +166,14 @@ public class PCAModel
     return pca.getDetails();
   }
 
-  public AlignmentView getSeqtrings()
+  public AlignmentView getInputData()
   {
-    return seqstrings;
+    return inputData;
+  }
+
+  public void setInputData(AlignmentView data)
+  {
+    inputData = data;
   }
 
   public String getPointsasCsv(boolean transformed, int xdim, int ydim,
@@ -200,47 +214,58 @@ public class PCAModel
       }
       else
       {
-        // output current x,y,z coords for points
-        fl = getPointPosition(s);
-        for (int d = 0; d < fl.length; d++)
-        {
-          csv.append(",");
-          csv.append(fl[d]);
-        }
+        Point p = points.get(s).coord;
+        csv.append(",").append(p.x);
+        csv.append(",").append(p.y);
+        csv.append(",").append(p.z);
       }
       csv.append("\n");
     }
     return csv.toString();
   }
 
+  public String getScoreModelName()
+  {
+    return scoreModel == null ? "" : scoreModel.getName();
+  }
+
+  public void setScoreModel(ScoreModelI sm)
+  {
+    this.scoreModel = sm;
+  }
+
   /**
+   * Answers the parameters configured for pairwise similarity calculations
    * 
-   * @return x,y,z positions of point s (index into points) under current
-   *         transform.
+   * @return
    */
-  public double[] getPointPosition(int s)
+  public SimilarityParamsI getSimilarityParameters()
   {
-    double pts[] = new double[3];
-    float[] p = points.elementAt(s).coord;
-    pts[0] = p[0];
-    pts[1] = p[1];
-    pts[2] = p[2];
-    return pts;
+    return similarityParams;
   }
 
-  public void setJvCalcMode(boolean state)
+  public List<SequencePoint> getSequencePoints()
   {
-    jvCalcMode = state;
+    return points;
   }
 
-  public String getScore_matrix()
+  public void setSequencePoints(List<SequencePoint> sp)
   {
-    return score_matrix;
+    points = sp;
   }
 
-  public void setScore_matrix(String score_matrix)
+  /**
+   * Answers the object holding the values of the computed PCA
+   * 
+   * @return
+   */
+  public PCA getPcaData()
   {
-    this.score_matrix = score_matrix;
+    return pca;
   }
 
+  public void setPCA(PCA data)
+  {
+    pca = data;
+  }
 }

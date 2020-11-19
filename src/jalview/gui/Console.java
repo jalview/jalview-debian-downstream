@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,15 +20,20 @@
  */
 package jalview.gui;
 
-import jalview.util.MessageManager;
-
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -38,11 +43,18 @@ import java.io.PipedOutputStream;
 import java.io.PrintStream;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.SimpleLayout;
+
+import jalview.bin.Cache;
+import jalview.util.MessageManager;
 
 /**
  * Simple Jalview Java Console. Version 1 - allows viewing of console output
@@ -53,8 +65,8 @@ import org.apache.log4j.SimpleLayout;
  * own applications RJHM van den Bergh , rvdb@comweb.nl
  */
 
-public class Console extends WindowAdapter implements WindowListener,
-        ActionListener, Runnable
+public class Console extends WindowAdapter
+        implements WindowListener, ActionListener, Runnable
 {
   private JFrame frame;
 
@@ -84,6 +96,14 @@ public class Console extends WindowAdapter implements WindowListener,
   // are we attached to some parent Desktop
   Desktop parent = null;
 
+  private int MIN_WIDTH = 300;
+
+  private int MIN_HEIGHT = 250;
+
+  private JComboBox<Level> logLevelCombo = new JComboBox<Level>();
+
+  protected Level startingLogLevel = Level.INFO;
+
   public Console()
   {
     // create all components and add them
@@ -111,17 +131,107 @@ public class Console extends WindowAdapter implements WindowListener,
     // textArea = cpt.getTextArea();
     textArea = new JTextArea();
     textArea.setEditable(false);
-    JButton button = new JButton(MessageManager.getString("action.clear"));
+    JButton clearButton = new JButton(
+            MessageManager.getString("action.clear"));
+    JButton copyToClipboardButton = new JButton(
+            MessageManager.getString("label.copy_to_clipboard"));
+    copyToClipboardButton.addActionListener(new ActionListener()
+    {
+      public void actionPerformed(ActionEvent e)
+      {
+        copyConsoleTextToClipboard();
+      }
+    });
+    copyToClipboardButton.addMouseListener(new MouseAdapter()
+    {
+      private Color bg = textArea.getBackground();
+
+      private Color fg = textArea.getForeground();
+
+      public void mousePressed(MouseEvent e)
+      {
+        textArea.setBackground(textArea.getSelectionColor());
+        textArea.setForeground(textArea.getSelectedTextColor());
+      }
+
+      public void mouseReleased(MouseEvent e)
+      {
+        textArea.setBackground(bg);
+        textArea.setForeground(fg);
+      }
+
+    });
+    copyToClipboardButton.setToolTipText(
+            MessageManager.getString("label.copy_to_clipboard_tooltip"));
+
+    JLabel logLevelLabel = new JLabel(
+            MessageManager.getString("label.log_level") + ":");
+
+    // logLevelCombo.addItem(Level.ALL);
+    logLevelCombo.addItem(Level.TRACE);
+    logLevelCombo.addItem(Level.DEBUG);
+    logLevelCombo.addItem(Level.INFO);
+    logLevelCombo.addItem(Level.WARN);
+    // logLevelCombo.addItem(Level.ERROR);
+    // logLevelCombo.addItem(Level.FATAL);
+    // logLevelCombo.addItem(Level.OFF);
+    // set startingLogLevel
+    startingLogLevel = Cache.log == null ? Level.INFO
+            : Cache.log.getLevel();
+    setChosenLogLevelCombo();
+    logLevelCombo.addActionListener(new ActionListener()
+    {
+      public void actionPerformed(ActionEvent e)
+      {
+        if (Cache.log != null)
+        {
+          Cache.log.setLevel((Level) logLevelCombo.getSelectedItem());
+        }
+      }
+
+    });
 
     // frame = cpt;
     frame.getContentPane().setLayout(new BorderLayout());
     frame.getContentPane().add(new JScrollPane(textArea),
             BorderLayout.CENTER);
-    frame.getContentPane().add(button, BorderLayout.SOUTH);
+    JPanel southPanel = new JPanel();
+    southPanel.setLayout(new GridBagLayout());
+
+    JPanel logLevelPanel = new JPanel();
+    logLevelPanel.setAlignmentX(JPanel.LEFT_ALIGNMENT);
+    logLevelPanel.add(logLevelLabel);
+    logLevelPanel.add(logLevelCombo);
+    String logLevelTooltip = MessageManager.formatMessage(
+            "label.log_level_tooltip", startingLogLevel.toString());
+    logLevelLabel.setToolTipText(logLevelTooltip);
+    logLevelCombo.setToolTipText(logLevelTooltip);
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.gridwidth = 1;
+    gbc.gridheight = 1;
+    gbc.weightx = 0.1;
+    southPanel.add(logLevelPanel, gbc);
+
+    gbc.gridx++;
+    gbc.weightx = 0.8;
+    gbc.fill = GridBagConstraints.HORIZONTAL;
+    southPanel.add(clearButton, gbc);
+
+    gbc.gridx++;
+    gbc.weightx = 0.1;
+    gbc.fill = GridBagConstraints.NONE;
+    southPanel.add(copyToClipboardButton, gbc);
+
+    southPanel.setVisible(true);
+    frame.getContentPane().add(southPanel, BorderLayout.SOUTH);
     frame.setVisible(visible);
     updateConsole = visible;
     frame.addWindowListener(this);
-    button.addActionListener(this);
+    clearButton.addActionListener(this);
+
     if (redirect)
     {
       redirectStreams();
@@ -145,6 +255,53 @@ public class Console extends WindowAdapter implements WindowListener,
     textAppender = new Thread(this);
     textAppender.setDaemon(true);
     textAppender.start();
+  }
+
+  private void setChosenLogLevelCombo()
+  {
+    setChosenLogLevelCombo(startingLogLevel);
+  }
+
+  private void setChosenLogLevelCombo(Level setLogLevel)
+  {
+    logLevelCombo.setSelectedItem(setLogLevel);
+    if (!logLevelCombo.getSelectedItem().equals(setLogLevel))
+    {
+      // setLogLevel not (yet) in list
+      if (setLogLevel != null && setLogLevel instanceof Level)
+      {
+        // add new item to list (might be set via .jalview_properties)
+        boolean added = false;
+        for (int i = 0; i < logLevelCombo.getItemCount(); i++)
+        {
+          Level l = (Level) logLevelCombo.getItemAt(i);
+          if (l.isGreaterOrEqual(setLogLevel))
+          {
+            logLevelCombo.insertItemAt(setLogLevel, i);
+            added = true;
+            break;
+          }
+        }
+        if (!added) // lower priority than others or some confusion -- add to
+                    // end of list
+        {
+          logLevelCombo.addItem(setLogLevel);
+        }
+        logLevelCombo.setSelectedItem(setLogLevel);
+      }
+      else
+      {
+        logLevelCombo.setSelectedItem(Level.INFO);
+      }
+    }
+  }
+
+  private void copyConsoleTextToClipboard()
+  {
+    String consoleText = textArea.getText();
+    StringSelection consoleTextSelection = new StringSelection(consoleText);
+    Clipboard cb = Toolkit.getDefaultToolkit().getSystemClipboard();
+    cb.setContents(consoleTextSelection, null);
   }
 
   PipedOutputStream pout = null, perr = null;
@@ -243,7 +400,9 @@ public class Console extends WindowAdapter implements WindowListener,
             .getLocalGraphicsEnvironment();
     String[] fontNames = ge.getAvailableFontFamilyNames();
     for (int n = 0; n < fontNames.length; n++)
+    {
       System.out.println(fontNames[n]);
+    }
     // Testing part: simple an error thrown anywhere in this JVM will be printed
     // on the Console
     // We do it with a seperate Thread becasue we don't wan't to break a Thread
@@ -259,9 +418,13 @@ public class Console extends WindowAdapter implements WindowListener,
     JFrame frame = new JFrame(string);
     frame.setName(string);
     if (x == -1)
-      x = (int) (i / 2);
+    {
+      x = i / 2;
+    }
     if (y == -1)
-      y = (int) (j / 2);
+    {
+      y = j / 2;
+    }
     frame.setBounds(x, y, i, j);
     return frame;
   }
@@ -295,9 +458,10 @@ public class Console extends WindowAdapter implements WindowListener,
     }
     else
     {
-      frame = initFrame("Jalview Java Console", bounds.width,
-              bounds.height, bounds.x, bounds.y);
+      frame = initFrame("Jalview Java Console", bounds.width, bounds.height,
+              bounds.x, bounds.y);
     }
+    frame.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
     // desktop.add(frame);
     initConsole(false);
     JalviewAppender jappender = new JalviewAppender();
@@ -345,6 +509,7 @@ public class Console extends WindowAdapter implements WindowListener,
     // System.exit(0);
   }
 
+  @Override
   public synchronized void windowClosed(WindowEvent evt)
   {
     frame.setVisible(false);
@@ -365,6 +530,7 @@ public class Console extends WindowAdapter implements WindowListener,
     }
   }
 
+  @Override
   public synchronized void windowClosing(WindowEvent evt)
   {
     frame.setVisible(false); // default behaviour of JFrame
@@ -373,12 +539,14 @@ public class Console extends WindowAdapter implements WindowListener,
     // frame.dispose();
   }
 
+  @Override
   public synchronized void actionPerformed(ActionEvent evt)
   {
     trimBuffer(true);
     // textArea.setText("");
   }
 
+  @Override
   public synchronized void run()
   {
     try
@@ -410,7 +578,9 @@ public class Console extends WindowAdapter implements WindowListener,
           // lines++;
         }
         if (quit)
+        {
           return;
+        }
       }
 
       while (Thread.currentThread() == reader2)
@@ -439,7 +609,9 @@ public class Console extends WindowAdapter implements WindowListener,
           // lines++;
         }
         if (quit)
+        {
           return;
+        }
       }
       while (Thread.currentThread() == textAppender)
       {
@@ -503,8 +675,8 @@ public class Console extends WindowAdapter implements WindowListener,
       textArea.append("The error is: " + e.getMessage());
       // Need to uncomment this to ensure that line tally is synched.
       // lines += 2;
-      stderr.println("Console reports an Internal error.\nThe error is: "
-              + e);
+      stderr.println(
+              "Console reports an Internal error.\nThe error is: " + e);
     }
 
     // just for testing (Throw a Nullpointer after 1 second)
@@ -531,6 +703,7 @@ public class Console extends WindowAdapter implements WindowListener,
     long time = System.nanoTime();
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         displayPipe.append(input); // change to stringBuffer
@@ -598,7 +771,9 @@ public class Console extends WindowAdapter implements WindowListener,
     {
       int available = in.available();
       if (available == 0)
+      {
         break;
+      }
       byte b[] = new byte[available];
       in.read(b);
       input = input + new String(b, 0, b.length);
@@ -622,12 +797,19 @@ public class Console extends WindowAdapter implements WindowListener,
     frame.setVisible(selected);
     if (selected == true)
     {
+      setChosenLogLevelCombo();
       redirectStreams();
       updateConsole = true;
       frame.toFront();
     }
     else
     {
+      // reset log level to what it was before
+      if (Cache.log != null)
+      {
+        Cache.log.setLevel(startingLogLevel);
+      }
+
       unredirectStreams();
       updateConsole = false;
     }

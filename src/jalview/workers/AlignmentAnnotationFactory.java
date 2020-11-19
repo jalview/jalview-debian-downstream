@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,11 +31,13 @@ import java.awt.Color;
 
 /**
  * Factory class with methods which allow clients (including external scripts
- * such as Groovy) to 'register and forget' an alignment annotation calculator. <br>
+ * such as Groovy) to 'register and forget' an alignment annotation calculator.
+ * <br>
  * Currently supports two flavours of calculator:
  * <ul>
  * <li>a simple 'feature counter' which counts any desired score derivable from
- * residue value and any sequence features at each position of the alignment</li>
+ * residue value and any sequence features at each position of the
+ * alignment</li>
  * <li>a 'general purpose' calculator which computes one or more complete
  * AlignmentAnnotation objects</li>
  * </ul>
@@ -48,35 +50,18 @@ public class AlignmentAnnotationFactory
    * @param counter
    *          provider of feature counts per alignment position
    */
-  public static void newCalculator(FeatureCounterI counter)
+  public static void newCalculator(FeatureSetCounterI counter)
   {
-    // TODO need an interface for AlignFrame by which to access
-    // its AlignViewportI and AlignmentViewPanel
-    AlignmentViewPanel currentAlignFrame = Jalview.getCurrentAlignFrame().alignPanel;
-    if (currentAlignFrame != null)
+    AlignmentViewPanel currentAlignFrame = Jalview
+            .getCurrentAlignFrame().alignPanel;
+    if (currentAlignFrame == null)
     {
-      newCalculator(currentAlignFrame.getAlignViewport(),
-              currentAlignFrame, counter);
+      System.err.println(
+              "Can't register calculator as no alignment window has focus");
+      return;
     }
-    else
-    {
-      System.err
-              .println("Can't register calculator as no alignment window has focus");
-    }
-  }
-
-  /**
-   * Constructs and registers a new alignment annotation worker
-   * 
-   * @param viewport
-   * @param panel
-   * @param counter
-   *          provider of feature counts per alignment position
-   */
-  public static void newCalculator(AlignViewportI viewport,
-          AlignmentViewPanel panel, FeatureCounterI counter)
-  {
-    new ColumnCounterWorker(viewport, panel, counter);
+    new ColumnCounterSetWorker(currentAlignFrame.getAlignViewport(),
+            currentAlignFrame, counter);
   }
 
   /**
@@ -92,13 +77,13 @@ public class AlignmentAnnotationFactory
     AlignFrame currentAlignFrame = Jalview.getCurrentAlignFrame();
     if (currentAlignFrame != null)
     {
-      newCalculator(currentAlignFrame.getViewport(), currentAlignFrame
-              .getAlignPanels().get(0), calculator);
+      new AnnotationWorker(currentAlignFrame.getViewport(),
+              currentAlignFrame.getAlignPanels().get(0), calculator);
     }
     else
     {
-      System.err
-              .println("Can't register calculator as no alignment window has focus");
+      System.err.println(
+              "Can't register calculator as no alignment window has focus");
     }
   }
 
@@ -129,7 +114,8 @@ public class AlignmentAnnotationFactory
   public static Annotation newAnnotation(String displayChar, String desc,
           char secondaryStructure, float val, Color color)
   {
-    return new Annotation(displayChar, desc, secondaryStructure, val, color);
+    return new Annotation(displayChar, desc, secondaryStructure, val,
+            color);
   }
 
   /**

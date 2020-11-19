@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,17 +31,32 @@ public interface SearchResultsI
 {
 
   /**
-   * Adds one region to the results
+   * Adds one region to the results (unless already added, to avoid duplicates)
    * 
    * @param seq
-   *          Sequence
    * @param start
-   *          int
    * @param end
-   *          int
    * @return
    */
   SearchResultMatchI addResult(SequenceI seq, int start, int end);
+
+  /**
+   * Adds one ore more [start, end] ranges to the results (unless already added
+   * to avoid duplicates). This method only increments the match count by 1.
+   * This is for the case where a match spans ignored hidden residues - it is
+   * formally two or more contiguous matches, but only counted as one match.
+   * 
+   * @param seq
+   * @param positions
+   */
+  void addResult(SequenceI seq, int[] positions);
+
+  /**
+   * adds all match results in the argument to this set
+   * 
+   * @param toAdd
+   */
+  void addSearchResults(SearchResultsI toAdd);
 
   /**
    * Answers true if the search results include the given sequence (or its
@@ -70,11 +85,13 @@ public interface SearchResultsI
   int[] getResults(SequenceI sequence, int start, int end);
 
   /**
-   * Returns the number of matches found
+   * Returns the number of matches found. Note that if a match straddles ignored
+   * hidden residues, it is counted as one match, although formally recorded as
+   * two (or more) contiguous matched sequence regions
    * 
    * @return
    */
-  int getSize();
+  int getCount();
 
   /**
    * Returns true if no search result matches are held.

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,14 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
+import jalview.datamodel.AnnotatedCollectionI;
+import jalview.util.ColorUtils;
 
 import java.awt.Color;
 import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * Became RNAHelicesColour.java. Placeholder for true covariation color scheme
@@ -33,13 +37,24 @@ import java.util.Hashtable;
  */
 public class CovariationColourScheme extends ResidueColourScheme
 {
-  public Hashtable helixcolorhash = new Hashtable();
+  public Map<String, Color> helixcolorhash = new Hashtable<>();
 
-  public Hashtable positionsToHelix = new Hashtable();
+  public Map<Integer, String> positionsToHelix = new Hashtable<>();
 
   int numHelix = 0;
 
   public AlignmentAnnotation annotation;
+
+  /**
+   * Returns a new instance of this colour scheme with which the given data may
+   * be coloured
+   */
+  @Override
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI coll)
+  {
+    return new CovariationColourScheme(coll.getAlignmentAnnotation()[0]);
+  }
 
   /**
    * Creates a new CovariationColourScheme object.
@@ -61,18 +76,19 @@ public class CovariationColourScheme extends ResidueColourScheme
       positionsToHelix.put(this.annotation._rnasecstr[x].getEnd(),
               this.annotation._rnasecstr[x].getFeatureGroup());
 
-      if (Integer.parseInt(this.annotation._rnasecstr[x].getFeatureGroup()) > numHelix)
+      if (Integer.parseInt(
+              this.annotation._rnasecstr[x].getFeatureGroup()) > numHelix)
       {
-        numHelix = Integer.parseInt(this.annotation._rnasecstr[x]
-                .getFeatureGroup());
+        numHelix = Integer
+                .parseInt(this.annotation._rnasecstr[x].getFeatureGroup());
       }
 
     }
 
     for (int j = 0; j <= numHelix; j++)
     {
-      helixcolorhash.put(Integer.toString(j),
-              jalview.util.ColorUtils.generateRandomColor(Color.white));
+      helixcolorhash.put(String.valueOf(j),
+              ColorUtils.generateRandomColor(Color.white));
     }
 
   }
@@ -85,6 +101,7 @@ public class CovariationColourScheme extends ResidueColourScheme
    * 
    * @return DOCUMENT ME!
    */
+  @Override
   public Color findColour(char c)
   {
     // System.out.println("called"); log.debug
@@ -108,12 +125,12 @@ public class CovariationColourScheme extends ResidueColourScheme
     Color currentColour = Color.white;
     String currentHelix = null;
     // System.out.println(c + " " + j);
-    currentHelix = (String) positionsToHelix.get(j);
+    currentHelix = positionsToHelix.get(j);
     // System.out.println(positionsToHelix.get(j));
 
     if (currentHelix != null)
     {
-      currentColour = (Color) helixcolorhash.get(currentHelix);
+      currentColour = helixcolorhash.get(currentHelix);
     }
 
     // System.out.println(c + " " + j + " helix " + currentHelix + " " +
@@ -121,4 +138,21 @@ public class CovariationColourScheme extends ResidueColourScheme
     return currentColour;
   }
 
+  @Override
+  public boolean isNucleotideSpecific()
+  {
+    return true;
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return "Covariation";
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
+  }
 }

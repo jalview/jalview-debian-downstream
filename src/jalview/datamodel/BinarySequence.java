@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,8 @@
  */
 package jalview.datamodel;
 
+import jalview.analysis.scoremodels.ScoreMatrix;
 import jalview.schemes.ResidueProperties;
-import jalview.schemes.ScoreMatrix;
 
 /**
  * Encode a sequence as a numeric vector using either classic residue binary
@@ -69,13 +69,9 @@ public class BinarySequence extends Sequence
   {
     int nores = (isNa) ? ResidueProperties.maxNucleotideIndex
             : ResidueProperties.maxProteinIndex;
-    // Set all matrix to 0
-    dbinary = new double[getSequence().length * nores];
 
-    for (int i = 0; i < dbinary.length; i++)
-    {
-      dbinary[i] = 0.0;
-    }
+    dbinary = new double[getLength() * nores];
+
     return nores;
   }
 
@@ -92,7 +88,7 @@ public class BinarySequence extends Sequence
   {
     int nores = initMatrixGetNoRes();
     final int[] sindex = getSymbolmatrix();
-    for (int i = 0; i < getSequence().length; i++)
+    for (int i = 0; i < getLength(); i++)
     {
       int aanum = nores - 1;
 
@@ -116,33 +112,27 @@ public class BinarySequence extends Sequence
   /**
    * ancode using substitution matrix given in matrix
    * 
-   * @param matrix
+   * @param smtrx
    */
-  public void matrixEncode(final ScoreMatrix matrix)
+  public void matrixEncode(final ScoreMatrix smtrx)
           throws InvalidSequenceTypeException
   {
-    if (isNa != matrix.isDNA())
+    if (isNa != smtrx.isDNA())
     {
-      throw new InvalidSequenceTypeException("matrix "
-              + matrix.getClass().getCanonicalName()
-              + " is not a valid matrix for "
-              + (isNa ? "nucleotide" : "protein") + "sequences");
+      throw new InvalidSequenceTypeException(
+              "matrix " + smtrx.getClass().getCanonicalName()
+                      + " is not a valid matrix for "
+                      + (isNa ? "nucleotide" : "protein") + "sequences");
     }
-    matrixEncode(matrix.isDNA() ? ResidueProperties.nucleotideIndex
-            : ResidueProperties.aaIndex, matrix.getMatrix());
+    matrixEncode(smtrx.isDNA() ? ResidueProperties.nucleotideIndex
+            : ResidueProperties.aaIndex, smtrx.getMatrix());
   }
 
-  private void matrixEncode(final int[] aaIndex, final int[][] matrix)
+  private void matrixEncode(final int[] aaIndex, final float[][] matrix)
   {
-    // Set all matrix to 0
-    // dbinary = new double[getSequence().length * 21];
-
     int nores = initMatrixGetNoRes();
 
-    // for (int i = 0; i < dbinary.length; i++) {
-    // dbinary[i] = 0.0;
-    // }
-    for (int i = 0, iSize = getSequence().length; i < iSize; i++)
+    for (int i = 0, iSize = getLength(); i < iSize; i++)
     {
       int aanum = nores - 1;
 
@@ -179,7 +169,7 @@ public class BinarySequence extends Sequence
 
     for (int i = 0; i < binary.length; i++)
     {
-      out += (new Integer(binary[i])).toString();
+      out += (Integer.valueOf(binary[i])).toString();
 
       if (i < (binary.length - 1))
       {

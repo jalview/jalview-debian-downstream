@@ -138,16 +138,16 @@ class Branch extends Pattern
       n = RegOpt.opt(n, ignoreCase, dontMinQ);
     }
     n.setParent(this);
-    set(new Character(o.c), n, ignoreCase, dontMinQ);
+    set(Character.valueOf(o.c), n, ignoreCase, dontMinQ);
     if (ignoreCase)
     {
       if (o.c != o.altc)
       {
-        set(new Character(o.altc), n, ignoreCase, dontMinQ);
+        set(Character.valueOf(o.altc), n, ignoreCase, dontMinQ);
       }
       if (o.c != o.altc2 && o.altc != o.altc2)
       {
-        set(new Character(o.altc2), n, ignoreCase, dontMinQ);
+        set(Character.valueOf(o.altc2), n, ignoreCase, dontMinQ);
       }
     }
   }
@@ -250,7 +250,7 @@ class Branch extends Pattern
     {
       return -1;
     }
-    Pattern n = (Pattern) h.get(new Character(pt.src.charAt(pos)));
+    Pattern n = (Pattern) h.get(Character.valueOf(pt.src.charAt(pos)));
     if (n == null)
     {
       return -1;

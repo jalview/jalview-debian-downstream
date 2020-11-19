@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,18 +21,15 @@
 package jalview.gui;
 
 import jalview.analysis.Conservation;
-import jalview.analysis.NJTree;
+import jalview.analysis.TreeModel;
 import jalview.api.AlignViewportI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequenceNode;
 import jalview.schemes.ColourSchemeI;
-import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.UserColourScheme;
 import jalview.structure.SelectionSource;
 import jalview.util.Format;
-import jalview.util.MappingUtils;
 import jalview.util.MessageManager;
 
 import java.awt.Color;
@@ -53,6 +50,7 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Vector;
 
 import javax.swing.JColorChooser;
@@ -73,15 +71,15 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
   /** DOCUMENT ME!! */
   public static final String PLACEHOLDER = " * ";
 
-  NJTree tree;
+  TreeModel tree;
 
   JScrollPane scrollPane;
 
   TreePanel tp;
 
-  AlignViewport av;
+  private AlignViewport av;
 
-  AlignmentPanel ap;
+  private AlignmentPanel ap;
 
   Font font;
 
@@ -99,7 +97,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
   int offy;
 
-  float threshold;
+  private float threshold;
 
   String longestName;
 
@@ -129,7 +127,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
   {
     this.tp = tp;
     this.av = ap.av;
-    this.ap = ap;
+    this.setAssociatedPanel(ap);
     font = av.getFont();
     scrollPane = scroller;
     addMouseListener(this);
@@ -168,7 +166,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    * @param tree
    *          DOCUMENT ME!
    */
-  public void setTree(NJTree tree)
+  public void setTree(TreeModel tree)
   {
     this.tree = tree;
     tree.findHeight(tree.getTopNode());
@@ -207,7 +205,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    *          DOCUMENT ME!
    * @param chunk
    *          DOCUMENT ME!
-   * @param scale
+   * @param wscale
    *          DOCUMENT ME!
    * @param width
    *          DOCUMENT ME!
@@ -217,7 +215,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    *          DOCUMENT ME!
    */
   public void drawNode(Graphics g, SequenceNode node, float chunk,
-          float scale, int width, int offx, int offy)
+          double wscale, int width, int offx, int offy)
   {
     if (node == null)
     {
@@ -227,11 +225,11 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     if ((node.left() == null) && (node.right() == null))
     {
       // Drawing leaf node
-      float height = node.height;
-      float dist = node.dist;
+      double height = node.height;
+      double dist = node.dist;
 
-      int xstart = (int) ((height - dist) * scale) + offx;
-      int xend = (int) (height * scale) + offx;
+      int xstart = (int) ((height - dist) * wscale) + offx;
+      int xend = (int) (height * wscale) + offx;
 
       int ypos = (int) (node.ycount * chunk) + offy;
 
@@ -278,8 +276,9 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         g.drawString(nodeLabel, xstart + 2, ypos - 2);
       }
 
-      String name = (markPlaceholders && node.isPlaceholder()) ? (PLACEHOLDER + node
-              .getName()) : node.getName();
+      String name = (markPlaceholders && node.isPlaceholder())
+              ? (PLACEHOLDER + node.getName())
+              : node.getName();
 
       int charWidth = fm.stringWidth(name) + 3;
       int charHeight = font.getSize();
@@ -306,16 +305,16 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     }
     else
     {
-      drawNode(g, (SequenceNode) node.left(), chunk, scale, width, offx,
+      drawNode(g, (SequenceNode) node.left(), chunk, wscale, width, offx,
               offy);
-      drawNode(g, (SequenceNode) node.right(), chunk, scale, width, offx,
+      drawNode(g, (SequenceNode) node.right(), chunk, wscale, width, offx,
               offy);
 
-      float height = node.height;
-      float dist = node.dist;
+      double height = node.height;
+      double dist = node.dist;
 
-      int xstart = (int) ((height - dist) * scale) + offx;
-      int xend = (int) (height * scale) + offx;
+      int xstart = (int) ((height - dist) * wscale) + offx;
+      int xend = (int) (height * wscale) + offx;
       int ypos = (int) (node.ycount * chunk) + offy;
 
       g.setColor(node.color.darker());
@@ -331,16 +330,17 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         g.fillRect(xend - 2, ypos - 2, 4, 4);
       }
 
-      int ystart = (int) (((SequenceNode) node.left()).ycount * chunk)
-              + offy;
-      int yend = (int) (((SequenceNode) node.right()).ycount * chunk)
+      int ystart = (node.left() == null ? 0
+              : (int) (((SequenceNode) node.left()).ycount * chunk)) + offy;
+      int yend = (node.right() == null ? 0
+              : (int) (((SequenceNode) node.right()).ycount * chunk))
               + offy;
 
       Rectangle pos = new Rectangle(xend - 2, ypos - 2, 5, 5);
       nodeHash.put(node, pos);
 
-      g.drawLine((int) (height * scale) + offx, ystart,
-              (int) (height * scale) + offx, yend);
+      g.drawLine((int) (height * wscale) + offx, ystart,
+              (int) (height * wscale) + offx, yend);
 
       String nodeLabel = "";
 
@@ -422,8 +422,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
     SequenceNode top = tree.getTopNode();
 
-    float wscale = (float) ((width * .8) - (offx * 2))
-            / tree.getMaxHeight();
+    double wscale = ((width * .8) - (offx * 2)) / tree.getMaxHeight();
 
     if (top.count == 0)
     {
@@ -445,7 +444,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    *          DOCUMENT ME!
    * @param chunk
    *          DOCUMENT ME!
-   * @param scale
+   * @param wscale
    *          DOCUMENT ME!
    * @param width
    *          DOCUMENT ME!
@@ -455,7 +454,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
    *          DOCUMENT ME!
    */
   public void pickNode(Rectangle pickBox, SequenceNode node, float chunk,
-          float scale, int width, int offx, int offy)
+          double wscale, int width, int offx, int offy)
   {
     if (node == null)
     {
@@ -464,11 +463,11 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
     if ((node.left() == null) && (node.right() == null))
     {
-      float height = node.height;
-      float dist = node.dist;
+      double height = node.height;
+      double dist = node.dist;
 
-      int xstart = (int) ((height - dist) * scale) + offx;
-      int xend = (int) (height * scale) + offx;
+      int xstart = (int) ((height - dist) * wscale) + offx;
+      int xend = (int) (height * wscale) + offx;
 
       int ypos = (int) (node.ycount * chunk) + offy;
 
@@ -488,9 +487,9 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     }
     else
     {
-      pickNode(pickBox, (SequenceNode) node.left(), chunk, scale, width,
+      pickNode(pickBox, (SequenceNode) node.left(), chunk, wscale, width,
               offx, offy);
-      pickNode(pickBox, (SequenceNode) node.right(), chunk, scale, width,
+      pickNode(pickBox, (SequenceNode) node.right(), chunk, wscale, width,
               offx, offy);
     }
   }
@@ -510,29 +509,21 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
       return;
     }
 
-    if ((node.left() == null) && (node.right() == null)) // TODO: internal node
+    node.color = c;
+    if (node.element() instanceof SequenceI)
     {
-      node.color = c;
-
-      if (node.element() instanceof SequenceI)
+      final SequenceI seq = (SequenceI) node.element();
+      AlignmentPanel[] aps = getAssociatedPanels();
+      if (aps != null)
       {
-        AlignmentPanel[] aps = getAssociatedPanels();
-        if (aps != null)
+        for (int a = 0; a < aps.length; a++)
         {
-          for (int a = 0; a < aps.length; a++)
-          {
-            final SequenceI seq = (SequenceI) node.element();
-            aps[a].av.setSequenceColour(seq, c);
-          }
+          aps[a].av.setSequenceColour(seq, c);
         }
       }
     }
-    else
-    {
-      node.color = c;
-      setColor((SequenceNode) node.left(), c);
-      setColor((SequenceNode) node.right(), c);
-    }
+    setColor((SequenceNode) node.left(), c);
+    setColor((SequenceNode) node.right(), c);
   }
 
   /**
@@ -549,7 +540,16 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
   public void run()
   {
     PrinterJob printJob = PrinterJob.getPrinterJob();
-    PageFormat pf = printJob.pageDialog(printJob.defaultPage());
+    PageFormat defaultPage = printJob.defaultPage();
+    PageFormat pf = printJob.pageDialog(defaultPage);
+
+    if (defaultPage == pf)
+    {
+      /*
+       * user cancelled
+       */
+      return;
+    }
 
     printJob.setPrintable(this, pf);
 
@@ -643,8 +643,9 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
     if (tree == null)
     {
-      g.drawString(MessageManager.getString("label.calculating_tree")
-              + "....", 20, getHeight() / 2);
+      g.drawString(
+              MessageManager.getString("label.calculating_tree") + "....",
+              20, getHeight() / 2);
     }
     else
     {
@@ -655,9 +656,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         repaint();
       }
 
-      if (fitToWindow
-              || (!fitToWindow && (scrollPane.getHeight() > ((fm
-                      .getHeight() * nameHash.size()) + offy))))
+      if (fitToWindow || (!fitToWindow && (scrollPane
+              .getHeight() > ((fm.getHeight() * nameHash.size()) + offy))))
       {
         draw(g, scrollPane.getWidth(), scrollPane.getHeight());
         setPreferredSize(null);
@@ -715,7 +715,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
 
     labelLength = fm.stringWidth(longestName) + 20; // 20 allows for scrollbar
 
-    float wscale = (width - labelLength - (offx * 2)) / tree.getMaxHeight();
+    double wscale = (width - labelLength - (offx * 2))
+            / tree.getMaxHeight();
 
     SequenceNode top = tree.getTopNode();
 
@@ -740,7 +741,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         g2.setColor(Color.gray);
       }
 
-      int x = (int) ((threshold * (getWidth() - labelLength - (2 * offx))) + offx);
+      int x = (int) ((threshold * (getWidth() - labelLength - (2 * offx)))
+              + offx);
 
       g2.drawLine(x, 0, x, getHeight());
     }
@@ -834,7 +836,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     if (col != null)
     {
       setColor(highlightNode, col);
-      PaintRefresher.Refresh(tp, ap.av.getSequenceSetId());
+      PaintRefresher.Refresh(tp, getAssociatedPanel().av.getSequenceSetId());
       repaint();
     }
   }
@@ -849,8 +851,8 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     if (ob instanceof SequenceNode)
     {
       highlightNode = (SequenceNode) ob;
-      this.setToolTipText("<html>"
-              + MessageManager.getString("label.highlightnode"));
+      this.setToolTipText(
+              "<html>" + MessageManager.getString("label.highlightnode"));
       repaint();
 
     }
@@ -915,7 +917,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     if (ob instanceof SequenceI)
     {
       treeSelectionChanged((Sequence) ob);
-      PaintRefresher.Refresh(tp, ap.av.getSequenceSetId());
+      PaintRefresher.Refresh(tp, getAssociatedPanel().av.getSequenceSetId());
       repaint();
       av.sendSelection();
       return;
@@ -928,8 +930,7 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
         threshold = (float) (x - offx)
                 / (float) (getWidth() - labelLength - (2 * offx));
 
-        tree.getGroups().removeAllElements();
-        tree.groupNodes(tree.getTopNode(), threshold);
+        List<SequenceNode> groups = tree.groupNodes(threshold);
         setColor(tree.getTopNode(), Color.black);
 
         AlignmentPanel[] aps = getAssociatedPanels();
@@ -948,29 +949,38 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
                     .deleteAllGroups();
             aps[a].av.getCodingComplement().clearSequenceColours();
           }
+          aps[a].av.setUpdateStructures(true);
         }
-        colourGroups();
+        colourGroups(groups);
+
+        /*
+         * clear partition (don't show vertical line) if
+         * it is to the right of all nodes
+         */
+        if (groups.isEmpty())
+        {
+          threshold = 0f;
+        }
       }
 
-      PaintRefresher.Refresh(tp, ap.av.getSequenceSetId());
+      PaintRefresher.Refresh(tp, getAssociatedPanel().av.getSequenceSetId());
       repaint();
     }
 
   }
 
-  void colourGroups()
+  void colourGroups(List<SequenceNode> groups)
   {
     AlignmentPanel[] aps = getAssociatedPanels();
-    for (int i = 0; i < tree.getGroups().size(); i++)
+    for (int i = 0; i < groups.size(); i++)
     {
       Color col = new Color((int) (Math.random() * 255),
               (int) (Math.random() * 255), (int) (Math.random() * 255));
-      setColor(tree.getGroups().elementAt(i), col.brighter());
+      setColor(groups.get(i), col.brighter());
 
-      Vector<SequenceNode> l = tree.findLeaves(tree.getGroups()
-              .elementAt(i));
+      Vector<SequenceNode> l = tree.findLeaves(groups.get(i));
 
-      Vector<SequenceI> sequences = new Vector<SequenceI>();
+      Vector<SequenceI> sequences = new Vector<>();
 
       for (int j = 0; j < l.size(); j++)
       {
@@ -983,73 +993,48 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
       }
 
       ColourSchemeI cs = null;
-      SequenceGroup sg = new SequenceGroup(sequences, null, cs, true, true,
+      SequenceGroup _sg = new SequenceGroup(sequences, null, cs, true, true,
               false, 0, av.getAlignment().getWidth() - 1);
 
-      if (av.getGlobalColourScheme() != null)
-      {
-        if (av.getGlobalColourScheme() instanceof UserColourScheme)
-        {
-          cs = new UserColourScheme(
-                  ((UserColourScheme) av.getGlobalColourScheme())
-                          .getColours());
-
-        }
-        else
-        {
-          cs = ColourSchemeProperty.getColour(sg, ColourSchemeProperty
-                  .getColourName(av.getGlobalColourScheme()));
-        }
-        // cs is null if shading is an annotationColourGradient
-        if (cs != null)
-        {
-          cs.setThreshold(av.getGlobalColourScheme().getThreshold(),
-                  av.isIgnoreGapsConsensus());
-        }
-      }
-      sg.cs = cs;
-      // sg.recalcConservation();
-      sg.setName("JTreeGroup:" + sg.hashCode());
-      sg.setIdColour(col);
+      _sg.setName("JTreeGroup:" + _sg.hashCode());
+      _sg.setIdColour(col);
 
       for (int a = 0; a < aps.length; a++)
       {
-        if (aps[a].av.getGlobalColourScheme() != null
-                && aps[a].av.getGlobalColourScheme().conservationApplied())
-        {
-          Conservation c = new Conservation("Group", sg.getSequences(null),
-                  sg.getStartRes(), sg.getEndRes());
-          c.calculate();
-          c.verdict(false, aps[a].av.getConsPercGaps());
-          sg.cs.setConservation(c);
-        }
+        SequenceGroup sg = new SequenceGroup(_sg);
+        AlignViewport viewport = aps[a].av;
 
-        aps[a].av.getAlignment().addGroup(new SequenceGroup(sg));
-        // TODO can we push all of the below into AlignViewportI?
-        final AlignViewportI codingComplement = aps[a].av
-                .getCodingComplement();
-        if (codingComplement != null)
+        // Propagate group colours in each view
+        if (viewport.getGlobalColourScheme() != null)
         {
-          SequenceGroup mappedGroup = MappingUtils.mapSequenceGroup(sg, av,
-                  codingComplement);
-          if (mappedGroup.getSequences().size() > 0)
+          cs = viewport.getGlobalColourScheme().getInstance(viewport, sg);
+          sg.setColourScheme(cs);
+          sg.getGroupColourScheme().setThreshold(
+                  viewport.getResidueShading().getThreshold(),
+                  viewport.isIgnoreGapsConsensus());
+
+          if (viewport.getResidueShading().conservationApplied())
           {
-            codingComplement.getAlignment().addGroup(mappedGroup);
-            for (SequenceI seq : mappedGroup.getSequences())
-            {
-              codingComplement.setSequenceColour(seq, col.brighter());
-            }
+            Conservation c = new Conservation("Group",
+                    sg.getSequences(null), sg.getStartRes(),
+                    sg.getEndRes());
+            c.calculate();
+            c.verdict(false, viewport.getConsPercGaps());
+            sg.cs.setConservation(c);
           }
         }
+        // indicate that associated structure views will need an update
+        viewport.setUpdateStructures(true);
+        // propagate structure view update and sequence group to complement view
+        viewport.addSequenceGroup(sg);
       }
     }
 
-    // notify the panel(s) to redo any group specific stuff.
+    // notify the panel(s) to redo any group specific stuff
+    // also updates structure views if necessary
     for (int a = 0; a < aps.length; a++)
     {
       aps[a].updateAnnotation();
-      // TODO: JAL-868 - need to ensure view colour change message is broadcast
-      // to any Jmols listening in
       final AlignViewportI codingComplement = aps[a].av
               .getCodingComplement();
       if (codingComplement != null)
@@ -1104,7 +1089,47 @@ public class TreeCanvas extends JPanel implements MouseListener, Runnable,
     }
     else
     {
-      return new AlignmentPanel[] { ap };
+      return new AlignmentPanel[] { getAssociatedPanel() };
     }
+  }
+
+  public AlignmentPanel getAssociatedPanel()
+  {
+    return ap;
+  }
+
+  public void setAssociatedPanel(AlignmentPanel ap)
+  {
+    this.ap = ap;
+  }
+
+  public AlignViewport getViewport()
+  {
+    return av;
+  }
+
+  public void setViewport(AlignViewport av)
+  {
+    this.av = av;
+  }
+
+  public float getThreshold()
+  {
+    return threshold;
+  }
+
+  public void setThreshold(float threshold)
+  {
+    this.threshold = threshold;
+  }
+
+  public boolean isApplyToAllViews()
+  {
+    return this.applyToAllViews;
+  }
+
+  public void setApplyToAllViews(boolean applyToAllViews)
+  {
+    this.applyToAllViews = applyToAllViews;
   }
 }

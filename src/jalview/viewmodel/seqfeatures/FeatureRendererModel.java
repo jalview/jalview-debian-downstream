@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,22 +20,13 @@
  */
 package jalview.viewmodel.seqfeatures;
 
-import jalview.api.AlignViewportI;
-import jalview.api.FeatureColourI;
-import jalview.api.FeaturesDisplayedI;
-import jalview.datamodel.AlignmentI;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.renderer.seqfeatures.FeatureRenderer;
-import jalview.schemes.FeatureColour;
-import jalview.schemes.UserColourScheme;
-
 import java.awt.Color;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
@@ -43,27 +34,78 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class FeatureRendererModel implements
-        jalview.api.FeatureRenderer
-{
+import jalview.api.AlignViewportI;
+import jalview.api.FeatureColourI;
+import jalview.api.FeaturesDisplayedI;
+import jalview.datamodel.AlignedCodonFrame;
+import jalview.datamodel.AlignedCodonFrame.SequenceToSequenceMapping;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.MappedFeatures;
+import jalview.datamodel.SearchResultMatchI;
+import jalview.datamodel.SearchResults;
+import jalview.datamodel.SearchResultsI;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.FeatureMatcherSetI;
+import jalview.datamodel.features.SequenceFeatures;
+import jalview.renderer.seqfeatures.FeatureRenderer;
+import jalview.schemes.FeatureColour;
+import jalview.util.ColorUtils;
 
-  /**
+public abstract class FeatureRendererModel
+        implements jalview.api.FeatureRenderer
+{
+  /*
+   * a data bean to hold one row of feature settings from the gui
+   */
+  public static class FeatureSettingsBean
+  {
+    public final String featureType;
+
+    public final FeatureColourI featureColour;
+
+    public final FeatureMatcherSetI filter;
+
+    public final Boolean show;
+
+    public FeatureSettingsBean(String type, FeatureColourI colour,
+            FeatureMatcherSetI theFilter, Boolean isShown)
+    {
+      featureType = type;
+      featureColour = colour;
+      filter = theFilter;
+      show = isShown;
+    }
+  }
+
+  /*
    * global transparency for feature
    */
   protected float transparency = 1.0f;
 
-  protected Map<String, FeatureColourI> featureColours = new ConcurrentHashMap<String, FeatureColourI>();
+  /*
+   * colour scheme for each feature type
+   */
+  protected Map<String, FeatureColourI> featureColours = new ConcurrentHashMap<>();
 
-  protected Map<String, Boolean> featureGroups = new ConcurrentHashMap<String, Boolean>();
+  /*
+   * visibility flag for each feature group
+   */
+  protected Map<String, Boolean> featureGroups = new ConcurrentHashMap<>();
+
+  /*
+   * filters for each feature type
+   */
+  protected Map<String, FeatureMatcherSetI> featureFilters = new HashMap<>();
 
   protected String[] renderOrder;
 
   Map<String, Float> featureOrder = null;
 
-  protected PropertyChangeSupport changeSupport = new PropertyChangeSupport(
-          this);
-
   protected AlignViewportI av;
+
+  private PropertyChangeSupport changeSupport = new PropertyChangeSupport(
+          this);
 
   @Override
   public AlignViewportI getViewport()
@@ -98,6 +140,7 @@ public abstract class FeatureRendererModel implements
     this.renderOrder = frs.renderOrder;
     this.featureGroups = frs.featureGroups;
     this.featureColours = frs.featureColours;
+    this.featureFilters = frs.featureFilters;
     this.transparency = frs.transparency;
     this.featureOrder = frs.featureOrder;
     if (av != null && av != fr.getViewport())
@@ -115,11 +158,10 @@ public abstract class FeatureRendererModel implements
           synchronized (fd)
           {
             fd.clear();
-            java.util.Iterator<String> fdisp = _fr.getFeaturesDisplayed()
-                    .getVisibleFeatures();
-            while (fdisp.hasNext())
+            for (String type : _fr.getFeaturesDisplayed()
+                    .getVisibleFeatures())
             {
-              fd.setVisible(fdisp.next());
+              fd.setVisible(type);
             }
           }
         }
@@ -155,7 +197,7 @@ public abstract class FeatureRendererModel implements
     {
       av.setFeaturesDisplayed(fdi = new FeaturesDisplayed());
     }
-    List<String> nft = new ArrayList<String>();
+    List<String> nft = new ArrayList<>();
     for (String featureType : featureTypes)
     {
       if (!fdi.isRegistered(featureType))
@@ -191,7 +233,7 @@ public abstract class FeatureRendererModel implements
     renderOrder = neworder;
   }
 
-  protected Map<String, float[][]> minmax = new Hashtable<String, float[][]>();
+  protected Map<String, float[][]> minmax = new Hashtable<>();
 
   public Map<String, float[][]> getMinMax()
   {
@@ -214,7 +256,8 @@ public abstract class FeatureRendererModel implements
       if (r[0] != 0 || mm[0] < 0.0)
       {
         r[0] = 1;
-        r[1] = (byte) ((int) 128.0 + 127.0 * (sequenceFeature.score / mm[1]));
+        r[1] = (byte) ((int) 128.0
+                + 127.0 * (sequenceFeature.score / mm[1]));
       }
       else
       {
@@ -256,57 +299,57 @@ public abstract class FeatureRendererModel implements
       {
         firing = Boolean.TRUE;
         findAllFeatures(true); // add all new features as visible
-        changeSupport.firePropertyChange("changeSupport", null, null);
+        notifyFeaturesChanged();
         firing = Boolean.FALSE;
       }
     }
   }
 
   @Override
-  public List<SequenceFeature> findFeaturesAtRes(SequenceI sequence, int res)
+  public void notifyFeaturesChanged()
   {
-    ArrayList<SequenceFeature> tmp = new ArrayList<SequenceFeature>();
-    SequenceFeature[] features = sequence.getSequenceFeatures();
+    changeSupport.firePropertyChange("changeSupport", null, null);
+  }
 
-    if (features != null)
+  @Override
+  public List<SequenceFeature> findFeaturesAtColumn(SequenceI sequence, int column)
+  {
+    /*
+     * include features at the position provided their feature type is 
+     * displayed, and feature group is null or marked for display
+     */
+    List<SequenceFeature> result = new ArrayList<>();
+    if (!av.areFeaturesDisplayed() || getFeaturesDisplayed() == null)
     {
-      for (int i = 0; i < features.length; i++)
+      return result;
+    }
+
+    Set<String> visibleFeatures = getFeaturesDisplayed()
+            .getVisibleFeatures();
+    String[] visibleTypes = visibleFeatures
+            .toArray(new String[visibleFeatures.size()]);
+    List<SequenceFeature> features = sequence.findFeatures(column, column,
+            visibleTypes);
+
+    /*
+     * include features unless they are hidden (have no colour), based on 
+     * feature group visibility, or a filter or colour threshold
+     */
+    for (SequenceFeature sf : features)
+    {
+      if (getColour(sf) != null)
       {
-        if (!av.areFeaturesDisplayed()
-                || !av.getFeaturesDisplayed().isVisible(
-                        features[i].getType()))
-        {
-          continue;
-        }
-
-        if (features[i].featureGroup != null
-                && featureGroups != null
-                && featureGroups.containsKey(features[i].featureGroup)
-                && !featureGroups.get(features[i].featureGroup)
-                        .booleanValue())
-        {
-          continue;
-        }
-
-        // check if start/end are at res, and if not a contact feature, that res
-        // lies between start and end
-        if ((features[i].getBegin() == res || features[i].getEnd() == res)
-                || (!features[i].isContactFeature()
-                        && (features[i].getBegin() < res) && (features[i]
-                        .getEnd() >= res)))
-        {
-          tmp.add(features[i]);
-        }
+        result.add(sf);
       }
     }
-    return tmp;
+    return result;
   }
 
   /**
    * Searches alignment for all features and updates colours
    * 
    * @param newMadeVisible
-   *          if true newly added feature types will be rendered immediatly
+   *          if true newly added feature types will be rendered immediately
    *          TODO: check to see if this method should actually be proxied so
    *          repaint events can be propagated by the renderer code
    */
@@ -328,8 +371,7 @@ public abstract class FeatureRendererModel implements
     }
     FeaturesDisplayedI featuresDisplayed = av.getFeaturesDisplayed();
 
-    ArrayList<String> allfeatures = new ArrayList<String>();
-    ArrayList<String> oldfeatures = new ArrayList<String>();
+    Set<String> oldfeatures = new HashSet<>();
     if (renderOrder != null)
     {
       for (int i = 0; i < renderOrder.length; i++)
@@ -340,94 +382,110 @@ public abstract class FeatureRendererModel implements
         }
       }
     }
-    if (minmax == null)
-    {
-      minmax = new Hashtable<String, float[][]>();
-    }
+
     AlignmentI alignment = av.getAlignment();
+    List<String> allfeatures = new ArrayList<>();
+
     for (int i = 0; i < alignment.getHeight(); i++)
     {
       SequenceI asq = alignment.getSequenceAt(i);
-      SequenceFeature[] features = asq.getSequenceFeatures();
-
-      if (features == null)
+      for (String group : asq.getFeatures().getFeatureGroups(true))
       {
-        continue;
-      }
-
-      int index = 0;
-      while (index < features.length)
-      {
-        if (!featuresDisplayed.isRegistered(features[index].getType()))
+        boolean groupDisplayed = true;
+        if (group != null)
         {
-          String fgrp = features[index].getFeatureGroup();
-          if (fgrp != null)
+          if (featureGroups.containsKey(group))
           {
-            Boolean groupDisplayed = featureGroups.get(fgrp);
-            if (groupDisplayed == null)
-            {
-              groupDisplayed = Boolean.valueOf(newMadeVisible);
-              featureGroups.put(fgrp, groupDisplayed);
-            }
-            if (!groupDisplayed.booleanValue())
-            {
-              index++;
-              continue;
-            }
-          }
-          if (!(features[index].begin == 0 && features[index].end == 0))
-          {
-            // If beginning and end are 0, the feature is for the whole sequence
-            // and we don't want to render the feature in the normal way
-
-            if (newMadeVisible
-                    && !oldfeatures.contains(features[index].getType()))
-            {
-              // this is a new feature type on the alignment. Mark it for
-              // display.
-              featuresDisplayed.setVisible(features[index].getType());
-              setOrder(features[index].getType(), 0);
-            }
-          }
-        }
-        if (!allfeatures.contains(features[index].getType()))
-        {
-          allfeatures.add(features[index].getType());
-        }
-        if (!Float.isNaN(features[index].score))
-        {
-          int nonpos = features[index].getBegin() >= 1 ? 0 : 1;
-          float[][] mm = minmax.get(features[index].getType());
-          if (mm == null)
-          {
-            mm = new float[][] { null, null };
-            minmax.put(features[index].getType(), mm);
-          }
-          if (mm[nonpos] == null)
-          {
-            mm[nonpos] = new float[] { features[index].score,
-                features[index].score };
-
+            groupDisplayed = featureGroups.get(group);
           }
           else
           {
-            if (mm[nonpos][0] > features[index].score)
-            {
-              mm[nonpos][0] = features[index].score;
-            }
-            if (mm[nonpos][1] < features[index].score)
-            {
-              mm[nonpos][1] = features[index].score;
-            }
+            groupDisplayed = newMadeVisible;
+            featureGroups.put(group, groupDisplayed);
           }
         }
-        index++;
+        if (groupDisplayed)
+        {
+          Set<String> types = asq.getFeatures().getFeatureTypesForGroups(
+                  true, group);
+          for (String type : types)
+          {
+            if (!allfeatures.contains(type)) // or use HashSet and no test?
+            {
+              allfeatures.add(type);
+            }
+            updateMinMax(asq, type, true); // todo: for all features?
+          }
+        }
       }
     }
+
+    // uncomment to add new features in alphebetical order (but JAL-2575)
+    // Collections.sort(allfeatures, String.CASE_INSENSITIVE_ORDER);
+    if (newMadeVisible)
+    {
+      for (String type : allfeatures)
+      {
+        if (!oldfeatures.contains(type))
+        {
+          featuresDisplayed.setVisible(type);
+          setOrder(type, 0);
+        }
+      }
+    }
+
     updateRenderOrder(allfeatures);
     findingFeatures = false;
   }
 
+  /**
+   * Updates the global (alignment) min and max values for a feature type from
+   * the score for a sequence, if the score is not NaN. Values are stored
+   * separately for positional and non-positional features.
+   * 
+   * @param seq
+   * @param featureType
+   * @param positional
+   */
+  protected void updateMinMax(SequenceI seq, String featureType,
+          boolean positional)
+  {
+    float min = seq.getFeatures().getMinimumScore(featureType, positional);
+    if (Float.isNaN(min))
+    {
+      return;
+    }
+
+    float max = seq.getFeatures().getMaximumScore(featureType, positional);
+
+    /*
+     * stored values are 
+     * { {positionalMin, positionalMax}, {nonPositionalMin, nonPositionalMax} }
+     */
+    if (minmax == null)
+    {
+      minmax = new Hashtable<>();
+    }
+    synchronized (minmax)
+    {
+      float[][] mm = minmax.get(featureType);
+      int index = positional ? 0 : 1;
+      if (mm == null)
+      {
+        mm = new float[][] { null, null };
+        minmax.put(featureType, mm);
+      }
+      if (mm[index] == null)
+      {
+        mm[index] = new float[] { min, max };
+      }
+      else
+      {
+        mm[index][0] = Math.min(mm[index][0], min);
+        mm[index][1] = Math.max(mm[index][1], max);
+      }
+    }
+  }
   protected Boolean firing = Boolean.FALSE;
 
   /**
@@ -443,7 +501,7 @@ public abstract class FeatureRendererModel implements
    */
   private void updateRenderOrder(List<String> allFeatures)
   {
-    List<String> allfeatures = new ArrayList<String>(allFeatures);
+    List<String> allfeatures = new ArrayList<>(allFeatures);
     String[] oldRender = renderOrder;
     renderOrder = new String[allfeatures.size()];
     boolean initOrders = (featureOrder == null);
@@ -456,7 +514,8 @@ public abstract class FeatureRendererModel implements
         {
           if (initOrders)
           {
-            setOrder(oldRender[j], (1 - (1 + (float) j) / oldRender.length));
+            setOrder(oldRender[j],
+                    (1 - (1 + (float) j) / oldRender.length));
           }
           if (allfeatures.contains(oldRender[j]))
           {
@@ -469,7 +528,8 @@ public abstract class FeatureRendererModel implements
               if (mmrange != null)
               {
                 FeatureColourI fc = featureColours.get(oldRender[j]);
-                if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled())
+                if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled()
+                        && !fc.isColourByAttribute())
                 {
                   fc.updateBounds(mmrange[0][0], mmrange[0][1]);
                 }
@@ -499,7 +559,8 @@ public abstract class FeatureRendererModel implements
         if (mmrange != null)
         {
           FeatureColourI fc = featureColours.get(newf[i]);
-          if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled())
+          if (fc != null && !fc.isSimpleColour() && fc.isAutoScaled()
+                  && !fc.isColourByAttribute())
           {
             fc.updateBounds(mmrange[0][0], mmrange[0][1]);
           }
@@ -542,30 +603,18 @@ public abstract class FeatureRendererModel implements
     FeatureColourI fc = featureColours.get(featureType);
     if (fc == null)
     {
-      Color col = UserColourScheme.createColourFromName(featureType);
+      Color col = ColorUtils.createColourFromName(featureType);
       fc = new FeatureColour(col);
       featureColours.put(featureType, fc);
     }
     return fc;
   }
 
-  /**
-   * calculate the render colour for a specific feature using current feature
-   * settings.
-   * 
-   * @param feature
-   * @return render colour for the given feature
-   */
+  @Override
   public Color getColour(SequenceFeature feature)
   {
     FeatureColourI fc = getFeatureStyle(feature.getType());
-    return fc.getColor(feature);
-  }
-
-  protected boolean showFeature(SequenceFeature sequenceFeature)
-  {
-    FeatureColourI fc = getFeatureStyle(sequenceFeature.type);
-    return fc.isColored(sequenceFeature);
+    return getColor(feature, fc);
   }
 
   /**
@@ -577,7 +626,8 @@ public abstract class FeatureRendererModel implements
    */
   protected boolean showFeatureOfType(String type)
   {
-    return type == null ? false : av.getFeaturesDisplayed().isVisible(type);
+    return type == null ? false : (av.getFeaturesDisplayed() == null ? true
+            : av.getFeaturesDisplayed().isVisible(type));
   }
 
   @Override
@@ -586,11 +636,13 @@ public abstract class FeatureRendererModel implements
     featureColours.put(featureType, col);
   }
 
+  @Override
   public void setTransparency(float value)
   {
     transparency = value;
   }
 
+  @Override
   public float getTransparency()
   {
     return transparency;
@@ -610,9 +662,9 @@ public abstract class FeatureRendererModel implements
   {
     if (featureOrder == null)
     {
-      featureOrder = new Hashtable<String, Float>();
+      featureOrder = new Hashtable<>();
     }
-    featureOrder.put(type, new Float(position));
+    featureOrder.put(type, Float.valueOf(position));
     return position;
   }
 
@@ -644,31 +696,33 @@ public abstract class FeatureRendererModel implements
    * Replace current ordering with new ordering
    * 
    * @param data
-   *          { String(Type), Colour(Type), Boolean(Displayed) }
+   *          an array of { Type, Colour, Filter, Boolean }
    * @return true if any visible features have been reordered, else false
    */
-  public boolean setFeaturePriority(Object[][] data)
+  public boolean setFeaturePriority(FeatureSettingsBean[] data)
   {
     return setFeaturePriority(data, true);
   }
 
   /**
-   * Sets the priority order for features
+   * Sets the priority order for features, with the highest priority (displayed on
+   * top) at the start of the data array
    * 
    * @param data
-   *          { String(Type), Colour(Type), Boolean(Displayed) }
+   *          an array of { Type, Colour, Filter, Boolean }
    * @param visibleNew
    *          when true current featureDisplay list will be cleared
-   * @return true if any visible features have been reordered or recoloured,
-   *         else false (i.e. no need to repaint)
+   * @return true if any visible features have been reordered or recoloured, else
+   *         false (i.e. no need to repaint)
    */
-  public boolean setFeaturePriority(Object[][] data, boolean visibleNew)
+  public boolean setFeaturePriority(FeatureSettingsBean[] data,
+          boolean visibleNew)
   {
     /*
      * note visible feature ordering and colours before update
      */
     List<String> visibleFeatures = getDisplayedFeatureTypes();
-    Map<String, FeatureColourI> visibleColours = new HashMap<String, FeatureColourI>(
+    Map<String, FeatureColourI> visibleColours = new HashMap<>(
             getFeatureColours());
 
     FeaturesDisplayedI av_featuresdisplayed = null;
@@ -680,7 +734,8 @@ public abstract class FeatureRendererModel implements
       }
       else
       {
-        av.setFeaturesDisplayed(av_featuresdisplayed = new FeaturesDisplayed());
+        av.setFeaturesDisplayed(
+                av_featuresdisplayed = new FeaturesDisplayed());
       }
     }
     else
@@ -700,9 +755,9 @@ public abstract class FeatureRendererModel implements
     {
       for (int i = 0; i < data.length; i++)
       {
-        String type = data[i][0].toString();
-        setColour(type, (FeatureColourI) data[i][1]);
-        if (((Boolean) data[i][2]).booleanValue())
+        String type = data[i].featureType;
+        setColour(type, data[i].featureColour);
+        if (data[i].show)
         {
           av_featuresdisplayed.setVisible(type);
         }
@@ -792,11 +847,12 @@ public abstract class FeatureRendererModel implements
   {
     // conflict between applet and desktop - featureGroups returns the map in
     // the desktop featureRenderer
-    return (featureGroups == null) ? Arrays.asList(new String[0]) : Arrays
-            .asList(featureGroups.keySet().toArray(new String[0]));
+    return (featureGroups == null) ? Arrays.asList(new String[0])
+            : Arrays.asList(featureGroups.keySet().toArray(new String[0]));
   }
 
-  public boolean checkGroupVisibility(String group, boolean newGroupsVisible)
+  public boolean checkGroupVisibility(String group,
+          boolean newGroupsVisible)
   {
     if (featureGroups == null)
     {
@@ -808,7 +864,7 @@ public abstract class FeatureRendererModel implements
     }
     if (newGroupsVisible)
     {
-      featureGroups.put(group, new Boolean(true));
+      featureGroups.put(group, Boolean.valueOf(true));
       return true;
     }
     return false;
@@ -822,11 +878,11 @@ public abstract class FeatureRendererModel implements
    * @return list of groups
    */
   @Override
-  public List getGroups(boolean visible)
+  public List<String> getGroups(boolean visible)
   {
     if (featureGroups != null)
     {
-      List<String> gp = new ArrayList<String>();
+      List<String> gp = new ArrayList<>();
 
       for (String grp : featureGroups.keySet())
       {
@@ -844,7 +900,7 @@ public abstract class FeatureRendererModel implements
   @Override
   public void setGroupVisibility(String group, boolean visible)
   {
-    featureGroups.put(group, new Boolean(visible));
+    featureGroups.put(group, Boolean.valueOf(visible));
   }
 
   @Override
@@ -856,7 +912,7 @@ public abstract class FeatureRendererModel implements
       for (String gst : toset)
       {
         Boolean st = featureGroups.get(gst);
-        featureGroups.put(gst, new Boolean(visible));
+        featureGroups.put(gst, Boolean.valueOf(visible));
         if (st != null)
         {
           rdrw = rdrw || (visible != st.booleanValue());
@@ -872,16 +928,15 @@ public abstract class FeatureRendererModel implements
   @Override
   public Map<String, FeatureColourI> getDisplayedFeatureCols()
   {
-    Map<String, FeatureColourI> fcols = new Hashtable<String, FeatureColourI>();
+    Map<String, FeatureColourI> fcols = new Hashtable<>();
     if (getViewport().getFeaturesDisplayed() == null)
     {
       return fcols;
     }
-    Iterator<String> features = getViewport().getFeaturesDisplayed()
+    Set<String> features = getViewport().getFeaturesDisplayed()
             .getVisibleFeatures();
-    while (features.hasNext())
+    for (String feature : features)
     {
-      String feature = features.next();
       fcols.put(feature, getFeatureStyle(feature));
     }
     return fcols;
@@ -901,7 +956,7 @@ public abstract class FeatureRendererModel implements
   public List<String> getDisplayedFeatureTypes()
   {
     List<String> typ = getRenderOrder();
-    List<String> displayed = new ArrayList<String>();
+    List<String> displayed = new ArrayList<>();
     FeaturesDisplayedI feature_disp = av.getFeaturesDisplayed();
     if (feature_disp != null)
     {
@@ -922,26 +977,318 @@ public abstract class FeatureRendererModel implements
   @Override
   public List<String> getDisplayedFeatureGroups()
   {
-    List<String> _gps = new ArrayList<String>();
-    boolean valid = false;
+    List<String> _gps = new ArrayList<>();
     for (String gp : getFeatureGroups())
     {
       if (checkGroupVisibility(gp, false))
       {
-        valid = true;
         _gps.add(gp);
-      }
-      if (!valid)
-      {
-        return null;
-      }
-      else
-      {
-        // gps = new String[_gps.size()];
-        // _gps.toArray(gps);
       }
     }
     return _gps;
+  }
+
+  /**
+   * Answers true if the feature belongs to a feature group which is not
+   * currently displayed, else false
+   * 
+   * @param sequenceFeature
+   * @return
+   */
+  public boolean featureGroupNotShown(final SequenceFeature sequenceFeature)
+  {
+    return featureGroups != null
+            && sequenceFeature.featureGroup != null
+            && sequenceFeature.featureGroup.length() != 0
+            && featureGroups.containsKey(sequenceFeature.featureGroup)
+            && !featureGroups.get(sequenceFeature.featureGroup)
+                    .booleanValue();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<SequenceFeature> findFeaturesAtResidue(SequenceI sequence,
+          int fromResNo, int toResNo)
+  {
+    List<SequenceFeature> result = new ArrayList<>();
+    if (!av.areFeaturesDisplayed() || getFeaturesDisplayed() == null)
+    {
+      return result;
+    }
+
+    /*
+     * include features at the position provided their feature type is 
+     * displayed, and feature group is null or the empty string
+     * or marked for display
+     */
+    List<String> visibleFeatures = getDisplayedFeatureTypes();
+    String[] visibleTypes = visibleFeatures
+            .toArray(new String[visibleFeatures.size()]);
+    List<SequenceFeature> features = sequence.getFeatures().findFeatures(
+            fromResNo, toResNo, visibleTypes);
+  
+    for (SequenceFeature sf : features)
+    {
+      if (!featureGroupNotShown(sf) && getColour(sf) != null)
+      {
+        result.add(sf);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Removes from the list of features any whose group is not shown, or that are
+   * visible and duplicate the location of a visible feature of the same type.
+   * Should be used only for features of the same, simple, feature colour (which
+   * normally implies the same feature type). No filtering is done if
+   * transparency, or any feature filters, are in force.
+   * 
+   * @param features
+   */
+  public void filterFeaturesForDisplay(List<SequenceFeature> features)
+  {
+    /*
+     * don't remove 'redundant' features if 
+     * - transparency is applied (feature count affects depth of feature colour)
+     * - filters are applied (not all features may be displayable)
+     */
+    if (features.isEmpty() || transparency != 1f
+            || !featureFilters.isEmpty())
+    {
+      return;
+    }
+
+    SequenceFeatures.sortFeatures(features, true);
+    SequenceFeature lastFeature = null;
+
+    Iterator<SequenceFeature> it = features.iterator();
+    while (it.hasNext())
+    {
+      SequenceFeature sf = it.next();
+      if (featureGroupNotShown(sf))
+      {
+        it.remove();
+        continue;
+      }
+
+      /*
+       * a feature is redundant for rendering purposes if it has the
+       * same extent as another (so would just redraw the same colour);
+       * (checking type and isContactFeature as a fail-safe here, although
+       * currently they are guaranteed to match in this context)
+       */
+      if (lastFeature != null
+              && sf.getBegin() == lastFeature.getBegin()
+              && sf.getEnd() == lastFeature.getEnd()
+              && sf.isContactFeature() == lastFeature.isContactFeature()
+              && sf.getType().equals(lastFeature.getType()))
+      {
+        it.remove();
+      }
+      lastFeature = sf;
+    }
+  }
+
+  @Override
+  public Map<String, FeatureMatcherSetI> getFeatureFilters()
+  {
+    return featureFilters;
+  }
+
+  @Override
+  public void setFeatureFilters(Map<String, FeatureMatcherSetI> filters)
+  {
+    featureFilters = filters;
+  }
+
+  @Override
+  public FeatureMatcherSetI getFeatureFilter(String featureType)
+  {
+    return featureFilters.get(featureType);
+  }
+
+  @Override
+  public void setFeatureFilter(String featureType, FeatureMatcherSetI filter)
+  {
+    if (filter == null || filter.isEmpty())
+    {
+      featureFilters.remove(featureType);
+    }
+    else
+    {
+      featureFilters.put(featureType, filter);
+    }
+  }
+
+  /**
+   * Answers the colour for the feature, or null if the feature is excluded by
+   * feature group visibility, by filters, or by colour threshold settings. This
+   * method does not take feature visibility into account.
+   * 
+   * @param sf
+   * @param fc
+   * @return
+   */
+  public Color getColor(SequenceFeature sf, FeatureColourI fc)
+  {
+    /*
+     * is the feature group displayed?
+     */
+    if (featureGroupNotShown(sf))
+    {
+      return null;
+    }
+
+    /*
+     * does the feature pass filters?
+     */
+    if (!featureMatchesFilters(sf))
+    {
+      return null;
+    }
+  
+    return fc.getColor(sf);
+  }
+
+  /**
+   * Answers true if there no are filters defined for the feature type, or this
+   * feature matches the filters. Answers false if the feature fails to match
+   * filters.
+   * 
+   * @param sf
+   * @return
+   */
+  protected boolean featureMatchesFilters(SequenceFeature sf)
+  {
+    FeatureMatcherSetI filter = featureFilters.get(sf.getType());
+    return filter == null ? true : filter.matches(sf);
+  }
+
+  @Override
+  public MappedFeatures findComplementFeaturesAtResidue(
+          final SequenceI sequence, final int pos)
+  {
+    SequenceI ds = sequence.getDatasetSequence();
+    if (ds == null)
+    {
+      ds = sequence;
+    }
+    final char residue = ds.getCharAt(pos - ds.getStart());
+
+    List<SequenceFeature> found = new ArrayList<>();
+    List<AlignedCodonFrame> mappings = this.av.getAlignment()
+            .getCodonFrame(sequence);
+
+    /*
+     * fudge: if no mapping found, check the complementary alignment
+     * todo: only store in one place? StructureSelectionManager?
+     */
+    if (mappings.isEmpty())
+    {
+      mappings = this.av.getCodingComplement().getAlignment()
+              .getCodonFrame(sequence);
+    }
+
+    /*
+     * todo: direct lookup of CDS for peptide and vice-versa; for now,
+     * have to search through an unordered list of mappings for a candidate
+     */
+    SequenceToSequenceMapping mapping = null;
+    SequenceI mapFrom = null;
+
+    for (AlignedCodonFrame acf : mappings)
+    {
+      mapping = acf.getCoveringCodonMapping(ds);
+      if (mapping == null)
+      {
+        continue;
+      }
+      SearchResultsI sr = new SearchResults();
+      mapping.markMappedRegion(ds, pos, sr);
+      for (SearchResultMatchI match : sr.getResults())
+      {
+        int fromRes = match.getStart();
+        int toRes = match.getEnd();
+        mapFrom = match.getSequence();
+        List<SequenceFeature> fs = findFeaturesAtResidue(
+                mapFrom, fromRes, toRes);
+        for (SequenceFeature sf : fs)
+        {
+          if (!found.contains(sf))
+          {
+            found.add(sf);
+          }
+        }
+      }
+
+      /*
+       * just take the first mapped features we find
+       */
+      if (!found.isEmpty())
+      {
+        break;
+      }
+    }
+    if (found.isEmpty())
+    {
+      return null;
+    }
+
+    /*
+     * sort by renderorder (inefficiently but ok for small scale);
+     * NB this sorts 'on top' feature to end, for rendering
+     */
+    List<SequenceFeature> result = new ArrayList<>();
+    final int toAdd = found.size();
+    int added = 0;
+    for (String type : renderOrder)
+    {
+      for (SequenceFeature sf : found)
+      {
+        if (type.equals(sf.getType()))
+        {
+          result.add(sf);
+          added++;
+        }
+        if (added == toAdd)
+        {
+          break;
+        }
+      }
+    }
+    
+    return new MappedFeatures(mapping.getMapping(), mapFrom, pos, residue, result);
+  }
+
+  @Override
+  public boolean isVisible(SequenceFeature feature)
+  {
+    if (feature == null)
+    {
+      return false;
+    }
+    if (getFeaturesDisplayed() == null
+            || !getFeaturesDisplayed().isVisible(feature.getType()))
+    {
+      return false;
+    }
+    if (featureGroupNotShown(feature))
+    {
+      return false;
+    }
+    FeatureColourI fc = featureColours.get(feature.getType());
+    if (fc != null && fc.isOutwithThreshold(feature))
+    {
+      return false;
+    }
+    if (!featureMatchesFilters(feature))
+    {
+      return false;
+    }
+    return true;
   }
 
 }

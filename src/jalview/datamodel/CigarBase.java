@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -83,7 +83,8 @@ public abstract class CigarBase
     int[][] deletions = new int[length][];
     int[][] trunc_deletions = null;
     StringBuffer sq = new StringBuffer();
-    int cursor = 0, alcursor = 0, start = 0, startpos = 0, end = 0, endpos = 0, delcount = -1;
+    int cursor = 0, alcursor = 0, start = 0, startpos = 0, end = 0,
+            endpos = 0, delcount = -1;
     boolean consecutive_del = false;
     if (length == 0)
     {
@@ -146,8 +147,8 @@ public abstract class CigarBase
         break;
       default:
         throw new Error(MessageManager.formatMessage(
-                "error.unknown_seq_cigar_operation",
-                new String[] { new StringBuffer(operation[i]).toString() }));
+                "error.unknown_seq_cigar_operation", new String[]
+                { new StringBuffer(operation[i]).toString() }));
       }
     }
     if (++delcount > 0)
@@ -157,7 +158,8 @@ public abstract class CigarBase
     }
     deletions = null;
     return new Object[] { ((reference != null) ? sq.toString() : null),
-        new int[] { start, startpos, end, endpos }, trunc_deletions };
+        new int[]
+        { start, startpos, end, endpos }, trunc_deletions };
   }
 
   protected void compact_operations()
@@ -225,9 +227,8 @@ public abstract class CigarBase
       } while (c >= '0' && c <= '9' && j < l);
       if (j >= l && c >= '0' && c <= '9')
       {
-        throw new Exception(
-                MessageManager
-                        .getString("exception.unterminated_cigar_string"));
+        throw new Exception(MessageManager
+                .getString("exception.unterminated_cigar_string"));
       }
       try
       {
@@ -236,9 +237,8 @@ public abstract class CigarBase
         i = j;
       } catch (Exception e)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_bug_parse_cigar_string"));
+        throw new Error(MessageManager
+                .getString("error.implementation_bug_parse_cigar_string"));
       }
       if (c >= 'a' && c <= 'z')
       {
@@ -252,7 +252,8 @@ public abstract class CigarBase
       {
         throw new Exception(MessageManager.formatMessage(
                 "exception.unexpected_operation_cigar_string_pos",
-                new String[] { new StringBuffer(c).toString(),
+                new String[]
+                { new StringBuffer(c).toString(),
                     Integer.valueOf(i).toString(), cigarString }));
       }
     }
@@ -275,9 +276,8 @@ public abstract class CigarBase
     }
     if (op != M && op != D && op != I)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_invalid_operation_string"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_invalid_operation_string"));
     }
     if (range == 0)
     {
@@ -345,14 +345,14 @@ public abstract class CigarBase
    *          int public void addOperationAt(int pos, char op, int range) { int
    *          cursor = -1; // mark the position for the current operation being
    *          edited. int o = 0; boolean last_d = false; // previous op was a
-   *          deletion. if (pos < -1) throw new
-   *          Error("pos<-1 is not supported."); while (o<length) { if
-   *          (operation[o] != D) { if ( (cursor + this.range[o]) < pos) {
-   *          cursor += this.range[o]; o++; last_d=false; } else { break; } }
-   *          else { last_d=true; o++; } } if (o==length) { // must insert more
-   *          operations before pos if (pos-cursor>0) addInsertion(pos-cursor);
-   *          // then just add the new operation. Regardless of what it is.
-   *          addOperation(op, range); } else { int diff = pos - cursor;
+   *          deletion. if (pos < -1) throw new Error("pos<-1 is not
+   *          supported."); while (o<length) { if (operation[o] != D) { if (
+   *          (cursor + this.range[o]) < pos) { cursor += this.range[o]; o++;
+   *          last_d=false; } else { break; } } else { last_d=true; o++; } } if
+   *          (o==length) { // must insert more operations before pos if
+   *          (pos-cursor>0) addInsertion(pos-cursor); // then just add the new
+   *          operation. Regardless of what it is. addOperation(op, range); }
+   *          else { int diff = pos - cursor;
    * 
    *          int e_length = length-o; // new edit operation array length. //
    *          diff<0 - can only happen before first insertion or match. -
@@ -398,9 +398,8 @@ public abstract class CigarBase
     }
     if (start < 0 || start > end)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_delete_range_out_of_bounds"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_delete_range_out_of_bounds"));
     }
     // find beginning
     int cursor = 0; // mark the position for the current operation being edited.
@@ -478,7 +477,8 @@ public abstract class CigarBase
         default:
           throw new Error(MessageManager.formatMessage(
                   "error.implementation_error_unknown_operation",
-                  new String[] { new StringBuffer(oldops[o]).toString() }));
+                  new String[]
+                  { new StringBuffer(oldops[o]).toString() }));
         }
         rlength -= remain;
         remain = oldrange[++o]; // number of op characters left to edit

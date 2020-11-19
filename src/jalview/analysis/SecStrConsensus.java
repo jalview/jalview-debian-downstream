@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -179,8 +179,8 @@ public class SecStrConsensus
               {
                 fact2 = tab[k + 1][j];
               }
-              tab[i][j] = Math.max(tab[i][j], basePairScore(seq, i, k)
-                      + fact1 + fact2);
+              tab[i][j] = Math.max(tab[i][j],
+                      basePairScore(seq, i, k) + fact1 + fact2);
             }
           }
         }

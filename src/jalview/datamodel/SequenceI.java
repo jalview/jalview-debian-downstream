@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,11 @@
  */
 package jalview.datamodel;
 
+import jalview.datamodel.features.SequenceFeaturesI;
+import jalview.util.MapList;
+
+import java.util.BitSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Vector;
 
@@ -107,18 +112,20 @@ public interface SequenceI extends ASequenceI
    * get a range on the sequence as a string
    * 
    * @param start
-   *          position relative to start of sequence including gaps (from 0)
+   *          (inclusive) position relative to start of sequence including gaps
+   *          (from 0)
    * @param end
-   *          position relative to start of sequence including gaps (from 0)
+   *          (exclusive) position relative to start of sequence including gaps
+   *          (from 0)
    * 
    * @return String containing all gap and symbols in specified range
    */
   public String getSequenceAsString(int start, int end);
 
   /**
-   * Get the sequence as a character array
+   * Answers a copy of the sequence as a character array
    * 
-   * @return seqeunce and any gaps
+   * @return
    */
   public char[] getSequence();
 
@@ -174,7 +181,7 @@ public interface SequenceI extends ASequenceI
   public String getDescription();
 
   /**
-   * Return the alignment column for a sequence position
+   * Return the alignment column (from 1..) for a sequence position
    * 
    * @param pos
    *          lying from start to end
@@ -189,14 +196,29 @@ public interface SequenceI extends ASequenceI
   public int findIndex(int pos);
 
   /**
-   * Returns the sequence position for an alignment position
+   * Returns the sequence position for an alignment (column) position. If at a
+   * gap, returns the position of the next residue to the right. If beyond the
+   * end of the sequence, returns 1 more than the last residue position.
    * 
    * @param i
    *          column index in alignment (from 0..<length)
    * 
-   * @return residue number for residue (left of and) nearest ith column
+   * @return
    */
   public int findPosition(int i);
+
+  /**
+   * Returns the sequence positions for first and last residues lying within the
+   * given column positions [fromColum,toColumn] (where columns are numbered
+   * from 1), or null if no residues are included in the range
+   * 
+   * @param fromColum
+   *          - first column base 1
+   * @param toColumn
+   *          - last column, base 1
+   * @return
+   */
+  public ContiguousI findPositions(int fromColum, int toColumn);
 
   /**
    * Returns an int array where indices correspond to each residue in the
@@ -206,6 +228,13 @@ public interface SequenceI extends ASequenceI
    *         residues in SequenceI object
    */
   public int[] gapMap();
+
+  /**
+   * Build a bitset corresponding to sequence gaps
+   * 
+   * @return a BitSet where set values correspond to gaps in the sequence
+   */
+  public BitSet gapBitset();
 
   /**
    * Returns an int array where indices correspond to each position in sequence
@@ -259,22 +288,28 @@ public interface SequenceI extends ASequenceI
   public void insertCharAt(int position, int count, char ch);
 
   /**
-   * Gets array holding sequence features associated with this sequence. The
-   * array may be held by the sequence's dataset sequence if that is defined.
+   * Answers a list of all sequence features associated with this sequence. The
+   * list may be held by the sequence's dataset sequence if that is defined.
    * 
-   * @return hard reference to array
+   * @return
    */
-  public SequenceFeature[] getSequenceFeatures();
+  public List<SequenceFeature> getSequenceFeatures();
 
   /**
-   * Replaces the array of sequence features associated with this sequence with
-   * a new array reference. If this sequence has a dataset sequence, then this
-   * method will update the dataset sequence's feature array
+   * Answers the object holding features for the sequence
+   * 
+   * @return
+   */
+  SequenceFeaturesI getFeatures();
+
+  /**
+   * Replaces the sequence features associated with this sequence with the given
+   * features. If this sequence has a dataset sequence, then this method will
+   * update the dataset sequence's features instead.
    * 
    * @param features
-   *          New array of sequence features
    */
-  public void setSequenceFeatures(SequenceFeature[] features);
+  public void setSequenceFeatures(List<SequenceFeature> features);
 
   /**
    * DOCUMENT ME!
@@ -337,7 +372,14 @@ public interface SequenceI extends ASequenceI
    */
   public void addDBRef(DBRefEntry entry);
 
-  public void addSequenceFeature(SequenceFeature sf);
+  /**
+   * Adds the given sequence feature and returns true, or returns false if it is
+   * already present on the sequence, or if the feature type is null.
+   * 
+   * @param sf
+   * @return
+   */
+  public boolean addSequenceFeature(SequenceFeature sf);
 
   public void deleteFeature(SequenceFeature sf);
 
@@ -422,17 +464,6 @@ public interface SequenceI extends ASequenceI
   public void transferAnnotation(SequenceI entry, Mapping mp);
 
   /**
-   * @param index
-   *          The sequence index in the MSA
-   */
-  public void setIndex(int index);
-
-  /**
-   * @return The index of the sequence in the alignment
-   */
-  public int getIndex();
-
-  /**
    * @return The RNA of the sequence in the alignment
    */
 
@@ -468,4 +499,83 @@ public interface SequenceI extends ASequenceI
    *         list
    */
   public List<DBRefEntry> getPrimaryDBRefs();
+
+  /**
+   * Returns a (possibly empty) list of sequence features that overlap the given
+   * alignment column range, optionally restricted to one or more specified
+   * feature types. If the range is all gaps, then features which enclose it are
+   * included (but not contact features).
+   * 
+   * @param fromCol
+   *          start column of range inclusive (1..)
+   * @param toCol
+   *          end column of range inclusive (1..)
+   * @param types
+   *          optional feature types to restrict results to
+   * @return
+   */
+  List<SequenceFeature> findFeatures(int fromCol, int toCol, String... types);
+
+  /**
+   * Method to call to indicate that the sequence (characters or alignment/gaps)
+   * has been modified. Provided to allow any cursors on residue/column
+   * positions to be invalidated.
+   */
+  void sequenceChanged();
+  
+  /**
+   * 
+   * @return BitSet corresponding to index [0,length) where Comparison.isGap()
+   *         returns true.
+   */
+  BitSet getInsertionsAsBits();
+
+  /**
+   * Replaces every occurrence of c1 in the sequence with c2 and returns the
+   * number of characters changed
+   * 
+   * @param c1
+   * @param c2
+   */
+  public int replace(char c1, char c2);
+
+  /**
+   * Answers the GeneLociI, or null if not known
+   * 
+   * @return
+   */
+  GeneLociI getGeneLoci();
+
+  /**
+   * Sets the mapping to gene loci for the sequence
+   * 
+   * @param speciesId
+   * @param assemblyId
+   * @param chromosomeId
+   * @param map
+   */
+  void setGeneLoci(String speciesId, String assemblyId,
+          String chromosomeId, MapList map);
+
+
+  /**
+   * Returns the sequence string constructed from the substrings of a sequence
+   * defined by the int[] ranges provided by an iterator. E.g. the iterator
+   * could iterate over all visible regions of the alignment
+   * 
+   * @param it
+   *          the iterator to use
+   * @return a String corresponding to the sequence
+   */
+  public String getSequenceStringFromIterator(Iterator<int[]> it);
+
+  /**
+   * Locate the first position in this sequence which is not contained in an
+   * iterator region. If no such position exists, return 0
+   * 
+   * @param it
+   *          iterator over regions
+   * @return first residue not contained in regions
+   */
+  public int firstResidueOutsideIterator(Iterator<int[]> it);
 }

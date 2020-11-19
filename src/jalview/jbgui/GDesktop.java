@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,10 +21,11 @@
 package jalview.jbgui;
 
 import jalview.api.AlignmentViewPanel;
+import jalview.io.FileFormatException;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 
 import java.awt.FlowLayout;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -50,10 +51,6 @@ public class GDesktop extends JFrame
 
   JMenu HelpMenu = new JMenu();
 
-  protected JMenu VamsasMenu = new JMenu();
-
-  protected JMenu VamsasStMenu = new JMenu();
-
   JMenuItem inputLocalFileMenuItem = new JMenuItem();
 
   JMenuItem inputURLMenuItem = new JMenuItem();
@@ -74,19 +71,13 @@ public class GDesktop extends JFrame
 
   JMenuItem saveState = new JMenuItem();
 
+  JMenuItem saveAsState = new JMenuItem();
+
   JMenuItem loadState = new JMenuItem();
 
   JMenu inputMenu = new JMenu();
 
-  protected JMenuItem vamsasStart = new JMenuItem();
-
-  protected JMenuItem vamsasImport = new JMenuItem();
-
-  protected JMenuItem vamsasSave = new JMenuItem();
-
   JMenuItem inputSequence = new JMenuItem();
-
-  protected JMenuItem vamsasStop = new JMenuItem();
 
   JMenuItem closeAll = new JMenuItem();
 
@@ -97,6 +88,10 @@ public class GDesktop extends JFrame
   protected JCheckBoxMenuItem showMemusage = new JCheckBoxMenuItem();
 
   JMenuItem garbageCollect = new JMenuItem();
+
+  protected JMenuItem groovyShell;
+
+  protected JCheckBoxMenuItem experimentalFeatures;
 
   protected JCheckBoxMenuItem showConsole = new JCheckBoxMenuItem();
 
@@ -118,11 +113,10 @@ public class GDesktop extends JFrame
       e.printStackTrace();
     }
 
-    if (!new jalview.util.Platform().isAMac())
+    if (!Platform.isAMac())
     {
       FileMenu.setMnemonic('F');
       inputLocalFileMenuItem.setMnemonic('L');
-      VamsasMenu.setMnemonic('V');
       inputURLMenuItem.setMnemonic('U');
       inputTextboxMenuItem.setMnemonic('C');
       quit.setMnemonic('Q');
@@ -143,20 +137,16 @@ public class GDesktop extends JFrame
 
     FileMenu.setText(MessageManager.getString("action.file"));
     HelpMenu.setText(MessageManager.getString("action.help"));
-    VamsasMenu.setText("Vamsas");
-    VamsasMenu.setToolTipText(MessageManager
-            .getString("label.share_data_vamsas_applications"));
-    VamsasStMenu.setText(MessageManager.getString("label.connect_to"));
-    VamsasStMenu.setToolTipText(MessageManager
-            .getString("label.join_existing_vamsas_session"));
-    inputLocalFileMenuItem.setText(MessageManager
-            .getString("label.load_tree_from_file"));
-    inputLocalFileMenuItem.setAccelerator(javax.swing.KeyStroke
-            .getKeyStroke(java.awt.event.KeyEvent.VK_O, Toolkit
-                    .getDefaultToolkit().getMenuShortcutKeyMask(), false));
+    inputLocalFileMenuItem
+            .setText(MessageManager.getString("label.load_tree_from_file"));
+    inputLocalFileMenuItem.setAccelerator(
+            javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O,
+                    jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(),
+                    false));
     inputLocalFileMenuItem
             .addActionListener(new java.awt.event.ActionListener()
             {
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 inputLocalFileMenuItem_actionPerformed(null);
@@ -165,16 +155,24 @@ public class GDesktop extends JFrame
     inputURLMenuItem.setText(MessageManager.getString("label.from_url"));
     inputURLMenuItem.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        inputURLMenuItem_actionPerformed(null);
+        try
+        {
+          inputURLMenuItem_actionPerformed(null);
+        } catch (FileFormatException e1)
+        {
+          System.err.println("Error loading from URL: " + e1.getMessage());
+        }
       }
     });
-    inputTextboxMenuItem.setText(MessageManager
-            .getString("label.from_textbox"));
+    inputTextboxMenuItem
+            .setText(MessageManager.getString("label.from_textbox"));
     inputTextboxMenuItem
             .addActionListener(new java.awt.event.ActionListener()
             {
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 inputTextboxMenuItem_actionPerformed(null);
@@ -183,6 +181,7 @@ public class GDesktop extends JFrame
     quit.setText(MessageManager.getString("action.quit"));
     quit.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         quit();
@@ -191,18 +190,20 @@ public class GDesktop extends JFrame
     aboutMenuItem.setText(MessageManager.getString("label.about"));
     aboutMenuItem.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         aboutMenuItem_actionPerformed(e);
       }
     });
-    documentationMenuItem.setText(MessageManager
-            .getString("label.documentation"));
+    documentationMenuItem
+            .setText(MessageManager.getString("label.documentation"));
     documentationMenuItem.setAccelerator(javax.swing.KeyStroke
             .getKeyStroke(java.awt.event.KeyEvent.VK_F1, 0, false));
     documentationMenuItem
             .addActionListener(new java.awt.event.ActionListener()
             {
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 documentationMenuItem_actionPerformed(e);
@@ -213,6 +214,7 @@ public class GDesktop extends JFrame
     preferences.setText(MessageManager.getString("label.preferences"));
     preferences.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         preferences_actionPerformed(e);
@@ -222,108 +224,85 @@ public class GDesktop extends JFrame
     saveState.setText(MessageManager.getString("action.save_project"));
     saveState.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        saveState_actionPerformed(e);
+        saveState_actionPerformed();
+      }
+    });
+    saveAsState.setText(MessageManager.getString("action.save_project_as"));
+    saveAsState.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        saveAsState_actionPerformed(e);
       }
     });
     loadState.setText(MessageManager.getString("action.load_project"));
     loadState.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        loadState_actionPerformed(e);
+        loadState_actionPerformed();
       }
     });
     inputMenu.setText(MessageManager.getString("label.input_alignment"));
-    vamsasStart.setText(MessageManager
-            .getString("label.new_vamsas_session"));
-    vamsasStart.setVisible(false);
-    vamsasStart.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        vamsasStart_actionPerformed(e);
-      }
-    });
-    vamsasImport.setText(MessageManager
-            .getString("action.load_vamsas_session"));
-    vamsasImport.setVisible(false);
-    vamsasImport.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        vamsasImport_actionPerformed(e);
-      }
-    });
-    vamsasSave.setText(MessageManager
-            .getString("action.save_vamsas_session"));
-    vamsasSave.setVisible(false);
-    vamsasSave.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        vamsasSave_actionPerformed(e);
-      }
-    });
-    inputSequence.setText(MessageManager
-            .getString("action.fetch_sequences"));
+    inputSequence
+            .setText(MessageManager.getString("action.fetch_sequences"));
     inputSequence.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         inputSequence_actionPerformed(e);
       }
     });
-    vamsasStop.setText(MessageManager
-            .getString("label.stop_vamsas_session"));
-    vamsasStop.setVisible(false);
-    vamsasStop.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        vamsasStop_actionPerformed(e);
-      }
-    });
     closeAll.setText(MessageManager.getString("action.close_all"));
     closeAll.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         closeAll_actionPerformed(e);
       }
     });
-    raiseRelated.setText(MessageManager
-            .getString("action.raise_associated_windows"));
+    raiseRelated.setText(
+            MessageManager.getString("action.raise_associated_windows"));
     raiseRelated.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         raiseRelated_actionPerformed(e);
       }
     });
-    minimizeAssociated.setText(MessageManager
-            .getString("action.minimize_associated_windows"));
+    minimizeAssociated.setText(
+            MessageManager.getString("action.minimize_associated_windows"));
     minimizeAssociated.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         minimizeAssociated_actionPerformed(e);
       }
     });
-    garbageCollect.setText(MessageManager
-            .getString("label.collect_garbage"));
+    garbageCollect
+            .setText(MessageManager.getString("label.collect_garbage"));
     garbageCollect.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         garbageCollect_actionPerformed(e);
       }
     });
-    showMemusage.setText(MessageManager
-            .getString("label.show_memory_usage"));
+    showMemusage
+            .setText(MessageManager.getString("label.show_memory_usage"));
     showMemusage.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showMemusage_actionPerformed(e);
@@ -333,6 +312,7 @@ public class GDesktop extends JFrame
             .setText(MessageManager.getString("label.show_java_console"));
     showConsole.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showConsole_actionPerformed(e);
@@ -341,46 +321,72 @@ public class GDesktop extends JFrame
     showNews.setText(MessageManager.getString("label.show_jalview_news"));
     showNews.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         showNews_actionPerformed(e);
       }
     });
+    groovyShell = new JMenuItem();
+    groovyShell.setText(MessageManager.getString("label.groovy_console"));
+    groovyShell.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        groovyShell_actionPerformed();
+      }
+    });
+    experimentalFeatures = new JCheckBoxMenuItem();
+    experimentalFeatures
+            .setText(MessageManager.getString("label.show_experimental"));
+    experimentalFeatures.setToolTipText(
+            MessageManager.getString("label.show_experimental_tip"));
+    experimentalFeatures.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showExperimental_actionPerformed(experimentalFeatures.isSelected());
+      }
+    });
+
     snapShotWindow.setText(MessageManager.getString("label.take_snapshot"));
     snapShotWindow.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         snapShotWindow_actionPerformed(e);
       }
     });
 
+    Float specversion = Float.parseFloat(System.getProperty("java.specification.version"));
+    
     desktopMenubar.add(FileMenu);
     desktopMenubar.add(toolsMenu);
-    VamsasMenu.setVisible(false);
-    desktopMenubar.add(VamsasMenu);
     desktopMenubar.add(HelpMenu);
     desktopMenubar.add(windowMenu);
     FileMenu.add(inputMenu);
     FileMenu.add(inputSequence);
     FileMenu.addSeparator();
-    FileMenu.add(saveState);
+    //FileMenu.add(saveState);
+    FileMenu.add(saveAsState);
     FileMenu.add(loadState);
     FileMenu.addSeparator();
     FileMenu.add(quit);
     HelpMenu.add(aboutMenuItem);
     HelpMenu.add(documentationMenuItem);
-    VamsasMenu.add(VamsasStMenu);
-    VamsasStMenu.setVisible(false);
-    VamsasMenu.add(vamsasStart);
-    VamsasMenu.add(vamsasImport);
-    VamsasMenu.add(vamsasSave);
-    VamsasMenu.add(vamsasStop);
-    toolsMenu.add(preferences);
+    if (!Platform.isAMac() || specversion < 11)
+    {
+      toolsMenu.add(preferences);
+    }
     toolsMenu.add(showMemusage);
     toolsMenu.add(showConsole);
     toolsMenu.add(showNews);
     toolsMenu.add(garbageCollect);
+    toolsMenu.add(groovyShell);
+    toolsMenu.add(experimentalFeatures);
     // toolsMenu.add(snapShotWindow);
     inputMenu.add(inputLocalFileMenuItem);
     inputMenu.add(inputURLMenuItem);
@@ -390,6 +396,14 @@ public class GDesktop extends JFrame
     windowMenu.add(minimizeAssociated);
     windowMenu.addSeparator();
     // inputMenu.add(vamsasLoad);
+  }
+
+  protected void showExperimental_actionPerformed(boolean selected)
+  {
+  }
+
+  protected void groovyShell_actionPerformed()
+  {
   }
 
   protected void snapShotWindow_actionPerformed(ActionEvent e)
@@ -446,9 +460,10 @@ public class GDesktop extends JFrame
    * 
    * @param e
    *          DOCUMENT ME!
+   * @throws FileFormatException
    */
   protected void inputURLMenuItem_actionPerformed(
-          jalview.gui.AlignViewport av)
+          jalview.gui.AlignViewport av) throws FileFormatException
   {
   }
 
@@ -458,7 +473,8 @@ public class GDesktop extends JFrame
    * @param e
    *          DOCUMENT ME!
    */
-  protected void inputTextboxMenuItem_actionPerformed(AlignmentViewPanel avp)
+  protected void inputTextboxMenuItem_actionPerformed(
+          AlignmentViewPanel avp)
   {
   }
 
@@ -467,6 +483,7 @@ public class GDesktop extends JFrame
    */
   protected void quit()
   {
+    //System.out.println("********** GDesktop.quit()");
   }
 
   /**
@@ -495,16 +512,6 @@ public class GDesktop extends JFrame
    * @param e
    *          DOCUMENT ME!
    */
-  public void SaveState_actionPerformed(ActionEvent e)
-  {
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
   protected void preferences_actionPerformed(ActionEvent e)
   {
   }
@@ -515,7 +522,11 @@ public class GDesktop extends JFrame
    * @param e
    *          DOCUMENT ME!
    */
-  public void saveState_actionPerformed(ActionEvent e)
+  public void saveState_actionPerformed()
+  {
+  }
+
+  public void saveAsState_actionPerformed(ActionEvent e)
   {
   }
 
@@ -525,7 +536,7 @@ public class GDesktop extends JFrame
    * @param e
    *          DOCUMENT ME!
    */
-  public void loadState_actionPerformed(ActionEvent e)
+  public void loadState_actionPerformed()
   {
   }
 

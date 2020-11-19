@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -56,6 +56,14 @@ public interface FeatureColourI
   Color getMaxColour();
 
   /**
+   * Returns the 'no value' colour (used when a feature lacks score, or the
+   * attribute, being used for colouring)
+   * 
+   * @return
+   */
+  Color getNoColour();
+
+  /**
    * Answers true if the feature has a single colour, i.e. if isColourByLabel()
    * and isGraduatedColour() both answer false
    * 
@@ -64,7 +72,8 @@ public interface FeatureColourI
   boolean isSimpleColour();
 
   /**
-   * Answers true if the feature is coloured by label (description)
+   * Answers true if the feature is coloured by label (description) or by text
+   * value of an attribute
    * 
    * @return
    */
@@ -91,18 +100,6 @@ public interface FeatureColourI
   boolean isAboveThreshold();
 
   void setAboveThreshold(boolean b);
-
-  /**
-   * Answers true if the threshold is the minimum value (when
-   * isAboveThreshold()) or maximum value (when isBelowThreshold()) of the
-   * colour range; only applicable when isGraduatedColour and either
-   * isAboveThreshold() or isBelowThreshold() answers true
-   * 
-   * @return
-   */
-  boolean isThresholdMinMax();
-
-  void setThresholdMinMax(boolean b);
 
   /**
    * Returns the threshold value (if any), else zero
@@ -146,7 +143,9 @@ public interface FeatureColourI
   boolean hasThreshold();
 
   /**
-   * Returns the computed colour for the given sequence feature
+   * Returns the computed colour for the given sequence feature. Answers null if
+   * the score of this feature instance is outside the range to render (if any),
+   * i.e. lies below or above a configured threshold.
    * 
    * @param feature
    * @return
@@ -154,18 +153,10 @@ public interface FeatureColourI
   Color getColor(SequenceFeature feature);
 
   /**
-   * Answers true if the feature has a simple colour, or is coloured by label,
-   * or has a graduated colour and the score of this feature instance is within
-   * the range to render (if any), i.e. does not lie below or above any
-   * threshold set.
-   * 
-   * @param feature
-   * @return
-   */
-  boolean isColored(SequenceFeature feature);
-
-  /**
-   * Update the min-max range for a graduated colour scheme
+   * Update the min-max range for a graduated colour scheme. Note that the
+   * colour scheme may be configured to colour by feature score, or a
+   * (numeric-valued) attribute - the caller should ensure that the correct
+   * range is being set.
    * 
    * @param min
    * @param max
@@ -178,4 +169,47 @@ public interface FeatureColourI
    * @return
    */
   String toJalviewFormat(String featureType);
+
+  /**
+   * Answers true if colour is by attribute text or numerical value
+   * 
+   * @return
+   */
+  boolean isColourByAttribute();
+
+  /**
+   * Answers the name of the attribute (and optional sub-attribute...) used for
+   * colouring if any, or null
+   * 
+   * @return
+   */
+  String[] getAttributeName();
+
+  /**
+   * Sets the name of the attribute (and optional sub-attribute...) used for
+   * colouring if any, or null to remove this property
+   * 
+   * @return
+   */
+  void setAttributeName(String... name);
+
+  /**
+   * Answers true if colour has a threshold set, and the feature score (or other
+   * attribute selected for colouring) is outwith the threshold.
+   * <p>
+   * Answers false if not a graduated colour, or no threshold is set, or value
+   * is not outwith the threshold, or value is null or non-numeric.
+   * 
+   * @param sf
+   * @return
+   */
+  boolean isOutwithThreshold(SequenceFeature sf);
+
+  /**
+   * Answers a human-readable text description of the colour, suitable for display
+   * as a tooltip, possibly internationalised for the user's locale.
+   * 
+   * @return
+   */
+  String getDescription();
 }

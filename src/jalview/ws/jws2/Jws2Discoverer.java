@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -67,7 +67,7 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
   /*
    * the .jalview_properties entry for JWS2 URLS
    */
-  final static String JWS2HOSTURLS = "JWS2HOSTURLS";
+  private final static String JWS2HOSTURLS = "JWS2HOSTURLS";
 
   /*
    * Singleton instance
@@ -85,12 +85,17 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
   private PropertyChangeSupport changeSupport = new PropertyChangeSupport(
           this);
 
-  Vector<String> invalidServiceUrls = null, urlsWithoutServices = null,
-          validServiceUrls = null;
+  private Vector<String> invalidServiceUrls = null;
 
-  boolean running = false, aborted = false;
+  private Vector<String> urlsWithoutServices = null;
 
-  Thread oldthread = null;
+  private Vector<String> validServiceUrls = null;
+
+  private volatile boolean running = false;
+
+  private volatile boolean aborted = false;
+
+  private Thread oldthread = null;
 
   /**
    * holds list of services.
@@ -143,9 +148,9 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
   public void setAborted(boolean aborted)
   {
     this.aborted = aborted;
-
   }
 
+  @Override
   public void run()
   {
 
@@ -159,36 +164,38 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       {
         try
         {
-          Cache.log
-                  .debug("Waiting around for old discovery thread to finish.");
+          Cache.log.debug(
+                  "Waiting around for old discovery thread to finish.");
           // wait around until old discoverer dies
           Thread.sleep(100);
         } catch (Exception e)
         {
         }
       }
+      aborted = false;
       Cache.log.debug("Old discovery thread has finished.");
     }
     running = true;
 
     // first set up exclusion list if needed
     final Set<String> ignoredServices = new HashSet<String>();
-    for (String ignored : Cache.getDefault("IGNORED_JABAWS_SERVICETYPES",
-            "").split("\\|"))
+    for (String ignored : Cache
+            .getDefault("IGNORED_JABAWS_SERVICETYPES", "").split("\\|"))
     {
       ignoredServices.add(ignored);
     }
 
-    changeSupport.firePropertyChange("services", services, new Vector());
+    changeSupport.firePropertyChange("services", services,
+            new Vector<Jws2Instance>());
     oldthread = Thread.currentThread();
     try
     {
-      Class foo = getClass().getClassLoader().loadClass(
-              "compbio.ws.client.Jws2Client");
+      Class foo = getClass().getClassLoader()
+              .loadClass("compbio.ws.client.Jws2Client");
     } catch (ClassNotFoundException e)
     {
-      System.err
-              .println("Not enabling JABA Webservices : client jar is not available."
+      System.err.println(
+              "Not enabling JABA Webservices : client jar is not available."
                       + "\nPlease check that your webstart JNLP file is up to date!");
       running = false;
       return;
@@ -252,8 +259,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       }
       if (aborted)
       {
-        Cache.log.debug("Aborting " + qrys.size()
-                + " JABAWS discovery threads.");
+        Cache.log.debug(
+                "Aborting " + qrys.size() + " JABAWS discovery threads.");
         for (JabaWsServerQuery squery : qrys)
         {
           squery.setQuit(true);
@@ -263,7 +270,7 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     if (!aborted)
     {
       // resort services according to order found in jabaws service list
-      // also ensure servics for each host are ordered in same way.
+      // also ensure services for each host are ordered in same way.
 
       if (services != null && services.size() > 0)
       {
@@ -290,7 +297,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     }
     oldthread = null;
     running = false;
-    changeSupport.firePropertyChange("services", new Vector(), services);
+    changeSupport.firePropertyChange("services", new Vector<Jws2Instance>(),
+            services);
   }
 
   /**
@@ -306,8 +314,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     {
       services = new Vector<Jws2Instance>();
     }
-    System.out.println("Discovered service: " + jwsservers + " "
-            + service.toString());
+    System.out.println(
+            "Discovered service: " + jwsservers + " " + service.toString());
     // Jws2Instance service = new Jws2Instance(jwsservers, srv.toString(),
     // service2);
 
@@ -321,7 +329,7 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     service.hasParameters();
     if (validServiceUrls == null)
     {
-      validServiceUrls = new Vector();
+      validServiceUrls = new Vector<String>();
     }
     validServiceUrls.add(jwsservers);
   }
@@ -330,6 +338,7 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
    * attach all available web services to the appropriate submenu in the given
    * JMenu
    */
+  @Override
   public void attachWSMenuEntry(JMenu wsmenu, final AlignFrame alignFrame)
   {
     // dynamically regenerate service list.
@@ -348,8 +357,7 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     {
       return;
     }
-    boolean byhost = Cache.getDefault("WSMENU_BYHOST", false), bytype = Cache
-            .getDefault("WSMENU_BYTYPE", false);
+
     /**
      * eventually, JWS2 services will appear under the same align/etc submenus.
      * for moment we keep them separate.
@@ -425,8 +433,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       service.attachWSMenuEntry(atpoint, alignFrame);
       if (alternates.containsKey(service.serviceType))
       {
-        atpoint.add(hitm = new JMenu(MessageManager
-                .getString("label.switch_server")));
+        atpoint.add(hitm = new JMenu(
+                MessageManager.getString("label.switch_server")));
         hitm.setToolTipText(JvSwingUtils.wrapTooltip(false,
                 MessageManager.getString("label.choose_jabaws_server")));
         for (final Jws2Instance sv : alternates.get(service.serviceType))
@@ -442,27 +450,19 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
             {
               new Thread(new Runnable()
               {
+                @Override
                 public void run()
                 {
                   setPreferredServiceFor(alignFrame, sv.serviceType,
                           sv.action, sv);
                   changeSupport.firePropertyChange("services",
-                          new Vector(), services);
+                          new Vector<Jws2Instance>(), services);
                 };
               }).start();
 
             }
           });
         }
-        /*
-         * hitm.addActionListener(new ActionListener() {
-         * 
-         * @Override public void actionPerformed(ActionEvent arg0) { new
-         * Thread(new Runnable() {
-         * 
-         * @Override public void run() { new SetPreferredServer(alignFrame,
-         * service.serviceType, service.action); } }).start(); } });
-         */
       }
     }
   }
@@ -472,16 +472,17 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
    * submenus to index by host and service program type
    */
   private void addEnumeratedServices(final JMenu jws2al,
-          final AlignFrame alignFrame, List<Jws2Instance> enumerableServices)
+          final AlignFrame alignFrame,
+          List<Jws2Instance> enumerableServices)
   {
-    boolean byhost = Cache.getDefault("WSMENU_BYHOST", false), bytype = Cache
-            .getDefault("WSMENU_BYTYPE", false);
+    boolean byhost = Cache.getDefault("WSMENU_BYHOST", false),
+            bytype = Cache.getDefault("WSMENU_BYTYPE", false);
     /**
      * eventually, JWS2 services will appear under the same align/etc submenus.
      * for moment we keep them separate.
      */
     JMenu atpoint;
-    MsaWSClient msacl = new MsaWSClient();
+
     List<String> hostLabels = new ArrayList<String>();
     Hashtable<String, String> lasthostFor = new Hashtable<String, String>();
     Hashtable<String, ArrayList<Jws2Instance>> hosts = new Hashtable<String, ArrayList<Jws2Instance>>();
@@ -500,8 +501,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     // now add hosts in order of the given array
     for (String host : hostlist)
     {
-      Jws2Instance orderedsvcs[] = hosts.get(host).toArray(
-              new Jws2Instance[1]);
+      Jws2Instance orderedsvcs[] = hosts.get(host)
+              .toArray(new Jws2Instance[1]);
       String sortbytype[] = new String[orderedsvcs.length];
       for (int i = 0; i < sortbytype.length; i++)
       {
@@ -517,8 +518,9 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
           atpoint = JvSwingUtils.findOrCreateMenu(atpoint, host);
           if (atpoint.getToolTipText() == null)
           {
-            atpoint.setToolTipText(MessageManager.formatMessage(
-                    "label.services_at", new String[] { host }));
+            atpoint.setToolTipText(MessageManager
+                    .formatMessage("label.services_at", new String[]
+                    { host }));
           }
         }
         if (bytype)
@@ -529,9 +531,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
             atpoint.setToolTipText(service.getActionText());
           }
         }
-        if (!byhost
-                && !hostLabels.contains(host + service.serviceType
-                        + service.getActionText()))
+        if (!byhost && !hostLabels.contains(
+                host + service.serviceType + service.getActionText()))
         // !hostLabels.contains(host + (bytype ?
         // service.serviceType+service.getActionText() : "")))
         {
@@ -562,12 +563,13 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
                 Desktop.showUrl(service.getHost());
               }
             });
-            hitm.setToolTipText(JvSwingUtils.wrapTooltip(true,
-                    MessageManager.getString("label.open_jabaws_web_page")));
+            hitm.setToolTipText(
+                    JvSwingUtils.wrapTooltip(true, MessageManager
+                            .getString("label.open_jabaws_web_page")));
             lasthostFor.put(service.action, host);
           }
-          hostLabels.add(host + service.serviceType
-                  + service.getActionText());
+          hostLabels.add(
+                  host + service.serviceType + service.getActionText());
         }
 
         service.attachWSMenuEntry(atpoint, alignFrame);
@@ -586,10 +588,11 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       }
       ;
     }
-    Thread runner = getDiscoverer().startDiscoverer(
-            new PropertyChangeListener()
+    Thread runner = getDiscoverer()
+            .startDiscoverer(new PropertyChangeListener()
             {
 
+              @Override
               public void propertyChange(PropertyChangeEvent evt)
               {
                 if (getDiscoverer().services != null)
@@ -600,9 +603,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
                   for (Jws2Instance instance : getDiscoverer().services)
                   {
                     System.out.println("Service " + i++ + " "
-                            + instance.getClass() + "@"
-                            + instance.getHost() + ": "
-                            + instance.getActionText());
+                            + instance.getClass() + "@" + instance.getHost()
+                            + ": " + instance.getActionText());
                   }
 
                 }
@@ -714,10 +716,9 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
         {
           Cache.log.warn("Problem whilst trying to make a URL from '"
                   + ((url != null) ? url : "<null>") + "'");
-          Cache.log
-                  .warn("This was probably due to a malformed comma separated list"
-                          + " in the "
-                          + JWS2HOSTURLS
+          Cache.log.warn(
+                  "This was probably due to a malformed comma separated list"
+                          + " in the " + JWS2HOSTURLS
                           + " entry of $(HOME)/.jalview_properties)");
           Cache.log.debug("Exception was ", ex);
         }
@@ -747,7 +748,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     try
     {
       compbio.ws.client.WSTester
-              .main(new String[] { "-h=" + foo.toString() });
+              .main(new String[]
+              { "-h=" + foo.toString() });
     } catch (Exception e)
     {
       e.printStackTrace();
@@ -765,6 +767,22 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
     return true;
   }
 
+  public boolean restart()
+  {
+    synchronized (this)
+    {
+      if (running)
+      {
+        aborted = true;
+      }
+      else
+      {
+        running = true;
+      }
+      return aborted;
+    }
+  }
+
   /**
    * Start a fresh discovery thread and notify the given object when we're
    * finished. Any known existing threads will be killed before this one is
@@ -775,6 +793,16 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
    */
   public Thread startDiscoverer(PropertyChangeListener changeSupport2)
   {
+    /*    if (restart())
+        {
+          return;
+        }
+        else
+        {
+          Thread thr = new Thread(this);
+          thr.start();
+        }
+       */
     if (isRunning())
     {
       setAborted(true);
@@ -814,8 +842,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       urlsWithoutServices = new Vector<String>();
     }
 
-    if ((invalidServiceUrls == null || !invalidServiceUrls
-            .contains(jwsservers))
+    if ((invalidServiceUrls == null
+            || !invalidServiceUrls.contains(jwsservers))
             && !urlsWithoutServices.contains(jwsservers))
     {
       urlsWithoutServices.add(jwsservers);
@@ -870,7 +898,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
       if (getUrlsWithoutServices() != null
               && getUrlsWithoutServices().size() > 0)
       {
-        ermsg.append(MessageManager.getString("warn.urls_no_jaba") + ": \n");
+        ermsg.append(
+                MessageManager.getString("warn.urls_no_jaba") + ": \n");
         for (String svcurl : getUrlsWithoutServices())
         {
           if (list)
@@ -1012,7 +1041,8 @@ public class Jws2Discoverer implements Runnable, WSMenuEntryProviderI
   public void setPreferredServiceFor(String serviceType,
           String serviceAction, Jws2Instance selectedServer)
   {
-    setPreferredServiceFor(null, serviceType, serviceAction, selectedServer);
+    setPreferredServiceFor(null, serviceType, serviceAction,
+            selectedServer);
   }
 
   /**

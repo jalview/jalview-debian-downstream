@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,8 +31,26 @@ public interface AnnotatedCollectionI extends SequenceCollectionI
    */
   AlignmentAnnotation[] getAlignmentAnnotation();
 
+  /**
+   * Returns a list of annotations matching the given calc id, or an empty list
+   * if calcId is null
+   * 
+   * @param calcId
+   * @return
+   */
   Iterable<AlignmentAnnotation> findAnnotation(String calcId);
 
+  /**
+   * Returns an iterable collection of any annotations that match on given
+   * sequence ref, calcId and label (ignoring null values).
+   * 
+   * @param seq
+   *          null or reference sequence to select annotation for
+   * @param calcId
+   *          null or the calcId to select annotation for
+   * @param label
+   *          null or the label to select annotation for
+   */
   Iterable<AlignmentAnnotation> findAnnotations(SequenceI seq,
           String calcId, String label);
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -46,7 +46,7 @@ public class Mapping
     /*
      * The characters of the aligned sequence e.g. "-cGT-ACgTG-"
      */
-    private final char[] alignedSeq;
+    private final SequenceI alignedSeq;
 
     /*
      * the sequence start residue
@@ -102,7 +102,7 @@ public class Mapping
      */
     public AlignedCodonIterator(SequenceI seq, char gapChar)
     {
-      this.alignedSeq = seq.getSequence();
+      this.alignedSeq = seq;
       this.start = seq.getStart();
       this.gap = gapChar;
       fromRanges = map.getFromRanges().iterator();
@@ -176,14 +176,14 @@ public class Mapping
       if (toPosition <= currentToRange[1])
       {
         SequenceI seq = Mapping.this.to;
-        char pep = seq.getSequence()[toPosition - seq.getStart()];
+        char pep = seq.getCharAt(toPosition - seq.getStart());
         toPosition++;
         return String.valueOf(pep);
       }
       if (!toRanges.hasNext())
       {
-        throw new NoSuchElementException("Ran out of peptide at position "
-                + toPosition);
+        throw new NoSuchElementException(
+                "Ran out of peptide at position " + toPosition);
       }
       currentToRange = toRanges.next();
       toPosition = currentToRange[0];
@@ -257,9 +257,10 @@ public class Mapping
        * allow for offset e.g. treat pos 8 as 2 if sequence starts at 7
        */
       int truePos = sequencePos - (start - 1);
-      while (alignedBases < truePos && alignedColumn < alignedSeq.length)
+      int length = alignedSeq.getLength();
+      while (alignedBases < truePos && alignedColumn < length)
       {
-        char c = alignedSeq[alignedColumn++];
+        char c = alignedSeq.getCharAt(alignedColumn++);
         if (c != gap && !Comparison.isGap(c))
         {
           alignedBases++;
@@ -530,9 +531,8 @@ public class Mapping
         SequenceFeature[] vf = new SequenceFeature[frange.length / 2];
         for (int i = 0, v = 0; i < frange.length; i += 2, v++)
         {
-          vf[v] = new SequenceFeature(f);
-          vf[v].setBegin(frange[i]);
-          vf[v].setEnd(frange[i + 1]);
+          vf[v] = new SequenceFeature(f, frange[i], frange[i + 1],
+                  f.getFeatureGroup(), f.getScore());
           if (frange.length > 2)
           {
             vf[v].setDescription(f.getDescription() + "\nPart " + (v + 1));
@@ -541,27 +541,7 @@ public class Mapping
         return vf;
       }
     }
-    if (false) // else
-    {
-      int[] word = getWord(f.getBegin());
-      if (word[0] < word[1])
-      {
-        f.setBegin(word[0]);
-      }
-      else
-      {
-        f.setBegin(word[1]);
-      }
-      word = getWord(f.getEnd());
-      if (word[0] > word[1])
-      {
-        f.setEnd(word[0]);
-      }
-      else
-      {
-        f.setEnd(word[1]);
-      }
-    }
+
     // give up and just return the feature.
     return new SequenceFeature[] { f };
   }
@@ -687,8 +667,8 @@ public class Mapping
         to[f * 2] = r[0];
         to[f * 2 + 1] = r[1];
       }
-      copy.setMap(new MapList(from, to, map.getFromRatio(), map
-              .getToRatio()));
+      copy.setMap(
+              new MapList(from, to, map.getFromRatio(), map.getToRatio()));
     }
     return copy;
   }
@@ -713,19 +693,6 @@ public class Mapping
     to = tto;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see java.lang.Object#finalize()
-   */
-  @Override
-  protected void finalize() throws Throwable
-  {
-    map = null;
-    to = null;
-    super.finalize();
-  }
-
   /**
    * Returns an iterator which can serve up the aligned codon column positions
    * and their corresponding peptide products
@@ -735,7 +702,8 @@ public class Mapping
    * @param gapChar
    * @return
    */
-  public Iterator<AlignedCodon> getCodonIterator(SequenceI seq, char gapChar)
+  public Iterator<AlignedCodon> getCodonIterator(SequenceI seq,
+          char gapChar)
   {
     return new AlignedCodonIterator(seq, gapChar);
   }
@@ -746,8 +714,8 @@ public class Mapping
   @Override
   public String toString()
   {
-    return String.format("%s %s", this.map.toString(), this.to == null ? ""
-            : this.to.getName());
+    return String.format("%s %s", this.map.toString(),
+            this.to == null ? "" : this.to.getName());
   }
 
   /**

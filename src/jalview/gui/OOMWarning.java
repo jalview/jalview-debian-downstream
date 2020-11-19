@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -56,8 +56,8 @@ public class OOMWarning implements Runnable
       {
         if (jalview.bin.Cache.log != null)
         {
-          jalview.bin.Cache.log
-                  .error("Out of Memory when " + action, oomex);
+          jalview.bin.Cache.log.error("Out of Memory when " + action,
+                  oomex);
         }
         else
         {
@@ -75,13 +75,13 @@ public class OOMWarning implements Runnable
     this(string, oomerror, Desktop.desktop);
   }
 
+  @Override
   public void run()
   {
-    javax.swing.JOptionPane.showInternalMessageDialog(desktop,
-            MessageManager.formatMessage("warn.out_of_memory_when_action",
-                    new String[] { action }), MessageManager
-                    .getString("label.out_of_memory"),
-            javax.swing.JOptionPane.WARNING_MESSAGE);
+    JvOptionPane.showInternalMessageDialog(desktop, MessageManager
+            .formatMessage("warn.out_of_memory_when_action", new String[]
+            { action }), MessageManager.getString("label.out_of_memory"),
+            JvOptionPane.WARNING_MESSAGE);
     // hope that there's enough memory left that no more appear.
     oomInprogress = false;
   }

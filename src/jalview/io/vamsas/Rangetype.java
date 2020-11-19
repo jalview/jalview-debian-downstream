@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -53,7 +53,8 @@ public abstract class Rangetype extends DatastoreItem
     super(datastore);
   }
 
-  public Rangetype(VamsasAppDatastore datastore, Vobject vobj, Class jvClass)
+  public Rangetype(VamsasAppDatastore datastore, Vobject vobj,
+          Class jvClass)
   {
     super(datastore, vobj, jvClass);
   }
@@ -78,9 +79,8 @@ public abstract class Rangetype extends DatastoreItem
       int[] se = null;
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
+        throw new Error(MessageManager.getString(
+                "error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -137,9 +137,8 @@ public abstract class Rangetype extends DatastoreItem
       int[] se = null;
       if (dseta.getSegCount() > 0 && dseta.getPosCount() > 0)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
+        throw new Error(MessageManager.getString(
+                "error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (dseta.getSegCount() > 0)
       {
@@ -149,7 +148,7 @@ public abstract class Rangetype extends DatastoreItem
           int se_end = se[1 - se[2]] + (se[2] == 0 ? 1 : -1);
           for (int p = se[se[2]]; p != se_end; p += se[2] == 0 ? 1 : -1)
           {
-            posList.add(new Integer(p));
+            posList.add(Integer.valueOf(p));
           }
         }
       }
@@ -160,7 +159,7 @@ public abstract class Rangetype extends DatastoreItem
         for (int p = 0, pSize = dseta.getPosCount(); p < pSize; p++)
         {
           pos = dseta.getPos(p).getI();
-          posList.add(new Integer(pos));
+          posList.add(Integer.valueOf(pos));
         }
       }
     }
@@ -186,17 +185,16 @@ public abstract class Rangetype extends DatastoreItem
       int[] se = null;
       if (range.getSegCount() > 0 && range.getPosCount() > 0)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.invalid_vamsas_rangetype_cannot_resolve_lists"));
+        throw new Error(MessageManager.getString(
+                "error.invalid_vamsas_rangetype_cannot_resolve_lists"));
       }
       if (range.getSegCount() > 0)
       {
         for (int s = 0, sSize = range.getSegCount(); s < sSize; s++)
         {
           se = getSegRange(range.getSeg(s), false);
-          posList.addElement(new Integer(se[0]));
-          posList.addElement(new Integer(se[1]));
+          posList.addElement(Integer.valueOf(se[0]));
+          posList.addElement(Integer.valueOf(se[1]));
         }
       }
       else if (range.getPosCount() > 0)
@@ -206,8 +204,8 @@ public abstract class Rangetype extends DatastoreItem
         for (int p = 0, pSize = range.getPosCount(); p < pSize; p++)
         {
           pos = range.getPos(p).getI();
-          posList.add(new Integer(pos));
-          posList.add(new Integer(pos));
+          posList.add(Integer.valueOf(pos));
+          posList.add(Integer.valueOf(pos));
         }
       }
     }
@@ -247,8 +245,10 @@ public abstract class Rangetype extends DatastoreItem
    * @param maprange
    *          where the from range is the local mapped range, and the to range
    *          is the 'mapped' range in the MapRangeType
-   * @param default unit for local
-   * @param default unit for mapped
+   * @param default
+   *          unit for local
+   * @param default
+   *          unit for mapped
    * @return MapList
    */
   protected jalview.util.MapList parsemapType(MapType maprange, int localu,
@@ -259,8 +259,9 @@ public abstract class Rangetype extends DatastoreItem
     int[] mappedRange = getIntervals(maprange.getMapped());
     long lu = maprange.getLocal().hasUnit() ? maprange.getLocal().getUnit()
             : localu;
-    long mu = maprange.getMapped().hasUnit() ? maprange.getMapped()
-            .getUnit() : mappedu;
+    long mu = maprange.getMapped().hasUnit()
+            ? maprange.getMapped().getUnit()
+            : mappedu;
     ml = new jalview.util.MapList(localRange, mappedRange, (int) lu,
             (int) mu);
     return ml;
@@ -304,9 +305,8 @@ public abstract class Rangetype extends DatastoreItem
   {
     if (ml == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_maplist_is_null"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_maplist_is_null"));
     }
     maprange.setLocal(new Local());
     maprange.setMapped(new Mapped());

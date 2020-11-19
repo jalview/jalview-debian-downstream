@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,24 +20,28 @@
  */
 package jalview.gui;
 
+import jalview.analysis.AlignSeq;
 import jalview.analysis.AlignmentUtils;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.io.FileFormat;
 import jalview.io.FormatAdapter;
+import jalview.util.Comparison;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.MediaTracker;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
@@ -47,12 +51,9 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
-import java.util.regex.Pattern;
+import java.util.Iterator;
 
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
@@ -62,93 +63,81 @@ import javax.swing.SwingUtilities;
 import javax.swing.ToolTipManager;
 
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * The panel that holds the labels for alignment annotations, providing
+ * tooltips, context menus, drag to reorder rows, and drag to adjust panel
+ * height
  */
-public class AnnotationLabels extends JPanel implements MouseListener,
-        MouseMotionListener, ActionListener
+public class AnnotationLabels extends JPanel
+        implements MouseListener, MouseMotionListener, ActionListener
 {
-  private static final Pattern LEFT_ANGLE_BRACKET_PATTERN = Pattern
-          .compile("<");
+  private static final String HTML_END_TAG = "</html>";
 
-  String TOGGLE_LABELSCALE = MessageManager
+  private static final String HTML_START_TAG = "<html>";
+
+  /**
+   * width in pixels within which height adjuster arrows are shown and active
+   */
+  private static final int HEIGHT_ADJUSTER_WIDTH = 50;
+
+  /**
+   * height in pixels for allowing height adjuster to be active
+   */
+  private static int HEIGHT_ADJUSTER_HEIGHT = 10;
+
+  private static final Font font = new Font("Arial", Font.PLAIN, 11);
+
+  private static final String TOGGLE_LABELSCALE = MessageManager
           .getString("label.scale_label_to_column");
 
-  String ADDNEW = MessageManager.getString("label.add_new_row");
+  private static final String ADDNEW = MessageManager
+          .getString("label.add_new_row");
 
-  String EDITNAME = MessageManager
+  private static final String EDITNAME = MessageManager
           .getString("label.edit_label_description");
 
-  String HIDE = MessageManager.getString("label.hide_row");
+  private static final String HIDE = MessageManager
+          .getString("label.hide_row");
 
-  String DELETE = MessageManager.getString("label.delete_row");
+  private static final String DELETE = MessageManager
+          .getString("label.delete_row");
 
-  String SHOWALL = MessageManager.getString("label.show_all_hidden_rows");
+  private static final String SHOWALL = MessageManager
+          .getString("label.show_all_hidden_rows");
 
-  String OUTPUT_TEXT = MessageManager.getString("label.export_annotation");
+  private static final String OUTPUT_TEXT = MessageManager
+          .getString("label.export_annotation");
 
-  String COPYCONS_SEQ = MessageManager
+  private static final String COPYCONS_SEQ = MessageManager
           .getString("label.copy_consensus_sequence");
 
-  boolean resizePanel = false;
+  private final boolean debugRedraw = false;
 
-  Image image;
-
-  AlignmentPanel ap;
+  private AlignmentPanel ap;
 
   AlignViewport av;
 
-  boolean resizing = false;
+  private MouseEvent dragEvent;
 
-  MouseEvent dragEvent;
+  private int oldY;
 
-  int oldY;
-
-  int selectedRow;
+  private int selectedRow;
 
   private int scrollOffset = 0;
 
-  Font font = new Font("Arial", Font.PLAIN, 11);
-
   private boolean hasHiddenRows;
 
+  private boolean resizePanel = false;
+
   /**
-   * Creates a new AnnotationLabels object.
+   * Creates a new AnnotationLabels object
    * 
    * @param ap
-   *          DOCUMENT ME!
    */
   public AnnotationLabels(AlignmentPanel ap)
   {
     this.ap = ap;
     av = ap.av;
     ToolTipManager.sharedInstance().registerComponent(this);
-
-    java.net.URL url = getClass().getResource("/images/idwidth.gif");
-    Image temp = null;
-
-    if (url != null)
-    {
-      temp = java.awt.Toolkit.getDefaultToolkit().createImage(url);
-    }
-
-    try
-    {
-      MediaTracker mt = new MediaTracker(this);
-      mt.addImage(temp, 0);
-      mt.waitForID(0);
-    } catch (Exception ex)
-    {
-    }
-
-    BufferedImage bi = new BufferedImage(temp.getHeight(this),
-            temp.getWidth(this), BufferedImage.TYPE_INT_RGB);
-    Graphics2D g = (Graphics2D) bi.getGraphics();
-    g.rotate(Math.toRadians(90));
-    g.drawImage(temp, 0, -bi.getWidth(this), this);
-    image = bi;
 
     addMouseListener(this);
     addMouseMotionListener(this);
@@ -266,8 +255,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     }
     else if (evt.getActionCommand().equals(OUTPUT_TEXT))
     {
-      new AnnotationExporter().exportAnnotations(ap,
-              new AlignmentAnnotation[] { aa[selectedRow] });
+      new AnnotationExporter(ap).exportAnnotation(aa[selectedRow]);
     }
     else if (evt.getActionCommand().equals(COPYCONS_SEQ))
     {
@@ -291,30 +279,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
       aa[selectedRow].scaleColLabel = !aa[selectedRow].scaleColLabel;
     }
 
-    refresh(fullRepaint);
+    ap.refresh(fullRepaint);
 
-  }
-
-  /**
-   * Redraw sensibly.
-   * 
-   * @adjustHeight if true, try to recalculate panel height for visible
-   *               annotations
-   */
-  protected void refresh(boolean adjustHeight)
-  {
-    ap.validateAnnotationDimensions(adjustHeight);
-    ap.addNotify();
-    if (adjustHeight)
-    {
-      // sort, repaint, update overview
-      ap.paintAlignment(true);
-    }
-    else
-    {
-      // lightweight repaint
-      ap.repaint();
-    }
   }
 
   /**
@@ -410,16 +376,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
             AlignmentUtils.showOrHideSequenceAnnotations(
                     ap.av.getAlignment(), Collections.singleton(label),
                     null, false, false);
-            // for (AlignmentAnnotation ann : ap.av.getAlignment()
-            // .getAlignmentAnnotation())
-            // {
-            // if (ann.sequenceRef != null && ann.label != null
-            // && ann.label.equals(label))
-            // {
-            // ann.visible = false;
-            // }
-            // }
-            refresh(true);
+            ap.refresh(true);
           }
         });
         pop.add(hideType);
@@ -457,168 +414,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
       }
       else if (label.indexOf("Consensus") > -1)
       {
-        pop.addSeparator();
-        // av and sequencegroup need to implement same interface for
-        final JCheckBoxMenuItem cbmi = new JCheckBoxMenuItem(
-                MessageManager.getString("label.ignore_gaps_consensus"),
-                (aa[selectedRow].groupRef != null) ? aa[selectedRow].groupRef
-                        .getIgnoreGapsConsensus() : ap.av
-                        .isIgnoreGapsConsensus());
-        final AlignmentAnnotation aaa = aa[selectedRow];
-        cbmi.addActionListener(new ActionListener()
-        {
-          @Override
-          public void actionPerformed(ActionEvent e)
-          {
-            if (aaa.groupRef != null)
-            {
-              // TODO: pass on reference to ap so the view can be updated.
-              aaa.groupRef.setIgnoreGapsConsensus(cbmi.getState());
-              ap.getAnnotationPanel().paint(
-                      ap.getAnnotationPanel().getGraphics());
-            }
-            else
-            {
-              ap.av.setIgnoreGapsConsensus(cbmi.getState(), ap);
-            }
-            ap.alignmentChanged();
-          }
-        });
-        pop.add(cbmi);
-        // av and sequencegroup need to implement same interface for
-        if (aaa.groupRef != null)
-        {
-          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_group_histogram"),
-                  aa[selectedRow].groupRef.isShowConsensusHistogram());
-          chist.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setShowConsensusHistogram(chist.getState());
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(chist);
-          final JCheckBoxMenuItem cprofl = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_group_logo"),
-                  aa[selectedRow].groupRef.isShowSequenceLogo());
-          cprofl.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setshowSequenceLogo(cprofl.getState());
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprofl);
-          final JCheckBoxMenuItem cproflnorm = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.normalise_group_logo"),
-                  aa[selectedRow].groupRef.isNormaliseSequenceLogo());
-          cproflnorm.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
+        addConsensusMenuOptions(ap, aa[selectedRow], pop);
 
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              aaa.groupRef.setNormaliseSequenceLogo(cproflnorm.getState());
-              // automatically enable logo display if we're clicked
-              aaa.groupRef.setshowSequenceLogo(true);
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cproflnorm);
-        }
-        else
-        {
-          final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_histogram"),
-                  av.isShowConsensusHistogram());
-          chist.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowConsensusHistogram(chist.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(chist);
-          final JCheckBoxMenuItem cprof = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.show_logo"),
-                  av.isShowSequenceLogo());
-          cprof.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowSequenceLogo(cprof.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprof);
-          final JCheckBoxMenuItem cprofnorm = new JCheckBoxMenuItem(
-                  MessageManager.getString("label.normalise_logo"),
-                  av.isNormaliseSequenceLogo());
-          cprofnorm.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              // TODO: pass on reference
-              // to ap
-              // so the
-              // view
-              // can be
-              // updated.
-              av.setShowSequenceLogo(true);
-              av.setNormaliseSequenceLogo(cprofnorm.getState());
-              ap.alignFrame.setMenusForViewport();
-              ap.repaint();
-              // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
-            }
-          });
-          pop.add(cprofnorm);
-        }
         final JMenuItem consclipbrd = new JMenuItem(COPYCONS_SEQ);
         consclipbrd.addActionListener(this);
         pop.add(consclipbrd);
@@ -628,10 +425,149 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * A helper method that adds menu options for calculation and visualisation of
+   * group and/or alignment consensus annotation to a popup menu. This is
+   * designed to be reusable for either unwrapped mode (popup menu is shown on
+   * component AnnotationLabels), or wrapped mode (popup menu is shown on
+   * IdPanel when the mouse is over an annotation label).
+   * 
+   * @param ap
+   * @param ann
+   * @param pop
+   */
+  static void addConsensusMenuOptions(AlignmentPanel ap,
+          AlignmentAnnotation ann,
+          JPopupMenu pop)
+  {
+    pop.addSeparator();
+
+    final JCheckBoxMenuItem cbmi = new JCheckBoxMenuItem(
+            MessageManager.getString("label.ignore_gaps_consensus"),
+            (ann.groupRef != null) ? ann.groupRef.getIgnoreGapsConsensus()
+                    : ap.av.isIgnoreGapsConsensus());
+    final AlignmentAnnotation aaa = ann;
+    cbmi.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        if (aaa.groupRef != null)
+        {
+          aaa.groupRef.setIgnoreGapsConsensus(cbmi.getState());
+          ap.getAnnotationPanel()
+                  .paint(ap.getAnnotationPanel().getGraphics());
+        }
+        else
+        {
+          ap.av.setIgnoreGapsConsensus(cbmi.getState(), ap);
+        }
+        ap.alignmentChanged();
+      }
+    });
+    pop.add(cbmi);
+
+    if (aaa.groupRef != null)
+    {
+      /*
+       * group consensus options
+       */
+      final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
+              MessageManager.getString("label.show_group_histogram"),
+              ann.groupRef.isShowConsensusHistogram());
+      chist.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          aaa.groupRef.setShowConsensusHistogram(chist.getState());
+          ap.repaint();
+        }
+      });
+      pop.add(chist);
+      final JCheckBoxMenuItem cprofl = new JCheckBoxMenuItem(
+              MessageManager.getString("label.show_group_logo"),
+              ann.groupRef.isShowSequenceLogo());
+      cprofl.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          aaa.groupRef.setshowSequenceLogo(cprofl.getState());
+          ap.repaint();
+        }
+      });
+      pop.add(cprofl);
+      final JCheckBoxMenuItem cproflnorm = new JCheckBoxMenuItem(
+              MessageManager.getString("label.normalise_group_logo"),
+              ann.groupRef.isNormaliseSequenceLogo());
+      cproflnorm.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          aaa.groupRef.setNormaliseSequenceLogo(cproflnorm.getState());
+          // automatically enable logo display if we're clicked
+          aaa.groupRef.setshowSequenceLogo(true);
+          ap.repaint();
+        }
+      });
+      pop.add(cproflnorm);
+    }
+    else
+    {
+      /*
+       * alignment consensus options
+       */
+      final JCheckBoxMenuItem chist = new JCheckBoxMenuItem(
+              MessageManager.getString("label.show_histogram"),
+              ap.av.isShowConsensusHistogram());
+      chist.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          ap.av.setShowConsensusHistogram(chist.getState());
+          ap.alignFrame.setMenusForViewport();
+          ap.repaint();
+        }
+      });
+      pop.add(chist);
+      final JCheckBoxMenuItem cprof = new JCheckBoxMenuItem(
+              MessageManager.getString("label.show_logo"),
+              ap.av.isShowSequenceLogo());
+      cprof.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          ap.av.setShowSequenceLogo(cprof.getState());
+          ap.alignFrame.setMenusForViewport();
+          ap.repaint();
+        }
+      });
+      pop.add(cprof);
+      final JCheckBoxMenuItem cprofnorm = new JCheckBoxMenuItem(
+              MessageManager.getString("label.normalise_logo"),
+              ap.av.isNormaliseSequenceLogo());
+      cprofnorm.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          ap.av.setShowSequenceLogo(true);
+          ap.av.setNormaliseSequenceLogo(cprofnorm.getState());
+          ap.alignFrame.setMenusForViewport();
+          ap.repaint();
+        }
+      });
+      pop.add(cprofnorm);
+    }
+  }
+
+  /**
+   * Reorders annotation rows after a drag of a label
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseReleased(MouseEvent evt)
@@ -646,6 +582,9 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     getSelectedRow(evt.getY() - getScrollOffset());
     int end = selectedRow;
 
+    /*
+     * if dragging to resize instead, start == end
+     */
     if (start != end)
     {
       // Swap these annotations
@@ -669,31 +608,13 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
-   */
-  @Override
-  public void mouseEntered(MouseEvent evt)
-  {
-    if (evt.getY() < 10)
-    {
-      resizePanel = true;
-      repaint();
-    }
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param evt
-   *          DOCUMENT ME!
+   * Removes the height adjuster image on leaving the panel, unless currently
+   * dragging it
    */
   @Override
   public void mouseExited(MouseEvent evt)
   {
-    if (dragEvent == null)
+    if (resizePanel && dragEvent == null)
     {
       resizePanel = false;
       repaint();
@@ -701,10 +622,11 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * A mouse drag may be either an adjustment of the panel height (if flag
+   * resizePanel is set on), or a reordering of the annotation rows. The former
+   * is dealt with by this method, the latter in mouseReleased.
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseDragged(MouseEvent evt)
@@ -721,12 +643,12 @@ public class AnnotationLabels extends JPanel implements MouseListener,
 
       if ((d.height - dif) > 20)
       {
-        ap.annotationScroller.setPreferredSize(new Dimension(d.width,
-                d.height - dif));
+        ap.annotationScroller
+                .setPreferredSize(new Dimension(d.width, d.height - dif));
         d = ap.annotationSpaceFillerHolder.getPreferredSize();
-        ap.annotationSpaceFillerHolder.setPreferredSize(new Dimension(
-                d.width, d.height - dif));
-        ap.paintAlignment(true);
+        ap.annotationSpaceFillerHolder
+                .setPreferredSize(new Dimension(d.width, d.height - dif));
+        ap.paintAlignment(true, false);
       }
 
       ap.addNotify();
@@ -738,87 +660,156 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   }
 
   /**
-   * DOCUMENT ME!
+   * Updates the tooltip as the mouse moves over the labels
    * 
    * @param evt
-   *          DOCUMENT ME!
    */
   @Override
   public void mouseMoved(MouseEvent evt)
   {
-    resizePanel = evt.getY() < 10;
+    showOrHideAdjuster(evt);
 
     getSelectedRow(evt.getY() - getScrollOffset());
 
-    if (selectedRow > -1
-            && ap.av.getAlignment().getAlignmentAnnotation().length > selectedRow)
+    if (selectedRow > -1 && ap.av.getAlignment()
+            .getAlignmentAnnotation().length > selectedRow)
     {
-      AlignmentAnnotation aa = ap.av.getAlignment()
-              .getAlignmentAnnotation()[selectedRow];
+      AlignmentAnnotation[] anns = ap.av.getAlignment()
+              .getAlignmentAnnotation();
+      AlignmentAnnotation aa = anns[selectedRow];
 
-      StringBuffer desc = new StringBuffer();
-      if (aa.description != null
-              && !aa.description.equals("New description"))
+      String desc = getTooltip(aa);
+      this.setToolTipText(desc);
+      String msg = getStatusMessage(aa, anns);
+      ap.alignFrame.setStatus(msg);
+    }
+  }
+
+  /**
+   * Constructs suitable text to show in the status bar when over an annotation
+   * label, containing the associated sequence name (if any), and the annotation
+   * labels (or all labels for a graph group annotation)
+   * 
+   * @param aa
+   * @param anns
+   * @return
+   */
+  static String getStatusMessage(AlignmentAnnotation aa,
+          AlignmentAnnotation[] anns)
+  {
+    if (aa == null)
+    {
+      return null;
+    }
+
+    StringBuilder msg = new StringBuilder(32);
+    if (aa.sequenceRef != null)
+    {
+      msg.append(aa.sequenceRef.getName()).append(" : ");
+    }
+
+    if (aa.graphGroup == -1)
+    {
+      msg.append(aa.label);
+    }
+    else if (anns != null)
+    {
+      boolean first = true;
+      for (int i = anns.length - 1; i >= 0; i--)
       {
-        // TODO: we could refactor and merge this code with the code in
-        // jalview.gui.SeqPanel.mouseMoved(..) that formats sequence feature
-        // tooltips
-        desc.append(aa.getDescription(true).trim());
-        // check to see if the description is an html fragment.
-        if (desc.length() < 6
-                || (desc.substring(0, 6).toLowerCase().indexOf("<html>") < 0))
+        if (anns[i].graphGroup == aa.graphGroup)
         {
-          // clean the description ready for embedding in html
-          desc = new StringBuffer(LEFT_ANGLE_BRACKET_PATTERN.matcher(desc)
-                  .replaceAll("&lt;"));
-          desc.insert(0, "<html>");
-        }
-        else
-        {
-          // remove terminating html if any
-          int i = desc.substring(desc.length() - 7).toLowerCase()
-                  .lastIndexOf("</html>");
-          if (i > -1)
+          if (!first)
           {
-            desc.setLength(desc.length() - 7 + i);
+            msg.append(", ");
           }
-        }
-        if (aa.hasScore())
-        {
-          desc.append("<br/>");
-        }
-        // if (aa.hasProperties())
-        // {
-        // desc.append("<table>");
-        // for (String prop : aa.getProperties())
-        // {
-        // desc.append("<tr><td>" + prop + "</td><td>"
-        // + aa.getProperty(prop) + "</td><tr>");
-        // }
-        // desc.append("</table>");
-        // }
-      }
-      else
-      {
-        // begin the tooltip's html fragment
-        desc.append("<html>");
-        if (aa.hasScore())
-        {
-          // TODO: limit precision of score to avoid noise from imprecise
-          // doubles
-          // (64.7 becomes 64.7+/some tiny value).
-          desc.append(" Score: " + aa.score);
+          msg.append(anns[i].label);
+          first = false;
         }
       }
-      if (desc.length() > 6)
+    }
+
+    return msg.toString();
+  }
+
+  /**
+   * Answers a tooltip, formatted as html, containing the annotation description
+   * (prefixed by associated sequence id if applicable), and the annotation
+   * (non-positional) score if it has one. Answers null if neither description
+   * nor score is found.
+   * 
+   * @param aa
+   * @return
+   */
+  static String getTooltip(AlignmentAnnotation aa)
+  {
+    if (aa == null)
+    {
+      return null;
+    }
+    StringBuilder tooltip = new StringBuilder();
+    if (aa.description != null && !aa.description.equals("New description"))
+    {
+      // TODO: we could refactor and merge this code with the code in
+      // jalview.gui.SeqPanel.mouseMoved(..) that formats sequence feature
+      // tooltips
+      String desc = aa.getDescription(true).trim();
+      if (!desc.toLowerCase().startsWith(HTML_START_TAG))
       {
-        desc.append("</html>");
-        this.setToolTipText(desc.toString());
+        tooltip.append(HTML_START_TAG);
+        desc = desc.replace("<", "&lt;");
       }
-      else
+      else if (desc.toLowerCase().endsWith(HTML_END_TAG))
       {
-        this.setToolTipText(null);
+        desc = desc.substring(0, desc.length() - HTML_END_TAG.length());
       }
+      tooltip.append(desc);
+    }
+    else
+    {
+      // begin the tooltip's html fragment
+      tooltip.append(HTML_START_TAG);
+    }
+    if (aa.hasScore())
+    {
+      if (tooltip.length() > HTML_START_TAG.length())
+      {
+        tooltip.append("<br/>");
+      }
+      // TODO: limit precision of score to avoid noise from imprecise
+      // doubles
+      // (64.7 becomes 64.7+/some tiny value).
+      tooltip.append(" Score: ").append(String.valueOf(aa.score));
+    }
+
+    if (tooltip.length() > HTML_START_TAG.length())
+    {
+      return tooltip.append(HTML_END_TAG).toString();
+    }
+
+    /*
+     * nothing in the tooltip (except "<html>")
+     */
+    return null;
+  }
+
+  /**
+   * Shows the height adjuster image if the mouse moves into the top left
+   * region, or hides it if the mouse leaves the regio
+   * 
+   * @param evt
+   */
+  protected void showOrHideAdjuster(MouseEvent evt)
+  {
+    boolean was = resizePanel;
+    resizePanel = evt.getY() < HEIGHT_ADJUSTER_HEIGHT && evt.getX() < HEIGHT_ADJUSTER_WIDTH;
+
+    if (resizePanel != was)
+    {
+      setCursor(Cursor.getPredefinedCursor(
+              resizePanel ? Cursor.S_RESIZE_CURSOR
+                      : Cursor.DEFAULT_CURSOR));
+      repaint();
     }
   }
 
@@ -840,17 +831,14 @@ public class AnnotationLabels extends JPanel implements MouseListener,
             ap.getSeqPanel().ap.getIdPanel().highlightSearchResults(null);
             // process modifiers
             SequenceGroup sg = ap.av.getSelectionGroup();
-            if (sg == null
-                    || sg == aa[selectedRow].groupRef
-                    || !(jalview.util.Platform.isControlDown(evt) || evt
-                            .isShiftDown()))
+            if (sg == null || sg == aa[selectedRow].groupRef
+                    || !(Platform.isControlDown(evt) || evt.isShiftDown()))
             {
-              if (jalview.util.Platform.isControlDown(evt)
-                      || evt.isShiftDown())
+              if (Platform.isControlDown(evt) || evt.isShiftDown())
               {
                 // clone a new selection group from the associated group
-                ap.av.setSelectionGroup(new SequenceGroup(
-                        aa[selectedRow].groupRef));
+                ap.av.setSelectionGroup(
+                        new SequenceGroup(aa[selectedRow].groupRef));
               }
               else
               {
@@ -877,7 +865,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               }
             }
 
-            ap.paintAlignment(false);
+            ap.paintAlignment(false, false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
             ap.av.sendSelection();
           }
@@ -892,10 +880,9 @@ public class AnnotationLabels extends JPanel implements MouseListener,
         {
           if (evt.getClickCount() == 1)
           {
-            ap.getSeqPanel().ap
-                    .getIdPanel()
-                    .highlightSearchResults(
-                            Arrays.asList(new SequenceI[] { aa[selectedRow].sequenceRef }));
+            ap.getSeqPanel().ap.getIdPanel()
+                    .highlightSearchResults(Arrays.asList(new SequenceI[]
+                    { aa[selectedRow].sequenceRef }));
           }
           else if (evt.getClickCount() >= 2)
           {
@@ -906,8 +893,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               // we make a copy rather than edit the current selection if no
               // modifiers pressed
               // see Enhancement JAL-1557
-              if (!(jalview.util.Platform.isControlDown(evt) || evt
-                      .isShiftDown()))
+              if (!(Platform.isControlDown(evt) || evt.isShiftDown()))
               {
                 sg = new SequenceGroup(sg);
                 sg.clear();
@@ -915,7 +901,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               }
               else
               {
-                if (jalview.util.Platform.isControlDown(evt))
+                if (Platform.isControlDown(evt))
                 {
                   sg.addOrRemove(aa[selectedRow].sequenceRef, true);
                 }
@@ -935,7 +921,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
               sg.addSequence(aa[selectedRow].sequenceRef, false);
             }
             ap.av.setSelectionGroup(sg);
-            ap.paintAlignment(false);
+            ap.paintAlignment(false, false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
             ap.av.sendSelection();
           }
@@ -960,39 +946,38 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     if (dseqs[0] == null)
     {
       dseqs[0] = new Sequence(sq);
-      dseqs[0].setSequence(jalview.analysis.AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, sq.getSequenceAsString()));
+      dseqs[0].setSequence(AlignSeq.extractGaps(Comparison.GapChars,
+              sq.getSequenceAsString()));
 
       sq.setDatasetSequence(dseqs[0]);
     }
     Alignment ds = new Alignment(dseqs);
     if (av.hasHiddenColumns())
     {
-      omitHidden = av.getColumnSelection().getVisibleSequenceStrings(0,
-              sq.getLength(), seqs);
+      Iterator<int[]> it = av.getAlignment().getHiddenColumns()
+              .getVisContigsIterator(0, sq.getLength(), false);
+      omitHidden = new String[] { sq.getSequenceStringFromIterator(it) };
     }
 
     int[] alignmentStartEnd = new int[] { 0, ds.getWidth() - 1 };
-    List<int[]> hiddenCols = av.getColumnSelection().getHiddenColumns();
-    if (hiddenCols != null)
+    if (av.hasHiddenColumns())
     {
-      alignmentStartEnd = av.getAlignment().getVisibleStartAndEndIndex(
-              hiddenCols);
+      alignmentStartEnd = av.getAlignment().getHiddenColumns()
+              .getVisibleStartAndEndIndex(av.getAlignment().getWidth());
     }
-    String output = new FormatAdapter().formatSequences("Fasta", seqs,
-            omitHidden, alignmentStartEnd);
+
+    String output = new FormatAdapter().formatSequences(FileFormat.Fasta,
+            seqs, omitHidden, alignmentStartEnd);
 
     Toolkit.getDefaultToolkit().getSystemClipboard()
             .setContents(new StringSelection(output), Desktop.instance);
 
-    ArrayList<int[]> hiddenColumns = null;
+    HiddenColumns hiddenColumns = null;
+
     if (av.hasHiddenColumns())
     {
-      hiddenColumns = new ArrayList<int[]>();
-      for (int[] region : av.getColumnSelection().getHiddenColumns())
-      {
-        hiddenColumns.add(new int[] { region[0], region[1] });
-      }
+      hiddenColumns = new HiddenColumns(
+              av.getAlignment().getHiddenColumns());
     }
 
     Desktop.jalviewClipboard = new Object[] { seqs, ds, // what is the dataset
@@ -1016,7 +1001,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     int width = getWidth();
     if (width == 0)
     {
-      width = ap.calculateIdWidth().width + 4;
+      width = ap.calculateIdWidth().width;
     }
 
     Graphics2D g2 = (Graphics2D) g;
@@ -1044,8 +1029,6 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   {
     drawComponent(g, false, width);
   }
-
-  private final boolean debugRedraw = false;
 
   /**
    * Draw the full set of annotation Labels for the alignment at the given
@@ -1088,8 +1071,9 @@ public class AnnotationLabels extends JPanel implements MouseListener,
     int ofontH = fontHeight;
     int sOffset = 0;
     int visHeight = 0;
-    int[] visr = (ap != null && ap.getAnnotationPanel() != null) ? ap
-            .getAnnotationPanel().getVisibleVRange() : null;
+    int[] visr = (ap != null && ap.getAnnotationPanel() != null)
+            ? ap.getAnnotationPanel().getVisibleVRange()
+            : null;
     if (clip && visr != null)
     {
       sOffset = visr[0];
@@ -1132,8 +1116,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
             {
               if (debugRedraw)
               {
-                System.out.println("Scroll offset: " + sOffset
-                        + " after vis: " + i);
+                System.out.println(
+                        "Scroll offset: " + sOffset + " after vis: " + i);
               }
               after = true;
             }
@@ -1171,7 +1155,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
           }
           if (groupSize * (fontHeight + 8) < aa[i].height)
           {
-            graphExtras = (aa[i].height - (groupSize * (fontHeight + 8))) / 2;
+            graphExtras = (aa[i].height - (groupSize * (fontHeight + 8)))
+                    / 2;
           }
           else
           {
@@ -1185,11 +1170,12 @@ public class AnnotationLabels extends JPanel implements MouseListener,
             {
               fontHeight = -8 + (int) h;
               s = ((float) fontHeight) / (float) ofontH;
-              Font f = baseFont.deriveFont(AffineTransform
-                      .getScaleInstance(s, s));
+              Font f = baseFont
+                      .deriveFont(AffineTransform.getScaleInstance(s, s));
               g.setFont(f);
               fm = g.getFontMetrics();
-              graphExtras = (aa[i].height - (groupSize * (fontHeight + 8))) / 2;
+              graphExtras = (aa[i].height - (groupSize * (fontHeight + 8)))
+                      / 2;
             }
           }
           if (visible)
@@ -1206,8 +1192,8 @@ public class AnnotationLabels extends JPanel implements MouseListener,
 
                   g.setColor(aa[gg]._linecolour);
                   g.drawLine(x, y - graphExtras + 3,
-                          x + fm.stringWidth(aa[gg].label), y - graphExtras
-                                  + 3);
+                          x + fm.stringWidth(aa[gg].label),
+                          y - graphExtras + 3);
                 }
 
                 g.setColor(Color.black);
@@ -1226,11 +1212,7 @@ public class AnnotationLabels extends JPanel implements MouseListener,
       }
     }
 
-    if (resizePanel)
-    {
-      g.drawImage(image, 2, 0 - getScrollOffset(), this);
-    }
-    else if (dragEvent != null && aa != null)
+    if (!resizePanel && dragEvent != null && aa != null)
     {
       g.setColor(Color.lightGray);
       g.drawString(aa[selectedRow].label, dragEvent.getX(),
@@ -1248,5 +1230,10 @@ public class AnnotationLabels extends JPanel implements MouseListener,
   public int getScrollOffset()
   {
     return scrollOffset;
+  }
+
+  @Override
+  public void mouseEntered(MouseEvent e)
+  {
   }
 }

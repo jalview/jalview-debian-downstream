@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,7 +21,7 @@
 package jalview.appletgui;
 
 import jalview.datamodel.AlignmentAnnotation;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.schemes.AnnotationColourGradient;
 import jalview.util.MessageManager;
 import jalview.viewmodel.annotationfilter.AnnotationFilterParameter;
@@ -46,7 +46,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.TextEvent;
 import java.awt.event.TextListener;
-import java.util.Iterator;
 import java.util.Vector;
 
 //import javax.swing.JPanel;
@@ -110,7 +109,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
   private int actionOption = ACTION_OPTION_SELECT;
 
-  private ColumnSelection oldColumnSelection;
+  private HiddenColumns oldHiddenColumns;
 
   public AnnotationColumnChooser()
   {
@@ -140,9 +139,9 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     {
       return;
     }
-    setOldColumnSelection(av.getColumnSelection());
+    setOldHiddenColumns(av.getAlignment().getHiddenColumns());
     adjusting = true;
-    Vector<String> list = new Vector<String>();
+    Vector<String> list = new Vector<>();
     int index = 1;
     for (int i = 0; i < anns.length; i++)
     {
@@ -167,20 +166,18 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     }
 
     populateThresholdComboBox(threshold);
-
+    AnnotationColumnChooser lastChooser = av
+            .getAnnotationColumnSelectionState();
     // restore Object state from the previous session if one exists
-    if (av.getAnnotationColumnSelectionState() != null)
+    if (lastChooser != null)
     {
-      currentSearchPanel = av.getAnnotationColumnSelectionState()
-              .getCurrentSearchPanel();
-      currentStructureFilterPanel = av.getAnnotationColumnSelectionState()
+      currentSearchPanel = lastChooser.getCurrentSearchPanel();
+      currentStructureFilterPanel = lastChooser
               .getCurrentStructureFilterPanel();
-      annotations.select(av.getAnnotationColumnSelectionState()
-              .getAnnotations().getSelectedIndex());
-      threshold.select(av.getAnnotationColumnSelectionState()
-              .getThreshold().getSelectedIndex());
-      actionOption = av.getAnnotationColumnSelectionState()
-              .getActionOption();
+      annotations.select(lastChooser.getAnnotations().getSelectedIndex());
+      threshold.select(lastChooser.getThreshold().getSelectedIndex());
+      actionOption = lastChooser.getActionOption();
+      percentThreshold.setState(lastChooser.percentThreshold.getState());
     }
 
     try
@@ -204,6 +201,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
     thresholdValue.setEnabled(false);
     thresholdValue.setColumns(7);
+    thresholdValue.setCaretPosition(0);
 
     ok.addActionListener(this);
     cancel.addActionListener(this);
@@ -218,6 +216,9 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     thresholdPanel.setBackground(Color.white);
     // thresholdPanel.setFont(JvSwingUtils.getLabelFont());
     // thresholdPanel.setLayout(new MigLayout("", "[left][right]", "[][]"));
+
+    percentThreshold.setLabel("As percentage");
+    percentThreshold.addItemListener(this);
 
     actionPanel.setBackground(Color.white);
     // actionPanel.setFont(JvSwingUtils.getLabelFont());
@@ -242,6 +243,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     thresholdPanel.add(getThreshold());
     thresholdPanel.add(slider);
     thresholdPanel.add(thresholdValue);
+    thresholdPanel.add(percentThreshold);
 
     actionPanel.add(ok);
     actionPanel.add(cancel);
@@ -282,28 +284,18 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
   @SuppressWarnings("unchecked")
   public void reset()
   {
-    if (this.getOldColumnSelection() != null)
+    if (this.getOldHiddenColumns() != null)
     {
       av.getColumnSelection().clear();
 
       if (av.getAnnotationColumnSelectionState() != null)
       {
-        ColumnSelection oldSelection = av
-                .getAnnotationColumnSelectionState()
-                .getOldColumnSelection();
-        if (oldSelection != null && oldSelection.getHiddenColumns() != null
-                && !oldSelection.getHiddenColumns().isEmpty())
-        {
-          for (Iterator<int[]> itr = oldSelection.getHiddenColumns()
-                  .iterator(); itr.hasNext();)
-          {
-            int positions[] = itr.next();
-            av.hideColumns(positions[0], positions[1]);
-          }
-        }
-        av.setColumnSelection(oldSelection);
+        HiddenColumns oldHidden = av.getAnnotationColumnSelectionState()
+                .getOldHiddenColumns();
+        av.getAlignment().setHiddenColumns(oldHidden);
       }
-      ap.paintAlignment(true);
+      av.sendSelection();
+      ap.paintAlignment(true, true);
     }
 
   }
@@ -313,7 +305,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
   {
     if (!adjusting)
     {
-      thresholdValue.setText((slider.getValue() / 1000f) + "");
+      setThresholdValueText();
       valueChanged(!sliderDragging);
     }
   }
@@ -345,7 +337,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
           sliderDragging = false;
           valueChanged(true);
         }
-        ap.paintAlignment(true);
+        ap.paintAlignment(true, true);
       }
     });
   }
@@ -356,8 +348,7 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     if (slider.isEnabled())
     {
       getCurrentAnnotation().threshold.value = slider.getValue() / 1000f;
-      updateView();
-      ap.paintAlignment(false);
+      updateView(); // this also calls paintAlignment(true,true)
     }
   }
 
@@ -391,63 +382,66 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     }
 
     AnnotationFilterParameter filterParams = new AnnotationFilterParameter();
-    setCurrentAnnotation(av.getAlignment().getAlignmentAnnotation()[getAnnotations()
-            .getSelectedIndex()]);
+    setCurrentAnnotation(av.getAlignment()
+            .getAlignmentAnnotation()[getAnnotations().getSelectedIndex()]);
 
-    int selectedThresholdItem = getSelectedThresholdItem(getThreshold()
-            .getSelectedIndex());
+    int selectedThresholdItem = getSelectedThresholdItem(
+            getThreshold().getSelectedIndex());
 
     slider.setEnabled(true);
     thresholdValue.setEnabled(true);
+    percentThreshold.setEnabled(true);
 
     if (selectedThresholdItem == AnnotationColourGradient.NO_THRESHOLD)
     {
       slider.setEnabled(false);
       thresholdValue.setEnabled(false);
       thresholdValue.setText("");
+      percentThreshold.setEnabled(false);
       // build filter params
     }
     else if (selectedThresholdItem != AnnotationColourGradient.NO_THRESHOLD)
     {
       if (getCurrentAnnotation().threshold == null)
       {
-        getCurrentAnnotation()
-                .setThreshold(
-                        new jalview.datamodel.GraphLine(
-                                (getCurrentAnnotation().graphMax - getCurrentAnnotation().graphMin) / 2f,
-                                "Threshold", Color.black));
+        getCurrentAnnotation().setThreshold(new jalview.datamodel.GraphLine(
+                (getCurrentAnnotation().graphMax
+                        - getCurrentAnnotation().graphMin) / 2f,
+                "Threshold", Color.black));
       }
 
       adjusting = true;
-      float range = getCurrentAnnotation().graphMax * 1000
-              - getCurrentAnnotation().graphMin * 1000;
+      // float range = getCurrentAnnotation().graphMax * 1000
+      // - getCurrentAnnotation().graphMin * 1000;
 
       slider.setMinimum((int) (getCurrentAnnotation().graphMin * 1000));
       slider.setMaximum((int) (getCurrentAnnotation().graphMax * 1000));
-      slider.setValue((int) (getCurrentAnnotation().threshold.value * 1000));
-      thresholdValue.setText(getCurrentAnnotation().threshold.value + "");
+      slider.setValue(
+              (int) (getCurrentAnnotation().threshold.value * 1000));
+      setThresholdValueText();
       // slider.setMajorTickSpacing((int) (range / 10f));
       slider.setEnabled(true);
       thresholdValue.setEnabled(true);
+      percentThreshold.setEnabled(true);
       adjusting = false;
 
       // build filter params
-      filterParams
-              .setThresholdType(AnnotationFilterParameter.ThresholdType.NO_THRESHOLD);
-      if (getCurrentAnnotation().graph != AlignmentAnnotation.NO_GRAPH)
+      filterParams.setThresholdType(
+              AnnotationFilterParameter.ThresholdType.NO_THRESHOLD);
+      if (getCurrentAnnotation().isQuantitative())
       {
         filterParams
                 .setThresholdValue(getCurrentAnnotation().threshold.value);
 
         if (selectedThresholdItem == AnnotationColourGradient.ABOVE_THRESHOLD)
         {
-          filterParams
-                  .setThresholdType(AnnotationFilterParameter.ThresholdType.ABOVE_THRESHOLD);
+          filterParams.setThresholdType(
+                  AnnotationFilterParameter.ThresholdType.ABOVE_THRESHOLD);
         }
         else if (selectedThresholdItem == AnnotationColourGradient.BELOW_THRESHOLD)
         {
-          filterParams
-                  .setThresholdType(AnnotationFilterParameter.ThresholdType.BELOW_THRESHOLD);
+          filterParams.setThresholdType(
+                  AnnotationFilterParameter.ThresholdType.BELOW_THRESHOLD);
         }
       }
     }
@@ -478,13 +472,13 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
         filterParams.setRegexString(currentSearchPanel.searchBox.getText());
         if (currentSearchPanel.displayName.getState())
         {
-          filterParams
-                  .addRegexSearchField(AnnotationFilterParameter.SearchableAnnotationField.DISPLAY_STRING);
+          filterParams.addRegexSearchField(
+                  AnnotationFilterParameter.SearchableAnnotationField.DISPLAY_STRING);
         }
         if (currentSearchPanel.description.getState())
         {
-          filterParams
-                  .addRegexSearchField(AnnotationFilterParameter.SearchableAnnotationField.DESCRIPTION);
+          filterParams.addRegexSearchField(
+                  AnnotationFilterParameter.SearchableAnnotationField.DESCRIPTION);
         }
       }
       else
@@ -494,10 +488,13 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
       }
     }
 
+    // show hidden columns here, before changing the column selection in
+    // filterAnnotations, because showing hidden columns has the side effect of
+    // adding them to the selection
+    av.showAllHiddenColumns();
     av.getColumnSelection().filterAnnotations(
             getCurrentAnnotation().annotations, filterParams);
 
-    av.showAllHiddenColumns();
     if (getActionOption() == ACTION_OPTION_HIDE)
     {
       av.hideSelectedColumns();
@@ -505,19 +502,20 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
     filterParams = null;
     av.setAnnotationColumnSelectionState(this);
-    ap.paintAlignment(true);
+    av.sendSelection();
+    ap.paintAlignment(true, true);
   }
 
-  public ColumnSelection getOldColumnSelection()
+  public HiddenColumns getOldHiddenColumns()
   {
-    return oldColumnSelection;
+    return oldHiddenColumns;
   }
 
-  public void setOldColumnSelection(ColumnSelection currentColumnSelection)
+  public void setOldHiddenColumns(HiddenColumns currentHiddenColumns)
   {
-    if (currentColumnSelection != null)
+    if (currentHiddenColumns != null)
     {
-      this.oldColumnSelection = new ColumnSelection(currentColumnSelection);
+      this.oldHiddenColumns = new HiddenColumns(currentHiddenColumns);
     }
   }
 
@@ -574,13 +572,21 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     {
       threshold_actionPerformed(null);
     }
+    else if (e.getSource() == percentThreshold)
+    {
+      if (!adjusting)
+      {
+        percentageValue_actionPerformed();
+      }
+
+    }
   }
 
   public void selectedAnnotationChanged()
   {
     String currentView = AnnotationColumnChooser.NO_GRAPH_VIEW;
     if (av.getAlignment().getAlignmentAnnotation()[getAnnotations()
-            .getSelectedIndex()].graph != AlignmentAnnotation.NO_GRAPH)
+            .getSelectedIndex()].isQuantitative())
     {
       currentView = AnnotationColumnChooser.GRAPH_VIEW;
     }
@@ -619,7 +625,8 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
 
     public void syncState()
     {
-      if (aColChooser.getActionOption() == AnnotationColumnChooser.ACTION_OPTION_HIDE)
+      if (aColChooser
+              .getActionOption() == AnnotationColumnChooser.ACTION_OPTION_HIDE)
       {
         furtherAction.select("Hide");
       }
@@ -647,8 +654,8 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
     }
   }
 
-  public class StructureFilterPanel extends TitledPanel implements
-          ItemListener
+  public class StructureFilterPanel extends TitledPanel
+          implements ItemListener
   {
     private AnnotationColumnChooser aColChooser;
 
@@ -877,19 +884,8 @@ public class AnnotationColumnChooser extends AnnotationRowFilter implements
   @Override
   public void actionPerformed(ActionEvent evt)
   {
-    if (evt.getSource() == thresholdValue)
-    {
-      try
-      {
-        float f = new Float(thresholdValue.getText()).floatValue();
-        slider.setValue((int) (f * 1000));
-        adjustmentValueChanged(null);
-      } catch (NumberFormatException ex)
-      {
-      }
-    }
 
-    else if (evt.getSource() == ok)
+    if (evt.getSource() == ok)
     {
       ok_actionPerformed(null);
     }

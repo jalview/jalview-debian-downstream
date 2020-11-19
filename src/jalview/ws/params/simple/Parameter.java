@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,8 +24,8 @@ import jalview.ws.params.OptionI;
 import jalview.ws.params.ParameterI;
 import jalview.ws.params.ValueConstrainI;
 
-public abstract class Parameter extends Option implements OptionI,
-        ParameterI
+public abstract class Parameter extends Option
+        implements OptionI, ParameterI
 {
   ValueConstrainI validator;
 

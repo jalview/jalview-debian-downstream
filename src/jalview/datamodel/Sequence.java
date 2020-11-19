@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,8 @@ package jalview.datamodel;
 
 import jalview.analysis.AlignSeq;
 import jalview.api.DBRefEntryI;
+import jalview.datamodel.features.SequenceFeatures;
+import jalview.datamodel.features.SequenceFeaturesI;
 import jalview.util.Comparison;
 import jalview.util.DBRefUtils;
 import jalview.util.MapList;
@@ -29,19 +31,19 @@ import jalview.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Vector;
 
 import fr.orsay.lri.varna.models.rna.RNA;
 
 /**
  * 
- * Implements the SequenceI interface for a char[] based sequence object.
- * 
- * @author $author$
- * @version $Revision$
+ * Implements the SequenceI interface for a char[] based sequence object
  */
 public class Sequence extends ASequence implements SequenceI
 {
@@ -73,13 +75,22 @@ public class Sequence extends ASequence implements SequenceI
    */
   Vector<AlignmentAnnotation> annotation;
 
-  /**
-   * The index of the sequence in a MSA
-   */
-  int index = -1;
+  private SequenceFeaturesI sequenceFeatureStore;
 
-  /** array of sequence features - may not be null for a valid sequence object */
-  public SequenceFeature[] sequenceFeatures;
+  /*
+   * A cursor holding the approximate current view position to the sequence,
+   * as determined by findIndex or findPosition or findPositions.
+   * Using a cursor as a hint allows these methods to be more performant for
+   * large sequences.
+   */
+  private SequenceCursor cursor;
+
+  /*
+   * A number that should be incremented whenever the sequence is edited.
+   * If the value matches the cursor token, then we can trust the cursor,
+   * if not then it should be recomputed. 
+   */
+  private int changeCount;
 
   /**
    * Creates a new Sequence object.
@@ -96,11 +107,13 @@ public class Sequence extends ASequence implements SequenceI
    */
   public Sequence(String name, String sequence, int start, int end)
   {
+    this();
     initSeqAndName(name, sequence.toCharArray(), start, end);
   }
 
   public Sequence(String name, char[] sequence, int start, int end)
   {
+    this();
     initSeqAndName(name, sequence, start, end);
   }
 
@@ -124,30 +137,49 @@ public class Sequence extends ASequence implements SequenceI
     checkValidRange();
   }
 
-  com.stevesoft.pat.Regex limitrx = new com.stevesoft.pat.Regex(
-          "[/][0-9]{1,}[-][0-9]{1,}$");
-
-  com.stevesoft.pat.Regex endrx = new com.stevesoft.pat.Regex("[0-9]{1,}$");
-
+  /**
+   * If 'name' ends in /i-j, where i >= j > 0 are integers, extracts i and j as
+   * start and end respectively and removes the suffix from the name
+   */
   void parseId()
   {
     if (name == null)
     {
-      System.err
-              .println("POSSIBLE IMPLEMENTATION ERROR: null sequence name passed to constructor.");
+      System.err.println(
+              "POSSIBLE IMPLEMENTATION ERROR: null sequence name passed to constructor.");
       name = "";
     }
-    // Does sequence have the /start-end signature?
-    if (limitrx.search(name))
+    int slashPos = name.lastIndexOf('/');
+    if (slashPos > -1 && slashPos < name.length() - 1)
     {
-      name = limitrx.left();
-      endrx.search(limitrx.stringMatched());
-      setStart(Integer.parseInt(limitrx.stringMatched().substring(1,
-              endrx.matchedFrom() - 1)));
-      setEnd(Integer.parseInt(endrx.stringMatched()));
+      String suffix = name.substring(slashPos + 1);
+      String[] range = suffix.split("-");
+      if (range.length == 2)
+      {
+        try
+        {
+          int from = Integer.valueOf(range[0]);
+          int to = Integer.valueOf(range[1]);
+          if (from > 0 && to >= from)
+          {
+            name = name.substring(0, slashPos);
+            setStart(from);
+            setEnd(to);
+            checkValidRange();
+          }
+        } catch (NumberFormatException e)
+        {
+          // leave name unchanged if suffix is invalid
+        }
+      }
     }
   }
 
+  /**
+   * Ensures that 'end' is not before the end of the sequence, that is,
+   * (end-start+1) is at least as long as the count of ungapped positions. Note
+   * that end is permitted to be beyond the end of the sequence data.
+   */
   void checkValidRange()
   {
     // Note: JAL-774 :
@@ -156,7 +188,7 @@ public class Sequence extends ASequence implements SequenceI
       int endRes = 0;
       for (int j = 0; j < sequence.length; j++)
       {
-        if (!jalview.util.Comparison.isGap(sequence[j]))
+        if (!Comparison.isGap(sequence[j]))
         {
           endRes++;
         }
@@ -172,6 +204,14 @@ public class Sequence extends ASequence implements SequenceI
       }
     }
 
+  }
+
+  /**
+   * default constructor
+   */
+  private Sequence()
+  {
+    sequenceFeatureStore = new SequenceFeatures();
   }
 
   /**
@@ -213,8 +253,8 @@ public class Sequence extends ASequence implements SequenceI
    */
   public Sequence(SequenceI seq, AlignmentAnnotation[] alAnnotation)
   {
+    this();
     initSeqFrom(seq, alAnnotation);
-
   }
 
   /**
@@ -230,33 +270,38 @@ public class Sequence extends ASequence implements SequenceI
   protected void initSeqFrom(SequenceI seq,
           AlignmentAnnotation[] alAnnotation)
   {
-    {
-      char[] oseq = seq.getSequence();
-      initSeqAndName(seq.getName(), Arrays.copyOf(oseq, oseq.length),
-              seq.getStart(), seq.getEnd());
-    }
+    char[] oseq = seq.getSequence(); // returns a copy of the array
+    initSeqAndName(seq.getName(), oseq, seq.getStart(), seq.getEnd());
+
     description = seq.getDescription();
     if (seq != datasetSequence)
     {
       setDatasetSequence(seq.getDatasetSequence());
     }
-    if (datasetSequence == null && seq.getDBRefs() != null)
+    
+    /*
+     * only copy DBRefs and seqfeatures if we really are a dataset sequence
+     */
+    if (datasetSequence == null)
     {
-      // only copy DBRefs and seqfeatures if we really are a dataset sequence
-      DBRefEntry[] dbr = seq.getDBRefs();
-      for (int i = 0; i < dbr.length; i++)
+      if (seq.getDBRefs() != null)
       {
-        addDBRef(new DBRefEntry(dbr[i]));
-      }
-      if (seq.getSequenceFeatures() != null)
-      {
-        SequenceFeature[] sf = seq.getSequenceFeatures();
-        for (int i = 0; i < sf.length; i++)
+        DBRefEntry[] dbr = seq.getDBRefs();
+        for (int i = 0; i < dbr.length; i++)
         {
-          addSequenceFeature(new SequenceFeature(sf[i]));
+          addDBRef(new DBRefEntry(dbr[i]));
         }
       }
+
+      /*
+       * make copies of any sequence features
+       */
+      for (SequenceFeature sf : seq.getSequenceFeatures())
+      {
+        addSequenceFeature(new SequenceFeature(sf));
+      }
     }
+
     if (seq.getAnnotation() != null)
     {
       AlignmentAnnotation[] sqann = seq.getAnnotation();
@@ -293,122 +338,67 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   @Override
-  public void setSequenceFeatures(SequenceFeature[] features)
+  public void setSequenceFeatures(List<SequenceFeature> features)
   {
-    if (datasetSequence == null)
+    if (datasetSequence != null)
     {
-      sequenceFeatures = features;
-    }
-    else
-    {
-      if (datasetSequence.getSequenceFeatures() != features
-              && datasetSequence.getSequenceFeatures() != null
-              && datasetSequence.getSequenceFeatures().length > 0)
-      {
-        new Exception(
-                "Warning: JAL-2046 side effect ? Possible implementation error: overwriting dataset sequence features by setting sequence features on alignment")
-                .printStackTrace();
-      }
       datasetSequence.setSequenceFeatures(features);
+      return;
     }
+    sequenceFeatureStore = new SequenceFeatures(features);
   }
 
   @Override
-  public synchronized void addSequenceFeature(SequenceFeature sf)
+  public synchronized boolean addSequenceFeature(SequenceFeature sf)
   {
-    if (sequenceFeatures == null && datasetSequence != null)
+    if (sf.getType() == null)
     {
-      datasetSequence.addSequenceFeature(sf);
-      return;
-    }
-    if (sequenceFeatures == null)
-    {
-      sequenceFeatures = new SequenceFeature[0];
+      System.err.println("SequenceFeature type may not be null: "
+              + sf.toString());
+      return false;
     }
 
-    for (int i = 0; i < sequenceFeatures.length; i++)
+    if (datasetSequence != null)
     {
-      if (sequenceFeatures[i].equals(sf))
-      {
-        return;
-      }
+      return datasetSequence.addSequenceFeature(sf);
     }
 
-    SequenceFeature[] temp = new SequenceFeature[sequenceFeatures.length + 1];
-    System.arraycopy(sequenceFeatures, 0, temp, 0, sequenceFeatures.length);
-    temp[sequenceFeatures.length] = sf;
-
-    sequenceFeatures = temp;
+    return sequenceFeatureStore.add(sf);
   }
 
   @Override
   public void deleteFeature(SequenceFeature sf)
   {
-    if (sequenceFeatures == null)
+    if (datasetSequence != null)
     {
-      if (datasetSequence != null)
-      {
-        datasetSequence.deleteFeature(sf);
-      }
-      return;
-    }
-
-    int index = 0;
-    for (index = 0; index < sequenceFeatures.length; index++)
-    {
-      if (sequenceFeatures[index].equals(sf))
-      {
-        break;
-      }
-    }
-
-    if (index == sequenceFeatures.length)
-    {
-      return;
-    }
-
-    int sfLength = sequenceFeatures.length;
-    if (sfLength < 2)
-    {
-      sequenceFeatures = null;
+      datasetSequence.deleteFeature(sf);
     }
     else
     {
-      SequenceFeature[] temp = new SequenceFeature[sfLength - 1];
-      System.arraycopy(sequenceFeatures, 0, temp, 0, index);
-
-      if (index < sfLength)
-      {
-        System.arraycopy(sequenceFeatures, index + 1, temp, index,
-                sequenceFeatures.length - index - 1);
-      }
-
-      sequenceFeatures = temp;
+      sequenceFeatureStore.delete(sf);
     }
   }
 
   /**
-   * Returns the sequence features (if any), looking first on the sequence, then
-   * on its dataset sequence, and so on until a non-null value is found (or
-   * none). This supports retrieval of sequence features stored on the sequence
-   * (as in the applet) or on the dataset sequence (as in the Desktop version).
+   * {@inheritDoc}
    * 
    * @return
    */
   @Override
-  public SequenceFeature[] getSequenceFeatures()
+  public List<SequenceFeature> getSequenceFeatures()
   {
-    SequenceFeature[] features = sequenceFeatures;
-
-    SequenceI seq = this;
-    int count = 0; // failsafe against loop in sequence.datasetsequence...
-    while (features == null && seq.getDatasetSequence() != null
-            && count++ < 10)
+    if (datasetSequence != null)
     {
-      seq = seq.getDatasetSequence();
-      features = ((Sequence) seq).sequenceFeatures;
+      return datasetSequence.getSequenceFeatures();
     }
-    return features;
+    return sequenceFeatureStore.getAllFeatures();
+  }
+
+  @Override
+  public SequenceFeaturesI getFeatures()
+  {
+    return datasetSequence != null ? datasetSequence.getFeatures()
+            : sequenceFeatureStore;
   }
 
   @Override
@@ -416,7 +406,7 @@ public class Sequence extends ASequence implements SequenceI
   {
     if (pdbIds == null)
     {
-      pdbIds = new Vector<PDBEntry>();
+      pdbIds = new Vector<>();
       pdbIds.add(entry);
       return true;
     }
@@ -452,36 +442,37 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public Vector<PDBEntry> getAllPDBEntries()
   {
-    return pdbIds == null ? new Vector<PDBEntry>() : pdbIds;
+    return pdbIds == null ? new Vector<>() : pdbIds;
   }
 
   /**
-   * DOCUMENT ME!
+   * Answers the sequence name, with '/start-end' appended if jvsuffix is true
    * 
-   * @return DOCUMENT ME!
+   * @return
    */
   @Override
   public String getDisplayId(boolean jvsuffix)
   {
-    StringBuffer result = new StringBuffer(name);
-    if (jvsuffix)
+    if (!jvsuffix)
     {
-      result.append("/" + start + "-" + end);
+      return name;
     }
+    StringBuilder result = new StringBuilder(name);
+    result.append("/").append(start).append("-").append(end);
 
     return result.toString();
   }
 
   /**
-   * DOCUMENT ME!
+   * Sets the sequence name. If the name ends in /start-end, then the start-end
+   * values are parsed out and set, and the suffix is removed from the name.
    * 
-   * @param name
-   *          DOCUMENT ME!
+   * @param theName
    */
   @Override
-  public void setName(String name)
+  public void setName(String theName)
   {
-    this.name = name;
+    this.name = theName;
     this.parseId();
   }
 
@@ -506,6 +497,7 @@ public class Sequence extends ASequence implements SequenceI
   public void setStart(int start)
   {
     this.start = start;
+    sequenceChanged();
   }
 
   /**
@@ -564,6 +556,7 @@ public class Sequence extends ASequence implements SequenceI
   {
     this.sequence = seq.toCharArray();
     checkValidRange();
+    sequenceChanged();
   }
 
   @Override
@@ -581,7 +574,9 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public char[] getSequence()
   {
-    return sequence;
+    // return sequence;
+    return sequence == null ? null : Arrays.copyOf(sequence,
+            sequence.length);
   }
 
   /*
@@ -662,10 +657,10 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   /**
-   * DOCUMENT ME!
+   * Sets the sequence description, and also parses out any special formats of
+   * interest
    * 
    * @param desc
-   *          DOCUMENT ME!
    */
   @Override
   public void setDescription(String desc)
@@ -673,10 +668,40 @@ public class Sequence extends ASequence implements SequenceI
     this.description = desc;
   }
 
+  @Override
+  public void setGeneLoci(String speciesId, String assemblyId,
+          String chromosomeId, MapList map)
+  {
+    addDBRef(new GeneLocus(speciesId, assemblyId, chromosomeId,
+            new Mapping(map)));
+  }
+
   /**
-   * DOCUMENT ME!
+   * Returns the gene loci mapping for the sequence (may be null)
    * 
-   * @return DOCUMENT ME!
+   * @return
+   */
+  @Override
+  public GeneLociI getGeneLoci()
+  {
+    DBRefEntry[] refs = getDBRefs();
+    if (refs != null)
+    {
+      for (final DBRefEntry ref : refs)
+      {
+        if (ref instanceof GeneLociI)
+        {
+          return (GeneLociI) ref;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Answers the description
+   * 
+   * @return
    */
   @Override
   public String getDescription()
@@ -684,55 +709,379 @@ public class Sequence extends ASequence implements SequenceI
     return this.description;
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.datamodel.SequenceI#findIndex(int)
+  /**
+   * {@inheritDoc}
    */
   @Override
   public int findIndex(int pos)
   {
-    // returns the alignment position for a residue
+    /*
+     * use a valid, hopefully nearby, cursor if available
+     */
+    if (isValidCursor(cursor))
+    {
+      return findIndex(pos, cursor);
+    }
+
     int j = start;
     int i = 0;
-    // Rely on end being at least as long as the length of the sequence.
+    int startColumn = 0;
+
+    /*
+     * traverse sequence from the start counting gaps; make a note of
+     * the column of the first residue to save in the cursor
+     */
     while ((i < sequence.length) && (j <= end) && (j <= pos))
     {
-      if (!jalview.util.Comparison.isGap(sequence[i]))
+      if (!Comparison.isGap(sequence[i]))
       {
+        if (j == start)
+        {
+          startColumn = i;
+        }
         j++;
       }
-
       i++;
     }
 
-    if ((j == end) && (j < pos))
+    if (j == end && j < pos)
     {
       return end + 1;
     }
-    else
-    {
-      return i;
-    }
+
+    updateCursor(pos, i, startColumn);
+    return i;
   }
 
-  @Override
-  public int findPosition(int i)
+  /**
+   * Updates the cursor to the latest found residue and column position
+   * 
+   * @param residuePos
+   *          (start..)
+   * @param column
+   *          (1..)
+   * @param startColumn
+   *          column position of the first sequence residue
+   */
+  protected void updateCursor(int residuePos, int column, int startColumn)
   {
+    /*
+     * preserve end residue column provided cursor was valid
+     */
+    int endColumn = isValidCursor(cursor) ? cursor.lastColumnPosition : 0;
+
+    if (residuePos == this.end)
+    {
+      endColumn = column;
+    }
+
+    cursor = new SequenceCursor(this, residuePos, column, startColumn,
+            endColumn, this.changeCount);
+  }
+
+  /**
+   * Answers the aligned column position (1..) for the given residue position
+   * (start..) given a 'hint' of a residue/column location in the neighbourhood.
+   * The hint may be left of, at, or to the right of the required position.
+   * 
+   * @param pos
+   * @param curs
+   * @return
+   */
+  protected int findIndex(final int pos, SequenceCursor curs)
+  {
+    if (!isValidCursor(curs))
+    {
+      /*
+       * wrong or invalidated cursor, compute de novo
+       */
+      return findIndex(pos);
+    }
+
+    if (curs.residuePosition == pos)
+    {
+      return curs.columnPosition;
+    }
+
+    /*
+     * move left or right to find pos from hint.position
+     */
+    int col = curs.columnPosition - 1; // convert from base 1 to base 0
+    int newPos = curs.residuePosition;
+    int delta = newPos > pos ? -1 : 1;
+
+    while (newPos != pos)
+    {
+      col += delta; // shift one column left or right
+      if (col < 0)
+      {
+        break;
+      }
+      if (col == sequence.length)
+      {
+        col--; // return last column if we failed to reach pos
+        break;
+      }
+      if (!Comparison.isGap(sequence[col]))
+      {
+        newPos += delta;
+      }
+    }
+
+    col++; // convert back to base 1
+
+    /*
+     * only update cursor if we found the target position
+     */
+    if (newPos == pos)
+    {
+      updateCursor(pos, col, curs.firstColumnPosition);
+    }
+
+    return col;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int findPosition(final int column)
+  {
+    /*
+     * use a valid, hopefully nearby, cursor if available
+     */
+    if (isValidCursor(cursor))
+    {
+      return findPosition(column + 1, cursor);
+    }
+    
+    // TODO recode this more naturally i.e. count residues only
+    // as they are found, not 'in anticipation'
+
+    /*
+     * traverse the sequence counting gaps; note the column position
+     * of the first residue, to save in the cursor
+     */
+    int firstResidueColumn = 0;
+    int lastPosFound = 0;
+    int lastPosFoundColumn = 0;
+    int seqlen = sequence.length;
+
+    if (seqlen > 0 && !Comparison.isGap(sequence[0]))
+    {
+      lastPosFound = start;
+      lastPosFoundColumn = 0;
+    }
+
     int j = 0;
     int pos = start;
-    int seqlen = sequence.length;
-    while ((j < i) && (j < seqlen))
+
+    while (j < column && j < seqlen)
     {
-      if (!jalview.util.Comparison.isGap(sequence[j]))
+      if (!Comparison.isGap(sequence[j]))
       {
+        lastPosFound = pos;
+        lastPosFoundColumn = j;
+        if (pos == this.start)
+        {
+          firstResidueColumn = j;
+        }
         pos++;
       }
-
       j++;
+    }
+    if (j < seqlen && !Comparison.isGap(sequence[j]))
+    {
+      lastPosFound = pos;
+      lastPosFoundColumn = j;
+      if (pos == this.start)
+      {
+        firstResidueColumn = j;
+      }
+    }
+
+    /*
+     * update the cursor to the last residue position found (if any)
+     * (converting column position to base 1)
+     */
+    if (lastPosFound != 0)
+    {
+      updateCursor(lastPosFound, lastPosFoundColumn + 1,
+              firstResidueColumn + 1);
     }
 
     return pos;
+  }
+
+  /**
+   * Answers true if the given cursor is not null, is for this sequence object,
+   * and has a token value that matches this object's changeCount, else false.
+   * This allows us to ignore a cursor as 'stale' if the sequence has been
+   * modified since the cursor was created.
+   * 
+   * @param curs
+   * @return
+   */
+  protected boolean isValidCursor(SequenceCursor curs)
+  {
+    if (curs == null || curs.sequence != this || curs.token != changeCount)
+    {
+      return false;
+    }
+    /*
+     * sanity check against range
+     */
+    if (curs.columnPosition < 0 || curs.columnPosition > sequence.length)
+    {
+      return false;
+    }
+    if (curs.residuePosition < start || curs.residuePosition > end)
+    {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Answers the sequence position (start..) for the given aligned column
+   * position (1..), given a hint of a cursor in the neighbourhood. The cursor
+   * may lie left of, at, or to the right of the column position.
+   * 
+   * @param col
+   * @param curs
+   * @return
+   */
+  protected int findPosition(final int col, SequenceCursor curs)
+  {
+    if (!isValidCursor(curs))
+    {
+      /*
+       * wrong or invalidated cursor, compute de novo
+       */
+      return findPosition(col - 1);// ugh back to base 0
+    }
+
+    if (curs.columnPosition == col)
+    {
+      cursor = curs; // in case this method becomes public
+      return curs.residuePosition; // easy case :-)
+    }
+
+    if (curs.lastColumnPosition > 0 && curs.lastColumnPosition < col)
+    {
+      /*
+       * sequence lies entirely to the left of col
+       * - return last residue + 1
+       */
+      return end + 1;
+    }
+
+    if (curs.firstColumnPosition > 0 && curs.firstColumnPosition > col)
+    {
+      /*
+       * sequence lies entirely to the right of col
+       * - return first residue
+       */
+      return start;
+    }
+
+    // todo could choose closest to col out of column,
+    // firstColumnPosition, lastColumnPosition as a start point
+
+    /*
+     * move left or right to find pos from cursor position
+     */
+    int firstResidueColumn = curs.firstColumnPosition;
+    int column = curs.columnPosition - 1; // to base 0
+    int newPos = curs.residuePosition;
+    int delta = curs.columnPosition > col ? -1 : 1;
+    boolean gapped = false;
+    int lastFoundPosition = curs.residuePosition;
+    int lastFoundPositionColumn = curs.columnPosition;
+
+    while (column != col - 1)
+    {
+      column += delta; // shift one column left or right
+      if (column < 0 || column == sequence.length)
+      {
+        break;
+      }
+      gapped = Comparison.isGap(sequence[column]);
+      if (!gapped)
+      {
+        newPos += delta;
+        lastFoundPosition = newPos;
+        lastFoundPositionColumn = column + 1;
+        if (lastFoundPosition == this.start)
+        {
+          firstResidueColumn = column + 1;
+        }
+      }
+    }
+
+    if (cursor == null || lastFoundPosition != cursor.residuePosition)
+    {
+      updateCursor(lastFoundPosition, lastFoundPositionColumn,
+              firstResidueColumn);
+    }
+
+    /*
+     * hack to give position to the right if on a gap
+     * or beyond the length of the sequence (see JAL-2562)
+     */
+    if (delta > 0 && (gapped || column >= sequence.length))
+    {
+      newPos++;
+    }
+
+    return newPos;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public ContiguousI findPositions(int fromColumn, int toColumn)
+  {
+    if (toColumn < fromColumn || fromColumn < 1)
+    {
+      return null;
+    }
+
+    /*
+     * find the first non-gapped position, if any
+     */
+    int firstPosition = 0;
+    int col = fromColumn - 1;
+    int length = sequence.length;
+    while (col < length && col < toColumn)
+    {
+      if (!Comparison.isGap(sequence[col]))
+      {
+        firstPosition = findPosition(col++);
+        break;
+      }
+      col++;
+    }
+
+    if (firstPosition == 0)
+    {
+      return null;
+    }
+
+    /*
+     * find the last non-gapped position
+     */
+    int lastPosition = firstPosition;
+    while (col < length && col < toColumn)
+    {
+      if (!Comparison.isGap(sequence[col++]))
+      {
+        lastPosition++;
+      }
+    }
+
+    return new Range(firstPosition, lastPosition);
   }
 
   /**
@@ -764,6 +1113,27 @@ public class Sequence extends ASequence implements SequenceI
     return map;
   }
 
+  /**
+   * Build a bitset corresponding to sequence gaps
+   * 
+   * @return a BitSet where set values correspond to gaps in the sequence
+   */
+  @Override
+  public BitSet gapBitset()
+  {
+    BitSet gaps = new BitSet(sequence.length);
+    int j = 0;
+    while (j < sequence.length)
+    {
+      if (jalview.util.Comparison.isGap(sequence[j]))
+      {
+        gaps.set(j);
+      }
+      j++;
+    }
+    return gaps;
+  }
+
   @Override
   public int[] findPositionMap()
   {
@@ -787,7 +1157,7 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public List<int[]> getInsertions()
   {
-    ArrayList<int[]> map = new ArrayList<int[]>();
+    ArrayList<int[]> map = new ArrayList<>();
     int lastj = -1, j = 0;
     int pos = start;
     int seqlen = sequence.length;
@@ -819,7 +1189,41 @@ public class Sequence extends ASequence implements SequenceI
   }
 
   @Override
-  public void deleteChars(int i, int j)
+  public BitSet getInsertionsAsBits()
+  {
+    BitSet map = new BitSet();
+    int lastj = -1, j = 0;
+    int pos = start;
+    int seqlen = sequence.length;
+    while ((j < seqlen))
+    {
+      if (jalview.util.Comparison.isGap(sequence[j]))
+      {
+        if (lastj == -1)
+        {
+          lastj = j;
+        }
+      }
+      else
+      {
+        if (lastj != -1)
+        {
+          map.set(lastj, j);
+          lastj = -1;
+        }
+      }
+      j++;
+    }
+    if (lastj != -1)
+    {
+      map.set(lastj, j);
+      lastj = -1;
+    }
+    return map;
+  }
+
+  @Override
+  public void deleteChars(final int i, final int j)
   {
     int newstart = start, newend = end;
     if (i >= sequence.length || i < 0)
@@ -831,66 +1235,81 @@ public class Sequence extends ASequence implements SequenceI
     boolean createNewDs = false;
     // TODO: take a (second look) at the dataset creation validation method for
     // the very large sequence case
-    int eindex = -1, sindex = -1;
-    boolean ecalc = false, scalc = false;
-    for (int s = i; s < j; s++)
+
+    int startIndex = findIndex(start) - 1;
+    int endIndex = findIndex(end) - 1;
+    int startDeleteColumn = -1; // for dataset sequence deletions
+    int deleteCount = 0;
+
+    for (int s = i; s < j && s < sequence.length; s++)
     {
-      if (jalview.schemes.ResidueProperties.aaIndex[sequence[s]] != 23)
+      if (Comparison.isGap(sequence[s]))
       {
-        if (createNewDs)
+        continue;
+      }
+      deleteCount++;
+      if (startDeleteColumn == -1)
+      {
+        startDeleteColumn = findPosition(s) - start;
+      }
+      if (createNewDs)
+      {
+        newend--;
+      }
+      else
+      {
+        if (startIndex == s)
         {
-          newend--;
+          /*
+           * deleting characters from start of sequence; new start is the
+           * sequence position of the next column (position to the right
+           * if the column position is gapped)
+           */
+          newstart = findPosition(j);
+          break;
         }
         else
         {
-          if (!scalc)
+          if (endIndex < j)
           {
-            sindex = findIndex(start) - 1;
-            scalc = true;
-          }
-          if (sindex == s)
-          {
-            // delete characters including start of sequence
-            newstart = findPosition(j);
-            break; // don't need to search for any more residue characters.
+            /*
+             * deleting characters at end of sequence; new end is the sequence
+             * position of the column before the deletion; subtract 1 if this is
+             * gapped since findPosition returns the next sequence position
+             */
+            newend = findPosition(i - 1);
+            if (Comparison.isGap(sequence[i - 1]))
+            {
+              newend--;
+            }
+            break;
           }
           else
           {
-            // delete characters after start.
-            if (!ecalc)
-            {
-              eindex = findIndex(end) - 1;
-              ecalc = true;
-            }
-            if (eindex < j)
-            {
-              // delete characters at end of sequence
-              newend = findPosition(i - 1);
-              break; // don't need to search for any more residue characters.
-            }
-            else
-            {
-              createNewDs = true;
-              newend--; // decrease end position by one for the deleted residue
-              // and search further
-            }
+            createNewDs = true;
+            newend--;
           }
         }
       }
     }
-    // deletion occured in the middle of the sequence
+
     if (createNewDs && this.datasetSequence != null)
     {
-      // construct a new sequence
+      /*
+       * if deletion occured in the middle of the sequence,
+       * construct a new dataset sequence and delete the residues
+       * that were deleted from the aligned sequence
+       */
       Sequence ds = new Sequence(datasetSequence);
+      ds.deleteChars(startDeleteColumn, startDeleteColumn + deleteCount);
+      datasetSequence = ds;
       // TODO: remove any non-inheritable properties ?
       // TODO: create a sequence mapping (since there is a relation here ?)
-      ds.deleteChars(i, j);
-      datasetSequence = ds;
     }
     start = newstart;
     end = newend;
     sequence = tmp;
+    sequenceChanged();
   }
 
   @Override
@@ -921,6 +1340,7 @@ public class Sequence extends ASequence implements SequenceI
     }
 
     sequence = tmp;
+    sequenceChanged();
   }
 
   @Override
@@ -1033,8 +1453,9 @@ public class Sequence extends ASequence implements SequenceI
   @Override
   public AlignmentAnnotation[] getAnnotation()
   {
-    return annotation == null ? null : annotation
-            .toArray(new AlignmentAnnotation[annotation.size()]);
+    return annotation == null ? null
+            : annotation
+                    .toArray(new AlignmentAnnotation[annotation.size()]);
   }
 
   @Override
@@ -1048,7 +1469,7 @@ public class Sequence extends ASequence implements SequenceI
   {
     if (this.annotation == null)
     {
-      this.annotation = new Vector<AlignmentAnnotation>();
+      this.annotation = new Vector<>();
     }
     if (!this.annotation.contains(annotation))
     {
@@ -1115,7 +1536,7 @@ public class Sequence extends ASequence implements SequenceI
 
   private boolean _isNa;
 
-  private long _seqhash = 0;
+  private int _seqhash = 0;
 
   /**
    * Answers false if the sequence is more than 85% nucleotide (ACGTU), else
@@ -1146,16 +1567,17 @@ public class Sequence extends ASequence implements SequenceI
   {
     if (datasetSequence == null)
     {
-      Sequence dsseq = new Sequence(getName(), AlignSeq.extractGaps(
-              jalview.util.Comparison.GapChars, getSequenceAsString()),
+      Sequence dsseq = new Sequence(getName(),
+              AlignSeq.extractGaps(jalview.util.Comparison.GapChars,
+                      getSequenceAsString()),
               getStart(), getEnd());
 
       datasetSequence = dsseq;
 
       dsseq.setDescription(description);
       // move features and database references onto dataset sequence
-      dsseq.sequenceFeatures = sequenceFeatures;
-      sequenceFeatures = null;
+      dsseq.sequenceFeatureStore = sequenceFeatureStore;
+      sequenceFeatureStore = null;
       dsseq.dbrefs = dbrefs;
       dbrefs = null;
       // TODO: search and replace any references to this sequence with
@@ -1214,11 +1636,11 @@ public class Sequence extends ASequence implements SequenceI
       return null;
     }
 
-    Vector subset = new Vector();
-    Enumeration e = annotation.elements();
+    Vector<AlignmentAnnotation> subset = new Vector<>();
+    Enumeration<AlignmentAnnotation> e = annotation.elements();
     while (e.hasMoreElements())
     {
-      AlignmentAnnotation ann = (AlignmentAnnotation) e.nextElement();
+      AlignmentAnnotation ann = e.nextElement();
       if (ann.label != null && ann.label.equals(label))
       {
         subset.addElement(ann);
@@ -1233,7 +1655,7 @@ public class Sequence extends ASequence implements SequenceI
     e = subset.elements();
     while (e.hasMoreElements())
     {
-      anns[i++] = (AlignmentAnnotation) e.nextElement();
+      anns[i++] = e.nextElement();
     }
     subset.removeAllElements();
     return anns;
@@ -1286,12 +1708,12 @@ public class Sequence extends ASequence implements SequenceI
     if (entry.getSequenceFeatures() != null)
     {
 
-      SequenceFeature[] sfs = entry.getSequenceFeatures();
-      for (int si = 0; si < sfs.length; si++)
+      List<SequenceFeature> sfs = entry.getSequenceFeatures();
+      for (SequenceFeature feature : sfs)
       {
-        SequenceFeature sf[] = (mp != null) ? mp.locateFeature(sfs[si])
-                : new SequenceFeature[] { new SequenceFeature(sfs[si]) };
-        if (sf != null && sf.length > 0)
+       SequenceFeature sf[] = (mp != null) ? mp.locateFeature(feature)
+                : new SequenceFeature[] { new SequenceFeature(feature) };
+        if (sf != null)
         {
           for (int sfi = 0; sfi < sf.length; sfi++)
           {
@@ -1304,10 +1726,10 @@ public class Sequence extends ASequence implements SequenceI
     // transfer PDB entries
     if (entry.getAllPDBEntries() != null)
     {
-      Enumeration e = entry.getAllPDBEntries().elements();
+      Enumeration<PDBEntry> e = entry.getAllPDBEntries().elements();
       while (e.hasMoreElements())
       {
-        PDBEntry pdb = (PDBEntry) e.nextElement();
+        PDBEntry pdb = e.nextElement();
         addPDBId(pdb);
       }
     }
@@ -1332,30 +1754,6 @@ public class Sequence extends ASequence implements SequenceI
     }
   }
 
-  /**
-   * @return The index (zero-based) on this sequence in the MSA. It returns
-   *         {@code -1} if this information is not available.
-   */
-  @Override
-  public int getIndex()
-  {
-    return index;
-  }
-
-  /**
-   * Defines the position of this sequence in the MSA. Use the value {@code -1}
-   * if this information is undefined.
-   * 
-   * @param The
-   *          position for this sequence. This value is zero-based (zero for
-   *          this first sequence)
-   */
-  @Override
-  public void setIndex(int value)
-  {
-    index = value;
-  }
-
   @Override
   public void setRNA(RNA r)
   {
@@ -1372,7 +1770,7 @@ public class Sequence extends ASequence implements SequenceI
   public List<AlignmentAnnotation> getAlignmentAnnotations(String calcId,
           String label)
   {
-    List<AlignmentAnnotation> result = new ArrayList<AlignmentAnnotation>();
+    List<AlignmentAnnotation> result = new ArrayList<>();
     if (this.annotation != null)
     {
       for (AlignmentAnnotation ann : annotation)
@@ -1428,7 +1826,7 @@ public class Sequence extends ASequence implements SequenceI
     }
     synchronized (dbrefs)
     {
-      List<DBRefEntry> primaries = new ArrayList<DBRefEntry>();
+      List<DBRefEntry> primaries = new ArrayList<>();
       DBRefEntry[] tmp = new DBRefEntry[1];
       for (DBRefEntry ref : dbrefs)
       {
@@ -1446,8 +1844,8 @@ public class Sequence extends ASequence implements SequenceI
           }
         }
         // whilst it looks like it is a primary ref, we also sanity check type
-        if (DBRefUtils.getCanonicalName(DBRefSource.PDB).equals(
-                DBRefUtils.getCanonicalName(ref.getSource())))
+        if (DBRefUtils.getCanonicalName(DBRefSource.PDB)
+                .equals(DBRefUtils.getCanonicalName(ref.getSource())))
         {
           // PDB dbrefs imply there should be a PDBEntry associated
           // TODO: tighten PDB dbrefs
@@ -1475,4 +1873,168 @@ public class Sequence extends ASequence implements SequenceI
     }
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<SequenceFeature> findFeatures(int fromColumn, int toColumn,
+          String... types)
+  {
+    int startPos = findPosition(fromColumn - 1); // convert base 1 to base 0
+    int endPos = fromColumn == toColumn ? startPos
+            : findPosition(toColumn - 1);
+
+    List<SequenceFeature> result = getFeatures().findFeatures(startPos,
+            endPos, types);
+
+    /*
+     * if end column is gapped, endPos may be to the right, 
+     * and we may have included adjacent or enclosing features;
+     * remove any that are not enclosing, non-contact features
+     */
+    boolean endColumnIsGapped = toColumn > 0 && toColumn <= sequence.length
+            && Comparison.isGap(sequence[toColumn - 1]);
+    if (endPos > this.end || endColumnIsGapped)
+    {
+      ListIterator<SequenceFeature> it = result.listIterator();
+      while (it.hasNext())
+      {
+        SequenceFeature sf = it.next();
+        int sfBegin = sf.getBegin();
+        int sfEnd = sf.getEnd();
+        int featureStartColumn = findIndex(sfBegin);
+        if (featureStartColumn > toColumn)
+        {
+          it.remove();
+        }
+        else if (featureStartColumn < fromColumn)
+        {
+          int featureEndColumn = sfEnd == sfBegin ? featureStartColumn
+                  : findIndex(sfEnd);
+          if (featureEndColumn < fromColumn)
+          {
+            it.remove();
+          }
+          else if (featureEndColumn > toColumn && sf.isContactFeature())
+          {
+            /*
+             * remove an enclosing feature if it is a contact feature
+             */
+            it.remove();
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Invalidates any stale cursors (forcing recalculation) by incrementing the
+   * token that has to match the one presented by the cursor
+   */
+  @Override
+  public void sequenceChanged()
+  {
+    changeCount++;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int replace(char c1, char c2)
+  {
+    if (c1 == c2)
+    {
+      return 0;
+    }
+    int count = 0;
+    synchronized (sequence)
+    {
+      for (int c = 0; c < sequence.length; c++)
+      {
+        if (sequence[c] == c1)
+        {
+          sequence[c] = c2;
+          count++;
+        }
+      }
+    }
+    if (count > 0)
+    {
+      sequenceChanged();
+    }
+
+    return count;
+  }
+
+  @Override
+  public String getSequenceStringFromIterator(Iterator<int[]> it)
+  {
+    StringBuilder newSequence = new StringBuilder();
+    while (it.hasNext())
+    {
+      int[] block = it.next();
+      if (it.hasNext())
+      {
+        newSequence.append(getSequence(block[0], block[1] + 1));
+      }
+      else
+      {
+        newSequence.append(getSequence(block[0], block[1]));
+      }
+    }
+
+    return newSequence.toString();
+  }
+
+  @Override
+  public int firstResidueOutsideIterator(Iterator<int[]> regions)
+  {
+    int start = 0;
+
+    if (!regions.hasNext())
+    {
+      return findIndex(getStart()) - 1;
+    }
+
+    // Simply walk along the sequence whilst watching for region
+    // boundaries
+    int hideStart = getLength();
+    int hideEnd = -1;
+    boolean foundStart = false;
+
+    // step through the non-gapped positions of the sequence
+    for (int i = getStart(); i <= getEnd() && (!foundStart); i++)
+    {
+      // get alignment position of this residue in the sequence
+      int p = findIndex(i) - 1;
+
+      // update region start/end
+      while (hideEnd < p && regions.hasNext())
+      {
+        int[] region = regions.next();
+        hideStart = region[0];
+        hideEnd = region[1];
+      }
+      if (hideEnd < p)
+      {
+        hideStart = getLength();
+      }
+      // update boundary for sequence
+      if (p < hideStart)
+      {
+        start = p;
+        foundStart = true;
+      }
+    }
+
+    if (foundStart)
+    {
+      return start;
+    }
+    // otherwise, sequence was completely hidden
+    return 0;
+  }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -168,6 +168,12 @@ public class ViewStyle implements ViewStyleI
    */
   private boolean scaleProteinAsCdna = true;
 
+  /*
+   * if true, font changes to protein or cDNA are applied to both
+   * sides of a split screen
+   */
+  private boolean proteinFontAsCdna = true;
+
   /**
    * Copy constructor
    * 
@@ -195,6 +201,7 @@ public class ViewStyle implements ViewStyleI
     setScaleAboveWrapped(vs.getScaleAboveWrapped());
     setScaleLeftWrapped(vs.getScaleLeftWrapped());
     setScaleProteinAsCdna(vs.isScaleProteinAsCdna());
+    setProteinFontAsCdna(vs.isProteinFontAsCdna());
     setScaleRightWrapped(vs.getScaleRightWrapped());
     setSeqNameItalics(vs.isSeqNameItalics());
     setShowAnnotation(vs.isShowAnnotation());
@@ -206,6 +213,8 @@ public class ViewStyle implements ViewStyleI
     setShowNPFeats(vs.isShowNPFeats());
     setShowSequenceFeaturesHeight(vs.isShowSequenceFeaturesHeight());
     setShowSequenceFeatures(vs.isShowSequenceFeatures());
+    setShowComplementFeatures(vs.isShowComplementFeatures());
+    setShowComplementFeaturesOnTop(vs.isShowComplementFeaturesOnTop());
     setShowText(vs.getShowText());
     setShowUnconserved(vs.getShowUnconserved());
     setTextColour(vs.getTextColour());
@@ -255,6 +264,7 @@ public class ViewStyle implements ViewStyleI
             && getScaleAboveWrapped() == vs.getScaleAboveWrapped()
             && getScaleLeftWrapped() == vs.getScaleLeftWrapped()
             && isScaleProteinAsCdna() == vs.isScaleProteinAsCdna()
+            && isProteinFontAsCdna() == vs.isProteinFontAsCdna()
             && getScaleRightWrapped() == vs.getScaleRightWrapped()
             && isSeqNameItalics() == vs.isSeqNameItalics()
             && isShowAnnotation() == vs.isShowAnnotation()
@@ -267,26 +277,26 @@ public class ViewStyle implements ViewStyleI
             && isShowSequenceFeaturesHeight() == vs
                     .isShowSequenceFeaturesHeight()
             && isShowSequenceFeatures() == vs.isShowSequenceFeatures()
+            && isShowComplementFeatures() == vs.isShowComplementFeatures()
+            && isShowComplementFeaturesOnTop() == vs
+                    .isShowComplementFeaturesOnTop()
             && getShowText() == vs.getShowText()
             && getShowUnconserved() == vs.getShowUnconserved()
             && getThreshold() == vs.getThreshold()
             && getThresholdTextColour() == vs.getThresholdTextColour()
             && isUpperCasebold() == vs.isUpperCasebold()
-            && getWrapAlignment() == vs.getWrapAlignment() && getWrappedWidth() == vs
-            .getWrappedWidth());
+            && getWrapAlignment() == vs.getWrapAlignment()
+            && getWrappedWidth() == vs.getWrappedWidth());
     /*
      * and compare non-primitive types; syntax below will match null with null
      * values
      */
-    match = match
-            && String.valueOf(getFontName()).equals(
-                    String.valueOf(vs.getFontName()));
-    match = match
-            && String.valueOf(getTextColour()).equals(
-                    String.valueOf(vs.getTextColour()));
-    match = match
-            && String.valueOf(getTextColour2()).equals(
-                    String.valueOf(vs.getTextColour2()));
+    match = match && String.valueOf(getFontName())
+            .equals(String.valueOf(vs.getFontName()));
+    match = match && String.valueOf(getTextColour())
+            .equals(String.valueOf(vs.getTextColour()));
+    match = match && String.valueOf(getTextColour2())
+            .equals(String.valueOf(vs.getTextColour2()));
     return match;
     // return equivalent(this, (ViewStyle) other);
   }
@@ -359,6 +369,10 @@ public class ViewStyle implements ViewStyleI
   int wrappedWidth;
 
   private int fontStyle;
+
+  private boolean showComplementFeatures;
+
+  private boolean showComplementFeaturesOnTop;
 
   /**
    * GUI state
@@ -1093,5 +1107,41 @@ public class ViewStyle implements ViewStyleI
   public void setScaleProteinAsCdna(boolean b)
   {
     this.scaleProteinAsCdna = b;
+  }
+
+  @Override
+  public boolean isProteinFontAsCdna()
+  {
+    return proteinFontAsCdna;
+  }
+
+  @Override
+  public void setProteinFontAsCdna(boolean b)
+  {
+    proteinFontAsCdna = b;
+  }
+
+  @Override
+  public void setShowComplementFeatures(boolean b)
+  {
+    showComplementFeatures = b;
+  }
+
+  @Override
+  public boolean isShowComplementFeatures()
+  {
+    return showComplementFeatures;
+  }
+
+  @Override
+  public void setShowComplementFeaturesOnTop(boolean b)
+  {
+    showComplementFeaturesOnTop = b;
+  }
+
+  @Override
+  public boolean isShowComplementFeaturesOnTop()
+  {
+    return showComplementFeaturesOnTop;
   }
 }

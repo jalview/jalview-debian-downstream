@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,35 +24,40 @@ import jalview.api.ComplexAlignFile;
 import jalview.api.FeatureSettingsModelI;
 import jalview.api.FeaturesDisplayedI;
 import jalview.api.FeaturesSourceI;
+import jalview.bin.Cache;
 import jalview.bin.Jalview;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.AlignViewport;
 import jalview.gui.Desktop;
-import jalview.gui.Jalview2XML;
+import jalview.gui.JvOptionPane;
 import jalview.json.binding.biojson.v1.ColourSchemeMapper;
+import jalview.project.Jalview2XML;
 import jalview.schemes.ColourSchemeI;
 import jalview.structure.StructureSelectionManager;
 import jalview.util.MessageManager;
+import jalview.ws.utils.UrlDownloadClient;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
-import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 public class FileLoader implements Runnable
 {
   String file;
 
-  String protocol;
+  DataSourceType protocol;
 
-  String format;
+  FileFormatI format;
 
-  FileParse source = null; // alternative specification of where data comes
+  AlignmentFileReaderI source = null; // alternative specification of where data
+                                      // comes
 
   // from
 
@@ -86,13 +91,14 @@ public class FileLoader implements Runnable
   }
 
   public void LoadFile(AlignViewport viewport, String file,
-          String protocol, String format)
+          DataSourceType protocol, FileFormatI format)
   {
     this.viewport = viewport;
     LoadFile(file, protocol, format);
   }
 
-  public void LoadFile(String file, String protocol, String format)
+  public void LoadFile(String file, DataSourceType protocol,
+          FileFormatI format)
   {
     this.file = file;
     this.protocol = protocol;
@@ -116,7 +122,7 @@ public class FileLoader implements Runnable
    * @param file
    * @param protocol
    */
-  public void LoadFile(String file, String protocol)
+  public void LoadFile(String file, DataSourceType protocol)
   {
     LoadFile(file, protocol, null);
   }
@@ -125,27 +131,28 @@ public class FileLoader implements Runnable
    * Load alignment from (file, protocol) and wait till loaded
    * 
    * @param file
-   * @param protocol
+   * @param sourceType
    * @return alignFrame constructed from file contents
    */
-  public AlignFrame LoadFileWaitTillLoaded(String file, String protocol)
+  public AlignFrame LoadFileWaitTillLoaded(String file,
+          DataSourceType sourceType)
   {
-    return LoadFileWaitTillLoaded(file, protocol, null);
+    return LoadFileWaitTillLoaded(file, sourceType, null);
   }
 
   /**
    * Load alignment from (file, protocol) of type format and wait till loaded
    * 
    * @param file
-   * @param protocol
+   * @param sourceType
    * @param format
    * @return alignFrame constructed from file contents
    */
-  public AlignFrame LoadFileWaitTillLoaded(String file, String protocol,
-          String format)
+  public AlignFrame LoadFileWaitTillLoaded(String file,
+          DataSourceType sourceType, FileFormatI format)
   {
     this.file = file;
-    this.protocol = protocol;
+    this.protocol = sourceType;
     this.format = format;
     return _LoadFileWaitTillLoaded();
   }
@@ -157,12 +164,13 @@ public class FileLoader implements Runnable
    * @param format
    * @return alignFrame constructed from file contents
    */
-  public AlignFrame LoadFileWaitTillLoaded(FileParse source, String format)
+  public AlignFrame LoadFileWaitTillLoaded(AlignmentFileReaderI source,
+          FileFormatI format)
   {
     this.source = source;
 
     file = source.getInFile();
-    protocol = source.type;
+    protocol = source.getDataSourceType();
     this.format = format;
     return _LoadFileWaitTillLoaded();
   }
@@ -185,6 +193,9 @@ public class FileLoader implements Runnable
         Thread.sleep(500);
       } catch (Exception ex)
       {
+        System.out.println(
+                "Exception caught while waiting for FileLoader thread");
+        ex.printStackTrace();
       }
     }
 
@@ -194,13 +205,19 @@ public class FileLoader implements Runnable
   public void updateRecentlyOpened()
   {
     Vector recent = new Vector();
-    if (protocol.equals(FormatAdapter.PASTE))
+    if (protocol == DataSourceType.PASTE)
     {
       // do nothing if the file was pasted in as text... there is no filename to
       // refer to it as.
       return;
     }
-    String type = protocol.equals(FormatAdapter.FILE) ? "RECENT_FILE"
+    if (file != null
+            && file.indexOf(System.getProperty("java.io.tmpdir")) > -1)
+    {
+      // ignore files loaded from the system's temporary directory
+      return;
+    }
+    String type = protocol == DataSourceType.FILE ? "RECENT_FILE"
             : "RECENT_URL";
 
     String historyItems = jalview.bin.Cache.getProperty(type);
@@ -229,18 +246,19 @@ public class FileLoader implements Runnable
       newHistory.append(recent.elementAt(i));
     }
 
-    jalview.bin.Cache.setProperty(type, newHistory.toString());
+    Cache.setProperty(type, newHistory.toString());
 
-    if (protocol.equals(FormatAdapter.FILE))
+    if (protocol == DataSourceType.FILE)
     {
-      jalview.bin.Cache.setProperty("DEFAULT_FILE_FORMAT", format);
+      Cache.setProperty("DEFAULT_FILE_FORMAT", format.getName());
     }
   }
 
   @Override
   public void run()
   {
-    String title = protocol.equals(AppletFormatAdapter.PASTE) ? "Copied From Clipboard"
+    String title = protocol == DataSourceType.PASTE
+            ? "Copied From Clipboard"
             : file;
     Runtime rt = Runtime.getRuntime();
     try
@@ -254,10 +272,8 @@ public class FileLoader implements Runnable
         // just in case the caller didn't identify the file for us
         if (source != null)
         {
-          format = new IdentifyFile().identify(source, false); // identify
-          // stream and
-          // rewind rather
-          // than close
+          format = new IdentifyFile().identify(source, false);
+          // identify stream and rewind rather than close
         }
         else
         {
@@ -266,20 +282,19 @@ public class FileLoader implements Runnable
 
       }
 
-      if (format == null || format.equalsIgnoreCase("EMPTY DATA FILE"))
+      if (format == null)
       {
         Desktop.instance.stopLoading();
         System.err.println("The input file \"" + file
                 + "\" has null or unidentifiable data content!");
         if (!Jalview.isHeadlessMode())
         {
-          javax.swing.JOptionPane.showInternalMessageDialog(
-                  Desktop.desktop,
+          JvOptionPane.showInternalMessageDialog(Desktop.desktop,
                   MessageManager.getString("label.couldnt_read_data")
                           + " in " + file + "\n"
-                          + AppletFormatAdapter.SUPPORTED_FORMATS,
+                          + AppletFormatAdapter.getSupportedFormats(),
                   MessageManager.getString("label.couldnt_read_data"),
-                  JOptionPane.WARNING_MESSAGE);
+                  JvOptionPane.WARNING_MESSAGE);
         }
         return;
       }
@@ -296,50 +311,58 @@ public class FileLoader implements Runnable
       loadtime = -System.currentTimeMillis();
       AlignmentI al = null;
 
-      if (format.equalsIgnoreCase("Jalview"))
+      if (FileFormat.Jalview.equals(format))
       {
         if (source != null)
         {
           // Tell the user (developer?) that this is going to cause a problem
-          System.err
-                  .println("IMPLEMENTATION ERROR: Cannot read consecutive Jalview XML projects from a stream.");
+          System.err.println(
+                  "IMPLEMENTATION ERROR: Cannot read consecutive Jalview XML projects from a stream.");
           // We read the data anyway - it might make sense.
         }
         alignFrame = new Jalview2XML(raiseGUI).loadJalviewAlign(file);
       }
       else
       {
-        String error = AppletFormatAdapter.SUPPORTED_FORMATS;
-        if (FormatAdapter.isValidFormat(format))
+        String error = AppletFormatAdapter.getSupportedFormats();
+        try
         {
-          try
+          if (source != null)
           {
-            if (source != null)
+            // read from the provided source
+            al = new FormatAdapter().readFromFile(source, format);
+          }
+          else
+          {
+
+            // open a new source and read from it
+            FormatAdapter fa = new FormatAdapter();
+            boolean downloadStructureFile = format.isStructureFile()
+                    && protocol.equals(DataSourceType.URL);
+            if (downloadStructureFile)
             {
-              // read from the provided source
-              al = new FormatAdapter().readFromFile(source, format);
+              String structExt = format.getExtensions().split(",")[0];
+              String urlLeafName = file.substring(
+                      file.lastIndexOf(
+                              System.getProperty("file.separator")),
+                      file.lastIndexOf("."));
+              String tempStructureFileStr = createNamedJvTempFile(
+                      urlLeafName, structExt);
+              UrlDownloadClient.download(file, tempStructureFileStr);
+              al = fa.readFile(tempStructureFileStr, DataSourceType.FILE,
+                      format);
+              source = fa.getAlignFile();
             }
             else
             {
-
-              // open a new source and read from it
-              FormatAdapter fa = new FormatAdapter();
               al = fa.readFile(file, protocol, format);
               source = fa.getAlignFile(); // keep reference for later if
                                           // necessary.
             }
-          } catch (java.io.IOException ex)
-          {
-            error = ex.getMessage();
           }
-        }
-        else
+        } catch (java.io.IOException ex)
         {
-          if (format != null && format.length() > 7)
-          {
-            // ad hoc message in format.
-            error = format + "\n" + error;
-          }
+          error = ex.getMessage();
         }
 
         if ((al != null) && (al.getHeight() > 0) && al.hasValidSequence())
@@ -357,8 +380,9 @@ public class FileLoader implements Runnable
               {
                 // register PDB entries with desktop's structure selection
                 // manager
-                StructureSelectionManager.getStructureSelectionManager(
-                        Desktop.instance).registerPDBEntry(pdbe);
+                StructureSelectionManager
+                        .getStructureSelectionManager(Desktop.instance)
+                        .registerPDBEntry(pdbe);
               }
             }
           }
@@ -367,12 +391,9 @@ public class FileLoader implements Runnable
                   .getFeatureColourScheme();
           if (viewport != null)
           {
-            if (proxyColourScheme != null)
-            {
-              viewport.applyFeaturesStyle(proxyColourScheme);
-            }
             // append to existing alignment
             viewport.addAlignment(al, title);
+            viewport.applyFeaturesStyle(proxyColourScheme);
           }
           else
           {
@@ -380,8 +401,8 @@ public class FileLoader implements Runnable
 
             if (source instanceof ComplexAlignFile)
             {
-              ColumnSelection colSel = ((ComplexAlignFile) source)
-                      .getColumnSelection();
+              HiddenColumns colSel = ((ComplexAlignFile) source)
+                      .getHiddenColumns();
               SequenceI[] hiddenSeqs = ((ComplexAlignFile) source)
                       .getHiddenSequences();
               String colourSchemeName = ((ComplexAlignFile) source)
@@ -393,8 +414,8 @@ public class FileLoader implements Runnable
               alignFrame.getViewport().setFeaturesDisplayed(fd);
               alignFrame.getViewport().setShowSequenceFeatures(
                       ((ComplexAlignFile) source).isShowSeqFeatures());
-              ColourSchemeI cs = ColourSchemeMapper.getJalviewColourScheme(
-                      colourSchemeName, al);
+              ColourSchemeI cs = ColourSchemeMapper
+                      .getJalviewColourScheme(colourSchemeName, al);
               if (cs != null)
               {
                 alignFrame.changeColour(cs);
@@ -410,7 +431,7 @@ public class FileLoader implements Runnable
               }
             }
             // add metadata and update ui
-            if (!protocol.equals(AppletFormatAdapter.PASTE))
+            if (!(protocol == DataSourceType.PASTE))
             {
               alignFrame.setFileName(file, format);
             }
@@ -419,9 +440,9 @@ public class FileLoader implements Runnable
               alignFrame.getViewport()
                       .applyFeaturesStyle(proxyColourScheme);
             }
-            alignFrame.statusBar.setText(MessageManager.formatMessage(
-                    "label.successfully_loaded_file",
-                    new String[] { title }));
+            alignFrame.setStatus(MessageManager.formatMessage(
+                    "label.successfully_loaded_file", new String[]
+                    { title }));
 
             if (raiseGUI)
             {
@@ -436,8 +457,8 @@ public class FileLoader implements Runnable
 
             try
             {
-              alignFrame.setMaximum(jalview.bin.Cache.getDefault(
-                      "SHOW_FULLSCREEN", false));
+              alignFrame.setMaximum(jalview.bin.Cache
+                      .getDefault("SHOW_FULLSCREEN", false));
             } catch (java.beans.PropertyVetoException ex)
             {
             }
@@ -450,11 +471,8 @@ public class FileLoader implements Runnable
             Desktop.instance.stopLoading();
           }
 
-          final String errorMessage = MessageManager
-                  .getString("label.couldnt_load_file")
-                  + " "
-                  + title
-                  + "\n" + error;
+          final String errorMessage = MessageManager.getString(
+                  "label.couldnt_load_file") + " " + title + "\n" + error;
           // TODO: refactor FileLoader to be independent of Desktop / Applet GUI
           // bits ?
           if (raiseGUI && Desktop.desktop != null)
@@ -464,10 +482,11 @@ public class FileLoader implements Runnable
               @Override
               public void run()
               {
-                JOptionPane.showInternalMessageDialog(Desktop.desktop,
-                        errorMessage, MessageManager
+                JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                        errorMessage,
+                        MessageManager
                                 .getString("label.error_loading_file"),
-                        JOptionPane.WARNING_MESSAGE);
+                        JvOptionPane.WARNING_MESSAGE);
               }
             });
           }
@@ -491,12 +510,12 @@ public class FileLoader implements Runnable
           @Override
           public void run()
           {
-            javax.swing.JOptionPane.showInternalMessageDialog(
-                    Desktop.desktop, MessageManager.formatMessage(
-                            "label.problems_opening_file",
-                            new String[] { file }), MessageManager
-                            .getString("label.file_open_error"),
-                    javax.swing.JOptionPane.WARNING_MESSAGE);
+            JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                    MessageManager.formatMessage(
+                            "label.problems_opening_file", new String[]
+                            { file }),
+                    MessageManager.getString("label.file_open_error"),
+                    JvOptionPane.WARNING_MESSAGE);
           }
         });
       }
@@ -513,12 +532,12 @@ public class FileLoader implements Runnable
           @Override
           public void run()
           {
-            javax.swing.JOptionPane.showInternalMessageDialog(
-                    Desktop.desktop, MessageManager.formatMessage(
+            JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                    MessageManager.formatMessage(
                             "warn.out_of_memory_loading_file", new String[]
-                            { file }), MessageManager
-                            .getString("label.out_of_memory"),
-                    javax.swing.JOptionPane.WARNING_MESSAGE);
+                            { file }),
+                    MessageManager.getString("label.out_of_memory"),
+                    JvOptionPane.WARNING_MESSAGE);
           }
         });
       }
@@ -564,18 +583,27 @@ public class FileLoader implements Runnable
 
   }
 
-  /*
-   * (non-Javadoc)
+  /**
+   * This method creates the file -
+   * {tmpdir}/jalview/{current_timestamp}/fileName.exetnsion using the supplied
+   * file name and extension
    * 
-   * @see java.lang.Object#finalize()
+   * @param fileName
+   *          the name of the temp file to be created
+   * @param extension
+   *          the extension of the temp file to be created
+   * @return
    */
-  @Override
-  protected void finalize() throws Throwable
+  private static String createNamedJvTempFile(String fileName,
+          String extension) throws IOException
   {
-    source = null;
-    alignFrame = null;
-    viewport = null;
-    super.finalize();
+    String seprator = System.getProperty("file.separator");
+    String jvTempDir = System.getProperty("java.io.tmpdir") + "jalview"
+            + seprator + System.currentTimeMillis();
+    File tempStructFile = new File(
+            jvTempDir + seprator + fileName + "." + extension);
+    tempStructFile.mkdirs();
+    return tempStructFile.toString();
   }
 
 }

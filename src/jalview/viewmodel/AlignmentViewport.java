@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.viewmodel;
 
 import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
 import jalview.analysis.Conservation;
+import jalview.analysis.TreeModel;
 import jalview.api.AlignCalcManagerI;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
@@ -33,8 +34,8 @@ import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
 import jalview.datamodel.Annotation;
-import jalview.datamodel.CigarArray;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.HiddenSequences;
 import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SearchResultsI;
@@ -42,15 +43,16 @@ import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.Blosum62ColourScheme;
+import jalview.renderer.ResidueShader;
+import jalview.renderer.ResidueShaderI;
 import jalview.schemes.ColourSchemeI;
-import jalview.schemes.PIDColourScheme;
 import jalview.structure.CommandListener;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasSource;
 import jalview.util.Comparison;
 import jalview.util.MapList;
 import jalview.util.MappingUtils;
+import jalview.util.MessageManager;
 import jalview.viewmodel.styles.ViewStyle;
 import jalview.workers.AlignCalcManager;
 import jalview.workers.ComplementConsensusThread;
@@ -65,6 +67,7 @@ import java.util.BitSet;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -75,9 +78,11 @@ import java.util.Map;
  * @author jimp
  * 
  */
-public abstract class AlignmentViewport implements AlignViewportI,
-        CommandListener, VamsasSource
+public abstract class AlignmentViewport
+        implements AlignViewportI, CommandListener, VamsasSource
 {
+  protected ViewportRanges ranges;
+
   protected ViewStyleI viewStyle = new ViewStyle();
 
   /**
@@ -88,9 +93,20 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
   FeaturesDisplayedI featuresDisplayed = null;
 
-  protected Deque<CommandI> historyList = new ArrayDeque<CommandI>();
+  protected Deque<CommandI> historyList = new ArrayDeque<>();
 
-  protected Deque<CommandI> redoList = new ArrayDeque<CommandI>();
+  protected Deque<CommandI> redoList = new ArrayDeque<>();
+
+  /**
+   * alignment displayed in the viewport. Please use get/setter
+   */
+  protected AlignmentI alignment;
+
+  public AlignmentViewport(AlignmentI al)
+  {
+    setAlignment(al);
+    ranges = new ViewportRanges(al);
+  }
 
   /**
    * @param name
@@ -390,6 +406,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public void setWrapAlignment(boolean state)
   {
     viewStyle.setWrapAlignment(state);
+    ranges.setWrappedMode(state);
   }
 
   /**
@@ -552,11 +569,6 @@ public abstract class AlignmentViewport implements AlignViewportI,
     viewStyle.setSeqNameItalics(default1);
   }
 
-  /**
-   * alignment displayed in the viewport. Please use get/setter
-   */
-  protected AlignmentI alignment;
-
   @Override
   public AlignmentI getAlignment()
   {
@@ -597,7 +609,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
   protected boolean ignoreGapsInConsensusCalculation = false;
 
-  protected ColourSchemeI globalColourScheme = null;
+  protected ResidueShaderI residueShading = new ResidueShader();
 
   @Override
   public void setGlobalColourScheme(ColourSchemeI cs)
@@ -605,74 +617,57 @@ public abstract class AlignmentViewport implements AlignViewportI,
     // TODO: logic refactored from AlignFrame changeColour -
     // TODO: autorecalc stuff should be changed to rely on the worker system
     // check to see if we should implement a changeColour(cs) method rather than
-    // put th logic in here
+    // put the logic in here
     // - means that caller decides if they want to just modify state and defer
     // calculation till later or to do all calculations in thread.
     // via changecolour
-    globalColourScheme = cs;
-    boolean recalc = false;
+
+    /*
+     * only instantiate alignment colouring once, thereafter update it;
+     * this means that any conservation or PID threshold settings
+     * persist when the alignment colour scheme is changed
+     */
+    if (residueShading == null)
+    {
+      residueShading = new ResidueShader(viewStyle);
+    }
+    residueShading.setColourScheme(cs);
+
+    // TODO: do threshold and increment belong in ViewStyle or ResidueShader?
+    // ...problem: groups need these, but do not currently have a ViewStyle
+
     if (cs != null)
     {
-      recalc = getConservationSelected();
-      if (getAbovePIDThreshold() || cs instanceof PIDColourScheme
-              || cs instanceof Blosum62ColourScheme)
+      if (getConservationSelected())
       {
-        recalc = true;
-        cs.setThreshold(viewStyle.getThreshold(),
-                ignoreGapsInConsensusCalculation);
+        residueShading.setConservation(hconservation);
       }
-      else
-      {
-        cs.setThreshold(0, ignoreGapsInConsensusCalculation);
-      }
-      if (recalc)
-      {
-        cs.setConsensus(hconsensus);
-        cs.setConservation(hconservation);
-      }
-      cs.setConservationApplied(getConservationSelected());
-      cs.alignmentChanged(alignment, hiddenRepSequences);
+      /*
+       * reset conservation flag in case just set to false if
+       * Conservation was null (calculation still in progress)
+       */
+      residueShading.setConservationApplied(getConservationSelected());
+      residueShading.alignmentChanged(alignment, hiddenRepSequences);
     }
+
+    /*
+     * if 'apply colour to all groups' is selected... do so
+     * (but don't transfer any colour threshold settings to groups)
+     */
     if (getColourAppliesToAllGroups())
     {
       for (SequenceGroup sg : getAlignment().getGroups())
       {
-        if (cs == null)
+        /*
+         * retain any colour thresholds per group while
+         * changing choice of colour scheme (JAL-2386)
+         */
+        sg.setColourScheme(
+                cs == null ? null : cs.getInstance(this, sg));
+        if (cs != null)
         {
-          sg.cs = null;
-          continue;
-        }
-        sg.cs = cs.applyTo(sg, getHiddenRepSequences());
-        sg.setConsPercGaps(ConsPercGaps);
-        if (getAbovePIDThreshold() || cs instanceof PIDColourScheme
-                || cs instanceof Blosum62ColourScheme)
-        {
-          sg.cs.setThreshold(viewStyle.getThreshold(),
-                  isIgnoreGapsConsensus());
-          recalc = true;
-        }
-        else
-        {
-          sg.cs.setThreshold(0, isIgnoreGapsConsensus());
-        }
-
-        if (getConservationSelected())
-        {
-          sg.cs.setConservationApplied(true);
-          recalc = true;
-        }
-        else
-        {
-          sg.cs.setConservation(null);
-          // sg.cs.setThreshold(0, getIgnoreGapsConsensus());
-        }
-        if (recalc)
-        {
-          sg.recalcConservation();
-        }
-        else
-        {
-          sg.cs.alignmentChanged(sg, hiddenRepSequences);
+          sg.getGroupColourScheme().alignmentChanged(sg,
+                  hiddenRepSequences);
         }
       }
     }
@@ -681,12 +676,20 @@ public abstract class AlignmentViewport implements AlignViewportI,
   @Override
   public ColourSchemeI getGlobalColourScheme()
   {
-    return globalColourScheme;
+    return residueShading == null ? null : residueShading.getColourScheme();
+  }
+
+  @Override
+  public ResidueShaderI getResidueShading()
+  {
+    return residueShading;
   }
 
   protected AlignmentAnnotation consensus;
 
   protected AlignmentAnnotation complementConsensus;
+
+  protected AlignmentAnnotation gapcounts;
 
   protected AlignmentAnnotation strucConsensus;
 
@@ -790,6 +793,12 @@ public abstract class AlignmentViewport implements AlignViewportI,
   }
 
   @Override
+  public AlignmentAnnotation getAlignmentGapAnnotation()
+  {
+    return gapcounts;
+  }
+
+  @Override
   public AlignmentAnnotation getComplementConsensusAnnotation()
   {
     return complementConsensus;
@@ -815,11 +824,11 @@ public abstract class AlignmentViewport implements AlignViewportI,
     {
       return;
     }
-    if (calculator
-            .getRegisteredWorkersOfClass(jalview.workers.ConservationThread.class) == null)
+    if (calculator.getRegisteredWorkersOfClass(
+            jalview.workers.ConservationThread.class) == null)
     {
-      calculator.registerWorker(new jalview.workers.ConservationThread(
-              this, ap));
+      calculator.registerWorker(
+              new jalview.workers.ConservationThread(this, ap));
     }
   }
 
@@ -833,7 +842,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
     {
       return;
     }
-    if (calculator.getRegisteredWorkersOfClass(ConsensusThread.class) == null)
+    if (calculator
+            .getRegisteredWorkersOfClass(ConsensusThread.class) == null)
     {
       calculator.registerWorker(new ConsensusThread(this, ap));
     }
@@ -864,8 +874,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
       }
       if (doConsensus)
       {
-        if (calculator
-                .getRegisteredWorkersOfClass(ComplementConsensusThread.class) == null)
+        if (calculator.getRegisteredWorkersOfClass(
+                ComplementConsensusThread.class) == null)
         {
           calculator
                   .registerWorker(new ComplementConsensusThread(this, ap));
@@ -889,7 +899,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
     {
       return;
     }
-    if (calculator.getRegisteredWorkersOfClass(StrucConsensusThread.class) == null)
+    if (calculator.getRegisteredWorkersOfClass(
+            StrucConsensusThread.class) == null)
     {
       calculator.registerWorker(new StrucConsensusThread(this, ap));
     }
@@ -939,11 +950,16 @@ public abstract class AlignmentViewport implements AlignViewportI,
     groupConsensus = null;
     groupConservation = null;
     hconsensus = null;
+    hconservation = null;
     hcomplementConsensus = null;
-    // colour scheme may hold reference to consensus
-    globalColourScheme = null;
-    // TODO remove listeners from changeSupport?
+    gapcounts = null;
+    calculator = null;
+    residueShading = null; // may hold a reference to Consensus
     changeSupport = null;
+    ranges = null;
+    currentTree = null;
+    selectionGroup = null;
+    colSel = null;
     setAlignment(null);
   }
 
@@ -1089,7 +1105,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
   }
 
   /**
-   * Set the selection group for this window.
+   * Set the selection group for this window. Also sets the current alignment as
+   * the context for the group, if it does not already have one.
    * 
    * @param sg
    *          - group holding references to sequences in this alignment view
@@ -1099,11 +1116,15 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public void setSelectionGroup(SequenceGroup sg)
   {
     selectionGroup = sg;
+    if (sg != null && sg.getContext() == null)
+    {
+      sg.setContext(alignment);
+    }
   }
 
-  public void setHiddenColumns(ColumnSelection colsel)
+  public void setHiddenColumns(HiddenColumns hidden)
   {
-    this.colSel = colsel;
+    this.alignment.setHiddenColumns(hidden);
   }
 
   @Override
@@ -1150,7 +1171,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
   @Override
   public boolean hasHiddenColumns()
   {
-    return colSel != null && colSel.hasHiddenColumns();
+    return alignment.getHiddenColumns() != null
+            && alignment.getHiddenColumns().hasHiddenColumns();
   }
 
   public void updateHiddenColumns()
@@ -1172,8 +1194,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
   {
     if (sequenceSetID != null)
     {
-      System.err
-              .println("Warning - overwriting a sequenceSetId for a viewport!");
+      System.err.println(
+              "Warning - overwriting a sequenceSetId for a viewport!");
     }
     sequenceSetID = new String(newid);
   }
@@ -1211,9 +1233,9 @@ public abstract class AlignmentViewport implements AlignViewportI,
     if (ap != null)
     {
       updateConsensus(ap);
-      if (globalColourScheme != null)
+      if (residueShading != null)
       {
-        globalColourScheme.setThreshold(globalColourScheme.getThreshold(),
+        residueShading.setThreshold(residueShading.getThreshold(),
                 ignoreGapsInConsensusCalculation);
       }
     }
@@ -1285,7 +1307,9 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
   protected boolean showConsensus = true;
 
-  private Map<SequenceI, Color> sequenceColours = new HashMap<SequenceI, Color>();
+  protected boolean showOccupancy = true;
+
+  private Map<SequenceI, Color> sequenceColours = new HashMap<>();
 
   protected SequenceAnnotationOrder sortAnnotationsBy = null;
 
@@ -1295,15 +1319,6 @@ public abstract class AlignmentViewport implements AlignViewportI,
    * when set, view will scroll to show the highlighted position
    */
   private boolean followHighlight = true;
-
-  // TODO private with getters and setters?
-  public int startRes;
-
-  public int endRes;
-
-  public int startSeq;
-
-  public int endSeq;
 
   /**
    * Property change listener for changes in alignment
@@ -1326,7 +1341,10 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public void removePropertyChangeListener(
           java.beans.PropertyChangeListener listener)
   {
-    changeSupport.removePropertyChangeListener(listener);
+    if (changeSupport != null)
+    {
+      changeSupport.removePropertyChangeListener(listener);
+    }
   }
 
   /**
@@ -1354,7 +1372,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
       return;
     }
 
-    colSel.hideSelectedColumns();
+    colSel.hideSelectedColumns(alignment);
     setSelectionGroup(null);
     isColSelChanged(true);
   }
@@ -1363,30 +1381,33 @@ public abstract class AlignmentViewport implements AlignViewportI,
   {
     if (start == end)
     {
-      colSel.hideColumns(start);
+      colSel.hideSelectedColumns(start, alignment.getHiddenColumns());
     }
     else
     {
-      colSel.hideColumns(start, end);
+      alignment.getHiddenColumns().hideColumns(start, end);
     }
     isColSelChanged(true);
   }
 
   public void showColumn(int col)
   {
-    colSel.revealHiddenColumns(col);
+    alignment.getHiddenColumns().revealHiddenColumns(col, colSel);
     isColSelChanged(true);
   }
 
   public void showAllHiddenColumns()
   {
-    colSel.revealAllHiddenColumns();
+    alignment.getHiddenColumns().revealAllHiddenColumns(colSel);
     isColSelChanged(true);
   }
 
   // common hide/show seq stuff
   public void showAllHiddenSeqs()
   {
+    int startSeq = ranges.getStartSeq();
+    int endSeq = ranges.getEndSeq();
+
     if (alignment.getHiddenSequences().getSize() > 0)
     {
       if (selectionGroup == null)
@@ -1394,8 +1415,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
         selectionGroup = new SequenceGroup();
         selectionGroup.setEndRes(alignment.getWidth() - 1);
       }
-      List<SequenceI> tmp = alignment.getHiddenSequences().showAll(
-              hiddenRepSequences);
+      List<SequenceI> tmp = alignment.getHiddenSequences()
+              .showAll(hiddenRepSequences);
       for (SequenceI seq : tmp)
       {
         selectionGroup.addSequence(seq, false);
@@ -1403,6 +1424,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
       }
 
       hiddenRepSequences = null;
+
+      ranges.setStartEndSeq(startSeq, endSeq + tmp.size());
 
       firePropertyChange("alignment", null, alignment.getSequences());
       // used to set hasHiddenRows/hiddenRepSequences here, after the property
@@ -1413,8 +1436,11 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
   public void showSequence(int index)
   {
-    List<SequenceI> tmp = alignment.getHiddenSequences().showSequence(
-            index, hiddenRepSequences);
+    int startSeq = ranges.getStartSeq();
+    int endSeq = ranges.getEndSeq();
+
+    List<SequenceI> tmp = alignment.getHiddenSequences().showSequence(index,
+            hiddenRepSequences);
     if (tmp.size() > 0)
     {
       if (selectionGroup == null)
@@ -1428,6 +1454,9 @@ public abstract class AlignmentViewport implements AlignViewportI,
         selectionGroup.addSequence(seq, false);
         setSequenceAnnotationsVisible(seq, true);
       }
+
+      ranges.setStartEndSeq(startSeq, endSeq + tmp.size());
+
       firePropertyChange("alignment", null, alignment.getSequences());
       sendSelection();
     }
@@ -1449,6 +1478,11 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
   public void hideSequence(SequenceI[] seq)
   {
+    /*
+     * cache offset to first visible sequence
+     */
+    int startSeq = ranges.getStartSeq();
+
     if (seq != null)
     {
       for (int i = 0; i < seq.length; i++)
@@ -1456,6 +1490,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
         alignment.getHiddenSequences().hideSequence(seq[i]);
         setSequenceAnnotationsVisible(seq[i], false);
       }
+      ranges.setStartSeq(startSeq);
       firePropertyChange("alignment", null, alignment.getSequences());
     }
   }
@@ -1485,8 +1520,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
     }
 
     int gsize = selectionGroup.getSize();
-    SequenceI[] hseqs = selectionGroup.getSequences().toArray(
-            new SequenceI[gsize]);
+    SequenceI[] hseqs = selectionGroup.getSequences()
+            .toArray(new SequenceI[gsize]);
 
     hideSequence(hseqs);
     setSelectionGroup(null);
@@ -1524,7 +1559,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
     if (hiddenRepSequences == null)
     {
-      hiddenRepSequences = new Hashtable<SequenceI, SequenceCollectionI>();
+      hiddenRepSequences = new Hashtable<>();
     }
 
     hiddenRepSequences.put(repSequence, sg);
@@ -1576,8 +1611,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
    */
   public boolean isHiddenRepSequence(SequenceI seq)
   {
-    return (hiddenRepSequences != null && hiddenRepSequences
-            .containsKey(seq));
+    return (hiddenRepSequences != null
+            && hiddenRepSequences.containsKey(seq));
   }
 
   /**
@@ -1595,14 +1630,15 @@ public abstract class AlignmentViewport implements AlignViewportI,
   @Override
   public int adjustForHiddenSeqs(int alignmentIndex)
   {
-    return alignment.getHiddenSequences().adjustForHiddenSeqs(
-            alignmentIndex);
+    return alignment.getHiddenSequences()
+            .adjustForHiddenSeqs(alignmentIndex);
   }
 
   @Override
   public void invertColumnSelection()
   {
-    colSel.invertColumnSelection(0, alignment.getWidth());
+    colSel.invertColumnSelection(0, alignment.getWidth(), alignment);
+    isColSelChanged(true);
   }
 
   @Override
@@ -1648,13 +1684,6 @@ public abstract class AlignmentViewport implements AlignViewportI,
   }
 
   @Override
-  public CigarArray getViewAsCigars(boolean selectedRegionOnly)
-  {
-    return new CigarArray(alignment, colSel,
-            (selectedRegionOnly ? selectionGroup : null));
-  }
-
-  @Override
   public jalview.datamodel.AlignmentView getAlignmentView(
           boolean selectedOnly)
   {
@@ -1665,9 +1694,29 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public jalview.datamodel.AlignmentView getAlignmentView(
           boolean selectedOnly, boolean markGroups)
   {
-    return new AlignmentView(alignment, colSel, selectionGroup,
-            colSel != null && colSel.hasHiddenColumns(), selectedOnly,
-            markGroups);
+    return getAlignmentViewWithComplement(selectedOnly,markGroups,true);
+  }
+  
+  @Override
+  public jalview.datamodel.AlignmentView getAlignmentViewWithComplement(
+          boolean selectedOnly, boolean markGroups,boolean withComplment)
+  {
+    AlignmentView complementView = null;
+    if (withComplment)
+    {
+      if (codingComplement != null)
+      {
+        complementView = codingComplement.getAlignmentViewWithComplement(
+                selectedOnly, markGroups, false);
+      }
+    }
+    AlignmentView thisView = new AlignmentView(alignment,
+            alignment.getHiddenColumns(), selectionGroup,
+            alignment.getHiddenColumns() != null
+                    && alignment.getHiddenColumns().hasHiddenColumns(),
+            selectedOnly, markGroups);
+    thisView.setComplement(complementView);
+    return thisView;
   }
 
   @Override
@@ -1710,9 +1759,15 @@ public abstract class AlignmentViewport implements AlignViewportI,
     }
 
     selection = new String[iSize];
-    if (colSel != null && colSel.hasHiddenColumns())
+    if (alignment.getHiddenColumns() != null
+            && alignment.getHiddenColumns().hasHiddenColumns())
     {
-      selection = colSel.getVisibleSequenceStrings(start, end, seqs);
+      for (i = 0; i < iSize; i++)
+      {
+        Iterator<int[]> blocks = alignment.getHiddenColumns()
+                .getVisContigsIterator(start, end + 1, false);
+        selection[i] = seqs[i].getSequenceStringFromIterator(blocks);
+      }
     }
     else
     {
@@ -1728,20 +1783,21 @@ public abstract class AlignmentViewport implements AlignViewportI,
   @Override
   public List<int[]> getVisibleRegionBoundaries(int min, int max)
   {
-    ArrayList<int[]> regions = new ArrayList<int[]>();
+    ArrayList<int[]> regions = new ArrayList<>();
     int start = min;
     int end = max;
 
     do
     {
-      if (colSel != null && colSel.hasHiddenColumns())
+      HiddenColumns hidden = alignment.getHiddenColumns();
+      if (hidden != null && hidden.hasHiddenColumns())
       {
         if (start == 0)
         {
-          start = colSel.adjustForHiddenColumns(start);
+          start = hidden.visibleToAbsoluteColumn(start);
         }
 
-        end = colSel.getHiddenBoundaryRight(start);
+        end = hidden.getNextHiddenBoundary(false, start);
         if (start == end)
         {
           end = max;
@@ -1754,10 +1810,10 @@ public abstract class AlignmentViewport implements AlignViewportI,
 
       regions.add(new int[] { start, end });
 
-      if (colSel != null && colSel.hasHiddenColumns())
+      if (hidden != null && hidden.hasHiddenColumns())
       {
-        start = colSel.adjustForHiddenColumns(end);
-        start = colSel.getHiddenBoundaryLeft(start) + 1;
+        start = hidden.visibleToAbsoluteColumn(end);
+        start = hidden.getNextHiddenBoundary(true, start) + 1;
       }
     } while (end < max);
 
@@ -1770,7 +1826,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public List<AlignmentAnnotation> getVisibleAlignmentAnnotation(
           boolean selectedOnly)
   {
-    ArrayList<AlignmentAnnotation> ala = new ArrayList<AlignmentAnnotation>();
+    ArrayList<AlignmentAnnotation> ala = new ArrayList<>();
     AlignmentAnnotation[] aa;
     if ((aa = alignment.getAlignmentAnnotation()) != null)
     {
@@ -1779,12 +1835,13 @@ public abstract class AlignmentViewport implements AlignViewportI,
         AlignmentAnnotation clone = new AlignmentAnnotation(annot);
         if (selectedOnly && selectionGroup != null)
         {
-          colSel.makeVisibleAnnotation(selectionGroup.getStartRes(),
-                  selectionGroup.getEndRes(), clone);
+          clone.makeVisibleAnnotation(
+                  selectionGroup.getStartRes(), selectionGroup.getEndRes(),
+                  alignment.getHiddenColumns());
         }
         else
         {
-          colSel.makeVisibleAnnotation(clone);
+          clone.makeVisibleAnnotation(alignment.getHiddenColumns());
         }
         ala.add(clone);
       }
@@ -1849,7 +1906,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
       selectionGroup.setEndRes(alWidth - 1);
     }
 
-    resetAllColourSchemes();
+    updateAllColourSchemes();
     calculator.restartWorkers();
     // alignment.adjustSequenceAnnotations();
   }
@@ -1857,17 +1914,17 @@ public abstract class AlignmentViewport implements AlignViewportI,
   /**
    * reset scope and do calculations for all applied colourschemes on alignment
    */
-  void resetAllColourSchemes()
+  void updateAllColourSchemes()
   {
-    ColourSchemeI cs = globalColourScheme;
-    if (cs != null)
+    ResidueShaderI rs = residueShading;
+    if (rs != null)
     {
-      cs.alignmentChanged(alignment, hiddenRepSequences);
+      rs.alignmentChanged(alignment, hiddenRepSequences);
 
-      cs.setConsensus(hconsensus);
-      if (cs.conservationApplied())
+      rs.setConsensus(hconsensus);
+      if (rs.conservationApplied())
       {
-        cs.setConservation(Conservation.calculateConservation("All",
+        rs.setConservation(Conservation.calculateConservation("All",
                 alignment.getSequences(), 0, alignment.getWidth(), false,
                 getConsPercGaps(), false));
       }
@@ -1900,19 +1957,21 @@ public abstract class AlignmentViewport implements AlignViewportI,
       {
         initRNAStructure();
       }
-      consensus = new AlignmentAnnotation("Consensus", "PID",
+      consensus = new AlignmentAnnotation("Consensus",
+              MessageManager.getString("label.consensus_descr"),
               new Annotation[1], 0f, 100f, AlignmentAnnotation.BAR_GRAPH);
       initConsensus(consensus);
+      initGapCounts();
 
       initComplementConsensus();
     }
   }
 
   /**
-   * If this is a protein alignment and there are mappings to cDNA, add the cDNA
-   * consensus annotation.
+   * If this is a protein alignment and there are mappings to cDNA, adds the
+   * cDNA consensus annotation and returns true, else returns false.
    */
-  public void initComplementConsensus()
+  public boolean initComplementConsensus()
   {
     if (!alignment.isNucleotide())
     {
@@ -1936,12 +1995,16 @@ public abstract class AlignmentViewport implements AlignViewportI,
         if (doConsensus)
         {
           complementConsensus = new AlignmentAnnotation("cDNA Consensus",
-                  "PID for cDNA", new Annotation[1], 0f, 100f,
+                  MessageManager
+                          .getString("label.complement_consensus_descr"),
+                  new Annotation[1], 0f, 100f,
                   AlignmentAnnotation.BAR_GRAPH);
           initConsensus(complementConsensus);
+          return true;
         }
       }
     }
+    return false;
   }
 
   private void initConsensus(AlignmentAnnotation aa)
@@ -1955,6 +2018,25 @@ public abstract class AlignmentViewport implements AlignViewportI,
     }
   }
 
+  // these should be extracted from the view model - style and settings for
+  // derived annotation
+  private void initGapCounts()
+  {
+    if (showOccupancy)
+    {
+      gapcounts = new AlignmentAnnotation("Occupancy",
+              MessageManager.getString("label.occupancy_descr"),
+              new Annotation[1], 0f, alignment.getHeight(),
+              AlignmentAnnotation.BAR_GRAPH);
+      gapcounts.hasText = true;
+      gapcounts.autoCalculated = true;
+      gapcounts.scaleColLabel = true;
+      gapcounts.graph = AlignmentAnnotation.BAR_GRAPH;
+
+      alignment.addAnnotation(gapcounts);
+    }
+  }
+
   private void initConservation()
   {
     if (showConservation)
@@ -1962,9 +2044,9 @@ public abstract class AlignmentViewport implements AlignViewportI,
       if (conservation == null)
       {
         conservation = new AlignmentAnnotation("Conservation",
-                "Conservation of total alignment less than "
-                        + getConsPercGaps() + "% gaps", new Annotation[1],
-                0f, 11f, AlignmentAnnotation.BAR_GRAPH);
+                MessageManager.formatMessage("label.conservation_descr",
+                        getConsPercGaps()),
+                new Annotation[1], 0f, 11f, AlignmentAnnotation.BAR_GRAPH);
         conservation.hasText = true;
         conservation.autoCalculated = true;
         alignment.addAnnotation(conservation);
@@ -1979,7 +2061,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
       if (quality == null)
       {
         quality = new AlignmentAnnotation("Quality",
-                "Alignment Quality based on Blosum62 scores",
+                MessageManager.getString("label.quality_descr"),
                 new Annotation[1], 0f, 11f, AlignmentAnnotation.BAR_GRAPH);
         quality.hasText = true;
         quality.autoCalculated = true;
@@ -1992,7 +2074,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
   {
     if (alignment.hasRNAStructure() && strucConsensus == null)
     {
-      strucConsensus = new AlignmentAnnotation("StrucConsensus", "PID",
+      strucConsensus = new AlignmentAnnotation("StrucConsensus",
+              MessageManager.getString("label.strucconsensus_descr"),
               new Annotation[1], 0f, 100f, AlignmentAnnotation.BAR_GRAPH);
       strucConsensus.hasText = true;
       strucConsensus.autoCalculated = true;
@@ -2097,7 +2180,7 @@ public abstract class AlignmentViewport implements AlignViewportI,
     // intersect alignment annotation with alignment groups
 
     AlignmentAnnotation[] aan = alignment.getAlignmentAnnotation();
-    List<SequenceGroup> oldrfs = new ArrayList<SequenceGroup>();
+    List<SequenceGroup> oldrfs = new ArrayList<>();
     if (aan != null)
     {
       for (int an = 0; an < aan.length; an++)
@@ -2441,6 +2524,11 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public void setViewStyle(ViewStyleI settingsForView)
   {
     viewStyle = new ViewStyle(settingsForView);
+    if (residueShading != null)
+    {
+      residueShading.setConservationApplied(
+              settingsForView.isConservationColourSelected());
+    }
   }
 
   @Override
@@ -2607,7 +2695,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
     return sortAnnotationsBy;
   }
 
-  public void setSortAnnotationsBy(SequenceAnnotationOrder sortAnnotationsBy)
+  public void setSortAnnotationsBy(
+          SequenceAnnotationOrder sortAnnotationsBy)
   {
     this.sortAnnotationsBy = sortAnnotationsBy;
   }
@@ -2634,6 +2723,42 @@ public abstract class AlignmentViewport implements AlignViewportI,
     viewStyle.setScaleProteinAsCdna(b);
   }
 
+  @Override
+  public boolean isProteinFontAsCdna()
+  {
+    return viewStyle.isProteinFontAsCdna();
+  }
+
+  @Override
+  public void setProteinFontAsCdna(boolean b)
+  {
+    viewStyle.setProteinFontAsCdna(b);
+  }
+
+  @Override
+  public void setShowComplementFeatures(boolean b)
+  {
+    viewStyle.setShowComplementFeatures(b);
+  }
+
+  @Override
+  public boolean isShowComplementFeatures()
+  {
+    return viewStyle.isShowComplementFeatures();
+  }
+
+  @Override
+  public void setShowComplementFeaturesOnTop(boolean b)
+  {
+    viewStyle.setShowComplementFeaturesOnTop(b);
+  }
+
+  @Override
+  public boolean isShowComplementFeaturesOnTop()
+  {
+    return viewStyle.isShowComplementFeaturesOnTop();
+  }
+
   /**
    * @return true if view should scroll to show the highlighted region of a
    *         sequence
@@ -2651,63 +2776,10 @@ public abstract class AlignmentViewport implements AlignViewportI,
     this.followHighlight = b;
   }
 
-  public int getStartRes()
-  {
-    return startRes;
-  }
-
   @Override
-  public int getEndRes()
+  public ViewportRanges getRanges()
   {
-    return endRes;
-  }
-
-  public int getStartSeq()
-  {
-    return startSeq;
-  }
-
-  public void setStartRes(int res)
-  {
-    this.startRes = res;
-  }
-
-  public void setStartSeq(int seq)
-  {
-    this.startSeq = seq;
-  }
-
-  public void setEndRes(int res)
-  {
-    if (res > alignment.getWidth() - 1)
-    {
-      // log.System.out.println(" Corrected res from " + res + " to maximum " +
-      // (alignment.getWidth()-1));
-      res = alignment.getWidth() - 1;
-    }
-    if (res < 0)
-    {
-      res = 0;
-    }
-    this.endRes = res;
-  }
-
-  public void setEndSeq(int seq)
-  {
-    if (seq > alignment.getHeight())
-    {
-      seq = alignment.getHeight();
-    }
-    if (seq < 0)
-    {
-      seq = 0;
-    }
-    this.endSeq = seq;
-  }
-
-  public int getEndSeq()
-  {
-    return endSeq;
+    return ranges;
   }
 
   /**
@@ -2726,8 +2798,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
       return 0;
     }
     boolean iAmProtein = !getAlignment().isNucleotide();
-    AlignmentI proteinAlignment = iAmProtein ? getAlignment() : complement
-            .getAlignment();
+    AlignmentI proteinAlignment = iAmProtein ? getAlignment()
+            : complement.getAlignment();
     if (proteinAlignment == null)
     {
       return 0;
@@ -2747,7 +2819,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
      * locate 'middle' column (true middle if an odd number visible, left of
      * middle if an even number visible)
      */
-    int middleColumn = getStartRes() + (getEndRes() - getStartRes()) / 2;
+    int middleColumn = ranges.getStartRes()
+            + (ranges.getEndRes() - ranges.getStartRes()) / 2;
     final HiddenSequences hiddenSequences = getAlignment()
             .getHiddenSequences();
 
@@ -2757,7 +2830,8 @@ public abstract class AlignmentViewport implements AlignViewportI,
      */
     int lastSeq = alignment.getHeight() - 1;
     List<AlignedCodonFrame> seqMappings = null;
-    for (int seqNo = getStartSeq(); seqNo < lastSeq; seqNo++, seqOffset++)
+    for (int seqNo = ranges
+            .getStartSeq(); seqNo <= lastSeq; seqNo++, seqOffset++)
     {
       sequence = getAlignment().getSequenceAt(seqNo);
       if (hiddenSequences != null && hiddenSequences.isHidden(sequence))
@@ -2768,9 +2842,9 @@ public abstract class AlignmentViewport implements AlignViewportI,
       {
         continue;
       }
-      seqMappings = MappingUtils
-              .findMappingsForSequenceAndOthers(sequence, mappings,
-                      getCodingComplement().getAlignment().getSequences());
+      seqMappings = MappingUtils.findMappingsForSequenceAndOthers(sequence,
+              mappings,
+              getCodingComplement().getAlignment().getSequences());
       if (!seqMappings.isEmpty())
       {
         break;
@@ -2825,7 +2899,6 @@ public abstract class AlignmentViewport implements AlignViewportI,
    */
   private boolean selectionIsDefinedGroup = false;
 
-
   @Override
   public boolean isSelectionDefinedGroup()
   {
@@ -2846,14 +2919,15 @@ public abstract class AlignmentViewport implements AlignViewportI,
         selectionIsDefinedGroup = gps.contains(selectionGroup);
       }
     }
-    return selectionGroup.getContext() == alignment
-            || selectionIsDefinedGroup;
+    return selectionGroup.isDefined() || selectionIsDefinedGroup;
   }
 
   /**
    * null, or currently highlighted results on this view
    */
   private SearchResultsI searchResults = null;
+
+  protected TreeModel currentTree = null;
 
   @Override
   public boolean hasSearchResults()
@@ -2871,5 +2945,140 @@ public abstract class AlignmentViewport implements AlignViewportI,
   public SearchResultsI getSearchResults()
   {
     return searchResults;
+  }
+
+  /**
+   * get the consensus sequence as displayed under the PID consensus annotation
+   * row.
+   * 
+   * @return consensus sequence as a new sequence object
+   */
+  public SequenceI getConsensusSeq()
+  {
+    if (consensus == null)
+    {
+      updateConsensus(null);
+    }
+    if (consensus == null)
+    {
+      return null;
+    }
+    StringBuffer seqs = new StringBuffer();
+    for (int i = 0; i < consensus.annotations.length; i++)
+    {
+      Annotation annotation = consensus.annotations[i];
+      if (annotation != null)
+      {
+        String description = annotation.description;
+        if (description != null && description.startsWith("["))
+        {
+          // consensus is a tie - just pick the first one
+          seqs.append(description.charAt(1));
+        }
+        else
+        {
+          seqs.append(annotation.displayCharacter);
+        }
+      }
+    }
+
+    SequenceI sq = new Sequence("Consensus", seqs.toString());
+    sq.setDescription("Percentage Identity Consensus "
+            + ((ignoreGapsInConsensusCalculation) ? " without gaps" : ""));
+    return sq;
+  }
+
+  @Override
+  public void setCurrentTree(TreeModel tree)
+  {
+    currentTree = tree;
+  }
+
+  @Override
+  public TreeModel getCurrentTree()
+  {
+    return currentTree;
+  }
+
+  /**
+   * flag set to indicate if structure views might be out of sync with sequences
+   * in the alignment
+   */
+
+  private boolean needToUpdateStructureViews = false;
+
+  @Override
+  public boolean isUpdateStructures()
+  {
+    return needToUpdateStructureViews;
+  }
+
+  @Override
+  public void setUpdateStructures(boolean update)
+  {
+    needToUpdateStructureViews = update;
+  }
+
+  @Override
+  public boolean needToUpdateStructureViews()
+  {
+    boolean update = needToUpdateStructureViews;
+    needToUpdateStructureViews = false;
+    return update;
+  }
+
+  @Override
+  public void addSequenceGroup(SequenceGroup sequenceGroup)
+  {
+    alignment.addGroup(sequenceGroup);
+
+    Color col = sequenceGroup.idColour;
+    if (col != null)
+    {
+      col = col.brighter();
+
+      for (SequenceI sq : sequenceGroup.getSequences())
+      {
+        setSequenceColour(sq, col);
+      }
+    }
+
+    if (codingComplement != null)
+    {
+      SequenceGroup mappedGroup = MappingUtils
+              .mapSequenceGroup(sequenceGroup, this, codingComplement);
+      if (mappedGroup.getSequences().size() > 0)
+      {
+        codingComplement.getAlignment().addGroup(mappedGroup);
+
+        if (col != null)
+        {
+          for (SequenceI seq : mappedGroup.getSequences())
+          {
+            codingComplement.setSequenceColour(seq, col);
+          }
+        }
+      }
+      // propagate the structure view update flag according to our own setting
+      codingComplement.setUpdateStructures(needToUpdateStructureViews);
+    }
+  }
+
+  @Override
+  public Iterator<int[]> getViewAsVisibleContigs(boolean selectedRegionOnly)
+  {
+    int start = 0;
+    int end = 0;
+    if (selectedRegionOnly && selectionGroup != null)
+    {
+      start = selectionGroup.getStartRes();
+      end = selectionGroup.getEndRes() + 1;
+    }
+    else
+    {
+      end = alignment.getWidth();
+    }
+    return (alignment.getHiddenColumns().getVisContigsIterator(start, end,
+            false));
   }
 }

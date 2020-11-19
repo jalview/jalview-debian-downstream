@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,30 @@
  */
 package jalview.appletgui;
 
+import java.awt.CheckboxMenuItem;
+import java.awt.Frame;
+import java.awt.Menu;
+import java.awt.MenuItem;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.Vector;
+
 import jalview.analysis.AAFrequency;
 import jalview.analysis.AlignmentAnnotationUtils;
 import jalview.analysis.AlignmentUtils;
 import jalview.analysis.Conservation;
+import jalview.bin.JalviewLite;
 import jalview.commands.ChangeCaseCommand;
 import jalview.commands.EditCommand;
 import jalview.commands.EditCommand.Action;
@@ -34,14 +54,21 @@ import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.io.AppletFormatAdapter;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormatI;
+import jalview.io.FileFormats;
 import jalview.io.SequenceAnnotationReport;
+import jalview.renderer.ResidueShader;
+import jalview.renderer.ResidueShaderI;
 import jalview.schemes.Blosum62ColourScheme;
 import jalview.schemes.BuriedColourScheme;
 import jalview.schemes.ClustalxColourScheme;
 import jalview.schemes.HelixColourScheme;
 import jalview.schemes.HydrophobicColourScheme;
+import jalview.schemes.JalviewColourScheme;
 import jalview.schemes.NucleotideColourScheme;
 import jalview.schemes.PIDColourScheme;
+import jalview.schemes.PurinePyrimidineColourScheme;
 import jalview.schemes.StrandColourScheme;
 import jalview.schemes.TaylorColourScheme;
 import jalview.schemes.TurnColourScheme;
@@ -49,65 +76,56 @@ import jalview.schemes.ZappoColourScheme;
 import jalview.util.MessageManager;
 import jalview.util.UrlLink;
 
-import java.awt.CheckboxMenuItem;
-import java.awt.Frame;
-import java.awt.Menu;
-import java.awt.MenuItem;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.Vector;
-
-public class APopupMenu extends java.awt.PopupMenu implements
-        ActionListener, ItemListener
+public class APopupMenu extends java.awt.PopupMenu
+        implements ActionListener, ItemListener
 {
   Menu groupMenu = new Menu();
 
   MenuItem editGroupName = new MenuItem();
 
-  protected MenuItem clustalColour = new MenuItem();
+  CheckboxMenuItem noColour = new CheckboxMenuItem();
 
-  protected MenuItem zappoColour = new MenuItem();
+  protected CheckboxMenuItem clustalColour = new CheckboxMenuItem();
 
-  protected MenuItem taylorColour = new MenuItem();
+  protected CheckboxMenuItem zappoColour = new CheckboxMenuItem();
 
-  protected MenuItem hydrophobicityColour = new MenuItem();
+  protected CheckboxMenuItem taylorColour = new CheckboxMenuItem();
 
-  protected MenuItem helixColour = new MenuItem();
+  protected CheckboxMenuItem hydrophobicityColour = new CheckboxMenuItem();
 
-  protected MenuItem strandColour = new MenuItem();
+  protected CheckboxMenuItem helixColour = new CheckboxMenuItem();
 
-  protected MenuItem turnColour = new MenuItem();
+  protected CheckboxMenuItem strandColour = new CheckboxMenuItem();
 
-  protected MenuItem buriedColour = new MenuItem();
+  protected CheckboxMenuItem turnColour = new CheckboxMenuItem();
 
-  protected CheckboxMenuItem abovePIDColour = new CheckboxMenuItem();
+  protected CheckboxMenuItem buriedColour = new CheckboxMenuItem();
+
+  protected CheckboxMenuItem PIDColour = new CheckboxMenuItem();
+
+  protected CheckboxMenuItem BLOSUM62Colour = new CheckboxMenuItem();
+
+  CheckboxMenuItem nucleotideColour = new CheckboxMenuItem();
+
+  CheckboxMenuItem purinePyrimidineColour = new CheckboxMenuItem();
 
   protected MenuItem userDefinedColour = new MenuItem();
 
-  protected MenuItem PIDColour = new MenuItem();
+  protected CheckboxMenuItem abovePIDColour = new CheckboxMenuItem();
 
-  protected MenuItem BLOSUM62Colour = new MenuItem();
+  MenuItem modifyPID = new MenuItem();
+
+  protected CheckboxMenuItem conservationColour = new CheckboxMenuItem();
+
+  MenuItem modifyConservation = new MenuItem();
 
   MenuItem noColourmenuItem = new MenuItem();
-
-  protected CheckboxMenuItem conservationMenuItem = new CheckboxMenuItem();
 
   final AlignmentPanel ap;
 
   MenuItem unGroupMenuItem = new MenuItem();
 
   MenuItem createGroupMenuItem = new MenuItem();
-
-  MenuItem nucleotideMenuItem = new MenuItem();
 
   Menu colourMenu = new Menu();
 
@@ -193,7 +211,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
   Menu menu1 = new Menu();
 
   public APopupMenu(AlignmentPanel apanel, final SequenceI seq,
-          Vector<String> links)
+          List<String> links)
   {
     // /////////////////////////////////////////////////////////
     // If this is activated from the sequence panel, the user may want to
@@ -213,10 +231,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
       e.printStackTrace();
     }
 
-    for (int i = 0; i < jalview.io.AppletFormatAdapter.WRITEABLE_FORMATS.length; i++)
+    for (String ff : FileFormats.getInstance().getWritableFormats(true))
     {
-      MenuItem item = new MenuItem(
-              jalview.io.AppletFormatAdapter.WRITEABLE_FORMATS[i]);
+      MenuItem item = new MenuItem(ff);
 
       item.addActionListener(this);
       outputmenu.add(item);
@@ -227,8 +244,27 @@ public class APopupMenu extends java.awt.PopupMenu implements
     SequenceGroup sg = ap.av.getSelectionGroup();
     if (sg != null && sg.getSize() > 0)
     {
-      editGroupName.setLabel(MessageManager.formatMessage(
-              "label.name_param", new Object[] { sg.getName() }));
+      if (sg.isNucleotide())
+      {
+        conservationColour.setEnabled(false);
+        clustalColour.setEnabled(false);
+        BLOSUM62Colour.setEnabled(false);
+        zappoColour.setEnabled(false);
+        taylorColour.setEnabled(false);
+        hydrophobicityColour.setEnabled(false);
+        helixColour.setEnabled(false);
+        strandColour.setEnabled(false);
+        turnColour.setEnabled(false);
+        buriedColour.setEnabled(false);
+      }
+      else
+      {
+        purinePyrimidineColour.setEnabled(false);
+        nucleotideColour.setEnabled(false);
+      }
+      editGroupName.setLabel(
+              MessageManager.formatMessage("label.name_param", new Object[]
+              { sg.getName() }));
       showText.setState(sg.getDisplayText());
       showColourText.setState(sg.getColourText());
       showBoxes.setState(sg.getDisplayBoxes());
@@ -242,8 +278,15 @@ public class APopupMenu extends java.awt.PopupMenu implements
       {
         menu1.setLabel(MessageManager.getString("action.edit_group"));
         groupMenu.remove(createGroupMenuItem);
+        if (sg.cs != null)
+        {
+          abovePIDColour.setState(sg.cs.getThreshold() > 0);
+          conservationColour.setState(sg.cs.conservationApplied());
+          modifyPID.setEnabled(abovePIDColour.getState());
+          modifyConservation.setEnabled(conservationColour.getState());
+        }
       }
-
+      setSelectedColour(sg.cs);
     }
     else
     {
@@ -262,17 +305,18 @@ public class APopupMenu extends java.awt.PopupMenu implements
       seqMenu.setLabel(seq.getName());
       if (seq == ap.av.getAlignment().getSeqrep())
       {
-        makeReferenceSeq.setLabel(MessageManager
-                .getString("action.unmark_as_reference"));// Unmark
-                                                          // representative");
+        makeReferenceSeq.setLabel(
+                MessageManager.getString("action.unmark_as_reference"));// Unmark
+                                                                        // representative");
       }
       else
       {
-        makeReferenceSeq.setLabel(MessageManager
-                .getString("action.set_as_reference")); // );
+        makeReferenceSeq.setLabel(
+                MessageManager.getString("action.set_as_reference")); // );
       }
-      repGroup.setLabel(MessageManager.formatMessage(
-              "label.represent_group_with", new Object[] { seq.getName() }));
+      repGroup.setLabel(MessageManager
+              .formatMessage("label.represent_group_with", new Object[]
+              { seq.getName() }));
     }
     else
     {
@@ -301,6 +345,36 @@ public class APopupMenu extends java.awt.PopupMenu implements
   }
 
   /**
+   * Select the menu item (if any) matching the current colour scheme. This
+   * works by matching the menu item name (not display text) to the canonical
+   * name of the colour scheme.
+   * 
+   * @param cs
+   */
+  protected void setSelectedColour(ResidueShaderI cs)
+  {
+    if (cs == null || cs.getColourScheme() == null)
+    {
+      noColour.setState(true);
+    }
+    else
+    {
+      String name = cs.getColourScheme().getSchemeName();
+      for (int i = 0; i < colourMenu.getItemCount(); i++)
+      {
+        MenuItem item = colourMenu.getItem(i);
+        if (item instanceof CheckboxMenuItem)
+        {
+          if (name.equals(item.getName()))
+          {
+            ((CheckboxMenuItem) item).setState(true);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Adds a 'Link' menu item with a sub-menu item for each hyperlink provided.
    * 
    * @param seq
@@ -309,7 +383,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
   void addFeatureLinks(final SequenceI seq, List<String> links)
   {
     Menu linkMenu = new Menu(MessageManager.getString("action.link"));
-    Map<String, List<String>> linkset = new LinkedHashMap<String, List<String>>();
+    Map<String, List<String>> linkset = new LinkedHashMap<>();
 
     for (String link : links)
     {
@@ -374,8 +448,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
     /*
      * First for the currently selected sequence (if there is one):
      */
-    final List<SequenceI> selectedSequence = (seq == null ? Collections
-            .<SequenceI> emptyList() : Arrays.asList(seq));
+    final List<SequenceI> selectedSequence = (seq == null
+            ? Collections.<SequenceI> emptyList()
+            : Arrays.asList(seq));
     buildAnnotationTypesMenus(seqShowAnnotationsMenu,
             seqHideAnnotationsMenu, selectedSequence);
     configureReferenceAnnotationsMenu(seqAddReferenceAnnotations,
@@ -384,9 +459,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
     /*
      * and repeat for the current selection group (if there is one):
      */
-    final List<SequenceI> selectedGroup = (ap.av.getSelectionGroup() == null ? Collections
-            .<SequenceI> emptyList() : ap.av.getSelectionGroup()
-            .getSequences());
+    final List<SequenceI> selectedGroup = (ap.av.getSelectionGroup() == null
+            ? Collections.<SequenceI> emptyList()
+            : ap.av.getSelectionGroup().getSequences());
     buildAnnotationTypesMenus(groupShowAnnotationsMenu,
             groupHideAnnotationsMenu, selectedGroup);
     configureReferenceAnnotationsMenu(groupAddReferenceAnnotations,
@@ -410,11 +485,11 @@ public class APopupMenu extends java.awt.PopupMenu implements
      * Temporary store to hold distinct calcId / type pairs for the tooltip.
      * Using TreeMap means calcIds are shown in alphabetical order.
      */
-    Map<String, String> tipEntries = new TreeMap<String, String>();
-    final Map<SequenceI, List<AlignmentAnnotation>> candidates = new LinkedHashMap<SequenceI, List<AlignmentAnnotation>>();
+    SortedMap<String, String> tipEntries = new TreeMap<>();
+    final Map<SequenceI, List<AlignmentAnnotation>> candidates = new LinkedHashMap<>();
     AlignmentI al = this.ap.av.getAlignment();
-    AlignmentUtils.findAddableReferenceAnnotations(forSequences,
-            tipEntries, candidates, al);
+    AlignmentUtils.findAddableReferenceAnnotations(forSequences, tipEntries,
+            candidates, al);
     if (!candidates.isEmpty())
     {
       StringBuilder tooltip = new StringBuilder(64);
@@ -495,38 +570,28 @@ public class APopupMenu extends java.awt.PopupMenu implements
     linkMenu.add(item);
   }
 
+  /**
+   * Actions on selecting / unselecting a checkbox menu item
+   */
   @Override
   public void itemStateChanged(ItemEvent evt)
   {
-    if (evt.getSource() == abovePIDColour)
-    {
-      abovePIDColour_itemStateChanged();
-    }
-    else if (evt.getSource() == showColourText)
-    {
-      showColourText_itemStateChanged();
-    }
-    else if (evt.getSource() == showText)
-    {
-      showText_itemStateChanged();
-    }
-    else if (evt.getSource() == showBoxes)
-    {
-      showBoxes_itemStateChanged();
-    }
-    else if (evt.getSource() == displayNonconserved)
-    {
-      this.showNonconserved_itemStateChanged();
-    }
-  }
-
-  @Override
-  public void actionPerformed(ActionEvent evt)
-  {
     Object source = evt.getSource();
-    if (source == clustalColour)
+    if (source == noColour)
+    {
+      noColourmenuItem_actionPerformed();
+    }
+    else if (source == clustalColour)
     {
       clustalColour_actionPerformed();
+    }
+    else if (source == BLOSUM62Colour)
+    {
+      BLOSUM62Colour_actionPerformed();
+    }
+    else if (evt.getSource() == PIDColour)
+    {
+      PIDColour_actionPerformed();
     }
     else if (source == zappoColour)
     {
@@ -556,30 +621,58 @@ public class APopupMenu extends java.awt.PopupMenu implements
     {
       buriedColour_actionPerformed();
     }
-    else if (source == nucleotideMenuItem)
+    else if (source == nucleotideColour)
     {
       nucleotideMenuItem_actionPerformed();
     }
+    else if (source == purinePyrimidineColour)
+    {
+      purinePyrimidineColour_actionPerformed();
+    }
+    else if (source == abovePIDColour)
+    {
+      abovePIDColour_itemStateChanged();
+    }
+    else if (source == conservationColour)
+    {
+      conservationMenuItem_itemStateChanged();
+    }
+    else if (source == showColourText)
+    {
+      showColourText_itemStateChanged();
+    }
+    else if (source == showText)
+    {
+      showText_itemStateChanged();
+    }
+    else if (source == showBoxes)
+    {
+      showBoxes_itemStateChanged();
+    }
+    else if (source == displayNonconserved)
+    {
+      this.showNonconserved_itemStateChanged();
+    }
+  }
 
-    else if (source == userDefinedColour)
+  /**
+   * Actions on clicking a menu item
+   */
+  @Override
+  public void actionPerformed(ActionEvent evt)
+  {
+    Object source = evt.getSource();
+    if (source == userDefinedColour)
     {
       userDefinedColour_actionPerformed();
     }
-    else if (source == PIDColour)
-    {
-      PIDColour_actionPerformed();
-    }
-    else if (source == BLOSUM62Colour)
-    {
-      BLOSUM62Colour_actionPerformed();
-    }
-    else if (source == noColourmenuItem)
-    {
-      noColourmenuItem_actionPerformed();
-    }
-    else if (source == conservationMenuItem)
+    else if (source == modifyConservation)
     {
       conservationMenuItem_itemStateChanged();
+    }
+    else if (source == modifyPID)
+    {
+      abovePIDColour_itemStateChanged();
     }
     else if (source == unGroupMenuItem)
     {
@@ -661,9 +754,10 @@ public class APopupMenu extends java.awt.PopupMenu implements
           seq = sg.getSequenceAt(0);
         }
 
-        EditNameDialog dialog = new EditNameDialog(seq.getSequenceAsString(
-                sg.getStartRes(), sg.getEndRes() + 1), null,
-                "Edit Sequence ", null,
+        EditNameDialog dialog = new EditNameDialog(
+                seq.getSequenceAsString(sg.getStartRes(),
+                        sg.getEndRes() + 1),
+                null, "Edit Sequence ", null,
 
                 ap.alignFrame, "Edit Sequence", 500, 100, true);
 
@@ -671,16 +765,16 @@ public class APopupMenu extends java.awt.PopupMenu implements
         {
           EditCommand editCommand = new EditCommand(
                   MessageManager.getString("label.edit_sequences"),
-                  Action.REPLACE, dialog.getName().replace(' ',
-                          ap.av.getGapCharacter()),
+                  Action.REPLACE,
+                  dialog.getName().replace(' ', ap.av.getGapCharacter()),
                   sg.getSequencesAsArray(ap.av.getHiddenRepSequences()),
                   sg.getStartRes(), sg.getEndRes() + 1,
                   ap.av.getAlignment());
 
           ap.alignFrame.addHistoryItem(editCommand);
 
-          ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-                  .getSequences());
+          ap.av.firePropertyChange("alignment", null,
+                  ap.av.getAlignment().getSequences());
         }
       }
     }
@@ -717,8 +811,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
         ap.alignFrame.addHistoryItem(caseCommand);
 
-        ap.av.firePropertyChange("alignment", null, ap.av.getAlignment()
-                .getSequences());
+        ap.av.firePropertyChange("alignment", null,
+                ap.av.getAlignment().getSequences());
 
       }
     }
@@ -730,9 +824,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
         return;
       }
 
-      int rsize = 0, gSize = sg.getSize();
-      SequenceI[] rseqs, seqs = new SequenceI[gSize];
-      SequenceFeature[] tfeatures, features = new SequenceFeature[gSize];
+      int gSize = sg.getSize();
+      List<SequenceI> seqs = new ArrayList<>();
+      List<SequenceFeature> features = new ArrayList<>();
 
       for (int i = 0; i < gSize; i++)
       {
@@ -740,26 +834,22 @@ public class APopupMenu extends java.awt.PopupMenu implements
         int end = sg.findEndRes(sg.getSequenceAt(i));
         if (start <= end)
         {
-          seqs[rsize] = sg.getSequenceAt(i);
-          features[rsize] = new SequenceFeature(null, null, null, start,
-                  end, "Jalview");
-          rsize++;
+          seqs.add(sg.getSequenceAt(i));
+          features.add(new SequenceFeature(null, null, start, end,
+                  "Jalview"));
         }
       }
-      rseqs = new SequenceI[rsize];
-      tfeatures = new SequenceFeature[rsize];
-      System.arraycopy(seqs, 0, rseqs, 0, rsize);
-      System.arraycopy(features, 0, tfeatures, 0, rsize);
-      features = tfeatures;
-      seqs = rseqs;
 
-      if (ap.seqPanel.seqCanvas.getFeatureRenderer().amendFeatures(seqs,
-              features, true, ap))
+      if (!seqs.isEmpty())
       {
-        ap.alignFrame.sequenceFeatures.setState(true);
-        ap.av.setShowSequenceFeatures(true);
-        ;
-        ap.highlightSearchResults(null);
+        if (ap.seqPanel.seqCanvas.getFeatureRenderer().amendFeatures(seqs,
+                features, true, ap))
+        {
+          ap.alignFrame.sequenceFeatures.setState(true);
+          ap.av.setShowSequenceFeatures(true);
+          ap.av.setSearchResults(null); // clear highlighting
+          ap.repaint(); // draw new/amended features
+        }
       }
     }
     else
@@ -775,15 +865,17 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
-            "label.selection_output_command",
-            new Object[] { e.getActionCommand() }), 600, 500);
+    JalviewLite.addFrame(frame, MessageManager
+            .formatMessage("label.selection_output_command", new Object[]
+            { e.getActionCommand() }), 600, 500);
     // JBPNote: getSelectionAsNewSequence behaviour has changed - this method
     // now returns a full copy of sequence data
     // TODO consider using getSequenceSelection instead here
 
-    cap.setText(new jalview.io.AppletFormatAdapter().formatSequences(
-            e.getActionCommand(), ap.av.getShowJVSuffix(), ap, true));
+    FileFormatI fileFormat = FileFormats.getInstance()
+            .forName(e.getActionCommand());
+    cap.setText(new AppletFormatAdapter().formatSequences(fileFormat,
+            ap.av.getShowJVSuffix(), ap, true));
 
   }
 
@@ -805,25 +897,23 @@ public class APopupMenu extends java.awt.PopupMenu implements
     StringBuilder contents = new StringBuilder(128);
     for (SequenceI seq : sequences)
     {
-      contents.append(MessageManager.formatMessage(
-              "label.annotation_for_displayid",
-              new Object[] { seq.getDisplayId(true) }));
-      new SequenceAnnotationReport(null).createSequenceAnnotationReport(
-              contents,
-              seq,
-              true,
-              true,
-              (ap.seqPanel.seqCanvas.fr != null) ? ap.seqPanel.seqCanvas.fr
-                      .getMinMax() : null);
+      contents.append(MessageManager
+              .formatMessage("label.annotation_for_displayid", new Object[]
+              { seq.getDisplayId(true) }));
+      new SequenceAnnotationReport(false).createSequenceAnnotationReport(
+              contents, seq, true, true, ap.seqPanel.seqCanvas.fr);
       contents.append("</p>");
     }
     Frame frame = new Frame();
     frame.add(cap);
-    jalview.bin.JalviewLite.addFrame(frame, "Sequence Details for "
-            + (sequences.length == 1 ? sequences[0].getDisplayId(true)
-                    : "Selection"), 600, 500);
-    cap.setText(MessageManager.formatMessage("label.html_content",
-            new Object[] { contents.toString() }));
+    jalview.bin.JalviewLite.addFrame(frame,
+            "Sequence Details for " + (sequences.length == 1
+                    ? sequences[0].getDisplayId(true)
+                    : "Selection"),
+            600, 500);
+    cap.setText(
+            MessageManager.formatMessage("label.html_content", new Object[]
+            { contents.toString() }));
   }
 
   void editName()
@@ -837,39 +927,40 @@ public class APopupMenu extends java.awt.PopupMenu implements
     {
       seq.setName(dialog.getName());
       seq.setDescription(dialog.getDescription());
-      ap.paintAlignment(false);
+      ap.paintAlignment(false, false);
     }
   }
 
   void addPDB()
   {
     Vector<PDBEntry> pdbs = seq.getAllPDBEntries();
-    if (pdbs != null&& !pdbs.isEmpty())
+    if (pdbs != null && !pdbs.isEmpty())
     {
       PDBEntry entry = pdbs.firstElement();
 
       if (ap.av.applet.jmolAvailable)
       {
-        new jalview.appletgui.AppletJmol(entry, new SequenceI[] { seq },
-                null, ap, AppletFormatAdapter.URL);
+        new AppletJmol(entry, new SequenceI[] { seq }, null, ap,
+                DataSourceType.URL);
       }
       else
       {
-        new MCview.AppletPDBViewer(entry, new SequenceI[] { seq }, null,
-                ap, AppletFormatAdapter.URL);
+        new MCview.AppletPDBViewer(entry, new SequenceI[] { seq }, null, ap,
+                DataSourceType.URL);
       }
 
     }
     else
     {
-      CutAndPasteTransfer cap = new CutAndPasteTransfer(true, ap.alignFrame);
+      CutAndPasteTransfer cap = new CutAndPasteTransfer(true,
+              ap.alignFrame);
       cap.setText(MessageManager.getString("label.paste_pdb_file"));
       cap.setPDBImport(seq);
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame, MessageManager.formatMessage(
-              "label.paste_pdb_file_for_sequence",
-              new Object[] { seq.getName() }), 400, 300);
+      JalviewLite.addFrame(frame, MessageManager.formatMessage(
+              "label.paste_pdb_file_for_sequence", new Object[]
+              { seq.getName() }), 400, 300);
     }
   }
 
@@ -879,19 +970,16 @@ public class APopupMenu extends java.awt.PopupMenu implements
     sequenceFeature.addActionListener(this);
 
     editGroupName.addActionListener(this);
-    unGroupMenuItem.setLabel(MessageManager
-            .getString("action.remove_group"));
+    unGroupMenuItem
+            .setLabel(MessageManager.getString("action.remove_group"));
     unGroupMenuItem.addActionListener(this);
 
-    createGroupMenuItem.setLabel(MessageManager
-            .getString("action.create_group"));
+    createGroupMenuItem
+            .setLabel(MessageManager.getString("action.create_group"));
     createGroupMenuItem.addActionListener(this);
 
-    nucleotideMenuItem.setLabel(MessageManager
-            .getString("label.nucleotide"));
-    nucleotideMenuItem.addActionListener(this);
-    conservationMenuItem.addItemListener(this);
-    abovePIDColour.addItemListener(this);
+    modifyPID.setEnabled(abovePIDColour.getState());
+    modifyConservation.setEnabled(conservationColour.getState());
     colourMenu.setLabel(MessageManager.getString("label.group_colour"));
     showBoxes.setLabel(MessageManager.getString("action.boxes"));
     showBoxes.setState(true);
@@ -899,8 +987,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
     sequenceName.addActionListener(this);
     sequenceDetails.addActionListener(this);
     selSeqDetails.addActionListener(this);
-    displayNonconserved.setLabel(MessageManager
-            .getString("label.show_non_conversed"));
+    displayNonconserved
+            .setLabel(MessageManager.getString("label.show_non_conserved"));
     displayNonconserved.setState(false);
     displayNonconserved.addItemListener(this);
     showText.setLabel(MessageManager.getString("action.text"));
@@ -911,8 +999,9 @@ public class APopupMenu extends java.awt.PopupMenu implements
     seqMenu.setLabel(MessageManager.getString("label.sequence"));
     pdb.setLabel(MessageManager.getString("label.view_pdb_structure"));
     hideSeqs.setLabel(MessageManager.getString("action.hide_sequences"));
-    repGroup.setLabel(MessageManager.formatMessage(
-            "label.represent_group_with", new Object[] { "" }));
+    repGroup.setLabel(MessageManager
+            .formatMessage("label.represent_group_with", new Object[]
+            { "" }));
     revealAll.setLabel(MessageManager.getString("action.reveal_all"));
     revealSeq.setLabel(MessageManager.getString("action.reveal_sequences"));
     menu1.setLabel(MessageManager.getString("label.group:"));
@@ -932,7 +1021,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     groupMenu.add(unGroupMenuItem);
     groupMenu.add(menu1);
 
-    colourMenu.add(noColourmenuItem);
+    colourMenu.add(noColour);
     colourMenu.add(clustalColour);
     colourMenu.add(BLOSUM62Colour);
     colourMenu.add(PIDColour);
@@ -943,48 +1032,91 @@ public class APopupMenu extends java.awt.PopupMenu implements
     colourMenu.add(strandColour);
     colourMenu.add(turnColour);
     colourMenu.add(buriedColour);
-    colourMenu.add(nucleotideMenuItem);
+    colourMenu.add(nucleotideColour);
+    colourMenu.add(purinePyrimidineColour);
     colourMenu.add(userDefinedColour);
     colourMenu.addSeparator();
+    colourMenu.add(conservationColour);
+    colourMenu.add(modifyConservation);
     colourMenu.add(abovePIDColour);
-    colourMenu.add(conservationMenuItem);
+    colourMenu.add(modifyPID);
 
-    noColourmenuItem.setLabel(MessageManager.getString("label.none"));
-    noColourmenuItem.addActionListener(this);
+    noColour.setLabel(MessageManager.getString("label.none"));
+    noColour.addItemListener(this);
 
-    clustalColour.setLabel(MessageManager
-            .getString("label.clustalx_colours"));
-    clustalColour.addActionListener(this);
-    zappoColour.setLabel(MessageManager.getString("label.zappo"));
-    zappoColour.addActionListener(this);
-    taylorColour.setLabel(MessageManager.getString("label.taylor"));
-    taylorColour.addActionListener(this);
-    hydrophobicityColour.setLabel(MessageManager
-            .getString("label.hydrophobicity"));
-    hydrophobicityColour.addActionListener(this);
-    helixColour
-            .setLabel(MessageManager.getString("label.helix_propensity"));
-    helixColour.addActionListener(this);
+    /*
+     * setName allows setSelectedColour to do its thing
+     */
+    clustalColour.setLabel(
+            MessageManager.getString("label.colourScheme_clustal"));
+    clustalColour.setName(JalviewColourScheme.Clustal.toString());
+    clustalColour.addItemListener(this);
+    BLOSUM62Colour.setLabel(
+            MessageManager.getString("label.colourScheme_blosum62"));
+    BLOSUM62Colour.setName(JalviewColourScheme.Blosum62.toString());
+    BLOSUM62Colour.addItemListener(this);
+    PIDColour.setLabel(
+            MessageManager.getString("label.colourScheme_%_identity"));
+    PIDColour.setName(JalviewColourScheme.PID.toString());
+    PIDColour.addItemListener(this);
+    zappoColour
+            .setLabel(MessageManager.getString("label.colourScheme_zappo"));
+    zappoColour.setName(JalviewColourScheme.Zappo.toString());
+    zappoColour.addItemListener(this);
+    taylorColour.setLabel(
+            MessageManager.getString("label.colourScheme_taylor"));
+    taylorColour.setName(JalviewColourScheme.Taylor.toString());
+    taylorColour.addItemListener(this);
+    hydrophobicityColour.setLabel(
+            MessageManager.getString("label.colourScheme_hydrophobic"));
+    hydrophobicityColour
+            .setName(JalviewColourScheme.Hydrophobic.toString());
+    hydrophobicityColour.addItemListener(this);
+    helixColour.setLabel(MessageManager
+            .getString("label.colourScheme_helix_propensity"));
+    helixColour.setName(JalviewColourScheme.Helix.toString());
+    helixColour.addItemListener(this);
     strandColour.setLabel(MessageManager
-            .getString("label.strand_propensity"));
-    strandColour.addActionListener(this);
-    turnColour.setLabel(MessageManager.getString("label.turn_propensity"));
-    turnColour.addActionListener(this);
-    buriedColour.setLabel(MessageManager.getString("label.buried_index"));
-    buriedColour.addActionListener(this);
-    abovePIDColour.setLabel(MessageManager
-            .getString("label.above_identity_percentage"));
+            .getString("label.colourScheme_strand_propensity"));
+    strandColour.setName(JalviewColourScheme.Strand.toString());
+    strandColour.addItemListener(this);
+    turnColour.setLabel(
+            MessageManager.getString("label.colourScheme_turn_propensity"));
+    turnColour.setName(JalviewColourScheme.Turn.toString());
+    turnColour.addItemListener(this);
+    buriedColour.setLabel(
+            MessageManager.getString("label.colourScheme_buried_index"));
+    buriedColour.setName(JalviewColourScheme.Buried.toString());
+    buriedColour.addItemListener(this);
+    nucleotideColour.setLabel(
+            MessageManager.getString("label.colourScheme_nucleotide"));
+    nucleotideColour.setName(JalviewColourScheme.Nucleotide.toString());
+    nucleotideColour.addItemListener(this);
+    purinePyrimidineColour.setLabel(MessageManager
+            .getString("label.colourScheme_purine/pyrimidine"));
+    purinePyrimidineColour
+            .setName(JalviewColourScheme.PurinePyrimidine.toString());
+    purinePyrimidineColour.addItemListener(this);
 
-    userDefinedColour.setLabel(MessageManager
-            .getString("action.user_defined"));
+    userDefinedColour
+            .setLabel(MessageManager.getString("action.user_defined"));
     userDefinedColour.addActionListener(this);
-    PIDColour.setLabel(MessageManager
-            .getString("label.percentage_identity"));
+
+    abovePIDColour.setLabel(
+            MessageManager.getString("label.above_identity_threshold"));
+    abovePIDColour.addItemListener(this);
+    modifyPID.setLabel(
+            MessageManager.getString("label.modify_identity_threshold"));
+    modifyPID.addActionListener(this);
+    conservationColour
+            .setLabel(MessageManager.getString("action.by_conservation"));
+    conservationColour.addItemListener(this);
+    modifyConservation.setLabel(MessageManager
+            .getString("label.modify_conservation_threshold"));
+    modifyConservation.addActionListener(this);
+
     PIDColour.addActionListener(this);
-    BLOSUM62Colour.setLabel("BLOSUM62");
     BLOSUM62Colour.addActionListener(this);
-    conservationMenuItem.setLabel(MessageManager
-            .getString("label.conservation"));
 
     editMenu.add(copy);
     copy.addActionListener(this);
@@ -1028,61 +1160,68 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
   void refresh()
   {
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
   }
 
   protected void clustalColour_actionPerformed()
   {
     SequenceGroup sg = getGroup();
-    sg.cs = new ClustalxColourScheme(sg, ap.av.getHiddenRepSequences());
+    sg.cs = new ResidueShader(
+            new ClustalxColourScheme(sg, ap.av.getHiddenRepSequences()));
     refresh();
   }
 
   protected void zappoColour_actionPerformed()
   {
-    getGroup().cs = new ZappoColourScheme();
+    getGroup().cs = new ResidueShader(new ZappoColourScheme());
     refresh();
   }
 
   protected void taylorColour_actionPerformed()
   {
-    getGroup().cs = new TaylorColourScheme();
+    getGroup().cs = new ResidueShader(new TaylorColourScheme());
     refresh();
   }
 
   protected void hydrophobicityColour_actionPerformed()
   {
-    getGroup().cs = new HydrophobicColourScheme();
+    getGroup().cs = new ResidueShader(new HydrophobicColourScheme());
     refresh();
   }
 
   protected void helixColour_actionPerformed()
   {
-    getGroup().cs = new HelixColourScheme();
+    getGroup().cs = new ResidueShader(new HelixColourScheme());
     refresh();
   }
 
   protected void strandColour_actionPerformed()
   {
-    getGroup().cs = new StrandColourScheme();
+    getGroup().cs = new ResidueShader(new StrandColourScheme());
     refresh();
   }
 
   protected void turnColour_actionPerformed()
   {
-    getGroup().cs = new TurnColourScheme();
+    getGroup().cs = new ResidueShader(new TurnColourScheme());
     refresh();
   }
 
   protected void buriedColour_actionPerformed()
   {
-    getGroup().cs = new BuriedColourScheme();
+    getGroup().cs = new ResidueShader(new BuriedColourScheme());
     refresh();
   }
 
   public void nucleotideMenuItem_actionPerformed()
   {
-    getGroup().cs = new NucleotideColourScheme();
+    getGroup().cs = new ResidueShader(new NucleotideColourScheme());
+    refresh();
+  }
+
+  public void purinePyrimidineColour_actionPerformed()
+  {
+    getGroup().cs = new ResidueShader(new PurinePyrimidineColourScheme());
     refresh();
   }
 
@@ -1096,10 +1235,11 @@ public class APopupMenu extends java.awt.PopupMenu implements
 
     if (abovePIDColour.getState())
     {
-      sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
-              .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
-      int threshold = SliderPanel.setPIDSliderSource(ap, sg.cs, getGroup()
-              .getName());
+      sg.cs.setConsensus(AAFrequency.calculate(
+              sg.getSequences(ap.av.getHiddenRepSequences()), 0,
+              ap.av.getAlignment().getWidth()));
+      int threshold = SliderPanel.setPIDSliderSource(ap, sg.cs,
+              getGroup().getName());
 
       sg.cs.setThreshold(threshold, ap.av.isIgnoreGapsConsensus());
 
@@ -1109,11 +1249,11 @@ public class APopupMenu extends java.awt.PopupMenu implements
     else
     // remove PIDColouring
     {
+      SliderPanel.hidePIDSlider();
       sg.cs.setThreshold(0, ap.av.isIgnoreGapsConsensus());
     }
-
+    modifyPID.setEnabled(abovePIDColour.getState());
     refresh();
-
   }
 
   protected void userDefinedColour_actionPerformed()
@@ -1124,9 +1264,10 @@ public class APopupMenu extends java.awt.PopupMenu implements
   protected void PIDColour_actionPerformed()
   {
     SequenceGroup sg = getGroup();
-    sg.cs = new PIDColourScheme();
-    sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
-            .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
+    sg.cs = new ResidueShader(new PIDColourScheme());
+    sg.cs.setConsensus(AAFrequency.calculate(
+            sg.getSequences(ap.av.getHiddenRepSequences()), 0,
+            ap.av.getAlignment().getWidth()));
     refresh();
   }
 
@@ -1134,10 +1275,11 @@ public class APopupMenu extends java.awt.PopupMenu implements
   {
     SequenceGroup sg = getGroup();
 
-    sg.cs = new Blosum62ColourScheme();
+    sg.cs = new ResidueShader(new Blosum62ColourScheme());
 
-    sg.cs.setConsensus(AAFrequency.calculate(sg.getSequences(ap.av
-            .getHiddenRepSequences()), 0, ap.av.getAlignment().getWidth()));
+    sg.cs.setConsensus(AAFrequency.calculate(
+            sg.getSequences(ap.av.getHiddenRepSequences()), 0,
+            ap.av.getAlignment().getWidth()));
 
     refresh();
   }
@@ -1156,21 +1298,23 @@ public class APopupMenu extends java.awt.PopupMenu implements
       return;
     }
 
-    if (conservationMenuItem.getState())
+    if (conservationColour.getState())
     {
-      sg.cs.setConservation(Conservation.calculateConservation("Group", sg
-              .getSequences(ap.av.getHiddenRepSequences()), 0, ap.av
-              .getAlignment().getWidth(), false, ap.av.getConsPercGaps(),
-              false));
+      Conservation conservation = Conservation.calculateConservation(
+              "Group", sg.getSequences(ap.av.getHiddenRepSequences()), 0,
+              ap.av.getAlignment().getWidth(), false,
+              ap.av.getConsPercGaps(), false);
+      sg.getGroupColourScheme().setConservation(conservation);
       SliderPanel.setConservationSlider(ap, sg.cs, sg.getName());
       SliderPanel.showConservationSlider();
     }
     else
     // remove ConservationColouring
     {
+      SliderPanel.hideConservationSlider();
       sg.cs.setConservation(null);
     }
-
+    modifyConservation.setEnabled(conservationColour.getState());
     refresh();
   }
 
@@ -1192,7 +1336,7 @@ public class APopupMenu extends java.awt.PopupMenu implements
     SequenceGroup sg = ap.av.getSelectionGroup();
     ap.av.getAlignment().deleteGroup(sg);
     ap.av.setSelectionGroup(null);
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
   }
 
   void createGroupMenuItem_actionPerformed()
@@ -1274,9 +1418,11 @@ public class APopupMenu extends java.awt.PopupMenu implements
     showMenu.removeAll();
     hideMenu.removeAll();
 
-    final List<String> all = Arrays.asList(new String[] { MessageManager
-            .getString("label.all") });
-    addAnnotationTypeToShowHide(showMenu, forSequences, "", all, true, true);
+    final List<String> all = Arrays
+            .asList(new String[]
+            { MessageManager.getString("label.all") });
+    addAnnotationTypeToShowHide(showMenu, forSequences, "", all, true,
+            true);
     addAnnotationTypeToShowHide(hideMenu, forSequences, "", all, true,
             false);
     showMenu.addSeparator();
@@ -1291,8 +1437,8 @@ public class APopupMenu extends java.awt.PopupMenu implements
      * the insertion order, which is the order of the annotations on the
      * alignment.
      */
-    Map<String, List<List<String>>> shownTypes = new LinkedHashMap<String, List<List<String>>>();
-    Map<String, List<List<String>>> hiddenTypes = new LinkedHashMap<String, List<List<String>>>();
+    Map<String, List<List<String>>> shownTypes = new LinkedHashMap<>();
+    Map<String, List<List<String>>> hiddenTypes = new LinkedHashMap<>();
     AlignmentAnnotationUtils.getShownHiddenTypes(shownTypes, hiddenTypes,
             AlignmentAnnotationUtils.asList(annotations), forSequences);
 

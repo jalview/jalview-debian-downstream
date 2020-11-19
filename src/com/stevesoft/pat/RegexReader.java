@@ -233,6 +233,7 @@ public class RegexReader extends Reader
    * 
    * @deprecated
    */
+  @Deprecated
   public int getMaxLines()
   {
     return max_lines;
@@ -243,6 +244,7 @@ public class RegexReader extends Reader
    * 
    * @deprecated
    */
+  @Deprecated
   public void setMaxLines(int ml)
   {
     max_lines = ml;
@@ -255,6 +257,7 @@ public class RegexReader extends Reader
    * 
    * @deprecated
    */
+  @Deprecated
   public char getEOLchar()
   {
     return EOLchar;
@@ -265,6 +268,7 @@ public class RegexReader extends Reader
    * 
    * @deprecated
    */
+  @Deprecated
   public void setEOLchar(char c)
   {
     EOLchar = c;

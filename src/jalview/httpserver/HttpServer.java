@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -156,8 +156,8 @@ public class HttpServer
       contextRoot = server.getURI();
     } catch (Exception e)
     {
-      System.err.println("Error trying to start HttpServer: "
-              + e.getMessage());
+      System.err.println(
+              "Error trying to start HttpServer: " + e.getMessage());
       try
       {
         server.stop();
@@ -267,8 +267,8 @@ public class HttpServer
       ch.start();
     } catch (Exception e)
     {
-      System.err.println("Error starting handler for " + path + ": "
-              + e.getMessage());
+      System.err.println(
+              "Error starting handler for " + path + ": " + e.getMessage());
     }
 
     handler.setUri(this.contextRoot + ch.getContextPath().substring(1));

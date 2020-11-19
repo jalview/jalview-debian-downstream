@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -30,6 +30,8 @@ import jalview.datamodel.AnnotatedCollectionI;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
 import jalview.gui.IProgressIndicator;
+import jalview.gui.IProgressIndicatorHandler;
+import jalview.schemes.ResidueProperties;
 import jalview.workers.AlignCalcWorker;
 import jalview.ws.jws2.dm.AAConSettings;
 import jalview.ws.jws2.dm.JabaWsParamSet;
@@ -63,6 +65,11 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
   protected boolean submitGaps = true;
 
   /**
+   * by default, we filter out non-standard residues before submission
+   */
+  protected boolean filterNonStandardResidues = true;
+
+  /**
    * Recover any existing parameters for this service
    */
   protected void initViewportParams()
@@ -72,8 +79,10 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
       ((jalview.gui.AlignViewport) alignViewport).setCalcIdSettingsFor(
               getCalcId(),
               new AAConSettings(true, service, this.preset,
-                      (arguments != null) ? JabaParamStore
-                              .getJwsArgsfromJaba(arguments) : null), true);
+                      (arguments != null)
+                              ? JabaParamStore.getJwsArgsfromJaba(arguments)
+                              : null),
+              true);
     }
   }
 
@@ -113,7 +122,7 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
 
   public List<Option> getJabaArguments()
   {
-    List<Option> newargs = new ArrayList<Option>();
+    List<Option> newargs = new ArrayList<>();
     if (preset != null && preset instanceof JabaWsParamSet)
     {
       newargs.addAll(((JabaWsParamSet) preset).getjabaArguments());
@@ -158,8 +167,8 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
     super(alignViewport, alignPanel);
   }
 
-  public AbstractJabaCalcWorker(Jws2Instance service,
-          AlignFrame alignFrame, WsParamSetI preset, List<Argument> paramset)
+  public AbstractJabaCalcWorker(Jws2Instance service, AlignFrame alignFrame,
+          WsParamSetI preset, List<Argument> paramset)
   {
     this(alignFrame.getCurrentView(), alignFrame.alignPanel);
     this.guiProgress = alignFrame;
@@ -212,7 +221,26 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
                 progressId = System.currentTimeMillis());
       }
       rslt = submitToService(seqs);
+      if (guiProgress != null)
+      {
+        guiProgress.registerHandler(progressId,
+                new IProgressIndicatorHandler()
+                {
 
+                  @Override
+                  public boolean cancelActivity(long id)
+                  {
+                    cancelCurrentJob();
+                    return true;
+                  }
+
+                  @Override
+                  public boolean canCancel()
+                  {
+                    return true;
+                  }
+                });
+      }
       boolean finished = false;
       long rpos = 0;
       do
@@ -316,9 +344,8 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
         }
         if (collectAnnotationResultsFor(rslt))
         {
-          jalview.bin.Cache.log
-                  .debug("Updating result annotation from Job " + rslt
-                          + " at " + service.getUri());
+          jalview.bin.Cache.log.debug("Updating result annotation from Job "
+                  + rslt + " at " + service.getUri());
           updateResultAnnotation(true);
           ap.adjustAnnotationHeight();
         }
@@ -328,8 +355,8 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
     catch (JobSubmissionException x)
     {
 
-      System.err.println("submission error with " + getServiceActionText()
-              + " :");
+      System.err.println(
+              "submission error with " + getServiceActionText() + " :");
       x.printStackTrace();
       calcMan.disableWorker(this);
     } catch (ResultNotAvailableException x)
@@ -365,7 +392,8 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
         {
           guiProgress.setProgressBar("", progressId);
         }
-        ap.paintAlignment(true);
+        // TODO: may not need to paintAlignment again !
+        ap.paintAlignment(false, false);
       }
       if (msg.length() > 0)
       {
@@ -438,8 +466,9 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
           AnnotatedCollectionI inputSeqs)
   {
     if (alignment == null || alignment.getWidth() <= 0
-            || alignment.getSequences() == null || alignment.isNucleotide() ? !nucleotidesAllowed
-            : !proteinAllowed)
+            || alignment.getSequences() == null || alignment.isNucleotide()
+                    ? !nucleotidesAllowed
+                    : !proteinAllowed)
     {
       return null;
     }
@@ -450,23 +479,24 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
       inputSeqs = alignment;
     }
 
-    List<compbio.data.sequence.FastaSequence> seqs = new ArrayList<compbio.data.sequence.FastaSequence>();
+    List<compbio.data.sequence.FastaSequence> seqs = new ArrayList<>();
 
     int minlen = 10;
     int ln = -1;
     if (bySequence)
     {
-      seqNames = new HashMap<String, SequenceI>();
+      seqNames = new HashMap<>();
     }
     gapMap = new boolean[0];
     start = inputSeqs.getStartRes();
     end = inputSeqs.getEndRes();
 
-    for (SequenceI sq : ((List<SequenceI>) inputSeqs.getSequences()))
+    for (SequenceI sq : (inputSeqs.getSequences()))
     {
-      if (bySequence ? sq.findPosition(end + 1)
-              - sq.findPosition(start + 1) > minlen - 1 : sq.getEnd()
-              - sq.getStart() > minlen - 1)
+      if (bySequence
+              ? sq.findPosition(end + 1)
+                      - sq.findPosition(start + 1) > minlen - 1
+              : sq.getEnd() - sq.getStart() > minlen - 1)
       {
         String newname = SeqsetUtils.unique_name(seqs.size() + 1);
         // make new input sequence with or without gaps
@@ -491,7 +521,14 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
           }
           for (int apos : sq.gapMap())
           {
-            gapMap[apos] = true; // aligned.
+            char sqc = sq.getCharAt(apos);
+            if (!filterNonStandardResidues
+                    || (sq.isProtein() ? ResidueProperties.aaIndex[sqc] < 20
+                            : ResidueProperties.nucleotideIndex[sqc] < 5))
+            {
+              gapMap[apos] = true; // aligned and real amino acid residue
+            }
+            ;
           }
         }
         else
@@ -524,8 +561,8 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
         FastaSequence sq = seqs.get(p);
         int l = sq.getSequence().length();
         // strip gapped columns
-        char[] padded = new char[realw], orig = sq.getSequence()
-                .toCharArray();
+        char[] padded = new char[realw],
+                orig = sq.getSequence().toCharArray();
         for (int i = 0, pp = 0; i < realw; pp++)
         {
           if (gapMap[pp])
@@ -566,7 +603,7 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
   protected boolean checkDone()
   {
     calcMan.notifyStart(this);
-    ap.paintAlignment(false);
+    ap.paintAlignment(false, false);
     while (!calcMan.notifyWorking(this))
     {
       if (calcMan.isWorking(this))
@@ -577,7 +614,7 @@ public abstract class AbstractJabaCalcWorker extends AlignCalcWorker
       {
         if (ap != null)
         {
-          ap.paintAlignment(false);
+          ap.paintAlignment(false, false);
         }
 
         Thread.sleep(200);

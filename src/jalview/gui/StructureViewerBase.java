@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,27 +20,49 @@
  */
 package jalview.gui;
 
+import jalview.api.AlignmentViewPanel;
+import jalview.bin.Cache;
+import jalview.datamodel.Alignment;
+import jalview.datamodel.AlignmentI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.gui.StructureViewer.ViewerType;
 import jalview.gui.ViewSelectionMenu.ViewSetProvider;
-import jalview.io.AppletFormatAdapter;
+import jalview.io.DataSourceType;
+import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
 import jalview.jbgui.GStructureViewer;
+import jalview.schemes.ColourSchemeI;
+import jalview.schemes.ColourSchemes;
+import jalview.structure.StructureMapping;
 import jalview.structures.models.AAStructureBindingModel;
 import jalview.util.MessageManager;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JColorChooser;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 
 /**
  * Base class with common functionality for JMol, Chimera or other structure
@@ -52,22 +74,29 @@ import javax.swing.JOptionPane;
 public abstract class StructureViewerBase extends GStructureViewer
         implements Runnable, ViewSetProvider
 {
+  /*
+   * names for colour options (additional to Jalview colour schemes)
+   */
+  enum ViewerColour
+  {
+    BySequence, ByChain, ChargeCysteine, ByViewer
+  }
 
   /**
    * list of sequenceSet ids associated with the view
    */
-  protected List<String> _aps = new ArrayList<String>();
+  protected List<String> _aps = new ArrayList<>();
 
   /**
    * list of alignment panels to use for superposition
    */
-  protected Vector<AlignmentPanel> _alignwith = new Vector<AlignmentPanel>();
+  protected Vector<AlignmentPanel> _alignwith = new Vector<>();
 
   /**
    * list of alignment panels that are used for colouring structures by aligned
    * sequences
    */
-  protected Vector<AlignmentPanel> _colourwith = new Vector<AlignmentPanel>();
+  protected Vector<AlignmentPanel> _colourwith = new Vector<>();
 
   private String viewId = null;
 
@@ -75,13 +104,50 @@ public abstract class StructureViewerBase extends GStructureViewer
 
   protected boolean alignAddedStructures = false;
 
-  protected boolean _started = false;
+  protected volatile boolean _started = false;
 
-  protected boolean addingStructures = false;
+  protected volatile boolean addingStructures = false;
 
   protected Thread worker = null;
 
   protected boolean allChainsSelected = false;
+
+  protected JMenu viewSelectionMenu;
+
+  /**
+   * set after sequence colouring has been applied for this structure viewer.
+   * used to determine if the final sequence/structure mapping has been
+   * determined
+   */
+  protected volatile boolean seqColoursApplied = false;
+
+  /**
+   * Default constructor
+   */
+  public StructureViewerBase()
+  {
+    super();
+  }
+
+  /**
+   * @return true if added structures should be aligned to existing one(s)
+   */
+  @Override
+  public boolean isAlignAddedStructures()
+  {
+    return alignAddedStructures;
+  }
+
+  /**
+   * 
+   * @param true
+   *          if added structures should be aligned to existing one(s)
+   */
+  @Override
+  public void setAlignAddedStructures(boolean alignAdded)
+  {
+    alignAddedStructures = alignAdded;
+  }
 
   /**
    * 
@@ -133,7 +199,7 @@ public abstract class StructureViewerBase extends GStructureViewer
   {
     if (_alignwith == null)
     {
-      _alignwith = new Vector<AlignmentPanel>();
+      _alignwith = new Vector<>();
     }
     if (_alignwith.size() == 0 && ap != null)
     {
@@ -273,7 +339,7 @@ public abstract class StructureViewerBase extends GStructureViewer
 
   public abstract ViewerType getViewerType();
 
-  protected abstract AAStructureBindingModel getBindingModel();
+  protected abstract IProgressIndicator getIProgressIndicator();
 
   /**
    * add a new structure (with associated sequences and chains) to this viewer,
@@ -289,7 +355,7 @@ public abstract class StructureViewerBase extends GStructureViewer
    */
   protected void addStructure(final PDBEntry pdbentry,
           final SequenceI[] seqs, final String[] chains,
-          final boolean align, final IProgressIndicator alignFrame)
+          final IProgressIndicator alignFrame)
   {
     if (pdbentry.getFile() == null)
     {
@@ -313,94 +379,54 @@ public abstract class StructureViewerBase extends GStructureViewer
               }
             }
             // and call ourselves again.
-            addStructure(pdbentry, seqs, chains, align, alignFrame);
+            addStructure(pdbentry, seqs, chains, alignFrame);
           }
         }).start();
         return;
       }
     }
     // otherwise, start adding the structure.
-    getBindingModel().addSequenceAndChain(new PDBEntry[] { pdbentry },
-            new SequenceI[][] { seqs }, new String[][] { chains });
+    getBinding().addSequenceAndChain(new PDBEntry[] { pdbentry },
+            new SequenceI[][]
+            { seqs }, new String[][] { chains });
     addingStructures = true;
     _started = false;
-    alignAddedStructures = align;
     worker = new Thread(this);
     worker.start();
     return;
   }
 
-  /**
-   * Presents a dialog with the option to add an align a structure to an
-   * existing structure view
-   * 
-   * @param pdbId
-   * @param view
-   * @return YES, NO or CANCEL JOptionPane code
-   */
-  protected int chooseAlignStructureToViewer(String pdbId,
-          StructureViewerBase view)
+  protected boolean hasPdbId(String pdbId)
   {
-    int option = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-            MessageManager.formatMessage("label.add_pdbentry_to_view",
-                    new Object[] { pdbId, view.getTitle() }),
-            MessageManager
-                    .getString("label.align_to_existing_structure_view"),
-            JOptionPane.YES_NO_CANCEL_OPTION);
-    return option;
+    return getBinding().hasPdbId(pdbId);
   }
 
-  protected abstract boolean hasPdbId(String pdbId);
-
-  protected abstract List<StructureViewerBase> getViewersFor(
-          AlignmentPanel alp);
-
   /**
-   * Check for any existing views involving this alignment and give user the
-   * option to add and align this molecule to one of them
-   * 
-   * @param pdbentry
-   * @param seq
-   * @param chains
-   * @param apanel
-   * @param pdbId
-   * @return true if user adds to a view, or cancels entirely, else false
+   * Returns a list of any viewer of the instantiated type. The list is
+   * restricted to those linked to the given alignment panel if it is not null.
    */
-  protected boolean addToExistingViewer(PDBEntry pdbentry, SequenceI[] seq,
-          String[] chains, final AlignmentPanel apanel, String pdbId)
+  protected List<StructureViewerBase> getViewersFor(AlignmentPanel alp)
   {
-    for (StructureViewerBase view : getViewersFor(apanel))
-    {
-      // TODO: highlight the view somehow
-      /*
-       * JAL-1742 exclude view with this structure already mapped (don't offer
-       * to align chain B to chain A of the same structure)
-       */
-      if (view.hasPdbId(pdbId))
-      {
-        continue;
-      }
-      int option = chooseAlignStructureToViewer(pdbId, view);
-      if (option == JOptionPane.CANCEL_OPTION)
-      {
-        return true;
-      }
-      else if (option == JOptionPane.YES_OPTION)
-      {
-        view.useAlignmentPanelForSuperposition(apanel);
-        view.addStructure(pdbentry, seq, chains, true, apanel.alignFrame);
-        return true;
-      }
-      else
-      {
-        // NO_OPTION - offer the next viewer if any
-      }
-    }
+    return Desktop.instance.getStructureViewers(alp, this.getClass());
+  }
 
+  @Override
+  public void addToExistingViewer(PDBEntry pdbentry, SequenceI[] seq,
+          String[] chains, final AlignmentViewPanel apanel, String pdbId)
+  {
     /*
-     * nothing offered and selected
+     * JAL-1742 exclude view with this structure already mapped (don't offer
+     * to align chain B to chain A of the same structure); code may defend
+     * against this possibility before we reach here
      */
-    return false;
+    if (hasPdbId(pdbId))
+    {
+      return;
+    }
+    AlignmentPanel alignPanel = (AlignmentPanel) apanel; // Implementation error if this
+                                                 // cast fails
+    useAlignmentPanelForSuperposition(alignPanel);
+    addStructure(pdbentry, seq, chains, alignPanel.alignFrame);
   }
 
   /**
@@ -412,15 +438,18 @@ public abstract class StructureViewerBase extends GStructureViewer
    * @param apanel
    * @param pdbFilename
    */
-  protected void addSequenceMappingsToStructure(SequenceI[] seq,
-          String[] chains, final AlignmentPanel apanel, String pdbFilename)
+  public void addSequenceMappingsToStructure(SequenceI[] seq,
+          String[] chains, final AlignmentViewPanel alpanel,
+          String pdbFilename)
   {
+    AlignmentPanel apanel = (AlignmentPanel) alpanel;
+
     // TODO : Fix multiple seq to one chain issue here.
     /*
      * create the mappings
      */
     apanel.getStructureSelectionManager().setMapping(seq, chains,
-            pdbFilename, AppletFormatAdapter.FILE);
+            pdbFilename, DataSourceType.FILE, getIProgressIndicator());
 
     /*
      * alert the FeatureRenderer to show new (PDB RESNUM) features
@@ -428,7 +457,9 @@ public abstract class StructureViewerBase extends GStructureViewer
     if (apanel.getSeqPanel().seqCanvas.fr != null)
     {
       apanel.getSeqPanel().seqCanvas.fr.featuresAdded();
-      apanel.paintAlignment(true);
+      // note - we don't do a refresh for structure here because we do it
+      // explicitly for all panels later on
+      apanel.paintAlignment(true, false);
     }
 
     /*
@@ -438,7 +469,7 @@ public abstract class StructureViewerBase extends GStructureViewer
     // JBPNOTE: this looks like a binding routine, rather than a gui routine
     for (StructureViewerBase viewer : getViewersFor(null))
     {
-      AAStructureBindingModel bindingModel = viewer.getBindingModel();
+      AAStructureBindingModel bindingModel = viewer.getBinding();
       for (int pe = 0; pe < bindingModel.getPdbCount(); pe++)
       {
         if (bindingModel.getPdbEntry(pe).getFile().equals(pdbFilename))
@@ -451,55 +482,28 @@ public abstract class StructureViewerBase extends GStructureViewer
            */
           viewer.useAlignmentPanelForColourbyseq(apanel);
           viewer.buildActionMenu();
-          apanel.getStructureSelectionManager().sequenceColoursChanged(
-                  apanel);
+          apanel.getStructureSelectionManager()
+                  .sequenceColoursChanged(apanel);
           break;
         }
       }
     }
   }
 
-  /**
-   * Check if the PDB file is already loaded, if so offer to add it to the
-   * existing viewer
-   * 
-   * @param seq
-   * @param chains
-   * @param apanel
-   * @param pdbId
-   * @return true if the user chooses to add to a viewer, or to cancel entirely
-   */
-  protected boolean addAlreadyLoadedFile(SequenceI[] seq, String[] chains,
-          final AlignmentPanel apanel, String pdbId)
+  @Override
+  public boolean addAlreadyLoadedFile(SequenceI[] seq, String[] chains,
+          final AlignmentViewPanel apanel, String pdbId)
   {
-    boolean finished = false;
     String alreadyMapped = apanel.getStructureSelectionManager()
             .alreadyMappedToFile(pdbId);
 
-    if (alreadyMapped != null)
+    if (alreadyMapped == null)
     {
-      /*
-       * the PDB file is already loaded
-       */
-      int option = JOptionPane.showInternalConfirmDialog(Desktop.desktop,
-              MessageManager.formatMessage(
-                      "label.pdb_entry_is_already_displayed",
-                      new Object[] { pdbId }), MessageManager
-                      .formatMessage(
-                              "label.map_sequences_to_visible_window",
-                              new Object[] { pdbId }),
-              JOptionPane.YES_NO_CANCEL_OPTION);
-      if (option == JOptionPane.CANCEL_OPTION)
-      {
-        finished = true;
-      }
-      else if (option == JOptionPane.YES_OPTION)
-      {
-        addSequenceMappingsToStructure(seq, chains, apanel, alreadyMapped);
-        finished = true;
-      }
+      return false;
     }
-    return finished;
+
+    addSequenceMappingsToStructure(seq, chains, apanel, alreadyMapped);
+    return true;
   }
 
   void setChainMenuItems(List<String> chainNames)
@@ -551,5 +555,490 @@ public abstract class StructureViewerBase extends GStructureViewer
   }
 
   abstract void showSelectedChains();
+
+  /**
+   * Action on selecting one of Jalview's registered colour schemes
+   */
+  @Override
+  public void changeColour_actionPerformed(String colourSchemeName)
+  {
+    AlignmentI al = getAlignmentPanel().av.getAlignment();
+    ColourSchemeI cs = ColourSchemes.getInstance()
+            .getColourScheme(colourSchemeName, getAlignmentPanel().av, al,
+                    null);
+    getBinding().setJalviewColourScheme(cs);
+  }
+
+  /**
+   * Builds the colour menu
+   */
+  protected void buildColourMenu()
+  {
+    colourMenu.removeAll();
+    AlignmentI al = getAlignmentPanel().av.getAlignment();
+
+    /*
+     * add colour by sequence, by chain, by charge and cysteine
+     */
+    colourMenu.add(seqColour);
+    colourMenu.add(chainColour);
+    colourMenu.add(chargeColour);
+    chargeColour.setEnabled(!al.isNucleotide());
+
+    /*
+     * add all 'simple' (per-residue) colour schemes registered to Jalview
+     */
+    ButtonGroup itemGroup = ColourMenuHelper.addMenuItems(colourMenu, this,
+            al, true);
+
+    /*
+     * add 'colour by viewer' (menu item text is set in subclasses)
+     */
+    viewerColour.setSelected(false);
+    viewerColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        viewerColour_actionPerformed(actionEvent);
+      }
+    });
+    colourMenu.add(viewerColour);
+
+    /*
+     * add 'set background colour'
+     */
+    JMenuItem backGround = new JMenuItem();
+    backGround
+            .setText(MessageManager.getString("action.background_colour"));
+    backGround.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        background_actionPerformed(actionEvent);
+      }
+    });
+    colourMenu.add(backGround);
+
+    /*
+     * add colour buttons to a group so their selection is
+     * mutually exclusive (background colour is a separate option)
+     */
+    itemGroup.add(seqColour);
+    itemGroup.add(chainColour);
+    itemGroup.add(chargeColour);
+    itemGroup.add(viewerColour);
+  }
+
+  /**
+   * Construct menu items
+   */
+  protected void initMenus()
+  {
+    AAStructureBindingModel binding = getBinding();
+
+    seqColour = new JRadioButtonMenuItem();
+    seqColour.setText(MessageManager.getString("action.by_sequence"));
+    seqColour.setName(ViewerColour.BySequence.name());
+    seqColour.setSelected(binding.isColourBySequence());
+    seqColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        seqColour_actionPerformed(actionEvent);
+      }
+    });
+
+    chainColour = new JRadioButtonMenuItem();
+    chainColour.setText(MessageManager.getString("action.by_chain"));
+    chainColour.setName(ViewerColour.ByChain.name());
+    chainColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        chainColour_actionPerformed(actionEvent);
+      }
+    });
+
+    chargeColour = new JRadioButtonMenuItem();
+    chargeColour.setText(MessageManager.getString("label.charge_cysteine"));
+    chargeColour.setName(ViewerColour.ChargeCysteine.name());
+    chargeColour.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent actionEvent)
+      {
+        chargeColour_actionPerformed(actionEvent);
+      }
+    });
+
+    viewerColour = new JRadioButtonMenuItem();
+    // text is set in overrides of this method
+    viewerColour.setName(ViewerColour.ByViewer.name());
+    viewerColour.setSelected(!binding.isColourBySequence());
+
+    if (_colourwith == null)
+    {
+      _colourwith = new Vector<>();
+    }
+    if (_alignwith == null)
+    {
+      _alignwith = new Vector<>();
+    }
+
+    ViewSelectionMenu seqColourBy = new ViewSelectionMenu(
+            MessageManager.getString("label.colour_by"), this, _colourwith,
+            new ItemListener()
+            {
+              @Override
+              public void itemStateChanged(ItemEvent e)
+              {
+                if (!seqColour.isSelected())
+                {
+                  seqColour.doClick();
+                }
+                else
+                {
+                  // update the Chimera display now.
+                  seqColour_actionPerformed(null);
+                }
+              }
+            });
+    viewMenu.add(seqColourBy);
+
+    final ItemListener handler = new ItemListener()
+    {
+      @Override
+      public void itemStateChanged(ItemEvent e)
+      {
+        alignStructs.setEnabled(!_alignwith.isEmpty());
+        alignStructs.setToolTipText(MessageManager.formatMessage(
+                "label.align_structures_using_linked_alignment_views",
+                _alignwith.size()));
+      }
+    };
+    viewSelectionMenu = new ViewSelectionMenu(
+            MessageManager.getString("label.superpose_with"), this,
+            _alignwith, handler);
+    handler.itemStateChanged(null);
+    viewerActionMenu.add(viewSelectionMenu, 0);
+    viewerActionMenu.addMenuListener(new MenuListener()
+    {
+      @Override
+      public void menuSelected(MenuEvent e)
+      {
+        handler.itemStateChanged(null);
+      }
+
+      @Override
+      public void menuDeselected(MenuEvent e)
+      {
+      }
+
+      @Override
+      public void menuCanceled(MenuEvent e)
+      {
+      }
+    });
+
+    buildColourMenu();
+  }
+
+  @Override
+  public void setJalviewColourScheme(ColourSchemeI cs)
+  {
+    getBinding().setJalviewColourScheme(cs);
+  }
+
+  /**
+   * Sends commands to the structure viewer to superimpose structures based on
+   * currently associated alignments. May optionally return an error message for
+   * the operation.
+   */
+  @Override
+  protected String alignStructs_actionPerformed(ActionEvent actionEvent)
+  {
+    return alignStructs_withAllAlignPanels();
+  }
+
+  protected String alignStructs_withAllAlignPanels()
+  {
+    if (getAlignmentPanel() == null)
+    {
+      return null;
+    }
+
+    if (_alignwith.size() == 0)
+    {
+      _alignwith.add(getAlignmentPanel());
+    }
+
+    String reply = null;
+    try
+    {
+      AlignmentI[] als = new Alignment[_alignwith.size()];
+      HiddenColumns[] alc = new HiddenColumns[_alignwith.size()];
+      int[] alm = new int[_alignwith.size()];
+      int a = 0;
+
+      for (AlignmentPanel alignPanel : _alignwith)
+      {
+        als[a] = alignPanel.av.getAlignment();
+        alm[a] = -1;
+        alc[a++] = alignPanel.av.getAlignment().getHiddenColumns();
+      }
+      reply = getBinding().superposeStructures(als, alm, alc);
+      if (reply != null)
+      {
+        String text = MessageManager
+                .formatMessage("error.superposition_failed", reply);
+        statusBar.setText(text);
+      }
+    } catch (Exception e)
+    {
+      StringBuffer sp = new StringBuffer();
+      for (AlignmentPanel alignPanel : _alignwith)
+      {
+        sp.append("'" + alignPanel.alignFrame.getTitle() + "' ");
+      }
+      Cache.log.info("Couldn't align structures with the " + sp.toString()
+              + "associated alignment panels.", e);
+    }
+    return reply;
+  }
+
+  @Override
+  public void background_actionPerformed(ActionEvent actionEvent)
+  {
+    Color col = JColorChooser.showDialog(this,
+            MessageManager.getString("label.select_background_colour"),
+            null);
+    if (col != null)
+    {
+      getBinding().setBackgroundColour(col);
+    }
+  }
+
+  @Override
+  public void viewerColour_actionPerformed(ActionEvent actionEvent)
+  {
+    if (viewerColour.isSelected())
+    {
+      // disable automatic sequence colouring.
+      getBinding().setColourBySequence(false);
+    }
+  }
+
+  @Override
+  public void chainColour_actionPerformed(ActionEvent actionEvent)
+  {
+    chainColour.setSelected(true);
+    getBinding().colourByChain();
+  }
+
+  @Override
+  public void chargeColour_actionPerformed(ActionEvent actionEvent)
+  {
+    chargeColour.setSelected(true);
+    getBinding().colourByCharge();
+  }
+
+  @Override
+  public void seqColour_actionPerformed(ActionEvent actionEvent)
+  {
+    AAStructureBindingModel binding = getBinding();
+    binding.setColourBySequence(seqColour.isSelected());
+    if (_colourwith == null)
+    {
+      _colourwith = new Vector<>();
+    }
+    if (binding.isColourBySequence())
+    {
+      if (!binding.isLoadingFromArchive())
+      {
+        if (_colourwith.size() == 0 && getAlignmentPanel() != null)
+        {
+          // Make the currently displayed alignment panel the associated view
+          _colourwith.add(getAlignmentPanel().alignFrame.alignPanel);
+        }
+      }
+      // Set the colour using the current view for the associated alignframe
+      for (AlignmentPanel alignPanel : _colourwith)
+      {
+        binding.colourBySequence(alignPanel);
+      }
+      seqColoursApplied = true;
+    }
+  }
+
+  @Override
+  public void pdbFile_actionPerformed(ActionEvent actionEvent)
+  {
+    JalviewFileChooser chooser = new JalviewFileChooser(
+            Cache.getProperty("LAST_DIRECTORY"));
+
+    chooser.setFileView(new JalviewFileView());
+    chooser.setDialogTitle(MessageManager.getString("label.save_pdb_file"));
+    chooser.setToolTipText(MessageManager.getString("action.save"));
+
+    int value = chooser.showSaveDialog(this);
+
+    if (value == JalviewFileChooser.APPROVE_OPTION)
+    {
+      BufferedReader in = null;
+      try
+      {
+        // TODO: cope with multiple PDB files in view
+        in = new BufferedReader(
+                new FileReader(getBinding().getStructureFiles()[0]));
+        File outFile = chooser.getSelectedFile();
+
+        PrintWriter out = new PrintWriter(new FileOutputStream(outFile));
+        String data;
+        while ((data = in.readLine()) != null)
+        {
+          if (!(data.indexOf("<PRE>") > -1 || data.indexOf("</PRE>") > -1))
+          {
+            out.println(data);
+          }
+        }
+        out.close();
+      } catch (Exception ex)
+      {
+        ex.printStackTrace();
+      } finally
+      {
+        if (in != null)
+        {
+          try
+          {
+            in.close();
+          } catch (IOException e)
+          {
+            // ignore
+          }
+        }
+      }
+    }
+  }
+
+  @Override
+  public void viewMapping_actionPerformed(ActionEvent actionEvent)
+  {
+    CutAndPasteTransfer cap = new CutAndPasteTransfer();
+    try
+    {
+      cap.appendText(getBinding().printMappings());
+    } catch (OutOfMemoryError e)
+    {
+      new OOMWarning(
+              "composing sequence-structure alignments for display in text box.",
+              e);
+      cap.dispose();
+      return;
+    }
+    Desktop.addInternalFrame(cap,
+            MessageManager.getString("label.pdb_sequence_mapping"), 550,
+            600);
+  }
+
+  protected abstract String getViewerName();
+
+  /**
+   * Configures the title and menu items of the viewer panel.
+   */
+  @Override
+  public void updateTitleAndMenus()
+  {
+    AAStructureBindingModel binding = getBinding();
+    if (binding.hasFileLoadingError())
+    {
+      repaint();
+      return;
+    }
+    setChainMenuItems(binding.getChainNames());
+
+    this.setTitle(binding.getViewerTitle(getViewerName(), true));
+
+    /*
+     * enable 'Superpose with' if more than one mapped structure
+     */
+    viewSelectionMenu.setEnabled(false);
+    if (getBinding().getStructureFiles().length > 1
+            && getBinding().getSequence().length > 1)
+    {
+      viewSelectionMenu.setEnabled(true);
+    }
+
+    /*
+     * Show action menu if it has any enabled items
+     */
+    viewerActionMenu.setVisible(false);
+    for (int i = 0; i < viewerActionMenu.getItemCount(); i++)
+    {
+      if (viewerActionMenu.getItem(i).isEnabled())
+      {
+        viewerActionMenu.setVisible(true);
+        break;
+      }
+    }
+
+    if (!binding.isLoadingFromArchive())
+    {
+      seqColour_actionPerformed(null);
+    }
+  }
+
+  @Override
+  public String toString()
+  {
+    return getTitle();
+  }
+
+  @Override
+  public boolean hasMapping()
+  {
+    if (worker != null && (addingStructures || _started))
+    {
+      return false;
+    }
+    if (getBinding() == null)
+    {
+      if (_aps == null || _aps.size() == 0)
+      {
+        // viewer has been closed, but we did at some point run.
+        return true;
+      }
+      return false;
+    }
+    String[] pdbids = getBinding().getStructureFiles();
+    if (pdbids == null)
+    {
+      return false;
+    }
+    int p=0;
+    for (String pdbid:pdbids) {
+      StructureMapping sm[] = getBinding().getSsm().getMapping(pdbid);
+      if (sm!=null && sm.length>0 && sm[0]!=null) {
+        p++;
+      }
+    }
+    // only return true if there is a mapping for every structure file we have loaded
+    if (p == 0 || p != pdbids.length)
+    {
+      return false;
+    }
+    // and that coloring has been applied
+    return seqColoursApplied;
+  }
+
+  @Override
+  public void raiseViewer()
+  {
+    toFront();
+  }
 
 }

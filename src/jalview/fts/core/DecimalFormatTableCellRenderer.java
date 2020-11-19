@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -30,8 +30,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 /**
  * The class to handle the formatting of the double values for JTable cells.
  */
-public class DecimalFormatTableCellRenderer extends
-        DefaultTableCellRenderer
+public class DecimalFormatTableCellRenderer extends DefaultTableCellRenderer
 {
   private DecimalFormat formatter;
 
@@ -47,8 +46,8 @@ public class DecimalFormatTableCellRenderer extends
       {
         significantFigureBuilder.append("0");
       }
-      formatter = new DecimalFormat(fractionFormater
-              + significantFigureBuilder.toString());
+      formatter = new DecimalFormat(
+              fractionFormater + significantFigureBuilder.toString());
     }
     else
     {
@@ -62,17 +61,15 @@ public class DecimalFormatTableCellRenderer extends
     super.setHorizontalAlignment(JLabel.RIGHT);
   }
 
+  /**
+   * Adapts the default method to ensure that double values are formatted for
+   * display
+   */
   @Override
-  public Component getTableCellRendererComponent(JTable table,
-          Object value, boolean isSelected, boolean hasFocus, int row,
-          int column)
+  public Component getTableCellRendererComponent(JTable table, Object value,
+          boolean isSelected, boolean hasFocus, int row, int column)
   {
-    if (value == null)
-    {
-      return null;
-    }
-
-    value = formatter.format(value);
+    value = value == null ? "" : formatter.format(value);
 
     return super.getTableCellRendererComponent(table, value, isSelected,
             hasFocus, row, column);

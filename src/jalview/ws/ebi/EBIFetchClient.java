@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,8 +27,10 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,8 +92,8 @@ public class EBIFetchClient
    *          the query formatted as db:query1;query2;query3
    * @param format
    *          the format wanted
-   * @param extension
-   *          for the temporary file to hold response
+   * @param ext
+   *          for the temporary file to hold response (without separator)
    * @return the file holding the response
    * @throws OutOfMemoryError
    */
@@ -102,7 +104,7 @@ public class EBIFetchClient
     File outFile = null;
     try
     {
-      outFile = File.createTempFile("jalview", ext);
+      outFile = File.createTempFile("jalview", "." + ext);
       outFile.deleteOnExit();
       fetchData(ids, format, outFile);
       if (outFile.length() == 0)
@@ -200,12 +202,20 @@ public class EBIFetchClient
   {
     // long time = System.currentTimeMillis();
     String url = buildUrl(ids, database, format);
-
+    InputStream is = null;
+    BufferedReader br = null;
     try
     {
       URL rcall = new URL(url);
 
-      InputStream is = new BufferedInputStream(rcall.openStream());
+      HttpURLConnection conn = (HttpURLConnection) rcall.openConnection();
+      int responseCode = conn.getResponseCode();
+      if (responseCode != 200)
+      {
+        System.err.println("Warning: response code " + responseCode
+                + " for " + url);
+      }
+      is = new BufferedInputStream(conn.getInputStream());
       if (outFile != null)
       {
         FileOutputStream fio = new FileOutputStream(outFile);
@@ -220,7 +230,7 @@ public class EBIFetchClient
       }
       else
       {
-        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        br = new BufferedReader(new InputStreamReader(is));
         String rtn;
         List<String> arl = new ArrayList<String>();
         while ((rtn = br.readLine()) != null)
@@ -249,6 +259,24 @@ public class EBIFetchClient
     {
       // System.err.println("EBIFetch took " + (System.currentTimeMillis() -
       // time) + " ms");
+      if (is != null)
+      {
+        try
+        {
+          is.close();
+        } catch (IOException e)
+        {
+        }
+      }
+      if (br != null)
+      {
+        try
+        {
+          br.close();
+        } catch (IOException e)
+        {
+        }
+      }
     }
     return null;
   }
@@ -267,12 +295,12 @@ public class EBIFetchClient
     if (database.equalsIgnoreCase(DBRefSource.EMBL)
             || database.equalsIgnoreCase(DBRefSource.EMBLCDS))
     {
-      url = "http://www.ebi.ac.uk/ena/data/view/" + ids.toLowerCase()
-              + (format != null ? "&" + format : "");
+      url = "https://www.ebi.ac.uk/ena/browser/api/embl/"
+              + ids.toLowerCase() + "?download=true&gzip=true";
     }
     else
     {
-      url = "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/"
+      url = "https://www.ebi.ac.uk/Tools/dbfetch/dbfetch/"
               + database.toLowerCase() + "/" + ids.toLowerCase()
               + (format != null ? "/" + format : "");
     }

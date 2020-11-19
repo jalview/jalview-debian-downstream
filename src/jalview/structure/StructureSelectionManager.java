@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,6 +29,7 @@ import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SearchResults;
 import jalview.datamodel.SearchResultsI;
@@ -36,9 +37,11 @@ import jalview.datamodel.SequenceI;
 import jalview.ext.jmol.JmolParser;
 import jalview.gui.IProgressIndicator;
 import jalview.io.AppletFormatAdapter;
+import jalview.io.DataSourceType;
 import jalview.io.StructureFile;
 import jalview.util.MappingUtils;
 import jalview.util.MessageManager;
+import jalview.util.Platform;
 import jalview.ws.sifts.SiftsClient;
 import jalview.ws.sifts.SiftsException;
 import jalview.ws.sifts.SiftsSettings;
@@ -64,7 +67,7 @@ public class StructureSelectionManager
 
   static IdentityHashMap<StructureSelectionManagerProvider, StructureSelectionManager> instances;
 
-  private List<StructureMapping> mappings = new ArrayList<StructureMapping>();
+  private List<StructureMapping> mappings = new ArrayList<>();
 
   private boolean processSecondaryStructure = false;
 
@@ -72,20 +75,14 @@ public class StructureSelectionManager
 
   private boolean addTempFacAnnot = false;
 
-  private IProgressIndicator progressIndicator;
-
-  private SiftsClient siftsClient = null;
-
-  private long progressSessionId;
-
   /*
    * Set of any registered mappings between (dataset) sequences.
    */
-  private List<AlignedCodonFrame> seqmappings = new ArrayList<AlignedCodonFrame>();
+  private List<AlignedCodonFrame> seqmappings = new ArrayList<>();
 
-  private List<CommandListener> commandListeners = new ArrayList<CommandListener>();
+  private List<CommandListener> commandListeners = new ArrayList<>();
 
-  private List<SelectionListener> sel_listeners = new ArrayList<SelectionListener>();
+  private List<SelectionListener> sel_listeners = new ArrayList<>();
 
   /**
    * @return true if will try to use external services for processing secondary
@@ -159,8 +156,8 @@ public class StructureSelectionManager
     }
     else
     {
-      System.err.println("reportMapping: There are " + mappings.size()
-              + " mappings.");
+      System.err.println(
+              "reportMapping: There are " + mappings.size() + " mappings.");
       int i = 0;
       for (StructureMapping sm : mappings)
       {
@@ -173,9 +170,9 @@ public class StructureSelectionManager
    * map between the PDB IDs (or structure identifiers) used by Jalview and the
    * absolute filenames for PDB data that corresponds to it
    */
-  Map<String, String> pdbIdFileName = new HashMap<String, String>();
+  Map<String, String> pdbIdFileName = new HashMap<>();
 
-  Map<String, String> pdbFileNameId = new HashMap<String, String>();
+  Map<String, String> pdbFileNameId = new HashMap<>();
 
   public void registerPDBFile(String idForFile, String absoluteFile)
   {
@@ -212,9 +209,8 @@ public class StructureSelectionManager
       {
         if (instances != null)
         {
-          throw new Error(
-                  MessageManager
-                          .getString("error.implementation_error_structure_selection_manager_null"),
+          throw new Error(MessageManager.getString(
+                  "error.implementation_error_structure_selection_manager_null"),
                   new NullPointerException(MessageManager
                           .getString("exception.ssm_context_is_null")));
         }
@@ -227,7 +223,7 @@ public class StructureSelectionManager
     }
     if (instances == null)
     {
-      instances = new java.util.IdentityHashMap<StructureSelectionManagerProvider, StructureSelectionManager>();
+      instances = new java.util.IdentityHashMap<>();
     }
     StructureSelectionManager instance = instances.get(context);
     if (instance == null)
@@ -290,7 +286,8 @@ public class StructureSelectionManager
   }
 
   /**
-   * Returns the file name for a mapped PDB id (or null if not mapped).
+   * Returns the filename the PDB id is already mapped to if known, or null if
+   * it is not mapped
    * 
    * @param pdbid
    * @return
@@ -299,7 +296,7 @@ public class StructureSelectionManager
   {
     for (StructureMapping sm : mappings)
     {
-      if (sm.getPdbId().equals(pdbid))
+      if (sm.getPdbId().equalsIgnoreCase(pdbid))
       {
         return sm.pdbfile;
       }
@@ -323,21 +320,23 @@ public class StructureSelectionManager
    * @return null or the structure data parsed as a pdb file
    */
   synchronized public StructureFile setMapping(SequenceI[] sequence,
-          String[] targetChains, String pdbFile, String protocol)
+          String[] targetChains, String pdbFile, DataSourceType protocol, 
+          IProgressIndicator progress)
   {
-    return setMapping(true, sequence, targetChains, pdbFile, protocol);
+    return computeMapping(true, sequence, targetChains, pdbFile, protocol,
+            progress);
   }
 
   /**
-   * create sequence structure mappings between each sequence and the given
-   * pdbFile (retrieved via the given protocol).
+   * Import a single structure file and register sequence structure mappings for
+   * broadcasting colouring, mouseovers and selection events (convenience
+   * wrapper).
    * 
    * @param forStructureView
    *          when true, record the mapping for use in mouseOvers
-   * 
-   * @param sequenceArray
+   * @param sequence
    *          - one or more sequences to be mapped to pdbFile
-   * @param targetChainIds
+   * @param targetChains
    *          - optional chain specification for mapping each sequence to pdb
    *          (may be nill, individual elements may be nill)
    * @param pdbFile
@@ -348,46 +347,65 @@ public class StructureSelectionManager
    */
   synchronized public StructureFile setMapping(boolean forStructureView,
           SequenceI[] sequenceArray, String[] targetChainIds,
-          String pdbFile, String protocol)
+          String pdbFile, DataSourceType sourceType)
   {
-    /*
-     * There will be better ways of doing this in the future, for now we'll use
-     * the tried and tested MCview pdb mapping
+    return computeMapping(forStructureView, sequenceArray, targetChainIds,
+            pdbFile, sourceType, null);
+  }
+
+  /**
+   * create sequence structure mappings between each sequence and the given
+   * pdbFile (retrieved via the given protocol). Either constructs a mapping
+   * using NW alignment or derives one from any available SIFTS mapping data.
+   * 
+   * @param forStructureView
+   *          when true, record the mapping for use in mouseOvers
+   * 
+   * @param sequenceArray
+   *          - one or more sequences to be mapped to pdbFile
+   * @param targetChainIds
+   *          - optional chain specification for mapping each sequence to pdb
+   *          (may be nill, individual elements may be nill) - JBPNote: JAL-2693
+   *          - this should be List<List<String>>, empty lists indicate no
+   *          predefined mappings
+   * @param pdbFile
+   *          - structure data resource
+   * @param sourceType
+   *          - how to resolve data from resource
+   * @param IProgressIndicator
+   *          reference to UI component that maintains a progress bar for the
+   *          mapping operation
+   * @return null or the structure data parsed as a pdb file
+   */
+  synchronized public StructureFile computeMapping(
+          boolean forStructureView, SequenceI[] sequenceArray,
+          String[] targetChainIds, String pdbFile, DataSourceType sourceType,
+          IProgressIndicator progress)
+  {
+    long progressSessionId = System.currentTimeMillis() * 3;
+
+    /**
+     * do we extract and transfer annotation from 3D data ?
      */
-    boolean parseSecStr = processSecondaryStructure;
-    if (isPDBFileRegistered(pdbFile))
-    {
-      for (SequenceI sq : sequenceArray)
-      {
-        SequenceI ds = sq;
-        while (ds.getDatasetSequence() != null)
-        {
-          ds = ds.getDatasetSequence();
-        }
-        ;
-        if (ds.getAnnotation() != null)
-        {
-          for (AlignmentAnnotation ala : ds.getAnnotation())
-          {
-            // false if any annotation present from this structure
-            // JBPNote this fails for jmol/chimera view because the *file* is
-            // passed, not the structure data ID -
-            if (PDBfile.isCalcIdForFile(ala, findIdForPDBFile(pdbFile)))
-            {
-              parseSecStr = false;
-            }
-          }
-        }
-      }
-    }
+    // FIXME: possibly should just delete
+
+    boolean parseSecStr = processSecondaryStructure
+            ? isStructureFileProcessed(pdbFile, sequenceArray)
+            : false;
+
     StructureFile pdb = null;
     boolean isMapUsingSIFTs = SiftsSettings.isMapWithSifts();
     try
     {
-      pdb = new JmolParser(pdbFile, protocol);
-
+      // FIXME if sourceType is not null, we've lost data here
+      sourceType = AppletFormatAdapter.checkProtocol(pdbFile);
+      pdb = new JmolParser(false, pdbFile, sourceType);
+      pdb.addSettings(parseSecStr && processSecondaryStructure,
+              parseSecStr && addTempFacAnnot,
+              parseSecStr && secStructServices);
+      pdb.doParse();
       if (pdb.getId() != null && pdb.getId().trim().length() > 0
-              && AppletFormatAdapter.FILE.equals(protocol))
+              && DataSourceType.FILE == sourceType)
       {
         registerPDBFile(pdb.getId().trim(), pdbFile);
       }
@@ -399,7 +417,10 @@ public class StructureSelectionManager
       ex.printStackTrace();
       return null;
     }
-
+    /*
+     * sifts client - non null if SIFTS mappings are to be used 
+     */
+    SiftsClient siftsClient = null;
     try
     {
       if (isMapUsingSIFTs)
@@ -410,6 +431,7 @@ public class StructureSelectionManager
     {
       isMapUsingSIFTs = false;
       e.printStackTrace();
+      siftsClient = null;
     }
 
     String targetChainId;
@@ -430,8 +452,8 @@ public class StructureSelectionManager
       }
       else if (seq.getName().indexOf("|") > -1)
       {
-        targetChainId = seq.getName().substring(
-                seq.getName().lastIndexOf("|") + 1);
+        targetChainId = seq.getName()
+                .substring(seq.getName().lastIndexOf("|") + 1);
         if (targetChainId.length() > 1)
         {
           if (targetChainId.trim().length() == 0)
@@ -454,7 +476,7 @@ public class StructureSelectionManager
        * Attempt pairwise alignment of the sequence with each chain in the PDB,
        * and remember the highest scoring chain
        */
-      int max = -10;
+      float max = -10;
       AlignSeq maxAlignseq = null;
       String maxChainId = " ";
       PDBChain maxChain = null;
@@ -491,17 +513,19 @@ public class StructureSelectionManager
         continue;
       }
 
-      if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
+      if (sourceType == DataSourceType.PASTE)
       {
         pdbFile = "INLINE" + pdb.getId();
       }
 
-      ArrayList<StructureMapping> seqToStrucMapping = new ArrayList<StructureMapping>();
+      List<StructureMapping> seqToStrucMapping = new ArrayList<>();
       if (isMapUsingSIFTs && seq.isProtein())
       {
-        setProgressBar(null);
-        setProgressBar(MessageManager
-                .getString("status.obtaining_mapping_with_sifts"));
+        if (progress!=null) {
+          progress.setProgressBar(MessageManager
+                .getString("status.obtaining_mapping_with_sifts"),
+                  progressSessionId);
+        }
         jalview.datamodel.Mapping sqmpping = maxAlignseq
                 .getMappingFromS1(false);
         if (targetChainId != null && !targetChainId.trim().isEmpty())
@@ -510,12 +534,12 @@ public class StructureSelectionManager
           try
           {
             siftsMapping = getStructureMapping(seq, pdbFile, targetChainId,
-                    pdb, maxChain, sqmpping, maxAlignseq);
+                    pdb, maxChain, sqmpping, maxAlignseq, siftsClient);
             seqToStrucMapping.add(siftsMapping);
-            maxChain.makeExactMapping(maxAlignseq, seq);
-            maxChain.transferRESNUMFeatures(seq, null);// FIXME: is this
+            maxChain.makeExactMapping(siftsMapping, seq);
+            maxChain.transferRESNUMFeatures(seq, "IEA: SIFTS");// FIXME: is this
                                                        // "IEA:SIFTS" ?
-            maxChain.transferResidueAnnotation(siftsMapping, sqmpping);
+            maxChain.transferResidueAnnotation(siftsMapping, null);
             ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
 
           } catch (SiftsException e)
@@ -526,7 +550,8 @@ public class StructureSelectionManager
                     targetChainId, maxChain, pdb, maxAlignseq);
             seqToStrucMapping.add(nwMapping);
             maxChain.makeExactMapping(maxAlignseq, seq);
-            maxChain.transferRESNUMFeatures(seq, null); // FIXME: is this
+            maxChain.transferRESNUMFeatures(seq, "IEA:Jalview"); // FIXME: is
+                                                                 // this
                                                         // "IEA:Jalview" ?
             maxChain.transferResidueAnnotation(nwMapping, sqmpping);
             ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
@@ -534,27 +559,35 @@ public class StructureSelectionManager
         }
         else
         {
-          ArrayList<StructureMapping> foundSiftsMappings = new ArrayList<StructureMapping>();
+          List<StructureMapping> foundSiftsMappings = new ArrayList<>();
           for (PDBChain chain : pdb.getChains())
           {
+            StructureMapping siftsMapping = null;
             try
             {
-              StructureMapping siftsMapping = getStructureMapping(seq,
-                      pdbFile, chain.id, pdb, chain, sqmpping, maxAlignseq);
+              siftsMapping = getStructureMapping(seq,
+                      pdbFile, chain.id, pdb, chain, sqmpping, maxAlignseq,
+                      siftsClient);
               foundSiftsMappings.add(siftsMapping);
+              chain.makeExactMapping(siftsMapping, seq);
+              chain.transferRESNUMFeatures(seq, "IEA: SIFTS");// FIXME: is this
+              // "IEA:SIFTS" ?
+              chain.transferResidueAnnotation(siftsMapping, null);
             } catch (SiftsException e)
             {
+              System.err.println(e.getMessage());
+            }
+            catch (Exception e)
+            {
+              System.err
+                      .println(
+                              "Unexpected exception during SIFTS mapping - falling back to NW for this sequence/structure pair");
               System.err.println(e.getMessage());
             }
           }
           if (!foundSiftsMappings.isEmpty())
           {
             seqToStrucMapping.addAll(foundSiftsMappings);
-            maxChain.makeExactMapping(maxAlignseq, seq);
-            maxChain.transferRESNUMFeatures(seq, null);// FIXME: is this
-                                                       // "IEA:SIFTS" ?
-            maxChain.transferResidueAnnotation(foundSiftsMappings.get(0),
-                    sqmpping);
             ds.addPDBId(sqmpping.getTo().getAllPDBEntries().get(0));
           }
           else
@@ -571,29 +604,78 @@ public class StructureSelectionManager
       }
       else
       {
-        setProgressBar(null);
-        setProgressBar(MessageManager
-                .getString("status.obtaining_mapping_with_nw_alignment"));
-        StructureMapping nwMapping = getNWMappings(seq, pdbFile,
-                maxChainId, maxChain, pdb, maxAlignseq);
+        if (progress != null)
+        {
+          progress.setProgressBar(MessageManager
+				  .getString("status.obtaining_mapping_with_nw_alignment"),
+                  progressSessionId);
+        }
+        StructureMapping nwMapping = getNWMappings(seq, pdbFile, maxChainId,
+                maxChain, pdb, maxAlignseq);
         seqToStrucMapping.add(nwMapping);
         ds.addPDBId(maxChain.sequence.getAllPDBEntries().get(0));
-
       }
-
       if (forStructureView)
       {
-        mappings.addAll(seqToStrucMapping);
+        for (StructureMapping sm : seqToStrucMapping)
+        {
+          addStructureMapping(sm); // not addAll!
+        }
+      }
+      if (progress != null)
+      {
+        progress.setProgressBar(null, progressSessionId);
       }
     }
     return pdb;
   }
 
-  private boolean isCIFFile(String filename)
+  /**
+   * check if we need to extract secondary structure from given pdbFile and
+   * transfer to sequences
+   * 
+   * @param pdbFile
+   * @param sequenceArray
+   * @return
+   */
+  private boolean isStructureFileProcessed(String pdbFile,
+          SequenceI[] sequenceArray)
   {
-    String fileExt = filename.substring(filename.lastIndexOf(".") + 1,
-            filename.length());
-    return "cif".equalsIgnoreCase(fileExt);
+    boolean parseSecStr = true;
+    if (isPDBFileRegistered(pdbFile))
+    {
+      for (SequenceI sq : sequenceArray)
+      {
+        SequenceI ds = sq;
+        while (ds.getDatasetSequence() != null)
+        {
+          ds = ds.getDatasetSequence();
+        }
+        ;
+        if (ds.getAnnotation() != null)
+        {
+          for (AlignmentAnnotation ala : ds.getAnnotation())
+          {
+            // false if any annotation present from this structure
+            // JBPNote this fails for jmol/chimera view because the *file* is
+            // passed, not the structure data ID -
+            if (PDBfile.isCalcIdForFile(ala, findIdForPDBFile(pdbFile)))
+            {
+              parseSecStr = false;
+            }
+          }
+        }
+      }
+    }
+    return parseSecStr;
+  }
+
+  public void addStructureMapping(StructureMapping sm)
+  {
+    if (!mappings.contains(sm))
+    {
+      mappings.add(sm);
+    }
   }
 
   /**
@@ -607,13 +689,15 @@ public class StructureSelectionManager
    * @param maxChain
    * @param sqmpping
    * @param maxAlignseq
+   * @param siftsClient
+   *          client for retrieval of SIFTS mappings for this structure
    * @return
    * @throws SiftsException
    */
   private StructureMapping getStructureMapping(SequenceI seq,
           String pdbFile, String targetChainId, StructureFile pdb,
           PDBChain maxChain, jalview.datamodel.Mapping sqmpping,
-          AlignSeq maxAlignseq) throws SiftsException
+          AlignSeq maxAlignseq, SiftsClient siftsClient) throws SiftsException
   {
     StructureMapping curChainMapping = siftsClient
             .getSiftsStructureMapping(seq, pdbFile, targetChainId);
@@ -622,7 +706,7 @@ public class StructureSelectionManager
       PDBChain chain = pdb.findChain(targetChainId);
       if (chain != null)
       {
-        chain.transferResidueAnnotation(curChainMapping, sqmpping);
+        chain.transferResidueAnnotation(curChainMapping, null);
       }
     } catch (Exception e)
     {
@@ -636,8 +720,8 @@ public class StructureSelectionManager
           AlignSeq maxAlignseq)
   {
     final StringBuilder mappingDetails = new StringBuilder(128);
-    mappingDetails.append(NEWLINE).append(
-            "Sequence \u27f7 Structure mapping details");
+    mappingDetails.append(NEWLINE)
+            .append("Sequence \u27f7 Structure mapping details");
     mappingDetails.append(NEWLINE);
     mappingDetails
             .append("Method: inferred with Needleman & Wunsch alignment");
@@ -669,18 +753,19 @@ public class StructureSelectionManager
             .append(" ");
     mappingDetails.append(String.valueOf(maxAlignseq.seq2end));
     mappingDetails.append(NEWLINE).append("SEQ start/end ");
-    mappingDetails.append(
-            String.valueOf(maxAlignseq.seq1start + (seq.getStart() - 1)))
+    mappingDetails
+            .append(String
+                    .valueOf(maxAlignseq.seq1start + (seq.getStart() - 1)))
             .append(" ");
-    mappingDetails.append(String.valueOf(maxAlignseq.seq1end
-            + (seq.getStart() - 1)));
+    mappingDetails.append(
+            String.valueOf(maxAlignseq.seq1end + (seq.getStart() - 1)));
     mappingDetails.append(NEWLINE);
     maxChain.makeExactMapping(maxAlignseq, seq);
     jalview.datamodel.Mapping sqmpping = maxAlignseq
             .getMappingFromS1(false);
     maxChain.transferRESNUMFeatures(seq, null);
 
-    HashMap<Integer, int[]> mapping = new HashMap<Integer, int[]>();
+    HashMap<Integer, int[]> mapping = new HashMap<>();
     int resNum = -10000;
     int index = 0;
     char insCode = ' ';
@@ -695,8 +780,9 @@ public class StructureSelectionManager
         insCode = tmp.insCode;
         if (tmp.alignmentMapping >= -1)
         {
-          mapping.put(tmp.alignmentMapping + 1, new int[] { tmp.resNumber,
-              tmp.atomIndex });
+          mapping.put(tmp.alignmentMapping + 1,
+                  new int[]
+                  { tmp.resNumber, tmp.atomIndex });
         }
       }
 
@@ -733,7 +819,7 @@ public class StructureSelectionManager
      * Remove mappings to the closed listener's PDB files, but first check if
      * another listener is still interested
      */
-    List<String> pdbs = new ArrayList<String>(Arrays.asList(pdbfiles));
+    List<String> pdbs = new ArrayList<>(Arrays.asList(pdbfiles));
 
     StructureListener sl;
     for (int i = 0; i < listeners.size(); i++)
@@ -741,7 +827,7 @@ public class StructureSelectionManager
       if (listeners.elementAt(i) instanceof StructureListener)
       {
         sl = (StructureListener) listeners.elementAt(i);
-        for (String pdbfile : sl.getPdbFile())
+        for (String pdbfile : sl.getStructureFiles())
         {
           pdbs.remove(pdbfile);
         }
@@ -754,7 +840,7 @@ public class StructureSelectionManager
      */
     if (pdbs.size() > 0)
     {
-      List<StructureMapping> tmp = new ArrayList<StructureMapping>();
+      List<StructureMapping> tmp = new ArrayList<>();
       for (StructureMapping sm : mappings)
       {
         if (!pdbs.contains(sm.pdbfile))
@@ -773,12 +859,14 @@ public class StructureSelectionManager
    * @param pdbResNum
    * @param chain
    * @param pdbfile
+   * @return
    */
-  public void mouseOverStructure(int pdbResNum, String chain, String pdbfile)
+  public String mouseOverStructure(int pdbResNum, String chain,
+          String pdbfile)
   {
     AtomSpec atomSpec = new AtomSpec(pdbfile, chain, pdbResNum, 0);
     List<AtomSpec> atoms = Collections.singletonList(atomSpec);
-    mouseOverStructure(atoms);
+    return mouseOverStructure(atoms);
   }
 
   /**
@@ -786,12 +874,12 @@ public class StructureSelectionManager
    * 
    * @param atoms
    */
-  public void mouseOverStructure(List<AtomSpec> atoms)
+  public String mouseOverStructure(List<AtomSpec> atoms)
   {
     if (listeners == null)
     {
       // old or prematurely sent event
-      return;
+      return null;
     }
     boolean hasSequenceListener = false;
     for (int i = 0; i < listeners.size(); i++)
@@ -803,9 +891,37 @@ public class StructureSelectionManager
     }
     if (!hasSequenceListener)
     {
-      return;
+      return null;
     }
 
+    SearchResultsI results = findAlignmentPositionsForStructurePositions(
+            atoms);
+    String result = null;
+    for (Object li : listeners)
+    {
+      if (li instanceof SequenceListener)
+      {
+        String s = ((SequenceListener) li).highlightSequence(results);
+        if (s != null)
+        {
+          result = s;
+        }
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Constructs a SearchResults object holding regions (if any) in the Jalview
+   * alignment which have a mapping to the structure viewer positions in the
+   * supplied list
+   * 
+   * @param atoms
+   * @return
+   */
+  public SearchResultsI findAlignmentPositionsForStructurePositions(
+          List<AtomSpec> atoms)
+  {
     SearchResultsI results = new SearchResults();
     for (AtomSpec atom : atoms)
     {
@@ -817,7 +933,7 @@ public class StructureSelectionManager
                 && sm.pdbchain.equals(atom.getChain()))
         {
           int indexpos = sm.getSeqPos(atom.getPdbResNum());
-          if (lastipos != indexpos && lastseq != sm.sequence)
+          if (lastipos != indexpos || lastseq != sm.sequence)
           {
             results.addResult(sm.sequence, indexpos, indexpos);
             lastipos = indexpos;
@@ -831,13 +947,7 @@ public class StructureSelectionManager
         }
       }
     }
-    for (Object li : listeners)
-    {
-      if (li instanceof SequenceListener)
-      {
-        ((SequenceListener) li).highlightSequence(results);
-      }
-    }
+    return results;
   }
 
   /**
@@ -931,11 +1041,10 @@ public class StructureSelectionManager
       return;
     }
     int atomNo;
-    List<AtomSpec> atoms = new ArrayList<AtomSpec>();
+    List<AtomSpec> atoms = new ArrayList<>();
     for (StructureMapping sm : mappings)
     {
-      if (sm.sequence == seq
-              || sm.sequence == seq.getDatasetSequence()
+      if (sm.sequence == seq || sm.sequence == seq.getDatasetSequence()
               || (sm.sequence.getDatasetSequence() != null && sm.sequence
                       .getDatasetSequence() == seq.getDatasetSequence()))
       {
@@ -945,8 +1054,8 @@ public class StructureSelectionManager
 
           if (atomNo > 0)
           {
-            atoms.add(new AtomSpec(sm.pdbfile, sm.pdbchain, sm
-                    .getPDBResNum(index), atomNo));
+            atoms.add(new AtomSpec(sm.pdbfile, sm.pdbchain,
+                    sm.getPDBResNum(index), atomNo));
           }
         }
       }
@@ -1040,7 +1149,7 @@ public class StructureSelectionManager
 
   public StructureMapping[] getMapping(String pdbfile)
   {
-    List<StructureMapping> tmp = new ArrayList<StructureMapping>();
+    List<StructureMapping> tmp = new ArrayList<>();
     for (StructureMapping sm : mappings)
     {
       if (sm.pdbfile.equals(pdbfile))
@@ -1069,7 +1178,8 @@ public class StructureSelectionManager
     StringBuilder sb = new StringBuilder(64);
     for (StructureMapping sm : mappings)
     {
-      if (sm.pdbfile.equals(pdbfile) && seqs.contains(sm.sequence))
+      if (Platform.pathEquals(sm.pdbfile, pdbfile)
+              && seqs.contains(sm.sequence))
       {
         sb.append(sm.mappingDetails);
         sb.append(NEWLINE);
@@ -1188,18 +1298,19 @@ public class StructureSelectionManager
 
   public synchronized void sendSelection(
           jalview.datamodel.SequenceGroup selection,
-          jalview.datamodel.ColumnSelection colsel, SelectionSource source)
+          jalview.datamodel.ColumnSelection colsel, HiddenColumns hidden,
+          SelectionSource source)
   {
     for (SelectionListener slis : sel_listeners)
     {
       if (slis != source)
       {
-        slis.selection(selection, colsel, source);
+        slis.selection(selection, colsel, hidden, source);
       }
     }
   }
 
-  Vector<AlignmentViewPanelListener> view_listeners = new Vector<AlignmentViewPanelListener>();
+  Vector<AlignmentViewPanelListener> view_listeners = new Vector<>();
 
   public synchronized void sendViewPosition(
           jalview.api.AlignmentViewPanel source, int startRes, int endRes,
@@ -1241,7 +1352,10 @@ public class StructureSelectionManager
         instances.remove(jalviewLite);
         try
         {
-          mnger.finalize();
+          /* bsoares 2019-03-20 finalize deprecated, no apparent external
+           * resources to close
+           */
+          // mnger.finalize();
         } catch (Throwable x)
         {
         }
@@ -1311,8 +1425,8 @@ public class StructureSelectionManager
   {
     if (command instanceof EditCommand)
     {
-      return MappingUtils.mapEditCommand((EditCommand) command, undo,
-              mapTo, gapChar, seqmappings);
+      return MappingUtils.mapEditCommand((EditCommand) command, undo, mapTo,
+              gapChar, seqmappings);
     }
     else if (command instanceof OrderCommand)
     {
@@ -1320,35 +1434,6 @@ public class StructureSelectionManager
               mapTo, seqmappings);
     }
     return null;
-  }
-
-  public IProgressIndicator getProgressIndicator()
-  {
-    return progressIndicator;
-  }
-
-  public void setProgressIndicator(IProgressIndicator progressIndicator)
-  {
-    this.progressIndicator = progressIndicator;
-  }
-
-  public long getProgressSessionId()
-  {
-    return progressSessionId;
-  }
-
-  public void setProgressSessionId(long progressSessionId)
-  {
-    this.progressSessionId = progressSessionId;
-  }
-
-  public void setProgressBar(String message)
-  {
-    if (progressIndicator == null)
-    {
-      return;
-    }
-    progressIndicator.setProgressBar(message, progressSessionId);
   }
 
   public List<AlignedCodonFrame> getSequenceMappings()

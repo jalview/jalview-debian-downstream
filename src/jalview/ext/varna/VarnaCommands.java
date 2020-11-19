@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,10 @@
  */
 package jalview.ext.varna;
 
-import jalview.api.FeatureRenderer;
 import jalview.api.SequenceRenderer;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 import jalview.structure.StructureMapping;
 import jalview.structure.StructureSelectionManager;
 
@@ -47,8 +47,8 @@ public class VarnaCommands
    */
   public static String[] getColourBySequenceCommand(
           StructureSelectionManager ssm, String[] files,
-          SequenceI[][] sequence, SequenceRenderer sr, FeatureRenderer fr,
-          AlignmentI alignment)
+          SequenceI[][] sequence, SequenceRenderer sr,
+          FeatureColourFinder finder, AlignmentI alignment)
   {
     ArrayList<String> str = new ArrayList<String>();
     StringBuffer command = new StringBuffer();
@@ -58,7 +58,9 @@ public class VarnaCommands
       StructureMapping[] mapping = ssm.getMapping(files[pdbfnum]);
 
       if (mapping == null || mapping.length < 1)
+      {
         continue;
+      }
 
       int lastPos = -1;
       for (int s = 0; s < sequence[pdbfnum].length; s++)
@@ -79,29 +81,23 @@ public class VarnaCommands
               int pos = mapping[m].getPDBResNum(asp.findPosition(r));
 
               if (pos < 1 || pos == lastPos)
+              {
                 continue;
+              }
 
               lastPos = pos;
 
-              Color col = sr.getResidueBoxColour(sequence[pdbfnum][s], r);
+              Color col = sr.getResidueColour(sequence[pdbfnum][s], r,
+                      finder);
 
-              if (fr != null)
-                col = fr.findFeatureColour(col, sequence[pdbfnum][s], r);
-              String newSelcom = (mapping[m].getChain() != " " ? ":"
-                      + mapping[m].getChain() : "")
-                      + "/"
-                      + (pdbfnum + 1)
-                      + ".1"
-                      + ";color["
-                      + col.getRed()
-                      + ","
-                      + col.getGreen()
-                      + ","
+              String newSelcom = (mapping[m].getChain() != " "
+                      ? ":" + mapping[m].getChain()
+                      : "") + "/" + (pdbfnum + 1) + ".1" + ";color["
+                      + col.getRed() + "," + col.getGreen() + ","
                       + col.getBlue() + "]";
-              if (command.length() > newSelcom.length()
-                      && command.substring(
-                              command.length() - newSelcom.length())
-                              .equals(newSelcom))
+              if (command.length() > newSelcom.length() && command
+                      .substring(command.length() - newSelcom.length())
+                      .equals(newSelcom))
               {
                 command = VarnaCommands.condenseCommand(command, pos);
                 continue;

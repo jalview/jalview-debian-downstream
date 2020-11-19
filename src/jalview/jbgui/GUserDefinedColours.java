@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,6 +32,8 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -102,7 +104,9 @@ public class GUserDefinedColours extends JPanel
 
   protected JCheckBox caseSensitive = new JCheckBox();
 
-  protected JButton lcaseColour = new JButton();
+  protected JCheckBox lcaseColour = new JCheckBox();
+
+  protected List<JButton> selectedButtons;
 
   /**
    * Creates a new GUserDefinedColours object.
@@ -133,47 +137,52 @@ public class GUserDefinedColours extends JPanel
     gridLayout.setRows(5);
     okButton.setFont(new java.awt.Font("Verdana", 0, 11));
     okButton.setText(MessageManager.getString("action.ok"));
-    okButton.addActionListener(new java.awt.event.ActionListener()
+    okButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        okButton_actionPerformed(e);
+        okButton_actionPerformed();
       }
     });
     applyButton.setFont(new java.awt.Font("Verdana", 0, 11));
     applyButton.setText(MessageManager.getString("action.apply"));
-    applyButton.addActionListener(new java.awt.event.ActionListener()
+    applyButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        applyButton_actionPerformed(e);
+        applyButton_actionPerformed();
       }
     });
     loadbutton.setFont(new java.awt.Font("Verdana", 0, 11));
     loadbutton.setText(MessageManager.getString("action.load_scheme"));
-    loadbutton.addActionListener(new java.awt.event.ActionListener()
+    loadbutton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        loadbutton_actionPerformed(e);
+        loadbutton_actionPerformed();
       }
     });
     savebutton.setFont(new java.awt.Font("Verdana", 0, 11));
     savebutton.setText(MessageManager.getString("action.save_scheme"));
-    savebutton.addActionListener(new java.awt.event.ActionListener()
+    savebutton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        savebutton_actionPerformed(e);
+        savebutton_actionPerformed();
       }
     });
     cancelButton.setFont(JvSwingUtils.getLabelFont());
     cancelButton.setText(MessageManager.getString("action.cancel"));
-    cancelButton.addActionListener(new java.awt.event.ActionListener()
+    cancelButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        cancelButton_actionPerformed(e);
+        cancelButton_actionPerformed();
       }
     });
     this.setBackground(new Color(212, 208, 223));
@@ -198,28 +207,23 @@ public class GUserDefinedColours extends JPanel
     label.setFont(new java.awt.Font("Verdana", Font.ITALIC, 10));
     label.setOpaque(false);
     label.setPreferredSize(new Dimension(260, 34));
-    label.setText(MessageManager
-            .formatMessage(
-                    "label.html_content",
-                    new String[] { MessageManager
-                            .getString("label.save_colour_scheme_with_unique_name_added_to_colour_menu") }));
+    label.setText(
+            MessageManager.formatMessage("label.html_content", new String[]
+            { MessageManager.getString(
+                    "label.save_colour_scheme_with_unique_name_added_to_colour_menu") }));
     caseSensitive.setText(MessageManager.getString("label.case_sensitive"));
     caseSensitive.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        caseSensitive_actionPerformed(e);
+        caseSensitive_actionPerformed();
       }
     });
     lcaseColour
             .setText(MessageManager.getString("label.lower_case_colour"));
-    lcaseColour.addActionListener(new ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        lcaseColour_actionPerformed(e);
-      }
-    });
+    lcaseColour.setToolTipText(
+            MessageManager.getString("label.lower_case_tip"));
 
     saveLoadPanel.add(savebutton);
     saveLoadPanel.add(loadbutton);
@@ -251,37 +255,24 @@ public class GUserDefinedColours extends JPanel
       // Java 7 default has 5 options rather than 3 for choosing colours; keep
       // the first only
       colorChooser
-              .setChooserPanels(new AbstractColorChooserPanel[] { choosers[0] });
+              .setChooserPanels(new AbstractColorChooserPanel[]
+              { choosers[0] });
     }
+
+    selectedButtons = new ArrayList<JButton>();
   }
 
   /**
    * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
    */
-  protected void okButton_actionPerformed(ActionEvent e)
+  protected void okButton_actionPerformed()
   {
   }
 
   /**
    * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
    */
-  protected void applyButton_actionPerformed(ActionEvent e)
-  {
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void loadbutton_actionPerformed(ActionEvent e)
+  protected void applyButton_actionPerformed()
   {
   }
 
@@ -291,8 +282,13 @@ public class GUserDefinedColours extends JPanel
    * @param e
    *          DOCUMENT ME!
    */
-  protected void savebutton_actionPerformed(ActionEvent e)
+  protected void loadbutton_actionPerformed()
   {
+  }
+
+  protected boolean savebutton_actionPerformed()
+  {
+    return false;
   }
 
   /**
@@ -301,16 +297,16 @@ public class GUserDefinedColours extends JPanel
    * @param e
    *          DOCUMENT ME!
    */
-  protected void cancelButton_actionPerformed(ActionEvent e)
+  protected void cancelButton_actionPerformed()
   {
   }
 
-  public void caseSensitive_actionPerformed(ActionEvent e)
+  public void caseSensitive_actionPerformed()
   {
 
   }
 
-  public void lcaseColour_actionPerformed(ActionEvent e)
+  public void lcaseColour_actionPerformed()
   {
 
   }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -75,8 +75,8 @@ public class HttpClientUtils
             HttpVersion.HTTP_1_1);
     if (connectionTimeoutMs > 0)
     {
-      HttpConnectionParams
-              .setConnectionTimeout(params, connectionTimeoutMs);
+      HttpConnectionParams.setConnectionTimeout(params,
+              connectionTimeoutMs);
     }
     if (readTimeoutMs > 0)
     {
@@ -91,8 +91,8 @@ public class HttpClientUtils
 
     if (resEntity != null)
     {
-      BufferedReader r = new BufferedReader(new InputStreamReader(
-              resEntity.getContent()));
+      BufferedReader r = new BufferedReader(
+              new InputStreamReader(resEntity.getContent()));
       return r;
     }
     else
@@ -114,8 +114,8 @@ public class HttpClientUtils
       mpe.addPart(nvp.getName(), new StringBody(nvp.getValue()));
     }
 
-    FileBody fb = new FileBody(file, mtype != null ? mtype
-            : "application/octet-stream");
+    FileBody fb = new FileBody(file,
+            mtype != null ? mtype : "application/octet-stream");
     mpe.addPart(fparm, fb);
     UrlEncodedFormEntity ue = new UrlEncodedFormEntity(vals, "UTF-8");
     httppost.setEntity(ue);
@@ -124,8 +124,8 @@ public class HttpClientUtils
 
     if (resEntity != null)
     {
-      BufferedReader r = new BufferedReader(new InputStreamReader(
-              resEntity.getContent()));
+      BufferedReader r = new BufferedReader(
+              new InputStreamReader(resEntity.getContent()));
       return r;
     }
     else
@@ -136,8 +136,8 @@ public class HttpClientUtils
 
   public static BufferedReader doHttpMpartInputstreamPost(String postUrl,
           List<NameValuePair> vals, String fparm, String fname,
-          InputStream is, String mtype) throws ClientProtocolException,
-          IOException
+          InputStream is, String mtype)
+          throws ClientProtocolException, IOException
   {
     HttpClient httpclient = new DefaultHttpClient();
     HttpPost httppost = new HttpPost(postUrl);
@@ -147,8 +147,9 @@ public class HttpClientUtils
       mpe.addPart(nvp.getName(), new StringBody(nvp.getValue()));
     }
 
-    InputStreamBody fb = (mtype != null) ? new InputStreamBody(is, fname,
-            mtype) : new InputStreamBody(is, fname);
+    InputStreamBody fb = (mtype != null)
+            ? new InputStreamBody(is, fname, mtype)
+            : new InputStreamBody(is, fname);
     mpe.addPart(fparm, fb);
     UrlEncodedFormEntity ue = new UrlEncodedFormEntity(vals, "UTF-8");
     httppost.setEntity(ue);
@@ -157,8 +158,8 @@ public class HttpClientUtils
 
     if (resEntity != null)
     {
-      BufferedReader r = new BufferedReader(new InputStreamReader(
-              resEntity.getContent()));
+      BufferedReader r = new BufferedReader(
+              new InputStreamReader(resEntity.getContent()));
       return r;
     }
     else

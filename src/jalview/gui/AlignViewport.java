@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,7 +22,6 @@ package jalview.gui;
 
 import jalview.analysis.AlignmentUtils;
 import jalview.analysis.AnnotationSorter.SequenceAnnotationOrder;
-import jalview.analysis.NJTree;
 import jalview.api.AlignViewportI;
 import jalview.api.AlignmentViewPanel;
 import jalview.api.FeatureColourI;
@@ -35,18 +34,20 @@ import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.PDBEntry;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SearchResults;
 import jalview.datamodel.SearchResultsI;
-import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.ResidueShader;
+import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ColourSchemeProperty;
+import jalview.schemes.ResidueColourScheme;
 import jalview.schemes.UserColourScheme;
-import jalview.structure.CommandListener;
 import jalview.structure.SelectionSource;
 import jalview.structure.StructureSelectionManager;
 import jalview.structure.VamsasSource;
+import jalview.util.ColorUtils;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
 import jalview.ws.params.AutoCalcSetting;
@@ -54,14 +55,13 @@ import jalview.ws.params.AutoCalcSetting;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Vector;
 
 import javax.swing.JInternalFrame;
-import javax.swing.JOptionPane;
 
 /**
  * DOCUMENT ME!
@@ -69,20 +69,18 @@ import javax.swing.JOptionPane;
  * @author $author$
  * @version $Revision: 1.141 $
  */
-public class AlignViewport extends AlignmentViewport implements
-        SelectionSource, CommandListener
+public class AlignViewport extends AlignmentViewport
+        implements SelectionSource
 {
   Font font;
-
-  NJTree currentTree = null;
 
   boolean cursorMode = false;
 
   boolean antiAlias = false;
 
-  private Rectangle explodedGeometry;
+  private Rectangle explodedGeometry = null;
 
-  String viewName;
+  private String viewName = null;
 
   /*
    * Flag set true on the view that should 'gather' multiple views of the same
@@ -103,7 +101,7 @@ public class AlignViewport extends AlignmentViewport implements
    */
   public AlignViewport(AlignmentI al)
   {
-    setAlignment(al);
+    super(al);
     init();
   }
 
@@ -121,20 +119,21 @@ public class AlignViewport extends AlignmentViewport implements
 
   public AlignViewport(AlignmentI al, String seqsetid, String viewid)
   {
+    super(al);
     sequenceSetID = seqsetid;
     viewId = viewid;
     // TODO remove these once 2.4.VAMSAS release finished
     if (Cache.log != null && Cache.log.isDebugEnabled() && seqsetid != null)
     {
-      Cache.log.debug("Setting viewport's sequence set id : "
-              + sequenceSetID);
+      Cache.log.debug(
+              "Setting viewport's sequence set id : " + sequenceSetID);
     }
     if (Cache.log != null && Cache.log.isDebugEnabled() && viewId != null)
     {
       Cache.log.debug("Setting viewport's view id : " + viewId);
     }
-    setAlignment(al);
     init();
+
   }
 
   /**
@@ -145,12 +144,12 @@ public class AlignViewport extends AlignmentViewport implements
    * @param hiddenColumns
    *          ColumnSelection
    */
-  public AlignViewport(AlignmentI al, ColumnSelection hiddenColumns)
+  public AlignViewport(AlignmentI al, HiddenColumns hiddenColumns)
   {
-    setAlignment(al);
+    super(al);
     if (hiddenColumns != null)
     {
-      colSel = hiddenColumns;
+      al.setHiddenColumns(hiddenColumns);
     }
     init();
   }
@@ -163,7 +162,7 @@ public class AlignViewport extends AlignmentViewport implements
    * @param seqsetid
    *          (may be null)
    */
-  public AlignViewport(AlignmentI al, ColumnSelection hiddenColumns,
+  public AlignViewport(AlignmentI al, HiddenColumns hiddenColumns,
           String seqsetid)
   {
     this(al, hiddenColumns, seqsetid, null);
@@ -179,25 +178,26 @@ public class AlignViewport extends AlignmentViewport implements
    * @param viewid
    *          (may be null)
    */
-  public AlignViewport(AlignmentI al, ColumnSelection hiddenColumns,
+  public AlignViewport(AlignmentI al, HiddenColumns hiddenColumns,
           String seqsetid, String viewid)
   {
+    super(al);
     sequenceSetID = seqsetid;
     viewId = viewid;
     // TODO remove these once 2.4.VAMSAS release finished
     if (Cache.log != null && Cache.log.isDebugEnabled() && seqsetid != null)
     {
-      Cache.log.debug("Setting viewport's sequence set id : "
-              + sequenceSetID);
+      Cache.log.debug(
+              "Setting viewport's sequence set id : " + sequenceSetID);
     }
     if (Cache.log != null && Cache.log.isDebugEnabled() && viewId != null)
     {
       Cache.log.debug("Setting viewport's view id : " + viewId);
     }
-    setAlignment(al);
+
     if (hiddenColumns != null)
     {
-      colSel = hiddenColumns;
+      al.setHiddenColumns(hiddenColumns);
     }
     init();
   }
@@ -207,7 +207,7 @@ public class AlignViewport extends AlignmentViewport implements
    */
   private void applyViewProperties()
   {
-    antiAlias = Cache.getDefault("ANTI_ALIAS", false);
+    antiAlias = Cache.getDefault("ANTI_ALIAS", true);
 
     viewStyle.setShowJVSuffix(Cache.getDefault("SHOW_JVSUFFIX", true));
     setShowAnnotation(Cache.getDefault("SHOW_ANNOTATIONS", true));
@@ -221,25 +221,21 @@ public class AlignViewport extends AlignmentViewport implements
     setShowDBRefs(Cache.getDefault("SHOW_DBREFS_TOOLTIP", true));
     viewStyle.setSeqNameItalics(Cache.getDefault("ID_ITALICS", true));
     viewStyle.setWrapAlignment(Cache.getDefault("WRAP_ALIGNMENT", false));
-    viewStyle.setShowUnconserved(Cache
-            .getDefault("SHOW_UNCONSERVED", false));
+    viewStyle.setShowUnconserved(
+            Cache.getDefault("SHOW_UNCONSERVED", false));
     sortByTree = Cache.getDefault("SORT_BY_TREE", false);
     followSelection = Cache.getDefault("FOLLOW_SELECTIONS", true);
-    sortAnnotationsBy = SequenceAnnotationOrder.valueOf(Cache.getDefault(
-            Preferences.SORT_ANNOTATIONS,
-            SequenceAnnotationOrder.NONE.name()));
-    showAutocalculatedAbove = Cache.getDefault(
-            Preferences.SHOW_AUTOCALC_ABOVE, false);
-    viewStyle.setScaleProteinAsCdna(Cache.getDefault(
-            Preferences.SCALE_PROTEIN_TO_CDNA, true));
+    sortAnnotationsBy = SequenceAnnotationOrder
+            .valueOf(Cache.getDefault(Preferences.SORT_ANNOTATIONS,
+                    SequenceAnnotationOrder.NONE.name()));
+    showAutocalculatedAbove = Cache
+            .getDefault(Preferences.SHOW_AUTOCALC_ABOVE, false);
+    viewStyle.setScaleProteinAsCdna(
+            Cache.getDefault(Preferences.SCALE_PROTEIN_TO_CDNA, true));
   }
 
   void init()
   {
-    this.startRes = 0;
-    this.endRes = alignment.getWidth() - 1;
-    this.startSeq = 0;
-    this.endSeq = alignment.getHeight() - 1;
     applyViewProperties();
 
     String fontName = Cache.getDefault("FONT_NAME", "SansSerif");
@@ -280,93 +276,54 @@ public class AlignViewport extends AlignmentViewport implements
               false);
       showGroupConsensus = Cache.getDefault("SHOW_GROUP_CONSENSUS", false);
       showConsensus = Cache.getDefault("SHOW_IDENTITY", true);
+
+      showOccupancy = Cache.getDefault(Preferences.SHOW_OCCUPANCY, true);
     }
     initAutoAnnotation();
-    String colourProperty = alignment.isNucleotide() ? Preferences.DEFAULT_COLOUR_NUC
+    String colourProperty = alignment.isNucleotide()
+            ? Preferences.DEFAULT_COLOUR_NUC
             : Preferences.DEFAULT_COLOUR_PROT;
-    String propertyValue = Cache.getProperty(colourProperty);
-    if (propertyValue == null)
+    String schemeName = Cache.getProperty(colourProperty);
+    if (schemeName == null)
     {
-      // fall back on this property for backwards compatibility
-      propertyValue = Cache.getProperty(Preferences.DEFAULT_COLOUR);
+      // only DEFAULT_COLOUR available in Jalview before 2.9
+      schemeName = Cache.getDefault(Preferences.DEFAULT_COLOUR,
+              ResidueColourScheme.NONE);
     }
-    if (propertyValue != null)
-    {
-      globalColourScheme = ColourSchemeProperty.getColour(alignment,
-              propertyValue);
+    ColourSchemeI colourScheme = ColourSchemeProperty
+            .getColourScheme(this, alignment, schemeName);
+    residueShading = new ResidueShader(colourScheme);
 
-      if (globalColourScheme instanceof UserColourScheme)
-      {
-        globalColourScheme = UserDefinedColours.loadDefaultColours();
-        ((UserColourScheme) globalColourScheme).setThreshold(0,
-                isIgnoreGapsConsensus());
-      }
-
-      if (globalColourScheme != null)
-      {
-        globalColourScheme.setConsensus(hconsensus);
-      }
-    }
-  }
-
-  /**
-   * get the consensus sequence as displayed under the PID consensus annotation
-   * row.
-   * 
-   * @return consensus sequence as a new sequence object
-   */
-  public SequenceI getConsensusSeq()
-  {
-    if (consensus == null)
+    if (colourScheme instanceof UserColourScheme)
     {
-      updateConsensus(null);
-    }
-    if (consensus == null)
-    {
-      return null;
-    }
-    StringBuffer seqs = new StringBuffer();
-    for (int i = 0; i < consensus.annotations.length; i++)
-    {
-      if (consensus.annotations[i] != null)
-      {
-        if (consensus.annotations[i].description.charAt(0) == '[')
-        {
-          seqs.append(consensus.annotations[i].description.charAt(1));
-        }
-        else
-        {
-          seqs.append(consensus.annotations[i].displayCharacter);
-        }
-      }
+      residueShading = new ResidueShader(
+              UserDefinedColours.loadDefaultColours());
+      residueShading.setThreshold(0, isIgnoreGapsConsensus());
     }
 
-    SequenceI sq = new Sequence("Consensus", seqs.toString());
-    sq.setDescription("Percentage Identity Consensus "
-            + ((ignoreGapsInConsensusCalculation) ? " without gaps" : ""));
-    return sq;
+    if (residueShading != null)
+    {
+      residueShading.setConsensus(hconsensus);
+    }
+    setColourAppliesToAllGroups(true);
   }
 
   boolean validCharWidth;
 
   /**
-   * update view settings with the given font. You may need to call
-   * alignPanel.fontChanged to update the layout geometry
-   * 
-   * @param setGrid
-   *          when true, charWidth/height is set according to font mentrics
+   * {@inheritDoc}
    */
+  @Override
   public void setFont(Font f, boolean setGrid)
   {
     font = f;
 
     Container c = new Container();
 
-    java.awt.FontMetrics fm = c.getFontMetrics(font);
-    int w = viewStyle.getCharWidth(), ww = fm.charWidth('M'), h = viewStyle
-            .getCharHeight();
     if (setGrid)
     {
+      FontMetrics fm = c.getFontMetrics(font);
+      int ww = fm.charWidth('M');
       setCharHeight(fm.getHeight());
       setCharWidth(ww);
     }
@@ -383,7 +340,6 @@ public class AlignViewport extends AlignmentViewport implements
     super.setViewStyle(settingsForView);
     setFont(new Font(viewStyle.getFontName(), viewStyle.getFontStyle(),
             viewStyle.getFontSize()), false);
-
   }
 
   /**
@@ -489,52 +445,6 @@ public class AlignViewport extends AlignmentViewport implements
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param tree
-   *          DOCUMENT ME!
-   */
-  public void setCurrentTree(NJTree tree)
-  {
-    currentTree = tree;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  public NJTree getCurrentTree()
-  {
-    return currentTree;
-  }
-
-  /**
-   * returns the visible column regions of the alignment
-   * 
-   * @param selectedRegionOnly
-   *          true to just return the contigs intersecting with the selected
-   *          area
-   * @return
-   */
-  public int[] getViewAsVisibleContigs(boolean selectedRegionOnly)
-  {
-    int[] viscontigs = null;
-    int start = 0, end = 0;
-    if (selectedRegionOnly && selectionGroup != null)
-    {
-      start = selectionGroup.getStartRes();
-      end = selectionGroup.getEndRes() + 1;
-    }
-    else
-    {
-      end = alignment.getWidth();
-    }
-    viscontigs = colSel.getVisibleContigs(start, end);
-    return viscontigs;
-  }
-
-  /**
    * get hash of undo and redo list for the alignment
    * 
    * @return long[] { historyList.hashCode, redoList.hashCode };
@@ -598,9 +508,11 @@ public class AlignViewport extends AlignmentViewport implements
   public void sendSelection()
   {
     jalview.structure.StructureSelectionManager
-            .getStructureSelectionManager(Desktop.instance).sendSelection(
-                    new SequenceGroup(getSelectionGroup()),
-                    new ColumnSelection(getColumnSelection()), this);
+            .getStructureSelectionManager(Desktop.instance)
+            .sendSelection(new SequenceGroup(getSelectionGroup()),
+                    new ColumnSelection(getColumnSelection()),
+                    new HiddenColumns(getAlignment().getHiddenColumns()),
+                    this);
   }
 
   /**
@@ -613,8 +525,8 @@ public class AlignViewport extends AlignmentViewport implements
    */
   public AlignmentPanel getAlignPanel()
   {
-    AlignmentPanel[] aps = PaintRefresher.getAssociatedPanels(this
-            .getSequenceSetId());
+    AlignmentPanel[] aps = PaintRefresher
+            .getAssociatedPanels(this.getSequenceSetId());
     for (int p = 0; aps != null && p < aps.length; p++)
     {
       if (aps[p].av == this)
@@ -645,59 +557,6 @@ public class AlignViewport extends AlignmentViewport implements
             .getStructureSelectionManager(Desktop.instance);
   }
 
-  /**
-   * 
-   * @param pdbEntries
-   * @return an array of SequenceI arrays, one for each PDBEntry, listing which
-   *         sequences in the alignment hold a reference to it
-   */
-  public SequenceI[][] collateForPDB(PDBEntry[] pdbEntries)
-  {
-    List<SequenceI[]> seqvectors = new ArrayList<SequenceI[]>();
-    for (PDBEntry pdb : pdbEntries)
-    {
-      List<SequenceI> choosenSeqs = new ArrayList<SequenceI>();
-      for (SequenceI sq : alignment.getSequences())
-      {
-        Vector<PDBEntry> pdbRefEntries = sq.getDatasetSequence()
-                .getAllPDBEntries();
-        if (pdbRefEntries == null)
-        {
-          continue;
-        }
-        for (PDBEntry pdbRefEntry : pdbRefEntries)
-        {
-          if (pdbRefEntry.getId().equals(pdb.getId()))
-          {
-            if (pdbRefEntry.getChainCode() != null
-                    && pdb.getChainCode() != null)
-            {
-              if (pdbRefEntry.getChainCode().equalsIgnoreCase(
-                      pdb.getChainCode())
-                      && !choosenSeqs.contains(sq))
-              {
-                choosenSeqs.add(sq);
-                continue;
-              }
-            }
-            else
-            {
-              if (!choosenSeqs.contains(sq))
-              {
-                choosenSeqs.add(sq);
-                continue;
-              }
-            }
-
-          }
-        }
-      }
-      seqvectors
-              .add(choosenSeqs.toArray(new SequenceI[choosenSeqs.size()]));
-    }
-    return seqvectors.toArray(new SequenceI[seqvectors.size()][]);
-  }
-
   @Override
   public boolean isNormaliseSequenceLogo()
   {
@@ -719,7 +578,7 @@ public class AlignViewport extends AlignmentViewport implements
     return validCharWidth;
   }
 
-  private Hashtable<String, AutoCalcSetting> calcIdParams = new Hashtable<String, AutoCalcSetting>();
+  private Hashtable<String, AutoCalcSetting> calcIdParams = new Hashtable<>();
 
   public AutoCalcSetting getCalcIdSettingsFor(String calcId)
   {
@@ -749,7 +608,8 @@ public class AlignViewport extends AlignmentViewport implements
    * <ul>
    * <li>compute the equivalent edit on the mapped sequences</li>
    * <li>apply the mapped edit</li>
-   * <li>'apply' the source edit to the working copy of the source sequences</li>
+   * <li>'apply' the source edit to the working copy of the source
+   * sequences</li>
    * </ul>
    * 
    * @param command
@@ -855,7 +715,7 @@ public class AlignViewport extends AlignmentViewport implements
       }
     }
 
-    setEndSeq(getAlignment().getHeight());
+    ranges.setEndSeq(getAlignment().getHeight());
     firePropertyChange("alignment", null, getAlignment().getSequences());
   }
 
@@ -870,15 +730,14 @@ public class AlignViewport extends AlignmentViewport implements
    */
   protected boolean openLinkedAlignment(AlignmentI al, String title)
   {
-    String[] options = new String[] {
-        MessageManager.getString("action.no"),
+    String[] options = new String[] { MessageManager.getString("action.no"),
         MessageManager.getString("label.split_window"),
         MessageManager.getString("label.new_window"), };
     final String question = JvSwingUtils.wrapTooltip(true,
             MessageManager.getString("label.open_split_window?"));
-    int response = JOptionPane.showOptionDialog(Desktop.desktop, question,
+    int response = JvOptionPane.showOptionDialog(Desktop.desktop, question,
             MessageManager.getString("label.open_split_window"),
-            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null,
+            JvOptionPane.DEFAULT_OPTION, JvOptionPane.PLAIN_MESSAGE, null,
             options, options[0]);
 
     if (response != 1 && response != 2)
@@ -913,12 +772,13 @@ public class AlignViewport extends AlignmentViewport implements
     AlignFrame newAlignFrame = new AlignFrame(al, AlignFrame.DEFAULT_WIDTH,
             AlignFrame.DEFAULT_HEIGHT);
     newAlignFrame.setTitle(title);
-    newAlignFrame.statusBar.setText(MessageManager.formatMessage(
-            "label.successfully_loaded_file", new Object[] { title }));
+    newAlignFrame.setStatus(MessageManager
+            .formatMessage("label.successfully_loaded_file", new Object[]
+            { title }));
 
     // TODO if we want this (e.g. to enable reload of the alignment from file),
     // we will need to add parameters to the stack.
-    // if (!protocol.equals(AppletFormatAdapter.PASTE))
+    // if (!protocol.equals(DataSourceType.PASTE))
     // {
     // alignFrame.setFileName(file, format);
     // }
@@ -931,8 +791,8 @@ public class AlignViewport extends AlignmentViewport implements
 
     try
     {
-      newAlignFrame.setMaximum(jalview.bin.Cache.getDefault(
-              "SHOW_FULLSCREEN", false));
+      newAlignFrame.setMaximum(
+              jalview.bin.Cache.getDefault("SHOW_FULLSCREEN", false));
     } catch (java.beans.PropertyVetoException ex)
     {
     }
@@ -964,8 +824,8 @@ public class AlignViewport extends AlignmentViewport implements
      * is protein, the mappings to cDNA will be registered with
      * StructureSelectionManager as a side-effect.
      */
-    AlignFrame copyMe = new AlignFrame(complement,
-            AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+    AlignFrame copyMe = new AlignFrame(complement, AlignFrame.DEFAULT_WIDTH,
+            AlignFrame.DEFAULT_HEIGHT);
     copyMe.setTitle(getAlignPanel().alignFrame.getTitle());
 
     AlignmentI al = newAlignFrame.viewport.getAlignment();
@@ -1005,10 +865,9 @@ public class AlignViewport extends AlignmentViewport implements
     if (ap != null)
     {
       // modify GUI elements to reflect geometry change
-      Dimension idw = getAlignPanel().getIdPanel().getIdCanvas()
-              .getPreferredSize();
+      Dimension idw = ap.getIdPanel().getIdCanvas().getPreferredSize();
       idw.width = i;
-      getAlignPanel().getIdPanel().getIdCanvas().setPreferredSize(idw);
+      ap.getIdPanel().getIdCanvas().setPreferredSize(idw);
     }
   }
 
@@ -1050,8 +909,9 @@ public class AlignViewport extends AlignmentViewport implements
       // TODO would like next line without cast but needs more refactoring...
       final AlignmentPanel complementPanel = ((AlignViewport) getCodingComplement())
               .getAlignPanel();
-      complementPanel.setDontScrollComplement(true);
+      complementPanel.setToScrollComplementPanel(false);
       complementPanel.scrollToCentre(sr, verticalOffset);
+      complementPanel.setToScrollComplementPanel(true);
     }
   }
 
@@ -1096,19 +956,60 @@ public class AlignViewport extends AlignmentViewport implements
   @Override
   public void applyFeaturesStyle(FeatureSettingsModelI featureSettings)
   {
+    transferFeaturesStyles(featureSettings, false);
+  }
+
+  /**
+   * Applies the supplied feature settings descriptor to currently known features.
+   * This supports an 'initial configuration' of feature colouring based on a
+   * preset or user favourite. This may then be modified in the usual way using
+   * the Feature Settings dialogue.
+   * 
+   * @param featureSettings
+   */
+  @Override
+  public void mergeFeaturesStyle(FeatureSettingsModelI featureSettings)
+  {
+    transferFeaturesStyles(featureSettings, true);
+  }
+
+  /**
+   * when mergeOnly is set, then group and feature visibility or feature colours
+   * are not modified for features and groups already known to the feature
+   * renderer. Feature ordering is always adjusted, and transparency is always set
+   * regardless.
+   * 
+   * @param featureSettings
+   * @param mergeOnly
+   */
+  private void transferFeaturesStyles(FeatureSettingsModelI featureSettings,
+          boolean mergeOnly)
+  {
     if (featureSettings == null)
     {
       return;
     }
-
+    
     FeatureRenderer fr = getAlignPanel().getSeqPanel().seqCanvas
             .getFeatureRenderer();
+    List<String> origRenderOrder = new ArrayList<>();
+    List<String> origGroups = new ArrayList<>();
+    // preserve original render order - allows differentiation between user configured colours and autogenerated ones
+    origRenderOrder.addAll(fr.getRenderOrder());
+    origGroups.addAll(fr.getFeatureGroups());
+
     fr.findAllFeatures(true);
     List<String> renderOrder = fr.getRenderOrder();
     FeaturesDisplayedI displayed = fr.getFeaturesDisplayed();
-    displayed.clear();
+    if (!mergeOnly)
+    {
+      // only clear displayed features if we are mergeing
+      // displayed.clear();
+    }
     // TODO this clears displayed.featuresRegistered - do we care?
-
+    //
+    // JAL-3330 - JBP - yes we do - calling applyFeatureStyle to a view where
+    // feature visibility has already been configured is not very friendly
     /*
      * set feature colour if specified by feature settings
      * set visibility of all features
@@ -1117,13 +1018,28 @@ public class AlignViewport extends AlignmentViewport implements
     {
       FeatureColourI preferredColour = featureSettings
               .getFeatureColour(type);
-      if (preferredColour != null)
+      FeatureColourI origColour = fr.getFeatureStyle(type);
+      if (!mergeOnly || (!origRenderOrder.contains(type)
+              || origColour == null
+              || (!origColour.isGraduatedColour()
+                      && origColour.getColour() != null
+                      && origColour.getColour().equals(
+                              ColorUtils.createColourFromName(type)))))
       {
-        fr.setColour(type, preferredColour);
-      }
-      if (featureSettings.isFeatureDisplayed(type))
-      {
-        displayed.setVisible(type);
+        // if we are merging, only update if there wasn't already a colour defined for
+        // this type
+        if (preferredColour != null)
+        {
+          fr.setColour(type, preferredColour);
+        }
+        if (featureSettings.isFeatureDisplayed(type))
+        {
+          displayed.setVisible(type);
+        }
+        else if (featureSettings.isFeatureHidden(type))
+        {
+          displayed.setHidden(type);
+        }
       }
     }
 
@@ -1132,7 +1048,12 @@ public class AlignViewport extends AlignmentViewport implements
      */
     for (String group : fr.getFeatureGroups())
     {
-      fr.setGroupVisibility(group, featureSettings.isGroupDisplayed(group));
+      if (!mergeOnly || !origGroups.contains(group))
+      {
+        // when merging, display groups only if the aren't already marked as not visible
+        fr.setGroupVisibility(group,
+                featureSettings.isGroupDisplayed(group));
+      }
     }
 
     /*
@@ -1147,6 +1068,17 @@ public class AlignViewport extends AlignmentViewport implements
       fr.orderFeatures(featureSettings);
     }
     fr.setTransparency(featureSettings.getTransparency());
+
+    fr.notifyFeaturesChanged();
   }
 
+  public String getViewName()
+  {
+    return viewName;
+  }
+
+  public void setViewName(String viewName)
+  {
+    this.viewName = viewName;
+  }
 }

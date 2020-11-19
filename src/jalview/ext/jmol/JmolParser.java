@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -24,10 +24,10 @@ import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
 import jalview.io.FileParse;
 import jalview.io.StructureFile;
 import jalview.schemes.ResidueProperties;
-import jalview.structure.StructureImportSettings;
 import jalview.util.Format;
 import jalview.util.MessageManager;
 
@@ -59,9 +59,16 @@ public class JmolParser extends StructureFile implements JmolStatusListener
 {
   Viewer viewer = null;
 
-  public JmolParser(String inFile, String type) throws IOException
+  public JmolParser(boolean immediate, String inFile,
+          DataSourceType sourceType) throws IOException
   {
-    super(inFile, type);
+    super(immediate, inFile, sourceType);
+  }
+
+  public JmolParser(String inFile, DataSourceType sourceType)
+          throws IOException
+  {
+    super(inFile, sourceType);
   }
 
   public JmolParser(FileParse fp) throws IOException
@@ -103,8 +110,9 @@ public class JmolParser extends StructureFile implements JmolStatusListener
       // }
       // ;
       // instead, we distinguish .cif from non-.cif by filename
-      setStructureFileType(getDataName().toLowerCase().endsWith(".cif") ? PDBEntry.Type.MMCIF
-              .toString() : "PDB");
+      setStructureFileType(getDataName().toLowerCase().endsWith(".cif")
+              ? PDBEntry.Type.MMCIF.toString()
+              : "PDB");
 
       transformJmolModelToJalview(jmolModel.ms);
     }
@@ -133,7 +141,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
       {
         throw new Error(MessageManager.formatMessage(
                 "error.jmol_version_not_compatible_with_jalview_version",
-                new String[] { JmolViewer.getJmolVersion() }), x);
+                new String[]
+                { JmolViewer.getJmolVersion() }), x);
       }
     }
     return viewer;
@@ -179,7 +188,11 @@ public class JmolParser extends StructureFile implements JmolStatusListener
         }
         lastID = tmpatom.resNumIns.trim();
       }
-      xferSettings();
+      if (isParseImmediately())
+      {
+        // configure parsing settings from the static singleton
+        xferSettings();
+      }
 
       makeResidueList();
       makeCaBondList();
@@ -196,18 +209,18 @@ public class JmolParser extends StructureFile implements JmolStatusListener
           prot.add(chainseq);
         }
 
-        if (StructureImportSettings.isProcessSecondaryStructure())
+        // look at local setting for adding secondary tructure
+        if (predictSecondaryStructure)
         {
           createAnnotation(chainseq, chain, ms.at);
         }
       }
     } catch (OutOfMemoryError er)
     {
-      System.out
-              .println("OUT OF MEMORY LOADING TRANSFORMING JMOL MODEL TO JALVIEW MODEL");
-      throw new IOException(
-              MessageManager
-                      .getString("exception.outofmemory_loading_mmcif_file"));
+      System.out.println(
+              "OUT OF MEMORY LOADING TRANSFORMING JMOL MODEL TO JALVIEW MODEL");
+      throw new IOException(MessageManager
+              .getString("exception.outofmemory_loading_mmcif_file"));
     }
   }
 
@@ -234,8 +247,9 @@ public class JmolParser extends StructureFile implements JmolStatusListener
         curAtom.number = atom.getAtomNumber();
         curAtom.resName = atom.getGroup3(true);
         curAtom.resNumber = atom.getResno();
-        curAtom.occupancy = ms.occupancies != null ? ms.occupancies[atom
-                .getIndex()] : Float.valueOf(atom.getOccupancy100());
+        curAtom.occupancy = ms.occupancies != null
+                ? ms.occupancies[atom.getIndex()]
+                : Float.valueOf(atom.getOccupancy100());
         String fmt = new Format("%4i").form(curAtom.resNumber);
         curAtom.resNumIns = (fmt + curAtom.insCode);
         curAtom.tfactor = atom.getBfactor100() / 100f;
@@ -257,7 +271,7 @@ public class JmolParser extends StructureFile implements JmolStatusListener
           HashMap<String, org.jmol.modelset.Atom> chainTerMap)
   {
     // System.out.println("Atom: " + curAtom.getAtomNumber()
-    // + "   Last atom index " + curAtom.group.lastAtomIndex);
+    // + " Last atom index " + curAtom.group.lastAtomIndex);
     if (chainTerMap == null || prevAtom == null)
     {
       return true;
@@ -280,7 +294,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
         {
           return false;
         }
-        if ((curAtom.getResno() - chainTerMap.get(curAtomChId).getResno()) < 5)
+        if ((curAtom.getResno()
+                - chainTerMap.get(curAtomChId).getResno()) < 5)
         {
           chainTerMap.put(curAtomChId, curAtom);
           return true;
@@ -295,7 +310,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
       {
         return false;
       }
-      if ((curAtom.getResno() - chainTerMap.get(curAtomChId).getResno()) < 5)
+      if ((curAtom.getResno()
+              - chainTerMap.get(curAtomChId).getResno()) < 5)
       {
         chainTerMap.put(curAtomChId, curAtom);
         return true;
@@ -303,8 +319,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
       return false;
     }
     // HETATM with resNum jump > 2
-    return !(curAtom.isHetero() && ((curAtom.getResno() - prevAtom
-            .getResno()) > 2));
+    return !(curAtom.isHetero()
+            && ((curAtom.getResno() - prevAtom.getResno()) > 2));
   }
 
   private void createAnnotation(SequenceI sequence, PDBChain chain,
@@ -349,10 +365,10 @@ public class JmolParser extends StructureFile implements JmolStatusListener
           SequenceI sq, char[] secstr, char[] secstrcode, String chainId,
           int firstResNum)
   {
-    char[] seq = sq.getSequence();
+    int length = sq.getLength();
     boolean ssFound = false;
-    Annotation asecstr[] = new Annotation[seq.length + firstResNum - 1];
-    for (int p = 0; p < seq.length; p++)
+    Annotation asecstr[] = new Annotation[length + firstResNum - 1];
+    for (int p = 0; p < length; p++)
     {
       if (secstr[p] >= 'A' && secstr[p] <= 'z')
       {
@@ -409,8 +425,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
    * @param secstr
    * @param secstrcode
    */
-  protected void setSecondaryStructure(STR proteinStructureSubType,
-          int pos, char[] secstr, char[] secstrcode)
+  protected void setSecondaryStructure(STR proteinStructureSubType, int pos,
+          char[] secstr, char[] secstrcode)
   {
     switch (proteinStructureSubType)
     {
@@ -470,7 +486,7 @@ public class JmolParser extends StructureFile implements JmolStatusListener
    * Not implemented - returns null
    */
   @Override
-  public String print()
+  public String print(SequenceI[] seqs, boolean jvSuffix)
   {
     return null;
   }
@@ -487,8 +503,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
   @Override
   public void notifyCallback(CBK cbType, Object[] data)
   {
-    String strInfo = (data == null || data[1] == null ? null : data[1]
-            .toString());
+    String strInfo = (data == null || data[1] == null ? null
+            : data[1].toString());
     switch (cbType)
     {
     case ECHO:
@@ -588,7 +604,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
    * Not implemented - returns null
    */
   @Override
-  public float[][][] functionXYZ(String functionName, int nx, int ny, int nz)
+  public float[][][] functionXYZ(String functionName, int nx, int ny,
+          int nz)
   {
     return null;
   }
@@ -640,7 +657,8 @@ public class JmolParser extends StructureFile implements JmolStatusListener
     return predictSecondaryStructure;
   }
 
-  public void setPredictSecondaryStructure(boolean predictSecondaryStructure)
+  public void setPredictSecondaryStructure(
+          boolean predictSecondaryStructure)
   {
     this.predictSecondaryStructure = predictSecondaryStructure;
   }

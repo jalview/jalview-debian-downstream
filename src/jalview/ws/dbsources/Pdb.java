@@ -1,6 +1,7 @@
+
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,12 +29,16 @@ import jalview.datamodel.DBRefSource;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.PDBEntry.Type;
 import jalview.datamodel.SequenceI;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormat;
+import jalview.io.FileFormatI;
 import jalview.io.FormatAdapter;
 import jalview.io.PDBFeatureSettings;
 import jalview.structure.StructureImportSettings;
 import jalview.util.MessageManager;
 import jalview.ws.ebi.EBIFetchClient;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -137,13 +142,19 @@ public class Pdb extends EbiFileRetrievedProxy
       stopQuery();
       return null;
     }
-    String ext = StructureImportSettings.getDefaultStructureFileFormat()
-            .equalsIgnoreCase(Type.MMCIF.toString()) ? ".cif" : ".xml";
+
+    /*
+     * ensure that an mmCIF format structure file is saved with extension.cif,
+     * because the Chimera "open" command recognises this extension
+     */
+    Type pdbFileFormat = StructureImportSettings
+            .getDefaultStructureFileFormat();
+    String ext = pdbFileFormat.getExtension();
+    String fetchFormat = pdbFileFormat.getFormat();
+
     EBIFetchClient ebi = new EBIFetchClient();
-    file = ebi.fetchDataAsFile(
-            "pdb:" + id,
-            StructureImportSettings.getDefaultStructureFileFormat()
-                    .toLowerCase(), ext).getAbsolutePath();
+    File tmpFile = ebi.fetchDataAsFile("pdb:" + id, fetchFormat, ext);
+    file = tmpFile.getAbsolutePath();
     stopQuery();
     if (file == null)
     {
@@ -151,10 +162,11 @@ public class Pdb extends EbiFileRetrievedProxy
     }
     try
     {
-
-      pdbAlignment = new FormatAdapter().readFile(file,
-              jalview.io.AppletFormatAdapter.FILE,
-              StructureImportSettings.getDefaultStructureFileFormat());
+      // todo get rid of Type and use FileFormatI instead?
+      FileFormatI fileFormat = (pdbFileFormat == Type.PDB) ? FileFormat.PDB
+              : FileFormat.MMCif;
+      pdbAlignment = new FormatAdapter().readFile(file, DataSourceType.FILE,
+              fileFormat);
       if (pdbAlignment != null)
       {
         List<SequenceI> toremove = new ArrayList<SequenceI>();
@@ -170,15 +182,14 @@ public class Pdb extends EbiFileRetrievedProxy
 
             }
           }
-          if (chain == null
-                  || (chid != null && (chid.equals(chain)
-                          || chid.trim().equals(chain.trim()) || (chain
-                          .trim().length() == 0 && chid.equals("_")))))
+          if (chain == null || (chid != null && (chid.equals(chain)
+                  || chid.trim().equals(chain.trim())
+                  || (chain.trim().length() == 0 && chid.equals("_")))))
           {
             // FIXME seems to result in 'PDB|1QIP|1qip|A' - 1QIP is redundant.
             // TODO: suggest simplify naming to 1qip|A as default name defined
-            pdbcs.setName(jalview.datamodel.DBRefSource.PDB + SEPARATOR
-                    + id + SEPARATOR + pdbcs.getName());
+            pdbcs.setName(jalview.datamodel.DBRefSource.PDB + SEPARATOR + id
+                    + SEPARATOR + pdbcs.getName());
             // Might need to add more metadata to the PDBEntry object
             // like below
             /*
@@ -224,8 +235,8 @@ public class Pdb extends EbiFileRetrievedProxy
       if (pdbAlignment == null || pdbAlignment.getHeight() < 1)
       {
         throw new Exception(MessageManager.formatMessage(
-                "exception.no_pdb_records_for_chain", new String[] { id,
-                    ((chain == null) ? "' '" : chain) }));
+                "exception.no_pdb_records_for_chain", new String[]
+                { id, ((chain == null) ? "' '" : chain) }));
       }
 
     } catch (Exception ex) // Problem parsing PDB file

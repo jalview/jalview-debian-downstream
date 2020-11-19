@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -790,8 +790,8 @@ public class Format
     {
       w = width;
     }
-    else if (((fmt == 'd') || (fmt == 'i') || (fmt == 'x') || (fmt == 'X') || (fmt == 'o'))
-            && (precision > 0))
+    else if (((fmt == 'd') || (fmt == 'i') || (fmt == 'x') || (fmt == 'X')
+            || (fmt == 'o')) && (precision > 0))
     {
       w = precision;
     }
@@ -833,7 +833,8 @@ public class Format
     double factor = 1;
     String leading_zeroes = "";
 
-    for (int i = 1; (i <= precision) && (factor <= 0x7FFFFFFFFFFFFFFFL); i++)
+    for (int i = 1; (i <= precision)
+            && (factor <= 0x7FFFFFFFFFFFFFFFL); i++)
     {
       factor *= 10;
       leading_zeroes = leading_zeroes + "0";
@@ -884,21 +885,18 @@ public class Format
     String f = "";
     int e = 0;
     double dd = d;
-    double factor = 1;
 
     if (d != 0)
     {
       while (dd > 10)
       {
         e++;
-        factor /= 10;
         dd = dd / 10;
       }
 
       while (dd < 1)
       {
         e--;
-        factor *= 10;
         dd = dd * 10;
       }
     }
@@ -908,8 +906,7 @@ public class Format
       return fixed_format(d);
     }
 
-    d = d * factor;
-    f = f + fixed_format(d);
+    f = f + fixed_format(dd);
 
     if ((fmt == 'e') || (fmt == 'g'))
     {

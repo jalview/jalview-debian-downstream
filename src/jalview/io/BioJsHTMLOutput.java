@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -53,8 +53,7 @@ public class BioJsHTMLOutput extends HTMLOutput
           .getDefault("biojs_template_directory", DEFAULT_DIR);
 
   public static final String BJS_TEMPLATE_GIT_REPO = jalview.bin.Cache
-          .getDefault(
-                  "biojs_template_git_repo",
+          .getDefault("biojs_template_git_repo",
                   "https://raw.githubusercontent.com/jalview/exporter-templates/master/biojs/package.json");
 
   public BioJsHTMLOutput(AlignmentPanel ap)
@@ -80,16 +79,14 @@ public class BioJsHTMLOutput extends HTMLOutput
       return;
     } catch (Exception e)
     {
-      setProgressMessage(MessageManager.formatMessage(
-              "info.error_creating_file", "BioJS MSA"));
+      setProgressMessage(MessageManager
+              .formatMessage("info.error_creating_file", "BioJS MSA"));
       e.printStackTrace();
       return;
     }
     new Thread(this).start();
 
   }
-
-
 
   public static void refreshVersionInfo(String dirName)
           throws URISyntaxException
@@ -133,7 +130,8 @@ public class BioJsHTMLOutput extends HTMLOutput
       {
         try
         {
-          String gitRepoPkgJson = getURLContentAsString(BJS_TEMPLATE_GIT_REPO);
+          String gitRepoPkgJson = getURLContentAsString(
+                  BJS_TEMPLATE_GIT_REPO);
           if (gitRepoPkgJson != null)
           {
             BioJSRepositoryPojo release = new BioJSRepositoryPojo(
@@ -235,8 +233,8 @@ public class BioJsHTMLOutput extends HTMLOutput
         }
       }
     }
-    return responseStrBuilder == null ? null : responseStrBuilder
-            .toString();
+    return responseStrBuilder == null ? null
+            : responseStrBuilder.toString();
   }
 
   public static File getCurrentBJSTemplateFile()
@@ -289,13 +287,13 @@ public class BioJsHTMLOutput extends HTMLOutput
       String generatedBioJsWithJalviewAlignmentAsJson = bioJSTemplateString
               .replaceAll("#sequenceData#", bioJSON).toString();
 
-      PrintWriter out = new java.io.PrintWriter(new java.io.FileWriter(
-              generatedFile));
+      PrintWriter out = new java.io.PrintWriter(
+              new java.io.FileWriter(generatedFile));
       out.print(generatedBioJsWithJalviewAlignmentAsJson);
       out.flush();
       out.close();
-      setProgressMessage(MessageManager.formatMessage(
-              "status.export_complete", "BioJS"));
+      setProgressMessage(MessageManager
+              .formatMessage("status.export_complete", "BioJS"));
       exportCompleted();
 
     } catch (OutOfMemoryError err)
@@ -305,8 +303,8 @@ public class BioJsHTMLOutput extends HTMLOutput
       new OOMWarning("Creating Image for " + generatedFile, err);
     } catch (Exception e)
     {
-      setProgressMessage(MessageManager.formatMessage(
-              "info.error_creating_file", "HTML"));
+      setProgressMessage(MessageManager
+              .formatMessage("info.error_creating_file", "HTML"));
       e.printStackTrace();
     }
 

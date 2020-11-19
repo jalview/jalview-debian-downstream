@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,9 +21,11 @@
 package jalview.renderer;
 
 import jalview.api.AlignViewportI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -34,12 +36,24 @@ import java.util.List;
  */
 public class ScaleRenderer
 {
+  /**
+   * Represents one major or minor scale mark
+   */
   public final class ScaleMark
   {
+    /**
+     * true for a major scale mark, false for minor
+     */
     public final boolean major;
 
+    /**
+     * visible column position (0..) e.g. 19
+     */
     public final int column;
 
+    /**
+     * text (if any) to show e.g. "20"
+     */
     public final String text;
 
     ScaleMark(boolean isMajor, int col, String txt)
@@ -68,17 +82,27 @@ public class ScaleRenderer
     int scalestartx = (startx / 10) * 10;
 
     SequenceI refSeq = av.getAlignment().getSeqrep();
-    int refSp = 0, refStartI = 0, refEndI = -1;
+    int refSp = 0;
+    int refStartI = 0;
+    int refEndI = -1;
+
+    HiddenColumns hc = av.getAlignment().getHiddenColumns();
+
     if (refSeq != null)
     {
-      // find bounds and set origin appopriately
-      // locate first visible position for this sequence
-      int[] refbounds = av.getColumnSelection()
-              .locateVisibleBoundsOfSequence(refSeq);
+      // find bounds and set origin appropriately
+      // locate first residue in sequence which is not hidden
+      Iterator<int[]> it = hc.iterator();
+      int index = refSeq.firstResidueOutsideIterator(it);
+      refSp = hc.absoluteToVisibleColumn(index);
 
-      refSp = refbounds[0];
-      refStartI = refbounds[4];
-      refEndI = refbounds[5];
+      refStartI = refSeq.findIndex(refSeq.getStart()) - 1;
+
+      int seqlength = refSeq.getLength();
+      // get sequence position past the end of the sequence
+      int pastEndPos = refSeq.findPosition(seqlength + 1);
+      refEndI = refSeq.findIndex(pastEndPos - 1) - 1;
+
       scalestartx = refSp + ((scalestartx - refSp) / 10) * 10;
     }
 
@@ -86,22 +110,22 @@ public class ScaleRenderer
     {
       scalestartx += 5;
     }
-    List<ScaleMark> marks = new ArrayList<ScaleMark>();
+    List<ScaleMark> marks = new ArrayList<>();
     String string;
     int refN, iadj;
     // todo: add a 'reference origin column' to set column number relative to
-    for (int i = scalestartx; i < endx; i += 5)
+    for (int i = scalestartx; i <= endx; i += 5)
     {
       if (((i - refSp) % 10) == 0)
       {
         if (refSeq == null)
         {
-          iadj = av.getColumnSelection().adjustForHiddenColumns(i - 1) + 1;
+          iadj = hc.visibleToAbsoluteColumn(i - 1) + 1;
           string = String.valueOf(iadj);
         }
         else
         {
-          iadj = av.getColumnSelection().adjustForHiddenColumns(i - 1);
+          iadj = hc.visibleToAbsoluteColumn(i - 1);
           refN = refSeq.findPosition(iadj);
           // TODO show bounds if position is a gap
           // - ie L--R -> "1L|2R" for

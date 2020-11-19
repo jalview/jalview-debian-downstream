@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -33,23 +33,10 @@ public class RfamSeed extends Rfam
     super();
   }
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see jalview.ws.dbsources.Rfam#getRFAMURL()
-   */
   @Override
-  protected String getXFAMURL()
+  public String getURLSuffix()
   {
-    return "http://rfam.xfam.org/family/";
-    // Janelia Farms url
-    // "http://rfam.janelia.org/cgi-bin/getalignment?type=seed&fmt=stockholm&acc=";
-  }
-
-  @Override
-  public String getXFAMURLSUFFIX()
-  {
-    return "/alignment";
+    return "/alignment/stockholm" + GZIPPED;
   }
 
   /*

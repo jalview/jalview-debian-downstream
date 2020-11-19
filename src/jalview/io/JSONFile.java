@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -32,7 +32,7 @@ import jalview.bin.BuildDetails;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.Annotation;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.HiddenSequences;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
@@ -46,8 +46,12 @@ import jalview.json.binding.biojson.v1.ColourSchemeMapper;
 import jalview.json.binding.biojson.v1.SequenceFeaturesPojo;
 import jalview.json.binding.biojson.v1.SequenceGrpPojo;
 import jalview.json.binding.biojson.v1.SequencePojo;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 import jalview.schemes.ColourSchemeProperty;
-import jalview.schemes.UserColourScheme;
+import jalview.schemes.JalviewColourScheme;
+import jalview.schemes.ResidueColourScheme;
+import jalview.util.ColorUtils;
+import jalview.util.Format;
 import jalview.viewmodel.seqfeatures.FeaturesDisplayed;
 
 import java.awt.Color;
@@ -67,13 +71,9 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 {
   private static String version = new BuildDetails().getVersion();
 
-  private String webstartUrl = "http://www.jalview.org/services/launchApp";
+  private String webstartUrl = "https://www.jalview.org/services/launchApp";
 
   private String application = "Jalview";
-
-  public static final String FILE_EXT = "json";
-
-  public static final String FILE_DESC = "JSON";
 
   private String globalColourScheme;
 
@@ -85,9 +85,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 
   private FeatureRenderer fr;
 
-  private List<int[]> hiddenColumns;
-
-  private ColumnSelection columnSelection;
+  private HiddenColumns hiddenColumns;
 
   private List<String> hiddenSeqRefs;
 
@@ -105,9 +103,10 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     super(source);
   }
 
-  public JSONFile(String inFile, String type) throws IOException
+  public JSONFile(String inFile, DataSourceType sourceType)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, sourceType);
   }
 
   @Override
@@ -118,7 +117,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
   }
 
   @Override
-  public String print()
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
     String jsonOutput = null;
     try
@@ -171,7 +170,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
       }
 
       int count = 0;
-      for (SequenceI seq : seqs)
+      for (SequenceI seq : sqs)
       {
         StringBuilder name = new StringBuilder();
         name.append(seq.getName()).append("/").append(seq.getStart())
@@ -218,17 +217,18 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
       {
         // These color schemes require annotation, disable them if annotations
         // are not exported
-        if (globalColourScheme.equalsIgnoreCase("RNA Helices")
-                || globalColourScheme.equalsIgnoreCase("T-COFFEE SCORES"))
+        if (globalColourScheme
+                .equalsIgnoreCase(JalviewColourScheme.RNAHelices.toString())
+                || globalColourScheme.equalsIgnoreCase(
+                        JalviewColourScheme.TCoffee.toString()))
         {
-          jsonAlignmentPojo.setGlobalColorScheme("None");
+          jsonAlignmentPojo.setGlobalColorScheme(ResidueColourScheme.NONE);
         }
       }
 
       if (exportSettings.isExportFeatures())
       {
-        jsonAlignmentPojo
-                .setSeqFeatures(sequenceFeatureToJsonPojo(seqs, fr));
+        jsonAlignmentPojo.setSeqFeatures(sequenceFeatureToJsonPojo(sqs));
       }
 
       if (exportSettings.isExportGroups() && seqGroups != null
@@ -239,7 +239,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
           SequenceGrpPojo seqGrpPojo = new SequenceGrpPojo();
           seqGrpPojo.setGroupName(seqGrp.getName());
           seqGrpPojo.setColourScheme(ColourSchemeProperty
-                  .getColourName(seqGrp.cs));
+                  .getColourName(seqGrp.getColourScheme()));
           seqGrpPojo.setColourText(seqGrp.getColourText());
           seqGrpPojo.setDescription(seqGrp.getDescription());
           seqGrpPojo.setDisplayBoxes(seqGrp.getDisplayBoxes());
@@ -278,17 +278,8 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     // hidden column business
     if (getViewport().hasHiddenColumns())
     {
-      List<int[]> hiddenCols = getViewport().getColumnSelection()
-              .getHiddenColumns();
-      StringBuilder hiddenColsBuilder = new StringBuilder();
-      for (int[] range : hiddenCols)
-      {
-        hiddenColsBuilder.append(";").append(range[0]).append("-")
-                .append(range[1]);
-      }
-
-      hiddenColsBuilder.deleteCharAt(0);
-      hiddenSections[0] = hiddenColsBuilder.toString();
+      hiddenSections[0] = getViewport().getAlignment().getHiddenColumns()
+              .regionsToString(";", "-");
     }
 
     // hidden rows/seqs business
@@ -317,46 +308,50 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     return hiddenSections;
   }
 
-  public List<SequenceFeaturesPojo> sequenceFeatureToJsonPojo(
-          List<SequenceI> seqs, FeatureRenderer fr)
+  protected List<SequenceFeaturesPojo> sequenceFeatureToJsonPojo(
+          SequenceI[] sqs)
   {
     displayedFeatures = (fr == null) ? null : fr.getFeaturesDisplayed();
-    List<SequenceFeaturesPojo> sequenceFeaturesPojo = new ArrayList<SequenceFeaturesPojo>();
-    for (SequenceI seq : seqs)
+    List<SequenceFeaturesPojo> sequenceFeaturesPojo = new ArrayList<>();
+    if (sqs == null)
     {
-      SequenceI dataSetSequence = seq.getDatasetSequence();
-      SequenceFeature[] seqFeatures = (dataSetSequence == null) ? null
-              : seq.getDatasetSequence().getSequenceFeatures();
+      return sequenceFeaturesPojo;
+    }
 
-      seqFeatures = (seqFeatures == null) ? seq.getSequenceFeatures()
-              : seqFeatures;
-      if (seqFeatures == null)
-      {
-        continue;
-      }
+    FeatureColourFinder finder = new FeatureColourFinder(fr);
 
+    String[] visibleFeatureTypes = displayedFeatures == null ? null
+            : displayedFeatures.getVisibleFeatures().toArray(
+                    new String[displayedFeatures.getVisibleFeatureCount()]);
+
+    for (SequenceI seq : sqs)
+    {
+      /*
+       * get all features currently visible (and any non-positional features)
+       */
+      List<SequenceFeature> seqFeatures = seq.getFeatures().getAllFeatures(
+              visibleFeatureTypes);
       for (SequenceFeature sf : seqFeatures)
       {
-        if (displayedFeatures != null
-                && displayedFeatures.isVisible(sf.getType()))
-        {
-          SequenceFeaturesPojo jsonFeature = new SequenceFeaturesPojo(
-                  String.valueOf(seq.hashCode()));
+        SequenceFeaturesPojo jsonFeature = new SequenceFeaturesPojo(
+                String.valueOf(seq.hashCode()));
 
-          String featureColour = (fr == null) ? null : jalview.util.Format
-                  .getHexString(fr.findFeatureColour(Color.white, seq,
-                          seq.findIndex(sf.getBegin())));
-          jsonFeature.setXstart(seq.findIndex(sf.getBegin()) - 1);
-          jsonFeature.setXend(seq.findIndex(sf.getEnd()));
-          jsonFeature.setType(sf.getType());
-          jsonFeature.setDescription(sf.getDescription());
-          jsonFeature.setLinks(sf.links);
-          jsonFeature.setOtherDetails(sf.otherDetails);
-          jsonFeature.setScore(sf.getScore());
-          jsonFeature.setFillColor(featureColour);
-          jsonFeature.setFeatureGroup(sf.getFeatureGroup());
-          sequenceFeaturesPojo.add(jsonFeature);
-        }
+        String featureColour = (fr == null) ? null : Format
+                .getHexString(finder.findFeatureColour(Color.white, seq,
+                        seq.findIndex(sf.getBegin())));
+        int xStart = sf.getBegin() == 0 ? 0
+                : seq.findIndex(sf.getBegin()) - 1;
+        int xEnd = sf.getEnd() == 0 ? 0 : seq.findIndex(sf.getEnd());
+        jsonFeature.setXstart(xStart);
+        jsonFeature.setXend(xEnd);
+        jsonFeature.setType(sf.getType());
+        jsonFeature.setDescription(sf.getDescription());
+        jsonFeature.setLinks(sf.links);
+        jsonFeature.setOtherDetails(sf.otherDetails);
+        jsonFeature.setScore(sf.getScore());
+        jsonFeature.setFillColor(featureColour);
+        jsonFeature.setFeatureGroup(sf.getFeatureGroup());
+        sequenceFeaturesPojo.add(jsonFeature);
       }
     }
     return sequenceFeaturesPojo;
@@ -365,7 +360,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
   public static List<AlignmentAnnotationPojo> annotationToJsonPojo(
           Vector<AlignmentAnnotation> annotations)
   {
-    List<AlignmentAnnotationPojo> jsonAnnotations = new ArrayList<AlignmentAnnotationPojo>();
+    List<AlignmentAnnotationPojo> jsonAnnotations = new ArrayList<>();
     if (annotations == null)
     {
       return jsonAnnotations;
@@ -410,8 +405,8 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
           annotationPojo.setDisplayCharacter(displayChar);
           if (annotation.colour != null)
           {
-            annotationPojo.setColour(jalview.util.Format
-                    .getHexString(annotation.colour));
+            annotationPojo.setColour(
+                    jalview.util.Format.getHexString(annotation.colour));
           }
           alignAnnotPojo.getAnnotations().add(annotationPojo);
         }
@@ -455,17 +450,17 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
       {
         globalColourScheme = (String) jvSettingsJsonObj
                 .get("globalColorScheme");
-        Boolean showFeatures = Boolean.valueOf(jvSettingsJsonObj.get(
-                "showSeqFeatures").toString());
+        Boolean showFeatures = Boolean.valueOf(
+                jvSettingsJsonObj.get("showSeqFeatures").toString());
         setShowSeqFeatures(showFeatures);
         parseHiddenSeqRefsAsList(jvSettingsJsonObj);
         parseHiddenCols(jvSettingsJsonObj);
       }
 
-      hiddenSequences = new ArrayList<SequenceI>();
-      seqMap = new Hashtable<String, Sequence>();
-      for (Iterator<JSONObject> sequenceIter = seqJsonArray.iterator(); sequenceIter
-              .hasNext();)
+      hiddenSequences = new ArrayList<>();
+      seqMap = new Hashtable<>();
+      for (Iterator<JSONObject> sequenceIter = seqJsonArray
+              .iterator(); sequenceIter.hasNext();)
       {
         JSONObject sequence = sequenceIter.next();
         String sequcenceString = sequence.get("seq").toString();
@@ -485,28 +480,28 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 
       parseFeatures(jsonSeqArray);
 
-      for (Iterator<JSONObject> seqGrpIter = seqGrpJsonArray.iterator(); seqGrpIter
-              .hasNext();)
+      for (Iterator<JSONObject> seqGrpIter = seqGrpJsonArray
+              .iterator(); seqGrpIter.hasNext();)
       {
         JSONObject seqGrpObj = seqGrpIter.next();
         String grpName = seqGrpObj.get("groupName").toString();
         String colourScheme = seqGrpObj.get("colourScheme").toString();
         String description = (seqGrpObj.get("description") == null) ? null
                 : seqGrpObj.get("description").toString();
-        boolean displayBoxes = Boolean.valueOf(seqGrpObj
-                .get("displayBoxes").toString());
-        boolean displayText = Boolean.valueOf(seqGrpObj.get("displayText")
-                .toString());
-        boolean colourText = Boolean.valueOf(seqGrpObj.get("colourText")
-                .toString());
-        boolean showNonconserved = Boolean.valueOf(seqGrpObj.get(
-                "showNonconserved").toString());
+        boolean displayBoxes = Boolean
+                .valueOf(seqGrpObj.get("displayBoxes").toString());
+        boolean displayText = Boolean
+                .valueOf(seqGrpObj.get("displayText").toString());
+        boolean colourText = Boolean
+                .valueOf(seqGrpObj.get("colourText").toString());
+        boolean showNonconserved = Boolean
+                .valueOf(seqGrpObj.get("showNonconserved").toString());
         int startRes = Integer
                 .valueOf(seqGrpObj.get("startRes").toString());
         int endRes = Integer.valueOf(seqGrpObj.get("endRes").toString());
         JSONArray sequenceRefs = (JSONArray) seqGrpObj.get("sequenceRefs");
 
-        ArrayList<SequenceI> grpSeqs = new ArrayList<SequenceI>();
+        ArrayList<SequenceI> grpSeqs = new ArrayList<>();
         if (sequenceRefs.size() > 0)
         {
           Iterator<String> seqHashIter = sequenceRefs.iterator();
@@ -522,23 +517,23 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
         }
         SequenceGroup seqGrp = new SequenceGroup(grpSeqs, grpName, null,
                 displayBoxes, displayText, colourText, startRes, endRes);
-        seqGrp.cs = ColourSchemeMapper.getJalviewColourScheme(colourScheme,
-                seqGrp);
+        seqGrp.setColourScheme(ColourSchemeMapper
+                .getJalviewColourScheme(colourScheme, seqGrp));
         seqGrp.setShowNonconserved(showNonconserved);
         seqGrp.setDescription(description);
         this.seqGroups.add(seqGrp);
 
       }
 
-      for (Iterator<JSONObject> alAnnotIter = alAnnotJsonArray.iterator(); alAnnotIter
-              .hasNext();)
+      for (Iterator<JSONObject> alAnnotIter = alAnnotJsonArray
+              .iterator(); alAnnotIter.hasNext();)
       {
         JSONObject alAnnot = alAnnotIter.next();
         JSONArray annotJsonArray = (JSONArray) alAnnot.get("annotations");
         Annotation[] annotations = new Annotation[annotJsonArray.size()];
         int count = 0;
-        for (Iterator<JSONObject> annotIter = annotJsonArray.iterator(); annotIter
-                .hasNext();)
+        for (Iterator<JSONObject> annotIter = annotJsonArray
+                .iterator(); annotIter.hasNext();)
         {
           JSONObject annot = annotIter.next();
           if (annot == null)
@@ -547,59 +542,64 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
           }
           else
           {
-            float val = annot.get("value") == null ? null : Float
-                    .valueOf(annot.get("value").toString());
-            String desc = annot.get("description") == null ? null : annot
-                    .get("description").toString();
+            float val = annot.get("value") == null ? null
+                    : Float.valueOf(annot.get("value").toString());
+            String desc = annot.get("description") == null ? null
+                    : annot.get("description").toString();
             char ss = annot.get("secondaryStructure") == null
                     || annot.get("secondaryStructure").toString()
-                            .equalsIgnoreCase("u0000") ? ' ' : annot
-                    .get("secondaryStructure").toString().charAt(0);
+                            .equalsIgnoreCase("u0000") ? ' '
+                                    : annot.get("secondaryStructure")
+                                            .toString().charAt(0);
             String displayChar = annot.get("displayCharacter") == null ? ""
                     : annot.get("displayCharacter").toString();
 
             annotations[count] = new Annotation(displayChar, desc, ss, val);
             if (annot.get("colour") != null)
             {
-              Color color = UserColourScheme.getColourFromString(annot.get(
-                      "colour").toString());
+              Color color = ColorUtils
+                      .parseColourString(annot.get("colour").toString());
               annotations[count].colour = color;
             }
           }
           ++count;
         }
 
-        AlignmentAnnotation alignAnnot = new AlignmentAnnotation(alAnnot
-                .get("label").toString(), alAnnot.get("description")
-                .toString(), annotations);
-        alignAnnot.graph = (alAnnot.get("graphType") == null) ? 0 : Integer
-                .valueOf(alAnnot.get("graphType").toString());
+        AlignmentAnnotation alignAnnot = new AlignmentAnnotation(
+                alAnnot.get("label").toString(),
+                alAnnot.get("description").toString(), annotations);
+        alignAnnot.graph = (alAnnot.get("graphType") == null) ? 0
+                : Integer.valueOf(alAnnot.get("graphType").toString());
 
         JSONObject diplaySettings = (JSONObject) alAnnot
                 .get("annotationSettings");
         if (diplaySettings != null)
         {
 
-          alignAnnot.scaleColLabel = (diplaySettings.get("scaleColLabel") == null) ? false
-                  : Boolean.valueOf(diplaySettings.get("scaleColLabel")
-                          .toString());
+          alignAnnot.scaleColLabel = (diplaySettings
+                  .get("scaleColLabel") == null) ? false
+                          : Boolean.valueOf(diplaySettings
+                                  .get("scaleColLabel").toString());
           alignAnnot.showAllColLabels = (diplaySettings
-                  .get("showAllColLabels") == null) ? true : Boolean
-                  .valueOf(diplaySettings.get("showAllColLabels")
-                          .toString());
+                  .get("showAllColLabels") == null) ? true
+                          : Boolean.valueOf(diplaySettings
+                                  .get("showAllColLabels").toString());
           alignAnnot.centreColLabels = (diplaySettings
                   .get("centreColLabels") == null) ? true
-                  : Boolean.valueOf(diplaySettings.get("centreColLabels")
-                          .toString());
-          alignAnnot.belowAlignment = (diplaySettings.get("belowAlignment") == null) ? false
-                  : Boolean.valueOf(diplaySettings.get("belowAlignment")
-                          .toString());
-          alignAnnot.visible = (diplaySettings.get("visible") == null) ? true
-                  : Boolean.valueOf(diplaySettings.get("visible")
-                          .toString());
-          alignAnnot.hasIcons = (diplaySettings.get("hasIcon") == null) ? true
-                  : Boolean.valueOf(diplaySettings.get("hasIcon")
-                          .toString());
+                          : Boolean.valueOf(diplaySettings
+                                  .get("centreColLabels").toString());
+          alignAnnot.belowAlignment = (diplaySettings
+                  .get("belowAlignment") == null) ? false
+                          : Boolean.valueOf(diplaySettings
+                                  .get("belowAlignment").toString());
+          alignAnnot.visible = (diplaySettings.get("visible") == null)
+                  ? true
+                  : Boolean.valueOf(
+                          diplaySettings.get("visible").toString());
+          alignAnnot.hasIcons = (diplaySettings.get("hasIcon") == null)
+                  ? true
+                  : Boolean.valueOf(
+                          diplaySettings.get("hasIcon").toString());
 
         }
         if (alAnnot.get("score") != null)
@@ -608,11 +608,12 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
                   .valueOf(alAnnot.get("score").toString());
         }
 
-        String calcId = (alAnnot.get("calcId") == null) ? "" : alAnnot.get(
-                "calcId").toString();
+        String calcId = (alAnnot.get("calcId") == null) ? ""
+                : alAnnot.get("calcId").toString();
         alignAnnot.setCalcId(calcId);
-        String seqHash = (alAnnot.get("sequenceRef") != null) ? alAnnot
-                .get("sequenceRef").toString() : null;
+        String seqHash = (alAnnot.get("sequenceRef") != null)
+                ? alAnnot.get("sequenceRef").toString()
+                : null;
 
         Sequence sequence = (seqHash != null) ? seqMap.get(seqHash) : null;
         if (sequence != null)
@@ -640,7 +641,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
 
   public void parseHiddenSeqRefsAsList(JSONObject jvSettingsJson)
   {
-    hiddenSeqRefs = new ArrayList<String>();
+    hiddenSeqRefs = new ArrayList<>();
     String hiddenSeqs = (String) jvSettingsJson.get("hiddenSeqs");
     if (hiddenSeqs != null && !hiddenSeqs.isEmpty())
     {
@@ -657,12 +658,12 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     String hiddenCols = (String) jvSettingsJson.get("hiddenCols");
     if (hiddenCols != null && !hiddenCols.isEmpty())
     {
-      columnSelection = new ColumnSelection();
+      hiddenColumns = new HiddenColumns();
       String[] rangeStrings = hiddenCols.split(";");
       for (String rangeString : rangeStrings)
       {
         String[] range = rangeString.split("-");
-        columnSelection.hideColumns(Integer.valueOf(range[0]),
+        hiddenColumns.hideColumns(Integer.valueOf(range[0]),
                 Integer.valueOf(range[1]));
       }
     }
@@ -674,20 +675,31 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     if (jsonSeqFeatures != null)
     {
       displayedFeatures = new FeaturesDisplayed();
-      for (Iterator<JSONObject> seqFeatureItr = jsonSeqFeatures.iterator(); seqFeatureItr
-              .hasNext();)
+      for (Iterator<JSONObject> seqFeatureItr = jsonSeqFeatures
+              .iterator(); seqFeatureItr.hasNext();)
       {
         JSONObject jsonFeature = seqFeatureItr.next();
         Long begin = (Long) jsonFeature.get("xStart");
         Long end = (Long) jsonFeature.get("xEnd");
         String type = (String) jsonFeature.get("type");
         String featureGrp = (String) jsonFeature.get("featureGroup");
-        String descripiton = (String) jsonFeature.get("description");
+        String description = (String) jsonFeature.get("description");
         String seqRef = (String) jsonFeature.get("sequenceRef");
         Float score = Float.valueOf(jsonFeature.get("score").toString());
 
         Sequence seq = seqMap.get(seqRef);
-        SequenceFeature sequenceFeature = new SequenceFeature();
+
+        /*
+         * begin/end of 0 is for a non-positional feature
+         */
+        int featureBegin = begin.intValue() == 0 ? 0 : seq
+                .findPosition(begin.intValue());
+        int featureEnd = end.intValue() == 0 ? 0 : seq.findPosition(end
+                .intValue()) - 1;
+
+        SequenceFeature sequenceFeature = new SequenceFeature(type,
+                description, featureBegin, featureEnd, score, featureGrp);
+
         JSONArray linksJsonArray = (JSONArray) jsonFeature.get("links");
         if (linksJsonArray != null && linksJsonArray.size() > 0)
         {
@@ -698,12 +710,7 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
             sequenceFeature.addLink(link);
           }
         }
-        sequenceFeature.setFeatureGroup(featureGrp);
-        sequenceFeature.setScore(score);
-        sequenceFeature.setDescription(descripiton);
-        sequenceFeature.setType(type);
-        sequenceFeature.setBegin(seq.findPosition(begin.intValue()));
-        sequenceFeature.setEnd(seq.findPosition(end.intValue()) - 1);
+
         seq.addSequenceFeature(sequenceFeature);
         displayedFeatures.setVisible(type);
       }
@@ -758,8 +765,8 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
         }
       }
     }
-    globalColourScheme = ColourSchemeProperty.getColourName(viewport
-            .getGlobalColourScheme());
+    globalColourScheme = ColourSchemeProperty
+            .getColourName(viewport.getGlobalColourScheme());
     setDisplayedFeatures(viewport.getFeaturesDisplayed());
     showSeqFeatures = viewport.isShowSequenceFeatures();
 
@@ -781,20 +788,15 @@ public class JSONFile extends AlignFile implements ComplexAlignFile
     return annotations;
   }
 
-  public List<int[]> getHiddenColumns()
+  @Override
+  public HiddenColumns getHiddenColumns()
   {
     return hiddenColumns;
   }
 
-  @Override
-  public ColumnSelection getColumnSelection()
+  public void setHiddenColumns(HiddenColumns hidden)
   {
-    return columnSelection;
-  }
-
-  public void setColumnSelection(ColumnSelection columnSelection)
-  {
-    this.columnSelection = columnSelection;
+    this.hiddenColumns = hidden;
   }
 
   @Override

@@ -200,7 +200,7 @@ public class ChimeraChain implements ChimeraStructuralObject
    */
   public ChimeraResidue getResidue(String index)
   {
-    // Integer index = new Integer(residueIndex);
+    // Integer index = Integer.valueOf(residueIndex);
     if (residueMap.containsKey(index))
       return residueMap.get(index);
     return null;

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -34,8 +34,11 @@ public class SequencePojo
   @Attributes(required = true, description = "Sequence name")
   private String name;
 
-  @Attributes(required = false, description = "Sequence type", enums = {
-      "DNA", "RNA", "Protein" })
+  @Attributes(
+    required = false,
+    description = "Sequence type",
+    enums =
+    { "DNA", "RNA", "Protein" })
   private String type;
 
   @Attributes(
@@ -62,7 +65,8 @@ public class SequencePojo
   {
   }
 
-  public SequencePojo(int start, int end, String id, String name, String seq)
+  public SequencePojo(int start, int end, String id, String name,
+          String seq)
   {
     this.id = id;
     this.name = name;

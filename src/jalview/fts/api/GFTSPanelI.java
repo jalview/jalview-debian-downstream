@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -137,4 +137,19 @@ public interface GFTSPanelI
    * @return
    */
   public Map<String, Integer> getTempUserPrefs();
+
+  /**
+   * Returns unique key used for storing an FTSs instance cache items in the
+   * cache data structure
+   * 
+   * @return
+   */
+  public String getCacheKey();
+
+  /**
+   * 
+   * @return user preference name for configuring this FTS search's autosearch
+   *         checkbox
+   */
+  public String getAutosearchPreference();
 }

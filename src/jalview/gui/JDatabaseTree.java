@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.gui;
 
-import jalview.bin.Cache;
 import jalview.util.MessageManager;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
@@ -42,7 +41,6 @@ import java.util.List;
 import java.util.Vector;
 
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -88,22 +86,23 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
 
   private JLabel dbstatus, dbstatex;
 
+  private JPanel mainPanel = new JPanel(new BorderLayout());
+
   public JDatabaseTree(jalview.ws.SequenceFetcher sfetch)
   {
-    initDialogFrame(this, true, false,
-            MessageManager
-                    .getString("label.select_database_retrieval_source"),
-            650, 490);
+    mainPanel.add(this);
+    initDialogFrame(mainPanel, true, false, MessageManager
+            .getString("label.select_database_retrieval_source"), 650, 490);
     /*
      * Dynamically generated database list will need a translation function from
      * internal source to externally distinct names. UNIPROT and UP_NAME are
      * identical DB sources, and should be collapsed.
      */
     DefaultMutableTreeNode tn = null, root = new DefaultMutableTreeNode();
-    Hashtable<String, DefaultMutableTreeNode> source = new Hashtable<String, DefaultMutableTreeNode>();
+    Hashtable<String, DefaultMutableTreeNode> source = new Hashtable<>();
     sfetcher = sfetch;
     String dbs[] = sfetch.getSupportedDb();
-    Hashtable<String, String> ht = new Hashtable<String, String>();
+    Hashtable<String, String> ht = new Hashtable<>();
     for (int i = 0; i < dbs.length; i++)
     {
       tn = source.get(dbs[i]);
@@ -148,19 +147,19 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     }
     // and sort the tree
     sortTreeNodes(root);
-    svp = new JScrollPane();
-    // svp.setAutoscrolls(true);
     dbviews = new JTree(new DefaultTreeModel(root, false));
     dbviews.setCellRenderer(new DbTreeRenderer(this));
 
-    dbviews.getSelectionModel().setSelectionMode(
-            TreeSelectionModel.SINGLE_TREE_SELECTION);
-    svp.getViewport().setView(dbviews);
-    // svp.getViewport().setMinimumSize(new Dimension(300,200));
-    // svp.setSize(300,250);
-    // JPanel panel=new JPanel();
-    // panel.setSize(new Dimension(350,220));
-    // panel.add(svp);
+    dbviews.getSelectionModel()
+            .setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+    svp = new JScrollPane(dbviews);
+    svp.setMinimumSize(new Dimension(100, 200));
+    svp.setPreferredSize(new Dimension(200, 400));
+    svp.setMaximumSize(new Dimension(300, 600));
+
+    JPanel panel = new JPanel(new BorderLayout());
+    panel.setSize(new Dimension(350, 220));
+    panel.add(svp);
     dbviews.addTreeSelectionListener(new TreeSelectionListener()
     {
 
@@ -183,8 +182,8 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
         }
       }
     });
-    JPanel jc = new JPanel(new BorderLayout()), j = new JPanel(
-            new FlowLayout());
+    JPanel jc = new JPanel(new BorderLayout()),
+            j = new JPanel(new FlowLayout());
     jc.add(svp, BorderLayout.CENTER);
 
     java.awt.Font f;
@@ -200,7 +199,6 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     dbstat.add(dbstatex);
     jc.add(dbstat, BorderLayout.SOUTH);
     jc.validate();
-    // j.setPreferredSize(new Dimension(300,50));
     add(jc, BorderLayout.CENTER);
     ok.setEnabled(false);
     j.add(ok);
@@ -239,9 +237,8 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
       }
       else
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_cant_reorder_tree"));
+        throw new Error(MessageManager
+                .getString("error.implementation_error_cant_reorder_tree"));
       }
     }
     jalview.util.QuickSort.sort(names, nodes);
@@ -252,8 +249,8 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     }
   }
 
-  private class DbTreeRenderer extends DefaultTreeCellRenderer implements
-          TreeCellRenderer
+  private class DbTreeRenderer extends DefaultTreeCellRenderer
+          implements TreeCellRenderer
   {
     JDatabaseTree us;
 
@@ -371,13 +368,13 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
 
     tsel = dbviews.getSelectionPaths();
     boolean forcedFirstChild = false;
-    List<DbSourceProxy> srcs = new ArrayList<DbSourceProxy>();
+    List<DbSourceProxy> srcs = new ArrayList<>();
     if (tsel != null)
     {
       for (TreePath tp : tsel)
       {
-        DefaultMutableTreeNode admt, dmt = (DefaultMutableTreeNode) tp
-                .getLastPathComponent();
+        DefaultMutableTreeNode admt,
+                dmt = (DefaultMutableTreeNode) tp.getLastPathComponent();
         if (dmt.getUserObject() != null)
         {
           /*
@@ -392,13 +389,13 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
           {
             if (allowMultiSelections)
             {
-              srcs.addAll(sfetcher.getSourceProxy((String) dmt
-                      .getUserObject()));
+              srcs.addAll(sfetcher
+                      .getSourceProxy((String) dmt.getUserObject()));
             }
             else
             {
-              srcs.add(sfetcher
-                      .getSourceProxy((String) dmt.getUserObject()).get(0));
+              srcs.add(sfetcher.getSourceProxy((String) dmt.getUserObject())
+                      .get(0));
               forcedFirstChild = true;
             }
           }
@@ -443,22 +440,26 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     if (allowMultiSelections)
     {
       dbstatus.setText(MessageManager.formatMessage(
-              "label.selected_database_to_fetch_from", new String[] {
-                  Integer.valueOf(srcs.size()).toString(),
+              "label.selected_database_to_fetch_from", new String[]
+              { Integer.valueOf(srcs.size()).toString(),
                   (srcs.size() == 1 ? "" : "s"),
-                  (srcs.size() > 0 ? " with " + x + " test quer"
-                          + (x == 1 ? "y" : "ies") : ".") }));
+                  (srcs.size() > 0
+                          ? " with " + x + " test quer"
+                                  + (x == 1 ? "y" : "ies")
+                          : ".") }));
     }
     else
     {
       if (nm.length() > 0)
       {
-        dbstatus.setText(MessageManager.formatMessage(
-                "label.database_param", new String[] { nm }));
+        dbstatus.setText(MessageManager
+                .formatMessage("label.database_param", new String[]
+                { nm }));
         if (qr.length() > 0)
         {
-          dbstatex.setText(MessageManager.formatMessage(
-                  "label.example_param", new String[] { qr }));
+          dbstatex.setText(MessageManager
+                  .formatMessage("label.example_param", new String[]
+                  { qr }));
         }
       }
       else
@@ -486,7 +487,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
       return null;
     }
     StringBuffer sb = new StringBuffer();
-    HashSet<String> hs = new HashSet<String>();
+    HashSet<String> hs = new HashSet<>();
     for (DbSourceProxy dbs : getSelectedSources())
     {
       String tq = dbs.getTestQuery();
@@ -503,7 +504,7 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     return sb.toString();
   }
 
-  List<ActionListener> lstners = new Vector<ActionListener>();
+  List<ActionListener> lstners = new Vector<>();
 
   public void addActionListener(ActionListener actionListener)
   {
@@ -515,54 +516,6 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
     lstners.remove(actionListener);
   }
 
-  public static void main(String args[])
-  {
-    Cache.getDasSourceRegistry();
-    JDatabaseTree jdt = new JDatabaseTree(new jalview.ws.SequenceFetcher());
-    JFrame foo = new JFrame();
-    foo.setLayout(new BorderLayout());
-    foo.add(jdt.getDatabaseSelectorButton(), BorderLayout.CENTER);
-    foo.pack();
-    foo.setVisible(true);
-    int nultimes = 5;
-    final Thread us = Thread.currentThread();
-    jdt.addActionListener(new ActionListener()
-    {
-
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        us.interrupt();
-      }
-    });
-    do
-    {
-      try
-      {
-        Thread.sleep(50);
-      } catch (InterruptedException x)
-      {
-        nultimes--;
-        if (!jdt.hasSelection())
-        {
-          System.out.println("No Selection");
-        }
-        else
-        {
-          System.out.println("Selection: " + jdt.getSelectedItem());
-          int s = 1;
-          for (DbSourceProxy pr : jdt.getSelectedSources())
-          {
-            System.out.println("Source " + s++ + ": " + pr.getDbName()
-                    + " (" + pr.getDbSource() + ") Version "
-                    + pr.getDbVersion() + ". Test:\t" + pr.getTestQuery());
-          }
-          System.out.println("Test queries: " + jdt.getExampleQueries());
-        }
-      }
-    } while (nultimes > 0 && foo.isVisible());
-    foo.setVisible(false);
-  }
 
   @Override
   public void keyPressed(KeyEvent arg0)
@@ -592,5 +545,12 @@ public class JDatabaseTree extends JalviewDialog implements KeyListener
   {
     // TODO Auto-generated method stub
 
+  }
+
+  @Override
+  public void setVisible(boolean arg0)
+  {
+    System.out.println("setVisible: " + arg0);
+    super.setVisible(arg0);
   }
 }

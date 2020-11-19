@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,8 +25,8 @@ import jalview.api.AlignmentViewPanel;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.SequenceGroup;
 
-import java.awt.event.ActionEvent;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.Vector;
 
 /**
@@ -34,8 +34,9 @@ import java.util.Vector;
  * change colors based on covariation.
  * 
  * @author Lauren Michelle Lui
- * 
+ * @deprecated this seems to be unfinished - just use RNAHelicesColour
  */
+@Deprecated
 public class RNAHelicesColourChooser
 {
 
@@ -45,9 +46,9 @@ public class RNAHelicesColourChooser
 
   ColourSchemeI oldcs;
 
-  Hashtable oldgroupColours;
+  Map<SequenceGroup, ColourSchemeI> oldgroupColours;
 
-  jalview.datamodel.AlignmentAnnotation currentAnnotation;
+  AlignmentAnnotation currentAnnotation;
 
   boolean adjusting = false;
 
@@ -57,26 +58,20 @@ public class RNAHelicesColourChooser
     oldcs = av.getGlobalColourScheme();
     if (av.getAlignment().getGroups() != null)
     {
-      oldgroupColours = new Hashtable();
+      oldgroupColours = new Hashtable<>();
       for (SequenceGroup sg : ap.getAlignment().getGroups())
       {
-        if (sg.cs != null)
+        if (sg.getColourScheme() != null)
         {
-          oldgroupColours.put(sg, sg.cs);
+          oldgroupColours.put(sg, sg.getColourScheme());
         }
       }
     }
     this.av = av;
     this.ap = ap;
 
-    if (oldcs instanceof RNAHelicesColour)
-    {
-      RNAHelicesColour rhc = (RNAHelicesColour) oldcs;
-
-    }
-
     adjusting = true;
-    Vector list = new Vector();
+    Vector<String> list = new Vector<>();
     int index = 1;
     AlignmentAnnotation[] anns = av.getAlignment().getAlignmentAnnotation();
     if (anns != null)
@@ -96,9 +91,7 @@ public class RNAHelicesColourChooser
     }
 
     adjusting = false;
-
     changeColour();
-
   }
 
   void changeColour()
@@ -108,30 +101,10 @@ public class RNAHelicesColourChooser
     {
       return;
     }
-    RNAHelicesColour rhc = null;
-
-    rhc = new RNAHelicesColour(av.getAlignment());
+    RNAHelicesColour rhc = new RNAHelicesColour(av.getAlignment());
 
     av.setGlobalColourScheme(rhc);
 
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
   }
-
-  void reset()
-  {
-    av.setGlobalColourScheme(oldcs);
-    if (av.getAlignment().getGroups() != null)
-    {
-      for (SequenceGroup sg : ap.getAlignment().getGroups())
-      {
-        sg.cs = (ColourSchemeI) oldgroupColours.get(sg);
-      }
-    }
-  }
-
-  public void annotations_actionPerformed(ActionEvent e)
-  {
-    changeColour();
-  }
-
 }

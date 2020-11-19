@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.gui;
 import jalview.analysis.AlignSeq;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.RnaViewerModel;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
@@ -60,9 +61,9 @@ import fr.orsay.lri.varna.models.annotations.HighlightRegionAnnotation;
 import fr.orsay.lri.varna.models.rna.ModeleBase;
 import fr.orsay.lri.varna.models.rna.RNA;
 
-public class AppVarna extends JInternalFrame implements SelectionListener,
-        SecondaryStructureListener, InterfaceVARNASelectionListener,
-        VamsasSource
+public class AppVarna extends JInternalFrame
+        implements SelectionListener, SecondaryStructureListener,
+        InterfaceVARNASelectionListener, VamsasSource
 {
   private static final byte[] PAIRS = new byte[] { '(', ')', '[', ']', '{',
       '}', '<', '>' };
@@ -119,6 +120,15 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
       }
     }
 
+    /**
+     * highlight a region from start to end (inclusive) on rna
+     * 
+     * @param rna
+     * @param start
+     *          - first base pair index (from 0)
+     * @param end
+     *          - last base pair index (from 0)
+     */
     public void highlightRegion(RNA rna, int start, int end)
     {
       clearLastSelection();
@@ -176,12 +186,15 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
   {
     this(ap);
 
-    String sname = aa.sequenceRef == null ? "secondary structure (alignment)"
+    String sname = aa.sequenceRef == null
+            ? "secondary structure (alignment)"
             : seq.getName() + " structure";
     String theTitle = sname
-            + (aa.sequenceRef == null ? " trimmed to " + seq.getName() : "");
+            + (aa.sequenceRef == null ? " trimmed to " + seq.getName()
+                    : "");
     theTitle = MessageManager.formatMessage("label.varna_params",
-            new String[] { theTitle });
+            new String[]
+            { theTitle });
     setTitle(theTitle);
 
     String gappedTitle = sname + " (with gaps)";
@@ -189,7 +202,8 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
     addModel(gappedModel, gappedTitle);
 
     String trimmedTitle = "trimmed " + sname;
-    RnaModel trimmedModel = new RnaModel(trimmedTitle, aa, seq, null, false);
+    RnaModel trimmedModel = new RnaModel(trimmedTitle, aa, seq, null,
+            false);
     addModel(trimmedModel, trimmedTitle);
     vab.setSelectedIndex(0);
   }
@@ -392,7 +406,8 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
     RnaModel rnaModel = models.get(rna);
     if (rnaModel.seq == sequence)
     {
-      int highlightPos = rnaModel.gapped ? index : position - 1;
+      int highlightPos = rnaModel.gapped ? index
+              : position - sequence.getStart();
       mouseOverHighlighter.highlightRegion(rna, highlightPos, highlightPos);
       vab.updateSelectedRNA(rna);
     }
@@ -400,7 +415,7 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
 
   @Override
   public void selection(SequenceGroup seqsel, ColumnSelection colsel,
-          SelectionSource source)
+          HiddenColumns hidden, SelectionSource source)
   {
     if (source != ap.av)
     {
@@ -413,18 +428,31 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
     {
       return;
     }
-    if (seqsel != null && seqsel.getSize() > 0)
+
+    RnaModel rnaModel = models.get(rna);
+
+    if (seqsel != null && seqsel.getSize() > 0
+            && seqsel.contains(rnaModel.seq))
     {
       int start = seqsel.getStartRes(), end = seqsel.getEndRes();
-      ShiftList shift = offsets.get(rna);
-      if (shift != null)
+      if (rnaModel.gapped)
       {
-        start = shift.shift(start);
-        end = shift.shift(end);
+        ShiftList shift = offsets.get(rna);
+        if (shift != null)
+        {
+          start = shift.shift(start);
+          end = shift.shift(end);
+        }
       }
+      else
+      {
+        start = rnaModel.seq.findPosition(start) - rnaModel.seq.getStart();
+        end = rnaModel.seq.findPosition(end) - rnaModel.seq.getStart();
+      }
+
       selectionHighlighter.highlightRegion(rna, start, end);
-      selectionHighlighter.getLastHighlight().setOutlineColor(
-              seqsel.getOutlineColour());
+      selectionHighlighter.getLastHighlight()
+              .setOutlineColor(seqsel.getOutlineColour());
       // TODO - translate column markings to positions on structure if present.
       vab.updateSelectedRNA(rna);
     }
@@ -459,7 +487,8 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
   }
 
   @Override
-  public void onSelectionChanged(BaseList arg0, BaseList arg1, BaseList arg2)
+  public void onSelectionChanged(BaseList arg0, BaseList arg1,
+          BaseList arg2)
   {
     // TODO translate selected regions in VARNA to a selection on the
     // alignpanel.
@@ -576,7 +605,8 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
   {
     if (!model.ann.isValidStruc())
     {
-      throw new IllegalArgumentException("Invalid RNA structure annotation");
+      throw new IllegalArgumentException(
+              "Invalid RNA structure annotation");
     }
 
     /*
@@ -621,11 +651,10 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
     ShiftList offset = new ShiftList();
     int ofstart = -1;
     int sleng = seq.getLength();
-    char[] seqChars = seq.getSequence();
 
     for (int i = 0; i < sleng; i++)
     {
-      if (Comparison.isGap(seqChars[i]))
+      if (Comparison.isGap(seq.getCharAt(i)))
       {
         if (ofstart == -1)
         {
@@ -686,7 +715,8 @@ public class AppVarna extends JInternalFrame implements SelectionListener,
   {
     if (!model.ann.isValidStruc())
     {
-      throw new IllegalArgumentException("Invalid RNA structure annotation");
+      throw new IllegalArgumentException(
+              "Invalid RNA structure annotation");
     }
 
     try

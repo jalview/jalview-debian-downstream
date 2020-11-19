@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,13 @@
  */
 package jalview.io;
 
+import jalview.util.MessageManager;
+
 import java.io.File;
-import java.util.Hashtable;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -29,64 +34,99 @@ import javax.swing.filechooser.FileView;
 
 public class JalviewFileView extends FileView
 {
-  static Hashtable alignSuffix = new Hashtable();
+  private static Map<String, String> extensions;
 
-  static
+  private static Map<String, ImageIcon> icons;
+
+  private void loadExtensions()
   {
-    // TODO: these names should come from the FormatAdapter lists for
-    // readable/writable extensions
-    alignSuffix.put("amsa", "AMSA file");
-    alignSuffix.put("fasta", "Fasta file");
-    alignSuffix.put("fa", "Fasta file");
-    alignSuffix.put("fastq", "Fasta file");
-    alignSuffix.put("mfa", "Fasta file");
-    alignSuffix.put("blc", "BLC file");
-    alignSuffix.put("msf", "MSF file");
-    alignSuffix.put("pfam", "PFAM file");
-    alignSuffix.put("aln", "Clustal file");
-    alignSuffix.put("pir", "PIR file");
-    alignSuffix.put("jar", "Jalview Project file (old)");
-    alignSuffix.put("jvp", "Jalview Project file");
-    alignSuffix.put("amsa", "AMSA file");
-    alignSuffix.put("sto", "Stockholm File");
-    alignSuffix.put("stk", "Stockholm File");
-    alignSuffix.put("sto", "Stockholm File");
+    extensions = new HashMap<>();
+    for (FileFormatI ff : FileFormats.getInstance().getFormats())
+    {
+      String desc = ff.getName() + " file";
+      String exts = ff.getExtensions();
+      for (String ext : exts.split(","))
+      {
+        ext = ext.trim().toLowerCase();
+        extensions.put(ext,
+                desc + ("jar".equals(ext) ? " (old)" : ""));
+      }
+    }
   }
 
+  @Override
   public String getTypeDescription(File f)
   {
     String extension = getExtension(f);
-    String type = null;
-
+    
+    String type = getDescriptionForExtension(extension);
+    
     if (extension != null)
     {
-      if (alignSuffix.containsKey(extension))
+      if (extensions.containsKey(extension))
       {
-        type = alignSuffix.get(extension).toString();
+        type = extensions.get(extension).toString();
       }
     }
 
     return type;
   }
 
+  private String getDescriptionForExtension(String extension)
+  {
+    synchronized (this)
+    {
+      if (extensions == null)
+      {
+        loadExtensions();
+      }
+    }
+    return extensions.get(extension);
+  }
+
+  @Override
   public Icon getIcon(File f)
   {
     String extension = getExtension(f);
     Icon icon = null;
+    String type = getDescriptionForExtension(extension);
 
-    if (extension != null)
+    if (type == null)
     {
-      if (alignSuffix.containsKey(extension))
+      Iterator<String> it = extensions.keySet().iterator();
+      EXTENSION: while (it.hasNext())
       {
-        icon = createImageIcon("/images/file.png");
+        String ext = it.next();
+
+        // quick negative test
+        if (!f.getName().contains(ext))
+        {
+          continue EXTENSION;
+        }
+
+        BackupFilenameParts bfp = BackupFilenameParts
+                .currentBackupFilenameParts(f.getName(), ext, true);
+        if (bfp.isBackupFile())
+        {
+          extension = ext;
+          type = getDescriptionForExtension(extension)
+                  + MessageManager.getString("label.backup");
+          break;
+        }
       }
+    }
+
+    if (type != null)
+    {
+      icon = getImageIcon("/images/file.png");
     }
 
     return icon;
   }
 
-  /*
-   * Get the extension of a file.
+  /**
+   * Returns the extension of a file (part of the name after the last period),
+   * in lower case, or null if the name ends in or does not include a period.
    */
   public static String getExtension(File f)
   {
@@ -102,22 +142,44 @@ public class JalviewFileView extends FileView
     return ext;
   }
 
-  /** Returns an ImageIcon, or null if the path was invalid. */
-  protected static ImageIcon createImageIcon(String path)
+  /**
+   * Returns an ImageIcon, or null if the file was not found
+   * 
+   * @param filePath
+   */
+  protected ImageIcon getImageIcon(String filePath)
   {
-    java.net.URL imgURL = JalviewFileView.class.getResource(path);
-
-    if (imgURL != null)
+    /*
+     * we reuse a single icon object per path here
+     */
+    synchronized (this)
     {
-      return new ImageIcon(imgURL);
+      if (icons == null)
+      {
+        icons = new HashMap<>();
+      }
+      if (!icons.containsKey(filePath))
+      {
+        ImageIcon icon = null;
+        URL imgURL = JalviewFileView.class.getResource(filePath);
+        if (imgURL != null)
+        {
+          icon = new ImageIcon(imgURL);
+        }
+        else
+        {
+          System.err.println(
+                  "JalviewFileView.createImageIcon: Couldn't find file: "
+                          + filePath);
+        }
+        icons.put(filePath, icon);
+      }
     }
-    else
-    {
-      System.err
-              .println("JalviewFileView.createImageIcon: Couldn't find file: "
-                      + path);
 
-      return null;
-    }
+    /*
+     * return the image from the table (which may be null if
+     * icon creation failed)
+     */
+    return icons.get(filePath);
   }
 }

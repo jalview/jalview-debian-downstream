@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -149,8 +149,8 @@ public class StructureFrequency
           {
             if (sequences[j] == null)
             {
-              System.err
-                      .println("WARNING: Consensus skipping null sequence - possible race condition.");
+              System.err.println(
+                      "WARNING: Consensus skipping null sequence - possible race condition.");
               continue;
             }
 
@@ -195,8 +195,9 @@ public class StructureFrequency
       if (profile)
       {
         // TODO 1-dim array with jsize in [0], nongapped in [1]; or Pojo
-        residueHash.put(PROFILE, new int[][] { values,
-            new int[] { jSize, (jSize - values['-']) } });
+        residueHash.put(PROFILE,
+                new int[][]
+                { values, new int[] { jSize, (jSize - values['-']) } });
 
         residueHash.put(PAIRPROFILE, pairs);
       }
@@ -217,7 +218,8 @@ public class StructureFrequency
       {
         if (canonicalOrWobblePairCount >= otherPairCount)
         {
-          maxResidue = (canonicalOrWobblePairCount - canonical) < canonical ? "("
+          maxResidue = (canonicalOrWobblePairCount - canonical) < canonical
+                  ? "("
                   : "[";
         }
         else
@@ -225,14 +227,14 @@ public class StructureFrequency
           maxResidue = "{";
         }
       }
-      residueHash.put(MAXCOUNT, new Integer(count));
+      residueHash.put(MAXCOUNT, Integer.valueOf(count));
       residueHash.put(MAXRESIDUE, maxResidue);
 
       percentage = ((float) count * 100) / jSize;
-      residueHash.put(PID_GAPS, new Float(percentage));
+      residueHash.put(PID_GAPS, Float.valueOf(percentage));
 
       percentage = ((float) count * 100) / nongap;
-      residueHash.put(PID_NOGAPS, new Float(percentage));
+      residueHash.put(PID_NOGAPS, Float.valueOf(percentage));
 
       if (result[i] == null)
       {
@@ -252,20 +254,21 @@ public class StructureFrequency
         residueHash = new Hashtable();
         if (profile)
         {
-          residueHash.put(PROFILE, new int[][] { values,
-              new int[] { jSize, (jSize - values['-']) } });
+          residueHash.put(PROFILE,
+                  new int[][]
+                  { values, new int[] { jSize, (jSize - values['-']) } });
 
           residueHash.put(PAIRPROFILE, pairs);
         }
 
-        residueHash.put(MAXCOUNT, new Integer(count));
+        residueHash.put(MAXCOUNT, Integer.valueOf(count));
         residueHash.put(MAXRESIDUE, maxResidue);
 
         percentage = ((float) count * 100) / jSize;
-        residueHash.put(PID_GAPS, new Float(percentage));
+        residueHash.put(PID_GAPS, Float.valueOf(percentage));
 
         percentage = ((float) count * 100) / nongap;
-        residueHash.put(PID_NOGAPS, new Float(percentage));
+        residueHash.put(PID_NOGAPS, Float.valueOf(percentage));
 
         result[bpEnd] = residueHash;
       }
@@ -444,7 +447,8 @@ public class StructureFrequency
     int valuesCount = 0;
     rtnval[1] = 0;
     int offset = 2;
-    final int divisor = profile[1][ignoreGapsInConsensusCalculation ? 1 : 0];
+    final int divisor = profile[1][ignoreGapsInConsensusCalculation ? 1
+            : 0];
     for (int c = 624; c > 0; c--)
     {
       if (vl[c] > 0)

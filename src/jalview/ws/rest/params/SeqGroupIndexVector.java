@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -48,8 +48,8 @@ import org.apache.http.entity.mime.content.StringBody;
  * @author JimP
  * 
  */
-public class SeqGroupIndexVector extends InputType implements
-        AlignmentProcessor
+public class SeqGroupIndexVector extends InputType
+        implements AlignmentProcessor
 {
   public SeqGroupIndexVector()
   {
@@ -99,12 +99,10 @@ public class SeqGroupIndexVector extends InputType implements
       {
         if (sg.getSize() < minsize)
         {
-          throw new NoValidInputDataException(
-                  MessageManager
-                          .formatMessage(
-                                  "exception.notvaliddata_group_contains_less_than_min_seqs",
-                                  new String[] { Integer.valueOf(minsize)
-                                          .toString() }));
+          throw new NoValidInputDataException(MessageManager.formatMessage(
+                  "exception.notvaliddata_group_contains_less_than_min_seqs",
+                  new String[]
+                  { Integer.valueOf(minsize).toString() }));
         }
         // TODO: refactor to sequenceGroup for efficiency -
         // getAlignmentRowInterval(AlignmentI al)
@@ -261,8 +259,8 @@ public class SeqGroupIndexVector extends InputType implements
         return true;
       } catch (Exception x)
       {
-        warnings.append("Invalid molecule type '" + val
-                + "'. Must be one of (");
+        warnings.append(
+                "Invalid molecule type '" + val + "'. Must be one of (");
         for (molType v : molType.values())
         {
           warnings.append(" " + v);
@@ -279,8 +277,8 @@ public class SeqGroupIndexVector extends InputType implements
     List<OptionI> lst = getBaseOptions();
     lst.add(new Option("sep",
             "Separator character between elements of vector", true, ",",
-            sep, Arrays.asList(new String[] { " ", ",", ";", "\t", "|" }),
-            null));
+            sep, Arrays.asList(new String[]
+            { " ", ",", ";", "\t", "|" }), null));
     lst.add(new IntegerParameter("minsize",
             "Minimum size of partition allowed by service", true, 1,
             minsize, 1, 0));

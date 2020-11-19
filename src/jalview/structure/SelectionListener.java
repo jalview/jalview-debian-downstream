@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -38,5 +38,6 @@ public interface SelectionListener
    *          - source of the selection event
    */
   public void selection(jalview.datamodel.SequenceGroup seqsel,
-          jalview.datamodel.ColumnSelection colsel, SelectionSource source);
+          jalview.datamodel.ColumnSelection colsel,
+          jalview.datamodel.HiddenColumns hidden, SelectionSource source);
 }

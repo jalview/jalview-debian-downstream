@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,6 @@
  */
 package jalview.gui;
 
-import jalview.datamodel.SequenceI;
-
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -30,9 +28,14 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
 import java.util.List;
 
 import javax.swing.JPanel;
+
+import jalview.datamodel.SequenceI;
+import jalview.viewmodel.ViewportListenerI;
+import jalview.viewmodel.ViewportRanges;
 
 /**
  * DOCUMENT ME!
@@ -40,7 +43,7 @@ import javax.swing.JPanel;
  * @author $author$
  * @version $Revision$
  */
-public class IdCanvas extends JPanel
+public class IdCanvas extends JPanel implements ViewportListenerI
 {
   protected AlignViewport av;
 
@@ -60,10 +63,6 @@ public class IdCanvas extends JPanel
 
   List<SequenceI> searchResults;
 
-  FontMetrics fm;
-
-  AnnotationLabels labels = null;
-
   AnnotationPanel ap;
 
   private Font idfont;
@@ -79,12 +78,13 @@ public class IdCanvas extends JPanel
     setLayout(new BorderLayout());
     this.av = av;
     PaintRefresher.Register(this, av.getSequenceSetId());
-  }
+    av.getRanges().addPropertyChangeListener(this);
+    }
 
   /**
    * DOCUMENT ME!
    * 
-   * @param gg
+   * @param g
    *          DOCUMENT ME!
    * @param hiddenRows
    *          true - check and display hidden row marker if need be
@@ -97,7 +97,7 @@ public class IdCanvas extends JPanel
    * @param ypos
    *          DOCUMENT ME!
    */
-  public void drawIdString(Graphics2D gg, boolean hiddenRows, SequenceI s,
+  public void drawIdString(Graphics2D g, boolean hiddenRows, SequenceI s,
           int i, int starty, int ypos)
   {
     int xPos = 0;
@@ -106,39 +106,40 @@ public class IdCanvas extends JPanel
 
     if ((searchResults != null) && searchResults.contains(s))
     {
-      gg.setColor(Color.black);
-      gg.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
+      g.setColor(Color.black);
+      g.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
               charHeight);
-      gg.setColor(Color.white);
+      g.setColor(Color.white);
     }
     else if ((av.getSelectionGroup() != null)
             && av.getSelectionGroup().getSequences(null).contains(s))
     {
-      gg.setColor(Color.lightGray);
-      gg.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
+      g.setColor(Color.lightGray);
+      g.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
               charHeight);
-      gg.setColor(Color.white);
+      g.setColor(Color.white);
     }
     else
     {
-      gg.setColor(av.getSequenceColour(s));
-      gg.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
+      g.setColor(av.getSequenceColour(s));
+      g.fillRect(0, ((i - starty) * charHeight) + ypos, getWidth(),
               charHeight);
-      gg.setColor(Color.black);
+      g.setColor(Color.black);
     }
 
     if (av.isRightAlignIds())
     {
+      FontMetrics fm = g.getFontMetrics();
       xPos = panelWidth
               - fm.stringWidth(s.getDisplayId(av.getShowJVSuffix())) - 4;
     }
 
-    gg.drawString(s.getDisplayId(av.getShowJVSuffix()), xPos,
+    g.drawString(s.getDisplayId(av.getShowJVSuffix()), xPos,
             (((i - starty + 1) * charHeight) + ypos) - (charHeight / 5));
 
-    if (hiddenRows)
+    if (hiddenRows && av.getShowHiddenMarkers())
     {
-      drawMarker(i, starty, ypos);
+      drawMarker(g, av, i, starty, ypos);
     }
 
   }
@@ -151,51 +152,60 @@ public class IdCanvas extends JPanel
    */
   public void fastPaint(int vertical)
   {
-    if (gg == null)
+    /*
+     * for now, not attempting fast paint of wrapped ids...
+     */
+    if (gg == null || av.getWrapAlignment())
     {
       repaint();
 
       return;
     }
 
+    ViewportRanges ranges = av.getRanges();
+
     gg.copyArea(0, 0, getWidth(), imgHeight, 0,
             -vertical * av.getCharHeight());
 
-    int ss = av.startSeq;
-    int es = av.endSeq;
+    int ss = ranges.getStartSeq();
+    int es = ranges.getEndSeq();
     int transY = 0;
 
     if (vertical > 0) // scroll down
     {
       ss = es - vertical;
 
-      if (ss < av.startSeq)
+      if (ss < ranges.getStartSeq())
       { // ie scrolling too fast, more than a page at a time
-        ss = av.startSeq;
+        ss = ranges.getStartSeq();
       }
       else
       {
-        transY = imgHeight - (vertical * av.getCharHeight());
+        transY = imgHeight - ((vertical + 1) * av.getCharHeight());
       }
     }
-    else if (vertical < 0)
+    else if (vertical < 0) // scroll up
     {
       es = ss - vertical;
 
-      if (es > av.endSeq)
+      if (es > ranges.getEndSeq())
       {
-        es = av.endSeq;
+        es = ranges.getEndSeq();
       }
     }
 
     gg.translate(0, transY);
 
-    drawIds(ss, es);
+    drawIds(gg, av, ss, es, searchResults);
 
     gg.translate(0, -transY);
 
     fastPaint = true;
-    repaint();
+
+    // Call repaint on alignment panel so that repaints from other alignment
+    // panel components can be aggregated. Otherwise performance of the overview
+    // window and others may be adversely affected.
+    av.getAlignPanel().repaint();
   }
 
   /**
@@ -207,225 +217,244 @@ public class IdCanvas extends JPanel
   @Override
   public void paintComponent(Graphics g)
   {
+    super.paintComponent(g);
+
     g.setColor(Color.white);
     g.fillRect(0, 0, getWidth(), getHeight());
-
+    
     if (fastPaint)
     {
       fastPaint = false;
       g.drawImage(image, 0, 0, this);
-
+    
       return;
     }
-
+    
     int oldHeight = imgHeight;
-
+    
     imgHeight = getHeight();
     imgHeight -= (imgHeight % av.getCharHeight());
-
+    
     if (imgHeight < 1)
     {
       return;
     }
-
+    
     if (oldHeight != imgHeight || image.getWidth(this) != getWidth())
     {
-      image = new BufferedImage(getWidth(), imgHeight,
-              BufferedImage.TYPE_INT_RGB);
+    	image = new BufferedImage(getWidth(), imgHeight,
+                BufferedImage.TYPE_INT_RGB);
     }
-
+    
     gg = (Graphics2D) image.getGraphics();
-
+    
     // Fill in the background
     gg.setColor(Color.white);
     gg.fillRect(0, 0, getWidth(), imgHeight);
-
-    drawIds(av.getStartSeq(), av.endSeq);
-
+    
+    drawIds(gg, av, av.getRanges().getStartSeq(), av.getRanges().getEndSeq(), searchResults);
+    
     g.drawImage(image, 0, 0, this);
   }
 
   /**
-   * DOCUMENT ME!
+   * Draws sequence ids from sequence index startSeq to endSeq (inclusive), with
+   * the font and other display settings configured on the viewport. Ids of
+   * sequences included in the selection are coloured grey, otherwise the
+   * current id colour for the sequence id is used.
    * 
-   * @param starty
-   *          DOCUMENT ME!
-   * @param endy
-   *          DOCUMENT ME!
+   * @param g
+   * @param alignViewport
+   * @param startSeq
+   * @param endSeq
+   * @param selection
    */
-  void drawIds(int starty, int endy)
+  void drawIds(Graphics2D g, AlignViewport alignViewport, final int startSeq,
+          final int endSeq, List<SequenceI> selection)
   {
-    if (av.isSeqNameItalics())
+    Font font = alignViewport.getFont();
+    if (alignViewport.isSeqNameItalics())
     {
-      setIdfont(new Font(av.getFont().getName(), Font.ITALIC, av.getFont()
-              .getSize()));
+      setIdfont(new Font(font.getName(), Font.ITALIC,
+              font.getSize()));
     }
     else
     {
-      setIdfont(av.getFont());
+      setIdfont(font);
     }
 
-    gg.setFont(getIdfont());
-    fm = gg.getFontMetrics();
+    g.setFont(getIdfont());
+    FontMetrics fm = g.getFontMetrics();
 
-    if (av.antiAlias)
+    if (alignViewport.antiAlias)
     {
-      gg.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
               RenderingHints.VALUE_ANTIALIAS_ON);
     }
 
     Color currentColor = Color.white;
     Color currentTextColor = Color.black;
 
-    final boolean doHiddenCheck = av.isDisplayReferenceSeq()
-            || av.hasHiddenRows(), hiddenRows = av.hasHiddenRows();
+    boolean hasHiddenRows = alignViewport.hasHiddenRows();
 
-    if (av.getWrapAlignment())
+    if (alignViewport.getWrapAlignment())
     {
-      int maxwidth = av.getAlignment().getWidth();
-      int alheight = av.getAlignment().getHeight();
-
-      if (av.hasHiddenColumns())
-      {
-        maxwidth = av.getColumnSelection().findColumnPosition(maxwidth) - 1;
-      }
-
-      int annotationHeight = 0;
-
-      if (av.isShowAnnotation())
-      {
-        if (ap == null)
-        {
-          ap = new AnnotationPanel(av);
-        }
-
-        annotationHeight = ap.adjustPanelHeight();
-        if (labels == null)
-        {
-          labels = new AnnotationLabels(av);
-        }
-      }
-
-      int hgap = av.getCharHeight();
-      if (av.getScaleAboveWrapped())
-      {
-        hgap += av.getCharHeight();
-      }
-
-      int cHeight = alheight * av.getCharHeight() + hgap + annotationHeight;
-
-      int rowSize = av.getEndRes() - av.getStartRes();
-
-      // Draw the rest of the panels
-      for (int ypos = hgap, row = av.startRes; (ypos <= getHeight())
-              && (row < maxwidth); ypos += cHeight, row += rowSize)
-      {
-        for (int i = starty; i < alheight; i++)
-        {
-          SequenceI s = av.getAlignment().getSequenceAt(i);
-          if (doHiddenCheck)
-          {
-            setHiddenFont(s);
-          }
-          else
-          {
-            gg.setFont(getIdfont());
-          }
-
-          drawIdString(gg, hiddenRows, s, i, 0, ypos);
-        }
-
-        if (labels != null && av.isShowAnnotation())
-        {
-          gg.translate(0, ypos + (alheight * av.getCharHeight()));
-          labels.drawComponent(gg, getWidth());
-          gg.translate(0, -ypos - (alheight * av.getCharHeight()));
-        }
-      }
+      drawIdsWrapped(g, alignViewport, startSeq, getHeight());
+      return;
     }
-    else
+
+    // Now draw the id strings
+    int panelWidth = getWidth();
+    int xPos = 0;
+
+    // Now draw the id strings
+    for (int i = startSeq; i <= endSeq; i++)
     {
-      // No need to hang on to labels if we're not wrapped
-      labels = null;
+      SequenceI sequence = alignViewport.getAlignment().getSequenceAt(i);
 
-      // Now draw the id strings
-      int panelWidth = getWidth();
-      int xPos = 0;
-
-      SequenceI sequence;
-      // Now draw the id strings
-      for (int i = starty; i < endy; i++)
+      if (sequence == null)
       {
-        sequence = av.getAlignment().getSequenceAt(i);
-
-        if (sequence == null)
-        {
-          continue;
-        }
-
-        if (doHiddenCheck)
-        {
-          setHiddenFont(sequence);
-        }
-
-        // Selected sequence colours
-        if ((searchResults != null) && searchResults.contains(sequence))
-        {
-          currentColor = Color.black;
-          currentTextColor = Color.white;
-        }
-        else if ((av.getSelectionGroup() != null)
-                && av.getSelectionGroup().getSequences(null)
-                        .contains(sequence))
-        {
-          currentColor = Color.lightGray;
-          currentTextColor = Color.black;
-        }
-        else
-        {
-          currentColor = av.getSequenceColour(sequence);
-          currentTextColor = Color.black;
-        }
-
-        gg.setColor(currentColor);
-
-        gg.fillRect(0, (i - starty) * av.getCharHeight(), getWidth(),
-                av.getCharHeight());
-
-        gg.setColor(currentTextColor);
-
-        String string = sequence.getDisplayId(av.getShowJVSuffix());
-
-        if (av.isRightAlignIds())
-        {
-          xPos = panelWidth - fm.stringWidth(string) - 4;
-        }
-
-        gg.drawString(string, xPos,
-                (((i - starty) * av.getCharHeight()) + av.getCharHeight())
-                        - (av.getCharHeight() / 5));
-
-        if (hiddenRows)
-        {
-          drawMarker(i, starty, 0);
-        }
-
+        continue;
       }
 
+      if (hasHiddenRows || alignViewport.isDisplayReferenceSeq())
+      {
+        g.setFont(getHiddenFont(sequence, alignViewport));
+        fm = g.getFontMetrics();
+      }
+
+      // Selected sequence colours
+      if (selection != null && selection.contains(sequence))
+      {
+        currentColor = Color.black;
+        currentTextColor = Color.white;
+      }
+      else if ((alignViewport.getSelectionGroup() != null) && alignViewport
+              .getSelectionGroup().getSequences(null).contains(sequence))
+      {
+        currentColor = Color.lightGray;
+        currentTextColor = Color.black;
+      }
+      else
+      {
+        currentColor = alignViewport.getSequenceColour(sequence);
+        currentTextColor = Color.black;
+      }
+
+      g.setColor(currentColor);
+
+      int charHeight = alignViewport.getCharHeight();
+      g.fillRect(0, (i - startSeq) * charHeight,
+              getWidth(), charHeight);
+
+      g.setColor(currentTextColor);
+
+      String string = sequence
+              .getDisplayId(alignViewport.getShowJVSuffix());
+
+      if (alignViewport.isRightAlignIds())
+      {
+        xPos = panelWidth - fm.stringWidth(string) - 4;
+      }
+
+      g.drawString(string, xPos, (((i - startSeq) * charHeight) + charHeight)
+              - (charHeight / 5));
+
+      if (hasHiddenRows && av.getShowHiddenMarkers())
+      {
+        drawMarker(g, alignViewport, i, startSeq, 0);
+      }
     }
   }
 
-  void drawMarker(int i, int starty, int yoffset)
+  /**
+   * Draws sequence ids, and annotation labels if annotations are shown, in
+   * wrapped mode
+   * 
+   * @param g
+   * @param alignViewport
+   * @param startSeq
+   */
+  void drawIdsWrapped(Graphics2D g, AlignViewport alignViewport,
+          int startSeq, int pageHeight)
   {
+    int alignmentWidth = alignViewport.getAlignment().getWidth();
+    final int alheight = alignViewport.getAlignment().getHeight();
 
-    SequenceI[] hseqs = av.getAlignment().getHiddenSequences().hiddenSequences;
+    /*
+     * assumption: SeqCanvas.calculateWrappedGeometry has been called
+     */
+    SeqCanvas seqCanvas = alignViewport.getAlignPanel()
+            .getSeqPanel().seqCanvas;
+
+    final int charHeight = alignViewport.getCharHeight();
+
+    AnnotationLabels labels = null;
+    if (alignViewport.isShowAnnotation())
+    {
+      labels = new AnnotationLabels(alignViewport);
+    }
+
+    ViewportRanges ranges = alignViewport.getRanges();
+
+    int rowSize = ranges.getViewportWidth();
+
+    /*
+     * draw repeating sequence ids until out of sequence data or
+     * out of visible space, whichever comes first
+     */
+    boolean hasHiddenRows = alignViewport.hasHiddenRows();
+    int ypos = seqCanvas.wrappedSpaceAboveAlignment;
+    int rowStartRes = ranges.getStartRes();
+    while ((ypos <= pageHeight) && (rowStartRes < alignmentWidth))
+    {
+      for (int i = startSeq; i < alheight; i++)
+      {
+        SequenceI s = alignViewport.getAlignment().getSequenceAt(i);
+        if (hasHiddenRows || alignViewport.isDisplayReferenceSeq())
+        {
+          g.setFont(getHiddenFont(s, alignViewport));
+        }
+        else
+        {
+          g.setFont(getIdfont());
+        }
+        drawIdString(g, hasHiddenRows, s, i, 0, ypos);
+      }
+
+      if (labels != null && alignViewport.isShowAnnotation())
+      {
+        g.translate(0, ypos + (alheight * charHeight));
+        labels.drawComponent(g, getWidth());
+        g.translate(0, -ypos - (alheight * charHeight));
+      }
+
+      ypos += seqCanvas.wrappedRepeatHeightPx;
+      rowStartRes += rowSize;
+    }
+  }
+
+  /**
+   * Draws a marker (a blue right-pointing triangle) between sequences to
+   * indicate hidden sequences.
+   * 
+   * @param g
+   * @param alignViewport
+   * @param seqIndex
+   * @param starty
+   * @param yoffset
+   */
+  void drawMarker(Graphics2D g, AlignViewport alignViewport, int seqIndex, int starty, int yoffset)
+  {
+    SequenceI[] hseqs = alignViewport.getAlignment()
+            .getHiddenSequences().hiddenSequences;
     // Use this method here instead of calling hiddenSeq adjust
     // 3 times.
     int hSize = hseqs.length;
 
-    int hiddenIndex = i;
-    int lastIndex = i - 1;
-    int nextIndex = i + 1;
+    int hiddenIndex = seqIndex;
+    int lastIndex = seqIndex - 1;
+    int nextIndex = seqIndex + 1;
 
     for (int j = 0; j < hSize; j++)
     {
@@ -446,48 +475,56 @@ public class IdCanvas extends JPanel
       }
     }
 
+    /*
+     * are we below or above the hidden sequences?
+     */
     boolean below = (hiddenIndex > lastIndex + 1);
     boolean above = (nextIndex > hiddenIndex + 1);
 
-    gg.setColor(Color.blue);
+    g.setColor(Color.blue);
+    int charHeight = av.getCharHeight();
+
+    /*
+     * vertices of the triangle, below or above hidden seqs
+     */
+    int[] xPoints = new int[]
+    { getWidth() - charHeight,
+        getWidth() - charHeight, getWidth() };
+    int yShift = seqIndex - starty;
+
     if (below)
     {
-      gg.fillPolygon(
-              new int[] { getWidth() - av.getCharHeight(),
-                  getWidth() - av.getCharHeight(), getWidth() },
-              new int[] {
-                  (i - starty) * av.getCharHeight() + yoffset,
-                  (i - starty) * av.getCharHeight() + yoffset
-                          + av.getCharHeight() / 4,
-                  (i - starty) * av.getCharHeight() + yoffset }, 3);
+      int[] yPoints = new int[] { yShift * charHeight + yoffset,
+          yShift * charHeight + yoffset + charHeight / 4,
+          yShift * charHeight + yoffset };
+      g.fillPolygon(xPoints, yPoints, 3);
     }
     if (above)
     {
-      gg.fillPolygon(
-              new int[] { getWidth() - av.getCharHeight(),
-                  getWidth() - av.getCharHeight(), getWidth() },
-              new int[] {
-                  (i - starty + 1) * av.getCharHeight() + yoffset,
-                  (i - starty + 1) * av.getCharHeight() + yoffset
-                          - av.getCharHeight() / 4,
-                  (i - starty + 1) * av.getCharHeight() + yoffset }, 3);
-
+      yShift++;
+      int[] yPoints = new int[] { yShift * charHeight + yoffset,
+          yShift * charHeight + yoffset - charHeight / 4,
+          yShift * charHeight + yoffset };
+      g.fillPolygon(xPoints, yPoints, 3);
     }
   }
 
-  void setHiddenFont(SequenceI seq)
+  /**
+   * Answers the standard sequence id font, or a bold font if the sequence is
+   * set as reference or a hidden group representative
+   * 
+   * @param seq
+   * @param alignViewport
+   * @return
+   */
+  private Font getHiddenFont(SequenceI seq, AlignViewport alignViewport)
   {
-    Font bold = new Font(av.getFont().getName(), Font.BOLD, av.getFont()
-            .getSize());
-
     if (av.isReferenceSeq(seq) || av.isHiddenRepSequence(seq))
     {
-      gg.setFont(bold);
+      return new Font(av.getFont().getName(), Font.BOLD,
+              av.getFont().getSize());
     }
-    else
-    {
-      gg.setFont(getIdfont());
-    }
+    return getIdfont();
   }
 
   /**
@@ -510,5 +547,38 @@ public class IdCanvas extends JPanel
   public void setIdfont(Font idfont)
   {
     this.idfont = idfont;
+  }
+
+  /**
+   * Respond to viewport range changes (e.g. alignment panel was scrolled). Both
+   * scrolling and resizing change viewport ranges. Scrolling changes both start
+   * and end points, but resize only changes end values. Here we only want to
+   * fastpaint on a scroll, with resize using a normal paint, so scroll events
+   * are identified as changes to the horizontal or vertical start value.
+   * <p>
+   * In unwrapped mode, only responds to a vertical scroll, as horizontal scroll
+   * leaves sequence ids unchanged. In wrapped mode, only vertical scroll is
+   * provided, but it generates a change of "startres" which does require an
+   * update here.
+   */
+  @Override
+  public void propertyChange(PropertyChangeEvent evt)
+  {
+    String propertyName = evt.getPropertyName();
+    if (propertyName.equals(ViewportRanges.STARTSEQ)
+            || (av.getWrapAlignment()
+                    && propertyName.equals(ViewportRanges.STARTRES)))
+    {
+      fastPaint((int) evt.getNewValue() - (int) evt.getOldValue());
+    }
+    else if (propertyName.equals(ViewportRanges.STARTRESANDSEQ))
+    {
+      fastPaint(((int[]) evt.getNewValue())[1]
+              - ((int[]) evt.getOldValue())[1]);
+    }
+    else if (propertyName.equals(ViewportRanges.MOVE_VIEWPORT))
+    {
+      repaint();
+    }
   }
 }

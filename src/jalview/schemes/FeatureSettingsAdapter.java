@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,6 +31,12 @@ public class FeatureSettingsAdapter implements FeatureSettingsModelI
 
   @Override
   public boolean isFeatureDisplayed(String type)
+  {
+    return false;
+  }
+
+  @Override
+  public boolean isFeatureHidden(String type)
   {
     return false;
   }

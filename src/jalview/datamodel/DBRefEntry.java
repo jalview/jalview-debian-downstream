@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -27,7 +27,11 @@ import java.util.List;
 
 public class DBRefEntry implements DBRefEntryI
 {
-  String source = "", version = "", accessionId = "";
+  String source = "";
+
+  String version = "";
+
+  String accessionId = "";
 
   /**
    * maps from associated sequence to the database sequence's coordinate system
@@ -68,10 +72,10 @@ public class DBRefEntry implements DBRefEntryI
   public DBRefEntry(DBRefEntryI entry)
   {
     this((entry.getSource() == null ? "" : new String(entry.getSource())),
-            (entry.getVersion() == null ? "" : new String(
-                    entry.getVersion())),
-            (entry.getAccessionId() == null ? "" : new String(
-                    entry.getAccessionId())),
+            (entry.getVersion() == null ? ""
+                    : new String(entry.getVersion())),
+            (entry.getAccessionId() == null ? ""
+                    : new String(entry.getAccessionId())),
             (entry.getMap() == null ? null : new Mapping(entry.getMap())));
   }
 
@@ -89,9 +93,8 @@ public class DBRefEntry implements DBRefEntryI
     {
       return true;
     }
-    if (equalRef(entry)
-            && ((map == null && entry.map == null) || (map != null
-                    && entry.map != null && map.equals(entry.map))))
+    if (equalRef(entry) && ((map == null && entry.map == null)
+            || (map != null && entry.map != null && map.equals(entry.map))))
     {
       return true;
     }
@@ -104,7 +107,8 @@ public class DBRefEntry implements DBRefEntryI
    * <ul>
    * <li>source and accession are identical (ignoring case)</li>
    * <li>version is identical (ignoring case), or this version is of the format
-   * "someSource:0", in which case the version for the other entry replaces it</li>
+   * "someSource:0", in which case the version for the other entry replaces
+   * it</li>
    * <li>mappings are not compared but if this entry has no mapping, replace
    * with that for the other entry</li>
    * </ul>
@@ -141,8 +145,8 @@ public class DBRefEntry implements DBRefEntryI
     String otherAccession = other.getAccessionId();
     if ((accessionId == null && otherAccession != null)
             || (accessionId != null && otherAccession == null)
-            || (accessionId != null && !accessionId
-                    .equalsIgnoreCase(otherAccession)))
+            || (accessionId != null
+                    && !accessionId.equalsIgnoreCase(otherAccession)))
     {
       return false;
     }
@@ -160,9 +164,8 @@ public class DBRefEntry implements DBRefEntryI
     }
     else
     {
-      if (version != null
-              && (otherVersion == null || !version
-                      .equalsIgnoreCase(otherVersion)))
+      if (version != null && (otherVersion == null
+              || !version.equalsIgnoreCase(otherVersion)))
       {
         return false;
       }
@@ -197,12 +200,12 @@ public class DBRefEntry implements DBRefEntryI
       return true;
     }
     if (entry != null
-            && (source != null && entry.getSource() != null && source
-                    .equalsIgnoreCase(entry.getSource()))
-            && (accessionId != null && entry.getAccessionId() != null && accessionId
-                    .equalsIgnoreCase(entry.getAccessionId()))
-            && (version != null && entry.getVersion() != null && version
-                    .equalsIgnoreCase(entry.getVersion())))
+            && (source != null && entry.getSource() != null
+                    && source.equalsIgnoreCase(entry.getSource()))
+            && (accessionId != null && entry.getAccessionId() != null
+                    && accessionId.equalsIgnoreCase(entry.getAccessionId()))
+            && (version != null && entry.getVersion() != null
+                    && version.equalsIgnoreCase(entry.getVersion())))
     {
       return true;
     }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -61,7 +61,6 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -187,7 +186,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
    * @param jobArgset
    */
   public WsJobParameters(JFrame parent, ParamDatastoreI paramStorei,
-          Jws2Instance service, WsParamSetI preset, List<Argument> jobArgset)
+          Jws2Instance service, WsParamSetI preset,
+          List<Argument> jobArgset)
   {
     super();
     jbInit();
@@ -219,13 +219,14 @@ public class WsJobParameters extends JPanel implements ItemListener,
     frame = new JDialog(Desktop.instance, true);
 
     frame.setTitle(MessageManager.formatMessage("label.edit_params_for",
-            new String[] { service.getActionText() }));
+            new String[]
+            { service.getActionText() }));
     Rectangle deskr = Desktop.instance.getBounds();
     Dimension pref = this.getPreferredSize();
-    frame.setBounds(new Rectangle(
-            (int) (deskr.getCenterX() - pref.width / 2), (int) (deskr
-                    .getCenterY() - pref.height / 2), pref.width,
-            pref.height));
+    frame.setBounds(
+            new Rectangle((int) (deskr.getCenterX() - pref.width / 2),
+                    (int) (deskr.getCenterY() - pref.height / 2),
+                    pref.width, pref.height));
     frame.setContentPane(this);
 
     // should perhaps recover defaults from user prefs.
@@ -233,6 +234,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
     frame.validate();
     javax.swing.SwingUtilities.invokeLater(new Runnable()
     {
+      @Override
       public void run()
       {
         // jobPanel.setDividerLocation(0.25);
@@ -272,6 +274,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
             new ActionListener()
             {
 
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 update_actionPerformed(e);
@@ -283,6 +286,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
             new ActionListener()
             {
 
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 delete_actionPerformed(e);
@@ -294,17 +298,20 @@ public class WsJobParameters extends JPanel implements ItemListener,
             new ActionListener()
             {
 
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 create_actionPerformed(e);
               }
             });
-    revertpref = JvSwingUtils.makeButton(MessageManager
-            .getString("action.revert"), MessageManager
-            .getString("label.revert_changes_user_parameter_set"),
+    revertpref = JvSwingUtils.makeButton(
+            MessageManager.getString("action.revert"),
+            MessageManager
+                    .getString("label.revert_changes_user_parameter_set"),
             new ActionListener()
             {
 
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 revert_actionPerformed(e);
@@ -315,6 +322,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
             MessageManager.getString("label.start_job_current_settings"),
             new ActionListener()
             {
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 startjob_actionPerformed(e);
@@ -325,14 +333,15 @@ public class WsJobParameters extends JPanel implements ItemListener,
             MessageManager.getString("label.cancel_job_close_dialog"),
             new ActionListener()
             {
+              @Override
               public void actionPerformed(ActionEvent e)
               {
                 canceljob_actionPerformed(e);
               }
             });
 
-    setDetails.setBorder(new TitledBorder(MessageManager
-            .getString("label.details")));
+    setDetails.setBorder(
+            new TitledBorder(MessageManager.getString("label.details")));
     setDetails.setLayout(new BorderLayout());
     setDescr.setColumns(40);
     setDescr.setWrapStyleWord(true);
@@ -340,8 +349,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
     setDescr.setBackground(getBackground());
     setDescr.setEditable(true);
     setDescr.getDocument().addDocumentListener(this);
-    setDescr.setToolTipText(MessageManager
-            .getString("label.edit_notes_parameter_set"));
+    setDescr.setToolTipText(
+            MessageManager.getString("label.edit_notes_parameter_set"));
     JScrollPane setDescrView = new JScrollPane();
     setDescrView.getViewport().setView(setDescr);
     setName.setEditable(true);
@@ -391,14 +400,14 @@ public class WsJobParameters extends JPanel implements ItemListener,
 
     // paramPane.setPreferredSize(new Dimension(360, 400));
     // paramPane.setPreferredSize(null);
-    jobOptions.setBorder(new TitledBorder(MessageManager
-            .getString("label.options")));
+    jobOptions.setBorder(
+            new TitledBorder(MessageManager.getString("label.options")));
     jobOptions.setOpaque(true);
-    paramList.setBorder(new TitledBorder(MessageManager
-            .getString("label.parameters")));
+    paramList.setBorder(
+            new TitledBorder(MessageManager.getString("label.parameters")));
     paramList.setOpaque(true);
-    JPanel bjo = new JPanel(new BorderLayout()), bjp = new JPanel(
-            new BorderLayout());
+    JPanel bjo = new JPanel(new BorderLayout()),
+            bjp = new JPanel(new BorderLayout());
     bjo.add(jobOptions, BorderLayout.CENTER);
     bjp.add(paramList, BorderLayout.CENTER);
     bjp.setOpaque(true);
@@ -526,8 +535,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
     List<ArgumentI> jobArgset = null;
     settingDialog = true;
     { // instantiate the abstract proxy for Jaba objects
-      jobArgset = jabajobArgset == null ? null : JabaParamStore
-              .getJwsArgsfromJaba(jabajobArgset);
+      jobArgset = jabajobArgset == null ? null
+              : JabaParamStore.getJwsArgsfromJaba(jabajobArgset);
       p = jabap; // (jabap != null) ? paramStore.getPreset(jabap.getName()) :
                  // null;
     }
@@ -710,7 +719,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
 
   private void updateButtonDisplay()
   {
-    boolean _update = false, _create = false, _delete = false, _revert = false;
+    boolean _update = false, _create = false, _delete = false,
+            _revert = false;
     if (modifiedElements.size() > 0)
     {
       // set modified
@@ -736,6 +746,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
     validate();
   }
 
+  @Override
   public void argSetModified(Object modifiedElement, boolean b)
   {
     if (settingDialog)
@@ -780,8 +791,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
     boolean stn = settingDialog;
     boolean renamed = false;
     settingDialog = true;
-    String nm = (curSetName != null ? curSetName : (String) setName
-            .getSelectedItem());
+    String nm = (curSetName != null ? curSetName
+            : (String) setName.getSelectedItem());
     // check if the name is reserved - if it is, rename it.
     if (isServicePreset(nm))
     {
@@ -827,16 +838,17 @@ public class WsJobParameters extends JPanel implements ItemListener,
     settingDialog = stn;
   }
 
+  @Override
   public void refreshParamLayout()
   {
     // optsAndparams.setPreferredSize(null);
     FlowLayout fl = new FlowLayout(FlowLayout.LEFT);
     int sep = fl.getVgap();
     boolean fh = true;
-    int os = 0, s = jobOptions.getBorder().getBorderInsets(jobOptions).bottom
-            + jobOptions.getBorder().getBorderInsets(jobOptions).top
-            + 2
-            * sep;
+    int os = 0,
+            s = jobOptions.getBorder().getBorderInsets(jobOptions).bottom
+                    + jobOptions.getBorder().getBorderInsets(jobOptions).top
+                    + 2 * sep;
     /**
      * final height for viewport
      */
@@ -845,8 +857,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
             - jobOptions.getBorder().getBorderInsets(jobOptions).left
             + jobOptions.getBorder().getBorderInsets(jobOptions).right;
 
-    int w = 2
-            * fl.getHgap()
+    int w = 2 * fl.getHgap()
             + (MAX_OPTWIDTH > OptsAndParamsPage.PARAM_WIDTH ? MAX_OPTWIDTH
                     : OptsAndParamsPage.PARAM_WIDTH);
     int hgap = fl.getHgap(), cw = hgap;
@@ -1013,8 +1024,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
             }
             {
               System.out.println("Testing opts dupes for "
-                      + lastserv.getUri() + " : "
-                      + lastserv.getActionText() + ":" + pr.getName());
+                      + lastserv.getUri() + " : " + lastserv.getActionText()
+                      + ":" + pr.getName());
               List<Option> rg = lastserv.getRunnerConfig().getOptions();
               for (Option o : rg)
               {
@@ -1068,28 +1079,28 @@ public class WsJobParameters extends JPanel implements ItemListener,
                                 lastserv.getRunnerConfig(), " ");
                 readparam = jalview.ws.jws2.ParameterUtils
                         .writeParameterSet(pset, " ");
-                Iterator<String> o = pr.getOptions().iterator(), s = writeparam
-                        .iterator(), t = readparam.iterator();
+                Iterator<String> o = pr.getOptions().iterator(),
+                        s = writeparam.iterator(), t = readparam.iterator();
                 boolean failed = false;
                 while (s.hasNext() && t.hasNext())
                 {
                   String on = o.next(), sn = s.next(), st = t.next();
                   if (!sn.equals(st))
                   {
-                    System.out.println("Original was " + on
-                            + " Phase 1 wrote " + sn + "\tPhase 2 wrote "
-                            + st);
+                    System.out.println(
+                            "Original was " + on + " Phase 1 wrote " + sn
+                                    + "\tPhase 2 wrote " + st);
                     failed = true;
                   }
                 }
                 if (failed)
                 {
-                  System.out.println("Original parameters:\n"
-                          + pr.getOptions());
-                  System.out.println("Wrote parameters in first set:\n"
-                          + writeparam);
-                  System.out.println("Wrote parameters in second set:\n"
-                          + readparam);
+                  System.out.println(
+                          "Original parameters:\n" + pr.getOptions());
+                  System.out.println(
+                          "Wrote parameters in first set:\n" + writeparam);
+                  System.out.println(
+                          "Wrote parameters in second set:\n" + readparam);
 
                 }
               } catch (Exception e)
@@ -1099,9 +1110,9 @@ public class WsJobParameters extends JPanel implements ItemListener,
             }
             WsJobParameters pgui = new WsJobParameters(lastserv,
                     new JabaPreset(lastserv, pr));
-            JFrame jf = new JFrame(MessageManager.formatMessage(
-                    "label.ws_parameters_for",
-                    new String[] { lastserv.getActionText() }));
+            JFrame jf = new JFrame(MessageManager
+                    .formatMessage("label.ws_parameters_for", new String[]
+                    { lastserv.getActionText() }));
             JPanel cont = new JPanel(new BorderLayout());
             pgui.validate();
             cont.setPreferredSize(pgui.getPreferredSize());
@@ -1113,40 +1124,47 @@ public class WsJobParameters extends JPanel implements ItemListener,
             jf.addWindowListener(new WindowListener()
             {
 
+              @Override
               public void windowActivated(WindowEvent e)
               {
                 // TODO Auto-generated method stub
 
               }
 
+              @Override
               public void windowClosed(WindowEvent e)
               {
               }
 
+              @Override
               public void windowClosing(WindowEvent e)
               {
                 thr.interrupt();
 
               }
 
+              @Override
               public void windowDeactivated(WindowEvent e)
               {
                 // TODO Auto-generated method stub
 
               }
 
+              @Override
               public void windowDeiconified(WindowEvent e)
               {
                 // TODO Auto-generated method stub
 
               }
 
+              @Override
               public void windowIconified(WindowEvent e)
               {
                 // TODO Auto-generated method stub
 
               }
 
+              @Override
               public void windowOpened(WindowEvent e)
               {
                 // TODO Auto-generated method stub
@@ -1176,8 +1194,8 @@ public class WsJobParameters extends JPanel implements ItemListener,
 
   public boolean isServiceDefaults()
   {
-    return (!isModified() && (lastParmSet != null && lastParmSet
-            .equals(SVC_DEF)));
+    return (!isModified()
+            && (lastParmSet != null && lastParmSet.equals(SVC_DEF)));
   }
 
   public List<ArgumentI> getJobParams()
@@ -1316,6 +1334,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
 
   String curSetName = null;
 
+  @Override
   public void itemStateChanged(ItemEvent e)
   {
     if (e.getSource() == setName && e.getStateChange() == e.SELECTED)
@@ -1334,6 +1353,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
       }
       javax.swing.SwingUtilities.invokeLater(new Runnable()
       {
+        @Override
         public void run()
         {
           doPreferenceComboStateChange(setname);
@@ -1355,14 +1375,10 @@ public class WsJobParameters extends JPanel implements ItemListener,
       }
       settingDialog = true;
       System.out.println("Prompting to save " + lsetname);
-      if (javax.swing.JOptionPane
-              .showConfirmDialog(
-                      this,
-                      "Parameter set '"
-                              + lsetname
-                              + "' is modifed, and your changes will be lost.\nReally change preset ?",
-                      "Warning: Unsaved Changes",
-                      javax.swing.JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION)
+      if (JvOptionPane.showConfirmDialog(this, "Parameter set '" + lsetname
+              + "' is modifed, and your changes will be lost.\nReally change preset ?",
+              "Warning: Unsaved Changes",
+              JvOptionPane.OK_CANCEL_OPTION) != JvOptionPane.OK_OPTION)
       {
         // revert the combobox to the current item
         settingDialog = true;
@@ -1414,6 +1430,7 @@ public class WsJobParameters extends JPanel implements ItemListener,
    */
   String lastDescrText = null;
 
+  @Override
   public void actionPerformed(ActionEvent e)
   {
     if (e.getSource() instanceof Component)
@@ -1434,12 +1451,14 @@ public class WsJobParameters extends JPanel implements ItemListener,
           settingDialog = false;
           javax.swing.SwingUtilities.invokeLater(new Runnable()
           {
+            @Override
             public void run()
             {
-              JOptionPane.showMessageDialog(ourframe, MessageManager
-                      .getString("label.invalid_name_preset_exists"),
+              JvOptionPane.showMessageDialog(ourframe,
+                      MessageManager.getString(
+                              "label.invalid_name_preset_exists"),
                       MessageManager.getString("label.invalid_name"),
-                      JOptionPane.WARNING_MESSAGE);
+                      JvOptionPane.WARNING_MESSAGE);
             }
           });
 
@@ -1467,24 +1486,27 @@ public class WsJobParameters extends JPanel implements ItemListener,
     if (!settingDialog)
     {
 
-      argSetModified(
-              setDescr,
-              (lastDescrText == null ? setDescr.getText().trim().length() > 0
+      argSetModified(setDescr,
+              (lastDescrText == null
+                      ? setDescr.getText().trim().length() > 0
                       : !setDescr.getText().equals(lastDescrText)));
 
     }
   }
 
+  @Override
   public void insertUpdate(DocumentEvent e)
   {
     checkDescrModified();
   }
 
+  @Override
   public void removeUpdate(DocumentEvent e)
   {
     checkDescrModified();
   }
 
+  @Override
   public void changedUpdate(DocumentEvent e)
   {
     checkDescrModified();

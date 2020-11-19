@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,12 +20,12 @@
  */
 package jalview.datamodel;
 
-import jalview.util.MapList;
-import jalview.util.MappingUtils;
-
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
+
+import jalview.util.MapList;
+import jalview.util.MappingUtils;
 
 /**
  * Stores mapping between the columns of a protein alignment and a DNA alignment
@@ -90,10 +90,11 @@ public class AlignedCodonFrame
         return that.mapping == null;
       }
       // TODO: can simplify by asserting fromSeq is a dataset sequence
-      return (this.fromSeq == that.fromSeq || (this.fromSeq != null
-              && that.fromSeq != null
-              && this.fromSeq.getDatasetSequence() != null && this.fromSeq
-              .getDatasetSequence() == that.fromSeq.getDatasetSequence()))
+      return (this.fromSeq == that.fromSeq
+              || (this.fromSeq != null && that.fromSeq != null
+                      && this.fromSeq.getDatasetSequence() != null
+                      && this.fromSeq.getDatasetSequence() == that.fromSeq
+                              .getDatasetSequence()))
               && this.mapping.equals(that.mapping);
     }
 
@@ -106,6 +107,143 @@ public class AlignedCodonFrame
     {
       return mapping;
     }
+
+    /**
+     * Returns true if the mapping covers the full length of the given sequence.
+     * This allows us to distinguish the CDS that codes for a protein from
+     * another overlapping CDS in the parent dna sequence.
+     * 
+     * @param seq
+     * @return
+     */
+    public boolean covers(SequenceI seq)
+    {
+      return covers(seq,false,false);
+    }
+    /**
+     * 
+     * @param seq
+     * @param localCover - when true - compare extent of seq's dataset sequence rather than the local extent
+     * @param either - when true coverage is required for either seq or the mapped sequence 
+     * @return true if mapping covers full length of given sequence (or the other if either==true)
+     */
+    public boolean covers(SequenceI seq, boolean localCover,boolean either)
+    {
+      List<int[]> mappedRanges = null,otherRanges=null;
+      MapList mapList = mapping.getMap();
+      int mstart=seq.getStart(),mend=seq.getEnd(),ostart,oend;
+              ;
+      if (fromSeq == seq || fromSeq == seq.getDatasetSequence())
+      {
+        if (localCover && fromSeq !=seq)
+        {
+          mstart=fromSeq.getStart();
+          mend=fromSeq.getEnd();
+        }
+        mappedRanges = mapList.getFromRanges();
+        otherRanges=mapList.getToRanges();
+        ostart=mapping.to.getStart();
+        oend=mapping.to.getEnd();
+      }
+      else if (mapping.to == seq || mapping.to == seq.getDatasetSequence())
+      {
+        if (localCover && mapping.to !=seq)
+        {
+          mstart=mapping.to.getStart();
+          mend=mapping.to.getEnd();
+        }
+        mappedRanges = mapList.getToRanges();
+        otherRanges=mapList.getFromRanges();
+        ostart=fromSeq.getStart();
+        oend=fromSeq.getEnd();
+      }
+      else
+      {
+        return false;
+      }
+
+      /*
+       * check that each mapped range lies within the sequence range
+       * (necessary for circular CDS - example EMBL:J03321:AAA91567)
+       * and mapped length covers (at least) sequence length
+       */
+      int length = countRange(mappedRanges,mstart,mend);
+
+      if (length != -1)
+      {
+        // add 1 to mapped length to allow for a mapped stop codon
+        if (length + 1 >= (mend - mstart + 1))
+        {
+          return true;
+        }
+      }
+      if (either)
+      {
+        // also check coverage of the other range
+        length = countRange(otherRanges, ostart, oend);
+        if (length != -1)
+        {
+          if (length + 1 >= (oend - ostart + 1))
+          {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    private int countRange(List<int[]> mappedRanges,int mstart,int mend)
+    {
+      int length=0;
+      for (int[] range : mappedRanges)
+      {
+        int from = Math.min(range[0], range[1]);
+        int to = Math.max(range[0], range[1]);
+        if (from < mstart || to > mend)
+        {
+          return -1;
+        }
+        length += (to - from + 1);
+      }
+      return length;
+    }
+
+    /**
+     * Adds any regions mapped to or from position {@code pos} in sequence
+     * {@code seq} to the given search results
+     * 
+     * @param seq
+     * @param pos
+     * @param sr
+     */
+    public void markMappedRegion(SequenceI seq, int pos, SearchResultsI sr)
+    {
+      int[] codon = null;
+      SequenceI mappedSeq = null;
+      SequenceI ds = seq.getDatasetSequence();
+      if (ds == null)
+      {
+        ds = seq;
+      }
+      
+      if (this.fromSeq == seq || this.fromSeq == ds)
+      {
+        codon = this.mapping.map.locateInTo(pos, pos);
+        mappedSeq = this.mapping.to;
+      }
+      else if (this.mapping.to == seq || this.mapping.to == ds)
+      {
+        codon = this.mapping.map.locateInFrom(pos, pos);
+        mappedSeq = this.fromSeq;
+      }
+
+      if (codon != null)
+      {
+        for (int i = 0; i < codon.length; i += 2)
+        {
+          sr.addResult(mappedSeq, codon[i], codon[i + 1]);
+        }
+      }
+    }
   }
 
   private List<SequenceToSequenceMapping> mappings;
@@ -115,7 +253,7 @@ public class AlignedCodonFrame
    */
   public AlignedCodonFrame()
   {
-    mappings = new ArrayList<SequenceToSequenceMapping>();
+    mappings = new ArrayList<>();
   }
 
   /**
@@ -149,8 +287,8 @@ public class AlignedCodonFrame
 
     SequenceI fromSeq = (dnaseq.getDatasetSequence() == null) ? dnaseq
             : dnaseq.getDatasetSequence();
-    SequenceI toSeq = (aaseq.getDatasetSequence() == null) ? aaseq : aaseq
-            .getDatasetSequence();
+    SequenceI toSeq = (aaseq.getDatasetSequence() == null) ? aaseq
+            : aaseq.getDatasetSequence();
 
     /*
      * if we already hold a mapping between these sequences, just add to it 
@@ -178,7 +316,7 @@ public class AlignedCodonFrame
   {
     // TODO return a list instead?
     // return dnaSeqs;
-    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    List<SequenceI> seqs = new ArrayList<>();
     for (SequenceToSequenceMapping ssm : mappings)
     {
       seqs.add(ssm.fromSeq);
@@ -189,7 +327,7 @@ public class AlignedCodonFrame
   public SequenceI[] getAaSeqs()
   {
     // TODO not used - remove?
-    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    List<SequenceI> seqs = new ArrayList<>();
     for (SequenceToSequenceMapping ssm : mappings)
     {
       seqs.add(ssm.mapping.to);
@@ -199,7 +337,7 @@ public class AlignedCodonFrame
 
   public MapList[] getdnaToProt()
   {
-    List<MapList> maps = new ArrayList<MapList>();
+    List<MapList> maps = new ArrayList<>();
     for (SequenceToSequenceMapping ssm : mappings)
     {
       maps.add(ssm.mapping.map);
@@ -209,7 +347,7 @@ public class AlignedCodonFrame
 
   public Mapping[] getProtMappings()
   {
-    List<Mapping> maps = new ArrayList<Mapping>();
+    List<Mapping> maps = new ArrayList<>();
     for (SequenceToSequenceMapping ssm : mappings)
     {
       maps.add(ssm.mapping);
@@ -219,7 +357,7 @@ public class AlignedCodonFrame
 
   /**
    * Returns the first mapping found which is to or from the given sequence, or
-   * null.
+   * null if none is found
    * 
    * @param seq
    * @return
@@ -260,9 +398,12 @@ public class AlignedCodonFrame
   }
 
   /**
+   * Return the corresponding aligned or dataset dna sequence for given amino
+   * acid sequence, or null if not found. returns the sequence from the first
+   * mapping found that involves the protein sequence.
    * 
-   * @param sequenceRef
-   * @return null or corresponding aaSeq entry for dnaSeq entry
+   * @param aaSeqRef
+   * @return
    */
   public SequenceI getDnaForAaSeq(SequenceI aaSeqRef)
   {
@@ -292,7 +433,8 @@ public class AlignedCodonFrame
 
   /**
    * Add search results for regions in other sequences that translate or are
-   * translated from a particular position in seq
+   * translated from a particular position in seq (which may be an aligned or
+   * dataset sequence)
    * 
    * @param seq
    * @param index
@@ -303,34 +445,14 @@ public class AlignedCodonFrame
   public void markMappedRegion(SequenceI seq, int index,
           SearchResultsI results)
   {
-    int[] codon;
     SequenceI ds = seq.getDatasetSequence();
+    if (ds == null)
+    {
+      ds = seq;
+    }
     for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (ssm.fromSeq == seq || ssm.fromSeq == ds)
-      {
-        codon = ssm.mapping.map.locateInTo(index, index);
-        if (codon != null)
-        {
-          for (int i = 0; i < codon.length; i += 2)
-          {
-            results.addResult(ssm.mapping.to, codon[i], codon[i + 1]);
-          }
-        }
-      }
-      else if (ssm.mapping.to == seq || ssm.mapping.to == ds)
-      {
-        {
-          codon = ssm.mapping.map.locateInFrom(index, index);
-          if (codon != null)
-          {
-            for (int i = 0; i < codon.length; i += 2)
-            {
-              results.addResult(ssm.fromSeq, codon[i], codon[i + 1]);
-            }
-          }
-        }
-      }
+      ssm.markMappedRegion(ds, index, results);
     }
   }
 
@@ -380,18 +502,39 @@ public class AlignedCodonFrame
    */
   public SequenceI findAlignedSequence(SequenceI seq, AlignmentI al)
   {
+    return findAlignedSequence(seq, al, null);
+  }
+  /**
+   * Convenience method to return the first aligned sequence in the given
+   * alignment whose dataset has a mapping with the given (aligned or dataset)
+   * sequence, and optionally the mapping that relates them 
+   * 
+   * @param seq
+   * @param al
+   * @param map - list to add the mapping to
+   * @return sequence from al that maps to seq
+   */
+  public SequenceI findAlignedSequence(SequenceI seq, AlignmentI al,List<SequenceToSequenceMapping> map)
+  {
     /*
      * Search mapped protein ('to') sequences first.
      */
     for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (ssm.fromSeq == seq || ssm.fromSeq == seq.getDatasetSequence())
+      int mStart=ssm.getMapping().getMap().getFromLowest(),mEnd=ssm.getMapping().map.getFromHighest();
+      if ((ssm.fromSeq == seq || ssm.fromSeq == seq.getDatasetSequence())
+              // here AlignmentUtilsTest. testAlignProteinAsDna_incompleteStartCodon fails because mStart/mEnd is contained by seq
+              // without this filter, we don't get the correct mapping, however
+           )//   && seq.getStart()>=mStart && seq.getEnd()<=mEnd)
       {
         for (SequenceI sourceAligned : al.getSequences())
         {
-          if (ssm.mapping.to == sourceAligned.getDatasetSequence()
-                  || ssm.mapping.to == sourceAligned)
+          if (ssm.covers(sourceAligned,true,false))
           {
+            if (map != null)
+            {
+              map.add(ssm);
+            }
             return sourceAligned;
           }
         }
@@ -403,13 +546,19 @@ public class AlignedCodonFrame
      */
     for (SequenceToSequenceMapping ssm : mappings)
     {
-      if (ssm.mapping.to == seq
+      int mStart=ssm.getMapping().getMap().getToLowest(),mEnd=ssm.getMapping().map.getToHighest();
+      if ((ssm.mapping.to == seq
               || ssm.mapping.to == seq.getDatasetSequence())
+              && seq.getStart()>=mStart && seq.getEnd()<=mEnd)
       {
         for (SequenceI sourceAligned : al.getSequences())
         {
-          if (ssm.fromSeq == sourceAligned.getDatasetSequence())
+          if (ssm.covers(sourceAligned,true,true))
           {
+            if (map != null)
+            {
+              map.add(ssm);
+            }
             return sourceAligned;
           }
         }
@@ -434,8 +583,8 @@ public class AlignedCodonFrame
   {
     SequenceI targetDs = target.getDatasetSequence() == null ? target
             : target.getDatasetSequence();
-    SequenceI queryDs = query.getDatasetSequence() == null ? query : query
-            .getDatasetSequence();
+    SequenceI queryDs = query.getDatasetSequence() == null ? query
+            : query.getDatasetSequence();
     if (targetDs == null || queryDs == null /*|| dnaToProt == null*/)
     {
       return null;
@@ -484,7 +633,7 @@ public class AlignedCodonFrame
   {
     MapList ml = null;
     SequenceI dnaSeq = null;
-    List<char[]> result = new ArrayList<char[]>();
+    List<char[]> result = new ArrayList<>();
 
     for (SequenceToSequenceMapping ssm : mappings)
     {
@@ -504,10 +653,11 @@ public class AlignedCodonFrame
          * Read off the mapped nucleotides (converting to position base 0)
          */
         codonPos = MappingUtils.flattenRanges(codonPos);
-        char[] dna = dnaSeq.getSequence();
         int start = dnaSeq.getStart();
-        result.add(new char[] { dna[codonPos[0] - start],
-            dna[codonPos[1] - start], dna[codonPos[2] - start] });
+        char c1 = dnaSeq.getCharAt(codonPos[0] - start);
+        char c2 = dnaSeq.getCharAt(codonPos[1] - start);
+        char c3 = dnaSeq.getCharAt(codonPos[2] - start);
+        result.add(new char[] { c1, c2, c3 });
       }
     }
     return result.isEmpty() ? null : result;
@@ -522,8 +672,8 @@ public class AlignedCodonFrame
    */
   public List<Mapping> getMappingsFromSequence(SequenceI seq)
   {
-    List<Mapping> result = new ArrayList<Mapping>();
-    List<SequenceI> related = new ArrayList<SequenceI>();
+    List<Mapping> result = new ArrayList<>();
+    List<SequenceI> related = new ArrayList<>();
     SequenceI seqDs = seq.getDatasetSequence();
     seqDs = seqDs != null ? seqDs : seq;
 
@@ -579,8 +729,9 @@ public class AlignedCodonFrame
    */
   protected int realiseWith(SequenceI seq, boolean doUpdate)
   {
-    SequenceI ds = seq.getDatasetSequence() != null ? seq
-            .getDatasetSequence() : seq;
+    SequenceI ds = seq.getDatasetSequence() != null
+            ? seq.getDatasetSequence()
+            : seq;
     int count = 0;
 
     /*
@@ -654,8 +805,8 @@ public class AlignedCodonFrame
     {
       int start = replacement.getStart();
       int end = replacement.getEnd();
-      boolean mappingOverlapsSequence = (mapStart >= start && mapStart <= end)
-              || (mapEnd >= start && mapEnd <= end);
+      boolean mappingOverlapsSequence = (mapStart >= start
+              && mapStart <= end) || (mapEnd >= start && mapEnd <= end);
       if (mappingOverlapsSequence)
       {
         return true;
@@ -732,8 +883,8 @@ public class AlignedCodonFrame
   {
     SequenceI dssFrom = fromSeq.getDatasetSequence() == null ? fromSeq
             : fromSeq.getDatasetSequence();
-    SequenceI dssTo = toSeq.getDatasetSequence() == null ? toSeq : toSeq
-            .getDatasetSequence();
+    SequenceI dssTo = toSeq.getDatasetSequence() == null ? toSeq
+            : toSeq.getDatasetSequence();
 
     for (SequenceToSequenceMapping mapping : mappings)
     {
@@ -764,7 +915,7 @@ public class AlignedCodonFrame
    * Two AlignedCodonFrame objects are equal if they hold the same ordered list
    * of mappings
    * 
-   * @see SequenceToSequenceMapping#
+   * @see SequenceToSequenceMapping#equals
    */
   @Override
   public boolean equals(Object obj)
@@ -779,5 +930,56 @@ public class AlignedCodonFrame
   public List<SequenceToSequenceMapping> getMappings()
   {
     return mappings;
+  }
+
+  /**
+   * Returns the first mapping found which is between the two given sequences,
+   * and covers the full extent of both.
+   * 
+   * @param seq1
+   * @param seq2
+   * @return
+   */
+  public SequenceToSequenceMapping getCoveringMapping(SequenceI seq1,
+          SequenceI seq2)
+  {
+    for (SequenceToSequenceMapping mapping : mappings)
+    {
+      if (mapping.covers(seq2) && mapping.covers(seq1))
+      {
+        return mapping;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Returns the first mapping found which is between the given dataset sequence
+   * and another, is a triplet mapping (3:1 or 1:3), and covers the full extent
+   * of both sequences involved
+   * 
+   * @param seq
+   * @return
+   */
+  public SequenceToSequenceMapping getCoveringCodonMapping(SequenceI seq)
+  {
+    for (SequenceToSequenceMapping mapping : mappings)
+    {
+      if (mapping.getMapping().getMap().isTripletMap()
+              && mapping.covers(seq))
+      {
+        if (mapping.fromSeq == seq
+                && mapping.covers(mapping.getMapping().getTo()))
+        {
+          return mapping;
+        }
+        else if (mapping.getMapping().getTo() == seq
+                && mapping.covers(mapping.fromSeq))
+        {
+          return mapping;
+        }
+      }
+    }
+    return null;
   }
 }

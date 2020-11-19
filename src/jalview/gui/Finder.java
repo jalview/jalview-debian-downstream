@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,17 +20,23 @@
  */
 package jalview.gui;
 
+import jalview.api.AlignViewportI;
+import jalview.api.FinderI;
 import jalview.datamodel.SearchResultMatchI;
 import jalview.datamodel.SearchResultsI;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
 import jalview.jbgui.GFinder;
 import jalview.util.MessageManager;
-import jalview.viewmodel.AlignmentViewport;
 
+import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -38,8 +44,9 @@ import javax.swing.AbstractAction;
 import javax.swing.JComponent;
 import javax.swing.JInternalFrame;
 import javax.swing.JLayeredPane;
-import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
 
 /**
  * Performs the menu option for searching the alignment, for the next or all
@@ -54,51 +61,56 @@ import javax.swing.KeyStroke;
  */
 public class Finder extends GFinder
 {
-  private static final int HEIGHT = 110;
+  private static final int MIN_WIDTH = 350;
 
-  private static final int WIDTH = 340;
+  private static final int MIN_HEIGHT = 120;
 
-  AlignmentViewport av;
+  private static final int MY_HEIGHT = 150;
 
-  AlignmentPanel ap;
+  private static final int MY_WIDTH = 400;
 
-  JInternalFrame frame;
+  private AlignViewportI av;
 
-  int seqIndex = 0;
+  private AlignmentPanel ap;
 
-  int resIndex = -1;
+  private JInternalFrame frame;
 
-  SearchResultsI searchResults;
-
-  /**
-   * Creates a new Finder object with no associated viewport or panel.
+  /*
+   * Finder agent per viewport searched
    */
-  public Finder()
-  {
-    this(null, null);
-    focusfixed = false;
-  }
+  private Map<AlignViewportI, FinderI> finders;
+
+  private SearchResultsI searchResults;
 
   /**
-   * Constructor given an associated viewport and alignment panel. Constructs
-   * and displays an internal frame where the user can enter a search string.
+   * Constructor given an associated alignment panel. Constructs and displays an
+   * internal frame where the user can enter a search string.
    * 
-   * @param viewport
    * @param alignPanel
    */
-  public Finder(AlignmentViewport viewport, AlignmentPanel alignPanel)
+  public Finder(AlignmentPanel alignPanel)
   {
-    av = viewport;
+    av = alignPanel.getAlignViewport();
     ap = alignPanel;
-    focusfixed = true;
+    finders = new HashMap<>();
     frame = new JInternalFrame();
     frame.setContentPane(this);
     frame.setLayer(JLayeredPane.PALETTE_LAYER);
+    frame.addInternalFrameListener(
+            new InternalFrameAdapter()
+            {
+              @Override
+              public void internalFrameClosing(InternalFrameEvent e)
+              {
+                closeAction();
+              }
+            });
     addEscapeHandler();
-    Desktop.addInternalFrame(frame, MessageManager.getString("label.find"),
-            WIDTH, HEIGHT);
 
-    textfield.requestFocus();
+    Desktop.addInternalFrame(frame, MessageManager.getString("label.find"),
+            MY_WIDTH, MY_HEIGHT);
+    frame.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
+    searchBox.requestFocus();
   }
 
   /**
@@ -106,34 +118,23 @@ public class Finder extends GFinder
    */
   private void addEscapeHandler()
   {
-    getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-            KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "Cancel");
+    getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+            .put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "Cancel");
     getRootPane().getActionMap().put("Cancel", new AbstractAction()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        escapeActionPerformed();
+        closeAction();
       }
     });
   }
 
   /**
-   * Close the panel on Escape key press
-   */
-  protected void escapeActionPerformed()
-  {
-    setVisible(false);
-    frame.dispose();
-  }
-
-  /**
-   * Performs the 'Find Next' action.
-   * 
-   * @param e
+   * Performs the 'Find Next' action on the alignment panel with focus
    */
   @Override
-  public void findNext_actionPerformed(ActionEvent e)
+  public void findNext_actionPerformed()
   {
     if (getFocusedViewport())
     {
@@ -142,36 +143,28 @@ public class Finder extends GFinder
   }
 
   /**
-   * Performs the 'Find All' action.
-   * 
-   * @param e
+   * Performs the 'Find All' action on the alignment panel with focus
    */
   @Override
-  public void findAll_actionPerformed(ActionEvent e)
+  public void findAll_actionPerformed()
   {
     if (getFocusedViewport())
     {
-      resIndex = -1;
-      seqIndex = 0;
       doSearch(true);
     }
   }
 
   /**
-   * do we only search a given alignment view ?
-   */
-  private boolean focusfixed;
-
-  /**
    * if !focusfixed and not in a desktop environment, checks that av and ap are
    * valid. Otherwise, gets the topmost alignment window and sets av and ap
-   * accordingly
+   * accordingly. Also sets the 'ignore hidden' checkbox disabled if the viewport
+   * has no hidden columns.
    * 
    * @return false if no alignment window was found
    */
   boolean getFocusedViewport()
   {
-    if (focusfixed || Desktop.desktop == null)
+    if (Desktop.desktop == null)
     {
       if (ap != null && av != null)
       {
@@ -185,11 +178,13 @@ public class Finder extends GFinder
     JInternalFrame[] frames = Desktop.desktop.getAllFrames();
     for (int f = 0; f < frames.length; f++)
     {
-      JInternalFrame frame = frames[f];
-      if (frame != null && frame instanceof AlignFrame)
+      JInternalFrame alignFrame = frames[f];
+      if (alignFrame != null && alignFrame instanceof AlignFrame
+              && !alignFrame.isIcon())
       {
-        av = ((AlignFrame) frame).viewport;
-        ap = ((AlignFrame) frame).alignPanel;
+        av = ((AlignFrame) alignFrame).viewport;
+        ap = ((AlignFrame) alignFrame).alignPanel;
+        ignoreHidden.setEnabled(av.hasHiddenColumns());
         return true;
       }
     }
@@ -197,32 +192,37 @@ public class Finder extends GFinder
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Opens a dialog that allows the user to create sequence features for the
+   * find match results.
    */
   @Override
-  public void createNewGroup_actionPerformed(ActionEvent e)
+  public void createFeatures_actionPerformed()
   {
-    SequenceI[] seqs = new SequenceI[searchResults.getSize()];
-    SequenceFeature[] features = new SequenceFeature[searchResults
-            .getSize()];
+    List<SequenceI> seqs = new ArrayList<>();
+    List<SequenceFeature> features = new ArrayList<>();
 
-    int i = 0;
+    String searchString = searchBox.getEditor().getItem().toString().trim();
+    String desc = "Search Results";
+
+    /*
+     * assemble dataset sequences, and template new sequence features,
+     * for the amend features dialog
+     */
     for (SearchResultMatchI match : searchResults.getResults())
     {
-      seqs[i] = match.getSequence().getDatasetSequence();
-
-      features[i] = new SequenceFeature(textfield.getText().trim(),
-              "Search Results", null, match.getStart(), match.getEnd(),
-              "Search Results");
-      i++;
+      seqs.add(match.getSequence().getDatasetSequence());
+      features.add(new SequenceFeature(searchString, desc,
+              match
+              .getStart(), match.getEnd(), desc));
     }
 
     if (ap.getSeqPanel().seqCanvas.getFeatureRenderer().amendFeatures(seqs,
             features, true, ap))
     {
+      /*
+       * ensure feature display is turned on to show the new features,
+       * and remove them as highlighted regions
+       */
       ap.alignFrame.showSeqFeatures.setSelected(true);
       av.setShowSequenceFeatures(true);
       ap.highlightSearchResults(null);
@@ -233,13 +233,13 @@ public class Finder extends GFinder
    * Search the alignment for the next or all matches. If 'all matches', a
    * dialog is shown with the number of sequence ids and subsequences matched.
    * 
-   * @param findAll
+   * @param doFindAll
    */
-  void doSearch(boolean findAll)
+  void doSearch(boolean doFindAll)
   {
-    createNewGroup.setEnabled(false);
+    createFeatures.setEnabled(false);
 
-    String searchString = textfield.getText().trim();
+    String searchString = searchBox.getUserInput().trim();
 
     if (isInvalidSearchString(searchString))
     {
@@ -249,79 +249,73 @@ public class Finder extends GFinder
     // other stuff
     // TODO: add switches to control what is searched - sequences, IDS,
     // descriptions, features
-    jalview.analysis.Finder finder = new jalview.analysis.Finder(
-            av.getAlignment(), av.getSelectionGroup(), seqIndex, resIndex);
-    finder.setCaseSensitive(caseSensitive.isSelected());
-    finder.setIncludeDescription(searchDescription.isSelected());
-
-    finder.setFindAll(findAll);
-
-    finder.find(searchString); // returns true if anything was actually found
-
-    seqIndex = finder.getSeqIndex();
-    resIndex = finder.getResIndex();
-
-    searchResults = finder.getSearchResults(); // find(regex,
-    // caseSensitive.isSelected(), )
-    Vector<SequenceI> idMatch = finder.getIdMatch();
-    boolean haveResults = false;
-    // set or reset the GUI
-    if ((idMatch.size() > 0))
+    FinderI finder = finders.get(av);
+    if (finder == null)
     {
-      haveResults = true;
-      ap.getIdPanel().highlightSearchResults(idMatch);
+      /*
+       * first time we've searched this viewport
+       */
+      finder = new jalview.analysis.Finder(av);
+      finders.put(av, finder);
+    }
+
+    boolean isCaseSensitive = caseSensitive.isSelected();
+    boolean doSearchDescription = searchDescription.isSelected();
+    boolean skipHidden = ignoreHidden.isSelected();
+    if (doFindAll)
+    {
+      finder.findAll(searchString, isCaseSensitive, doSearchDescription,
+              skipHidden);
     }
     else
     {
-      ap.getIdPanel().highlightSearchResults(null);
+      finder.findNext(searchString, isCaseSensitive, doSearchDescription,
+              skipHidden);
     }
 
-    if (searchResults.getSize() > 0)
-    {
-      haveResults = true;
-      createNewGroup.setEnabled(true);
-    }
-    else
+    searchResults = finder.getSearchResults();
+    List<SequenceI> idMatch = finder.getIdMatches();
+    ap.getIdPanel().highlightSearchResults(idMatch);
+
+    if (searchResults.isEmpty())
     {
       searchResults = null;
     }
+    else
+    {
+      createFeatures.setEnabled(true);
+    }
 
-    // if allResults is null, this effectively switches displaySearch flag in
-    // seqCanvas
     ap.highlightSearchResults(searchResults);
     // TODO: add enablers for 'SelectSequences' or 'SelectColumns' or
     // 'SelectRegion' selection
-    if (!haveResults)
+    if (idMatch.isEmpty() && searchResults == null)
     {
-      JOptionPane.showInternalMessageDialog(this,
+      JvOptionPane.showInternalMessageDialog(this,
               MessageManager.getString("label.finished_searching"), null,
-              JOptionPane.INFORMATION_MESSAGE);
-      resIndex = -1;
-      seqIndex = 0;
+              JvOptionPane.INFORMATION_MESSAGE);
     }
     else
     {
-      if (findAll)
+      if (doFindAll)
       {
         // then we report the matches that were found
-        String message = (idMatch.size() > 0) ? "" + idMatch.size()
-                + " IDs" : "";
+        String message = (idMatch.size() > 0) ? "" + idMatch.size() + " IDs"
+                : "";
         if (searchResults != null)
         {
-          if (idMatch.size() > 0 && searchResults.getSize() > 0)
+          if (idMatch.size() > 0 && searchResults.getCount() > 0)
           {
             message += " and ";
           }
-          message += searchResults.getSize()
+          message += searchResults.getCount()
                   + " subsequence matches found.";
         }
-        JOptionPane.showInternalMessageDialog(this, message, null,
-                JOptionPane.INFORMATION_MESSAGE);
-        resIndex = -1;
-        seqIndex = 0;
+        JvOptionPane.showInternalMessageDialog(this, message, null,
+                JvOptionPane.INFORMATION_MESSAGE);
       }
     }
-
+    searchBox.updateCache();
   }
 
   /**
@@ -338,9 +332,9 @@ public class Finder extends GFinder
     {
       return false;
     }
-    JOptionPane.showInternalMessageDialog(this, error,
+    JvOptionPane.showInternalMessageDialog(this, error,
             MessageManager.getString("label.invalid_search"), // $NON-NLS-1$
-            JOptionPane.ERROR_MESSAGE);
+            JvOptionPane.ERROR_MESSAGE);
     return true;
   }
 
@@ -372,5 +366,27 @@ public class Finder extends GFinder
               + e.getDescription();
     }
     return error;
+  }
+
+  protected void closeAction()
+  {
+    frame.setVisible(false);
+    frame.dispose();
+    searchBox.persistCache();
+    if (getFocusedViewport())
+    {
+      ap.alignFrame.requestFocus();
+    }
+  }
+
+  @Override
+  protected void paintComponent(Graphics g)
+  {
+    /*
+     * enable 'hidden regions' option only if
+     * 'top' viewport has hidden columns
+     */
+    getFocusedViewport();
+    super.paintComponent(g);
   }
 }

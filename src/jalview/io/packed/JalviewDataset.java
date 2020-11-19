@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.io.packed;
 
+import jalview.analysis.TreeModel;
 import jalview.api.FeatureColourI;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.SequenceI;
@@ -151,8 +152,7 @@ public class JalviewDataset
       {
         // the following works because all trees are already had node/SequenceI
         // associations created.
-        jalview.analysis.NJTree njt = new jalview.analysis.NJTree(
-                al.getSequencesArray(), nf);
+        TreeModel njt = new TreeModel(al.getSequencesArray(), null, nf);
         // this just updates the displayed leaf name on the tree according to
         // the SequenceIs.
         njt.renameAssociatedNodes();

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,26 +29,67 @@ import jalview.structure.StructureSelectionManager;
 
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
- * proxy for handling structure viewers.
- * 
- * this allows new views to be created with the currently configured viewer, the
- * preferred viewer to be set/read and existing views created previously with a
- * particular viewer to be recovered
+ * A proxy for handling structure viewers, that orchestrates adding selected
+ * structures, associated with sequences in Jalview, to an existing viewer, or
+ * opening a new one. Currently supports either Jmol or Chimera as the structure
+ * viewer.
  * 
  * @author jprocter
  */
 public class StructureViewer
 {
+  private static final String UNKNOWN_VIEWER_TYPE = "Unknown structure viewer type ";
+
   StructureSelectionManager ssm;
+
+  /**
+   * decide if new structures are aligned to existing ones
+   */
+  private boolean superposeAdded = true;
 
   public enum ViewerType
   {
     JMOL, CHIMERA
   };
 
+  /**
+   * Constructor
+   * 
+   * @param structureSelectionManager
+   */
+  public StructureViewer(StructureSelectionManager structureSelectionManager)
+  {
+    ssm = structureSelectionManager;
+  }
+
+  /**
+   * Factory to create a proxy for modifying existing structure viewer
+   * 
+   */
+  public static StructureViewer reconfigure(
+          JalviewStructureDisplayI display)
+  {
+    StructureViewer sv = new StructureViewer(display.getBinding().getSsm());
+    sv.sview = display;
+    return sv;
+  }
+
+  @Override
+  public String toString()
+  {
+    if (sview != null)
+    {
+      return sview.toString();
+    }
+    return "New View";
+  }
   public ViewerType getViewerType()
   {
     String viewType = Cache.getDefault(Preferences.STRUCTURE_DISPLAY,
@@ -61,28 +102,142 @@ public class StructureViewer
     Cache.setProperty(Preferences.STRUCTURE_DISPLAY, type.name());
   }
 
-  public StructureViewer(StructureSelectionManager structureSelectionManager)
-  {
-    ssm = structureSelectionManager;
-  }
-
   /**
    * View multiple PDB entries, each with associated sequences
    * 
    * @param pdbs
-   * @param seqsForPdbs
+   * @param seqs
    * @param ap
    * @return
    */
   public JalviewStructureDisplayI viewStructures(PDBEntry[] pdbs,
-          SequenceI[][] seqsForPdbs, AlignmentPanel ap)
+          SequenceI[] seqs, AlignmentPanel ap)
   {
-    JalviewStructureDisplayI viewer = onlyOnePdb(pdbs, seqsForPdbs, ap);
+    JalviewStructureDisplayI viewer = onlyOnePdb(pdbs, seqs, ap);
     if (viewer != null)
     {
+      /*
+       * user added structure to an existing viewer - all done
+       */
       return viewer;
     }
-    return viewStructures(getViewerType(), pdbs, seqsForPdbs, ap);
+
+    ViewerType viewerType = getViewerType();
+
+    Map<PDBEntry, SequenceI[]> seqsForPdbs = getSequencesForPdbs(pdbs,
+            seqs);
+    PDBEntry[] pdbsForFile = seqsForPdbs.keySet().toArray(
+            new PDBEntry[seqsForPdbs.size()]);
+    SequenceI[][] theSeqs = seqsForPdbs.values().toArray(
+            new SequenceI[seqsForPdbs.size()][]);
+    if (sview != null)
+    {
+      sview.setAlignAddedStructures(superposeAdded);
+      new Thread(new Runnable()
+      {
+        @Override
+        public void run()
+        {
+
+          for (int pdbep = 0; pdbep < pdbsForFile.length; pdbep++)
+          {
+            PDBEntry pdb = pdbsForFile[pdbep];
+            if (!sview.addAlreadyLoadedFile(theSeqs[pdbep], null, ap,
+                    pdb.getId()))
+            {
+              sview.addToExistingViewer(pdb, theSeqs[pdbep], null, ap,
+                      pdb.getId());
+            }
+          }
+
+          sview.updateTitleAndMenus();
+        }
+      }).start();
+      return sview;
+    }
+
+    if (viewerType.equals(ViewerType.JMOL))
+    {
+      sview = new AppJmol(ap, superposeAdded, pdbsForFile, theSeqs);
+    }
+    else if (viewerType.equals(ViewerType.CHIMERA))
+    {
+      sview = new ChimeraViewFrame(pdbsForFile, superposeAdded, theSeqs,
+              ap);
+    }
+    else
+    {
+      Cache.log.error(UNKNOWN_VIEWER_TYPE + getViewerType().toString());
+    }
+    return sview;
+  }
+
+  /**
+   * Converts the list of selected PDB entries (possibly including duplicates
+   * for multiple chains), and corresponding sequences, into a map of sequences
+   * for each distinct PDB file. Returns null if either argument is null, or
+   * their lengths do not match.
+   * 
+   * @param pdbs
+   * @param seqs
+   * @return
+   */
+  Map<PDBEntry, SequenceI[]> getSequencesForPdbs(PDBEntry[] pdbs,
+          SequenceI[] seqs)
+  {
+    if (pdbs == null || seqs == null || pdbs.length != seqs.length)
+    {
+      return null;
+    }
+
+    /*
+     * we want only one 'representative' PDBEntry per distinct file name
+     * (there may be entries for distinct chains)
+     */
+    Map<String, PDBEntry> pdbsSeen = new HashMap<>();
+
+    /*
+     * LinkedHashMap preserves order of PDB entries (significant if they
+     * will get superimposed to the first structure)
+     */
+    Map<PDBEntry, List<SequenceI>> pdbSeqs = new LinkedHashMap<>();
+    for (int i = 0; i < pdbs.length; i++)
+    {
+      PDBEntry pdb = pdbs[i];
+      SequenceI seq = seqs[i];
+      String pdbFile = pdb.getFile();
+      if (pdbFile == null || pdbFile.length() == 0)
+      {
+        pdbFile = pdb.getId();
+      }
+      if (!pdbsSeen.containsKey(pdbFile))
+      {
+        pdbsSeen.put(pdbFile, pdb);
+        pdbSeqs.put(pdb, new ArrayList<SequenceI>());
+      }
+      else
+      {
+        pdb = pdbsSeen.get(pdbFile);
+      }
+      List<SequenceI> seqsForPdb = pdbSeqs.get(pdb);
+      if (!seqsForPdb.contains(seq))
+      {
+        seqsForPdb.add(seq);
+      }
+    }
+
+    /*
+     * convert to Map<PDBEntry, SequenceI[]>
+     */
+    Map<PDBEntry, SequenceI[]> result = new LinkedHashMap<>();
+    for (Entry<PDBEntry, List<SequenceI>> entry : pdbSeqs.entrySet())
+    {
+      List<SequenceI> theSeqs = entry.getValue();
+      result.put(entry.getKey(),
+              theSeqs.toArray(new SequenceI[theSeqs.size()]));
+    }
+
+    return result;
   }
 
   /**
@@ -98,9 +253,9 @@ public class StructureViewer
    * @return
    */
   private JalviewStructureDisplayI onlyOnePdb(PDBEntry[] pdbs,
-          SequenceI[][] seqsForPdbs, AlignmentPanel ap)
+          SequenceI[] seqsForPdbs, AlignmentPanel ap)
   {
-    List<SequenceI> seqs = new ArrayList<SequenceI>();
+    List<SequenceI> seqs = new ArrayList<>();
     if (pdbs == null || pdbs.length == 0)
     {
       return null;
@@ -114,81 +269,34 @@ public class StructureViewer
       {
         return null;
       }
-      SequenceI[] pdbseqs = seqsForPdbs[i++];
-      if (pdbseqs != null)
+      SequenceI pdbseq = seqsForPdbs[i++];
+      if (pdbseq != null)
       {
-        for (SequenceI sq : pdbseqs)
-        {
-          seqs.add(sq);
-        }
+        seqs.add(pdbseq);
       }
     }
-    return viewStructures(pdbs[0],
-            seqs.toArray(new SequenceI[seqs.size()]), ap);
+    return viewStructures(pdbs[0], seqs.toArray(new SequenceI[seqs.size()]),
+            ap);
   }
+
+  JalviewStructureDisplayI sview = null;
 
   public JalviewStructureDisplayI viewStructures(PDBEntry pdb,
           SequenceI[] seqsForPdb, AlignmentPanel ap)
   {
-    return viewStructures(getViewerType(), pdb, seqsForPdb, ap);
-  }
-
-  protected JalviewStructureDisplayI viewStructures(ViewerType viewerType,
-          PDBEntry[] pdbs, SequenceI[][] seqsForPdbs, AlignmentPanel ap)
-  {
-    PDBEntry[] pdbsForFile = getUniquePdbFiles(pdbs);
-    JalviewStructureDisplayI sview = null;
-    if (viewerType.equals(ViewerType.JMOL))
+    if (sview != null)
     {
-      sview = new AppJmol(ap, pdbsForFile, ap.av.collateForPDB(pdbsForFile));
-    }
-    else if (viewerType.equals(ViewerType.CHIMERA))
-    {
-      sview = new ChimeraViewFrame(pdbsForFile,
-              ap.av.collateForPDB(pdbsForFile), ap);
-    }
-    else
-    {
-      Cache.log.error("Unknown structure viewer type "
-              + getViewerType().toString());
-    }
-    return sview;
-  }
-
-  /**
-   * Convert the array of PDBEntry into an array with no filename repeated
-   * 
-   * @param pdbs
-   * @return
-   */
-  static PDBEntry[] getUniquePdbFiles(PDBEntry[] pdbs)
-  {
-    if (pdbs == null)
-    {
-      return null;
-    }
-    List<PDBEntry> uniques = new ArrayList<PDBEntry>();
-    List<String> filesSeen = new ArrayList<String>();
-    for (PDBEntry entry : pdbs)
-    {
-      String file = entry.getFile();
-      if (file == null)
+      sview.setAlignAddedStructures(superposeAdded);
+      String pdbId = pdb.getId();
+      if (!sview.addAlreadyLoadedFile(seqsForPdb, null, ap, pdbId))
       {
-        uniques.add(entry);
+        sview.addToExistingViewer(pdb, seqsForPdb, null, ap, pdbId);
       }
-      else if (!filesSeen.contains(file))
-      {
-        uniques.add(entry);
-        filesSeen.add(file);
-      }
+      sview.updateTitleAndMenus();
+      sview.raiseViewer();
+      return sview;
     }
-    return uniques.toArray(new PDBEntry[uniques.size()]);
-  }
-
-  protected JalviewStructureDisplayI viewStructures(ViewerType viewerType,
-          PDBEntry pdb, SequenceI[] seqsForPdb, AlignmentPanel ap)
-  {
-    JalviewStructureDisplayI sview = null;
+    ViewerType viewerType = getViewerType();
     if (viewerType.equals(ViewerType.JMOL))
     {
       sview = new AppJmol(pdb, seqsForPdb, null, ap);
@@ -199,8 +307,7 @@ public class StructureViewer
     }
     else
     {
-      Cache.log.error("Unknown structure viewer type "
-              + getViewerType().toString());
+      Cache.log.error(UNKNOWN_VIEWER_TYPE + getViewerType().toString());
     }
     return sview;
   }
@@ -219,16 +326,15 @@ public class StructureViewer
    * @param vid
    * @return
    */
-  public JalviewStructureDisplayI createView(ViewerType type,
-          String[] pdbf, String[] id, SequenceI[][] sq,
-          AlignmentPanel alignPanel, StructureViewerModel viewerData,
-          String fileloc, Rectangle rect, String vid)
+  public JalviewStructureDisplayI createView(ViewerType type, String[] pdbf,
+          String[] id, SequenceI[][] sq, AlignmentPanel alignPanel,
+          StructureViewerModel viewerData, String fileloc, Rectangle rect,
+          String vid)
   {
     final boolean useinViewerSuperpos = viewerData.isAlignWithPanel();
     final boolean usetoColourbyseq = viewerData.isColourWithAlignPanel();
     final boolean viewerColouring = viewerData.isColourByViewer();
 
-    JalviewStructureDisplayI sview = null;
     switch (type)
     {
     case JMOL:
@@ -236,13 +342,50 @@ public class StructureViewer
               useinViewerSuperpos, viewerColouring, fileloc, rect, vid);
       break;
     case CHIMERA:
-      Cache.log.error("Unsupported structure viewer type "
-              + type.toString());
+      Cache.log.error(
+              "Unsupported structure viewer type " + type.toString());
       break;
     default:
-      Cache.log.error("Unknown structure viewer type " + type.toString());
+      Cache.log.error(UNKNOWN_VIEWER_TYPE + type.toString());
     }
     return sview;
+  }
+
+  public boolean isBusy()
+  {
+    if (sview != null)
+    {
+      if (!sview.hasMapping())
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 
+   * @param pDBid
+   * @return true if view is already showing PDBid
+   */
+  public boolean hasPdbId(String pDBid)
+  {
+    if (sview == null)
+    {
+      return false;
+    }
+
+    return sview.getBinding().hasPdbId(pDBid);
+  }
+
+  public boolean isVisible()
+  {
+    return sview != null && sview.isVisible();
+  }
+
+  public void setSuperpose(boolean alignAddedStructures)
+  {
+    superposeAdded = alignAddedStructures;
   }
 
 }

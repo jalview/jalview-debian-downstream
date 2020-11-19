@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,16 +22,64 @@ package jalview.schemes;
 
 import jalview.api.FeatureColourI;
 import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.features.FeatureMatcher;
+import jalview.util.ColorUtils;
 import jalview.util.Format;
+import jalview.util.MessageManager;
 
 import java.awt.Color;
 import java.util.StringTokenizer;
 
 /**
- * A class that wraps either a simple colour or a graduated colour
+ * A class that represents a colour scheme for a feature type. Options supported
+ * are currently
+ * <ul>
+ * <li>a simple colour e.g. Red</li>
+ * <li>colour by label - a colour is generated from the feature description</li>
+ * <li>graduated colour by feature score</li>
+ * <ul>
+ * <li>minimum and maximum score range must be provided</li>
+ * <li>minimum and maximum value colours should be specified</li>
+ * <li>a colour for 'no value' may optionally be provided</li>
+ * <li>colours for intermediate scores are interpolated RGB values</li>
+ * <li>there is an optional threshold above/below which to colour values</li>
+ * <li>the range may be the full value range, or may be limited by the threshold
+ * value</li>
+ * </ul>
+ * <li>colour by (text) value of a named attribute</li> <li>graduated colour by
+ * (numeric) value of a named attribute</li> </ul>
  */
 public class FeatureColour implements FeatureColourI
 {
+  private static final String I18N_LABEL = MessageManager
+          .getString("label.label");
+
+  private static final String I18N_SCORE = MessageManager
+          .getString("label.score");
+
+  private static final String ABSOLUTE = "abso";
+
+  private static final String ABOVE = "above";
+
+  private static final String BELOW = "below";
+
+  /*
+   * constants used to read or write a Jalview Features file
+   */
+  private static final String LABEL = "label";
+
+  private static final String SCORE = "score";
+
+  private static final String ATTRIBUTE = "attribute";
+
+  private static final String NO_VALUE_MIN = "noValueMin";
+
+  private static final String NO_VALUE_MAX = "noValueMax";
+
+  private static final String NO_VALUE_NONE = "noValueNone";
+
+  static final Color DEFAULT_NO_COLOUR = null;
+
   private static final String BAR = "|";
 
   final private Color colour;
@@ -40,9 +88,29 @@ public class FeatureColour implements FeatureColourI
 
   final private Color maxColour;
 
+  /*
+   * colour to use for colour by attribute when the 
+   * attribute value is absent
+   */
+  final private Color noColour;
+
+  /*
+   * if true, then colour has a gradient based on a numerical 
+   * range (either feature score, or an attribute value)
+   */
   private boolean graduatedColour;
 
+  /*
+   * if true, colour values are generated from a text string,
+   * either feature description, or an attribute value
+   */
   private boolean colourByLabel;
+
+  /*
+   * if not null, the value of [attribute, [sub-attribute] ...]
+   *  is used for colourByLabel or graduatedColour
+   */
+  private String[] attributeName;
 
   private float threshold;
 
@@ -53,8 +121,6 @@ public class FeatureColour implements FeatureColourI
   private boolean belowThreshold;
 
   private boolean aboveThreshold;
-
-  private boolean thresholdIsMinOrMax;
 
   private boolean isHighToLow;
 
@@ -74,16 +140,29 @@ public class FeatureColour implements FeatureColourI
 
   /**
    * Parses a Jalview features file format colour descriptor
-   * [label|][mincolour|maxcolour
-   * |[absolute|]minvalue|maxvalue|thresholdtype|thresholdvalue] Examples:
+   * <p>
+   * <code>
+   * [label|score|[attribute|attributeName]|][mincolour|maxcolour|
+   * [absolute|]minvalue|maxvalue|[noValueOption|]thresholdtype|thresholdvalue]</code>
+   * <p>
+   * 'Score' is optional (default) for a graduated colour. An attribute with
+   * sub-attribute should be written as (for example) CSQ:Consequence.
+   * noValueOption is one of <code>noValueMin, noValueMax, noValueNone</code>
+   * with default noValueMin.
+   * <p>
+   * Examples:
    * <ul>
    * <li>red</li>
    * <li>a28bbb</li>
    * <li>25,125,213</li>
    * <li>label</li>
+   * <li>attribute|CSQ:PolyPhen</li>
    * <li>label|||0.0|0.0|above|12.5</li>
    * <li>label|||0.0|0.0|below|12.5</li>
    * <li>red|green|12.0|26.0|none</li>
+   * <li>score|red|green|12.0|26.0|none</li>
+   * <li>attribute|AF|red|green|12.0|26.0|none</li>
+   * <li>attribute|AF|red|green|noValueNone|12.0|26.0|none</li>
    * <li>a28bbb|3eb555|12.0|26.0|above|12.5</li>
    * <li>a28bbb|3eb555|abso|12.0|26.0|below|12.5</li>
    * </ul>
@@ -93,42 +172,84 @@ public class FeatureColour implements FeatureColourI
    * @throws IllegalArgumentException
    *           if not parseable
    */
-  public static FeatureColour parseJalviewFeatureColour(String descriptor)
+  public static FeatureColourI parseJalviewFeatureColour(String descriptor)
   {
-    StringTokenizer gcol = new StringTokenizer(descriptor, "|", true);
+    StringTokenizer gcol = new StringTokenizer(descriptor, BAR, true);
     float min = Float.MIN_VALUE;
     float max = Float.MAX_VALUE;
-    boolean labelColour = false;
+    boolean byLabel = false;
+    boolean byAttribute = false;
+    String attName = null;
+    String mincol = null;
+    String maxcol = null;
 
-    String mincol = gcol.nextToken();
-    if (mincol == "|")
+    /*
+     * first token should be 'label', or 'score', or an
+     * attribute name, or simple colour, or minimum colour
+     */
+    String nextToken = gcol.nextToken();
+    if (nextToken == BAR)
     {
       throw new IllegalArgumentException(
               "Expected either 'label' or a colour specification in the line: "
                       + descriptor);
     }
-    String maxcol = null;
-    if (mincol.toLowerCase().indexOf("label") == 0)
+    if (nextToken.toLowerCase().startsWith(LABEL))
     {
-      labelColour = true;
+      byLabel = true;
+      // get the token after the next delimiter:
       mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
-      // skip '|'
       mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
     }
-
-    if (!labelColour && !gcol.hasMoreTokens())
+    else if (nextToken.toLowerCase().startsWith(SCORE))
     {
-      /*
-       * only a simple colour specification - parse it
-       */
-      Color colour = UserColourScheme.getColourFromString(descriptor);
+      mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+      mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+    }
+    else if (nextToken.toLowerCase().startsWith(ATTRIBUTE))
+    {
+      byAttribute = true;
+      attName = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+      attName = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+      mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+      mincol = (gcol.hasMoreTokens() ? gcol.nextToken() : null);
+    }
+    else
+    {
+      mincol = nextToken;
+    }
+
+    /*
+     * if only one token, it can validly be label, attributeName,
+     * or a plain colour value
+     */
+    if (!gcol.hasMoreTokens())
+    {
+      if (byLabel || byAttribute)
+      {
+        FeatureColourI fc = new FeatureColour();
+        fc.setColourByLabel(true);
+        if (byAttribute)
+        {
+          fc.setAttributeName(
+                  FeatureMatcher.fromAttributeDisplayName(attName));
+        }
+        return fc;
+      }
+
+      Color colour = ColorUtils.parseColourString(descriptor);
       if (colour == null)
       {
-        throw new IllegalArgumentException("Invalid colour descriptor: "
-                + descriptor);
+        throw new IllegalArgumentException(
+                "Invalid colour descriptor: " + descriptor);
       }
       return new FeatureColour(colour);
     }
+
+    /*
+     * continue parsing for min/max/no colour (if graduated)
+     * and for threshold (colour by text or graduated)
+     */
 
     /*
      * autoScaled == true: colours range over actual score range
@@ -136,29 +257,54 @@ public class FeatureColour implements FeatureColourI
      */
     boolean autoScaled = true;
     String tok = null, minval, maxval;
+    String noValueColour = NO_VALUE_MIN;
+
     if (mincol != null)
     {
       // at least four more tokens
-      if (mincol.equals("|"))
+      if (mincol.equals(BAR))
       {
-        mincol = "";
+        mincol = null;
       }
       else
       {
         gcol.nextToken(); // skip next '|'
       }
       maxcol = gcol.nextToken();
-      if (maxcol.equals("|"))
+      if (maxcol.equals(BAR))
       {
-        maxcol = "";
+        maxcol = null;
       }
       else
       {
         gcol.nextToken(); // skip next '|'
       }
       tok = gcol.nextToken();
+
+      /*
+       * check for specifier for colour for no attribute value
+       * (new in 2.11, defaults to minColour if not specified)
+       */
+      if (tok.equalsIgnoreCase(NO_VALUE_MIN))
+      {
+        tok = gcol.nextToken();
+        tok = gcol.nextToken();
+      }
+      else if (tok.equalsIgnoreCase(NO_VALUE_MAX))
+      {
+        noValueColour = NO_VALUE_MAX;
+        tok = gcol.nextToken();
+        tok = gcol.nextToken();
+      }
+      else if (tok.equalsIgnoreCase(NO_VALUE_NONE))
+      {
+        noValueColour = NO_VALUE_NONE;
+        tok = gcol.nextToken();
+        tok = gcol.nextToken();
+      }
+
       gcol.nextToken(); // skip next '|'
-      if (tok.toLowerCase().startsWith("abso"))
+      if (tok.toLowerCase().startsWith(ABSOLUTE))
       {
         minval = gcol.nextToken();
         gcol.nextToken(); // skip next '|'
@@ -177,19 +323,19 @@ public class FeatureColour implements FeatureColourI
       {
         if (minval.length() > 0)
         {
-          min = new Float(minval).floatValue();
+          min = Float.valueOf(minval).floatValue();
         }
       } catch (Exception e)
       {
         throw new IllegalArgumentException(
-                "Couldn't parse the minimum value for graduated colour ("
-                        + descriptor + ")");
+                "Couldn't parse the minimum value for graduated colour ('"
+                        + minval + "')");
       }
       try
       {
         if (maxval.length() > 0)
         {
-          max = new Float(maxval).floatValue();
+          max = Float.valueOf(maxval).floatValue();
         }
       } catch (Exception e)
       {
@@ -200,34 +346,45 @@ public class FeatureColour implements FeatureColourI
     }
     else
     {
-      // add in some dummy min/max colours for the label-only
-      // colourscheme.
-      mincol = "FFFFFF";
-      maxcol = "000000";
+      /*
+       * dummy min/max colours for colour by text
+       * (label or attribute value)
+       */
+      mincol = "white";
+      maxcol = "black";
+      byLabel = true;
     }
 
     /*
-     * construct the FeatureColour
+     * construct the FeatureColour!
      */
     FeatureColour featureColour;
     try
     {
-      featureColour = new FeatureColour(
-              new UserColourScheme(mincol).findColour('A'),
-              new UserColourScheme(maxcol).findColour('A'), min, max);
-      featureColour.setColourByLabel(labelColour);
+      Color minColour = ColorUtils.parseColourString(mincol);
+      Color maxColour = ColorUtils.parseColourString(maxcol);
+      Color noColour = noValueColour.equals(NO_VALUE_MAX) ? maxColour
+              : (noValueColour.equals(NO_VALUE_NONE) ? null : minColour);
+      featureColour = new FeatureColour(maxColour, minColour, maxColour,
+              noColour, min, max);
+      featureColour.setColourByLabel(minColour == null);
       featureColour.setAutoScaled(autoScaled);
+      if (byAttribute)
+      {
+        featureColour.setAttributeName(
+                FeatureMatcher.fromAttributeDisplayName(attName));
+      }
       // add in any additional parameters
       String ttype = null, tval = null;
       if (gcol.hasMoreTokens())
       {
         // threshold type and possibly a threshold value
         ttype = gcol.nextToken();
-        if (ttype.toLowerCase().startsWith("below"))
+        if (ttype.toLowerCase().startsWith(BELOW))
         {
           featureColour.setBelowThreshold(true);
         }
-        else if (ttype.toLowerCase().startsWith("above"))
+        else if (ttype.toLowerCase().startsWith(ABOVE))
         {
           featureColour.setAboveThreshold(true);
         }
@@ -235,8 +392,8 @@ public class FeatureColour implements FeatureColourI
         {
           if (!ttype.toLowerCase().startsWith("no"))
           {
-            System.err.println("Ignoring unrecognised threshold type : "
-                    + ttype);
+            System.err.println(
+                    "Ignoring unrecognised threshold type : " + ttype);
           }
         }
       }
@@ -246,7 +403,7 @@ public class FeatureColour implements FeatureColourI
         {
           gcol.nextToken();
           tval = gcol.nextToken();
-          featureColour.setThreshold(new Float(tval).floatValue());
+          featureColour.setThreshold(Float.valueOf(tval).floatValue());
         } catch (Exception e)
         {
           System.err.println("Couldn't parse threshold value as a float: ("
@@ -255,11 +412,11 @@ public class FeatureColour implements FeatureColourI
       }
       if (gcol.hasMoreTokens())
       {
-        System.err
-                .println("Ignoring additional tokens in parameters in graduated colour specification\n");
+        System.err.println(
+                "Ignoring additional tokens in parameters in graduated colour specification\n");
         while (gcol.hasMoreTokens())
         {
-          System.err.println("|" + gcol.nextToken());
+          System.err.println(BAR + gcol.nextToken());
         }
         System.err.println("\n");
       }
@@ -279,37 +436,88 @@ public class FeatureColour implements FeatureColourI
   }
 
   /**
-   * Constructor given a simple colour
+   * Constructor given a simple colour. This also 'primes' a graduated colour
+   * range, where the maximum colour is the given simple colour, and the minimum
+   * colour a paler shade of it. This is for convenience when switching from a
+   * simple colour to a graduated colour scheme.
    * 
    * @param c
    */
   public FeatureColour(Color c)
   {
-    minColour = Color.WHITE;
-    maxColour = Color.BLACK;
-    minRed = 0f;
-    minGreen = 0f;
-    minBlue = 0f;
-    deltaRed = 0f;
-    deltaGreen = 0f;
-    deltaBlue = 0f;
-    colour = c;
+    /*
+     * set max colour to the simple colour, min colour to a paler shade of it
+     */
+    this(c, c == null ? Color.white : ColorUtils.bleachColour(c, 0.9f),
+            c == null ? Color.black : c, DEFAULT_NO_COLOUR, 0, 0);
+
+    /*
+     * but enforce simple colour for now!
+     */
+    setGraduatedColour(false);
   }
 
   /**
-   * Constructor given a colour range and a score range
+   * Copy constructor
    * 
+   * @param fc
+   */
+  public FeatureColour(FeatureColour fc)
+  {
+    graduatedColour = fc.graduatedColour;
+    colour = fc.colour;
+    minColour = fc.minColour;
+    maxColour = fc.maxColour;
+    noColour = fc.noColour;
+    minRed = fc.minRed;
+    minGreen = fc.minGreen;
+    minBlue = fc.minBlue;
+    deltaRed = fc.deltaRed;
+    deltaGreen = fc.deltaGreen;
+    deltaBlue = fc.deltaBlue;
+    base = fc.base;
+    range = fc.range;
+    isHighToLow = fc.isHighToLow;
+    attributeName = fc.attributeName;
+    setAboveThreshold(fc.isAboveThreshold());
+    setBelowThreshold(fc.isBelowThreshold());
+    setThreshold(fc.getThreshold());
+    setAutoScaled(fc.isAutoScaled());
+    setColourByLabel(fc.isColourByLabel());
+  }
+
+  /**
+   * Constructor that sets both simple and graduated colour values. This allows
+   * alternative colour schemes to be 'preserved' while switching between them
+   * to explore their effects on the visualisation.
+   * <p>
+   * This sets the colour scheme to 'graduated' by default. Override this if
+   * wanted by calling <code>setGraduatedColour(false)</code> for a simple
+   * colour, or <code>setColourByLabel(true)</code> for colour by label.
+   * 
+   * @param myColour
    * @param low
    * @param high
+   * @param noValueColour
    * @param min
    * @param max
    */
-  public FeatureColour(Color low, Color high, float min, float max)
+  public FeatureColour(Color myColour, Color low, Color high,
+          Color noValueColour, float min, float max)
   {
-    graduatedColour = true;
-    colour = null;
+    if (low == null)
+    {
+      low = Color.white;
+    }
+    if (high == null)
+    {
+      high = Color.black;
+    }
+    colour = myColour;
     minColour = low;
     maxColour = high;
+    setGraduatedColour(true);
+    noColour = noValueColour;
     threshold = Float.NaN;
     isHighToLow = min >= max;
     minRed = low.getRed() / 255f;
@@ -330,47 +538,6 @@ public class FeatureColour implements FeatureColourI
     }
   }
 
-  /**
-   * Copy constructor
-   * 
-   * @param fc
-   */
-  public FeatureColour(FeatureColour fc)
-  {
-    graduatedColour = fc.graduatedColour;
-    colour = fc.colour;
-    minColour = fc.minColour;
-    maxColour = fc.maxColour;
-    minRed = fc.minRed;
-    minGreen = fc.minGreen;
-    minBlue = fc.minBlue;
-    deltaRed = fc.deltaRed;
-    deltaGreen = fc.deltaGreen;
-    deltaBlue = fc.deltaBlue;
-    base = fc.base;
-    range = fc.range;
-    isHighToLow = fc.isHighToLow;
-    setAboveThreshold(fc.isAboveThreshold());
-    setBelowThreshold(fc.isBelowThreshold());
-    setThreshold(fc.getThreshold());
-    setAutoScaled(fc.isAutoScaled());
-    setColourByLabel(fc.isColourByLabel());
-  }
-
-  /**
-   * Copy constructor with new min/max ranges
-   * 
-   * @param fc
-   * @param min
-   * @param max
-   */
-  public FeatureColour(FeatureColour fc, float min, float max)
-  {
-    this(fc);
-    graduatedColour = true;
-    updateBounds(min, max);
-  }
-
   @Override
   public boolean isGraduatedColour()
   {
@@ -381,7 +548,7 @@ public class FeatureColour implements FeatureColourI
    * Sets the 'graduated colour' flag. If true, also sets 'colour by label' to
    * false.
    */
-  void setGraduatedColour(boolean b)
+  public void setGraduatedColour(boolean b)
   {
     graduatedColour = b;
     if (b)
@@ -406,6 +573,12 @@ public class FeatureColour implements FeatureColourI
   public Color getMaxColour()
   {
     return maxColour;
+  }
+
+  @Override
+  public Color getNoColour()
+  {
+    return noColour;
   }
 
   @Override
@@ -461,18 +634,6 @@ public class FeatureColour implements FeatureColourI
   }
 
   @Override
-  public boolean isThresholdMinMax()
-  {
-    return thresholdIsMinOrMax;
-  }
-
-  @Override
-  public void setThresholdMinMax(boolean b)
-  {
-    thresholdIsMinOrMax = b;
-  }
-
-  @Override
   public float getThreshold()
   {
     return threshold;
@@ -497,10 +658,7 @@ public class FeatureColour implements FeatureColourI
   }
 
   /**
-   * Updates the base and range appropriately for the given minmax range
-   * 
-   * @param min
-   * @param max
+   * {@inheritDoc}
    */
   @Override
   public void updateBounds(float min, float max)
@@ -521,9 +679,12 @@ public class FeatureColour implements FeatureColourI
 
   /**
    * Returns the colour for the given instance of the feature. This may be a
-   * simple colour, a colour generated from the feature description (if
-   * isColourByLabel()), or a colour derived from the feature score (if
-   * isGraduatedColour()).
+   * simple colour, a colour generated from the feature description or other
+   * attribute (if isColourByLabel()), or a colour derived from the feature
+   * score or other attribute (if isGraduatedColour()).
+   * <p>
+   * Answers null if feature score (or attribute) value lies outside a
+   * configured threshold.
    * 
    * @param feature
    * @return
@@ -533,8 +694,10 @@ public class FeatureColour implements FeatureColourI
   {
     if (isColourByLabel())
     {
-      return UserColourScheme
-              .createColourFromName(feature.getDescription());
+      String label = attributeName == null ? feature.getDescription()
+              : feature.getValueAsString(attributeName);
+      return label == null ? noColour : ColorUtils
+              .createColourFromName(label);
     }
 
     if (!isGraduatedColour())
@@ -542,15 +705,40 @@ public class FeatureColour implements FeatureColourI
       return getColour();
     }
 
-    // todo should we check for above/below threshold here?
+    /*
+     * graduated colour case, optionally with threshold
+     * may be based on feature score on an attribute value
+     * Float.NaN, or no value, is assigned the 'no value' colour
+     */
+    float scr = feature.getScore();
+    if (attributeName != null)
+    {
+      try
+      {
+        String attVal = feature.getValueAsString(attributeName);
+        scr = Float.valueOf(attVal);
+      } catch (Throwable e)
+      {
+        scr = Float.NaN;
+      }
+    }
+    if (Float.isNaN(scr))
+    {
+      return noColour;
+    }
+
+    if (isAboveThreshold() && scr <= threshold)
+    {
+      return null;
+    }
+
+    if (isBelowThreshold() && scr >= threshold)
+    {
+      return null;
+    }
     if (range == 0.0)
     {
       return getMaxColour();
-    }
-    float scr = feature.getScore();
-    if (Float.isNaN(scr))
-    {
-      return getMinColour();
     }
     float scl = (scr - base) / range;
     if (isHighToLow)
@@ -593,44 +781,6 @@ public class FeatureColour implements FeatureColourI
     return (isHighToLow) ? (base + range) : base;
   }
 
-  /**
-   * Answers true if the feature has a simple colour, or is coloured by label,
-   * or has a graduated colour and the score of this feature instance is within
-   * the range to render (if any), i.e. does not lie below or above any
-   * threshold set.
-   * 
-   * @param feature
-   * @return
-   */
-  @Override
-  public boolean isColored(SequenceFeature feature)
-  {
-    if (isColourByLabel() || !isGraduatedColour())
-    {
-      return true;
-    }
-
-    float val = feature.getScore();
-    if (Float.isNaN(val))
-    {
-      return true;
-    }
-    if (Float.isNaN(this.threshold))
-    {
-      return true;
-    }
-
-    if (isAboveThreshold() && val <= threshold)
-    {
-      return false;
-    }
-    if (isBelowThreshold() && val >= threshold)
-    {
-      return false;
-    }
-    return true;
-  }
-
   @Override
   public boolean isSimpleColour()
   {
@@ -654,21 +804,54 @@ public class FeatureColour implements FeatureColourI
     else
     {
       StringBuilder sb = new StringBuilder(32);
-      if (isColourByLabel())
+      if (isColourByAttribute())
       {
-        sb.append("label");
-        if (hasThreshold())
-        {
-          sb.append(BAR).append(BAR).append(BAR);
-        }
+        sb.append(ATTRIBUTE).append(BAR);
+        sb.append(
+                FeatureMatcher.toAttributeDisplayName(getAttributeName()));
+      }
+      else if (isColourByLabel())
+      {
+        sb.append(LABEL);
+      }
+      else
+      {
+        sb.append(SCORE);
       }
       if (isGraduatedColour())
       {
-        sb.append(Format.getHexString(getMinColour())).append(BAR);
+        sb.append(BAR).append(Format.getHexString(getMinColour()))
+                .append(BAR);
         sb.append(Format.getHexString(getMaxColour())).append(BAR);
+        
+        /*
+         * 'no value' colour should be null, min or max colour;
+         * if none of these, coerce to minColour
+         */
+        String noValue = NO_VALUE_MIN;
+        if (maxColour.equals(noColour))
+        {
+          noValue = NO_VALUE_MAX;
+        }
+        if (noColour == null)
+        {
+          noValue = NO_VALUE_NONE;
+        }
+        sb.append(noValue).append(BAR);
         if (!isAutoScaled())
         {
-          sb.append("abso").append(BAR);
+          sb.append(ABSOLUTE).append(BAR);
+        }
+      }
+      else
+      {
+        /*
+         * colour by text with score threshold: empty fields for
+         * minColour and maxColour (not used)
+         */
+        if (hasThreshold())
+        {
+          sb.append(BAR).append(BAR).append(BAR);
         }
       }
       if (hasThreshold() || isGraduatedColour())
@@ -677,11 +860,11 @@ public class FeatureColour implements FeatureColourI
         sb.append(getMax()).append(BAR);
         if (isBelowThreshold())
         {
-          sb.append("below").append(BAR).append(getThreshold());
+          sb.append(BELOW).append(BAR).append(getThreshold());
         }
         else if (isAboveThreshold())
         {
-          sb.append("above").append(BAR).append(getThreshold());
+          sb.append(ABOVE).append(BAR).append(getThreshold());
         }
         else
         {
@@ -691,6 +874,98 @@ public class FeatureColour implements FeatureColourI
       colourString = sb.toString();
     }
     return String.format("%s\t%s", featureType, colourString);
+  }
+
+  @Override
+  public boolean isColourByAttribute()
+  {
+    return attributeName != null;
+  }
+
+  @Override
+  public String[] getAttributeName()
+  {
+    return attributeName;
+  }
+
+  @Override
+  public void setAttributeName(String... name)
+  {
+    attributeName = name;
+  }
+
+  @Override
+  public boolean isOutwithThreshold(SequenceFeature feature)
+  {
+    if (!isGraduatedColour())
+    {
+      return false;
+    }
+    float scr = feature.getScore();
+    if (attributeName != null)
+    {
+      try
+      {
+        String attVal = feature.getValueAsString(attributeName);
+        scr = Float.valueOf(attVal);
+      } catch (Throwable e)
+      {
+        scr = Float.NaN;
+      }
+    }
+    if (Float.isNaN(scr))
+    {
+      return false;
+    }
+
+    return ((isAboveThreshold() && scr <= threshold)
+            || (isBelowThreshold() && scr >= threshold));
+  }
+
+  @Override
+  public String getDescription()
+  {
+    if (isSimpleColour())
+    {
+      return "r=" + colour.getRed() + ",g=" + colour.getGreen() + ",b="
+              + colour.getBlue();
+    }
+    StringBuilder tt = new StringBuilder();
+    String by = null;
+
+    if (getAttributeName() != null)
+    {
+      by = FeatureMatcher.toAttributeDisplayName(getAttributeName());
+    }
+    else if (isColourByLabel())
+    {
+      by = I18N_LABEL;
+    }
+    else
+    {
+      by = I18N_SCORE;
+    }
+    tt.append(MessageManager.formatMessage("action.by_title_param", by));
+
+    /*
+     * add threshold if any
+     */
+    if (isAboveThreshold() || isBelowThreshold())
+    {
+      tt.append(" (");
+      if (isColourByLabel())
+      {
+        /*
+         * Jalview features file supports the combination of 
+         * colour by label or attribute text with score threshold
+         */
+        tt.append(I18N_SCORE).append(" ");
+      }
+      tt.append(isAboveThreshold() ? "> " : "< ");
+      tt.append(getThreshold()).append(")");
+    }
+
+    return tt.toString();
   }
 
 }

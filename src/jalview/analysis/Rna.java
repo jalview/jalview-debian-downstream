@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -31,10 +31,11 @@ import jalview.datamodel.SequenceFeature;
 import jalview.util.MessageManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
-import java.util.Vector;
 
 public class Rna
 {
@@ -48,7 +49,8 @@ public class Rna
    */
   public static boolean isOpeningParenthesis(char c)
   {
-    return ('A' <= c && c <= 'Z' || c == '(' || c == '[' || c == '{' || c == '<');
+    return ('A' <= c && c <= 'Z' || c == '(' || c == '[' || c == '{'
+            || c == '<');
   }
 
   /**
@@ -73,7 +75,8 @@ public class Rna
    */
   public static boolean isClosingParenthesis(char c)
   {
-    return ('a' <= c && c <= 'z' || c == ')' || c == ']' || c == '}' || c == '>');
+    return ('a' <= c && c <= 'z' || c == ')' || c == ']' || c == '}'
+            || c == '>');
   }
 
   /**
@@ -132,11 +135,11 @@ public class Rna
    * @return
    * @throw {@link WUSSParseException}
    */
-  public static Vector<SimpleBP> getSimpleBPs(CharSequence line)
+  protected static List<SimpleBP> getSimpleBPs(CharSequence line)
           throws WUSSParseException
   {
     Hashtable<Character, Stack<Integer>> stacks = new Hashtable<Character, Stack<Integer>>();
-    Vector<SimpleBP> pairs = new Vector<SimpleBP>();
+    List<SimpleBP> pairs = new ArrayList<SimpleBP>();
     int i = 0;
     while (i < line.length())
     {
@@ -159,8 +162,8 @@ public class Rna
         if (!stacks.containsKey(opening))
         {
           throw new WUSSParseException(MessageManager.formatMessage(
-                  "exception.mismatched_unseen_closing_char",
-                  new String[] { String.valueOf(base) }), i);
+                  "exception.mismatched_unseen_closing_char", new String[]
+                  { String.valueOf(base) }), i);
         }
 
         Stack<Integer> stack = stacks.get(opening);
@@ -168,8 +171,8 @@ public class Rna
         {
           // error whilst parsing i'th position. pass back
           throw new WUSSParseException(MessageManager.formatMessage(
-                  "exception.mismatched_closing_char",
-                  new String[] { String.valueOf(base) }), i);
+                  "exception.mismatched_closing_char", new String[]
+                  { String.valueOf(base) }), i);
         }
         int temp = stack.pop();
 
@@ -187,33 +190,17 @@ public class Rna
          * i (length of input string)
          */
         throw new WUSSParseException(MessageManager.formatMessage(
-                "exception.mismatched_opening_char",
-                new String[] { String.valueOf(opening),
-                    String.valueOf(stack.pop()) }), i);
+                "exception.mismatched_opening_char", new String[]
+                { String.valueOf(opening), String.valueOf(stack.pop()) }),
+                i);
       }
     }
     return pairs;
   }
 
-  public static SequenceFeature[] getBasePairs(List<SimpleBP> bps)
-          throws WUSSParseException
-  {
-    SequenceFeature[] outPairs = new SequenceFeature[bps.size()];
-    for (int p = 0; p < bps.size(); p++)
-    {
-      SimpleBP bp = bps.get(p);
-      outPairs[p] = new SequenceFeature("RNA helix", "", "", bp.getBP5(),
-              bp.getBP3(), "");
-    }
-    return outPairs;
-  }
+  
 
-  public static List<SimpleBP> getModeleBP(CharSequence line)
-          throws WUSSParseException
-  {
-    Vector<SimpleBP> bps = getSimpleBPs(line);
-    return new ArrayList<SimpleBP>(bps);
-  }
+  
 
   /**
    * Function to get the end position corresponding to a given start position
@@ -228,88 +215,6 @@ public class Rna
    * putting everything twice to the hash ArrayList<Integer> pair = new
    * ArrayList<Integer>(); return pairHash.get(indice); }
    */
-
-  /**
-   * Figures out which helix each position belongs to and stores the helix
-   * number in the 'featureGroup' member of a SequenceFeature Based off of RALEE
-   * code ralee-helix-map.
-   * 
-   * @param pairs
-   *          Array of SequenceFeature (output from Rna.GetBasePairs)
-   */
-  public static void HelixMap(SequenceFeature[] pairs)
-  {
-
-    int helix = 0; // Number of helices/current helix
-    int lastopen = 0; // Position of last open bracket reviewed
-    int lastclose = 9999999; // Position of last close bracket reviewed
-    int i = pairs.length; // Number of pairs
-
-    int open; // Position of an open bracket under review
-    int close; // Position of a close bracket under review
-    int j; // Counter
-
-    Hashtable<Integer, Integer> helices = new Hashtable<Integer, Integer>();
-    // Keep track of helix number for each position
-
-    // Go through each base pair and assign positions a helix
-    for (i = 0; i < pairs.length; i++)
-    {
-
-      open = pairs[i].getBegin();
-      close = pairs[i].getEnd();
-
-      // System.out.println("open " + open + " close " + close);
-      // System.out.println("lastclose " + lastclose + " lastopen " + lastopen);
-
-      // we're moving from right to left based on closing pair
-      /*
-       * catch things like <<..>>..<<..>> |
-       */
-      if (open > lastclose)
-      {
-        helix++;
-      }
-
-      /*
-       * catch things like <<..<<..>>..<<..>>>> |
-       */
-      j = pairs.length - 1;
-      while (j >= 0)
-      {
-        int popen = pairs[j].getBegin();
-
-        // System.out.println("j " + j + " popen " + popen + " lastopen "
-        // +lastopen + " open " + open);
-        if ((popen < lastopen) && (popen > open))
-        {
-          if (helices.containsValue(popen)
-                  && ((helices.get(popen)) == helix))
-          {
-            continue;
-          }
-          else
-          {
-            helix++;
-            break;
-          }
-        }
-
-        j -= 1;
-      }
-
-      // Put positions and helix information into the hashtable
-      helices.put(open, helix);
-      helices.put(close, helix);
-
-      // Record helix as featuregroup
-      pairs[i].setFeatureGroup(Integer.toString(helix));
-
-      lastopen = open;
-      lastclose = close;
-
-    }
-  }
 
   /**
    * Answers true if the character is a recognised symbol for RNA secondary
@@ -499,5 +404,76 @@ public class Rna
     default:
       return c;
     }
+  }
+
+  public static SequenceFeature[] getHelixMap(CharSequence rnaAnnotation)
+          throws WUSSParseException
+  {
+    List<SequenceFeature> result = new ArrayList<SequenceFeature>();
+
+    int helix = 0; // Number of helices/current helix
+    int lastopen = 0; // Position of last open bracket reviewed
+    int lastclose = 9999999; // Position of last close bracket reviewed
+
+    Map<Integer, Integer> helices = new HashMap<Integer, Integer>();
+    // Keep track of helix number for each position
+
+    // Go through each base pair and assign positions a helix
+    List<SimpleBP> bps = getSimpleBPs(rnaAnnotation);
+    for (SimpleBP basePair : bps)
+    {
+      final int open = basePair.getBP5();
+      final int close = basePair.getBP3();
+
+      // System.out.println("open " + open + " close " + close);
+      // System.out.println("lastclose " + lastclose + " lastopen " + lastopen);
+
+      // we're moving from right to left based on closing pair
+      /*
+       * catch things like <<..>>..<<..>> |
+       */
+      if (open > lastclose)
+      {
+        helix++;
+      }
+
+      /*
+       * catch things like <<..<<..>>..<<..>>>> |
+       */
+      int j = bps.size();
+      while (--j >= 0)
+      {
+        int popen = bps.get(j).getBP5();
+
+        // System.out.println("j " + j + " popen " + popen + " lastopen "
+        // +lastopen + " open " + open);
+        if ((popen < lastopen) && (popen > open))
+        {
+          if (helices.containsValue(popen)
+                  && ((helices.get(popen)) == helix))
+          {
+            continue;
+          }
+          else
+          {
+            helix++;
+            break;
+          }
+        }
+      }
+
+      // Put positions and helix information into the hashtable
+      helices.put(open, helix);
+      helices.put(close, helix);
+
+      // Record helix as featuregroup
+      result.add(new SequenceFeature("RNA helix", "", open, close,
+              String.valueOf(helix)));
+
+      lastopen = open;
+      lastclose = close;
+    }
+
+    return result.toArray(new SequenceFeature[result.size()]);
   }
 }

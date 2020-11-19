@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -87,14 +87,14 @@ public class NewickFile extends FileParse
 
   boolean printRootInfo = true;
 
-  private com.stevesoft.pat.Regex[] NodeSafeName = new com.stevesoft.pat.Regex[]
-  { new com.stevesoft.pat.Regex().perlCode("m/[\\[,:'()]/"), // test for
+  private com.stevesoft.pat.Regex[] NodeSafeName = new com.stevesoft.pat.Regex[] {
+      new com.stevesoft.pat.Regex().perlCode("m/[\\[,:'()]/"), // test for
       // requiring
       // quotes
       new com.stevesoft.pat.Regex().perlCode("s/'/''/"), // escaping quote
       // characters
       new com.stevesoft.pat.Regex().perlCode("s/\\/w/_/") // unqoted whitespace
-  // transformation
+      // transformation
   };
 
   char QuoteChar = '\'';
@@ -110,7 +110,7 @@ public class NewickFile extends FileParse
    */
   public NewickFile(String inStr) throws IOException
   {
-    super(inStr, "Paste");
+    super(inStr, DataSourceType.PASTE);
   }
 
   /**
@@ -118,15 +118,16 @@ public class NewickFile extends FileParse
    * 
    * @param inFile
    *          DOCUMENT ME!
-   * @param type
+   * @param protocol
    *          DOCUMENT ME!
    * 
    * @throws IOException
    *           DOCUMENT ME!
    */
-  public NewickFile(String inFile, String type) throws IOException
+  public NewickFile(String inFile, DataSourceType protocol)
+          throws IOException
   {
-    super(inFile, type);
+    super(inFile, protocol);
   }
 
   public NewickFile(FileParse source) throws IOException
@@ -217,13 +218,10 @@ public class NewickFile extends FileParse
   private String ErrorStringrange(String Error, String Er, int r, int p,
           String s)
   {
-    return ((Error == null) ? "" : Error)
-            + Er
-            + " at position "
-            + p
-            + " ( "
+    return ((Error == null) ? "" : Error) + Er + " at position " + p + " ( "
             + s.substring(((p - r) < 0) ? 0 : (p - r),
-                    ((p + r) > s.length()) ? s.length() : (p + r)) + " )\n";
+                    ((p + r) > s.length()) ? s.length() : (p + r))
+            + " )\n";
   }
 
   // @tree annotations
@@ -362,8 +360,8 @@ public class NewickFile extends FileParse
         if (qnodename.searchFrom(nf, fcp))
         {
           int nl = qnodename.stringMatched().length();
-          nodename = new String(qnodename.stringMatched().substring(1,
-                  nl - 1));
+          nodename = new String(
+                  qnodename.stringMatched().substring(1, nl - 1));
           // unpack any escaped colons
           com.stevesoft.pat.Regex xpandquotes = com.stevesoft.pat.Regex
                   .perlCode("s/''/'/");
@@ -386,8 +384,8 @@ public class NewickFile extends FileParse
         {
           if (d != -1)
           {
-            Error = ErrorStringrange(Error, "Wayward semicolon (depth=" + d
-                    + ")", 7, fcp, nf);
+            Error = ErrorStringrange(Error,
+                    "Wayward semicolon (depth=" + d + ")", 7, fcp, nf);
           }
           // cp advanced at the end of default
         }
@@ -400,7 +398,8 @@ public class NewickFile extends FileParse
            * '"+nf.substring(cp,fcp)+"'"); }
            */
           // verify termination.
-          com.stevesoft.pat.Regex comment = new com.stevesoft.pat.Regex("]");
+          com.stevesoft.pat.Regex comment = new com.stevesoft.pat.Regex(
+                  "]");
           if (comment.searchFrom(nf, fcp))
           {
             // Skip the comment field
@@ -440,8 +439,7 @@ public class NewickFile extends FileParse
         com.stevesoft.pat.Regex ndist = new com.stevesoft.pat.Regex(
                 ":([-0-9Ee.+]+)");
 
-        if (!parsednodename
-                && uqnodename.search(fstring)
+        if (!parsednodename && uqnodename.search(fstring)
                 && ((uqnodename.matchedFrom(1) == 0) || (fstring
                         .charAt(uqnodename.matchedFrom(1) - 1) != ':'))) // JBPNote
         // HACK!
@@ -468,26 +466,24 @@ public class NewickFile extends FileParse
 
         if (nbootstrap.search(fstring))
         {
-          if (nbootstrap.stringMatched(1).equals(
-                  uqnodename.stringMatched(1)))
+          if (nbootstrap.stringMatched(1)
+                  .equals(uqnodename.stringMatched(1)))
           {
             nodename = null; // no nodename here.
           }
-          if (nodename == null
-                  || nodename.length() == 0
-                  || nbootstrap.matchedFrom(1) > (uqnodename.matchedFrom(1) + uqnodename
-                          .stringMatched().length()))
+          if (nodename == null || nodename.length() == 0
+                  || nbootstrap.matchedFrom(1) > (uqnodename.matchedFrom(1)
+                          + uqnodename.stringMatched().length()))
           {
             try
             {
-              bootstrap = (new Integer(nbootstrap.stringMatched(1)))
+              bootstrap = (Integer.valueOf(nbootstrap.stringMatched(1)))
                       .intValue();
               HasBootstrap = true;
             } catch (Exception e)
             {
-              Error = ErrorStringrange(Error,
-                      "Can't parse bootstrap value", 4,
-                      ncp + nbootstrap.matchedFrom(), nf);
+              Error = ErrorStringrange(Error, "Can't parse bootstrap value",
+                      4, ncp + nbootstrap.matchedFrom(), nf);
             }
           }
         }
@@ -498,7 +494,7 @@ public class NewickFile extends FileParse
         {
           try
           {
-            distance = (new Float(ndist.stringMatched(1))).floatValue();
+            distance = (Float.valueOf(ndist.stringMatched(1))).floatValue();
             HasDistances = true;
             nodehasdistance = true;
           } catch (Exception e)
@@ -564,8 +560,7 @@ public class NewickFile extends FileParse
 
           if ((d > -1) && (c == null))
           {
-            Error = ErrorStringrange(
-                    Error,
+            Error = ErrorStringrange(Error,
                     "File broke algorithm: Lost place in tree (is there an extra ')' ?)",
                     7, fcp, nf);
           }
@@ -615,14 +610,15 @@ public class NewickFile extends FileParse
 
     if (Error != null)
     {
-      throw (new IOException(MessageManager.formatMessage(
-              "exception.newfile", new String[] { Error.toString() })));
+      throw (new IOException(
+              MessageManager.formatMessage("exception.newfile", new String[]
+              { Error.toString() })));
     }
     if (root == null)
     {
-      throw (new IOException(MessageManager.formatMessage(
-              "exception.newfile", new String[] { MessageManager
-                      .getString("label.no_tree_read_in") })));
+      throw (new IOException(
+              MessageManager.formatMessage("exception.newfile", new String[]
+              { MessageManager.getString("label.no_tree_read_in") })));
     }
     // THe next line is failing for topali trees - not sure why yet. if
     // (root.right()!=null && root.isDummy())
@@ -665,7 +661,7 @@ public class NewickFile extends FileParse
             if (code.toLowerCase().equals("b"))
             {
               int v = -1;
-              Float iv = new Float(value);
+              Float iv = Float.valueOf(value);
               v = iv.intValue(); // jalview only does integer bootstraps
               // currently
               c.setBootstrap(v);
@@ -674,8 +670,8 @@ public class NewickFile extends FileParse
             // more codes here.
           } catch (Exception e)
           {
-            System.err.println("Couldn't parse code '" + code + "' = '"
-                    + value + "'");
+            System.err.println(
+                    "Couldn't parse code '" + code + "' = '" + value + "'");
             e.printStackTrace(System.err);
           }
         }
@@ -846,10 +842,10 @@ public class NewickFile extends FileParse
   private String printNodeField(SequenceNode c)
   {
     return ((c.getName() == null) ? "" : nodeName(c.getName()))
-            + ((HasBootstrap) ? ((c.getBootstrap() > -1) ? ((c.getName() != null ? " "
-                    : "") + c.getBootstrap())
-                    : "")
-                    : "") + ((HasDistances) ? (":" + c.dist) : "");
+            + ((HasBootstrap) ? ((c.getBootstrap() > -1)
+                    ? ((c.getName() != null ? " " : "") + c.getBootstrap())
+                    : "") : "")
+            + ((HasDistances) ? (":" + c.dist) : "");
   }
 
   /**
@@ -862,12 +858,16 @@ public class NewickFile extends FileParse
    */
   private String printRootField(SequenceNode root)
   {
-    return (printRootInfo) ? (((root.getName() == null) ? ""
-            : nodeName(root.getName()))
-            + ((HasBootstrap) ? ((root.getBootstrap() > -1) ? ((root
-                    .getName() != null ? " " : "") + +root.getBootstrap())
-                    : "") : "") + ((RootHasDistance) ? (":" + root.dist)
-            : "")) : "";
+    return (printRootInfo)
+            ? (((root.getName() == null) ? "" : nodeName(root.getName()))
+                    + ((HasBootstrap)
+                            ? ((root.getBootstrap() > -1)
+                                    ? ((root.getName() != null ? " " : "")
+                                            + +root.getBootstrap())
+                                    : "")
+                            : "")
+                    + ((RootHasDistance) ? (":" + root.dist) : ""))
+            : "";
   }
 
   // Non recursive call deals with root node properties
@@ -947,8 +947,8 @@ public class NewickFile extends FileParse
     {
       if (args == null || args.length != 1)
       {
-        System.err
-                .println("Takes one argument - file name of a newick tree file.");
+        System.err.println(
+                "Takes one argument - file name of a newick tree file.");
         System.exit(0);
       }
 
@@ -966,7 +966,7 @@ public class NewickFile extends FileParse
       treefile.close();
       System.out.println("Read file :\n");
 
-      NewickFile trf = new NewickFile(args[0], "File");
+      NewickFile trf = new NewickFile(args[0], DataSourceType.FILE);
       trf.parse();
       System.out.println("Original file :\n");
 

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,11 +35,10 @@ import java.util.logging.Logger;
  */
 public class MessageManager
 {
-
   private static ResourceBundle rb;
 
-  private static Logger log = Logger.getLogger(MessageManager.class
-          .getCanonicalName());
+  private static Logger log = Logger
+          .getLogger(MessageManager.class.getCanonicalName());
 
   private static Locale loc;
 
@@ -72,6 +71,13 @@ public class MessageManager
 
   }
 
+  /**
+   * Returns the resource bundle text for the given key, or if not found, the
+   * key prefixed by "[missing key]"
+   * 
+   * @param key
+   * @return
+   */
   public static String getString(String key)
   {
     String value = "[missing key] " + key;
@@ -90,22 +96,57 @@ public class MessageManager
     return loc;
   }
 
+  /**
+   * Returns the resource bundle text for the given key, with tokens {@code {0},
+   * {1} etc replaced by the supplied parameters. If the key is not found,
+   * returns the key and values prefixed by "[missing key]"
+   * 
+   * @param key
+   * 
+   * @return
+   */
   public static String formatMessage(String key, Object... params)
   {
-    return MessageFormat.format(rb.getString(key), params);
-  }
-
-  public static String formatMessage(String key, String[] params)
-  {
-    return MessageFormat.format(rb.getString(key), (Object[]) params);
+    try
+    {
+      return MessageFormat.format(rb.getString(key), params);
+    } catch (Exception e)
+    {
+      log.warning("I18N missing: " + loc + "\t" + key);
+    }
+    String value = "[missing key] " + key + "";
+    for (Object p : params)
+    {
+      value += " '" + p.toString() + "'";
+    }
+    return value;
   }
 
   /**
-   * lookup and return a key given a root and a human-readable(ish) name that
-   * when combined might resolve to an i18n string. If the key doesn't resolve,
-   * then name is returned.if the key doesn't exist. Use this for
-   * programatically constructed keys that have have a human readable
-   * alternative used in the program (e.g. BLOSUM62 and label.score_blosum62)
+   * Returns the resource bundle text for the given key, with tokens {@code {0},
+   * {1} etc replaced by the supplied parameters. If the key is not found,
+   * returns the key and values prefixed by "[missing key]"
+   * 
+   * @param key
+   * 
+   * @return
+   */
+  public static String formatMessage(String key, String[] params)
+  {
+    return formatMessage(key, (Object[]) params);
+  }
+
+  /**
+   * Returns resource bundle text given a root and a human-readable(ish) name
+   * that when combined might resolve to an i18n string. {@code name} is forced
+   * to lower case, with any spaces removed, and concatenated to {@code keyroot}
+   * to form a lookup key.
+   * <p>
+   * If the key doesn't resolve, then {@code name} is returned.
+   * <p>
+   * Use this for programmatically constructed keys that might have a human
+   * readable alternative used in the program (e.g. BLOSUM62 and
+   * label.score_blosum62).
    * 
    * @param keyroot
    * @param name
@@ -119,8 +160,8 @@ public class MessageManager
       name = rb.getString(smkey);
     } catch (Exception x)
     {
-      log.finest("I18N missing key with root " + keyroot + ": " + loc
-              + "\t" + smkey);
+      log.finest("I18N missing key with root " + keyroot + ": " + loc + "\t"
+              + smkey);
     }
     return name;
   }

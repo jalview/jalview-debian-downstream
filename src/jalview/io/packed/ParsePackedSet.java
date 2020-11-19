@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.io.packed;
 import jalview.api.FeatureColourI;
 import jalview.datamodel.AlignmentI;
 import jalview.io.AppletFormatAdapter;
+import jalview.io.FileFormatI;
 import jalview.io.FileParse;
 import jalview.io.FormatAdapter;
 import jalview.io.IdentifyFile;
@@ -33,6 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 public class ParsePackedSet
 {
@@ -64,7 +66,7 @@ public class ParsePackedSet
       FileParse src = dta.getDataSource();
       if (dta.getType().equals(DataProvider.JvDataType.ALIGNMENT))
       {
-        String fmt = null;
+        FileFormatI fmt = null;
         try
         {
           fmt = new IdentifyFile().identify(src, false);
@@ -76,32 +78,24 @@ public class ParsePackedSet
 
         if (fmt != null)
         {
-          if (!FormatAdapter.isValidIOFormat(fmt, false))
+          // parse the alignment
+          AlignmentI al = null;
+          try
           {
-            errmsg = fmt;
-            exerror = null;
+            al = new FormatAdapter().readFromFile(src, fmt);
+          } catch (Exception e)
+          {
+            errmsg = "Failed to parse alignment from result set";
+            exerror = e;
           }
-          else
+          if (al != null)
           {
-            // parse the alignment
-            AlignmentI al = null;
-            try
-            {
-              al = new FormatAdapter().readFromFile(src, fmt);
-            } catch (Exception e)
-            {
-              errmsg = "Failed to parse alignment from result set";
-              exerror = e;
-            }
-            if (al != null)
-            {
-              // deuniquify and construct/merge additional dataset entries if
-              // necessary.
-              context.addAlignment(al);
-              context.updateSetModified(true);
-              rslt.add(al);
-              deuniquify = true;
-            }
+            // deuniquify and construct/merge additional dataset entries if
+            // necessary.
+            context.addAlignment(al);
+            context.updateSetModified(true);
+            rslt.add(al);
+            deuniquify = true;
           }
         }
       }
@@ -164,7 +158,8 @@ public class ParsePackedSet
         {
           jalview.io.FeaturesFile ff = new jalview.io.FeaturesFile(src);
           context.updateSetModified(ff.parse(context.getLastAlignment(),
-                  context.featureColours, false, context.relaxedIdMatching));
+                  context.featureColours, false,
+                  context.relaxedIdMatching));
         } catch (Exception e)
         {
           errmsg = ("Failed to parse the Features file associated with the alignment.");
@@ -239,8 +234,8 @@ public class ParsePackedSet
     {
       String type = args[i++];
       final String file = args[i++];
-      final JvDataType jtype = DataProvider.JvDataType.valueOf(type
-              .toUpperCase());
+      final JvDataType jtype = DataProvider.JvDataType
+              .valueOf(type.toUpperCase(Locale.ROOT));
       if (jtype != null)
       {
         final FileParse fp;
@@ -259,7 +254,7 @@ public class ParsePackedSet
       else
       {
         System.out.println("Couldn't parse source type token '"
-                + type.toUpperCase() + "'");
+                + type.toUpperCase(Locale.ROOT) + "'");
       }
     }
     if (i < args.length)
@@ -278,8 +273,8 @@ public class ParsePackedSet
     ParsePackedSet pps;
     try
     {
-      newdm = (pps = new ParsePackedSet()).getAlignment(
-              context = new JalviewDataset(), dp);
+      newdm = (pps = new ParsePackedSet())
+              .getAlignment(context = new JalviewDataset(), dp);
     } catch (Exception e)
     {
       System.out.println("Test failed for these arguments.\n");
@@ -303,8 +298,8 @@ public class ParsePackedSet
     {
       if (context.getLastAlignmentSet().isModified())
       {
-        System.err
-                .println("Initial alignment set was modified and any associated views should be updated.");
+        System.err.println(
+                "Initial alignment set was modified and any associated views should be updated.");
       }
     }
   }

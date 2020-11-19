@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -29,9 +29,8 @@ package jalview.structure;
  */
 public class AtomSpec
 {
-  // TODO clarify do we want pdbFile here, or pdbId?
-  // compare highlightAtom in 2.8.2 for JalviewJmolBinding and
-  // javascript.MouseOverStructureListener
+  int modelNo;
+
   private String pdbFile;
 
   private String chain;
@@ -39,6 +38,60 @@ public class AtomSpec
   private int pdbResNum;
 
   private int atomIndex;
+
+  /**
+   * Parses a Chimera atomspec e.g. #1:12.A to construct an AtomSpec model (with
+   * null pdb file name)
+   * 
+   * @param spec
+   * @return
+   * @throw IllegalArgumentException if the spec cannot be parsed, or represents
+   *        more than one residue
+   */
+  public static AtomSpec fromChimeraAtomspec(String spec)
+  {
+    int colonPos = spec.indexOf(":");
+    if (colonPos == -1)
+    {
+      throw new IllegalArgumentException(spec);
+    }
+
+    int hashPos = spec.indexOf("#");
+    if (hashPos == -1 && colonPos != 0)
+    {
+      // # is missing but something precedes : - reject
+      throw new IllegalArgumentException(spec);
+    }
+
+    String modelSubmodel = spec.substring(hashPos + 1, colonPos);
+    int dotPos = modelSubmodel.indexOf(".");
+    int modelId = 0;
+    try
+    {
+      modelId = Integer.valueOf(dotPos == -1 ? modelSubmodel
+              : modelSubmodel.substring(0, dotPos));
+    } catch (NumberFormatException e)
+    {
+      // ignore, default to model 0
+    }
+
+    String residueChain = spec.substring(colonPos + 1);
+    dotPos = residueChain.indexOf(".");
+    int resNum = 0;
+    try
+    {
+      resNum = Integer.parseInt(dotPos == -1 ? residueChain
+              : residueChain.substring(0, dotPos));
+    } catch (NumberFormatException e)
+    {
+      // could be a range e.g. #1:4-7.B
+      throw new IllegalArgumentException(spec);
+    }
+
+    String chainId = dotPos == -1 ? "" : residueChain.substring(dotPos + 1);
+
+    return new AtomSpec(modelId, chainId, resNum, 0);
+  }
 
   /**
    * Constructor
@@ -52,6 +105,22 @@ public class AtomSpec
   {
     this.pdbFile = pdbFile;
     this.chain = chain;
+    this.pdbResNum = resNo;
+    this.atomIndex = atomNo;
+  }
+
+  /**
+   * Constructor
+   * 
+   * @param modelId
+   * @param chainId
+   * @param resNo
+   * @param atomNo
+   */
+  public AtomSpec(int modelId, String chainId, int resNo, int atomNo)
+  {
+    this.modelNo = modelId;
+    this.chain = chainId;
     this.pdbResNum = resNo;
     this.atomIndex = atomNo;
   }
@@ -74,6 +143,16 @@ public class AtomSpec
   public int getAtomIndex()
   {
     return atomIndex;
+  }
+
+  public int getModelNumber()
+  {
+    return modelNo;
+  }
+
+  public void setPdbFile(String file)
+  {
+    pdbFile = file;
   }
 
   @Override

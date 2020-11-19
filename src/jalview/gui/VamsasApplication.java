@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.gui;
 import jalview.bin.Cache;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.io.VamsasAppDatastore;
@@ -43,7 +44,6 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 
 import javax.swing.JInternalFrame;
-import javax.swing.JOptionPane;
 
 import uk.ac.vamsas.client.ClientHandle;
 import uk.ac.vamsas.client.IClient;
@@ -156,9 +156,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
       {
         if (sess != null)
         {
-          throw new Error(
-                  MessageManager
-                          .getString("error.implementation_error_cannot_import_vamsas_doc"));
+          throw new Error(MessageManager.getString(
+                  "error.implementation_error_cannot_import_vamsas_doc"));
         }
         try
         {
@@ -174,15 +173,13 @@ public class VamsasApplication implements SelectionSource, VamsasSource
           }
         } catch (InvalidSessionDocumentException e)
         {
-          JOptionPane
-                  .showInternalMessageDialog(
-                          Desktop.desktop,
+          JvOptionPane.showInternalMessageDialog(Desktop.desktop,
 
-                          MessageManager
-                                  .getString("label.vamsas_doc_couldnt_be_opened_as_new_session"),
-                          MessageManager
-                                  .getString("label.vamsas_document_import_failed"),
-                          JOptionPane.ERROR_MESSAGE);
+                  MessageManager.getString(
+                          "label.vamsas_doc_couldnt_be_opened_as_new_session"),
+                  MessageManager
+                          .getString("label.vamsas_document_import_failed"),
+                  JvOptionPane.ERROR_MESSAGE);
 
         }
       }
@@ -204,8 +201,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
 
     } catch (Exception e)
     {
-      jalview.bin.Cache.log
-              .error("Couldn't instantiate vamsas client !", e);
+      jalview.bin.Cache.log.error("Couldn't instantiate vamsas client !",
+              e);
       return false;
     }
     return true;
@@ -228,14 +225,14 @@ public class VamsasApplication implements SelectionSource, VamsasSource
       }
     } catch (Error e)
     {
-      Cache.log
-              .warn("Probable SERIOUS VAMSAS client incompatibility - carrying on regardless",
-                      e);
+      Cache.log.warn(
+              "Probable SERIOUS VAMSAS client incompatibility - carrying on regardless",
+              e);
     } catch (Exception e)
     {
-      Cache.log
-              .warn("Probable VAMSAS client incompatibility - carrying on regardless",
-                      e);
+      Cache.log.warn(
+              "Probable VAMSAS client incompatibility - carrying on regardless",
+              e);
     }
   }
 
@@ -267,16 +264,15 @@ public class VamsasApplication implements SelectionSource, VamsasSource
   {
     if (!inSession())
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_vamsas_operation_not_init"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_vamsas_operation_not_init"));
     }
     addDocumentUpdateHandler();
     addStoreDocumentHandler();
     startSession();
     inInitialUpdate = true;
-    Cache.log
-            .debug("Jalview loading the Vamsas Session for the first time.");
+    Cache.log.debug(
+            "Jalview loading the Vamsas Session for the first time.");
     dealWithDocumentUpdate(false); // we don't push an update out to the
     inInitialUpdate = false;
     // document yet.
@@ -310,9 +306,9 @@ public class VamsasApplication implements SelectionSource, VamsasSource
       }
     } catch (Exception e)
     {
-      Cache.log
-              .warn("Exception whilst refreshing jalview windows after a vamsas document update.",
-                      e);
+      Cache.log.warn(
+              "Exception whilst refreshing jalview windows after a vamsas document update.",
+              e);
     }
   }
 
@@ -355,9 +351,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
   {
     if (!inSession())
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.jalview_no_connected_vamsas_session"));
+      throw new Error(MessageManager
+              .getString("error.jalview_no_connected_vamsas_session"));
     }
     Cache.log.info("Jalview disconnecting from the Vamsas Session.");
     try
@@ -372,8 +367,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
       }
       else
       {
-        Cache.log
-                .warn("JV Client leaving a session that's its not joined yet.");
+        Cache.log.warn(
+                "JV Client leaving a session that's its not joined yet.");
       }
       joinedSession = false;
       vclient = null;
@@ -487,11 +482,10 @@ public class VamsasApplication implements SelectionSource, VamsasSource
             } catch (Exception e)
             {
               errorsDuringUpdate = true;
-              Cache.log.error("Exception synchronizing "
-                      + af.getTitle()
+              Cache.log.error("Exception synchronizing " + af.getTitle()
                       + " "
-                      + (af.getViewport().viewName == null ? "" : " view "
-                              + af.getViewport().viewName)
+                      + (af.getViewport().getViewName() == null ? ""
+                              : " view " + af.getViewport().getViewName())
                       + " to document.", e);
               stored = false;
             }
@@ -588,8 +582,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
         storedviews += updateVamsasDocument(cdoc);
         if (Cache.log.isDebugEnabled())
         {
-          Cache.log
-                  .debug("Time taken to update Vamsas Document from jalview\t= "
+          Cache.log.debug(
+                  "Time taken to update Vamsas Document from jalview\t= "
                           + (System.currentTimeMillis() - time));
           time = System.currentTimeMillis();
         }
@@ -606,8 +600,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
         updateJalview(cdoc);
         if (Cache.log.isDebugEnabled())
         {
-          Cache.log
-                  .debug("Time taken to update Jalview from vamsas document Roots\t= "
+          Cache.log.debug(
+                  "Time taken to update Jalview from vamsas document Roots\t= "
                           + (System.currentTimeMillis() - time));
           time = System.currentTimeMillis();
         }
@@ -663,30 +657,29 @@ public class VamsasApplication implements SelectionSource, VamsasSource
               {
                 if (client.promptUser)
                 {
-                  Cache.log
-                          .debug("Asking user if the vamsas session should be stored.");
-                  int reply = JOptionPane
-                          .showInternalConfirmDialog(
-                                  Desktop.desktop,
-                                  "The current VAMSAS session has unsaved data - do you want to save it ?",
-                                  "VAMSAS Session Shutdown",
-                                  JOptionPane.YES_NO_OPTION,
-                                  JOptionPane.QUESTION_MESSAGE);
+                  Cache.log.debug(
+                          "Asking user if the vamsas session should be stored.");
+                  int reply = JvOptionPane.showInternalConfirmDialog(
+                          Desktop.desktop,
+                          "The current VAMSAS session has unsaved data - do you want to save it ?",
+                          "VAMSAS Session Shutdown",
+                          JvOptionPane.YES_NO_OPTION,
+                          JvOptionPane.QUESTION_MESSAGE);
 
-                  if (reply == JOptionPane.YES_OPTION)
+                  if (reply == JvOptionPane.YES_OPTION)
                   {
                     Cache.log.debug("Prompting for vamsas store filename.");
                     Desktop.instance.vamsasSave_actionPerformed(null);
                     Cache.log
                             .debug("Finished attempt at storing document.");
                   }
-                  Cache.log
-                          .debug("finished dealing with REQUESTTOCLOSE event.");
+                  Cache.log.debug(
+                          "finished dealing with REQUESTTOCLOSE event.");
                 }
                 else
                 {
-                  Cache.log
-                          .debug("Ignoring store document request (promptUser==false)");
+                  Cache.log.debug(
+                          "Ignoring store document request (promptUser==false)");
                 }
               }
             });
@@ -695,7 +688,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
 
   public void disableGui(boolean b)
   {
-    Desktop.instance.setVamsasUpdate(b);
+    // JAL-3311 TODO: remove this class!
+    // Desktop.instance.setVamsasUpdate(b);
   }
 
   Hashtable _backup_vobj2jv;
@@ -728,9 +722,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
         return;
       }
 
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_cannot_recover_vamsas_object_mappings"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_cannot_recover_vamsas_object_mappings"));
     }
     jv2vobj.clear();
     Iterator el = _backup_jv2vobj.entrySet().iterator();
@@ -821,7 +814,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
               {
                 // TODO: rationalise : can only clear a selection over a
                 // referred to object
-                ssm.sendSelection(null, null, me);
+                ssm.sendSelection(null, null, null, me);
                 return;
               }
               Class type = null;
@@ -937,8 +930,8 @@ public class VamsasApplication implements SelectionSource, VamsasSource
                       {
                         jselection.setStartRes(prange[p + l] - 1);
                       }
-                      if (jselection.getEndRes() <= maxWidth
-                              && prange[p + u] == (jselection.getEndRes() + 2))
+                      if (jselection.getEndRes() <= maxWidth && prange[p
+                              + u] == (jselection.getEndRes() + 2))
                       {
                         jselection.setEndRes(prange[p + u] - 1);
                       }
@@ -955,7 +948,7 @@ public class VamsasApplication implements SelectionSource, VamsasSource
               }
               if (send)
               {
-                ssm.sendSelection(jselection, colsel, me);
+                ssm.sendSelection(jselection, colsel, null, me);
               }
               // discard message.
               for (int c = 0; c < jvobjs.length; c++)
@@ -1004,12 +997,13 @@ public class VamsasApplication implements SelectionSource, VamsasSource
 
           @Override
           public void selection(SequenceGroup seqsel,
-                  ColumnSelection colsel, SelectionSource source)
+                  ColumnSelection colsel, HiddenColumns hidden,
+                  SelectionSource source)
           {
             if (vobj2jv == null)
             {
-              Cache.log
-                      .warn("Selection listener still active for dead session.");
+              Cache.log.warn(
+                      "Selection listener still active for dead session.");
               // not in a session.
               return;
             }
@@ -1022,15 +1016,17 @@ public class VamsasApplication implements SelectionSource, VamsasSource
               }
               SelectionMessage sm = null;
               if ((seqsel == null || seqsel.getSize() == 0)
-                      && (colsel == null || colsel.getSelected() == null || colsel
-                              .getSelected().size() == 0))
+                      && (colsel == null || colsel.getSelected() == null
+                              || colsel.getSelected().size() == 0))
               {
                 if (source instanceof AlignViewport)
                 {
                   // the empty selection.
                   sm = new SelectionMessage("jalview",
-                          new String[] { ((AlignmentViewport) source)
-                                  .getSequenceSetId() }, null, true);
+                          new String[]
+                          { ((AlignmentViewport) source)
+                                  .getSequenceSetId() },
+                          null, true);
                 }
                 else
                 {
@@ -1079,14 +1075,16 @@ public class VamsasApplication implements SelectionSource, VamsasSource
                   }
                   else
                   {
-                    int[] intervals = colsel.getVisibleContigs(
-                            seqsel.getStartRes(), seqsel.getEndRes() + 1);
-                    for (int iv = 0; iv < intervals.length; iv += 2)
+                    Iterator<int[]> intervals = hidden
+                            .getVisContigsIterator(seqsel.getStartRes(),
+                                    seqsel.getEndRes() + 1, false);
+                    while (intervals.hasNext())
                     {
+                      int[] region = intervals.next();
                       Seg s = new Seg();
-                      s.setStart(intervals[iv] + 1); // vamsas indices begin at
-                      // 1, not zero.
-                      s.setEnd(intervals[iv + 1] + 1);
+                      s.setStart(region[0] + 1); // vamsas indices begin at 1,
+                                                 // not zero.
+                      s.setEnd(region[1] + 1);
                       s.setInclusive(true);
                       range.addSeg(s);
                     }

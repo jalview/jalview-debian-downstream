@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -37,19 +37,40 @@ public class UrlConstants
   public static final String SEQUENCE_ID = "SEQUENCE_ID";
 
   /*
-   * Default sequence URL link string for EMBL-EBI search
+   * Separator character used in Url links
    */
-  public static final String EMBLEBI_STRING = "EMBL-EBI Search|http://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$";
+  public static final String SEP = "|";
 
   /*
-   * Default sequence URL link string for SRS 
+   * Delimiter character used in Url links
    */
-  public static final String SRS_STRING = "SRS|http://srs.ebi.ac.uk/srsbin/cgi-bin/wgetz?-newId+(([uniprot-all:$SEQUENCE_ID$]))+-view+SwissEntry";
+  public static final String DELIM = "$";
+
+  /*
+   * Default sequence URL link label for EMBL-EBI search
+   */
+  public static final String DEFAULT_LABEL = "EMBL-EBI Search";
+
+  /*
+   * Default sequence URL link string for EMBL-EBI search
+   */
+  public static final String DEFAULT_STRING = DEFAULT_LABEL
+          + "|https://www.ebi.ac.uk/ebisearch/search.ebi?db=allebi&query=$SEQUENCE_ID$";
+
+  private static final String COLON = ":";
 
   /*
    * not instantiable
    */
   private UrlConstants()
   {
+  }
+
+  public static boolean isDefaultString(String link)
+  {
+    String sublink = link.substring(link.indexOf(COLON) + 1);
+    String subdefault = DEFAULT_STRING
+            .substring(DEFAULT_STRING.indexOf(COLON) + 1);
+    return sublink.equalsIgnoreCase(subdefault);
   }
 }

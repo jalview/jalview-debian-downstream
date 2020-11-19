@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.jbgui;
 
+import jalview.io.FileFormatI;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -69,20 +70,11 @@ public abstract class GAlignExportSettings extends JPanel
           showDialog;
 
   public GAlignExportSettings(boolean hasHiddenSeq, boolean hasHiddenCols,
-          String alignFileFormat)
+          FileFormatI format)
   {
     this.hasHiddenSeq = hasHiddenSeq;
     this.hasHiddenCols = hasHiddenCols;
-    String[] complexFormats = { "JSON", "HTML" };
-
-    for (String format : complexFormats)
-    {
-      if (format.equalsIgnoreCase(alignFileFormat))
-      {
-        this.isComplexAlignFile = true;
-        break;
-      }
-    }
+    this.isComplexAlignFile = format.isComplexAlignFile();
     if (this.hasHiddenCols || this.hasHiddenSeq || this.isComplexAlignFile)
     {
       this.showDialog = true;
@@ -92,14 +84,14 @@ public abstract class GAlignExportSettings extends JPanel
 
   public void init()
   {
-    chkHiddenSeqs.setText(MessageManager
-            .getString("action.export_hidden_sequences"));
-    chkHiddenCols.setText(MessageManager
-            .getString("action.export_hidden_columns"));
-    chkExportAnnots.setText(MessageManager
-            .getString("action.export_annotations"));
-    chkExportFeats.setText(MessageManager
-            .getString("action.export_features"));
+    chkHiddenSeqs.setText(
+            MessageManager.getString("action.export_hidden_sequences"));
+    chkHiddenCols.setText(
+            MessageManager.getString("action.export_hidden_columns"));
+    chkExportAnnots
+            .setText(MessageManager.getString("action.export_annotations"));
+    chkExportFeats
+            .setText(MessageManager.getString("action.export_features"));
     chkExportGrps.setText(MessageManager.getString("action.export_groups"));
     btnOk.setText(MessageManager.getString("action.ok"));
     btnCancel.setText(MessageManager.getString("action.cancel"));
@@ -111,6 +103,7 @@ public abstract class GAlignExportSettings extends JPanel
 
     chkAll.addItemListener(new ItemListener()
     {
+      @Override
       public void itemStateChanged(ItemEvent e)
       {
         checkAllAction();
@@ -119,6 +112,7 @@ public abstract class GAlignExportSettings extends JPanel
 
     btnOk.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         ok_actionPerformed(e);
@@ -127,6 +121,7 @@ public abstract class GAlignExportSettings extends JPanel
 
     btnCancel.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
         cancel_actionPerformed(e);
@@ -170,10 +165,10 @@ public abstract class GAlignExportSettings extends JPanel
     chkHiddenCols.setSelected(chkHiddenCols.isEnabled() && isSelected);
     chkExportAnnots.setSelected(isComplexAlignFile
             && chkExportAnnots.isEnabled() && isSelected);
-    chkExportFeats.setSelected(isComplexAlignFile
-            && chkExportFeats.isEnabled() && isSelected);
-    chkExportGrps.setSelected(isComplexAlignFile
-            && chkExportGrps.isEnabled() && isSelected);
+    chkExportFeats.setSelected(
+            isComplexAlignFile && chkExportFeats.isEnabled() && isSelected);
+    chkExportGrps.setSelected(
+            isComplexAlignFile && chkExportGrps.isEnabled() && isSelected);
   }
 
   public boolean isShowDialog()

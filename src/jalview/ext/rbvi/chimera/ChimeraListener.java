@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -39,7 +39,8 @@ import javax.servlet.http.HttpServletResponse;
  * <li>Start the ChimeraListener, get the URL it is listening on</li>
  * <li>The first listener started will start the singleton HttpServer</li>
  * <li>Send a 'listen' command to Chimera with the URL of the listener</li>
- * <li>When Jalview's Chimera window is closed, shut down the ChimeraListener</li>
+ * <li>When Jalview's Chimera window is closed, shut down the
+ * ChimeraListener</li>
  * <li>Multiple linked Chimera instances will each have a separate listener (but
  * share one Http server)</li>
  * </ul>
@@ -47,8 +48,8 @@ import javax.servlet.http.HttpServletResponse;
  * @author gmcarstairs
  *
  */
-public class ChimeraListener extends AbstractRequestHandler implements
-        SelectionSource
+public class ChimeraListener extends AbstractRequestHandler
+        implements SelectionSource
 {
   /*
    * Chimera notification parameter name
@@ -96,8 +97,7 @@ public class ChimeraListener extends AbstractRequestHandler implements
    * @throws BindException
    *           if no free port can be assigned
    */
-  public ChimeraListener(JalviewChimeraBinding binding)
-          throws BindException
+  public ChimeraListener(JalviewChimeraBinding binding) throws BindException
   {
     myChimeraId = chimeraId++;
     this.chimeraBinding = binding;
@@ -129,7 +129,7 @@ public class ChimeraListener extends AbstractRequestHandler implements
   }
 
   /**
-   * Handler a ModelChanged notification from Chimera
+   * Handle a ModelChanged notification from Chimera
    * 
    * @param substring
    */

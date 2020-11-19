@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.ws.dbsources;
 
+import jalview.bin.Cache;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
@@ -28,35 +29,45 @@ import jalview.datamodel.PDBEntry;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
-import jalview.datamodel.UniprotEntry;
-import jalview.datamodel.UniprotFile;
-import jalview.ws.ebi.EBIFetchClient;
+import jalview.schemes.ResidueProperties;
+import jalview.util.StringUtils;
 import jalview.ws.seqfetcher.DbSourceProxyImpl;
+import jalview.xml.binding.uniprot.DbReferenceType;
+import jalview.xml.binding.uniprot.Entry;
+import jalview.xml.binding.uniprot.FeatureType;
+import jalview.xml.binding.uniprot.LocationType;
+import jalview.xml.binding.uniprot.PositionType;
+import jalview.xml.binding.uniprot.PropertyType;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.Reader;
+import java.io.InputStream;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Vector;
 
-import org.exolab.castor.mapping.Mapping;
-import org.exolab.castor.xml.Unmarshaller;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.stream.FactoryConfigurationError;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 
 import com.stevesoft.pat.Regex;
 
 /**
+ * This class queries the Uniprot database for sequence data, unmarshals the
+ * returned XML, and converts it to Jalview Sequence records (including attached
+ * database references and sequence features)
+ * 
  * @author JimP
  * 
  */
 public class Uniprot extends DbSourceProxyImpl
 {
-  private static final String BAR_DELIMITER = "|";
+  private static final String DEFAULT_UNIPROT_DOMAIN = "https://www.uniprot.org";
 
-  /*
-   * Castor mapping loaded from uniprot_mapping.xml
-   */
-  private static Mapping map;
+  private static final String BAR_DELIMITER = "|";
 
   /**
    * Constructor
@@ -64,6 +75,11 @@ public class Uniprot extends DbSourceProxyImpl
   public Uniprot()
   {
     super();
+  }
+
+  private String getDomain()
+  {
+    return Cache.getDefault("UNIPROT_DOMAIN", DEFAULT_UNIPROT_DOMAIN);
   }
 
   /*
@@ -110,43 +126,6 @@ public class Uniprot extends DbSourceProxyImpl
     return "0"; // we really don't know what version we're on.
   }
 
-  /**
-   * Reads a file containing the reply to the EBI Fetch Uniprot data query,
-   * unmarshals it to a UniprotFile object, and returns the list of UniprotEntry
-   * data models (mapped from &lt;entry&gt; elements)
-   * 
-   * @param fileReader
-   * @return
-   */
-  public Vector<UniprotEntry> getUniprotEntries(Reader fileReader)
-  {
-    UniprotFile uni = new UniprotFile();
-    try
-    {
-      if (map == null)
-      {
-        // 1. Load the mapping information from the file
-        map = new Mapping(uni.getClass().getClassLoader());
-        URL url = getClass().getResource("/uniprot_mapping.xml");
-        map.loadMapping(url);
-      }
-
-      // 2. Unmarshal the data
-      Unmarshaller unmar = new Unmarshaller(uni);
-      unmar.setIgnoreExtraElements(true);
-      unmar.setMapping(map);
-      if (fileReader != null)
-      {
-        uni = (UniprotFile) unmar.unmarshal(fileReader);
-      }
-    } catch (Exception e)
-    {
-      System.out.println("Error getUniprotEntries() " + e);
-    }
-
-    return uni.getUniprotEntries();
-  }
-
   /*
    * (non-Javadoc)
    * 
@@ -161,108 +140,149 @@ public class Uniprot extends DbSourceProxyImpl
       queries = queries.toUpperCase().replaceAll(
               "(UNIPROT\\|?|UNIPROT_|UNIREF\\d+_|UNIREF\\d+\\|?)", "");
       AlignmentI al = null;
-      EBIFetchClient ebi = new EBIFetchClient();
-      // uniprotxml parameter required since december 2007
-      // uniprotkb dbname changed introduced december 2008
-      File file = ebi.fetchDataAsFile("uniprotkb:" + queries, "uniprotxml",
-              ".xml");
-      Vector<UniprotEntry> entries = getUniprotEntries(new FileReader(file));
 
+      String downloadstring = getDomain() + "/uniprot/" + queries
+              + ".xml";
+
+      URL url = new URL(downloadstring);
+      URLConnection urlconn = url.openConnection();
+      InputStream istr = urlconn.getInputStream();
+      List<Entry> entries = getUniprotEntries(istr);
       if (entries != null)
       {
-        ArrayList<SequenceI> seqs = new ArrayList<SequenceI>();
-        for (UniprotEntry entry : entries)
+        List<SequenceI> seqs = new ArrayList<>();
+        for (Entry entry : entries)
         {
-          seqs.add(uniprotEntryToSequenceI(entry));
+          seqs.add(uniprotEntryToSequence(entry));
         }
-        al = new Alignment(seqs.toArray(new SequenceI[0]));
-
+        al = new Alignment(seqs.toArray(new SequenceI[seqs.size()]));
       }
+
       stopQuery();
       return al;
     } catch (Exception e)
     {
-      stopQuery();
       throw (e);
+    } finally
+    {
+      stopQuery();
     }
   }
 
   /**
+   * Converts an Entry object (bound from Uniprot XML) to a Jalview Sequence
    * 
    * @param entry
-   *          UniprotEntry
-   * @return SequenceI instance created from the UniprotEntry instance
+   * @return
    */
-  public SequenceI uniprotEntryToSequenceI(UniprotEntry entry)
+  SequenceI uniprotEntryToSequence(Entry entry)
   {
     String id = getUniprotEntryId(entry);
-    SequenceI sequence = new Sequence(id, entry.getUniprotSequence()
-            .getContent());
+    /*
+     * Sequence should not include any whitespace, but JAXB leaves these in
+     */
+    String seqString = entry.getSequence().getValue().replaceAll("\\s*",
+            "");
+
+    SequenceI sequence = new Sequence(id,
+            seqString);
     sequence.setDescription(getUniprotEntryDescription(entry));
 
+    /*
+     * add a 'self' DBRefEntry for each accession
+     */
     final String dbVersion = getDbVersion();
-    ArrayList<DBRefEntry> dbRefs = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> dbRefs = new ArrayList<>();
     for (String accessionId : entry.getAccession())
     {
       DBRefEntry dbRef = new DBRefEntry(DBRefSource.UNIPROT, dbVersion,
               accessionId);
-
-      // mark dbRef as a primary reference for this sequence
       dbRefs.add(dbRef);
     }
 
-    Vector<PDBEntry> onlyPdbEntries = new Vector<PDBEntry>();
-    for (PDBEntry pdb : entry.getDbReference())
+    /*
+     * add a DBRefEntry for each dbReference element in the XML;
+     * also add a PDBEntry if type="PDB";
+     * also add an EMBLCDS dbref if protein sequence id is given
+     * also add an Ensembl dbref " " " " " "
+     */
+    Vector<PDBEntry> pdbRefs = new Vector<>();
+    for (DbReferenceType dbref : entry.getDbReference())
     {
-      DBRefEntry dbr = new DBRefEntry();
-      dbr.setSource(pdb.getType());
-      dbr.setAccessionId(pdb.getId());
-      dbr.setVersion(DBRefSource.UNIPROT + ":" + dbVersion);
+      String type = dbref.getType();
+      DBRefEntry dbr = new DBRefEntry(type,
+              DBRefSource.UNIPROT + ":" + dbVersion, dbref.getId());
       dbRefs.add(dbr);
-      if ("PDB".equals(pdb.getType()))
+      if ("PDB".equals(type))
       {
-        onlyPdbEntries.addElement(pdb);
+        pdbRefs.add(new PDBEntry(dbr));
       }
-      if ("EMBL".equals(pdb.getType()))
+      if ("EMBL".equals(type))
       {
-        // look for a CDS reference and add it, too.
-        String cdsId = (String) pdb.getProperty("protein sequence ID");
+        /*
+         * e.g. Uniprot accession Q9BXM7 has
+         * <dbReference type="EMBL" id="M19359">
+         *   <property type="protein sequence ID" value="AAA40981.1"/>
+         *   <property type="molecule type" value="Genomic_DNA"/>
+         * </dbReference> 
+         */
+        String cdsId = getProperty(dbref.getProperty(),
+                "protein sequence ID");
         if (cdsId != null && cdsId.trim().length() > 0)
         {
           // remove version
           String[] vrs = cdsId.split("\\.");
-          dbr = new DBRefEntry(DBRefSource.EMBLCDS, vrs.length > 1 ? vrs[1]
-                  : DBRefSource.UNIPROT + ":" + dbVersion, vrs[0]);
+          String version = vrs.length > 1 ? vrs[1]
+                  : DBRefSource.UNIPROT + ":" + dbVersion;
+          dbr = new DBRefEntry(DBRefSource.EMBLCDS, version, vrs[0]);
           dbRefs.add(dbr);
         }
       }
-      if ("Ensembl".equals(pdb.getType()))
+      if ("Ensembl".equals(type))
       {
-        /*UniprotXML
+        /*
+         * e.g. Uniprot accession Q9BXM7 has
          * <dbReference type="Ensembl" id="ENST00000321556">
-        * <molecule id="Q9BXM7-1"/>
-        * <property type="protein sequence ID" value="ENSP00000364204"/>
-        * <property type="gene ID" value="ENSG00000158828"/>
-        * </dbReference> 
+         *   <molecule id="Q9BXM7-1"/>
+         *   <property type="protein sequence ID" value="ENSP00000364204"/>
+         *   <property type="gene ID" value="ENSG00000158828"/>
+         * </dbReference> 
          */
-        String cdsId = (String) pdb.getProperty("protein sequence ID");
+        String cdsId = getProperty(dbref.getProperty(),
+                "protein sequence ID");
         if (cdsId != null && cdsId.trim().length() > 0)
         {
-          dbr = new DBRefEntry(DBRefSource.ENSEMBL, DBRefSource.UNIPROT
-                  + ":" + dbVersion, cdsId.trim());
+          dbr = new DBRefEntry(DBRefSource.ENSEMBL,
+                  DBRefSource.UNIPROT + ":" + dbVersion, cdsId.trim());
           dbRefs.add(dbr);
-
         }
       }
-
     }
 
-    sequence.setPDBId(onlyPdbEntries);
+    /*
+     * create features; they have either begin and end, or position, in XML
+     */
+    sequence.setPDBId(pdbRefs);
     if (entry.getFeature() != null)
     {
-      for (SequenceFeature sf : entry.getFeature())
+      for (FeatureType uf : entry.getFeature())
       {
-        sf.setFeatureGroup("Uniprot");
+        LocationType location = uf.getLocation();
+        int start = 0;
+        int end = 0;
+        if (location.getPosition() != null)
+        {
+          start = location.getPosition().getPosition().intValue();
+          end = start;
+        }
+        else
+        {
+          start = location.getBegin().getPosition().intValue();
+          end = location.getEnd().getPosition().intValue();
+        }
+        SequenceFeature sf = new SequenceFeature(uf.getType(),
+                getDescription(uf), start, end, "Uniprot");
+        sf.setStatus(uf.getStatus());
         sequence.addSequenceFeature(sf);
       }
     }
@@ -274,50 +294,156 @@ public class Uniprot extends DbSourceProxyImpl
   }
 
   /**
+   * A helper method that builds a sequence feature description
    * 
-   * @param entry
-   *          UniportEntry
-   * @return protein name(s) delimited by a white space character
+   * @param feature
+   * @return
    */
-  public static String getUniprotEntryDescription(UniprotEntry entry)
+  static String getDescription(FeatureType feature)
   {
-    StringBuilder desc = new StringBuilder(32);
-    if (entry.getProtein() != null && entry.getProtein().getName() != null)
+    String orig = feature.getOriginal();
+    List<String> variants = feature.getVariation();
+    StringBuilder sb = new StringBuilder();
+
+    /*
+     * append variant in standard format if present
+     * e.g. p.Arg59Lys
+     * multiple variants are split over lines using <br>
+     */
+    boolean asHtml = false;
+    if (orig != null && !orig.isEmpty() && variants != null
+            && !variants.isEmpty())
     {
-      boolean first = true;
-      for (String nm : entry.getProtein().getName())
+      int p = 0;
+      for (String var : variants)
       {
-        if (!first)
+        // TODO proper HGVS nomenclature for delins structural variations
+        // http://varnomen.hgvs.org/recommendations/protein/variant/delins/
+        // for now we are pragmatic - any orig/variant sequence longer than
+        // three characters is shown with single-character notation rather than
+        // three-letter notation
+        sb.append("p.");
+        if (orig.length() < 4)
         {
-          desc.append(" ");
+          for (int c = 0, clen = orig.length(); c < clen; c++)
+          {
+            char origchar = orig.charAt(c);
+            String orig3 = ResidueProperties.aa2Triplet.get("" + origchar);
+            sb.append(orig3 == null ? origchar
+                    : StringUtils.toSentenceCase(orig3));
+          }
         }
-        first = false;
-        desc.append(nm);
+        else
+        {
+          sb.append(orig);
+        }
+
+        LocationType location = feature.getLocation();
+        PositionType start = location.getPosition() == null
+                ? location.getBegin()
+                : location.getPosition();
+        sb.append(Integer.toString(start.getPosition().intValue()));
+
+        if (var.length() < 4)
+        {
+          for (int c = 0, clen = var.length(); c < clen; c++)
+          {
+            char varchar = var.charAt(c);
+            String var3 = ResidueProperties.aa2Triplet.get("" + varchar);
+
+            sb.append(var3 != null ? StringUtils.toSentenceCase(var3)
+                    : "" + varchar);
+          }
+        }
+        else
+        {
+          sb.append(var);
+        }
+        if (++p != variants.size())
+        {
+          sb.append("<br/>&nbsp;&nbsp;");
+          asHtml = true;
+        }
+        else
+        {
+          sb.append(" ");
+        }
       }
     }
-    return desc.toString();
+    String description = feature.getDescription();
+    if (description != null)
+    {
+      sb.append(description);
+    }
+    if (asHtml)
+    {
+      sb.insert(0, "<html>");
+      sb.append("</html>");
+    }
+
+    return sb.toString();
   }
 
   /**
-   *
-   * @param entry
-   *          UniportEntry
-   * @return The accession id(s) and name(s) delimited by '|'.
+   * A helper method that searches the list of properties for one with the given
+   * key, and if found returns the property value, else returns null
+   * 
+   * @param properties
+   * @param key
+   * @return
    */
-  public static String getUniprotEntryId(UniprotEntry entry)
+  static String getProperty(List<PropertyType> properties, String key)
+  {
+    String value = null;
+    if (properties != null)
+    {
+      for (PropertyType prop : properties)
+      {
+        if (key.equals(prop.getType()))
+        {
+          value = prop.getValue();
+          break;
+        }
+      }
+    }
+    return value;
+  }
+
+  /**
+   * Extracts xml element entry/protein/recommendedName/fullName
+   * 
+   * @param entry
+   * @return
+   */
+  static String getUniprotEntryDescription(Entry entry)
+  {
+    String desc = "";
+    if (entry.getProtein() != null
+            && entry.getProtein().getRecommendedName() != null)
+    {
+      // fullName is mandatory if recommendedName is present
+      desc = entry.getProtein().getRecommendedName().getFullName()
+              .getValue();
+    }
+    return desc;
+  }
+
+  /**
+   * Constructs a sequence id by concatenating all entry/name elements with '|'
+   * separator
+   * 
+   * @param entry
+   * @return
+   */
+  static String getUniprotEntryId(Entry entry)
   {
     StringBuilder name = new StringBuilder(32);
-    // name.append("UniProt/Swiss-Prot");
-    // use 'canonicalised' name for optimal id matching
-    name.append(DBRefSource.UNIPROT);
-    for (String accessionId : entry.getAccession())
-    {
-      name.append(BAR_DELIMITER);
-      name.append(accessionId);
-    }
     for (String n : entry.getName())
     {
-      name.append(BAR_DELIMITER);
+      if (name.length() > 0)
+      {
+        name.append(BAR_DELIMITER);
+      }
       name.append(n);
     }
     return name.toString();
@@ -355,5 +481,36 @@ public class Uniprot extends DbSourceProxyImpl
   public int getTier()
   {
     return 0;
+  }
+
+  /**
+   * Reads the reply to the EBI Fetch Uniprot data query, unmarshals it to an
+   * Uniprot object, and returns the enclosed Entry objects, or null on any
+   * failure
+   * 
+   * @param is
+   * @return
+   */
+  public List<Entry> getUniprotEntries(InputStream is)
+  {
+    List<Entry> entries = null;
+    try
+    {
+      JAXBContext jc = JAXBContext
+              .newInstance("jalview.xml.binding.uniprot");
+      XMLStreamReader streamReader = XMLInputFactory.newInstance()
+              .createXMLStreamReader(is);
+      javax.xml.bind.Unmarshaller um = jc.createUnmarshaller();
+      jalview.xml.binding.uniprot.Uniprot uniprot = (jalview.xml.binding.uniprot.Uniprot) um.unmarshal(streamReader);
+      if (uniprot != null && !uniprot.getEntry().isEmpty())
+      {
+        entries = uniprot.getEntry();
+      }
+    } catch (JAXBException | XMLStreamException
+            | FactoryConfigurationError e)
+    {
+      e.printStackTrace();
+    }
+    return entries;
   }
 }

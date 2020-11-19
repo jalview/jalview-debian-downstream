@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,6 +23,7 @@ package jalview.appletgui;
 import jalview.analysis.AlignmentUtils;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.Annotation;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.util.MessageManager;
@@ -31,6 +32,7 @@ import jalview.util.ParseHtmlBodyAndLinks;
 import java.awt.Checkbox;
 import java.awt.CheckboxMenuItem;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.FontMetrics;
@@ -50,12 +52,21 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Vector;
 
-public class AnnotationLabels extends Panel implements ActionListener,
-        MouseListener, MouseMotionListener
+public class AnnotationLabels extends Panel
+        implements ActionListener, MouseListener, MouseMotionListener
 {
   Image image;
+
+  /**
+   * width in pixels within which height adjuster arrows are shown and active
+   */
+  private static final int HEIGHT_ADJUSTER_WIDTH = 50;
+
+  /**
+   * height in pixels for allowing height adjuster to be active
+   */
+  private static int HEIGHT_ADJUSTER_HEIGHT = 10;
 
   boolean active = false;
 
@@ -92,23 +103,6 @@ public class AnnotationLabels extends Panel implements ActionListener,
     this.ap = ap;
     this.av = ap.av;
     setLayout(null);
-
-    /**
-     * this retrieves the adjustable height glyph from resources. we don't use
-     * it at the moment. java.net.URL url =
-     * getClass().getResource("/images/idwidth.gif"); Image temp = null;
-     * 
-     * if (url != null) { temp =
-     * java.awt.Toolkit.getDefaultToolkit().createImage(url); }
-     * 
-     * try { MediaTracker mt = new MediaTracker(this); mt.addImage(temp, 0);
-     * mt.waitForID(0); } catch (Exception ex) { }
-     * 
-     * BufferedImage bi = new BufferedImage(temp.getHeight(this),
-     * temp.getWidth(this), BufferedImage.TYPE_INT_RGB); Graphics2D g =
-     * (Graphics2D) bi.getGraphics(); g.rotate(Math.toRadians(90));
-     * g.drawImage(temp, 0, -bi.getWidth(this), this); image = (Image) bi;
-     */
     addMouseListener(this);
     addMouseMotionListener(this);
   }
@@ -201,13 +195,16 @@ public class AnnotationLabels extends Panel implements ActionListener,
               ap.alignFrame);
       Frame frame = new Frame();
       frame.add(cap);
-      jalview.bin.JalviewLite.addFrame(frame, ap.alignFrame.getTitle()
-              + " - " + aa[selectedRow].label, 500, 100);
+      jalview.bin.JalviewLite.addFrame(frame,
+              ap.alignFrame.getTitle() + " - " + aa[selectedRow].label, 500,
+              100);
       cap.setText(aa[selectedRow].toString());
     }
     else if (evt.getActionCommand().equals(COPYCONS_SEQ))
     {
-      SequenceI cons = av.getConsensusSeq();
+      SequenceGroup group = aa[selectedRow].groupRef;
+      SequenceI cons = group == null ? av.getConsensusSeq()
+              : group.getConsensusSeq();
       if (cons != null)
       {
         copy_annotseqtoclipboard(cons);
@@ -225,13 +222,15 @@ public class AnnotationLabels extends Panel implements ActionListener,
     ap.annotationPanel.adjustPanelHeight();
     setSize(getSize().width, ap.annotationPanel.getSize().height);
     ap.validate();
-    ap.paintAlignment(true);
+    // TODO: only paint if we needed to
+    ap.paintAlignment(true, true);
   }
 
   boolean editLabelDescription(AlignmentAnnotation annotation)
   {
-    Checkbox padGaps = new Checkbox("Fill Empty Gaps With \""
-            + ap.av.getGapCharacter() + "\"", annotation.padGaps);
+    Checkbox padGaps = new Checkbox(
+            "Fill Empty Gaps With \"" + ap.av.getGapCharacter() + "\"",
+            annotation.padGaps);
 
     EditNameDialog dialog = new EditNameDialog(annotation.label,
             annotation.description, "      Annotation Label",
@@ -265,7 +264,10 @@ public class AnnotationLabels extends Panel implements ActionListener,
   @Override
   public void mouseMoved(MouseEvent evt)
   {
-    resizePanel = evt.getY() < 10 && evt.getX() < 14;
+    resizePanel = evt.getY() < HEIGHT_ADJUSTER_HEIGHT
+            && evt.getX() < HEIGHT_ADJUSTER_WIDTH;
+    setCursor(Cursor.getPredefinedCursor(
+            resizePanel ? Cursor.S_RESIZE_CURSOR : Cursor.DEFAULT_CURSOR));
     int row = getSelectedRow(evt.getY() + scrollOffset);
 
     if (row > -1)
@@ -320,8 +322,9 @@ public class AnnotationLabels extends Panel implements ActionListener,
 
     if (resizePanel)
     {
-      Dimension d = ap.annotationPanelHolder.getSize(), e = ap.annotationSpaceFillerHolder
-              .getSize(), f = ap.seqPanelHolder.getSize();
+      Dimension d = ap.annotationPanelHolder.getSize(),
+              e = ap.annotationSpaceFillerHolder.getSize(),
+              f = ap.seqPanelHolder.getSize();
       int dif = evt.getY() - oldY;
 
       dif /= ap.av.getCharHeight();
@@ -331,15 +334,16 @@ public class AnnotationLabels extends Panel implements ActionListener,
       {
         ap.annotationPanel.setSize(d.width, d.height - dif);
         setSize(new Dimension(e.width, d.height - dif));
-        ap.annotationSpaceFillerHolder.setSize(new Dimension(e.width,
-                d.height - dif));
-        ap.annotationPanelHolder.setSize(new Dimension(d.width, d.height
-                - dif));
+        ap.annotationSpaceFillerHolder
+                .setSize(new Dimension(e.width, d.height - dif));
+        ap.annotationPanelHolder
+                .setSize(new Dimension(d.width, d.height - dif));
         ap.apvscroll.setValues(ap.apvscroll.getValue(), d.height - dif, 0,
                 av.calcPanelHeight());
         f.height += dif;
         ap.seqPanelHolder.setPreferredSize(f);
-        ap.setScrollValues(av.getStartRes(), av.getStartSeq());
+        ap.setScrollValues(av.getRanges().getStartRes(),
+                av.getRanges().getStartSeq());
         ap.validate();
         // ap.paintAlignment(true);
         ap.addNotify();
@@ -401,6 +405,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
     resizePanel = false;
     dragEvent = null;
     dragCancelled = false;
+    setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
     repaint();
     ap.annotationPanel.repaint();
   }
@@ -413,6 +418,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
       resizePanel = true;
       repaint();
     }
+    setCursor(Cursor.getPredefinedCursor(
+            resizePanel ? Cursor.S_RESIZE_CURSOR : Cursor.DEFAULT_CURSOR));
   }
 
   @Override
@@ -450,7 +457,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
             .getAlignmentAnnotation();
 
     // DETECT RIGHT MOUSE BUTTON IN AWT
-    if ((evt.getModifiers() & InputEvent.BUTTON3_MASK) == InputEvent.BUTTON3_MASK)
+    if ((evt.getModifiersEx()
+            & InputEvent.BUTTON3_DOWN_MASK) == InputEvent.BUTTON3_DOWN_MASK)
     {
 
       PopupMenu popup = new PopupMenu(
@@ -524,9 +532,10 @@ public class AnnotationLabels extends Panel implements ActionListener,
             popup.addSeparator();
             final CheckboxMenuItem cbmi = new CheckboxMenuItem(
                     MessageManager.getString("label.ignore_gaps_consensus"),
-                    (aa[selectedRow].groupRef != null) ? aa[selectedRow].groupRef
-                            .getIgnoreGapsConsensus() : ap.av
-                            .isIgnoreGapsConsensus());
+                    (aa[selectedRow].groupRef != null)
+                            ? aa[selectedRow].groupRef
+                                    .getIgnoreGapsConsensus()
+                            : ap.av.isIgnoreGapsConsensus());
             final AlignmentAnnotation aaa = aa[selectedRow];
             cbmi.addItemListener(new ItemListener()
             {
@@ -542,7 +551,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
                 {
                   ap.av.setIgnoreGapsConsensus(cbmi.getState(), ap);
                 }
-                ap.paintAlignment(true);
+                ap.paintAlignment(true, true);
               }
             });
             popup.add(cbmi);
@@ -630,10 +639,10 @@ public class AnnotationLabels extends Panel implements ActionListener,
                   // can be
                   // updated.
                   av.setShowConsensusHistogram(chist.getState());
-                  ap.alignFrame.showConsensusHistogram.setState(chist
-                          .getState()); // TODO: implement
-                                        // ap.updateGUI()/alignFrame.updateGUI
-                                        // for applet
+                  ap.alignFrame.showConsensusHistogram
+                          .setState(chist.getState()); // TODO: implement
+                                                       // ap.updateGUI()/alignFrame.updateGUI
+                                                       // for applet
                   ap.repaint();
                   // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
                 }
@@ -679,11 +688,12 @@ public class AnnotationLabels extends Panel implements ActionListener,
                   // can be
                   // updated.
                   av.setShowSequenceLogo(true);
-                  ap.alignFrame.normSequenceLogo.setState(cprofn.getState()); // TODO:
-                                                                              // implement
-                                                                              // ap.updateGUI()/alignFrame.updateGUI
-                                                                              // for
-                                                                              // applet
+                  ap.alignFrame.normSequenceLogo
+                          .setState(cprofn.getState()); // TODO:
+                                                        // implement
+                                                        // ap.updateGUI()/alignFrame.updateGUI
+                                                        // for
+                                                        // applet
                   av.setNormaliseSequenceLogo(cprofn.getState());
                   ap.repaint();
                   // ap.annotationPanel.paint(ap.annotationPanel.getGraphics());
@@ -714,17 +724,16 @@ public class AnnotationLabels extends Panel implements ActionListener,
             ap.seqPanel.ap.idPanel.highlightSearchResults(null);
             // process modifiers
             SequenceGroup sg = ap.av.getSelectionGroup();
-            if (sg == null
-                    || sg == aa[selectedRow].groupRef
-                    || !(jalview.util.Platform.isControlDown(evt) || evt
-                            .isShiftDown()))
+            if (sg == null || sg == aa[selectedRow].groupRef
+                    || !(jalview.util.Platform.isControlDown(evt)
+                            || evt.isShiftDown()))
             {
               if (jalview.util.Platform.isControlDown(evt)
                       || evt.isShiftDown())
               {
                 // clone a new selection group from the associated group
-                ap.av.setSelectionGroup(new SequenceGroup(
-                        aa[selectedRow].groupRef));
+                ap.av.setSelectionGroup(
+                        new SequenceGroup(aa[selectedRow].groupRef));
               }
               else
               {
@@ -750,15 +759,14 @@ public class AnnotationLabels extends Panel implements ActionListener,
                 }
               }
             }
-            ap.paintAlignment(false);
+            ap.paintAlignment(false, false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
             ap.av.sendSelection();
           }
           else
           {
-            ap.seqPanel.ap.idPanel
-                    .highlightSearchResults(aa[selectedRow].groupRef
-                            .getSequences(null));
+            ap.seqPanel.ap.idPanel.highlightSearchResults(
+                    aa[selectedRow].groupRef.getSequences(null));
           }
           return;
         }
@@ -767,8 +775,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
           if (evt.getClickCount() == 1)
           {
             ap.seqPanel.ap.idPanel
-                    .highlightSearchResults(Arrays
-                            .asList(new SequenceI[] { aa[selectedRow].sequenceRef }));
+                    .highlightSearchResults(Arrays.asList(new SequenceI[]
+                    { aa[selectedRow].sequenceRef }));
           }
           else if (evt.getClickCount() >= 2)
           {
@@ -779,8 +787,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
               // we make a copy rather than edit the current selection if no
               // modifiers pressed
               // see Enhancement JAL-1557
-              if (!(jalview.util.Platform.isControlDown(evt) || evt
-                      .isShiftDown()))
+              if (!(jalview.util.Platform.isControlDown(evt)
+                      || evt.isShiftDown()))
               {
                 sg = new SequenceGroup(sg);
                 sg.clear();
@@ -808,7 +816,7 @@ public class AnnotationLabels extends Panel implements ActionListener,
               sg.addSequence(aa[selectedRow].sequenceRef, false);
             }
             ap.av.setSelectionGroup(sg);
-            ap.paintAlignment(false);
+            ap.paintAlignment(false, false);
             PaintRefresher.Refresh(ap, ap.av.getSequenceSetId());
             ap.av.sendSelection();
           }
@@ -832,17 +840,13 @@ public class AnnotationLabels extends Panel implements ActionListener,
       return;
     }
     jalview.appletgui.AlignFrame.copiedSequences = new StringBuffer();
-    jalview.appletgui.AlignFrame.copiedSequences.append(sq.getName() + "\t"
-            + sq.getStart() + "\t" + sq.getEnd() + "\t"
-            + sq.getSequenceAsString() + "\n");
+    jalview.appletgui.AlignFrame.copiedSequences
+            .append(sq.getName() + "\t" + sq.getStart() + "\t" + sq.getEnd()
+                    + "\t" + sq.getSequenceAsString() + "\n");
     if (av.hasHiddenColumns())
     {
-      jalview.appletgui.AlignFrame.copiedHiddenColumns = new Vector();
-      for (int[] region : av.getColumnSelection().getHiddenColumns())
-      {
-        jalview.appletgui.AlignFrame.copiedHiddenColumns
-                .addElement(new int[] { region[0], region[1] });
-      }
+      jalview.appletgui.AlignFrame.copiedHiddenColumns = new HiddenColumns(
+              av.getAlignment().getHiddenColumns());
     }
   }
 
@@ -901,14 +905,8 @@ public class AnnotationLabels extends Panel implements ActionListener,
       }
     }
     g.translate(0, +scrollOffset);
-    if (resizePanel)
-    {
-      g.setColor(Color.red);
-      g.setPaintMode();
-      g.drawLine(2, 8, 5, 2);
-      g.drawLine(5, 2, 8, 8);
-    }
-    else if (!dragCancelled && dragEvent != null && aa != null)
+
+    if (!resizePanel && !dragCancelled && dragEvent != null && aa != null)
     {
       g.setColor(Color.lightGray);
       g.drawString(aa[selectedRow].label, dragEvent.getX(),

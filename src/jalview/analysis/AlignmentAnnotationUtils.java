@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -91,9 +91,8 @@ public class AlignmentAnnotationUtils
       {
         continue;
       }
-      if (forSequences != null
-              && (aa.sequenceRef != null && forSequences
-                      .contains(aa.sequenceRef)))
+      if (forSequences != null && (aa.sequenceRef != null
+              && forSequences.contains(aa.sequenceRef)))
       {
         String calcId = aa.getCalcId();
 
@@ -114,8 +113,8 @@ public class AlignmentAnnotationUtils
                   .get(calcId);
           if (groupLabelsForCalcId.containsKey(aa.graphGroup))
           {
-            if (!groupLabelsForCalcId.get(aa.graphGroup).contains(
-                    displayLabel))
+            if (!groupLabelsForCalcId.get(aa.graphGroup)
+                    .contains(displayLabel))
             {
               groupLabelsForCalcId.get(aa.graphGroup).add(displayLabel);
             }

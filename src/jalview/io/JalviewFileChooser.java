@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  *
  * This file is part of Jalview.
  *
@@ -21,6 +21,8 @@
 //////////////////////////////////////////////////////////////////
 package jalview.io;
 
+import jalview.bin.Cache;
+import jalview.gui.JvOptionPane;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
 
@@ -28,19 +30,28 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.HeadlessException;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JList;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SpringLayout;
+import javax.swing.SwingUtilities;
+import javax.swing.border.TitledBorder;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.plaf.basic.BasicFileChooserUI;
 
 /**
  * Enhanced file chooser dialog box.
@@ -53,10 +64,125 @@ import javax.swing.SpringLayout;
  */
 public class JalviewFileChooser extends JFileChooser
 {
+  /**
+   * backupfilesCheckBox = "Include backup files" checkbox includeBackupfiles =
+   * flag set by checkbox
+   */
+  private JCheckBox backupfilesCheckBox = null;
+
+  protected boolean includeBackupFiles = false;
+
+  /**
+   * Factory method to return a file chooser that offers readable alignment file
+   * formats
+   * 
+   * @param directory
+   * @param selected
+   * @return
+   */
+  public static JalviewFileChooser forRead(String directory,
+          String selected)
+  {
+    return JalviewFileChooser.forRead(directory, selected, false);
+  }
+
+  public static JalviewFileChooser forRead(String directory,
+          String selected, boolean allowBackupFiles)
+  {
+    List<String> extensions = new ArrayList<>();
+    List<String> descs = new ArrayList<>();
+    for (FileFormatI format : FileFormats.getInstance().getFormats())
+    {
+      if (format.isReadable())
+      {
+        extensions.add(format.getExtensions());
+        descs.add(format.getName());
+      }
+    }
+
+    return new JalviewFileChooser(directory,
+            extensions.toArray(new String[extensions.size()]),
+            descs.toArray(new String[descs.size()]), selected, true,
+            allowBackupFiles);
+  }
+
+  /**
+   * Factory method to return a file chooser that offers writable alignment file
+   * formats
+   * 
+   * @param directory
+   * @param selected
+   * @return
+   */
+  public static JalviewFileChooser forWrite(String directory,
+          String selected)
+  {
+    // TODO in Java 8, forRead and forWrite can be a single method
+    // with a lambda expression parameter for isReadable/isWritable
+    List<String> extensions = new ArrayList<>();
+    List<String> descs = new ArrayList<>();
+    for (FileFormatI format : FileFormats.getInstance().getFormats())
+    {
+      if (format.isWritable())
+      {
+        extensions.add(format.getExtensions());
+        descs.add(format.getName());
+      }
+    }
+    return new JalviewFileChooser(directory,
+            extensions.toArray(new String[extensions.size()]),
+            descs.toArray(new String[descs.size()]), selected, false);
+  }
+
   public JalviewFileChooser(String dir)
   {
     super(safePath(dir));
     setAccessory(new RecentlyOpened());
+  }
+
+  public JalviewFileChooser(String dir, String[] suffix, String[] desc,
+          String selected)
+  {
+    this(dir, suffix, desc, selected, true);
+  }
+
+  /**
+   * Constructor for a single choice of file extension and description
+   * 
+   * @param extension
+   * @param desc
+   */
+  public JalviewFileChooser(String extension, String desc)
+  {
+    this(Cache.getProperty("LAST_DIRECTORY"), new String[] { extension },
+            new String[]
+            { desc }, desc, true);
+  }
+
+  JalviewFileChooser(String dir, String[] extensions, String[] descs,
+          String selected, boolean allFiles)
+  {
+    this(dir, extensions, descs, selected, allFiles, false);
+  }
+
+  public JalviewFileChooser(String dir, String[] extensions, String[] descs,
+          String selected, boolean allFiles, boolean allowBackupFiles)
+  {
+    super(safePath(dir));
+    if (extensions.length == descs.length)
+    {
+      List<String[]> formats = new ArrayList<>();
+      for (int i = 0; i < extensions.length; i++)
+      {
+        formats.add(new String[] { extensions[i], descs[i] });
+      }
+      init(formats, selected, allFiles, allowBackupFiles);
+    }
+    else
+    {
+      System.err.println("JalviewFileChooser arguments mismatch: "
+              + extensions + ", " + descs);
+    }
   }
 
   private static File safePath(String dir)
@@ -74,35 +200,38 @@ public class JalviewFileChooser extends JFileChooser
     return f;
   }
 
-  public JalviewFileChooser(String dir, String[] suffix, String[] desc,
-          String selected, boolean selectAll)
+  /**
+   * 
+   * @param formats
+   *          a list of {extensions, description} for each file format
+   * @param selected
+   * @param allFiles
+   *          if true, 'any format' option is included
+   */
+  void init(List<String[]> formats, String selected, boolean allFiles)
   {
-    super(safePath(dir));
-    init(suffix, desc, selected, selectAll);
+    init(formats, selected, allFiles, false);
   }
 
-  public JalviewFileChooser(String dir, String[] suffix, String[] desc,
-          String selected)
-  {
-    super(safePath(dir));
-    init(suffix, desc, selected, true);
-  }
-
-  void init(String[] suffix, String[] desc, String selected,
-          boolean selectAll)
+  void init(List<String[]> formats, String selected, boolean allFiles,
+          boolean allowBackupFiles)
   {
 
     JalviewFileFilter chosen = null;
 
     // SelectAllFilter needs to be set first before adding further
     // file filters to fix bug on Mac OSX
-    setAcceptAllFileFilterUsed(selectAll);
+    setAcceptAllFileFilterUsed(allFiles);
 
-    for (int i = 0; i < suffix.length; i++)
+    for (String[] format : formats)
     {
-      JalviewFileFilter jvf = new JalviewFileFilter(suffix[i], desc[i]);
+      JalviewFileFilter jvf = new JalviewFileFilter(format[0], format[1]);
+      if (allowBackupFiles)
+      {
+        jvf.setParentJFC(this);
+      }
       addChoosableFileFilter(jvf);
-      if ((selected != null) && selected.equalsIgnoreCase(desc[i]))
+      if ((selected != null) && selected.equalsIgnoreCase(format[1]))
       {
         chosen = jvf;
       }
@@ -113,7 +242,64 @@ public class JalviewFileChooser extends JFileChooser
       setFileFilter(chosen);
     }
 
-    setAccessory(new RecentlyOpened());
+    if (allowBackupFiles)
+    {
+      JPanel multi = new JPanel();
+      multi.setLayout(new BoxLayout(multi, BoxLayout.PAGE_AXIS));
+      if (backupfilesCheckBox == null)
+      {
+        try {
+          includeBackupFiles = Boolean.parseBoolean(
+                  Cache.getProperty(BackupFiles.NS + "_FC_INCLUDE"));
+        } catch (Exception e)
+        {
+          includeBackupFiles = false;
+        }
+        backupfilesCheckBox = new JCheckBox(
+                MessageManager.getString("label.include_backup_files"),
+                includeBackupFiles);
+        backupfilesCheckBox.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JalviewFileChooser jfc = this;
+        backupfilesCheckBox.addActionListener(new ActionListener()
+        {
+          @Override
+          public void actionPerformed(ActionEvent e)
+          {
+            includeBackupFiles = backupfilesCheckBox.isSelected();
+            Cache.setProperty(BackupFiles.NS + "_FC_INCLUDE",
+                    String.valueOf(includeBackupFiles));
+
+            FileFilter f = jfc.getFileFilter();
+            // deselect the selected file if it's no longer choosable
+            File selectedFile = jfc.getSelectedFile();
+            if (selectedFile != null && !f.accept(selectedFile))
+            {
+              jfc.setSelectedFile(null);
+            }
+            // fake the OK button changing (to force it to upate)
+            String s = jfc.getApproveButtonText();
+            jfc.firePropertyChange(
+                    APPROVE_BUTTON_TEXT_CHANGED_PROPERTY, null, s);
+            // fake the file filter changing (its behaviour actually has)
+            jfc.firePropertyChange(FILE_FILTER_CHANGED_PROPERTY, null, f);
+
+            jfc.rescanCurrentDirectory();
+            jfc.revalidate();
+            jfc.repaint();
+          }
+        });
+      }
+      multi.add(new RecentlyOpened());
+      multi.add(backupfilesCheckBox);
+      setAccessory(multi);
+    }
+    else
+    {
+      // set includeBackupFiles=false to avoid other file choosers from picking
+      // up backup files (Just In Case)
+      includeBackupFiles = false;
+      setAccessory(new RecentlyOpened());
+    }
   }
 
   @Override
@@ -123,10 +309,10 @@ public class JalviewFileChooser extends JFileChooser
 
     try
     {
-      if (getUI() instanceof javax.swing.plaf.basic.BasicFileChooserUI)
+      if (getUI() instanceof BasicFileChooserUI)
       {
-        final javax.swing.plaf.basic.BasicFileChooserUI ui = (javax.swing.plaf.basic.BasicFileChooserUI) getUI();
-        final String name = ui.getFileName().trim();
+        final BasicFileChooserUI fcui = (BasicFileChooserUI) getUI();
+        final String name = fcui.getFileName().trim();
 
         if ((name == null) || (name.length() == 0))
         {
@@ -138,10 +324,10 @@ public class JalviewFileChooser extends JFileChooser
           @Override
           public void run()
           {
-            String currentName = ui.getFileName();
+            String currentName = fcui.getFileName();
             if ((currentName == null) || (currentName.length() == 0))
             {
-              ui.setFileName(name);
+              fcui.setFileName(name);
             }
           }
         });
@@ -153,88 +339,133 @@ public class JalviewFileChooser extends JFileChooser
     }
   }
 
-  public String getSelectedFormat()
+  /**
+   * Returns the selected file format, or null if none selected
+   * 
+   * @return
+   */
+  public FileFormatI getSelectedFormat()
   {
     if (getFileFilter() == null)
     {
       return null;
     }
 
+    /*
+     * logic here depends on option description being formatted as 
+     * formatName (extension, extension...)
+     * or the 'no option selected' value
+     * All Files
+     * @see JalviewFileFilter.getDescription
+     */
     String format = getFileFilter().getDescription();
+    int parenPos = format.indexOf("(");
+    if (parenPos > 0)
+    {
+      format = format.substring(0, parenPos).trim();
+      try
+      {
+        return FileFormats.getInstance().forName(format);
+      } catch (IllegalArgumentException e)
+      {
+        System.err.println("Unexpected format: " + format);
+      }
+    }
+    return null;
+  }
 
-    if (format.toUpperCase().startsWith("JALVIEW"))
-    {
-      format = "Jalview";
-    }
-    else if (format.toUpperCase().startsWith("FASTA"))
-    {
-      format = "FASTA";
-    }
-    else if (format.toUpperCase().startsWith("MSF"))
-    {
-      format = "MSF";
-    }
-    else if (format.toUpperCase().startsWith("CLUSTAL"))
-    {
-      format = "CLUSTAL";
-    }
-    else if (format.toUpperCase().startsWith("BLC"))
-    {
-      format = "BLC";
-    }
-    else if (format.toUpperCase().startsWith("PIR"))
-    {
-      format = "PIR";
-    }
-    else if (format.toUpperCase().startsWith("PFAM"))
-    {
-      format = "PFAM";
-    }
-    else if (format.toUpperCase().startsWith(PhylipFile.FILE_DESC))
-    {
-      format = PhylipFile.FILE_DESC;
-    }
+  File ourselectedFile = null;
 
-    return format;
+  @Override
+  public File getSelectedFile()
+  {
+    File selfile = super.getSelectedFile();
+    if (selfile == null && ourselectedFile != null)
+    {
+      return ourselectedFile;
+    }
+    return selfile;
   }
 
   @Override
   public int showSaveDialog(Component parent) throws HeadlessException
   {
     this.setAccessory(null);
+    this.setSelectedFile(null);
+    return super.showSaveDialog(parent);
+  }
 
-    setDialogType(SAVE_DIALOG);
+  /**
+   * If doing a Save, and an existing file is chosen or entered, prompt for
+   * confirmation of overwrite. Proceed if Yes, else leave the file chooser
+   * open.
+   * 
+   * @see https://stackoverflow.com/questions/8581215/jfilechooser-and-checking-for-overwrite
+   */
+  @Override
+  public void approveSelection()
+  {
+    if (getDialogType() != SAVE_DIALOG)
+    {
+      super.approveSelection();
+      return;
+    }
 
-    int ret = showDialog(parent, MessageManager.getString("action.save"));
+    ourselectedFile = getSelectedFile();
+
+    if (ourselectedFile == null)
+    {
+      // Workaround for Java 9,10 on OSX - no selected file, but there is a
+      // filename typed in
+      try
+      {
+        String filename = ((BasicFileChooserUI) getUI()).getFileName();
+        if (filename != null && filename.length() > 0)
+        {
+          ourselectedFile = new File(getCurrentDirectory(), filename);
+        }
+      } catch (Throwable x)
+      {
+        System.err.println(
+                "Unexpected exception when trying to get filename.");
+        x.printStackTrace();
+      }
+      // TODO: ENSURE THAT FILES SAVED WITH A ':' IN THE NAME ARE REFUSED AND
+      // THE
+      // USER PROMPTED FOR A NEW FILENAME
+    }
+    if (ourselectedFile == null)
+    {
+      return;
+    }
 
     if (getFileFilter() instanceof JalviewFileFilter)
     {
       JalviewFileFilter jvf = (JalviewFileFilter) getFileFilter();
 
-      if (!jvf.accept(getSelectedFile()))
+      if (!jvf.accept(ourselectedFile))
       {
-        String withExtension = getSelectedFile() + "."
+        String withExtension = getSelectedFile().getName() + "."
                 + jvf.getAcceptableExtension();
-        setSelectedFile(new File(withExtension));
+        ourselectedFile = (new File(getCurrentDirectory(), withExtension));
+        setSelectedFile(ourselectedFile);
       }
     }
-    // TODO: ENSURE THAT FILES SAVED WITH A ':' IN THE NAME ARE REFUSED AND THE
-    // USER PROMPTED FOR A NEW FILENAME
-    if ((ret == JalviewFileChooser.APPROVE_OPTION)
-            && getSelectedFile().exists())
+
+    if (ourselectedFile.exists())
     {
-      int confirm = JOptionPane.showConfirmDialog(parent,
+      int confirm = JvOptionPane.showConfirmDialog(this,
               MessageManager.getString("label.overwrite_existing_file"),
               MessageManager.getString("label.file_already_exists"),
-              JOptionPane.YES_NO_OPTION);
+              JvOptionPane.YES_NO_OPTION);
 
-      if (confirm != JOptionPane.YES_OPTION)
+      if (confirm != JvOptionPane.YES_OPTION)
       {
-        ret = JalviewFileChooser.CANCEL_OPTION;
+        return;
       }
     }
 
-    return ret;
+    super.approveSelection();
   }
 
   void recentListSelectionChanged(Object selection)
@@ -257,28 +488,35 @@ public class JalviewFileChooser extends JFileChooser
     }
   }
 
+  /**
+   * A panel to set as the 'accessory' component to the file chooser dialog,
+   * holding a list of recently opened files (if any). These are held as a
+   * tab-separated list of file paths under key <code>RECENT_FILE</code> in
+   * <code>.jalview_properties</code>. A click in the list calls a method in
+   * JalviewFileChooser to set the chosen file as the selection.
+   */
   class RecentlyOpened extends JPanel
   {
-    JList list;
+    private static final long serialVersionUID = 1L;
 
-    public RecentlyOpened()
+    private JList<String> list;
+
+    RecentlyOpened()
     {
-
-      String historyItems = jalview.bin.Cache.getProperty("RECENT_FILE");
+      String historyItems = Cache.getProperty("RECENT_FILE");
       StringTokenizer st;
-      Vector recent = new Vector();
+      Vector<String> recent = new Vector<>();
 
       if (historyItems != null)
       {
         st = new StringTokenizer(historyItems, "\t");
-
         while (st.hasMoreTokens())
         {
-          recent.addElement(st.nextElement());
+          recent.addElement(st.nextToken());
         }
       }
 
-      list = new JList(recent);
+      list = new JList<>(recent);
 
       DefaultListCellRenderer dlcr = new DefaultListCellRenderer();
       dlcr.setHorizontalAlignment(DefaultListCellRenderer.RIGHT);
@@ -293,8 +531,8 @@ public class JalviewFileChooser extends JFileChooser
         }
       });
 
-      this.setBorder(new javax.swing.border.TitledBorder(MessageManager
-              .getString("label.recently_opened")));
+      this.setBorder(new TitledBorder(
+              MessageManager.getString("label.recently_opened")));
 
       final JScrollPane scroller = new JScrollPane(list);
 
@@ -304,7 +542,7 @@ public class JalviewFileChooser extends JFileChooser
       layout.putConstraint(SpringLayout.NORTH, scroller, 5,
               SpringLayout.NORTH, this);
 
-      if (new Platform().isAMac())
+      if (Platform.isAMac())
       {
         scroller.setPreferredSize(new Dimension(500, 100));
       }
@@ -315,17 +553,15 @@ public class JalviewFileChooser extends JFileChooser
 
       this.add(scroller);
 
-      javax.swing.SwingUtilities.invokeLater(new Runnable()
+      SwingUtilities.invokeLater(new Runnable()
       {
         @Override
         public void run()
         {
-          scroller.getHorizontalScrollBar().setValue(
-                  scroller.getHorizontalScrollBar().getMaximum());
+          scroller.getHorizontalScrollBar()
+                  .setValue(scroller.getHorizontalScrollBar().getMaximum());
         }
       });
-
     }
-
   }
 }

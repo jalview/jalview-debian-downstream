@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,9 @@
  */
 package jalview.appletgui;
 
+import jalview.analysis.Conservation;
 import jalview.datamodel.SequenceGroup;
-import jalview.schemes.ColourSchemeI;
+import jalview.renderer.ResidueShaderI;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -38,47 +39,52 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.Iterator;
+import java.util.List;
 
-public class SliderPanel extends Panel implements ActionListener,
-        AdjustmentListener, MouseListener
+public class SliderPanel extends Panel
+        implements ActionListener, AdjustmentListener, MouseListener
 {
+  private static final String BACKGROUND = "Background";
+
   AlignmentPanel ap;
 
   boolean forConservation = true;
 
-  ColourSchemeI cs;
+  ResidueShaderI cs;
 
   static Frame conservationSlider;
 
   static Frame PIDSlider;
 
   public static int setConservationSlider(AlignmentPanel ap,
-          ColourSchemeI cs, String source)
+          ResidueShaderI ccs, String source)
   {
     SliderPanel sp = null;
 
     if (conservationSlider == null)
     {
-      sp = new SliderPanel(ap, cs.getConservationInc(), true, cs);
+      sp = new SliderPanel(ap, ccs.getConservationInc(), true, ccs);
       conservationSlider = new Frame();
       conservationSlider.add(sp);
     }
     else
     {
       sp = (SliderPanel) conservationSlider.getComponent(0);
-      sp.cs = cs;
+      sp.cs = ccs;
+      sp.valueField.setText(String.valueOf(ccs.getConservationInc()));
     }
 
-    conservationSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.conservation_colour_increment",
-                    new String[] { source }));
-    if (ap.av.getAlignment().getGroups() != null)
+    conservationSlider.setTitle(MessageManager.formatMessage(
+            "label.conservation_colour_increment", new String[]
+            { source == null ? BACKGROUND : source }));
+    List<SequenceGroup> groups = ap.av.getAlignment().getGroups();
+    if (groups != null && !groups.isEmpty())
     {
       sp.setAllGroupsCheckEnabled(true);
     }
@@ -106,6 +112,7 @@ public class SliderPanel extends Panel implements ActionListener,
               conservationSlider.getTitle(), 420, 100);
       conservationSlider.addWindowListener(new WindowAdapter()
       {
+        @Override
         public void windowClosing(WindowEvent e)
         {
           conservationSlider = null;
@@ -116,25 +123,25 @@ public class SliderPanel extends Panel implements ActionListener,
 
   }
 
-  public static int setPIDSliderSource(AlignmentPanel ap, ColourSchemeI cs,
-          String source)
+  public static int setPIDSliderSource(AlignmentPanel ap,
+          ResidueShaderI ccs, String source)
   {
     SliderPanel pid = null;
     if (PIDSlider == null)
     {
-      pid = new SliderPanel(ap, 50, false, cs);
+      pid = new SliderPanel(ap, ccs.getThreshold(), false, ccs);
       PIDSlider = new Frame();
       PIDSlider.add(pid);
     }
     else
     {
       pid = (SliderPanel) PIDSlider.getComponent(0);
-      pid.cs = cs;
+      pid.cs = ccs;
+      pid.valueField.setText(String.valueOf(ccs.getThreshold()));
     }
-    PIDSlider
-            .setTitle(MessageManager.formatMessage(
-                    "label.percentage_identity_threshold",
-                    new String[] { source }));
+    PIDSlider.setTitle(MessageManager.formatMessage(
+            "label.percentage_identity_threshold", new String[]
+            { source == null ? BACKGROUND : source }));
 
     if (ap.av.getAlignment().getGroups() != null)
     {
@@ -161,10 +168,11 @@ public class SliderPanel extends Panel implements ActionListener,
 
     if (!PIDSlider.isVisible())
     {
-      jalview.bin.JalviewLite.addFrame(PIDSlider, PIDSlider.getTitle(),
-              420, 100);
+      jalview.bin.JalviewLite.addFrame(PIDSlider, PIDSlider.getTitle(), 420,
+              100);
       PIDSlider.addWindowListener(new WindowAdapter()
       {
+        @Override
         public void windowClosing(WindowEvent e)
         {
           PIDSlider = null;
@@ -174,8 +182,32 @@ public class SliderPanel extends Panel implements ActionListener,
 
   }
 
+  /**
+   * Hides the PID slider panel if it is shown
+   */
+  public static void hidePIDSlider()
+  {
+    if (PIDSlider != null)
+    {
+      PIDSlider.setVisible(false);
+      PIDSlider = null;
+    }
+  }
+
+  /**
+   * Hides the Conservation slider panel if it is shown
+   */
+  public static void hideConservationSlider()
+  {
+    if (conservationSlider != null)
+    {
+      conservationSlider.setVisible(false);
+      conservationSlider = null;
+    }
+  }
+
   public SliderPanel(AlignmentPanel ap, int value, boolean forConserve,
-          ColourSchemeI cs)
+          ResidueShaderI shader)
   {
     try
     {
@@ -185,7 +217,7 @@ public class SliderPanel extends Panel implements ActionListener,
       e.printStackTrace();
     }
     this.ap = ap;
-    this.cs = cs;
+    this.cs = shader;
     forConservation = forConserve;
     undoButton.setVisible(false);
     applyButton.setVisible(false);
@@ -200,7 +232,7 @@ public class SliderPanel extends Panel implements ActionListener,
     else
     {
       label.setText(MessageManager
-              .getString("label.colour_residues_above_occurence"));
+              .getString("label.colour_residues_above_occurrence"));
       slider.setMinimum(0);
       slider.setMaximum(100 + slider.getVisibleAmount());
       slider.setBlockIncrement(1);
@@ -219,48 +251,57 @@ public class SliderPanel extends Panel implements ActionListener,
     {
       return;
     }
-
-    ColourSchemeI toChange = cs;
-    Iterator<SequenceGroup> allGroups = null;
+    if (forConservation)
+    {
+      cs.setConservationApplied(true);
+      cs.setConservationInc(i);
+    }
+    else
+    {
+      cs.setThreshold(i, ap.av.isIgnoreGapsConsensus());
+    }
 
     if (allGroupsCheck.getState())
     {
-      allGroups = ap.av.getAlignment().getGroups().listIterator();
-    }
-
-    while (toChange != null)
-    {
-      if (forConservation)
+      for (SequenceGroup group : ap.av.getAlignment().getGroups())
       {
-        toChange.setConservationInc(i);
-      }
-      else
-      {
-        toChange.setThreshold(i, ap.av.isIgnoreGapsConsensus());
-      }
-      if (allGroups != null && allGroups.hasNext())
-      {
-        while ((toChange = allGroups.next().cs) == null
-                && allGroups.hasNext())
+        ResidueShaderI groupColourScheme = group.getGroupColourScheme();
+        if (forConservation)
         {
-          ;
+          if (!groupColourScheme.conservationApplied())
+          {
+            /*
+             * first time the colour scheme has had Conservation shading applied
+             * - compute conservation
+             */
+            Conservation c = new Conservation("Group",
+                    group.getSequences(null), group.getStartRes(),
+                    group.getEndRes());
+            c.calculate();
+            c.verdict(false, ap.av.getConsPercGaps());
+            group.cs.setConservation(c);
+
+          }
+          groupColourScheme.setConservationApplied(true);
+          groupColourScheme.setConservationInc(i);
         }
-      }
-      else
-      {
-        toChange = null;
+        else
+        {
+          groupColourScheme.setThreshold(i, ap.av.isIgnoreGapsConsensus());
+        }
       }
     }
 
     ap.seqPanel.seqCanvas.repaint();
-
   }
 
   public void setAllGroupsCheckEnabled(boolean b)
   {
+    allGroupsCheck.setState(ap.av.getColourAppliesToAllGroups());
     allGroupsCheck.setEnabled(b);
   }
 
+  @Override
   public void actionPerformed(ActionEvent evt)
   {
     if (evt.getSource() == applyButton)
@@ -277,6 +318,7 @@ public class SliderPanel extends Panel implements ActionListener,
     }
   }
 
+  @Override
   public void adjustmentValueChanged(AdjustmentEvent evt)
   {
     valueField.setText(slider.getValue() + "");
@@ -287,11 +329,11 @@ public class SliderPanel extends Panel implements ActionListener,
   {
     try
     {
-      int i = Integer.parseInt(valueField.getText());
+      int i = Integer.valueOf(valueField.getText());
       slider.setValue(i);
-    } catch (Exception ex)
+    } catch (NumberFormatException ex)
     {
-      valueField.setText(slider.getValue() + "");
+      valueField.setText(String.valueOf(slider.getValue()));
     }
   }
 
@@ -344,6 +386,16 @@ public class SliderPanel extends Panel implements ActionListener,
     valueField.setText("   ");
     valueField.addActionListener(this);
     valueField.setColumns(3);
+    valueField.addFocusListener(new FocusAdapter()
+    {
+      @Override
+      public void focusLost(FocusEvent e)
+      {
+        valueField_actionPerformed();
+        valueChanged(slider.getValue());
+      }
+    });
+
     label.setFont(new java.awt.Font("Verdana", 0, 11));
     label.setText(MessageManager.getString("label.set_this_label_text"));
     jPanel1.setLayout(borderLayout1);
@@ -357,10 +409,10 @@ public class SliderPanel extends Panel implements ActionListener,
     undoButton.addActionListener(this);
     allGroupsCheck.setEnabled(false);
     allGroupsCheck.setFont(new java.awt.Font("Verdana", 0, 11));
-    allGroupsCheck.setLabel(MessageManager
-            .getString("action.apply_threshold_all_groups"));
-    allGroupsCheck.setName(MessageManager
-            .getString("action.apply_all_groups"));
+    allGroupsCheck.setLabel(
+            MessageManager.getString("action.apply_threshold_all_groups"));
+    allGroupsCheck
+            .setName(MessageManager.getString("action.apply_all_groups"));
     this.setBackground(Color.white);
     this.setForeground(Color.black);
     jPanel2.add(label, null);
@@ -381,23 +433,28 @@ public class SliderPanel extends Panel implements ActionListener,
   {
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
-    ap.paintAlignment(true);
+    ap.paintAlignment(true, true);
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }

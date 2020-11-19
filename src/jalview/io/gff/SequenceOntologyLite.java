@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -44,7 +44,7 @@ public class SequenceOntologyLite implements SequenceOntologyI
    * initial selection of types of interest when processing Ensembl features
    * NB unlike the full SequenceOntology we don't traverse indirect
    * child-parent relationships here so e.g. need to list every sub-type
-   * of gene (direct or indirect) that is of interest
+   * (direct or indirect) that is of interest
    */
   // @formatter:off
   private final String[][] TERMS = new String[][] {
@@ -70,21 +70,32 @@ public class SequenceOntologyLite implements SequenceOntologyI
     { "snRNA", "transcript" },
     { "miRNA", "transcript" },
     { "lincRNA", "transcript" },
+    { "lnc_RNA", "transcript" },
     { "rRNA", "transcript" },
     { "mRNA", "transcript" },
     // there are many more sub-types of ncRNA...
     
     /*
-     * sequence_variant sub-types:
+     * sequence_variant sub-types
      */
     { "sequence_variant", "sequence_variant" },
+    { "structural_variant", "sequence_variant" },
     { "feature_variant", "sequence_variant" },
     { "gene_variant", "sequence_variant" },
+    { "transcript_variant", "sequence_variant" },
     // NB Ensembl uses NMD_transcript_variant as if a 'transcript'
     // but we model it here correctly as per the SO
     { "NMD_transcript_variant", "sequence_variant" },
-    { "transcript_variant", "sequence_variant" },
-    { "structural_variant", "sequence_variant" },
+    { "missense_variant", "sequence_variant" },
+    { "synonymous_variant", "sequence_variant" },
+    { "frameshift_variant", "sequence_variant" },
+    { "5_prime_UTR_variant", "sequence_variant" },
+    { "3_prime_UTR_variant", "sequence_variant" },
+    { "stop_gained", "sequence_variant" },
+    { "stop_lost", "sequence_variant" },
+    { "inframe_deletion", "sequence_variant" },
+    { "inframe_insertion", "sequence_variant" },
+    { "splice_region_variant", "sequence_variant" },
     
     /*
      * no sub-types of exon or CDS yet seen in Ensembl
@@ -121,8 +132,8 @@ public class SequenceOntologyLite implements SequenceOntologyI
 
   public SequenceOntologyLite()
   {
-    termsFound = new ArrayList<String>();
-    termsNotFound = new ArrayList<String>();
+    termsFound = new ArrayList<>();
+    termsNotFound = new ArrayList<>();
     loadStaticData();
   }
 
@@ -131,13 +142,13 @@ public class SequenceOntologyLite implements SequenceOntologyI
    */
   private void loadStaticData()
   {
-    parents = new HashMap<String, List<String>>();
+    parents = new HashMap<>();
     for (String[] pair : TERMS)
     {
       List<String> p = parents.get(pair[0]);
       if (p == null)
       {
-        p = new ArrayList<String>();
+        p = new ArrayList<>();
         parents.put(pair[0], p);
       }
       p.add(pair[1]);

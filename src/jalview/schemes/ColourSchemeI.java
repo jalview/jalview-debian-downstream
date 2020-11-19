@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,8 +20,8 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AnnotatedCollectionI;
-import jalview.datamodel.ProfilesI;
 import jalview.datamodel.SequenceCollectionI;
 import jalview.datamodel.SequenceI;
 
@@ -31,99 +31,81 @@ import java.util.Map;
 public interface ColourSchemeI
 {
   /**
+   * Returns the possibly context dependent colour for the given symbol at the
+   * aligned position in the given sequence. For example, the colour may depend
+   * on the symbol's relationship to the consensus residue for the column.
    * 
-   * @param c
-   * @return the colour for the given character
-   */
-  public Color findColour(char c);
-
-  /**
-   * 
-   * @param c
-   *          - sequence symbol or gap
-   * @param j
-   *          - position in seq
+   * @param symbol
+   * @param position
    * @param seq
-   *          - sequence being coloured
-   * @return context dependent colour for the given symbol at the position in
-   *         the given sequence
+   * @param consensusResidue
+   *          the modal symbol (e.g. K) or symbols (e.g. KF) for the column
+   * @param pid
+   *          the percentage identity of the column's consensus (if known)
+   * @return
    */
-  public Color findColour(char c, int j, SequenceI seq);
+  Color findColour(char symbol, int position, SequenceI seq,
+          String consensusResidue, float pid);
 
   /**
-   * assign the given consensus profile for the colourscheme
-   */
-  public void setConsensus(ProfilesI hconsensus);
-
-  /**
-   * assign the given conservation to the colourscheme
-   * 
-   * @param c
-   */
-  public void setConservation(jalview.analysis.Conservation c);
-
-  /**
-   * enable or disable conservation shading for this colourscheme
-   * 
-   * @param conservationApplied
-   */
-  public void setConservationApplied(boolean conservationApplied);
-
-  /**
-   * 
-   * @return true if conservation shading is enabled for this colourscheme
-   */
-  public boolean conservationApplied();
-
-  /**
-   * set scale factor for bleaching of colour in unconserved regions
-   * 
-   * @param i
-   */
-  public void setConservationInc(int i);
-
-  /**
-   * 
-   * @return scale factor for bleaching colour in unconserved regions
-   */
-  public int getConservationInc();
-
-  /**
-   * 
-   * @return percentage identity threshold for applying colourscheme
-   */
-  public int getThreshold();
-
-  /**
-   * set percentage identity threshold and type of %age identity calculation for
-   * shading
-   * 
-   * @param ct
-   *          0..100 percentage identity for applying this colourscheme
-   * @param ignoreGaps
-   *          when true, calculate PID without including gapped positions
-   */
-  public void setThreshold(int ct, boolean ignoreGaps);
-
-  /**
-   * recalculate dependent data using the given sequence collection, taking
+   * Recalculate dependent data using the given sequence collection, taking
    * account of hidden rows
    * 
    * @param alignment
    * @param hiddenReps
    */
-  public void alignmentChanged(AnnotatedCollectionI alignment,
+  void alignmentChanged(AnnotatedCollectionI alignment,
           Map<SequenceI, SequenceCollectionI> hiddenReps);
 
   /**
-   * create a new instance of the colourscheme configured to colour the given
-   * connection
+   * Creates and returns a new instance of the colourscheme configured to colour
+   * the given collection. Note that even simple colour schemes should return a
+   * new instance for each call to this method, as different instances may have
+   * differing shading by consensus or percentage identity applied.
    * 
+   * @param viewport
+   *          - the parent viewport
    * @param sg
-   * @param hiddenRepSequences
-   * @return copy of current scheme with any inherited settings transfered
+   *          - the collection of sequences to be coloured
+   * @return copy of current scheme with any inherited settings transferred
    */
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences);
+  ColourSchemeI getInstance(AlignViewportI viewport,
+          AnnotatedCollectionI sg);
 
+  /**
+   * Answers true if the colour scheme is suitable for the given data, else
+   * false. For example, some colour schemes are specific to either peptide or
+   * nucleotide, or only apply if certain kinds of annotation are present.
+   * 
+   * @param ac
+   * @return
+   */
+  // TODO can make this method static in Java 8
+  boolean isApplicableTo(AnnotatedCollectionI ac);
+
+  /**
+   * Answers the 'official' name of the colour scheme (as used, for example, as
+   * a Jalview startup parameter)
+   * 
+   * @return
+   */
+  String getSchemeName();
+
+  /**
+   * Answers true if the colour scheme depends only on the sequence symbol, and
+   * not on other information such as alignment consensus or annotation. (Note
+   * that simple colour schemes may have a fading by percentage identity or
+   * conservation overlaid.) Simple colour schemes can be propagated to
+   * structure viewers.
+   * 
+   * @return
+   */
+  boolean isSimple();
+
+  /**
+   * Answers true if the colour scheme has a colour specified for gaps.
+   * 
+   * @return
+   */
+  boolean hasGapColour();
 }

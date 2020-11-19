@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -113,8 +113,9 @@ public class SeqCigar extends CigarSimple
   @Override
   public String getSequenceString(char GapChar)
   {
-    return (length == 0) ? "" : (String) getSequenceAndDeletions(
-            refseq.getSequenceAsString(start, end), GapChar)[0];
+    return (length == 0) ? ""
+            : (String) getSequenceAndDeletions(
+                    refseq.getSequenceAsString(start, end), GapChar)[0];
   }
 
   /**
@@ -134,14 +135,13 @@ public class SeqCigar extends CigarSimple
             refseq.getSequenceAsString(start, end), GapChar);
     if (edit_result == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_unexpected_null_from_get_sequence_and_deletions"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_unexpected_null_from_get_sequence_and_deletions"));
     }
     int bounds[] = (int[]) edit_result[1];
     seq = new Sequence(refseq.getName(), (String) edit_result[0],
-            refseq.getStart() + start + bounds[0], refseq.getStart()
-                    + start + ((bounds[2] == 0) ? -1 : bounds[2]));
+            refseq.getStart() + start + bounds[0], refseq.getStart() + start
+                    + ((bounds[2] == 0) ? -1 : bounds[2]));
     seq.setDescription(refseq.getDescription());
     int sstart = seq.getStart(), send = seq.getEnd();
     // seq.checkValidRange(); probably not needed
@@ -184,15 +184,14 @@ public class SeqCigar extends CigarSimple
     boolean hasgaps = false;
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_set_seq_null"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_set_seq_null"));
     }
     if (_s < 0)
     {
-      throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_s", new String[] { Integer
-                      .valueOf(_s).toString() }));
+      throw new Error(MessageManager
+              .formatMessage("error.implementation_error_s", new String[]
+              { Integer.valueOf(_s).toString() }));
     }
     String seq_string = seq.getSequenceAsString();
     if (_e == 0 || _e < _s || _e > seq_string.length())
@@ -258,9 +257,8 @@ public class SeqCigar extends CigarSimple
     // Check offsets
     if (end > ds.getLength())
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_seqcigar_possible"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_seqcigar_possible"));
       // end = ds.getLength();
     }
 
@@ -289,9 +287,8 @@ public class SeqCigar extends CigarSimple
     }
     if (operation.length != range.length)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_bug_cigar_operation_list_range_list"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_bug_cigar_operation_list_range_list"));
     }
 
     if (operation != null)
@@ -301,9 +298,8 @@ public class SeqCigar extends CigarSimple
 
       if (_setSeq(seq, false, 0, 0))
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.not_yet_implemented_cigar_object_from_cigar_string"));
+        throw new Error(MessageManager.getString(
+                "error.not_yet_implemented_cigar_object_from_cigar_string"));
       }
       for (int i = this.length, j = 0; j < operation.length; i++, j++)
       {
@@ -311,8 +307,8 @@ public class SeqCigar extends CigarSimple
         if (op != M && op != I && op != D)
         {
           throw new Error(MessageManager.formatMessage(
-                  "error.implementation_bug_cigar_operation", new String[] {
-                      Integer.valueOf(j).toString(),
+                  "error.implementation_bug_cigar_operation", new String[]
+                  { Integer.valueOf(j).toString(),
                       Integer.valueOf(op).toString(),
                       Integer.valueOf(M).toString(),
                       Integer.valueOf(I).toString(),
@@ -330,9 +326,8 @@ public class SeqCigar extends CigarSimple
       this.length = 0;
       if (_setSeq(seq, false, 0, 0))
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.not_yet_implemented_cigar_object_from_cigar_string"));
+        throw new Error(MessageManager.getString(
+                "error.not_yet_implemented_cigar_object_from_cigar_string"));
       }
     }
   }
@@ -378,8 +373,9 @@ public class SeqCigar extends CigarSimple
 
     while (p <= endpos)
     {
-      boolean isGap = (p < res) ? jalview.util.Comparison.isGap(seq
-              .getCharAt(p)) : true;
+      boolean isGap = (p < res)
+              ? jalview.util.Comparison.isGap(seq.getCharAt(p))
+              : true;
       if ((startpos <= p) && (p <= endpos))
       {
         if (isGap)
@@ -439,9 +435,8 @@ public class SeqCigar extends CigarSimple
     super();
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_for_new_cigar"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_for_new_cigar"));
     }
     _setSeq(seq, false, 0, 0);
     // there is still work to do
@@ -463,9 +458,8 @@ public class SeqCigar extends CigarSimple
     super();
     if (seq == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_for_new_cigar"));
+      throw new Error(MessageManager
+              .getString("error.implementation_error_for_new_cigar"));
     }
     _setSeq(seq, false, start, end + 1);
     // there is still work to do
@@ -494,18 +488,18 @@ public class SeqCigar extends CigarSimple
   /**
    * create an alignment from the given array of cigar sequences and gap
    * character, and marking the given segments as visible in the given
-   * columselection.
+   * hiddenColumns.
    * 
    * @param alseqs
    * @param gapCharacter
-   * @param colsel
-   *          - columnSelection where hidden regions are marked
+   * @param hidden
+   *          - hiddenColumns where hidden regions are marked
    * @param segments
    *          - visible regions of alignment
    * @return SequenceI[]
    */
   public static SequenceI[] createAlignmentSequences(SeqCigar[] alseqs,
-          char gapCharacter, ColumnSelection colsel, int[] segments)
+          char gapCharacter, HiddenColumns hidden, int[] segments)
   {
     SequenceI[] seqs = new SequenceI[alseqs.length];
     StringBuffer[] g_seqs = new StringBuffer[alseqs.length];
@@ -513,8 +507,8 @@ public class SeqCigar extends CigarSimple
     Object[] gs_regions = new Object[alseqs.length];
     for (int i = 0; i < alseqs.length; i++)
     {
-      alseqs_string[i] = alseqs[i].getRefSeq().getSequenceAsString(
-              alseqs[i].start, alseqs[i].end);
+      alseqs_string[i] = alseqs[i].getRefSeq()
+              .getSequenceAsString(alseqs[i].start, alseqs[i].end);
       gs_regions[i] = alseqs[i].getSequenceAndDeletions(alseqs_string[i],
               gapCharacter); // gapped sequence, {start, start col, end.
       // endcol}, hidden regions {{start, end, col}})
@@ -522,7 +516,8 @@ public class SeqCigar extends CigarSimple
       {
         throw new Error(MessageManager.formatMessage(
                 "error.implementation_error_cigar_seq_no_operations",
-                new String[] { Integer.valueOf(i).toString() }));
+                new String[]
+                { Integer.valueOf(i).toString() }));
       }
       g_seqs[i] = new StringBuffer((String) ((Object[]) gs_regions[i])[0]); // the
       // visible
@@ -577,7 +572,7 @@ public class SeqCigar extends CigarSimple
           if (segments == null)
           {
             // add a hidden column for this deletion
-            colsel.hideColumns(inspos, inspos + insert.length - 1);
+            hidden.hideColumns(inspos, inspos + insert.length - 1);
           }
         }
       }
@@ -587,10 +582,12 @@ public class SeqCigar extends CigarSimple
       int[] bounds = ((int[]) ((Object[]) gs_regions[i])[1]);
       SequenceI ref = alseqs[i].getRefSeq();
       seqs[i] = new Sequence(ref.getName(), g_seqs[i].toString(),
-              ref.getStart() + alseqs[i].start + bounds[0], ref.getStart()
-                      + alseqs[i].start + (bounds[2] == 0 ? -1 : bounds[2]));
+              ref.getStart() + alseqs[i].start + bounds[0],
+              ref.getStart() + alseqs[i].start
+                      + (bounds[2] == 0 ? -1 : bounds[2]));
       seqs[i].setDatasetSequence(ref);
       seqs[i].setDescription(ref.getDescription());
+      SeqsetUtils.SeqCharacterUnhash(seqs[i],alseqs[i].seqProps,true,true);
     }
     if (segments != null)
     {
@@ -598,8 +595,8 @@ public class SeqCigar extends CigarSimple
       {
         // int start=shifts.shift(segments[i]-1)+1;
         // int end=shifts.shift(segments[i]+segments[i+1]-1)-1;
-        colsel.hideColumns(segments[i + 1], segments[i + 1]
-                + segments[i + 2] - 1);
+        hidden.hideColumns(segments[i + 1],
+                segments[i + 1] + segments[i + 2] - 1);
       }
     }
     return seqs;

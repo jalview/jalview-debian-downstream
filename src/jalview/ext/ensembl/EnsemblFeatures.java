@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,14 +22,24 @@ package jalview.ext.ensembl;
 
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
-import jalview.io.FeaturesFile;
-import jalview.io.FileParse;
+import jalview.datamodel.Sequence;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.io.gff.SequenceOntologyI;
+import jalview.util.JSONUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 /**
  * A client for fetching and processing Ensembl feature data in GFF format by
@@ -82,11 +92,140 @@ class EnsemblFeatures extends EnsemblRestClient
   public AlignmentI getSequenceRecords(String query) throws IOException
   {
     // TODO: use a vararg String... for getSequenceRecords instead?
-    List<String> queries = new ArrayList<String>();
+    List<String> queries = new ArrayList<>();
     queries.add(query);
-    FileParse fp = getSequenceReader(queries);
-    FeaturesFile fr = new FeaturesFile(fp);
-    return new Alignment(fr.getSeqsAsArray());
+    BufferedReader fp = getSequenceReader(queries);
+    if (fp == null)
+    {
+      return null;
+    }
+
+    SequenceI seq = parseFeaturesJson(fp);
+    return new Alignment(new SequenceI[] { seq });
+  }
+
+  /**
+   * Parses the JSON response into Jalview sequence features and attaches them
+   * to a dummy sequence
+   * 
+   * @param br
+   * @return
+   */
+  private SequenceI parseFeaturesJson(BufferedReader br)
+  {
+    SequenceI seq = new Sequence("Dummy", "");
+
+    JSONParser jp = new JSONParser();
+    try
+    {
+      JSONArray responses = (JSONArray) jp.parse(br);
+      Iterator rvals = responses.iterator();
+      while (rvals.hasNext())
+      {
+        try
+        {
+          JSONObject obj = (JSONObject) rvals.next();
+          String type = obj.get("feature_type").toString();
+          int start = Integer.parseInt(obj.get("start").toString());
+          int end = Integer.parseInt(obj.get("end").toString());
+          String source = obj.get("source").toString();
+          String strand = obj.get("strand").toString();
+          Object phase = obj.get("phase");
+          String alleles = JSONUtils
+                  .arrayToList((JSONArray) obj.get("alleles"));
+          String clinSig = JSONUtils
+                  .arrayToList(
+                          (JSONArray) obj.get("clinical_significance"));
+
+          /*
+           * convert 'variation' to 'sequence_variant', and 'cds' to 'CDS'
+           * so as to have a valid SO term for the feature type
+           * ('gene', 'exon', 'transcript' don't need any conversion)
+           */
+          if ("variation".equals(type))
+          {
+            type = SequenceOntologyI.SEQUENCE_VARIANT;
+          }
+          else if (SequenceOntologyI.CDS.equalsIgnoreCase((type)))
+          {
+            type = SequenceOntologyI.CDS;
+          }
+          
+          String desc = getFirstNotNull(obj, "alleles", "external_name",
+                  JSON_ID);
+          SequenceFeature sf = new SequenceFeature(type, desc, start, end,
+                  source);
+          sf.setStrand("1".equals(strand) ? "+" : "-");
+          if (phase != null)
+          {
+            sf.setPhase(phase.toString());
+          }
+          setFeatureAttribute(sf, obj, "id");
+          setFeatureAttribute(sf, obj, "Parent");
+          setFeatureAttribute(sf, obj, "consequence_type");
+          sf.setValue("alleles", alleles);
+          sf.setValue("clinical_significance", clinSig);
+
+          seq.addSequenceFeature(sf);
+        } catch (Throwable t)
+        {
+          // ignore - keep trying other features
+        }
+      }
+    } catch (ParseException | IOException e)
+    {
+      // ignore
+    }
+
+    return seq;
+  }
+
+  /**
+   * Returns the first non-null attribute found (if any) as a string, formatted
+   * suitably for display as feature description or tooltip. Answers null if
+   * none of the attribute keys is present.
+   * 
+   * @param obj
+   * @param keys
+   * @return
+   */
+  protected String getFirstNotNull(JSONObject obj, String... keys)
+  {
+    String desc = null;
+
+    for (String key : keys)
+    {
+      Object val = obj.get(key);
+      if (val != null)
+      {
+        String s = val instanceof JSONArray
+                ? JSONUtils.arrayToList((JSONArray) val)
+                : val.toString();
+        if (!s.isEmpty())
+        {
+          return s;
+        }
+      }
+    }
+    return desc;
+  }
+
+  /**
+   * A helper method that reads the 'key' entry in the JSON object, and if not
+   * null, sets its string value as an attribute on the sequence feature
+   * 
+   * @param sf
+   * @param obj
+   * @param key
+   */
+  protected void setFeatureAttribute(SequenceFeature sf, JSONObject obj,
+          String key)
+  {
+    Object object = obj.get(key);
+    if (object != null)
+    {
+      sf.setValue(key, object.toString());
+    }
   }
 
   /**
@@ -102,12 +241,20 @@ class EnsemblFeatures extends EnsemblRestClient
     urlstring.append(getDomain()).append("/overlap/id/").append(ids.get(0));
 
     // @see https://github.com/Ensembl/ensembl-rest/wiki/Output-formats
-    urlstring.append("?content-type=text/x-gff3");
+    urlstring.append("?content-type=" + getResponseMimeType());
+
+    /*
+     * specify object_type=gene in case is shared by transcript and/or protein;
+     * currently only fetching features for gene sequences;
+     * refactor in future if needed to fetch for transcripts
+     */
+    urlstring.append("&").append(OBJECT_TYPE).append("=")
+            .append(OBJECT_TYPE_GENE);
 
     /*
      * specify  features to retrieve
      * @see http://rest.ensembl.org/documentation/info/overlap_id
-     * could make the list a configurable entry in jalview.properties
+     * could make the list a configurable entry in .jalview_properties
      */
     for (EnsemblFeatureType feature : featuresWanted)
     {
@@ -128,18 +275,18 @@ class EnsemblFeatures extends EnsemblRestClient
    * describes the required encoding of the response.
    */
   @Override
-  protected String getRequestMimeType(boolean multipleIds)
+  protected String getRequestMimeType()
   {
-    return "text/x-gff3";
+    return "application/json";
   }
 
   /**
-   * Returns the MIME type for GFF3.
+   * Returns the MIME type wanted for the response
    */
   @Override
   protected String getResponseMimeType()
   {
-    return "text/x-gff3";
+    return "application/json";
   }
 
   /**

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,25 +28,31 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.DBRefSource;
 import jalview.datamodel.Mapping;
+import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.SequenceFeatures;
 import jalview.exceptions.JalviewException;
-import jalview.io.FastaFile;
-import jalview.io.FileParse;
+import jalview.io.gff.Gff3Helper;
 import jalview.io.gff.SequenceOntologyFactory;
 import jalview.io.gff.SequenceOntologyI;
 import jalview.util.Comparison;
 import jalview.util.DBRefUtils;
+import jalview.util.IntRangeComparator;
 import jalview.util.MapList;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 /**
  * Base class for Ensembl sequence fetchers
@@ -56,14 +62,6 @@ import java.util.List;
  */
 public abstract class EnsemblSeqProxy extends EnsemblRestClient
 {
-  private static final String ALLELES = "alleles";
-
-  protected static final String PARENT = "Parent";
-
-  protected static final String ID = "ID";
-
-  protected static final String NAME = "Name";
-
   protected static final String DESCRIPTION = "description";
 
   /*
@@ -110,26 +108,6 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
   }
 
   /**
-   * A comparator to sort ranges into ascending start position order
-   */
-  private class RangeSorter implements Comparator<int[]>
-  {
-    boolean forwards;
-
-    RangeSorter(boolean forward)
-    {
-      forwards = forward;
-    }
-
-    @Override
-    public int compare(int[] o1, int[] o2)
-    {
-      return (forwards ? 1 : -1) * Integer.compare(o1[0], o2[0]);
-    }
-
-  }
-
-  /**
    * Default constructor (to use rest.ensembl.org)
    */
   public EnsemblSeqProxy()
@@ -156,8 +134,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
 
     // danger: accession separator used as a regex here, a string elsewhere
     // in this case it is ok (it is just a space), but (e.g.) '\' would not be
-    List<String> allIds = Arrays.asList(query
-            .split(getAccessionSeparator()));
+    List<String> allIds = Arrays
+            .asList(query.split(getAccessionSeparator()));
     AlignmentI alignment = null;
     inProgress = true;
 
@@ -226,14 +204,15 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
     try
     {
       /*
-       * get 'dummy' genomic sequence with exon, cds and variation features
+       * get 'dummy' genomic sequence with gene, transcript, 
+       * exon, cds and variation features
        */
       SequenceI genomicSequence = null;
       EnsemblFeatures gffFetcher = new EnsemblFeatures(getDomain());
       EnsemblFeatureType[] features = getFeaturesToFetch();
       AlignmentI geneFeatures = gffFetcher.getSequenceRecords(accId,
               features);
-      if (geneFeatures.getHeight() > 0)
+      if (geneFeatures != null && geneFeatures.getHeight() > 0)
       {
         genomicSequence = geneFeatures.getSequenceAt(0);
       }
@@ -242,7 +221,7 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
         /*
          * transfer features to the query sequence
          */
-        SequenceI querySeq = alignment.findName(accId);
+        SequenceI querySeq = alignment.findName(accId, true);
         if (transferFeatures(accId, genomicSequence, querySeq))
         {
 
@@ -255,8 +234,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       }
     } catch (IOException e)
     {
-      System.err.println("Error transferring Ensembl features: "
-              + e.getMessage());
+      System.err.println(
+              "Error transferring Ensembl features: " + e.getMessage());
     }
   }
 
@@ -294,8 +273,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       proteinSeq.createDatasetSequence();
       querySeq.createDatasetSequence();
 
-      MapList mapList = AlignmentUtils
-              .mapCdsToProtein(querySeq, proteinSeq);
+      MapList mapList = AlignmentUtils.mapCdsToProtein(querySeq,
+              proteinSeq);
       if (mapList != null)
       {
         // clunky: ensure Uniprot xref if we have one is on mapped sequence
@@ -306,9 +285,11 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
                 getEnsemblDataVersion(), proteinSeq.getName(), map);
         querySeq.getDatasetSequence().addDBRef(dbr);
         DBRefEntry[] uprots = DBRefUtils.selectRefs(ds.getDBRefs(),
-                new String[] { DBRefSource.UNIPROT });
+                new String[]
+                { DBRefSource.UNIPROT });
         DBRefEntry[] upxrefs = DBRefUtils.selectRefs(querySeq.getDBRefs(),
-                new String[] { DBRefSource.UNIPROT });
+                new String[]
+                { DBRefSource.UNIPROT });
         if (uprots != null)
         {
           for (DBRefEntry up : uprots)
@@ -323,8 +304,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
 
               if (upx.size() > 1)
               {
-                Cache.log
-                        .warn("Implementation issue - multiple uniprot acc on product sequence.");
+                Cache.log.warn(
+                        "Implementation issue - multiple uniprot acc on product sequence.");
               }
             }
             else
@@ -349,8 +330,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
          * copy exon features to protein, compute peptide variants from dna 
          * variants and add as features on the protein sequence ta-da
          */
-        AlignmentUtils
-                .computeProteinFeatures(querySeq, proteinSeq, mapList);
+        // JAL-3187 render on the fly instead
+        // AlignmentUtils.computeProteinFeatures(querySeq, proteinSeq, mapList);
       }
     } catch (Exception e)
     {
@@ -383,8 +364,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
     /*
      * and add a reference to itself
      */
-    DBRefEntry self = new DBRefEntry(getDbSource(),
-            getEnsemblDataVersion(), seq.getName());
+    DBRefEntry self = new DBRefEntry(getDbSource(), getEnsemblDataVersion(),
+            seq.getName());
     seq.addDBRef(self);
   }
 
@@ -398,58 +379,52 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
    * @throws JalviewException
    * @throws IOException
    */
-  protected AlignmentI fetchSequences(List<String> ids, AlignmentI alignment)
-          throws JalviewException, IOException
+  protected AlignmentI fetchSequences(List<String> ids,
+          AlignmentI alignment) throws JalviewException, IOException
   {
     if (!isEnsemblAvailable())
     {
       inProgress = false;
       throw new JalviewException("ENSEMBL Rest API not available.");
     }
-    FileParse fp = getSequenceReader(ids);
-    if (fp == null)
+    BufferedReader br = getSequenceReader(ids);
+    if (br == null)
     {
       return alignment;
     }
 
-    FastaFile fr = new FastaFile(fp);
-    if (fr.hasWarningMessage())
-    {
-      System.out.println(String.format(
-              "Warning when retrieving %d ids %s\n%s", ids.size(),
-              ids.toString(), fr.getWarningMessage()));
-    }
-    else if (fr.getSeqs().size() != ids.size())
-    {
-      System.out.println(String.format(
-              "Only retrieved %d sequences for %d query strings", fr
-                      .getSeqs().size(), ids.size()));
-    }
+    List<SequenceI> seqs = parseSequenceJson(br);
 
-    if (fr.getSeqs().size() == 1 && fr.getSeqs().get(0).getLength() == 0)
+    if (seqs.isEmpty())
     {
-      /*
-       * POST request has returned an empty FASTA file e.g. for invalid id
-       */
       throw new IOException("No data returned for " + ids);
     }
 
-    if (fr.getSeqs().size() > 0)
+    if (seqs.size() != ids.size())
     {
-      AlignmentI seqal = new Alignment(fr.getSeqsAsArray());
-      for (SequenceI sq : seqal.getSequences())
+      System.out.println(String.format(
+              "Only retrieved %d sequences for %d query strings",
+              seqs.size(), ids.size()));
+    }
+
+    if (!seqs.isEmpty())
+    {
+      AlignmentI seqal = new Alignment(
+              seqs.toArray(new SequenceI[seqs.size()]));
+      for (SequenceI seq : seqs)
       {
-        if (sq.getDescription() == null)
+        if (seq.getDescription() == null)
         {
-          sq.setDescription(getDbName());
+          seq.setDescription(getDbName());
         }
-        String name = sq.getName();
+        String name = seq.getName();
         if (ids.contains(name)
                 || ids.contains(name.replace("ENSP", "ENST")))
         {
-          DBRefEntry dbref = DBRefUtils.parseToDbRef(sq, getDbSource(),
+          // TODO JAL-3077 use true accession version in dbref
+          DBRefEntry dbref = DBRefUtils.parseToDbRef(seq, getDbSource(),
                   getEnsemblDataVersion(), name);
-          sq.addDBRef(dbref);
+          seq.addDBRef(dbref);
         }
       }
       if (alignment == null)
@@ -462,6 +437,49 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       }
     }
     return alignment;
+  }
+
+  /**
+   * Parses a JSON response for a single sequence ID query
+   * 
+   * @param br
+   * @return a single jalview.datamodel.Sequence
+   * @see http://rest.ensembl.org/documentation/info/sequence_id
+   */
+  protected List<SequenceI> parseSequenceJson(BufferedReader br)
+  {
+    JSONParser jp = new JSONParser();
+    List<SequenceI> result = new ArrayList<>();
+    try
+    {
+      /*
+       * for now, assumes only one sequence returned; refactor if needed
+       * in future to handle a JSONArray with more than one
+       */
+      final JSONObject val = (JSONObject) jp.parse(br);
+      Object s = val.get("desc");
+      String desc = s == null ? null : s.toString();
+      s = val.get("id");
+      String id = s == null ? null : s.toString();
+      s = val.get("seq");
+      String seq = s == null ? null : s.toString();
+      Sequence sequence = new Sequence(id, seq);
+      if (desc != null)
+      {
+        sequence.setDescription(desc);
+      }
+      // todo JAL-3077 make a DBRefEntry with true accession version
+      // s = val.get("version");
+      // String version = s == null ? "0" : s.toString();
+      // DBRefEntry dbref = new DBRefEntry(getDbSource(), version, id);
+      // sequence.addDBRef(dbref);
+      result.add(sequence);
+    } catch (ParseException | IOException e)
+    {
+      System.err.println("Error processing JSON response: " + e.toString());
+      // ignore
+    }
+    return result;
   }
 
   /**
@@ -485,10 +503,28 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
     }
     // @see https://github.com/Ensembl/ensembl-rest/wiki/Output-formats
     urlstring.append("?type=").append(getSourceEnsemblType().getType());
-    urlstring.append(("&Accept=text/x-fasta"));
+    urlstring.append(("&Accept=application/json"));
+    urlstring.append(("&Content-Type=application/json"));
+
+    String objectType = getObjectType();
+    if (objectType != null)
+    {
+      urlstring.append("&").append(OBJECT_TYPE).append("=")
+              .append(objectType);
+    }
 
     URL url = new URL(urlstring.toString());
     return url;
+  }
+
+  /**
+   * Override this method to specify object_type request parameter
+   * 
+   * @return
+   */
+  protected String getObjectType()
+  {
+    return null;
   }
 
   /**
@@ -506,18 +542,6 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
   protected boolean useGetRequest()
   {
     return false;
-  }
-
-  @Override
-  protected String getRequestMimeType(boolean multipleIds)
-  {
-    return multipleIds ? "application/json" : "text/x-fasta";
-  }
-
-  @Override
-  protected String getResponseMimeType()
-  {
-    return "text/x-fasta";
   }
 
   /**
@@ -555,8 +579,9 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
   protected MapList getGenomicRangesFromFeatures(SequenceI sourceSequence,
           String accId, int start)
   {
-    SequenceFeature[] sfs = sourceSequence.getSequenceFeatures();
-    if (sfs == null)
+    List<SequenceFeature> sfs = getIdentifyingFeatures(sourceSequence,
+            accId);
+    if (sfs.isEmpty())
     {
       return null;
     }
@@ -565,54 +590,38 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
      * generously initial size for number of cds regions
      * (worst case titin Q8WZ42 has c. 313 exons)
      */
-    List<int[]> regions = new ArrayList<int[]>(100);
+    List<int[]> regions = new ArrayList<>(100);
     int mappedLength = 0;
     int direction = 1; // forward
     boolean directionSet = false;
 
     for (SequenceFeature sf : sfs)
     {
-      /*
-       * accept the target feature type or a specialisation of it
-       * (e.g. coding_exon for exon)
-       */
-      if (identifiesSequence(sf, accId))
+      int strand = sf.getStrand();
+      strand = strand == 0 ? 1 : strand; // treat unknown as forward
+
+      if (directionSet && strand != direction)
       {
-        int strand = sf.getStrand();
-        strand = strand == 0 ? 1 : strand; // treat unknown as forward
-
-        if (directionSet && strand != direction)
-        {
-          // abort - mix of forward and backward
-          System.err.println("Error: forward and backward strand for "
-                  + accId);
-          return null;
-        }
-        direction = strand;
-        directionSet = true;
-
-        /*
-         * add to CDS ranges, semi-sorted forwards/backwards
-         */
-        if (strand < 0)
-        {
-          regions.add(0, new int[] { sf.getEnd(), sf.getBegin() });
-        }
-        else
-        {
-          regions.add(new int[] { sf.getBegin(), sf.getEnd() });
-        }
-        mappedLength += Math.abs(sf.getEnd() - sf.getBegin() + 1);
-
-        if (!isSpliceable())
-        {
-          /*
-           * 'gene' sequence is contiguous so we can stop as soon as its
-           * identifying feature has been found
-           */
-          break;
-        }
+        // abort - mix of forward and backward
+        System.err
+                .println("Error: forward and backward strand for " + accId);
+        return null;
       }
+      direction = strand;
+      directionSet = true;
+
+      /*
+       * add to CDS ranges, semi-sorted forwards/backwards
+       */
+      if (strand < 0)
+      {
+        regions.add(0, new int[] { sf.getEnd(), sf.getBegin() });
+      }
+      else
+      {
+        regions.add(new int[] { sf.getBegin(), sf.getEnd() });
+      }
+      mappedLength += Math.abs(sf.getEnd() - sf.getBegin() + 1);
     }
 
     if (regions.isEmpty())
@@ -626,35 +635,29 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
      * a final sort is needed since Ensembl returns CDS sorted within source
      * (havana / ensembl_havana)
      */
-    Collections.sort(regions, new RangeSorter(direction == 1));
+    Collections.sort(regions, direction == 1 ? IntRangeComparator.ASCENDING
+            : IntRangeComparator.DESCENDING);
 
-    List<int[]> to = Arrays.asList(new int[] { start,
-        start + mappedLength - 1 });
+    List<int[]> to = Arrays
+            .asList(new int[]
+            { start, start + mappedLength - 1 });
 
     return new MapList(regions, to, 1, 1);
   }
 
   /**
-   * Answers true if the sequence being retrieved may occupy discontiguous
-   * regions on the genomic sequence.
-   */
-  protected boolean isSpliceable()
-  {
-    return true;
-  }
-
-  /**
-   * Returns true if the sequence feature marks positions of the genomic
+   * Answers a list of sequence features that mark positions of the genomic
    * sequence feature which are within the sequence being retrieved. For
    * example, an 'exon' feature whose parent is the target transcript marks the
-   * cdna positions of the transcript.
+   * cdna positions of the transcript. For a gene sequence, this is trivially
+   * just the 'gene' feature with matching gene id.
    * 
-   * @param sf
+   * @param seq
    * @param accId
    * @return
    */
-  protected abstract boolean identifiesSequence(SequenceFeature sf,
-          String accId);
+  protected abstract List<SequenceFeature> getIdentifyingFeatures(
+          SequenceI seq, String accId);
 
   /**
    * Transfers the sequence feature to the target sequence, locating its start
@@ -677,22 +680,23 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
 
     if (mappedRange != null)
     {
-      SequenceFeature copy = new SequenceFeature(sf);
-      copy.setBegin(Math.min(mappedRange[0], mappedRange[1]));
-      copy.setEnd(Math.max(mappedRange[0], mappedRange[1]));
-      if (".".equals(copy.getFeatureGroup()))
+      String group = sf.getFeatureGroup();
+      if (".".equals(group))
       {
-        copy.setFeatureGroup(getDbSource());
+        group = getDbSource();
       }
+      int newBegin = Math.min(mappedRange[0], mappedRange[1]);
+      int newEnd = Math.max(mappedRange[0], mappedRange[1]);
+      SequenceFeature copy = new SequenceFeature(sf, newBegin, newEnd,
+              group, sf.getScore());
       targetSequence.addSequenceFeature(copy);
 
       /*
        * for sequence_variant on reverse strand, have to convert the allele
        * values to their complements
        */
-      if (!forwardStrand
-              && SequenceOntologyFactory.getInstance().isA(sf.getType(),
-                      SequenceOntologyI.SEQUENCE_VARIANT))
+      if (!forwardStrand && SequenceOntologyFactory.getInstance()
+              .isA(sf.getType(), SequenceOntologyI.SEQUENCE_VARIANT))
       {
         reverseComplementAlleles(copy);
       }
@@ -707,7 +711,7 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
    */
   static void reverseComplementAlleles(SequenceFeature sf)
   {
-    final String alleles = (String) sf.getValue(ALLELES);
+    final String alleles = (String) sf.getValue(Gff3Helper.ALLELES);
     if (alleles == null)
     {
       return;
@@ -718,19 +722,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       reverseComplementAllele(complement, allele);
     }
     String comp = complement.toString();
-    sf.setValue(ALLELES, comp);
+    sf.setValue(Gff3Helper.ALLELES, comp);
     sf.setDescription(comp);
-
-    /*
-     * replace value of "alleles=" in sf.ATTRIBUTES as well
-     * so 'output as GFF' shows reverse complement alleles
-     */
-    String atts = sf.getAttributes();
-    if (atts != null)
-    {
-      atts = atts.replace(ALLELES + "=" + alleles, ALLELES + "=" + comp);
-      sf.setAttributes(atts);
-    }
   }
 
   /**
@@ -782,8 +775,9 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       return false;
     }
 
-    // long start = System.currentTimeMillis();
-    SequenceFeature[] sfs = sourceSequence.getSequenceFeatures();
+//    long start = System.currentTimeMillis();
+    List<SequenceFeature> sfs = sourceSequence.getFeatures()
+            .getPositionalFeatures();
     MapList mapping = getGenomicRangesFromFeatures(sourceSequence,
             accessionId, targetSequence.getStart());
     if (mapping == null)
@@ -793,10 +787,10 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
 
     boolean result = transferFeatures(sfs, targetSequence, mapping,
             accessionId);
-    // System.out.println("transferFeatures (" + (sfs.length) + " --> "
-    // + targetSequence.getSequenceFeatures().length + ") to "
-    // + targetSequence.getName()
-    // + " took " + (System.currentTimeMillis() - start) + "ms");
+//    System.out.println("transferFeatures (" + (sfs.size()) + " --> "
+//            + targetSequence.getFeatures().getFeatureCount(true) + ") to "
+//            + targetSequence.getName() + " took "
+//            + (System.currentTimeMillis() - start) + "ms");
     return result;
   }
 
@@ -805,13 +799,13 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
    * converted using the mapping. Features which do not overlap are ignored.
    * Features whose parent is not the specified identifier are also ignored.
    * 
-   * @param features
+   * @param sfs
    * @param targetSequence
    * @param mapping
    * @param parentId
    * @return
    */
-  protected boolean transferFeatures(SequenceFeature[] features,
+  protected boolean transferFeatures(List<SequenceFeature> sfs,
           SequenceI targetSequence, MapList mapping, String parentId)
   {
     final boolean forwardStrand = mapping.isFromForwardStrand();
@@ -821,10 +815,10 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
      * position descending if reverse strand) so as to add them in
      * 'forwards' order to the target sequence
      */
-    sortFeatures(features, forwardStrand);
+    SequenceFeatures.sortFeatures(sfs, forwardStrand);
 
     boolean transferred = false;
-    for (SequenceFeature sf : features)
+    for (SequenceFeature sf : sfs)
     {
       if (retainFeature(sf, parentId))
       {
@@ -833,33 +827,6 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
       }
     }
     return transferred;
-  }
-
-  /**
-   * Sort features by start position ascending (if on forward strand), or end
-   * position descending (if on reverse strand)
-   * 
-   * @param features
-   * @param forwardStrand
-   */
-  protected static void sortFeatures(SequenceFeature[] features,
-          final boolean forwardStrand)
-  {
-    Arrays.sort(features, new Comparator<SequenceFeature>()
-    {
-      @Override
-      public int compare(SequenceFeature o1, SequenceFeature o2)
-      {
-        if (forwardStrand)
-        {
-          return Integer.compare(o1.getBegin(), o2.getBegin());
-        }
-        else
-        {
-          return Integer.compare(o2.getEnd(), o1.getEnd());
-        }
-      }
-    });
   }
 
   /**
@@ -886,8 +853,8 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
   protected boolean featureMayBelong(SequenceFeature sf, String identifier)
   {
     String parent = (String) sf.getValue(PARENT);
-    // using contains to allow for prefix "gene:", "transcript:" etc
-    if (parent != null && !parent.contains(identifier))
+    if (parent != null
+            && !parent.equalsIgnoreCase(identifier))
     {
       // this genomic feature belongs to a different transcript
       return false;
@@ -895,6 +862,9 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
     return true;
   }
 
+  /**
+   * Answers a short description of the sequence fetcher
+   */
   @Override
   public String getDescription()
   {
@@ -904,44 +874,43 @@ public abstract class EnsemblSeqProxy extends EnsemblRestClient
 
   /**
    * Returns a (possibly empty) list of features on the sequence which have the
-   * specified sequence ontology type (or a sub-type of it), and the given
+   * specified sequence ontology term (or a sub-type of it), and the given
    * identifier as parent
    * 
    * @param sequence
-   * @param type
+   * @param term
    * @param parentId
    * @return
    */
   protected List<SequenceFeature> findFeatures(SequenceI sequence,
-          String type, String parentId)
+          String term, String parentId)
   {
-    List<SequenceFeature> result = new ArrayList<SequenceFeature>();
+    List<SequenceFeature> result = new ArrayList<>();
 
-    SequenceFeature[] sfs = sequence.getSequenceFeatures();
-    if (sfs != null)
+    List<SequenceFeature> sfs = sequence.getFeatures()
+            .getFeaturesByOntology(term);
+    for (SequenceFeature sf : sfs)
     {
-      SequenceOntologyI so = SequenceOntologyFactory.getInstance();
-      for (SequenceFeature sf : sfs)
+      String parent = (String) sf.getValue(PARENT);
+      if (parent != null && parent.equalsIgnoreCase(parentId))
       {
-        if (so.isA(sf.getType(), type))
-        {
-          String parent = (String) sf.getValue(PARENT);
-          if (parent.equals(parentId))
-          {
-            result.add(sf);
-          }
-        }
+        result.add(sf);
       }
     }
+
     return result;
   }
 
   /**
    * Answers true if the feature type is either 'NMD_transcript_variant' or
-   * 'transcript' or one of its sub-types in the Sequence Ontology. This is
-   * needed because NMD_transcript_variant behaves like 'transcript' in Ensembl
+   * 'transcript' (or one of its sub-types in the Sequence Ontology). This is
+   * because NMD_transcript_variant behaves like 'transcript' in Ensembl
    * although strictly speaking it is not (it is a sub-type of
    * sequence_variant).
+   * <p>
+   * (This test was needed when fetching transcript features as GFF. As we are
+   * now fetching as JSON, all features have type 'transcript' so the check for
+   * NMD_transcript_variant is redundant. Left in for any future case arising.)
    * 
    * @param featureType
    * @return

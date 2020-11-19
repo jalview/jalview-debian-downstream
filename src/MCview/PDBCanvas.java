@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,9 @@ import jalview.datamodel.SequenceI;
 import jalview.gui.AlignmentPanel;
 import jalview.gui.FeatureRenderer;
 import jalview.gui.SequenceRenderer;
+import jalview.io.DataSourceType;
 import jalview.io.StructureFile;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 import jalview.structure.AtomSpec;
 import jalview.structure.StructureListener;
 import jalview.structure.StructureMapping;
@@ -34,8 +36,7 @@ import jalview.structure.StructureSelectionManager;
 
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Event;
-import java.awt.Font;
+import java.awt.event.InputEvent;import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 // JBPNote TODO: This class is quite noisy - needs proper log.info/log.debug
@@ -53,8 +54,8 @@ import java.util.Vector;
 import javax.swing.JPanel;
 import javax.swing.ToolTipManager;
 
-public class PDBCanvas extends JPanel implements MouseListener,
-        MouseMotionListener, StructureListener
+public class PDBCanvas extends JPanel
+        implements MouseListener, MouseMotionListener, StructureListener
 {
   boolean redrawneeded = true;
 
@@ -141,7 +142,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   String errorMessage;
 
   void init(PDBEntry pdbentry, SequenceI[] seq, String[] chains,
-          AlignmentPanel ap, String protocol)
+          AlignmentPanel ap, DataSourceType protocol)
   {
     this.ap = ap;
     this.pdbentry = pdbentry;
@@ -151,9 +152,10 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     try
     {
-      pdb = ssm.setMapping(seq, chains, pdbentry.getFile(), protocol);
+      pdb = ssm.setMapping(seq, chains, pdbentry.getFile(), protocol,
+              ap.alignFrame);
 
-      if (protocol.equals(jalview.io.AppletFormatAdapter.PASTE))
+      if (protocol.equals(jalview.io.DataSourceType.PASTE))
       {
         pdbentry.setFile("INLINE" + pdb.getId());
       }
@@ -175,7 +177,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     colourBySequence();
 
-    int max = -10;
+    float max = -10;
     int maxchain = -1;
     int pdbstart = 0;
     int pdbend = 0;
@@ -188,10 +190,9 @@ public class PDBCanvas extends JPanel implements MouseListener,
     for (int i = 0; i < pdb.getChains().size(); i++)
     {
 
-      mappingDetails
-              .append("\n\nPDB Sequence is :\nSequence = "
-                      + pdb.getChains().elementAt(i).sequence
-                              .getSequenceAsString());
+      mappingDetails.append("\n\nPDB Sequence is :\nSequence = "
+              + pdb.getChains().elementAt(i).sequence
+                      .getSequenceAsString());
       mappingDetails.append("\nNo of residues = "
               + pdb.getChains().elementAt(i).residues.size() + "\n\n");
 
@@ -545,6 +546,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
       showFeatures = true;
     }
 
+    FeatureColourFinder finder = new FeatureColourFinder(fr);
     PDBChain chain;
     if (bysequence && pdb != null)
     {
@@ -572,23 +574,15 @@ public class PDBCanvas extends JPanel implements MouseListener,
                 if (pos > 0)
                 {
                   pos = sequence[s].findIndex(pos);
-                  tmp.startCol = sr.getResidueBoxColour(sequence[s], pos);
-                  if (showFeatures)
-                  {
-                    tmp.startCol = fr.findFeatureColour(tmp.startCol,
-                            sequence[s], pos);
-                  }
+                  tmp.startCol = sr.getResidueColour(sequence[s], pos,
+                          finder);
                 }
                 pos = mapping[m].getSeqPos(tmp.at2.resNumber) - 1;
                 if (pos > 0)
                 {
                   pos = sequence[s].findIndex(pos);
-                  tmp.endCol = sr.getResidueBoxColour(sequence[s], pos);
-                  if (showFeatures)
-                  {
-                    tmp.endCol = fr.findFeatureColour(tmp.endCol,
-                            sequence[s], pos);
-                  }
+                  tmp.endCol = sr.getResidueColour(sequence[s], pos,
+                          finder);
                 }
 
               }
@@ -618,11 +612,15 @@ public class PDBCanvas extends JPanel implements MouseListener,
     {
       tmpBond = visiblebonds.elementAt(i);
 
-      xstart = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getWidth() / 2));
-      ystart = (int) (((centre[1] - tmpBond.start[1]) * scale) + (getHeight() / 2));
+      xstart = (int) (((tmpBond.start[0] - centre[0]) * scale)
+              + (getWidth() / 2));
+      ystart = (int) (((centre[1] - tmpBond.start[1]) * scale)
+              + (getHeight() / 2));
 
-      xend = (int) (((tmpBond.end[0] - centre[0]) * scale) + (getWidth() / 2));
-      yend = (int) (((centre[1] - tmpBond.end[1]) * scale) + (getHeight() / 2));
+      xend = (int) (((tmpBond.end[0] - centre[0]) * scale)
+              + (getWidth() / 2));
+      yend = (int) (((centre[1] - tmpBond.end[1]) * scale)
+              + (getHeight() / 2));
 
       xmid = (xend + xstart) / 2;
       ymid = (yend + ystart) / 2;
@@ -686,8 +684,8 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
       if (highlightBond1 != null && highlightBond1 == tmpBond)
       {
-        g.setColor(tmpBond.endCol.brighter().brighter().brighter()
-                .brighter());
+        g.setColor(
+                tmpBond.endCol.brighter().brighter().brighter().brighter());
         drawLine(g, xmid, ymid, xend, yend);
       }
 
@@ -823,8 +821,8 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
     if (fatom != null)
     {
-      this.setToolTipText(chain.id + ":" + fatom.resNumber + " "
-              + fatom.resName);
+      this.setToolTipText(
+              chain.id + ":" + fatom.resNumber + " " + fatom.resName);
     }
     else
     {
@@ -859,7 +857,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
     MCMatrix objmat = new MCMatrix(3, 3);
     objmat.setIdentity();
 
-    if ((evt.getModifiers() & Event.META_MASK) != 0)
+    if ((evt.getModifiersEx() & InputEvent.META_DOWN_MASK) != 0)
     {
       objmat.rotatez(((mx - omx)));
     }
@@ -934,16 +932,20 @@ public class PDBCanvas extends JPanel implements MouseListener,
     g.setColor(Color.red);
     if (n == 1)
     {
-      int xstart = (int) (((b.start[0] - centre[0]) * scale) + (getWidth() / 2));
-      int ystart = (int) (((centre[1] - b.start[1]) * scale) + (getHeight() / 2));
+      int xstart = (int) (((b.start[0] - centre[0]) * scale)
+              + (getWidth() / 2));
+      int ystart = (int) (((centre[1] - b.start[1]) * scale)
+              + (getHeight() / 2));
 
       g.drawString(b.at1.resName + "-" + b.at1.resNumber, xstart, ystart);
     }
 
     if (n == 2)
     {
-      int xstart = (int) (((b.end[0] - centre[0]) * scale) + (getWidth() / 2));
-      int ystart = (int) (((centre[1] - b.end[1]) * scale) + (getHeight() / 2));
+      int xstart = (int) (((b.end[0] - centre[0]) * scale)
+              + (getWidth() / 2));
+      int ystart = (int) (((centre[1] - b.end[1]) * scale)
+              + (getHeight() / 2));
 
       g.drawString(b.at2.resName + "-" + b.at2.resNumber, xstart, ystart);
     }
@@ -969,11 +971,13 @@ public class PDBCanvas extends JPanel implements MouseListener,
         {
           tmpBond = bond;
 
-          truex = (int) (((tmpBond.start[0] - centre[0]) * scale) + (getWidth() / 2));
+          truex = (int) (((tmpBond.start[0] - centre[0]) * scale)
+                  + (getWidth() / 2));
 
           if (Math.abs(truex - x) <= 2)
           {
-            int truey = (int) (((centre[1] - tmpBond.start[1]) * scale) + (getHeight() / 2));
+            int truey = (int) (((centre[1] - tmpBond.start[1]) * scale)
+                    + (getHeight() / 2));
 
             if (Math.abs(truey - y) <= 2)
             {
@@ -986,11 +990,13 @@ public class PDBCanvas extends JPanel implements MouseListener,
 
         // Still here? Maybe its the last bond
 
-        truex = (int) (((tmpBond.end[0] - centre[0]) * scale) + (getWidth() / 2));
+        truex = (int) (((tmpBond.end[0] - centre[0]) * scale)
+                + (getWidth() / 2));
 
         if (Math.abs(truex - x) <= 2)
         {
-          int truey = (int) (((tmpBond.end[1] - centre[1]) * scale) + (getHeight() / 2));
+          int truey = (int) (((tmpBond.end[1] - centre[1]) * scale)
+                  + (getHeight() / 2));
 
           if (Math.abs(truey - y) <= 2)
           {
@@ -1080,7 +1086,7 @@ public class PDBCanvas extends JPanel implements MouseListener,
   // ////////////////////////////////
   // /StructureListener
   @Override
-  public String[] getPdbFile()
+  public String[] getStructureFiles()
   {
     return new String[] { pdbentry.getFile() };
   }

@@ -1,20 +1,20 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
  * Jalview is free software: you can redistribute it and/or
- * modify it under the terms of the GNU General License 
+ * modify it under the terms of the GNU General Public License 
  * as published by the Free Software Foundation, either version 3
  * of the License, or (at your option) any later version.
  *  
  * Jalview is distributed in the hope that it will be useful, but 
  * WITHOUT ANY WARRANTY; without even the implied warranty 
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
- * PURPOSE.  See the GNU General License for more details.
+ * PURPOSE.  See the GNU General Public License for more details.
  * 
- * You should have received a copy of the GNU General License
+ * You should have received a copy of the GNU General Public License
  * along with Jalview.  If not, see <http://www.gnu.org/licenses/>.
  * The Jalview Authors are detailed in the 'AUTHORS' file.
  */
@@ -31,21 +31,44 @@ import java.util.Set;
 public interface AlignmentI extends AnnotatedCollectionI
 {
   /**
-   * Calculates the number of sequences in an alignment
+   * Calculates the number of sequences in an alignment, excluding hidden
+   * sequences
    * 
    * @return Number of sequences in alignment
    */
   int getHeight();
 
   /**
+   * Calculates the number of sequences in an alignment, including hidden
+   * sequences
    * 
-   * Calculates the maximum width of the alignment, including gaps.
+   * @return Number of sequences in alignment
+   */
+  int getAbsoluteHeight();
+
+  /**
    * 
-   * @return Greatest sequence length within alignment, or -1 if no sequences
-   *         present
+   * Answers the width of the alignment, including gaps, that is, the length of
+   * the longest sequence, or -1 if there are no sequences. Avoid calling this
+   * method repeatedly where possible, as it has to perform a calculation. Note
+   * that this width includes any hidden columns.
+   * 
+   * @return
+   * @see AlignmentI#getVisibleWidth()
    */
   @Override
   int getWidth();
+
+  /**
+   * 
+   * Answers the visible width of the alignment, including gaps, that is, the
+   * length of the longest sequence, excluding any hidden columns. Answers -1 if
+   * there are no sequences. Avoid calling this method repeatedly where
+   * possible, as it has to perform a calculation.
+   * 
+   * @return
+   */
+  int getVisibleWidth();
 
   /**
    * Calculates if this set of sequences (visible and invisible) are all the
@@ -63,6 +86,15 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @return true if all (or just visible) sequences are the same length
    */
   boolean isAligned(boolean includeHidden);
+
+  /**
+   * Answers if the sequence at alignmentIndex is hidden
+   * 
+   * @param alignmentIndex
+   *          the index to check
+   * @return true if the sequence is hidden
+   */
+  boolean isHidden(int alignmentIndex);
 
   /**
    * Gets sequences as a Synchronized collection
@@ -88,6 +120,17 @@ public interface AlignmentI extends AnnotatedCollectionI
    * @return SequenceI at given index.
    */
   SequenceI getSequenceAt(int i);
+
+  /**
+   * Find a specific sequence in this alignment.
+   * 
+   * @param i
+   *          Index of required sequence in full alignment, i.e. if all columns
+   *          were visible
+   * 
+   * @return SequenceI at given index.
+   */
+  SequenceI getSequenceAtAbsoluteIndex(int i);
 
   /**
    * Returns a map of lists of sequences keyed by sequence name.
@@ -118,7 +161,9 @@ public interface AlignmentI extends AnnotatedCollectionI
   SequenceI replaceSequenceAt(int i, SequenceI seq);
 
   /**
-   * Deletes a sequence from the alignment
+   * Deletes a sequence from the alignment. Updates hidden sequences to account
+   * for the removed sequence. Do NOT use this method to delete sequences which
+   * are just hidden.
    * 
    * @param s
    *          Sequence to be deleted.
@@ -126,12 +171,22 @@ public interface AlignmentI extends AnnotatedCollectionI
   void deleteSequence(SequenceI s);
 
   /**
-   * Deletes a sequence from the alignment.
+   * Deletes a sequence from the alignment. Updates hidden sequences to account
+   * for the removed sequence. Do NOT use this method to delete sequences which
+   * are just hidden.
    * 
    * @param i
    *          Index of sequence to be deleted.
    */
   void deleteSequence(int i);
+
+  /**
+   * Deletes a sequence in the alignment which has been hidden.
+   * 
+   * @param i
+   *          Index of sequence to be deleted
+   */
+  void deleteHiddenSequence(int i);
 
   /**
    * Finds sequence in alignment using sequence name as query.
@@ -156,15 +211,17 @@ public interface AlignmentI extends AnnotatedCollectionI
   int findIndex(SequenceI s);
 
   /**
-   * Finds group that given sequence is part of.
+   * Returns the first group (in the order in which groups were added) that
+   * includes the given sequence instance and aligned position (base 0), or null
+   * if none found
    * 
-   * @param s
-   *          Sequence in alignment.
+   * @param seq
+   *          - must be contained in the alignment (not a dataset sequence)
+   * @param position
    * 
-   * @return First group found for sequence. WARNING : Sequences may be members
-   *         of several groups. This method is incomplete.
+   * @return
    */
-  SequenceGroup findGroup(SequenceI s);
+  SequenceGroup findGroup(SequenceI seq, int position);
 
   /**
    * Finds all groups that a given sequence is part of.
@@ -284,24 +341,11 @@ public interface AlignmentI extends AnnotatedCollectionI
   char getGapCharacter();
 
   /**
-   * Test for all nucleotide alignment
-   * 
-   * @return true if alignment is nucleotide sequence
-   */
-  boolean isNucleotide();
-
-  /**
    * Test if alignment contains RNA structure
    * 
    * @return true if RNA structure AligmnentAnnotation was added to alignment
    */
   boolean hasRNAStructure();
-
-  /**
-   * Set alignment to be a nucleotide sequence
-   * 
-   */
-  void setNucleotide(boolean b);
 
   /**
    * Get the associated dataset for the alignment.
@@ -327,6 +371,8 @@ public interface AlignmentI extends AnnotatedCollectionI
   boolean padGaps();
 
   HiddenSequences getHiddenSequences();
+
+  HiddenColumns getHiddenColumns();
 
   /**
    * Compact representation of alignment
@@ -549,11 +595,33 @@ public interface AlignmentI extends AnnotatedCollectionI
   AlignedCodonFrame getMapping(SequenceI mapFrom, SequenceI mapTo);
 
   /**
-   * Calculate the visible start and end index of an alignment. The result is
-   * returned an int array where: int[0] = startIndex, and int[1] = endIndex.
+   * Set the hidden columns collection on the alignment. Answers true if the
+   * hidden column selection changed, else false.
    * 
-   * @param hiddenCols
+   * @param cols
    * @return
    */
-  public int[] getVisibleStartAndEndIndex(List<int[]> hiddenCols);
+  public boolean setHiddenColumns(HiddenColumns cols);
+
+  /**
+   * Set the first sequence as representative and hide its insertions. Typically
+   * used when loading JPred files.
+   */
+  public void setupJPredAlignment();
+
+  /**
+   * Add gaps into the sequences aligned to profileseq under the given
+   * AlignmentView
+   * 
+   * @param profileseq
+   *          sequence in al which sequences are aligned to
+   * @param input
+   *          alignment view where sequence corresponding to profileseq is first
+   *          entry
+   * @return new HiddenColumns for new alignment view, with insertions into
+   *         profileseq marked as hidden.
+   */
+  public HiddenColumns propagateInsertions(SequenceI profileseq,
+          AlignmentView input);
+
 }

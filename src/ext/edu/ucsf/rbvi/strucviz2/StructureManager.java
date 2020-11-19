@@ -97,7 +97,7 @@ public class StructureManager
     this.haveGUI = haveGUI;
     // Create the Chimera interface
     chimeraManager = new ChimeraManager(this);
-    chimSelectionList = new ArrayList<ChimeraStructuralObject>();
+    chimSelectionList = new ArrayList<>();
     pathProps = new Properties();
   }
 
@@ -110,7 +110,7 @@ public class StructureManager
           ModelType type)
   {
     // new models
-    Map<String, List<ChimeraModel>> newModels = new HashMap<String, List<ChimeraModel>>();
+    Map<String, List<ChimeraModel>> newModels = new HashMap<>();
     if (chimObjNames.size() > 0)
     {
       List<String> names = chimObjNames.iterator().next();
@@ -121,8 +121,8 @@ public class StructureManager
       for (String chimObjName : names)
       {
         // get or open the corresponding models if they already exist
-        List<ChimeraModel> currentModels = chimeraManager.getChimeraModels(
-                chimObjName, type);
+        List<ChimeraModel> currentModels = chimeraManager
+                .getChimeraModels(chimObjName, type);
         if (currentModels.size() == 0)
         {
           // open and return models
@@ -562,11 +562,11 @@ public class StructureManager
         // Get the corresponding "real" model
         if (chimeraManager.hasChimeraModel(modelNumber, subModelNumber))
         {
-          ChimeraModel dataModel = chimeraManager.getChimeraModel(
-                  modelNumber, subModelNumber);
-          if (dataModel.getResidueCount() == selectedModel
-                  .getResidueCount()
-                  || dataModel.getModelType() == StructureManager.ModelType.SMILES)
+          ChimeraModel dataModel = chimeraManager
+                  .getChimeraModel(modelNumber, subModelNumber);
+          if (dataModel.getResidueCount() == selectedModel.getResidueCount()
+                  || dataModel
+                          .getModelType() == StructureManager.ModelType.SMILES)
           {
             // Select the entire model
             addChimSelection(dataModel);
@@ -576,8 +576,8 @@ public class StructureManager
           {
             for (ChimeraChain selectedChain : selectedModel.getChains())
             {
-              ChimeraChain dataChain = dataModel.getChain(selectedChain
-                      .getChainId());
+              ChimeraChain dataChain = dataModel
+                      .getChain(selectedChain.getChainId());
               if (selectedChain.getResidueCount() == dataChain
                       .getResidueCount())
               {
@@ -846,7 +846,7 @@ public class StructureManager
     // alDialog.dispose();
     // }
     // System.out.println("launch align dialog");
-    List<ChimeraStructuralObject> chimObjectList = new ArrayList<ChimeraStructuralObject>();
+    List<ChimeraStructuralObject> chimObjectList = new ArrayList<>();
     for (ChimeraModel model : chimeraManager.getChimeraModels())
     {
       if (useChains)
@@ -887,7 +887,7 @@ public class StructureManager
 
   public List<String> getAllChimeraResidueAttributes()
   {
-    List<String> attributes = new ArrayList<String>();
+    List<String> attributes = new ArrayList<>();
     // attributes.addAll(rinManager.getResAttrs());
     attributes.addAll(chimeraManager.getAttrList());
     return attributes;
@@ -898,7 +898,7 @@ public class StructureManager
   // TODO: [Optional] Change priority of Chimera paths
   public static List<String> getChimeraPaths()
   {
-    List<String> pathList = new ArrayList<String>();
+    List<String> pathList = new ArrayList<>();
 
     // if no network is available and the settings have been modified by the
     // user, check for a
@@ -931,11 +931,22 @@ public class StructureManager
       pathList.add("/usr/local/chimera/bin/chimera");
       pathList.add("/usr/local/bin/chimera");
       pathList.add("/usr/bin/chimera");
+      pathList.add(System.getProperty("user.home") + "/opt/bin/chimera");
     }
     else if (os.startsWith("Windows"))
     {
-      pathList.add("\\Program Files\\Chimera\\bin\\chimera");
-      pathList.add("C:\\Program Files\\Chimera\\bin\\chimera.exe");
+      for (String root : new String[] { "\\Program Files",
+          "C:\\Program Files", "\\Program Files (x86)",
+          "C:\\Program Files (x86)" })
+      {
+        for (String version : new String[] { "1.11", "1.11.1", "1.11.2",
+            "1.12", "1.12.1", "1.12.2", "1.13" })
+        {
+          pathList.add(root + "\\Chimera " + version + "\\bin\\chimera");
+          pathList.add(
+                  root + "\\Chimera " + version + "\\bin\\chimera.exe");
+        }
+      }
     }
     else if (os.startsWith("Mac"))
     {

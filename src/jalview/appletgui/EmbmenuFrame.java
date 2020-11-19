@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -49,7 +49,8 @@ import java.util.Map;
  * @author Jim Procter and Andrew Waterhouse
  * 
  */
-public class EmbmenuFrame extends Frame implements MouseListener
+public class EmbmenuFrame extends Frame
+        implements MouseListener, AutoCloseable
 {
   protected static final Font FONT_ARIAL_PLAIN_11 = new Font("Arial",
           Font.PLAIN, 11);
@@ -59,7 +60,7 @@ public class EmbmenuFrame extends Frame implements MouseListener
   /**
    * map from labels to popup menus for the embedded menubar
    */
-  protected Map<Label, PopupMenu> embeddedPopup = new HashMap<Label, PopupMenu>();
+  protected Map<Label, PopupMenu> embeddedPopup = new HashMap<>();
 
   /**
    * the embedded menu is built on this and should be added to the frame at the
@@ -199,6 +200,7 @@ public class EmbmenuFrame extends Frame implements MouseListener
     return embeddedMenu;
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     PopupMenu popup = null;
@@ -207,8 +209,8 @@ public class EmbmenuFrame extends Frame implements MouseListener
     if (popup != null)
     {
       embeddedMenu.add(popup);
-      popup.show(embeddedMenu, source.getBounds().x, source.getBounds().y
-              + source.getBounds().getSize().height);
+      popup.show(embeddedMenu, source.getBounds().x,
+              source.getBounds().y + source.getBounds().getSize().height);
     }
   }
 
@@ -223,18 +225,22 @@ public class EmbmenuFrame extends Frame implements MouseListener
     return embeddedPopup.get(source);
   }
 
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }
@@ -262,11 +268,13 @@ public class EmbmenuFrame extends Frame implements MouseListener
   /**
    * calls destroyMenus()
    */
-  public void finalize() throws Throwable
+  @Override
+  public void close()
   {
     destroyMenus();
     embeddedPopup = null;
     embeddedMenu = null;
-    super.finalize();
+    // no close for Frame
+    // super.finalize();
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,7 +26,7 @@ import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentOrder;
 import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceI;
 import jalview.gui.AlignFrame;
@@ -125,9 +125,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       int nseqs = 0;
       if (minlen < 0)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_minlen_must_be_greater_zero"));
+        throw new Error(MessageManager.getString(
+                "error.implementation_error_minlen_must_be_greater_zero"));
       }
       for (int i = 0; i < seqs.length; i++)
       {
@@ -162,8 +161,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           String empty = null;
           if (seqs[i].getEnd() >= seqs[i].getStart())
           {
-            empty = (submitGaps) ? seqs[i].getSequenceAsString() : AlignSeq
-                    .extractGaps(jalview.util.Comparison.GapChars,
+            empty = (submitGaps) ? seqs[i].getSequenceAsString()
+                    : AlignSeq.extractGaps(jalview.util.Comparison.GapChars,
                             seqs[i].getSequenceAsString());
           }
           emptySeqs.add(new String[] { newname, empty });
@@ -179,10 +178,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     @Override
     public boolean hasResults()
     {
-      if (subjobComplete
-              && isFinished()
-              && (alignment != null || (emptySeqs != null && emptySeqs
-                      .size() > 0)))
+      if (subjobComplete && isFinished() && (alignment != null
+              || (emptySeqs != null && emptySeqs.size() > 0)))
       {
         return true;
       }
@@ -211,7 +208,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           for (compbio.data.sequence.FastaSequence seq : alignment
                   .getSequences())
           {
-            alseqs[alseq_l++] = new Sequence(seq.getId(), seq.getSequence());
+            alseqs[alseq_l++] = new Sequence(seq.getId(),
+                    seq.getSequence());
           }
           alseq_gapchar = alignment.getMetadata().getGapchar();
 
@@ -407,8 +405,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         {
           for (Argument opt : ((JabaWsParamSet) preset).getjabaArguments())
           {
-            jobProgress.append(opt.getName() + " " + opt.getDefaultValue()
-                    + "\n");
+            jobProgress.append(
+                    opt.getName() + " " + opt.getDefaultValue() + "\n");
           }
         }
       }
@@ -418,8 +416,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         // merge arguments with preset's own arguments.
         for (Argument opt : arguments)
         {
-          jobProgress.append(opt.getName() + " " + opt.getDefaultValue()
-                  + "\n");
+          jobProgress.append(
+                  opt.getName() + " " + opt.getDefaultValue() + "\n");
         }
       }
       jobProgress.append("\nJob Output:\n");
@@ -580,8 +578,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
                     "Exception whilst cancelling " + jobs[job].getJobId(),
                     exc);
           }
-          wsInfo.setProgressText(jobs[job].getJobnum(), OutputHeader
-                  + cancelledMessage + "\n");
+          wsInfo.setProgressText(jobs[job].getJobnum(),
+                  OutputHeader + cancelledMessage + "\n");
         }
         else
         {
@@ -635,8 +633,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     do
     {
       j.setLastChunk(lastchunk);
-      ChunkHolder chunk = server
-              .pullExecStatistics(j.getJobId(), lastchunk);
+      ChunkHolder chunk = server.pullExecStatistics(j.getJobId(),
+              lastchunk);
       if (chunk != null)
       {
         changed |= chunk.getChunk().length() > 0;
@@ -663,16 +661,16 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     if (!(job instanceof MsaWSJob))
     {
       throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_msawbjob_called",
-              new String[] { job.getClass().toString() }));
+              "error.implementation_error_msawbjob_called", new String[]
+              { job.getClass().toString() }));
     }
     MsaWSJob j = (MsaWSJob) job;
     if (j.isSubmitted())
     {
       if (Cache.log.isDebugEnabled())
       {
-        Cache.log.debug("Tried to submit an already submitted job "
-                + j.getJobId());
+        Cache.log.debug(
+                "Tried to submit an already submitted job " + j.getJobId());
       }
       return;
     }
@@ -712,14 +710,16 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       {
         throw new Exception(MessageManager.formatMessage(
                 "exception.web_service_returned_null_try_later",
-                new String[] { WsUrl }));
+                new String[]
+                { WsUrl }));
       }
     } catch (compbio.metadata.UnsupportedRuntimeException _lex)
     {
       lex = _lex;
       wsInfo.appendProgressText(MessageManager.formatMessage(
               "info.job_couldnt_be_run_server_doesnt_support_program",
-              new String[] { _lex.getMessage() }));
+              new String[]
+              { _lex.getMessage() }));
       wsInfo.warnUser(_lex.getMessage(),
               MessageManager.getString("warn.service_not_supported"));
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
@@ -729,8 +729,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     {
       lex = _lex;
       wsInfo.appendProgressText(MessageManager.formatMessage(
-              "info.job_couldnt_be_run_exceeded_hard_limit",
-              new String[] { _lex.getMessage() }));
+              "info.job_couldnt_be_run_exceeded_hard_limit", new String[]
+              { _lex.getMessage() }));
       wsInfo.warnUser(_lex.getMessage(),
               MessageManager.getString("warn.input_is_too_big"));
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
@@ -742,16 +742,16 @@ class MsaWSThread extends AWS2Thread implements WSClientI
               MessageManager.getString("warn.invalid_job_param_set"));
       wsInfo.appendProgressText(MessageManager.formatMessage(
               "info.job_couldnt_be_run_incorrect_param_setting",
-              new String[] { _lex.getMessage() }));
+              new String[]
+              { _lex.getMessage() }));
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
       wsInfo.setStatus(j.getJobnum(), WebserviceInfo.STATE_STOPPED_ERROR);
     } catch (Error e)
     {
       // For unexpected errors
-      System.err
-              .println(WebServiceName
-                      + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
-                      + "When contacting Server:" + WsUrl + "\n");
+      System.err.println(WebServiceName
+              + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
+              + "When contacting Server:" + WsUrl + "\n");
       e.printStackTrace(System.err);
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
@@ -759,10 +759,9 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     } catch (Exception e)
     {
       // For unexpected errors
-      System.err
-              .println(WebServiceName
-                      + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
-                      + "When contacting Server:" + WsUrl + "\n");
+      System.err.println(WebServiceName
+              + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
+              + "When contacting Server:" + WsUrl + "\n");
       e.printStackTrace(System.err);
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
@@ -775,8 +774,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
         // TODO: JBPNote catch timeout or other fault types explicitly
 
         j.setAllowedServerExceptions(0);
-        wsInfo.appendProgressText(j.getJobnum(), MessageManager
-                .getString("info.failed_to_submit_sequences_for_alignment"));
+        wsInfo.appendProgressText(j.getJobnum(), MessageManager.getString(
+                "info.failed_to_submit_sequences_for_alignment"));
       }
     }
   }
@@ -812,8 +811,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
             } catch (Exception e)
             {
 
-              Cache.log
-                      .warn("Exception when retrieving remaining Job progress data for job "
+              Cache.log.warn(
+                      "Exception when retrieving remaining Job progress data for job "
                               + msjob.getJobId() + " on server " + WsUrl);
               e.printStackTrace();
               nexcept--;
@@ -851,11 +850,11 @@ class MsaWSThread extends AWS2Thread implements WSClientI
           {
             // job has failed for some reason - probably due to invalid
             // parameters
-            Cache.log
-                    .debug("Results not available for finished job - marking as broken job.",
-                            e);
-            msjob.jobProgress
-                    .append("\nResult not available. Probably due to invalid input or parameter settings. Server error message below:\n\n"
+            Cache.log.debug(
+                    "Results not available for finished job - marking as broken job.",
+                    e);
+            msjob.jobProgress.append(
+                    "\nResult not available. Probably due to invalid input or parameter settings. Server error message below:\n\n"
                             + e.getLocalizedMessage());
             msjob.setjobStatus(JobStatus.FAILED);
           } catch (Exception e)
@@ -877,7 +876,8 @@ class MsaWSThread extends AWS2Thread implements WSClientI
             // wsInfo.appendProgressText(jobs[j].getJobnum(),
             // "\nAlignment Object Method Notes\n");
             // wsInfo.appendProgressText(jobs[j].getJobnum(),
-            // "Calculated with "+alignment.getMetadata().getProgram().toString());
+            // "Calculated with
+            // "+alignment.getMetadata().getProgram().toString());
             // JBPNote The returned files from a webservice could be
             // hidden behind icons in the monitor window that,
             // when clicked, pop up their corresponding data
@@ -887,8 +887,9 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     } catch (Exception ex)
     {
 
-      Cache.log.error("Unexpected exception when processing results for "
-              + alTitle, ex);
+      Cache.log.error(
+              "Unexpected exception when processing results for " + alTitle,
+              ex);
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
     }
     if (results > 0)
@@ -961,7 +962,7 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       orders[j] = null;
     }
     SequenceI[] alignment = (SequenceI[]) newview[0];
-    ColumnSelection columnselection = (ColumnSelection) newview[1];
+    HiddenColumns hidden = (HiddenColumns) newview[1];
     Alignment al = new Alignment(alignment);
     // TODO: add 'provenance' property to alignment from the method notes
     if (lastProgram != null)
@@ -973,13 +974,24 @@ class MsaWSThread extends AWS2Thread implements WSClientI
     {
       al.setDataset(dataset);
     }
-
     propagateDatasetMappings(al);
+    Alignment complement=null;
+    if (input.hasComplementView())
+    {
+      Object[] newcompl = input
+              .getComplementView()
+              .getAlignmentAndHiddenColumns(getRequestingAlignFrame()
+                      .getViewport().getCodingComplement().getGapCharacter());
+      complement = new Alignment((SequenceI[])newcompl[0]);
+      complement.setHiddenColumns((HiddenColumns) newcompl[1]);
+      complement.setDataset(dataset);
+      complement.alignAs(al);
+    }
     // JBNote- TODO: warn user if a block is input rather than aligned data ?
 
     if (newFrame)
     {
-      displayInNewFrame(al, alorders, columnselection);
+      displayInNewFrame(al, alorders, hidden, complement);
 
     }
     else
@@ -997,13 +1009,14 @@ class MsaWSThread extends AWS2Thread implements WSClientI
    * 
    * @param al
    * @param alorders
+   * @param complement2 
    * @param columnselection
    */
   protected void displayInNewFrame(AlignmentI al,
-          List<AlignmentOrder> alorders, ColumnSelection columnselection)
+          List<AlignmentOrder> alorders, HiddenColumns hidden, AlignmentI complement)
   {
-    AlignFrame af = new AlignFrame(al, columnselection,
-            AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
+    AlignFrame af = new AlignFrame(al, hidden, AlignFrame.DEFAULT_WIDTH,
+            AlignFrame.DEFAULT_HEIGHT);
 
     // initialise with same renderer settings as in parent alignframe.
     af.getFeatureRenderer().transferSettings(this.featureSettings);
@@ -1020,33 +1033,24 @@ class MsaWSThread extends AWS2Thread implements WSClientI
      * SplitFrame with the other pane similarly aligned.
      */
     AlignFrame requestedBy = getRequestingAlignFrame();
-    if (requestedBy != null
-            && requestedBy.getSplitViewContainer() != null
-            && requestedBy.getSplitViewContainer().getComplement(
-                    requestedBy) != null)
+    if (complement!=null && requestedBy != null && requestedBy.getSplitViewContainer() != null
+            && requestedBy.getSplitViewContainer()
+                    .getComplement(requestedBy) != null)
     {
-      AlignmentI complement = requestedBy.getSplitViewContainer()
-              .getComplement(requestedBy);
       String complementTitle = requestedBy.getSplitViewContainer()
               .getComplementTitle(requestedBy);
       // becomes null if the alignment window was closed before the alignment
       // job finished.
-      AlignmentI copyComplement = new Alignment(complement);
-      // todo should this be done by copy constructor?
-      copyComplement.setGapCharacter(complement.getGapCharacter());
-      // share the same dataset (and the mappings it holds)
-      copyComplement.setDataset(complement.getDataset());
-      copyComplement.alignAs(al);
-      if (copyComplement.getHeight() > 0)
+      if (complement.getHeight() > 0)
       {
         af.setTitle(alTitle);
-        AlignFrame af2 = new AlignFrame(copyComplement,
+        AlignFrame af2 = new AlignFrame(complement,
                 AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
         af2.setTitle(complementTitle);
         String linkedTitle = MessageManager
                 .getString("label.linked_view_title");
-        JInternalFrame splitFrame = new SplitFrame(al.isNucleotide() ? af
-                : af2, al.isNucleotide() ? af2 : af);
+        JInternalFrame splitFrame = new SplitFrame(
+                al.isNucleotide() ? af : af2, al.isNucleotide() ? af2 : af);
         Desktop.addInternalFrame(splitFrame, linkedTitle, -1, -1);
         return;
       }
@@ -1108,8 +1112,9 @@ class MsaWSThread extends AWS2Thread implements WSClientI
       }
       for (int i = 0, l = alorders.size(); i < l; i++)
       {
-        af.addSortByOrderMenuItem(WebServiceName + (names.get(i))
-                + " Ordering", alorders.get(i));
+        af.addSortByOrderMenuItem(
+                WebServiceName + (names.get(i)) + " Ordering",
+                alorders.get(i));
       }
     }
   }

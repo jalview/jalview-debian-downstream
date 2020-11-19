@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -25,6 +25,7 @@ import jalview.util.MessageManager;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -43,70 +44,29 @@ import javax.swing.event.MenuListener;
 
 public class GPCAPanel extends JInternalFrame
 {
-  JPanel jPanel2 = new JPanel();
+  private static final Font VERDANA_12 = new Font("Verdana", 0, 12);
 
-  JLabel jLabel1 = new JLabel();
+  protected JComboBox<String> xCombobox = new JComboBox<>();
 
-  JLabel jLabel2 = new JLabel();
+  protected JComboBox<String> yCombobox = new JComboBox<>();
 
-  JLabel jLabel3 = new JLabel();
-
-  protected JComboBox xCombobox = new JComboBox();
-
-  protected JComboBox yCombobox = new JComboBox();
-
-  protected JComboBox zCombobox = new JComboBox();
-
-  protected JButton resetButton = new JButton();
-
-  FlowLayout flowLayout1 = new FlowLayout();
-
-  BorderLayout borderLayout1 = new BorderLayout();
-
-  JMenuBar jMenuBar1 = new JMenuBar();
-
-  JMenu fileMenu = new JMenu();
-
-  JMenu saveMenu = new JMenu();
-
-  protected JMenu scoreMatrixMenu = new JMenu();
-
-  JMenuItem eps = new JMenuItem();
-
-  JMenuItem png = new JMenuItem();
-
-  JMenuItem print = new JMenuItem();
-
-  JMenuItem outputValues = new JMenuItem();
-
-  JMenuItem outputPoints = new JMenuItem();
-
-  JMenuItem outputProjPoints = new JMenuItem();
+  protected JComboBox<String> zCombobox = new JComboBox<>();
 
   protected JMenu viewMenu = new JMenu();
 
   protected JCheckBoxMenuItem showLabels = new JCheckBoxMenuItem();
 
-  JMenuItem bgcolour = new JMenuItem();
-
-  JMenuItem originalSeqData = new JMenuItem();
-
   protected JMenu associateViewsMenu = new JMenu();
-
-  protected JMenu calcSettings = new JMenu();
-
-  protected JCheckBoxMenuItem nuclSetting = new JCheckBoxMenuItem();
-
-  protected JCheckBoxMenuItem protSetting = new JCheckBoxMenuItem();
-
-  protected JCheckBoxMenuItem jvVersionSetting = new JCheckBoxMenuItem();
 
   protected JLabel statusBar = new JLabel();
 
-  protected GridLayout statusPanelLayout = new GridLayout();
-
   protected JPanel statusPanel = new JPanel();
 
+  protected JMenuItem originalSeqData;
+
+  /**
+   * Constructor
+   */
   public GPCAPanel()
   {
     try
@@ -123,135 +83,140 @@ public class GPCAPanel extends JInternalFrame
       yCombobox.addItem("dim " + i);
       zCombobox.addItem("dim " + i);
     }
-
-    setJMenuBar(jMenuBar1);
   }
 
   private void jbInit() throws Exception
   {
-    this.getContentPane().setLayout(borderLayout1);
-    jPanel2.setLayout(flowLayout1);
-    jLabel1.setFont(new java.awt.Font("Verdana", 0, 12));
+    this.getContentPane().setLayout(new BorderLayout());
+    JPanel jPanel2 = new JPanel();
+    jPanel2.setLayout(new FlowLayout());
+    JLabel jLabel1 = new JLabel();
+    jLabel1.setFont(VERDANA_12);
     jLabel1.setText("x=");
-    jLabel2.setFont(new java.awt.Font("Verdana", 0, 12));
+    JLabel jLabel2 = new JLabel();
+    jLabel2.setFont(VERDANA_12);
     jLabel2.setText("y=");
-    jLabel3.setFont(new java.awt.Font("Verdana", 0, 12));
+    JLabel jLabel3 = new JLabel();
+    jLabel3.setFont(VERDANA_12);
     jLabel3.setText("z=");
     jPanel2.setBackground(Color.white);
     jPanel2.setBorder(null);
-    zCombobox.setFont(new java.awt.Font("Verdana", 0, 12));
-    zCombobox.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        zCombobox_actionPerformed(e);
-      }
-    });
-    yCombobox.setFont(new java.awt.Font("Verdana", 0, 12));
-    yCombobox.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        yCombobox_actionPerformed(e);
-      }
-    });
-    xCombobox.setFont(new java.awt.Font("Verdana", 0, 12));
-    xCombobox.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        xCombobox_actionPerformed(e);
-      }
-    });
-    resetButton.setFont(new java.awt.Font("Verdana", 0, 12));
-    resetButton.setText(MessageManager.getString("action.reset"));
-    resetButton.addActionListener(new java.awt.event.ActionListener()
+    zCombobox.setFont(VERDANA_12);
+    zCombobox.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        resetButton_actionPerformed(e);
+        doDimensionChange();
       }
     });
+    yCombobox.setFont(VERDANA_12);
+    yCombobox.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        doDimensionChange();
+      }
+    });
+    xCombobox.setFont(VERDANA_12);
+    xCombobox.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        doDimensionChange();
+      }
+    });
+    JButton resetButton = new JButton();
+    resetButton.setFont(VERDANA_12);
+    resetButton.setText(MessageManager.getString("action.reset"));
+    resetButton.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        resetButton_actionPerformed();
+      }
+    });
+    JMenu fileMenu = new JMenu();
     fileMenu.setText(MessageManager.getString("action.file"));
+    JMenu saveMenu = new JMenu();
     saveMenu.setText(MessageManager.getString("action.save_as"));
-    eps.setText("EPS");
+    JMenuItem eps = new JMenuItem("EPS");
     eps.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        eps_actionPerformed(e);
+        eps_actionPerformed();
       }
     });
-    png.setText("PNG");
+    JMenuItem png = new JMenuItem("PNG");
     png.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        png_actionPerformed(e);
+        png_actionPerformed();
       }
     });
+    JMenuItem outputValues = new JMenuItem();
     outputValues.setText(MessageManager.getString("label.output_values"));
     outputValues.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        outputValues_actionPerformed(e);
+        outputValues_actionPerformed();
       }
     });
+    JMenuItem outputPoints = new JMenuItem();
     outputPoints.setText(MessageManager.getString("label.output_points"));
     outputPoints.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        outputPoints_actionPerformed(e);
+        outputPoints_actionPerformed();
       }
     });
-    outputProjPoints.setText(MessageManager
-            .getString("label.output_transformed_points"));
+    JMenuItem outputProjPoints = new JMenuItem();
+    outputProjPoints.setText(
+            MessageManager.getString("label.output_transformed_points"));
     outputProjPoints.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        outputProjPoints_actionPerformed(e);
+        outputProjPoints_actionPerformed();
       }
     });
+    JMenuItem print = new JMenuItem();
+    print.setText(MessageManager.getString("action.print"));
     print.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        print_actionPerformed(e);
+        print_actionPerformed();
       }
     });
     viewMenu.setText(MessageManager.getString("action.view"));
     viewMenu.addMenuListener(new MenuListener()
     {
+      @Override
       public void menuSelected(MenuEvent e)
       {
         viewMenu_menuSelected();
       }
 
+      @Override
       public void menuDeselected(MenuEvent e)
       {
       }
 
-      public void menuCanceled(MenuEvent e)
-      {
-      }
-    });
-    scoreMatrixMenu.setText(MessageManager
-            .getString("label.select_score_model"));
-    scoreMatrixMenu.addMenuListener(new MenuListener()
-    {
-      public void menuSelected(MenuEvent e)
-      {
-        scoreMatrix_menuSelected();
-      }
-
-      public void menuDeselected(MenuEvent e)
-      {
-      }
-
+      @Override
       public void menuCanceled(MenuEvent e)
       {
       }
@@ -259,68 +224,37 @@ public class GPCAPanel extends JInternalFrame
     showLabels.setText(MessageManager.getString("label.show_labels"));
     showLabels.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        showLabels_actionPerformed(e);
+        showLabels_actionPerformed();
       }
     });
-    print.setText(MessageManager.getString("action.print"));
+    JMenuItem bgcolour = new JMenuItem();
     bgcolour.setText(MessageManager.getString("action.background_colour"));
     bgcolour.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        bgcolour_actionPerformed(e);
+        bgcolour_actionPerformed();
       }
     });
+    originalSeqData = new JMenuItem();
     originalSeqData.setText(MessageManager.getString("label.input_data"));
     originalSeqData.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        originalSeqData_actionPerformed(e);
+        originalSeqData_actionPerformed();
       }
     });
-    associateViewsMenu.setText(MessageManager
-            .getString("label.associate_nodes_with"));
-    calcSettings.setText(MessageManager.getString("action.change_params"));
-    nuclSetting
-            .setText(MessageManager.getString("label.nucleotide_matrix"));
-    protSetting.setText(MessageManager.getString("label.protein_matrix"));
-    nuclSetting.addActionListener(new ActionListener()
-    {
+    associateViewsMenu.setText(
+            MessageManager.getString("label.associate_nodes_with"));
 
-      @Override
-      public void actionPerformed(ActionEvent arg0)
-      {
-        nuclSetting_actionPerfomed(arg0);
-      }
-    });
-    protSetting.addActionListener(new ActionListener()
-    {
-
-      @Override
-      public void actionPerformed(ActionEvent arg0)
-      {
-        protSetting_actionPerfomed(arg0);
-      }
-    });
-    jvVersionSetting.setText(MessageManager
-            .getString("label.jalview_pca_calculation"));
-    jvVersionSetting.addActionListener(new ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent arg0)
-      {
-        jvVersionSetting_actionPerfomed(arg0);
-      }
-    });
-    calcSettings.add(jvVersionSetting);
-    calcSettings.add(nuclSetting);
-    calcSettings.add(protSetting);
-    calcSettings.add(scoreMatrixMenu);
-    statusPanel.setLayout(statusPanelLayout);
-    statusBar.setFont(new java.awt.Font("Verdana", 0, 12));
+    statusPanel.setLayout(new GridLayout());
+    statusBar.setFont(VERDANA_12);
     // statusPanel.setBackground(Color.lightGray);
     // statusBar.setBackground(Color.lightGray);
     // statusPanel.add(statusBar, null);
@@ -335,9 +269,11 @@ public class GPCAPanel extends JInternalFrame
     jPanel2.add(jLabel3, null);
     jPanel2.add(zCombobox, null);
     jPanel2.add(resetButton, null);
+
+    JMenuBar jMenuBar1 = new JMenuBar();
     jMenuBar1.add(fileMenu);
     jMenuBar1.add(viewMenu);
-    jMenuBar1.add(calcSettings);
+    setJMenuBar(jMenuBar1);
     fileMenu.add(saveMenu);
     fileMenu.add(outputValues);
     fileMenu.add(print);
@@ -351,97 +287,51 @@ public class GPCAPanel extends JInternalFrame
     viewMenu.add(associateViewsMenu);
   }
 
-  protected void scoreMatrix_menuSelected()
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void resetButton_actionPerformed(ActionEvent e)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void protSetting_actionPerfomed(ActionEvent arg0)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void nuclSetting_actionPerfomed(ActionEvent arg0)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void outputPoints_actionPerformed(ActionEvent e)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void outputProjPoints_actionPerformed(ActionEvent e)
-  {
-    // TODO Auto-generated method stub
-
-  }
-
-  protected void xCombobox_actionPerformed(ActionEvent e)
+  protected void resetButton_actionPerformed()
   {
   }
 
-  protected void yCombobox_actionPerformed(ActionEvent e)
+  protected void outputPoints_actionPerformed()
   {
   }
 
-  protected void zCombobox_actionPerformed(ActionEvent e)
+  protected void outputProjPoints_actionPerformed()
   {
   }
 
-  public void eps_actionPerformed(ActionEvent e)
+  protected void eps_actionPerformed()
   {
-
   }
 
-  public void png_actionPerformed(ActionEvent e)
+  protected void png_actionPerformed()
   {
-
   }
 
-  public void outputValues_actionPerformed(ActionEvent e)
+  protected void outputValues_actionPerformed()
   {
-
   }
 
-  public void print_actionPerformed(ActionEvent e)
+  protected void print_actionPerformed()
   {
-
   }
 
-  public void showLabels_actionPerformed(ActionEvent e)
+  protected void showLabels_actionPerformed()
   {
-
   }
 
-  public void bgcolour_actionPerformed(ActionEvent e)
+  protected void bgcolour_actionPerformed()
   {
-
   }
 
-  public void originalSeqData_actionPerformed(ActionEvent e)
+  protected void originalSeqData_actionPerformed()
   {
-
   }
 
-  public void viewMenu_menuSelected()
+  protected void viewMenu_menuSelected()
   {
-
   }
 
-  protected void jvVersionSetting_actionPerfomed(ActionEvent arg0)
+  protected void doDimensionChange()
   {
-    // TODO Auto-generated method stub
-
   }
 }

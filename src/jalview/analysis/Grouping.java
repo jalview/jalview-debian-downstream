@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,6 +21,7 @@
 package jalview.analysis;
 
 import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 
@@ -91,8 +92,8 @@ public class Grouping
     i = 0;
     for (String key : gps.keySet())
     {
-      SequenceGroup group = new SequenceGroup(gps.get(key), "Subseq: "
-              + key, null, true, true, false, 0, width - 1);
+      SequenceGroup group = new SequenceGroup(gps.get(key),
+              "Subseq: " + key, null, true, true, false, 0, width - 1);
 
       groups[i++] = group;
     }
@@ -109,10 +110,12 @@ public class Grouping
    * @param sequences
    * @param columnSelection
    * @param list
+   * @param hiddenColumns
    * @return
    */
   public static SequenceGroup[] makeGroupsFromCols(SequenceI[] sequences,
-          ColumnSelection cs, List<SequenceGroup> list)
+          ColumnSelection cs, List<SequenceGroup> list,
+          HiddenColumns hiddenColumns)
   {
     // TODO: determine how to get/recover input data for group generation
     Map<String, List<SequenceI>> gps = new HashMap<String, List<SequenceI>>();
@@ -137,9 +140,17 @@ public class Grouping
     int i = 0;
     for (Integer pos : cs.getSelected())
     {
-      spos[i++] = pos.intValue();
+      if (hiddenColumns == null || hiddenColumns.isVisible(pos.intValue()))
+      {
+        spos[i++] = pos.intValue();
+      }
     }
-
+    if (i < spos.length)
+    {
+      // mark end of visible column position
+      spos[i] = -1;
+    }
+    // actual number of visible columns
     for (i = 0; i < sequences.length; i++)
     {
       int slen = sequences[i].getLength();
@@ -156,6 +167,10 @@ public class Grouping
       }
       for (int p : spos)
       {
+        if (p < 0)
+        {
+          break;
+        }
         if (p >= slen)
         {
           schar.append("~");
@@ -178,8 +193,8 @@ public class Grouping
     i = 0;
     for (String key : gps.keySet())
     {
-      SequenceGroup group = new SequenceGroup(gps.get(key), "Subseq: "
-              + key, null, true, true, false, 0, width - 1);
+      SequenceGroup group = new SequenceGroup(gps.get(key),
+              "Subseq: " + key, null, true, true, false, 0, width - 1);
 
       groups[i++] = group;
     }

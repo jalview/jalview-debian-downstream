@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,8 +21,11 @@
 package jalview.ext.ensembl;
 
 import jalview.datamodel.SequenceFeature;
-import jalview.io.gff.SequenceOntologyFactory;
+import jalview.datamodel.SequenceI;
 import jalview.io.gff.SequenceOntologyI;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import com.stevesoft.pat.Regex;
 
@@ -109,23 +112,37 @@ public class EnsemblCdna extends EnsemblSeqProxy
   }
 
   /**
-   * Answers true if the sequence feature type is 'exon' (or a subtype of exon
-   * in the Sequence Ontology), and the Parent of the feature is the transcript
-   * we are retrieving
+   * Answers a list of sequence features (if any) whose type is 'exon' (or a
+   * subtype of exon in the Sequence Ontology), and whose Parent is the
+   * transcript we are retrieving
    */
   @Override
-  protected boolean identifiesSequence(SequenceFeature sf, String accId)
+  protected List<SequenceFeature> getIdentifyingFeatures(SequenceI seq,
+          String accId)
   {
-    if (SequenceOntologyFactory.getInstance().isA(sf.getType(),
-            SequenceOntologyI.EXON))
+    List<SequenceFeature> result = new ArrayList<>();
+    List<SequenceFeature> sfs = seq.getFeatures()
+            .getFeaturesByOntology(SequenceOntologyI.EXON);
+    for (SequenceFeature sf : sfs)
     {
       String parentFeature = (String) sf.getValue(PARENT);
-      if (("transcript:" + accId).equals(parentFeature))
+      if (accId.equals(parentFeature))
       {
-        return true;
+        result.add(sf);
       }
     }
-    return false;
+
+    return result;
+  }
+
+  /**
+   * Parameter object_type=Transcaript added to ensure cdna and not peptide is
+   * returned (JAL-2529)
+   */
+  @Override
+  protected String getObjectType()
+  {
+    return OBJECT_TYPE_TRANSCRIPT;
   }
 
 }

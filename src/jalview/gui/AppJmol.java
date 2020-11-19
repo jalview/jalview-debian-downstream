@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,24 +21,12 @@
 package jalview.gui;
 
 import jalview.bin.Cache;
-import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
 import jalview.gui.StructureViewer.ViewerType;
-import jalview.io.JalviewFileChooser;
-import jalview.io.JalviewFileView;
-import jalview.schemes.BuriedColourScheme;
-import jalview.schemes.ColourSchemeI;
-import jalview.schemes.HelixColourScheme;
-import jalview.schemes.HydrophobicColourScheme;
-import jalview.schemes.PurinePyrimidineColourScheme;
-import jalview.schemes.StrandColourScheme;
-import jalview.schemes.TaylorColourScheme;
-import jalview.schemes.TurnColourScheme;
-import jalview.schemes.ZappoColourScheme;
 import jalview.structures.models.AAStructureBindingModel;
+import jalview.util.BrowserLauncher;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
 import jalview.ws.dbsources.Pdb;
@@ -50,30 +38,17 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JColorChooser;
-import javax.swing.JInternalFrame;
-import javax.swing.JMenu;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
 
 public class AppJmol extends StructureViewerBase
 {
@@ -82,7 +57,7 @@ public class AppJmol extends StructureViewerBase
 
   private static final String SPACE = " ";
 
-  private static final String BACKSLASH = "\"";
+  private static final String QUOTE = "\"";
 
   AppJmolBinding jmb;
 
@@ -91,8 +66,6 @@ public class AppJmol extends StructureViewerBase
   JSplitPane splitPane;
 
   RenderPanel renderPanel;
-
-  ViewSelectionMenu seqColourBy;
 
   /**
    * 
@@ -115,8 +88,8 @@ public class AppJmol extends StructureViewerBase
    */
   public AppJmol(String[] files, String[] ids, SequenceI[][] seqs,
           AlignmentPanel ap, boolean usetoColour, boolean useToAlign,
-          boolean leaveColouringToJmol, String loadStatus,
-          Rectangle bounds, String viewid)
+          boolean leaveColouringToJmol, String loadStatus, Rectangle bounds,
+          String viewid)
   {
     PDBEntry[] pdbentrys = new PDBEntry[files.length];
     for (int i = 0; i < pdbentrys.length; i++)
@@ -137,6 +110,7 @@ public class AppJmol extends StructureViewerBase
     {
       useAlignmentPanelForSuperposition(ap);
     }
+    initMenus();
     if (leaveColouringToJmol || !usetoColour)
     {
       jmb.setColourBySequence(false);
@@ -151,7 +125,6 @@ public class AppJmol extends StructureViewerBase
       viewerColour.setSelected(false);
     }
     this.setBounds(bounds);
-    initMenus();
     setViewId(viewid);
     // jalview.gui.Desktop.addInternalFrame(this, "Loading File",
     // bounds.width,bounds.height);
@@ -159,96 +132,38 @@ public class AppJmol extends StructureViewerBase
     this.addInternalFrameListener(new InternalFrameAdapter()
     {
       @Override
-      public void internalFrameClosing(InternalFrameEvent internalFrameEvent)
+      public void internalFrameClosing(
+              InternalFrameEvent internalFrameEvent)
       {
         closeViewer(false);
       }
     });
     initJmol(loadStatus); // pdbentry, seq, JBPCHECK!
-
   }
 
-  private void initMenus()
+  @Override
+  protected void initMenus()
   {
-    seqColour.setSelected(jmb.isColourBySequence());
-    viewerColour.setSelected(!jmb.isColourBySequence());
-    if (_colourwith == null)
-    {
-      _colourwith = new Vector<AlignmentPanel>();
-    }
-    if (_alignwith == null)
-    {
-      _alignwith = new Vector<AlignmentPanel>();
-    }
+    super.initMenus();
 
-    seqColourBy = new ViewSelectionMenu(
-            MessageManager.getString("label.colour_by"), this, _colourwith,
-            new ItemListener()
-            {
+    viewerActionMenu.setText(MessageManager.getString("label.jmol"));
 
-              @Override
-              public void itemStateChanged(ItemEvent e)
-              {
-                if (!seqColour.isSelected())
-                {
-                  seqColour.doClick();
-                }
-                else
-                {
-                  // update the jmol display now.
-                  seqColour_actionPerformed(null);
-                }
-              }
-            });
-    viewMenu.add(seqColourBy);
-    final ItemListener handler;
-    JMenu alpanels = new ViewSelectionMenu(
-            MessageManager.getString("label.superpose_with"), this,
-            _alignwith, handler = new ItemListener()
-            {
-
-              @Override
-              public void itemStateChanged(ItemEvent e)
-              {
-                alignStructs.setEnabled(_alignwith.size() > 0);
-                alignStructs.setToolTipText(MessageManager
-                        .formatMessage(
-                                "label.align_structures_using_linked_alignment_views",
-                                new String[] { new Integer(_alignwith
-                                        .size()).toString() }));
-              }
-            });
-    handler.itemStateChanged(null);
-    viewerActionMenu.add(alpanels);
-    viewerActionMenu.addMenuListener(new MenuListener()
-    {
-
-      @Override
-      public void menuSelected(MenuEvent e)
-      {
-        handler.itemStateChanged(null);
-      }
-
-      @Override
-      public void menuDeselected(MenuEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-
-      @Override
-      public void menuCanceled(MenuEvent e)
-      {
-        // TODO Auto-generated method stub
-
-      }
-    });
+    viewerColour
+            .setText(MessageManager.getString("label.colour_with_jmol"));
+    viewerColour.setToolTipText(MessageManager
+            .getString("label.let_jmol_manage_structure_colours"));
   }
 
   IProgressIndicator progressBar = null;
 
+  @Override
+  protected IProgressIndicator getIProgressIndicator()
+  {
+    return progressBar;
+  }
+  
   /**
-   * add a single PDB structure to a new or existing Jmol view
+   * display a single PDB structure in a new Jmol view
    * 
    * @param pdbentry
    * @param seq
@@ -259,42 +174,14 @@ public class AppJmol extends StructureViewerBase
           final AlignmentPanel ap)
   {
     progressBar = ap.alignFrame;
-    String pdbId = pdbentry.getId();
 
-    /*
-     * If the PDB file is already loaded, the user may just choose to add to an
-     * existing viewer (or cancel)
-     */
-    if (addAlreadyLoadedFile(seq, chains, ap, pdbId))
-    {
-      return;
-    }
-
-    /*
-     * Check if there are other Jmol views involving this alignment and prompt
-     * user about adding this molecule to one of them
-     */
-    if (addToExistingViewer(pdbentry, seq, chains, ap, pdbId))
-    {
-      return;
-    }
-
-    /*
-     * If the options above are declined or do not apply, open a new viewer
-     */
-    openNewJmol(ap, new PDBEntry[] { pdbentry }, new SequenceI[][] { seq });
+    openNewJmol(ap, alignAddedStructures, new PDBEntry[] { pdbentry },
+            new SequenceI[][]
+            { seq });
   }
 
-  /**
-   * Answers true if this viewer already involves the given PDB ID
-   */
-  @Override
-  protected boolean hasPdbId(String pdbId)
-  {
-    return jmb.hasPdbId(pdbId);
-  }
-
-  private void openNewJmol(AlignmentPanel ap, PDBEntry[] pdbentrys,
+  private void openNewJmol(AlignmentPanel ap, boolean alignAdded,
+          PDBEntry[] pdbentrys,
           SequenceI[][] seqs)
   {
     progressBar = ap.alignFrame;
@@ -302,11 +189,10 @@ public class AppJmol extends StructureViewerBase
             pdbentrys, seqs, null);
     addAlignmentPanel(ap);
     useAlignmentPanelForColourbyseq(ap);
-    if (pdbentrys.length > 1)
-    {
-      alignAddedStructures = true;
-      useAlignmentPanelForSuperposition(ap);
-    }
+
+    alignAddedStructures = alignAdded;
+    useAlignmentPanelForSuperposition(ap);
+
     jmb.setColourBySequence(true);
     setSize(400, 400); // probably should be a configurable/dynamic default here
     initMenus();
@@ -317,7 +203,8 @@ public class AppJmol extends StructureViewerBase
     this.addInternalFrameListener(new InternalFrameAdapter()
     {
       @Override
-      public void internalFrameClosing(InternalFrameEvent internalFrameEvent)
+      public void internalFrameClosing(
+              InternalFrameEvent internalFrameEvent)
       {
         closeViewer(false);
       }
@@ -326,41 +213,21 @@ public class AppJmol extends StructureViewerBase
   }
 
   /**
-   * create a new Jmol containing several structures superimposed using the
-   * given alignPanel.
+   * create a new Jmol containing several structures optionally superimposed
+   * using the given alignPanel.
    * 
    * @param ap
+   * @param alignAdded
+   *          - true to superimpose
    * @param pe
    * @param seqs
    */
-  public AppJmol(AlignmentPanel ap, PDBEntry[] pe, SequenceI[][] seqs)
+  public AppJmol(AlignmentPanel ap, boolean alignAdded, PDBEntry[] pe,
+          SequenceI[][] seqs)
   {
-    openNewJmol(ap, pe, seqs);
+    openNewJmol(ap, alignAdded, pe, seqs);
   }
 
-  /**
-   * Returns a list of any Jmol viewers. The list is restricted to those linked
-   * to the given alignment panel if it is not null.
-   */
-  @Override
-  protected List<StructureViewerBase> getViewersFor(AlignmentPanel apanel)
-  {
-    List<StructureViewerBase> result = new ArrayList<StructureViewerBase>();
-    JInternalFrame[] frames = Desktop.instance.getAllFrames();
-
-    for (JInternalFrame frame : frames)
-    {
-      if (frame instanceof AppJmol)
-      {
-        if (apanel == null
-                || ((StructureViewerBase) frame).isLinkedWith(apanel))
-        {
-          result.add((StructureViewerBase) frame);
-        }
-      }
-    }
-    return result;
-  }
 
   void initJmol(String command)
   {
@@ -380,8 +247,8 @@ public class AppJmol extends StructureViewerBase
       scriptWindow.setVisible(false);
     }
 
-    jmb.allocateViewer(renderPanel, true, "", null, null, "",
-            scriptWindow, null);
+    jmb.allocateViewer(renderPanel, true, "", null, null, "", scriptWindow,
+            null);
     // jmb.newJmolPopup("Jmol");
     if (command == null)
     {
@@ -392,14 +259,10 @@ public class AppJmol extends StructureViewerBase
     jmb.setFinishedInit(true);
   }
 
-
-
-  boolean allChainsSelected = false;
-
   @Override
   void showSelectedChains()
   {
-    Vector<String> toshow = new Vector<String>();
+    Vector<String> toshow = new Vector<>();
     for (int i = 0; i < chainMenu.getItemCount(); i++)
     {
       if (chainMenu.getItem(i) instanceof JCheckBoxMenuItem)
@@ -462,8 +325,8 @@ public class AppJmol extends StructureViewerBase
     StringBuilder fileList = new StringBuilder();
     for (String s : files)
     {
-      fileList.append(SPACE).append(BACKSLASH)
-              .append(Platform.escapeString(s)).append(BACKSLASH);
+      fileList.append(SPACE).append(QUOTE)
+              .append(Platform.escapeBackslashes(s)).append(QUOTE);
     }
     String filesString = fileList.toString();
 
@@ -509,8 +372,8 @@ public class AppJmol extends StructureViewerBase
     int waitFor = 35;
     int waitTotal = 0;
     while (addingStructures ? lastnotify >= jmb.getLoadNotifiesHandled()
-            : !(jmb.isFinishedInit() && jmb.getPdbFile() != null && jmb
-                    .getPdbFile().length == files.size()))
+            : !(jmb.isFinishedInit() && jmb.getStructureFiles() != null
+                    && jmb.getStructureFiles().length == files.size()))
     {
       try
       {
@@ -522,13 +385,12 @@ public class AppJmol extends StructureViewerBase
       }
       if (waitTotal > waitMax)
       {
-        System.err
-                .println("Timed out waiting for Jmol to load files after "
-                        + waitTotal + "ms");
-//        System.err.println("finished: " + jmb.isFinishedInit()
-//                + "; loaded: " + Arrays.toString(jmb.getPdbFile())
-//                + "; files: " + files.toString());
-        jmb.getPdbFile();
+        System.err.println("Timed out waiting for Jmol to load files after "
+                + waitTotal + "ms");
+        // System.err.println("finished: " + jmb.isFinishedInit()
+        // + "; loaded: " + Arrays.toString(jmb.getPdbFile())
+        // + "; files: " + files.toString());
+        jmb.getStructureFiles();
         break;
       }
     }
@@ -539,7 +401,7 @@ public class AppJmol extends StructureViewerBase
       jmb.updateColours(ap);
     }
     // do superposition if asked to
-    if (Cache.getDefault("AUTOSUPERIMPOSE", true) && alignAddedStructures)
+    if (alignAddedStructures)
     {
       alignAddedStructures();
     }
@@ -573,7 +435,7 @@ public class AppJmol extends StructureViewerBase
         }
       }
     });
-    alignAddedStructures = false;
+
   }
 
   /**
@@ -589,11 +451,11 @@ public class AppJmol extends StructureViewerBase
     // todo - record which pdbids were successfully imported.
     StringBuilder errormsgs = new StringBuilder();
 
-    List<String> files = new ArrayList<String>();
+    List<String> files = new ArrayList<>();
     String pdbid = "";
     try
     {
-      String[] filesInViewer = jmb.getPdbFile();
+      String[] filesInViewer = jmb.getStructureFiles();
       // TODO: replace with reference fetching/transfer code (validate PDBentry
       // as a DBRef?)
       Pdb pdbclient = new Pdb();
@@ -602,14 +464,16 @@ public class AppJmol extends StructureViewerBase
         String file = jmb.getPdbEntry(pi).getFile();
         if (file == null)
         {
+          // todo: extract block as method and pull up (also ChimeraViewFrame)
           // retrieve the pdb and store it locally
           AlignmentI pdbseq = null;
           pdbid = jmb.getPdbEntry(pi).getId();
           long hdl = pdbid.hashCode() - System.currentTimeMillis();
           if (progressBar != null)
           {
-            progressBar.setProgressBar(MessageManager.formatMessage(
-                    "status.fetching_pdb", new String[] { pdbid }), hdl);
+            progressBar.setProgressBar(MessageManager
+                    .formatMessage("status.fetching_pdb", new String[]
+                    { pdbid }), hdl);
           }
           try
           {
@@ -651,7 +515,7 @@ public class AppJmol extends StructureViewerBase
             addingStructures = true; // already files loaded.
             for (int c = 0; c < filesInViewer.length; c++)
             {
-              if (filesInViewer[c].equals(file))
+              if (Platform.pathEquals(filesInViewer[c], file))
               {
                 file = null;
                 break;
@@ -675,83 +539,14 @@ public class AppJmol extends StructureViewerBase
     }
     if (errormsgs.length() > 0)
     {
-      JOptionPane.showInternalMessageDialog(Desktop.desktop, MessageManager
-              .formatMessage("label.pdb_entries_couldnt_be_retrieved",
-                      new String[] { errormsgs.toString() }),
+      JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+              MessageManager.formatMessage(
+                      "label.pdb_entries_couldnt_be_retrieved", new String[]
+                      { errormsgs.toString() }),
               MessageManager.getString("label.couldnt_load_file"),
-              JOptionPane.ERROR_MESSAGE);
+              JvOptionPane.ERROR_MESSAGE);
     }
     return files;
-  }
-
-  @Override
-  public void pdbFile_actionPerformed(ActionEvent actionEvent)
-  {
-    JalviewFileChooser chooser = new JalviewFileChooser(
-            jalview.bin.Cache.getProperty("LAST_DIRECTORY"));
-
-    chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager.getString("label.save_pdb_file"));
-    chooser.setToolTipText(MessageManager.getString("action.save"));
-
-    int value = chooser.showSaveDialog(this);
-
-    if (value == JalviewFileChooser.APPROVE_OPTION)
-    {
-      BufferedReader in = null;
-      try
-      {
-        // TODO: cope with multiple PDB files in view
-        in = new BufferedReader(new FileReader(jmb.getPdbFile()[0]));
-        File outFile = chooser.getSelectedFile();
-
-        PrintWriter out = new PrintWriter(new FileOutputStream(outFile));
-        String data;
-        while ((data = in.readLine()) != null)
-        {
-          if (!(data.indexOf("<PRE>") > -1 || data.indexOf("</PRE>") > -1))
-          {
-            out.println(data);
-          }
-        }
-        out.close();
-      } catch (Exception ex)
-      {
-        ex.printStackTrace();
-      } finally
-      {
-        if (in != null)
-        {
-          try
-          {
-            in.close();
-          } catch (IOException e)
-          {
-            // ignore
-          }
-        }
-      }
-    }
-  }
-
-  @Override
-  public void viewMapping_actionPerformed(ActionEvent actionEvent)
-  {
-    jalview.gui.CutAndPasteTransfer cap = new jalview.gui.CutAndPasteTransfer();
-    try
-    {
-      cap.appendText(jmb.printMappings());
-    } catch (OutOfMemoryError e)
-    {
-      new OOMWarning(
-              "composing sequence-structure alignments for display in text box.",
-              e);
-      cap.dispose();
-      return;
-    }
-    jalview.gui.Desktop.addInternalFrame(cap,
-            MessageManager.getString("label.pdb_sequence_mapping"), 550,
-            600);
   }
 
   @Override
@@ -801,135 +596,11 @@ public class AppJmol extends StructureViewerBase
   }
 
   @Override
-  public void viewerColour_actionPerformed(ActionEvent actionEvent)
-  {
-    if (viewerColour.isSelected())
-    {
-      // disable automatic sequence colouring.
-      jmb.setColourBySequence(false);
-    }
-  }
-
-  @Override
-  public void seqColour_actionPerformed(ActionEvent actionEvent)
-  {
-    jmb.setColourBySequence(seqColour.isSelected());
-    if (_colourwith == null)
-    {
-      _colourwith = new Vector<AlignmentPanel>();
-    }
-    if (jmb.isColourBySequence())
-    {
-      if (!jmb.isLoadingFromArchive())
-      {
-        if (_colourwith.size() == 0 && getAlignmentPanel() != null)
-        {
-          // Make the currently displayed alignment panel the associated view
-          _colourwith.add(getAlignmentPanel().alignFrame.alignPanel);
-        }
-      }
-      // Set the colour using the current view for the associated alignframe
-      for (AlignmentPanel ap : _colourwith)
-      {
-        jmb.colourBySequence(ap);
-      }
-    }
-  }
-
-  @Override
-  public void chainColour_actionPerformed(ActionEvent actionEvent)
-  {
-    chainColour.setSelected(true);
-    jmb.colourByChain();
-  }
-
-  @Override
-  public void chargeColour_actionPerformed(ActionEvent actionEvent)
-  {
-    chargeColour.setSelected(true);
-    jmb.colourByCharge();
-  }
-
-  @Override
-  public void zappoColour_actionPerformed(ActionEvent actionEvent)
-  {
-    zappoColour.setSelected(true);
-    jmb.setJalviewColourScheme(new ZappoColourScheme());
-  }
-
-  @Override
-  public void taylorColour_actionPerformed(ActionEvent actionEvent)
-  {
-    taylorColour.setSelected(true);
-    jmb.setJalviewColourScheme(new TaylorColourScheme());
-  }
-
-  @Override
-  public void hydroColour_actionPerformed(ActionEvent actionEvent)
-  {
-    hydroColour.setSelected(true);
-    jmb.setJalviewColourScheme(new HydrophobicColourScheme());
-  }
-
-  @Override
-  public void helixColour_actionPerformed(ActionEvent actionEvent)
-  {
-    helixColour.setSelected(true);
-    jmb.setJalviewColourScheme(new HelixColourScheme());
-  }
-
-  @Override
-  public void strandColour_actionPerformed(ActionEvent actionEvent)
-  {
-    strandColour.setSelected(true);
-    jmb.setJalviewColourScheme(new StrandColourScheme());
-  }
-
-  @Override
-  public void turnColour_actionPerformed(ActionEvent actionEvent)
-  {
-    turnColour.setSelected(true);
-    jmb.setJalviewColourScheme(new TurnColourScheme());
-  }
-
-  @Override
-  public void buriedColour_actionPerformed(ActionEvent actionEvent)
-  {
-    buriedColour.setSelected(true);
-    jmb.setJalviewColourScheme(new BuriedColourScheme());
-  }
-
-  @Override
-  public void purinePyrimidineColour_actionPerformed(ActionEvent actionEvent)
-  {
-    setJalviewColourScheme(new PurinePyrimidineColourScheme());
-  }
-
-  @Override
-  public void userColour_actionPerformed(ActionEvent actionEvent)
-  {
-    userColour.setSelected(true);
-    new UserDefinedColours(this, null);
-  }
-
-  @Override
-  public void backGround_actionPerformed(ActionEvent actionEvent)
-  {
-    java.awt.Color col = JColorChooser
-            .showDialog(this, MessageManager
-                    .getString("label.select_backgroud_colour"), null);
-    if (col != null)
-    {
-      jmb.setBackgroundColour(col);
-    }
-  }
-
-  @Override
   public void showHelp_actionPerformed(ActionEvent actionEvent)
   {
     try
     {
-      jalview.util.BrowserLauncher
+      BrowserLauncher
               .openURL("http://jmol.sourceforge.net/docs/JmolUserGuide/");
     } catch (Exception ex)
     {
@@ -978,7 +649,7 @@ public class AppJmol extends StructureViewerBase
     {
       getSize(currentSize);
 
-      if (jmb != null && jmb.fileLoadingError != null)
+      if (jmb != null && jmb.hasFileLoadingError())
       {
         g.setColor(Color.black);
         g.fillRect(0, 0, currentSize.width, currentSize.height);
@@ -999,8 +670,8 @@ public class AppJmol extends StructureViewerBase
           if (e == jmb.getPdbCount() - 1 || sb.length() > 20)
           {
             lines++;
-            g.drawString(sb.toString(), 20, currentSize.height / 2 - lines
-                    * g.getFontMetrics().getHeight());
+            g.drawString(sb.toString(), 20, currentSize.height / 2
+                    - lines * g.getFontMetrics().getHeight());
           }
         }
       }
@@ -1019,104 +690,6 @@ public class AppJmol extends StructureViewerBase
                 currentSize.height);
       }
     }
-  }
-
-  public void updateTitleAndMenus()
-  {
-    if (jmb.fileLoadingError != null && jmb.fileLoadingError.length() > 0)
-    {
-      repaint();
-      return;
-    }
-    setChainMenuItems(jmb.getChainNames());
-
-    this.setTitle(jmb.getViewerTitle());
-    if (jmb.getPdbFile().length > 1 && jmb.getSequence().length > 1)
-    {
-      viewerActionMenu.setVisible(true);
-    }
-    if (!jmb.isLoadingFromArchive())
-    {
-      seqColour_actionPerformed(null);
-    }
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see
-   * jalview.jbgui.GStructureViewer#alignStructs_actionPerformed(java.awt.event
-   * .ActionEvent)
-   */
-  @Override
-  protected void alignStructs_actionPerformed(ActionEvent actionEvent)
-  {
-    alignStructs_withAllAlignPanels();
-  }
-
-  private void alignStructs_withAllAlignPanels()
-  {
-    if (getAlignmentPanel() == null)
-    {
-      return;
-    }
-    ;
-    if (_alignwith.size() == 0)
-    {
-      _alignwith.add(getAlignmentPanel());
-    }
-    ;
-    try
-    {
-      AlignmentI[] als = new Alignment[_alignwith.size()];
-      ColumnSelection[] alc = new ColumnSelection[_alignwith.size()];
-      int[] alm = new int[_alignwith.size()];
-      int a = 0;
-
-      for (AlignmentPanel ap : _alignwith)
-      {
-        als[a] = ap.av.getAlignment();
-        alm[a] = -1;
-        alc[a++] = ap.av.getColumnSelection();
-      }
-      jmb.superposeStructures(als, alm, alc);
-    } catch (Exception e)
-    {
-      StringBuffer sp = new StringBuffer();
-      for (AlignmentPanel ap : _alignwith)
-      {
-        sp.append("'" + ap.alignFrame.getTitle() + "' ");
-      }
-      Cache.log.info("Couldn't align structures with the " + sp.toString()
-              + "associated alignment panels.", e);
-
-    }
-
-  }
-
-  @Override
-  public void setJalviewColourScheme(ColourSchemeI ucs)
-  {
-    jmb.setJalviewColourScheme(ucs);
-
-  }
-
-  /**
-   * 
-   * @param alignment
-   * @return first alignment panel displaying given alignment, or the default
-   *         alignment panel
-   */
-  public AlignmentPanel getAlignmentPanelFor(AlignmentI alignment)
-  {
-    for (AlignmentPanel ap : getAllAlignmentPanels())
-    {
-      if (ap.av.getAlignment() == alignment)
-      {
-        return ap;
-      }
-    }
-    return getAlignmentPanel();
   }
 
   @Override
@@ -1138,9 +711,8 @@ public class AppJmol extends StructureViewerBase
   }
 
   @Override
-  protected AAStructureBindingModel getBindingModel()
+  protected String getViewerName()
   {
-    return jmb;
+    return "Jmol";
   }
-
 }

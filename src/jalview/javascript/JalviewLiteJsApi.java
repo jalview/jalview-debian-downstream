@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -73,7 +73,8 @@ public interface JalviewLiteJsApi
    * @return String list of selected sequence IDs, each terminated by the given
    *         separator
    */
-  public abstract String getSelectedSequencesFrom(AlignFrame alf, String sep);
+  public abstract String getSelectedSequencesFrom(AlignFrame alf,
+          String sep);
 
   /**
    * 
@@ -120,7 +121,8 @@ public interface JalviewLiteJsApi
    * @param sep
    *          separator between toselect fields
    */
-  public abstract void select(String sequenceIds, String columns, String sep);
+  public abstract void select(String sequenceIds, String columns,
+          String sep);
 
   /**
    * select regions of the given alignment frame
@@ -175,8 +177,8 @@ public interface JalviewLiteJsApi
    * @return selected sequences as flat file or empty string if there was no
    *         current selection
    */
-  public abstract String getSelectedSequencesAsAlignmentFrom(
-          AlignFrame alf, String format, String suffix);
+  public abstract String getSelectedSequencesAsAlignmentFrom(AlignFrame alf,
+          String format, String suffix);
 
   /**
    * get a separator separated list of sequence IDs reflecting the order of the
@@ -300,7 +302,8 @@ public interface JalviewLiteJsApi
    * @param alf
    * @param annotation
    */
-  public abstract void loadAnnotationFrom(AlignFrame alf, String annotation);
+  public abstract void loadAnnotationFrom(AlignFrame alf,
+          String annotation);
 
   /**
    * parse the given string as a jalview feature or GFF annotation file and
@@ -454,7 +457,8 @@ public interface JalviewLiteJsApi
    *          Jmol (e.g. first one is frame 1, second is frame 2, etc).
    * @see jalview.javascript.MouseOverStructureListener
    */
-  public abstract void setStructureListener(String listener, String modelSet);
+  public abstract void setStructureListener(String listener,
+          String modelSet);
 
   /**
    * remove any callback using the given listener function and associated with
@@ -567,8 +571,8 @@ public interface JalviewLiteJsApi
    * @see jalview.appletgui.AlignFrame#setFeatureGroupState(java.lang.String[],
    *      boolean)
    */
-  public abstract void setFeatureGroupStateOn(AlignFrame alf,
-          String groups, boolean state);
+  public abstract void setFeatureGroupStateOn(AlignFrame alf, String groups,
+          boolean state);
 
   public abstract void setFeatureGroupState(String groups, boolean state);
 

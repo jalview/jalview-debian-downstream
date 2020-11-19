@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -42,6 +42,8 @@ import org.json.simple.parser.ParseException;
  */
 public class EnsemblSymbol extends EnsemblXref
 {
+  private static final String GENE = "gene";
+  private static final String TYPE = "type";
   /**
    * Constructor given the target domain to fetch data from
    * 
@@ -62,8 +64,7 @@ public class EnsemblSymbol extends EnsemblXref
    * @return
    * @throws IOException
    */
-  protected String parseSymbolResponse(BufferedReader br)
-          throws IOException
+  protected String parseSymbolResponse(BufferedReader br) throws IOException
   {
     JSONParser jp = new JSONParser();
     String result = null;
@@ -74,8 +75,9 @@ public class EnsemblSymbol extends EnsemblXref
       while (rvals.hasNext())
       {
         JSONObject val = (JSONObject) rvals.next();
-        String id = val.get("id").toString();
-        if (id != null && isGeneIdentifier(id))
+        String id = val.get(JSON_ID).toString();
+        String type = val.get(TYPE).toString();
+        if (id != null && GENE.equals(type))
         {
           result = id;
           break;
@@ -88,12 +90,31 @@ public class EnsemblSymbol extends EnsemblXref
     return result;
   }
 
-  protected URL getUrl(String id, Species species)
+  /**
+   * Constructs the URL for the REST symbol endpoint
+   * 
+   * @param id
+   *          the accession id (Ensembl or external)
+   * @param species
+   *          a species name recognisable by Ensembl
+   * @param type
+   *          an optional type to filter the response (gene, transcript,
+   *          translation)
+   * @return
+   */
+  protected URL getUrl(String id, Species species, String... type)
   {
-    String url = getDomain() + "/xrefs/symbol/" + species.toString() + "/"
-            + id + "?content-type=application/json";
+    StringBuilder sb = new StringBuilder();
+    sb.append(getDomain()).append("/xrefs/symbol/")
+            .append(species.toString()).append("/").append(id)
+            .append(CONTENT_TYPE_JSON);
+    for (String t : type)
+    {
+      sb.append("&object_type=").append(t);
+    }
     try
     {
+      String url = sb.toString();
       return new URL(url);
     } catch (MalformedURLException e)
     {
@@ -108,7 +129,7 @@ public class EnsemblSymbol extends EnsemblXref
    * @param identifier
    * @return
    */
-  public List<String> getIds(String identifier)
+  public List<String> getGeneIds(String identifier)
   {
     List<String> result = new ArrayList<String>();
     List<String> ids = new ArrayList<String>();
@@ -120,19 +141,19 @@ public class EnsemblSymbol extends EnsemblXref
     {
       for (String query : queries)
       {
-        for (Species taxon : Species.values())
+        for (Species taxon : Species.getModelOrganisms())
         {
-          if (taxon.isModelOrganism())
+          URL url = getUrl(query, taxon, GENE);
+          if (url != null)
           {
-            URL url = getUrl(query, taxon);
-            if (url != null)
+            br = getHttpResponse(url, ids);
+            if (br != null)
             {
-              br = getHttpResponse(url, ids);
-            }
-            String geneId = parseSymbolResponse(br);
-            if (geneId != null)
-            {
-              result.add(geneId);
+              String geneId = parseSymbolResponse(br);
+              if (geneId != null && !result.contains(geneId))
+              {
+                result.add(geneId);
+              }
             }
           }
         }

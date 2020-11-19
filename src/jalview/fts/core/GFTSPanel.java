@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,16 +28,20 @@ import jalview.gui.Desktop;
 import jalview.gui.IProgressIndicator;
 import jalview.gui.JvSwingUtils;
 import jalview.gui.SequenceFetcher;
+import jalview.io.cache.JvCacheableInputBox;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -53,6 +57,7 @@ import java.util.List;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JInternalFrame;
@@ -61,7 +66,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
 import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -70,6 +74,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
+import javax.swing.text.JTextComponent;
 
 /**
  * This class provides the swing GUI layout for FTS Panel and implements most of
@@ -82,12 +87,15 @@ import javax.swing.table.TableColumn;
 @SuppressWarnings("serial")
 public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 {
+  private static final Font VERDANA_12 = new Font("Verdana", 0, 12);
+
   protected JInternalFrame mainFrame = new JInternalFrame(
           getFTSFrameTitle());
 
+  protected JTabbedPane tabs = new JTabbedPane();
   protected IProgressIndicator progressIndicator;
 
-  protected JComboBox<FTSDataColumnI> cmb_searchTarget = new JComboBox<FTSDataColumnI>();
+  protected JComboBox<FTSDataColumnI> cmb_searchTarget = new JComboBox<>();
 
   protected JButton btn_ok = new JButton();
 
@@ -95,7 +103,9 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   protected JButton btn_cancel = new JButton();
 
-  protected JTextField txt_search = new JTextField(30);
+  protected JCheckBox btn_autosearch = new JCheckBox();
+
+  protected JvCacheableInputBox<String> txt_search;
 
   protected SequenceFetcher seqFetcher;
 
@@ -109,14 +119,14 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   protected StringBuilder errorWarning = new StringBuilder();
 
-  protected ImageIcon warningImage = new ImageIcon(getClass().getResource(
-          "/images/warning.gif"));
+  protected ImageIcon warningImage = new ImageIcon(
+          getClass().getResource("/images/warning.gif"));
 
-  protected ImageIcon loadingImage = new ImageIcon(getClass().getResource(
-          "/images/loading.gif"));
+  protected ImageIcon loadingImage = new ImageIcon(
+          getClass().getResource("/images/loading.gif"));
 
-  protected ImageIcon balnkPlaceholderImage = new ImageIcon(getClass()
-          .getResource("/images/blank_16x16_placeholder.png"));
+  protected ImageIcon balnkPlaceholderImage = new ImageIcon(
+          getClass().getResource("/images/blank_16x16_placeholder.png"));
 
   protected JLabel lbl_warning = new JLabel(warningImage);
 
@@ -144,7 +154,11 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   protected int pageLimit;
 
-  protected HashSet<String> paginatorCart = new HashSet<String>();
+  protected HashSet<String> paginatorCart = new HashSet<>();
+
+  private static final int MIN_WIDTH = 670;
+
+  private static final int MIN_HEIGHT = 300;
 
   protected static final DecimalFormat totalNumberformatter = new DecimalFormat(
           "###,###");
@@ -219,8 +233,9 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
         e.printStackTrace();
       }
       toolTipText = (toolTipText == null ? null
-              : (toolTipText.length() > 500 ? JvSwingUtils.wrapTooltip(
-                      true, toolTipText.subSequence(0, 500) + "...")
+              : (toolTipText.length() > 500
+                      ? JvSwingUtils.wrapTooltip(true,
+                              toolTipText.subSequence(0, 500) + "...")
                       : JvSwingUtils.wrapTooltip(true, toolTipText)));
 
       return toolTipText;
@@ -231,15 +246,38 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   public GFTSPanel()
   {
+    this(null);
+  }
+
+  public GFTSPanel(SequenceFetcher fetcher)
+  {
     try
     {
+      if (fetcher == null)
+      {
+        tabs = null;
+      }
       jbInit();
+      if (fetcher != null)
+      {
+        tabs.addTab(MessageManager.getString("label.retrieve_ids"),
+                fetcher);
+        fetcher.setDatabaseChooserVisible(false);
+        fetcher.embedWithFTSPanel(this);
+      }
+      mainFrame.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
+      final JPanel ftsPanel = this;
       mainFrame.addFocusListener(new FocusAdapter()
       {
         @Override
         public void focusGained(FocusEvent e)
         {
-          txt_search.requestFocusInWindow();
+          // TODO: make selected tab gain focus in correct widget
+          if (tabs != null
+                  && tabs.getSelectedComponent() == ftsPanel)
+          {
+            txt_search.requestFocusInWindow();
+          }
         }
       });
       mainFrame.invalidate();
@@ -257,16 +295,19 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
    */
   private void jbInit() throws Exception
   {
+
+    txt_search = new JvCacheableInputBox<>(getCacheKey(), 45);
+    populateCmbSearchTargetOptions();
     Integer width = getTempUserPrefs().get("FTSPanel.width") == null ? 800
             : getTempUserPrefs().get("FTSPanel.width");
     Integer height = getTempUserPrefs().get("FTSPanel.height") == null ? 400
             : getTempUserPrefs().get("FTSPanel.height");
     lbl_warning.setVisible(false);
-    lbl_warning.setFont(new java.awt.Font("Verdana", 0, 12));
+    lbl_warning.setFont(VERDANA_12);
     lbl_loading.setVisible(false);
-    lbl_loading.setFont(new java.awt.Font("Verdana", 0, 12));
+    lbl_loading.setFont(VERDANA_12);
     lbl_blank.setVisible(true);
-    lbl_blank.setFont(new java.awt.Font("Verdana", 0, 12));
+    lbl_blank.setFont(VERDANA_12);
 
     tbl_summary.setAutoCreateRowSorter(true);
     tbl_summary.getTableHeader().setReorderingAllowed(false);
@@ -319,7 +360,34 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
       }
     });
 
-    btn_back.setFont(new java.awt.Font("Verdana", 0, 12));
+    JButton txt_help = new JButton("?");
+    txt_help.setFont(VERDANA_12);
+    txt_help.setPreferredSize(new Dimension(15, 15));
+    txt_help.setToolTipText(MessageManager.getString("action.help"));
+    txt_help.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        showHelp();
+      }
+    });
+
+    btn_autosearch.setText(MessageManager.getString("option.autosearch"));
+    btn_autosearch.setToolTipText(
+            MessageManager.getString("option.enable_disable_autosearch"));
+    btn_autosearch.setSelected(
+            jalview.bin.Cache.getDefault(getAutosearchPreference(), true));
+    btn_autosearch.addActionListener(new java.awt.event.ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        jalview.bin.Cache.setProperty(getAutosearchPreference(),
+                Boolean.toString(btn_autosearch.isSelected()));
+      }
+    });
+    btn_back.setFont(VERDANA_12);
     btn_back.setText(MessageManager.getString("action.back"));
     btn_back.addActionListener(new java.awt.event.ActionListener()
     {
@@ -342,7 +410,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     });
 
     btn_ok.setEnabled(false);
-    btn_ok.setFont(new java.awt.Font("Verdana", 0, 12));
+    btn_ok.setFont(VERDANA_12);
     btn_ok.setText(MessageManager.getString("action.ok"));
     btn_ok.addActionListener(new java.awt.event.ActionListener()
     {
@@ -364,9 +432,9 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
       }
     });
     btn_next_page.setEnabled(false);
-    btn_next_page.setToolTipText(MessageManager
-            .getString("label.next_page_tooltip"));
-    btn_next_page.setFont(new java.awt.Font("Verdana", 0, 12));
+    btn_next_page.setToolTipText(
+            MessageManager.getString("label.next_page_tooltip"));
+    btn_next_page.setFont(VERDANA_12);
     btn_next_page.setText(MessageManager.getString("action.next_page"));
     btn_next_page.addActionListener(new java.awt.event.ActionListener()
     {
@@ -389,9 +457,9 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     });
 
     btn_prev_page.setEnabled(false);
-    btn_prev_page.setToolTipText(MessageManager
-            .getString("label.prev_page_tooltip"));
-    btn_prev_page.setFont(new java.awt.Font("Verdana", 0, 12));
+    btn_prev_page.setToolTipText(
+            MessageManager.getString("label.prev_page_tooltip"));
+    btn_prev_page.setFont(VERDANA_12);
     btn_prev_page.setText(MessageManager.getString("action.prev_page"));
     btn_prev_page.addActionListener(new java.awt.event.ActionListener()
     {
@@ -424,7 +492,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
       btn_next_page.setVisible(false);
     }
 
-    btn_cancel.setFont(new java.awt.Font("Verdana", 0, 12));
+    btn_cancel.setFont(VERDANA_12);
     btn_cancel.setText(MessageManager.getString("action.cancel"));
     btn_cancel.addActionListener(new java.awt.event.ActionListener()
     {
@@ -447,79 +515,85 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     });
     scrl_searchResult.setPreferredSize(new Dimension(width, height));
 
-    cmb_searchTarget.setFont(new java.awt.Font("Verdana", 0, 12));
-    cmb_searchTarget.addActionListener(new ActionListener()
+    cmb_searchTarget.setFont(VERDANA_12);
+    cmb_searchTarget.addItemListener(new ItemListener()
     {
       @Override
-      public void actionPerformed(ActionEvent e)
+      public void itemStateChanged(ItemEvent e)
       {
-        String tooltipText;
-        if ("all".equalsIgnoreCase(getCmbSearchTarget().getSelectedItem()
-                .toString()))
+        if (e.getStateChange() == ItemEvent.SELECTED)
         {
-          tooltipText = MessageManager.getString("label.search_all");
-        }
-        else if ("pdb id".equalsIgnoreCase(getCmbSearchTarget()
-                .getSelectedItem().toString()))
-        {
-          tooltipText = MessageManager
-                  .getString("label.separate_multiple_accession_ids");
-        }
-        else
-        {
-          tooltipText = MessageManager.formatMessage(
-                  "label.separate_multiple_query_values",
-                  new Object[] { getCmbSearchTarget().getSelectedItem()
-                          .toString() });
-        }
-        txt_search.setToolTipText(JvSwingUtils.wrapTooltip(true,
-                tooltipText));
-        searchAction(true);
-      }
-    });
-
-    populateCmbSearchTargetOptions();
-
-    txt_search.setFont(new java.awt.Font("Verdana", 0, 12));
-
-    txt_search.addKeyListener(new KeyAdapter()
-    {
-      @Override
-      public void keyPressed(KeyEvent e)
-      {
-        if (e.getKeyCode() == KeyEvent.VK_ENTER)
-        {
-          if (txt_search.getText() == null
-                  || txt_search.getText().isEmpty())
+          String tooltipText;
+          if ("all".equalsIgnoreCase(
+                  getCmbSearchTarget().getSelectedItem().toString()))
           {
-            return;
+            tooltipText = MessageManager.getString("label.search_all");
           }
-          String primaryKeyName = getFTSRestClient().getPrimaryKeyColumn()
-                  .getName();
-          if (primaryKeyName.equalsIgnoreCase(getCmbSearchTarget()
-                  .getSelectedItem().toString()))
+          else if ("pdb id".equalsIgnoreCase(
+                  getCmbSearchTarget().getSelectedItem().toString()))
           {
-            transferToSequenceFetcher(txt_search.getText());
+            tooltipText = MessageManager
+                    .getString("label.separate_multiple_accession_ids");
           }
+          else
+          {
+            tooltipText = MessageManager.formatMessage(
+                    "label.separate_multiple_query_values", new Object[]
+                    { getCmbSearchTarget().getSelectedItem().toString() });
+          }
+          txt_search.setToolTipText(
+                  JvSwingUtils.wrapTooltip(true, tooltipText));
+          searchAction(true);
         }
       }
     });
 
+    txt_search.setFont(VERDANA_12);
+
+    txt_search.getEditor().getEditorComponent()
+            .addKeyListener(new KeyAdapter()
+            {
+              @Override
+              public void keyPressed(KeyEvent e)
+              {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
+                {
+                  if (getTypedText() == null || getTypedText().isEmpty())
+                  {
+                    return;
+                  }
+                  String primaryKeyName = getFTSRestClient()
+                          .getPrimaryKeyColumn().getName();
+                  if (primaryKeyName.equalsIgnoreCase(getCmbSearchTarget()
+                          .getSelectedItem().toString()))
+                  {
+                    // TODO: nicer to show the list in the result set before
+                    // viewing in Jalview perhaps ?
+                    transferToSequenceFetcher(getTypedText());
+                  }
+                  else
+                  {
+                    performSearchAction();
+                  }
+                }
+              }
+            });
     final DeferredTextInputListener listener = new DeferredTextInputListener(
             1500, new ActionListener()
             {
               @Override
               public void actionPerformed(ActionEvent e)
               {
-                if (!getTypedText().equalsIgnoreCase(lastSearchTerm))
+                if (btn_autosearch.isSelected()
+                        || txt_search.wasEnterPressed())
                 {
-                  searchAction(true);
-                  paginatorCart.clear();
-                  lastSearchTerm = getTypedText();
+                  performSearchAction();
                 }
               }
             }, false);
-    txt_search.getDocument().addDocumentListener(listener);
+    ((JTextComponent) txt_search.getEditor().getEditorComponent())
+            .getDocument().addDocumentListener(listener);
+
     txt_search.addFocusListener(new FocusListener()
     {
       @Override
@@ -535,6 +609,15 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
       }
     });
 
+    txt_search.addActionListener(new ActionListener()
+    {
+
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        performSearchAction();
+      }
+    });
     final String searchTabTitle = MessageManager
             .getString("label.search_result");
     final String configureCols = MessageManager
@@ -564,8 +647,8 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
           txt_search.setEnabled(false);
           cmb_searchTarget.setEnabled(false);
           previousWantedFields = getFTSRestClient()
-                  .getAllDefaultDisplayedFTSDataColumns().toArray(
-                          new Object[0]);
+                  .getAllDefaultDisplayedFTSDataColumns()
+                  .toArray(new Object[0]);
         }
         if (sourceTabbedPane.getTitleAt(index).equals(searchTabTitle))
         {
@@ -599,6 +682,8 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     pnl_results.add(tabbedPane);
     pnl_inputs.add(cmb_searchTarget);
     pnl_inputs.add(txt_search);
+    pnl_inputs.add(txt_help);
+    pnl_inputs.add(btn_autosearch);
     pnl_inputs.add(lbl_loading);
     pnl_inputs.add(lbl_warning);
     pnl_inputs.add(lbl_blank);
@@ -610,10 +695,21 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     this.add(pnl_results, java.awt.BorderLayout.CENTER);
     this.add(pnl_actions, java.awt.BorderLayout.SOUTH);
     mainFrame.setVisible(true);
-    mainFrame.setContentPane(this);
+    if (tabs != null)
+    {
+      tabs.setOpaque(true);
+      tabs.insertTab(MessageManager.getString("label.free_text_search"),
+              null, this, "", 0);
+      mainFrame.setContentPane(tabs);
+      tabs.setVisible(true);
+    }
+    else
+    {
+      mainFrame.setContentPane(this);
+    }
     mainFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-    mainFrame
-            .addInternalFrameListener(new javax.swing.event.InternalFrameAdapter()
+    mainFrame.addInternalFrameListener(
+            new javax.swing.event.InternalFrameAdapter()
             {
               @Override
               public void internalFrameClosing(InternalFrameEvent e)
@@ -621,8 +717,6 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
                 closeAction();
               }
             });
-    mainFrame.setVisible(true);
-    mainFrame.setContentPane(this);
     mainFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     Integer x = getTempUserPrefs().get("FTSPanel.x");
     Integer y = getTempUserPrefs().get("FTSPanel.y");
@@ -633,18 +727,16 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     Desktop.addInternalFrame(mainFrame, getFTSFrameTitle(), width, height);
   }
 
+  abstract protected void showHelp();
+
   protected void closeAction()
   {
-    // System.out.println(">>>>>>>>>> closing internal frame!!!");
-    // System.out.println("width : " + this.getWidth());
-    // System.out.println("heigh : " + this.getHeight());
-    // System.out.println("x : " + mainFrame.getX());
-    // System.out.println("y : " + mainFrame.getY());
     getTempUserPrefs().put("FTSPanel.width", this.getWidth());
     getTempUserPrefs().put("FTSPanel.height", pnl_results.getHeight());
     getTempUserPrefs().put("FTSPanel.x", mainFrame.getX());
     getTempUserPrefs().put("FTSPanel.y", mainFrame.getY());
     mainFrame.dispose();
+    txt_search.persistCache();
   }
 
   public class DeferredTextInputListener implements DocumentListener
@@ -688,11 +780,23 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   }
 
+  void performSearchAction()
+  {
+    String typed = getTypedText();
+    if (typed != null && typed.length() > 0
+            && !typed.equalsIgnoreCase(lastSearchTerm))
+    {
+      searchAction(true);
+      paginatorCart.clear();
+      lastSearchTerm = typed;
+    }
+  }
+
   public boolean wantedFieldsUpdated()
   {
     if (previousWantedFields == null)
     {
-      return true;
+      return false;
     }
 
     return Arrays.equals(getFTSRestClient()
@@ -719,7 +823,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     return cmb_searchTarget;
   }
 
-  public JTextField getTxtSearch()
+  public JComboBox<String> getTxtSearch()
   {
     return txt_search;
   }
@@ -758,13 +862,13 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     {
       lbl_loading.setVisible(false);
       lbl_blank.setVisible(false);
-      lbl_warning.setToolTipText(JvSwingUtils.wrapTooltip(true,
-              errorWarning.toString()));
+      lbl_warning.setToolTipText(
+              JvSwingUtils.wrapTooltip(true, errorWarning.toString()));
       lbl_warning.setVisible(true);
     }
   }
 
-  protected void btn_back_ActionPerformed()
+  public void btn_back_ActionPerformed()
   {
     closeAction();
     new SequenceFetcher(progressIndicator);
@@ -777,7 +881,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     btn_cancel.setEnabled(false);
   }
 
-  protected void btn_cancel_ActionPerformed()
+  public void btn_cancel_ActionPerformed()
   {
     closeAction();
   }
@@ -787,7 +891,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
    */
   public void populateCmbSearchTargetOptions()
   {
-    List<FTSDataColumnI> searchableTargets = new ArrayList<FTSDataColumnI>();
+    List<FTSDataColumnI> searchableTargets = new ArrayList<>();
     try
     {
       Collection<FTSDataColumnI> foundFTSTargets = getFTSRestClient()
@@ -815,7 +919,6 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   public void transferToSequenceFetcher(String ids)
   {
-    // mainFrame.dispose();
     seqFetcher.getTextArea().setText(ids);
     Thread worker = new Thread(seqFetcher);
     worker.start();
@@ -824,7 +927,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
   @Override
   public String getTypedText()
   {
-    return txt_search.getText().trim();
+    return txt_search.getUserInput();
   }
 
   @Override
@@ -875,6 +978,7 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
   {
     lbl_blank.setVisible(!isSearchInProgress);
     lbl_loading.setVisible(isSearchInProgress);
+    txt_search.setEditable(!isSearchInProgress);
   }
 
   @Override
@@ -907,8 +1011,8 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     int totalRows = resultTable.getRowCount();
     try
     {
-      primaryKeyColIndex = getFTSRestClient().getPrimaryKeyColumIndex(
-              wantedFields, false);
+      primaryKeyColIndex = getFTSRestClient()
+              .getPrimaryKeyColumIndex(wantedFields, false);
     } catch (Exception e)
     {
       e.printStackTrace();
@@ -929,8 +1033,6 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
               .toString();
       paginatorCart.add(idStr);
     }
-    // System.out.println("Paginator shopping cart size : "
-    // + paginatorCart.size());
   }
 
   public void updateSummaryTableSelections()
@@ -943,15 +1045,13 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
     int primaryKeyColIndex = 0;
     try
     {
-      primaryKeyColIndex = getFTSRestClient().getPrimaryKeyColumIndex(
-              wantedFields, false);
+      primaryKeyColIndex = getFTSRestClient()
+              .getPrimaryKeyColumIndex(wantedFields, false);
     } catch (Exception e)
     {
       e.printStackTrace();
     }
-    // System.out.println(">>>>>> got here : 1");
     int totalRows = resultTable.getRowCount();
-    // resultTable.clearSelection();
     for (int row = 0; row < totalRows; row++)
     {
       String id = (String) resultTable.getValueAt(row, primaryKeyColIndex);
@@ -965,9 +1065,6 @@ public abstract class GFTSPanel extends JPanel implements GFTSPanelI
 
   public void refreshPaginatorState()
   {
-    // System.out.println("resultSet count : " + resultSetCount);
-    // System.out.println("offSet : " + offSet);
-    // System.out.println("page limit : " + pageLimit);
     setPrevPageButtonEnabled(false);
     setNextPageButtonEnabled(false);
     if (resultSetCount == 0 && pageLimit == 0)

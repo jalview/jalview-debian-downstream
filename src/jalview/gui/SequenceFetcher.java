@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -26,13 +26,14 @@ import jalview.datamodel.AlignmentI;
 import jalview.datamodel.DBRefEntry;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.fts.core.GFTSPanel;
 import jalview.fts.service.pdb.PDBFTSPanel;
 import jalview.fts.service.uniprot.UniprotFTSPanel;
+import jalview.io.FileFormatI;
 import jalview.io.gff.SequenceOntologyI;
 import jalview.util.DBRefUtils;
 import jalview.util.MessageManager;
 import jalview.util.Platform;
-import jalview.ws.dbsources.das.api.DasSourceRegistryI;
 import jalview.ws.seqfetcher.DbSourceProxy;
 
 import java.awt.BorderLayout;
@@ -51,7 +52,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -77,6 +77,8 @@ public class SequenceFetcher extends JPanel implements Runnable
   JButton example = new JButton();
 
   JButton close = new JButton();
+
+  JButton back = new JButton();
 
   JPanel jPanel1 = new JPanel();
 
@@ -108,10 +110,6 @@ public class SequenceFetcher extends JPanel implements Runnable
 
   private static jalview.ws.SequenceFetcher sfetch = null;
 
-  private static long lastDasSourceRegistry = -3;
-
-  private static DasSourceRegistryI dasRegistry = null;
-
   private static boolean _initingFetcher = false;
 
   private static Thread initingThread = null;
@@ -136,11 +134,10 @@ public class SequenceFetcher extends JPanel implements Runnable
     {
       if (guiWindow != null)
       {
-        guiWindow
-                .setProgressBar(
-                        MessageManager
-                                .getString("status.waiting_sequence_database_fetchers_init"),
-                        Thread.currentThread().hashCode());
+        guiWindow.setProgressBar(
+                MessageManager.getString(
+                        "status.waiting_sequence_database_fetchers_init"),
+                Thread.currentThread().hashCode());
       }
       // initting happening on another thread - so wait around to see if it
       // finishes.
@@ -157,18 +154,13 @@ public class SequenceFetcher extends JPanel implements Runnable
       }
       if (guiWindow != null)
       {
-        guiWindow
-                .setProgressBar(
-                        MessageManager
-                                .getString("status.waiting_sequence_database_fetchers_init"),
-                        Thread.currentThread().hashCode());
+        guiWindow.setProgressBar(
+                MessageManager.getString(
+                        "status.waiting_sequence_database_fetchers_init"),
+                Thread.currentThread().hashCode());
       }
     }
-    if (sfetch == null
-            || dasRegistry != Cache.getDasSourceRegistry()
-            || lastDasSourceRegistry != (Cache.getDasSourceRegistry()
-                    .getDasRegistryURL() + Cache.getDasSourceRegistry()
-                    .getLocalSourceString()).hashCode())
+    if (sfetch == null)
     {
       _initingFetcher = true;
       initingThread = Thread.currentThread();
@@ -177,20 +169,17 @@ public class SequenceFetcher extends JPanel implements Runnable
        */
       if (guiWindow != null)
       {
-        guiWindow.setProgressBar(MessageManager
-                .getString("status.init_sequence_database_fetchers"),
+        guiWindow.setProgressBar(
+                MessageManager.getString(
+                        "status.init_sequence_database_fetchers"),
                 Thread.currentThread().hashCode());
       }
-      dasRegistry = Cache.getDasSourceRegistry();
-      dasRegistry.refreshSources();
 
       jalview.ws.SequenceFetcher sf = new jalview.ws.SequenceFetcher();
       if (guiWindow != null)
       {
         guiWindow.setProgressBar(null, Thread.currentThread().hashCode());
       }
-      lastDasSourceRegistry = (dasRegistry.getDasRegistryURL() + dasRegistry
-              .getLocalSourceString()).hashCode();
       sfetch = sf;
       _initingFetcher = false;
       initingThread = null;
@@ -234,14 +223,12 @@ public class SequenceFetcher extends JPanel implements Runnable
             @Override
             public void run()
             {
-              JOptionPane
-                      .showInternalMessageDialog(
-                              Desktop.desktop,
-                              MessageManager
-                                      .getString("warn.couldnt_create_sequence_fetcher_client"),
-                              MessageManager
-                                      .getString("label.couldnt_create_sequence_fetcher"),
-                              JOptionPane.ERROR_MESSAGE);
+              JvOptionPane.showInternalMessageDialog(Desktop.desktop,
+                      MessageManager.getString(
+                              "warn.couldnt_create_sequence_fetcher_client"),
+                      MessageManager.getString(
+                              "label.couldnt_create_sequence_fetcher"),
+                      JvOptionPane.ERROR_MESSAGE);
             }
           });
 
@@ -273,7 +260,7 @@ public class SequenceFetcher extends JPanel implements Runnable
         return Collections.emptyList();
       }
     }
-    sf.newAlframes = new ArrayList<AlignFrame>();
+    sf.newAlframes = new ArrayList<>();
     sf.run();
     return sf.newAlframes;
   }
@@ -311,14 +298,15 @@ public class SequenceFetcher extends JPanel implements Runnable
         if (sourcep.getTier() == 0)
         {
           database.selection = Arrays
-                  .asList(new DbSourceProxy[] { sourcep });
+                  .asList(new DbSourceProxy[]
+                  { sourcep });
           break;
         }
       }
       if (database.selection == null || database.selection.size() == 0)
       {
-        System.err.println("Ignoring fetch parameter db='" + selectedDb
-                + "'");
+        System.err.println(
+                "Ignoring fetch parameter db='" + selectedDb + "'");
         return false;
       }
       textArea.setText(queryString);
@@ -379,11 +367,21 @@ public class SequenceFetcher extends JPanel implements Runnable
 
   private String getFrameTitle()
   {
-    return ((alignFrame == null) ? MessageManager
-            .getString("label.new_sequence_fetcher") : MessageManager
-            .getString("label.additional_sequence_fetcher"));
+    return ((alignFrame == null)
+            ? MessageManager.getString("label.new_sequence_fetcher")
+            : MessageManager
+                    .getString("label.additional_sequence_fetcher"));
   }
 
+  GFTSPanel parentFTSframe = null;
+  /**
+   * change the buttons so they fit with the FTS panel.
+   */
+  public void embedWithFTSPanel(GFTSPanel toClose)
+  {
+    back.setVisible(true);
+    parentFTSframe = toClose;
+  }
   private void jbInit() throws Exception
   {
     this.setLayout(borderLayout2);
@@ -398,8 +396,8 @@ public class SequenceFetcher extends JPanel implements Runnable
     replacePunctuation.setHorizontalAlignment(SwingConstants.CENTER);
     replacePunctuation
             .setFont(new java.awt.Font("Verdana", Font.ITALIC, 11));
-    replacePunctuation.setText(MessageManager
-            .getString("label.replace_commas_semicolons"));
+    replacePunctuation.setText(
+            MessageManager.getString("label.replace_commas_semicolons"));
     ok.setText(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
     {
@@ -428,7 +426,7 @@ public class SequenceFetcher extends JPanel implements Runnable
         example_actionPerformed();
       }
     });
-    close.setText(MessageManager.getString("action.close"));
+    close.setText(MessageManager.getString("action.cancel"));
     close.addActionListener(new ActionListener()
     {
       @Override
@@ -437,6 +435,17 @@ public class SequenceFetcher extends JPanel implements Runnable
         close_actionPerformed(e);
       }
     });
+    back.setText(MessageManager.getString("action.back"));
+    back.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        parentFTSframe.btn_back_ActionPerformed();
+      }
+    });
+    // back not visible unless embedded
+    back.setVisible(false);
     textArea.setFont(JvSwingUtils.getLabelFont());
     textArea.setLineWrap(true);
     textArea.addKeyListener(new KeyAdapter()
@@ -452,9 +461,10 @@ public class SequenceFetcher extends JPanel implements Runnable
     });
     jPanel3.setLayout(borderLayout1);
     borderLayout1.setVgap(5);
-    jPanel1.add(ok);
+    jPanel1.add(back);
     jPanel1.add(example);
     jPanel1.add(clear);
+    jPanel1.add(ok);
     jPanel1.add(close);
     jPanel2.setLayout(borderLayout3);
     databaseButt = /*database.getDatabaseSelectorButton();
@@ -538,17 +548,13 @@ public class SequenceFetcher extends JPanel implements Runnable
                       + database.getSelectedSources().size() + " others)"
                       : ""));
       String eq = database.getExampleQueries();
-      dbeg.setText(MessageManager.formatMessage(
-              "label.example_query_param", new String[] { eq }));
+      dbeg.setText(MessageManager.formatMessage("label.example_query_param",
+              new String[]
+              { eq }));
+      // TODO this should be a property of the SequenceFetcher whether commas are and
+      // colons are allowed in the IDs...
+
       boolean enablePunct = !(eq != null && eq.indexOf(",") > -1);
-      for (DbSourceProxy dbs : database.getSelectedSources())
-      {
-        if (dbs instanceof jalview.ws.dbsources.das.datamodel.DasSequenceSource)
-        {
-          enablePunct = false;
-          break;
-        }
-      }
       replacePunctuation.setEnabled(enablePunct);
 
     } catch (Exception ex)
@@ -582,6 +588,10 @@ public class SequenceFetcher extends JPanel implements Runnable
     try
     {
       frame.setClosed(true);
+      if (parentFTSframe!=null)
+      {
+        parentFTSframe.btn_cancel_ActionPerformed();
+      }
     } catch (Exception ex)
     {
     }
@@ -594,7 +604,7 @@ public class SequenceFetcher extends JPanel implements Runnable
     textArea.setEnabled(false);
     ok.setEnabled(false);
     close.setEnabled(false);
-
+    back.setEnabled(false);
     Thread worker = new Thread(this);
     worker.start();
   }
@@ -606,6 +616,7 @@ public class SequenceFetcher extends JPanel implements Runnable
     textArea.setEnabled(true);
     ok.setEnabled(true);
     close.setEnabled(true);
+    back.setEnabled(parentFTSframe != null);
   }
 
   @Override
@@ -621,7 +632,7 @@ public class SequenceFetcher extends JPanel implements Runnable
     if (replacePunctuation.isEnabled() && replacePunctuation.isSelected())
     {
       empty = new com.stevesoft.pat.Regex(
-      // replace commas and spaces with a semicolon
+              // replace commas and spaces with a semicolon
               "(\\s|[,; ])+", ";");
     }
     else
@@ -631,8 +642,8 @@ public class SequenceFetcher extends JPanel implements Runnable
     }
     textArea.setText(empty.replaceAll(textArea.getText()));
     // see if there's anthing to search with
-    if (!new com.stevesoft.pat.Regex("[A-Za-z0-9_.]").search(textArea
-            .getText()))
+    if (!new com.stevesoft.pat.Regex("[A-Za-z0-9_.]")
+            .search(textArea.getText()))
     {
       error += "Please enter a (semi-colon separated list of) database id(s)";
     }
@@ -645,15 +656,15 @@ public class SequenceFetcher extends JPanel implements Runnable
     // TODO: Refactor to GUI independent code and write tests.
     // indicate if successive sources should be merged into one alignment.
     boolean addToLast = false;
-    List<String> aresultq = new ArrayList<String>();
-    List<String> presultTitle = new ArrayList<String>();
-    List<AlignmentI> presult = new ArrayList<AlignmentI>();
-    List<AlignmentI> aresult = new ArrayList<AlignmentI>();
+    List<String> aresultq = new ArrayList<>();
+    List<String> presultTitle = new ArrayList<>();
+    List<AlignmentI> presult = new ArrayList<>();
+    List<AlignmentI> aresult = new ArrayList<>();
     Iterator<DbSourceProxy> proxies = database.getSelectedSources()
             .iterator();
     String[] qries;
-    List<String> nextFetch = Arrays.asList(qries = textArea.getText()
-            .split(";"));
+    List<String> nextFetch = Arrays
+            .asList(qries = textArea.getText().split(";"));
     Iterator<String> en = Arrays.asList(new String[0]).iterator();
     int nqueries = qries.length;
 
@@ -666,20 +677,18 @@ public class SequenceFetcher extends JPanel implements Runnable
         nqueries = nextFetch.size();
         // save the remaining queries in the original array
         qries = nextFetch.toArray(new String[nqueries]);
-        nextFetch = new ArrayList<String>();
+        nextFetch = new ArrayList<>();
       }
 
       DbSourceProxy proxy = proxies.next();
       try
       {
         // update status
-        guiWindow
-                .setProgressBar(MessageManager.formatMessage(
-                        "status.fetching_sequence_queries_from",
-                        new String[] {
-                            Integer.valueOf(nqueries).toString(),
-                            proxy.getDbName() }), Thread.currentThread()
-                        .hashCode());
+        guiWindow.setProgressBar(MessageManager.formatMessage(
+                "status.fetching_sequence_queries_from", new String[]
+                { Integer.valueOf(nqueries).toString(),
+                    proxy.getDbName() }),
+                Thread.currentThread().hashCode());
         if (proxy.getMaximumQueryCount() == 1)
         {
           /*
@@ -703,8 +712,8 @@ public class SequenceFetcher extends JPanel implements Runnable
         }
       } catch (Exception e)
       {
-        showErrorMessage("Error retrieving " + textArea.getText()
-                + " from " + database.getSelectedItem());
+        showErrorMessage("Error retrieving " + textArea.getText() + " from "
+                + database.getSelectedItem());
         // error
         // +="Couldn't retrieve sequences from "+database.getSelectedItem();
         System.err.println("Retrieval failed for source ='"
@@ -714,9 +723,7 @@ public class SequenceFetcher extends JPanel implements Runnable
       } catch (OutOfMemoryError e)
       {
         showErrorMessage("Out of Memory when retrieving "
-                + textArea.getText()
-                + " from "
-                + database.getSelectedItem()
+                + textArea.getText() + " from " + database.getSelectedItem()
                 + "\nPlease see the Jalview FAQ for instructions for increasing the memory available to Jalview.\n");
         e.printStackTrace();
       } catch (Error e)
@@ -744,8 +751,8 @@ public class SequenceFetcher extends JPanel implements Runnable
           while (aresult.size() > 0)
           {
             presult.add(aresult.remove(0));
-            presultTitle.add(aresultq.remove(0) + " "
-                    + getDefaultRetrievalTitle());
+            presultTitle.add(
+                    aresultq.remove(0) + " " + getDefaultRetrievalTitle());
           }
         }
         else
@@ -773,15 +780,17 @@ public class SequenceFetcher extends JPanel implements Runnable
           presultTitle.add(titl);
         }
       }
-      guiWindow.setProgressBar(MessageManager
-              .getString("status.finshed_querying"), Thread.currentThread()
-              .hashCode());
+      guiWindow.setProgressBar(
+              MessageManager.getString("status.finshed_querying"),
+              Thread.currentThread().hashCode());
     }
-    guiWindow.setProgressBar(
-            (presult.size() > 0) ? MessageManager
-                    .getString("status.parsing_results") : MessageManager
-                    .getString("status.processing"), Thread.currentThread()
-                    .hashCode());
+    guiWindow
+            .setProgressBar(
+                    (presult.size() > 0)
+                            ? MessageManager
+                                    .getString("status.parsing_results")
+                            : MessageManager.getString("status.processing"),
+                    Thread.currentThread().hashCode());
     // process results
     while (presult.size() > 0)
     {
@@ -794,8 +803,9 @@ public class SequenceFetcher extends JPanel implements Runnable
     {
       StringBuffer sb = new StringBuffer();
       sb.append("Didn't retrieve the following "
-              + (nextFetch.size() == 1 ? "query" : nextFetch.size()
-                      + " queries") + ": \n");
+              + (nextFetch.size() == 1 ? "query"
+                      : nextFetch.size() + " queries")
+              + ": \n");
       int l = sb.length(), lr = 0;
       for (String s : nextFetch)
       {
@@ -830,11 +840,10 @@ public class SequenceFetcher extends JPanel implements Runnable
    */
   void fetchMultipleAccessions(DbSourceProxy proxy,
           Iterator<String> accessions, List<String> aresultq,
-          List<AlignmentI> aresult, List<String> nextFetch)
-          throws Exception
+          List<AlignmentI> aresult, List<String> nextFetch) throws Exception
   {
     StringBuilder multiacc = new StringBuilder();
-    List<String> tosend = new ArrayList<String>();
+    List<String> tosend = new ArrayList<>();
     while (accessions.hasNext())
     {
       String nel = accessions.next();
@@ -906,8 +915,9 @@ public class SequenceFetcher extends JPanel implements Runnable
         indres = proxy.getSequenceRecords(accession);
       } catch (OutOfMemoryError oome)
       {
-        new OOMWarning("fetching " + accession + " from "
-                + proxy.getDbName(), oome, this);
+        new OOMWarning(
+                "fetching " + accession + " from " + proxy.getDbName(),
+                oome, this);
       }
       if (indres != null)
       {
@@ -917,9 +927,8 @@ public class SequenceFetcher extends JPanel implements Runnable
       }
     } catch (Exception e)
     {
-      Cache.log.info(
-              "Error retrieving " + accession + " from "
-                      + proxy.getDbName(), e);
+      Cache.log.info("Error retrieving " + accession + " from "
+              + proxy.getDbName(), e);
     }
     return success;
   }
@@ -978,7 +987,7 @@ public class SequenceFetcher extends JPanel implements Runnable
   }
 
   AlignmentI parseResult(AlignmentI al, String title,
-          String currentFileFormat,
+          FileFormatI currentFileFormat,
           FeatureSettingsModelI preferredFeatureColours)
   {
 
@@ -1006,22 +1015,15 @@ public class SequenceFetcher extends JPanel implements Runnable
         {
           for (SequenceI sq : alsqs)
           {
-            if ((sfs = sq.getSequenceFeatures()) != null)
+            if (sq.getFeatures().hasFeatures())
             {
-              if (sfs.length > 0)
-              {
-                af.setShowSeqFeatures(true);
-                break;
-              }
+              af.setShowSeqFeatures(true);
+              break;
             }
-
           }
         }
 
-        if (preferredFeatureColours != null)
-        {
-          af.getViewport().applyFeaturesStyle(preferredFeatureColours);
-        }
+        af.getViewport().applyFeaturesStyle(preferredFeatureColours);
         if (Cache.getDefault("HIDE_INTRONS", true))
         {
           af.hideFeatureColumns(SequenceOntologyI.EXON, false);
@@ -1033,7 +1035,7 @@ public class SequenceFetcher extends JPanel implements Runnable
         Desktop.addInternalFrame(af, title, AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
 
-        af.statusBar.setText(MessageManager
+        af.setStatus(MessageManager
                 .getString("label.successfully_pasted_alignment_file"));
 
         try
@@ -1059,9 +1061,9 @@ public class SequenceFetcher extends JPanel implements Runnable
       @Override
       public void run()
       {
-        JOptionPane.showInternalMessageDialog(Desktop.desktop, error,
+        JvOptionPane.showInternalMessageDialog(Desktop.desktop, error,
                 MessageManager.getString("label.error_retrieving_data"),
-                JOptionPane.WARNING_MESSAGE);
+                JvOptionPane.WARNING_MESSAGE);
       }
     });
   }
@@ -1092,5 +1094,10 @@ public class SequenceFetcher extends JPanel implements Runnable
   void hidePanel()
   {
     frame.setVisible(false);
+  }
+
+  public void setDatabaseChooserVisible(boolean b)
+  {
+    databaseButt.setVisible(b);
   }
 }

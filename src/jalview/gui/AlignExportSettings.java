@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,6 +22,7 @@ package jalview.gui;
 
 import jalview.api.AlignExportSettingI;
 import jalview.bin.Jalview;
+import jalview.io.FileFormatI;
 import jalview.jbgui.GAlignExportSettings;
 import jalview.util.MessageManager;
 
@@ -33,26 +34,28 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 
 @SuppressWarnings("serial")
-public class AlignExportSettings extends GAlignExportSettings implements
-        AlignExportSettingI
+public class AlignExportSettings extends GAlignExportSettings
+        implements AlignExportSettingI
 {
   boolean cancelled = false;
 
   JDialog dialog;
 
   public AlignExportSettings(boolean hasHiddenSeq, boolean hasHiddenCols,
-          String alignFileFormat)
+          FileFormatI format)
   {
-    super(hasHiddenSeq, hasHiddenCols, alignFileFormat);
+    super(hasHiddenSeq, hasHiddenCols, format);
     if (!Jalview.isHeadlessMode() && isShowDialog())
     {
 
       JOptionPane pane = new JOptionPane(null, JOptionPane.DEFAULT_OPTION,
-              JOptionPane.DEFAULT_OPTION, null, new Object[] { this });
+              JvOptionPane.DEFAULT_OPTION, null, new Object[]
+              { this });
       dialog = pane.createDialog(Desktop.desktop,
               MessageManager.getString("label.export_settings"));
       dialog.addWindowListener(new WindowAdapter()
       {
+        @Override
         public void windowClosing(WindowEvent e)
         {
           cancelled = true;
@@ -66,6 +69,7 @@ public class AlignExportSettings extends GAlignExportSettings implements
     }
   }
 
+  @Override
   public void ok_actionPerformed(ActionEvent e)
   {
     cancelled = false;
@@ -73,6 +77,7 @@ public class AlignExportSettings extends GAlignExportSettings implements
     dialog.dispose();
   }
 
+  @Override
   public void cancel_actionPerformed(ActionEvent e)
   {
     cancelled = true;
@@ -110,6 +115,7 @@ public class AlignExportSettings extends GAlignExportSettings implements
     return chkExportGrps.isSelected();
   }
 
+  @Override
   public boolean isCancelled()
   {
     return cancelled;

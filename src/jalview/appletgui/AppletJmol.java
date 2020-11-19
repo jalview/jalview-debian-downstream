@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,10 +20,11 @@
  */
 package jalview.appletgui;
 
+import jalview.bin.JalviewLite;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
-import jalview.io.AppletFormatAdapter;
+import jalview.io.DataSourceType;
 import jalview.io.FileParse;
 import jalview.io.StructureFile;
 import jalview.schemes.BuriedColourScheme;
@@ -64,7 +65,7 @@ import java.util.List;
 import java.util.Vector;
 
 public class AppletJmol extends EmbmenuFrame implements
-// StructureListener,
+        // StructureListener,
         KeyListener, ActionListener, ItemListener
 
 {
@@ -87,32 +88,35 @@ public class AppletJmol extends EmbmenuFrame implements
   CheckboxMenuItem jmolColour = new CheckboxMenuItem(
           MessageManager.getString("action.using_jmol"), false);
 
-  MenuItem chain = new MenuItem(MessageManager.getString("action.by_chain"));
+  MenuItem chain = new MenuItem(
+          MessageManager.getString("action.by_chain"));
 
   MenuItem charge = new MenuItem(
           MessageManager.getString("label.charge_cysteine"));
 
-  MenuItem zappo = new MenuItem(MessageManager.getString("label.zappo"));
+  MenuItem zappo = new MenuItem(
+          MessageManager.getString("label.colourScheme_zappo"));
 
-  MenuItem taylor = new MenuItem(MessageManager.getString("label.taylor"));
+  MenuItem taylor = new MenuItem(
+          MessageManager.getString("label.colourScheme_taylor"));
 
   MenuItem hydro = new MenuItem(
-          MessageManager.getString("label.hydrophobicity"));
+          MessageManager.getString("label.colourScheme_hydrophobic"));
 
   MenuItem helix = new MenuItem(
-          MessageManager.getString("label.helix_propensity"));
+          MessageManager.getString("label.colourScheme_helix_propensity"));
 
   MenuItem strand = new MenuItem(
-          MessageManager.getString("label.strand_propensity"));
+          MessageManager.getString("label.colourScheme_strand_propensity"));
 
   MenuItem turn = new MenuItem(
-          MessageManager.getString("label.turn_propensity"));
+          MessageManager.getString("label.colourScheme_turn_propensity"));
 
   MenuItem buried = new MenuItem(
-          MessageManager.getString("label.buried_index"));
+          MessageManager.getString("label.colourScheme_buried_index"));
 
   MenuItem purinepyrimidine = new MenuItem(
-          MessageManager.getString("label.purine_pyrimidine"));
+          MessageManager.getString("label.colourScheme_purine/pyrimidine"));
 
   MenuItem user = new MenuItem(
           MessageManager.getString("label.user_defined_colours"));
@@ -130,7 +134,7 @@ public class AppletJmol extends EmbmenuFrame implements
 
   AlignmentPanel ap;
 
-  List<AlignmentPanel> _aps = new ArrayList<AlignmentPanel>(); // remove? never
+  List<AlignmentPanel> _aps = new ArrayList<>(); // remove? never
                                                                // added to
 
   String fileLoadingError;
@@ -175,19 +179,19 @@ public class AppletJmol extends EmbmenuFrame implements
   }
 
   public AppletJmol(PDBEntry pdbentry, SequenceI[] seq, String[] chains,
-          AlignmentPanel ap, String protocol)
+          AlignmentPanel ap, DataSourceType protocol)
   {
     this.ap = ap;
     jmb = new AppletJmolBinding(this, ap.getStructureSelectionManager(),
-            new PDBEntry[] { pdbentry }, new SequenceI[][] { seq },
-            protocol);
+            new PDBEntry[]
+            { pdbentry }, new SequenceI[][] { seq }, protocol);
     jmb.setColourBySequence(true);
     if (pdbentry.getId() == null || pdbentry.getId().length() < 1)
     {
-      if (protocol.equals(AppletFormatAdapter.PASTE))
+      if (protocol == DataSourceType.PASTE)
       {
-        pdbentry.setId("PASTED PDB"
-                + (chains == null ? "_" : chains.toString()));
+        pdbentry.setId(
+                "PASTED PDB" + (chains == null ? "_" : chains.toString()));
       }
       else
       {
@@ -195,7 +199,7 @@ public class AppletJmol extends EmbmenuFrame implements
       }
     }
 
-    if (jalview.bin.JalviewLite.debug)
+    if (JalviewLite.debug)
     {
       System.err
               .println("AppletJmol: PDB ID is '" + pdbentry.getId() + "'");
@@ -207,9 +211,9 @@ public class AppletJmol extends EmbmenuFrame implements
     StructureFile reader = null;
     if (alreadyMapped != null)
     {
-      reader = StructureSelectionManager.getStructureSelectionManager(
-              ap.av.applet).setMapping(seq, chains, pdbentry.getFile(),
-              protocol);
+      reader = StructureSelectionManager
+              .getStructureSelectionManager(ap.av.applet)
+              .setMapping(seq, chains, pdbentry.getFile(), protocol, null);
       // PROMPT USER HERE TO ADD TO NEW OR EXISTING VIEW?
       // FOR NOW, LETS JUST OPEN A NEW WINDOW
     }
@@ -265,15 +269,15 @@ public class AppletJmol extends EmbmenuFrame implements
 
     try
     {
-      jmb.allocateViewer(renderPanel, true, ap.av.applet.getName()
-              + "_jmol_", ap.av.applet.getDocumentBase(),
-              ap.av.applet.getCodeBase(), "-applet", scriptWindow, null);
+      jmb.allocateViewer(renderPanel, true,
+              ap.av.applet.getName() + "_jmol_",
+              ap.av.applet.getDocumentBase(), ap.av.applet.getCodeBase(),
+              "-applet", scriptWindow, null);
     } catch (Exception e)
     {
-      System.err
-              .println("Couldn't create a jmol viewer. Args to allocate viewer were:\nDocumentBase="
-                      + ap.av.applet.getDocumentBase()
-                      + "\nCodebase="
+      System.err.println(
+              "Couldn't create a jmol viewer. Args to allocate viewer were:\nDocumentBase="
+                      + ap.av.applet.getDocumentBase() + "\nCodebase="
                       + ap.av.applet.getCodeBase());
       e.printStackTrace();
       dispose();
@@ -290,18 +294,18 @@ public class AppletJmol extends EmbmenuFrame implements
       }
     });
     pdbentry.setProperty("protocol", protocol);
-
     if (pdbentry.getFile() != null)
+
     {
       // import structure data from pdbentry.getFile based on given protocol
-      if (protocol.equals(AppletFormatAdapter.PASTE))
+      if (protocol == DataSourceType.PASTE)
       {
         // TODO: JAL-623 : correctly record file contents for matching up later
         // pdbentry.getProperty().put("pdbfilehash",""+pdbentry.getFile().hashCode());
         loadInline(pdbentry.getFile());
       }
-      else if (protocol.equals(AppletFormatAdapter.FILE)
-              || protocol.equals(AppletFormatAdapter.URL))
+      else if (protocol == DataSourceType.FILE
+              || protocol == DataSourceType.URL)
       {
         jmb.viewer.openFile(pdbentry.getFile());
       }
@@ -316,8 +320,8 @@ public class AppletJmol extends EmbmenuFrame implements
           {
             if (jalview.bin.JalviewLite.debug)
             {
-              System.err
-                      .println("AppletJmol:Trying to reuse existing PDBfile IO parser.");
+              System.err.println(
+                      "AppletJmol:Trying to reuse existing PDBfile IO parser.");
             }
             // re-use the one we opened earlier
             freader = reader.getReader();
@@ -326,8 +330,8 @@ public class AppletJmol extends EmbmenuFrame implements
           {
             if (jalview.bin.JalviewLite.debug)
             {
-              System.err
-                      .println("AppletJmol:Creating new PDBfile IO parser.");
+              System.err.println(
+                      "AppletJmol:Creating new PDBfile IO parser.");
             }
             FileParse fp = new FileParse(pdbentry.getFile(), protocol);
             fp.mark();
@@ -343,9 +347,8 @@ public class AppletJmol extends EmbmenuFrame implements
           }
           if (freader == null)
           {
-            throw new Exception(
-                    MessageManager
-                            .getString("exception.invalid_datasource_couldnt_obtain_reader"));
+            throw new Exception(MessageManager.getString(
+                    "exception.invalid_datasource_couldnt_obtain_reader"));
           }
           jmb.viewer.openReader(pdbentry.getFile(), pdbentry.getId(),
                   freader);
@@ -391,7 +394,7 @@ public class AppletJmol extends EmbmenuFrame implements
 
   void centerViewer()
   {
-    Vector<String> toshow = new Vector<String>();
+    Vector<String> toshow = new Vector<>();
     for (int i = 0; i < chainMenu.getItemCount(); i++)
     {
       if (chainMenu.getItem(i) instanceof CheckboxMenuItem)
@@ -430,8 +433,8 @@ public class AppletJmol extends EmbmenuFrame implements
       } catch (OutOfMemoryError ex)
       {
         frame.dispose();
-        System.err
-                .println("Out of memory when trying to create dialog box with sequence-structure mapping.");
+        System.err.println(
+                "Out of memory when trying to create dialog box with sequence-structure mapping.");
         return;
       }
       jalview.bin.JalviewLite.addFrame(frame,
@@ -497,10 +500,10 @@ public class AppletJmol extends EmbmenuFrame implements
     {
       try
       {
-        ap.av.applet.getAppletContext().showDocument(
-                new java.net.URL(
+        ap.av.applet.getAppletContext()
+                .showDocument(new java.net.URL(
                         "http://jmol.sourceforge.net/docs/JmolUserGuide/"),
-                "jmolHelp");
+                        "jmolHelp");
       } catch (java.net.MalformedURLException ex)
       {
       }
@@ -583,7 +586,7 @@ public class AppletJmol extends EmbmenuFrame implements
 
   public void updateTitleAndMenus()
   {
-    if (jmb.fileLoadingError != null && jmb.fileLoadingError.length() > 0)
+    if (jmb.hasFileLoadingError())
     {
       repaint();
       return;

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -154,23 +154,30 @@ public class HiddenSequences
       hiddenSequences = new SequenceI[alignment.getHeight()];
     }
 
-    int alignmentIndex = alignment.findIndex(sequence);
-    alignmentIndex = adjustForHiddenSeqs(alignmentIndex);
+    int absAlignmentIndex = alignment.findIndex(sequence);
+    int alignmentIndex = adjustForHiddenSeqs(absAlignmentIndex);
 
-    if (hiddenSequences[alignmentIndex] != null)
+    if (alignmentIndex < 0 || hiddenSequences[alignmentIndex] != null)
     {
       System.out.println("ERROR!!!!!!!!!!!");
+      return;
     }
 
     hiddenSequences[alignmentIndex] = sequence;
 
-    alignment.deleteSequence(sequence);
+    alignment.deleteHiddenSequence(absAlignmentIndex);
   }
 
   public List<SequenceI> showAll(
           Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
   {
-    List<SequenceI> revealedSeqs = new ArrayList<SequenceI>();
+    List<SequenceI> revealedSeqs = new ArrayList<>();
+
+    if (hiddenSequences == null)
+    {
+      return revealedSeqs;
+    }
+
     for (int i = 0; i < hiddenSequences.length; i++)
     {
       if (hiddenSequences[i] != null)
@@ -199,7 +206,7 @@ public class HiddenSequences
   public List<SequenceI> showSequence(int alignmentIndex,
           Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
   {
-    List<SequenceI> revealedSeqs = new ArrayList<SequenceI>();
+    List<SequenceI> revealedSeqs = new ArrayList<>();
     SequenceI repSequence = alignment.getSequenceAt(alignmentIndex);
     if (repSequence != null && hiddenRepSequences != null
             && hiddenRepSequences.containsKey(repSequence))
@@ -232,8 +239,8 @@ public class HiddenSequences
           }
           else
           {
-            System.out.println(seq.getName()
-                    + " has been deleted whilst hidden");
+            System.out.println(
+                    seq.getName() + " has been deleted whilst hidden");
           }
         }
       }
@@ -246,6 +253,13 @@ public class HiddenSequences
     return hiddenSequences == null ? null : hiddenSequences[alignmentIndex];
   }
 
+  /**
+   * Convert absolute alignment index to visible alignment index (or -1 if
+   * before the first visible sequence)
+   * 
+   * @param alignmentIndex
+   * @return
+   */
   public int findIndexWithoutHiddenSeqs(int alignmentIndex)
   {
     if (hiddenSequences == null)
@@ -254,8 +268,14 @@ public class HiddenSequences
     }
     int index = 0;
     int hiddenSeqs = 0;
+    int diff = 0;
     if (hiddenSequences.length <= alignmentIndex)
     {
+      // if the alignmentIndex runs past the end of hidden sequences
+      // and therefore actually past the end of the alignment
+      // store the difference to add back on at the end, so that behaviour
+      // is consistent with hidden columns behaviour (used by overview panel)
+      diff = alignmentIndex - hiddenSequences.length + 1;
       alignmentIndex = hiddenSequences.length - 1;
     }
 
@@ -268,9 +288,50 @@ public class HiddenSequences
       index++;
     }
 
-    return (alignmentIndex - hiddenSeqs);
+    return (alignmentIndex - hiddenSeqs + diff);
   }
 
+  /**
+   * Find the visible row which is a given visible number of rows above another
+   * visible row. i.e. for a startRow x, the row which is distance 1 away will
+   * be row x-1.
+   * 
+   * @param visibleDistance
+   *          the number of visible rows to offset by
+   * @param startRow
+   *          the row to start from
+   * @return the position of the row in the visible alignment
+   */
+  public int subtractVisibleRows(int visibleDistance, int startRow)
+  {
+    // walk upwards through the alignment
+    // count all the non-null sequences until we have visibleDistance counted
+    // then return the next visible sequence
+    if (hiddenSequences == null)
+    {
+      return startRow - visibleDistance;
+    }
+
+    int index = Math.min(startRow, hiddenSequences.length - 1);
+    int count = 0;
+    while ((index > -1) && (count < visibleDistance))
+    {
+      if (hiddenSequences[index] == null)
+      {
+        // count visible sequences
+        count++;
+      }
+      index--;
+    }
+    return index;
+  }
+
+  /**
+   * Convert alignment index from visible alignment to absolute alignment
+   * 
+   * @param alignmentIndex
+   * @return
+   */
   public int adjustForHiddenSeqs(int alignmentIndex)
   {
     if (hiddenSequences == null)
@@ -348,6 +409,22 @@ public class HiddenSequences
       }
     }
 
+    return false;
+  }
+
+  /**
+   * Answers if a sequence is hidden
+   * 
+   * @param seq
+   *          (absolute) index to test
+   * @return true if sequence at index seq is hidden
+   */
+  public boolean isHidden(int seq)
+  {
+    if (hiddenSequences != null)
+    {
+      return (hiddenSequences[seq] != null);
+    }
     return false;
   }
 }

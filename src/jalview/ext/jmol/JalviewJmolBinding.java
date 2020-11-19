@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,12 +22,15 @@ package jalview.ext.jmol;
 
 import jalview.api.AlignmentViewPanel;
 import jalview.api.FeatureRenderer;
+import jalview.api.FeatureSettingsModelI;
 import jalview.api.SequenceRenderer;
 import jalview.datamodel.AlignmentI;
-import jalview.datamodel.ColumnSelection;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.PDBEntry;
 import jalview.datamodel.SequenceI;
-import jalview.io.AppletFormatAdapter;
+import jalview.gui.AppJmol;
+import jalview.gui.IProgressIndicator;
+import jalview.io.DataSourceType;
 import jalview.io.StructureFile;
 import jalview.schemes.ColourSchemeI;
 import jalview.schemes.ResidueProperties;
@@ -35,6 +38,8 @@ import jalview.structure.AtomSpec;
 import jalview.structure.StructureMappingcommandSet;
 import jalview.structure.StructureSelectionManager;
 import jalview.structures.models.AAStructureBindingModel;
+import jalview.util.MessageManager;
+import jalview.ws.dbsources.Pdb;
 
 import java.awt.Color;
 import java.awt.Container;
@@ -42,11 +47,12 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.io.File;
 import java.net.URL;
-import java.security.AccessControlException;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import org.jmol.adapter.smarter.SmarterJmolAdapter;
@@ -62,6 +68,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
         implements JmolStatusListener, JmolSelectionListener,
         ComponentListener
 {
+  private String lastMessage;
+
   boolean allChainsSelected = false;
 
   /*
@@ -70,13 +78,11 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
    */
   private boolean associateNewStructs = false;
 
-  Vector<String> atomsPicked = new Vector<String>();
+  Vector<String> atomsPicked = new Vector<>();
 
   private List<String> chainNames;
 
   Hashtable<String, String> chainFile;
-
-  public String fileLoadingError;
 
   /*
    * the default or current model displayed if the model cannot be identified
@@ -88,8 +94,6 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
   String lastCommand;
 
-  String lastMessage;
-
   boolean loadedInline;
 
   StringBuffer resetLastRes = new StringBuffer();
@@ -98,7 +102,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
   public JalviewJmolBinding(StructureSelectionManager ssm,
           PDBEntry[] pdbentry, SequenceI[][] sequenceIs,
-          String protocol)
+          DataSourceType protocol)
   {
     super(ssm, pdbentry, sequenceIs, protocol);
     /*
@@ -164,13 +168,14 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
   public void closeViewer()
   {
     // remove listeners for all structures in viewer
-    getSsm().removeStructureViewerListener(this, this.getPdbFile());
+    getSsm().removeStructureViewerListener(this, this.getStructureFiles());
     viewer.dispose();
     lastCommand = null;
     viewer = null;
     releaseUIResources();
   }
 
+  @Override
   public void colourByChain()
   {
     colourBySequence = false;
@@ -180,6 +185,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     evalStateCommand("select *;color chain");
   }
 
+  @Override
   public void colourByCharge()
   {
     colourBySequence = false;
@@ -220,29 +226,19 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
    *          TODO
    */
   public void superposeStructures(AlignmentI alignment, int refStructure,
-          ColumnSelection hiddenCols)
+          HiddenColumns hiddenCols)
   {
     superposeStructures(new AlignmentI[] { alignment },
-            new int[] { refStructure },
-            new ColumnSelection[] { hiddenCols });
+            new int[]
+            { refStructure }, new HiddenColumns[] { hiddenCols });
   }
 
   /**
-   * Construct and send a command to align structures against a reference
-   * structure, based on one or more sequence alignments
-   * 
-   * @param _alignment
-   *          an array of alignments to process
-   * @param _refStructure
-   *          an array of corresponding reference structures (index into pdb
-   *          file array); if a negative value is passed, the first PDB file
-   *          mapped to an alignment sequence is used as the reference for
-   *          superposition
-   * @param _hiddenCols
-   *          an array of corresponding hidden columns for each alignment
+   * {@inheritDoc}
    */
-  public void superposeStructures(AlignmentI[] _alignment,
-          int[] _refStructure, ColumnSelection[] _hiddenCols)
+  @Override
+  public String superposeStructures(AlignmentI[] _alignment,
+          int[] _refStructure, HiddenColumns[] _hiddenCols)
   {
     while (viewer.isScriptExecuting())
     {
@@ -258,10 +254,10 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
      * get the distinct structure files modelled
      * (a file with multiple chains may map to multiple sequences)
      */
-    String[] files = getPdbFile();
+    String[] files = getStructureFiles();
     if (!waitForFileLoad(files))
     {
-      return;
+      return null;
     }
 
     StringBuilder selectioncom = new StringBuilder(256);
@@ -277,6 +273,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       nSeconds = " " + (2.0 / files.length) + " ";
       // if (nSeconds).substring(0,5)+" ";
     }
+
     // see JAL-1345 - should really automatically turn off the animation for
     // large numbers of structures, but Jmol doesn't seem to allow that.
     // nSeconds = " ";
@@ -285,31 +282,31 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     {
       int refStructure = _refStructure[a];
       AlignmentI alignment = _alignment[a];
-      ColumnSelection hiddenCols = _hiddenCols[a];
-      if (a > 0
-              && selectioncom.length() > 0
-              && !selectioncom.substring(selectioncom.length() - 1).equals(
-                      "|"))
+      HiddenColumns hiddenCols = _hiddenCols[a];
+      if (a > 0 && selectioncom.length() > 0 && !selectioncom
+              .substring(selectioncom.length() - 1).equals("|"))
       {
         selectioncom.append("|");
       }
       // process this alignment
       if (refStructure >= files.length)
       {
-        System.err.println("Invalid reference structure value "
-                + refStructure);
+        System.err.println(
+                "Invalid reference structure value " + refStructure);
         refStructure = -1;
       }
 
       /*
-       * 'matched' array will hold 'true' for visible alignment columns where
+       * 'matched' bit j will be set for visible alignment columns j where
        * all sequences have a residue with a mapping to the PDB structure
        */
-      // TODO could use a BitSet for matched
-      boolean matched[] = new boolean[alignment.getWidth()];
-      for (int m = 0; m < matched.length; m++)
+      BitSet matched = new BitSet();
+      for (int m = 0; m < alignment.getWidth(); m++)
       {
-        matched[m] = (hiddenCols != null) ? hiddenCols.isVisible(m) : true;
+        if (hiddenCols == null || hiddenCols.isVisible(m))
+        {
+          matched.set(m);
+        }
       }
 
       SuperposeData[] structures = new SuperposeData[files.length];
@@ -334,17 +331,11 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       }
 
       String[] selcom = new String[files.length];
-      int nmatched = 0;
-      for (boolean b : matched)
-      {
-        if (b)
-        {
-          nmatched++;
-        }
-      }
+      int nmatched = matched.cardinality();
       if (nmatched < 4)
       {
-        // TODO: bail out here because superposition illdefined?
+        return (MessageManager.formatMessage("label.insufficient_residues",
+                nmatched));
       }
 
       /*
@@ -359,35 +350,35 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
           boolean run = false;
           StringBuilder molsel = new StringBuilder();
           molsel.append("{");
-          for (int r = 0; r < matched.length; r++)
+
+          int nextColumnMatch = matched.nextSetBit(0);
+          while (nextColumnMatch != -1)
           {
-            if (matched[r])
+            int pdbResNo = structures[pdbfnum].pdbResNo[nextColumnMatch];
+            if (lpos != pdbResNo - 1)
             {
-              int pdbResNo = structures[pdbfnum].pdbResNo[r];
-              if (lpos != pdbResNo - 1)
+              // discontinuity
+              if (lpos != -1)
               {
-                // discontinuity
-                if (lpos != -1)
-                {
-                  molsel.append(lpos);
-                  molsel.append(chainCd);
-                  molsel.append("|");
-                }
-                run = false;
+                molsel.append(lpos);
+                molsel.append(chainCd);
+                molsel.append("|");
               }
-              else
-              {
-                // continuous run - and lpos >-1
-                if (!run)
-                {
-                  // at the beginning, so add dash
-                  molsel.append(lpos);
-                  molsel.append("-");
-                }
-                run = true;
-              }
-              lpos = pdbResNo;
+              run = false;
             }
+            else
+            {
+              // continuous run - and lpos >-1
+              if (!run)
+              {
+                // at the beginning, so add dash
+                molsel.append(lpos);
+                molsel.append("-");
+              }
+              run = true;
+            }
+            lpos = pdbResNo;
+            nextColumnMatch = matched.nextSetBit(nextColumnMatch + 1);
           }
           /*
            * add final selection phrase
@@ -439,7 +430,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
         command.append(".1} {");
         command.append(Integer.toString(1 + refStructure));
         // conformation=1 excludes alternate locations for CA (JAL-1757)
-        command.append(".1} SUBSET {(*.CA | *.P) and conformation=1} ATOMS ");
+        command.append(
+                ".1} SUBSET {(*.CA | *.P) and conformation=1} ATOMS ");
 
         // for (int s = 0; s < 2; s++)
         // {
@@ -471,8 +463,11 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       // System.out.println("Select regions:\n" + selectioncom.toString());
       evalStateCommand("select *; cartoons off; backbone; select ("
               + selectioncom.toString() + "); cartoons; ");
-      // evalStateCommand("select *; backbone; select "+selcom.toString()+"; cartoons; center "+selcom.toString());
+      // evalStateCommand("select *; backbone; select "+selcom.toString()+";
+      // cartoons; center "+selcom.toString());
     }
+
+    return null;
   }
 
   public void evalStateCommand(String command)
@@ -486,57 +481,50 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     lastCommand = command;
   }
 
+  Thread colourby = null;
   /**
-   * colour any structures associated with sequences in the given alignment
-   * using the getFeatureRenderer() and getSequenceRenderer() renderers but only
-   * if colourBySequence is enabled.
+   * Sends a set of colour commands to the structure viewer
+   * 
+   * @param colourBySequenceCommands
    */
-  public void colourBySequence(AlignmentViewPanel alignmentv)
+  @Override
+  protected void colourBySequence(
+          final StructureMappingcommandSet[] colourBySequenceCommands)
   {
-    boolean showFeatures = alignmentv.getAlignViewport()
-            .isShowSequenceFeatures();
-    if (!colourBySequence || !isLoadingFinished())
+    if (colourby != null)
     {
-      return;
+      colourby.interrupt();
+      colourby = null;
     }
-    if (getSsm() == null)
+    colourby = new Thread(new Runnable()
     {
-      return;
-    }
-    String[] files = getPdbFile();
-
-    SequenceRenderer sr = getSequenceRenderer(alignmentv);
-
-    FeatureRenderer fr = null;
-    if (showFeatures)
-    {
-      fr = getFeatureRenderer(alignmentv);
-    }
-    AlignmentI alignment = alignmentv.getAlignment();
-
-    for (jalview.structure.StructureMappingcommandSet cpdbbyseq : getColourBySequenceCommands(
-            files, sr, fr, alignment))
-    {
-      for (String cbyseq : cpdbbyseq.commands)
+      @Override
+      public void run()
       {
-        executeWhenReady(cbyseq);
+        for (StructureMappingcommandSet cpdbbyseq : colourBySequenceCommands)
+        {
+          for (String cbyseq : cpdbbyseq.commands)
+          {
+            executeWhenReady(cbyseq);
+          }
+        }
       }
-    }
+    });
+    colourby.start();
   }
 
   /**
    * @param files
    * @param sr
-   * @param fr
-   * @param alignment
+   * @param viewPanel
    * @return
    */
+  @Override
   protected StructureMappingcommandSet[] getColourBySequenceCommands(
-          String[] files, SequenceRenderer sr, FeatureRenderer fr,
-          AlignmentI alignment)
+          String[] files, SequenceRenderer sr, AlignmentViewPanel viewPanel)
   {
     return JmolCommands.getColourBySequenceCommand(getSsm(), files,
-            getSequence(), sr, fr, alignment);
+            getSequence(), sr, viewPanel);
   }
 
   /**
@@ -578,7 +566,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
   }
 
   @Override
-  public float[][][] functionXYZ(String functionName, int nx, int ny, int nz)
+  public float[][][] functionXYZ(String functionName, int nx, int ny,
+          int nz)
   {
     // TODO Auto-generated method stub
     return null;
@@ -598,17 +587,6 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
   }
 
   /**
-   * returns the current featureRenderer that should be used to colour the
-   * structures
-   * 
-   * @param alignment
-   * 
-   * @return
-   */
-  public abstract FeatureRenderer getFeatureRenderer(
-          AlignmentViewPanel alignment);
-
-  /**
    * instruct the Jalview binding to update the pdbentries vector if necessary
    * prior to matching the jmol view's contents to the list of structure files
    * Jalview knows about.
@@ -617,7 +595,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
   private int getModelNum(String modelFileName)
   {
-    String[] mfn = getPdbFile();
+    String[] mfn = getStructureFiles();
     if (mfn == null)
     {
       return -1;
@@ -639,71 +617,30 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
    */
   private int _modelFileNameMap[];
 
-  // ////////////////////////////////
-  // /StructureListener
   @Override
-  public synchronized String[] getPdbFile()
+  public synchronized String[] getStructureFiles()
   {
+    List<String> mset = new ArrayList<>();
     if (viewer == null)
     {
       return new String[0];
     }
+
     if (modelFileNames == null)
     {
-      List<String> mset = new ArrayList<String>();
-      _modelFileNameMap = new int[viewer.ms.mc];
-      String m = viewer.ms.getModelFileName(0);
-      if (m != null)
+      int modelCount = viewer.ms.mc;
+      String filePath = null;
+      for (int i = 0; i < modelCount; ++i)
       {
-        String filePath = m;
-        try
-        {
-          filePath = new File(m).getAbsolutePath();
-        } catch (AccessControlException x)
-        {
-          // usually not allowed to do this in applet
-          System.err
-                  .println("jmolBinding: Using local file string from Jmol: "
-                          + m);
-        }
-        if (filePath.indexOf("/file:") != -1)
-        {
-          // applet path with docroot - discard as format won't match pdbfile
-          filePath = m;
-        }
-        mset.add(filePath);
-        _modelFileNameMap[0] = 0; // filename index for first model is always 0.
-      }
-      int j = 1;
-      for (int i = 1; i < viewer.ms.mc; i++)
-      {
-        m = viewer.ms.getModelFileName(i);
-        String filePath = m;
-        if (m != null)
-        {
-          try
-          {
-            filePath = new File(m).getAbsolutePath();
-          } catch (AccessControlException x)
-          {
-            // usually not allowed to do this in applet, so keep raw handle
-            // System.err.println("jmolBinding: Using local file string from Jmol: "+m);
-          }
-        }
-
-        /*
-         * add this model unless it is read from a structure file we have
-         * already seen (example: 2MJW is an NMR structure with 10 models)
-         */
+        filePath = viewer.ms.getModelFileName(i);
         if (!mset.contains(filePath))
         {
           mset.add(filePath);
-          _modelFileNameMap[j] = i; // record the model index for the filename
-          j++;
         }
       }
       modelFileNames = mset.toArray(new String[mset.size()]);
     }
+
     return modelFileNames;
   }
 
@@ -716,17 +653,6 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     // TODO Auto-generated method stub
     return null;
   }
-
-  /**
-   * returns the current sequenceRenderer that should be used to colour the
-   * structures
-   * 
-   * @param alignment
-   * 
-   * @return
-   */
-  public abstract SequenceRenderer getSequenceRenderer(
-          AlignmentViewPanel alignment);
 
   // ///////////////////////////////
   // JmolStatusListener
@@ -831,7 +757,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     viewer.openStringInline(string);
   }
 
-  public void mouseOverStructure(int atomIndex, String strInfo)
+  protected void mouseOverStructure(int atomIndex, final String strInfo)
   {
     int pdbResNum;
     int alocsep = strInfo.indexOf("^");
@@ -850,14 +776,14 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     // handle insertion codes
     if (alocsep != -1)
     {
-      pdbResNum = Integer.parseInt(strInfo.substring(
-              strInfo.indexOf("]") + 1, alocsep));
+      pdbResNum = Integer.parseInt(
+              strInfo.substring(strInfo.indexOf("]") + 1, alocsep));
 
     }
     else
     {
-      pdbResNum = Integer.parseInt(strInfo.substring(
-              strInfo.indexOf("]") + 1, chainSeparator));
+      pdbResNum = Integer.parseInt(
+              strInfo.substring(strInfo.indexOf("]") + 1, chainSeparator));
     }
     String chainId;
 
@@ -879,39 +805,69 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       {
         chainSeparator1 = strInfo.indexOf(".", mdlSep);
       }
-      String mdlId = (chainSeparator1 > -1) ? strInfo.substring(mdlSep + 1,
-              chainSeparator1) : strInfo.substring(mdlSep + 1);
+      String mdlId = (chainSeparator1 > -1)
+              ? strInfo.substring(mdlSep + 1, chainSeparator1)
+              : strInfo.substring(mdlSep + 1);
       try
       {
         // recover PDB filename for the model hovered over.
-        int _mp = _modelFileNameMap.length - 1, mnumber = new Integer(mdlId)
-                .intValue() - 1;
-        while (mnumber < _modelFileNameMap[_mp])
+        int mnumber = Integer.valueOf(mdlId).intValue() - 1;
+        if (_modelFileNameMap != null)
         {
-          _mp--;
-        }
-        pdbfilename = modelFileNames[_mp];
-        if (pdbfilename == null)
-        {
-          pdbfilename = new File(viewer.ms.getModelFileName(mnumber))
-                  .getAbsolutePath();
-        }
+          int _mp = _modelFileNameMap.length - 1;
 
+          while (mnumber < _modelFileNameMap[_mp])
+          {
+            _mp--;
+          }
+          pdbfilename = modelFileNames[_mp];
+        }
+        else
+        {
+          if (mnumber >= 0 && mnumber < modelFileNames.length)
+          {
+            pdbfilename = modelFileNames[mnumber];
+          }
+
+          if (pdbfilename == null)
+          {
+            pdbfilename = new File(viewer.ms.getModelFileName(mnumber))
+                    .getAbsolutePath();
+          }
+        }
       } catch (Exception e)
       {
       }
-      ;
-    }
-    if (lastMessage == null || !lastMessage.equals(strInfo))
-    {
-      getSsm().mouseOverStructure(pdbResNum, chainId, pdbfilename);
     }
 
-    lastMessage = strInfo;
+    /*
+     * highlight position on alignment(s); if some text is returned, 
+     * show this as a second line on the structure hover tooltip
+     */
+    String label = getSsm().mouseOverStructure(pdbResNum, chainId,
+            pdbfilename);
+    if (label != null)
+    {
+      // change comma to pipe separator (newline token for Jmol)
+      label = label.replace(',', '|');
+      StringTokenizer toks = new StringTokenizer(strInfo, " ");
+      StringBuilder sb = new StringBuilder();
+      sb.append("select ").append(String.valueOf(pdbResNum)).append(":")
+              .append(chainId).append("/1");
+      sb.append(";set hoverLabel \"").append(toks.nextToken()).append(" ")
+              .append(toks.nextToken());
+      sb.append("|").append(label).append("\"");
+      evalStateCommand(sb.toString());
+    }
   }
 
   public void notifyAtomHovered(int atomIndex, String strInfo, String data)
   {
+    if (strInfo.equals(lastMessage))
+    {
+      return;
+    }
+    lastMessage = strInfo;
     if (data != null)
     {
       System.err.println("Ignoring additional hover info: " + data
@@ -926,7 +882,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
    * } }
    */
 
-  public void notifyAtomPicked(int atomIndex, String strInfo, String strData)
+  public void notifyAtomPicked(int atomIndex, String strInfo,
+          String strData)
   {
     /**
      * this implements the toggle label behaviour copied from the original
@@ -997,6 +954,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
         notifyAtomPicked(((Integer) data[2]).intValue(), (String) data[1],
                 (String) data[0]);
         // also highlight in alignment
+        // deliberate fall through
       case HOVER:
         notifyAtomHovered(((Integer) data[2]).intValue(), (String) data[1],
                 (String) data[0]);
@@ -1009,8 +967,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
         sendConsoleEcho((String) data[1]);
         break;
       case MESSAGE:
-        sendConsoleMessage((data == null) ? ((String) null)
-                : (String) data[1]);
+        sendConsoleMessage(
+                (data == null) ? ((String) null) : (String) data[1]);
         break;
       case ERROR:
         // System.err.println("Ignoring error callback.");
@@ -1023,8 +981,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
       case CLICK:
       default:
-        System.err.println("Unhandled callback " + type + " "
-                + data[1].toString());
+        System.err.println(
+                "Unhandled callback " + type + " " + data[1].toString());
         break;
       }
     } catch (Exception e)
@@ -1081,10 +1039,10 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     fileLoadingError = null;
     String[] oldmodels = modelFileNames;
     modelFileNames = null;
-    chainNames = new ArrayList<String>();
-    chainFile = new Hashtable<String, String>();
+    chainNames = new ArrayList<>();
+    chainFile = new Hashtable<>();
     boolean notifyLoaded = false;
-    String[] modelfilenames = getPdbFile();
+    String[] modelfilenames = getStructureFiles();
     // first check if we've lost any structures
     if (oldmodels != null && oldmodels.length > 0)
     {
@@ -1133,8 +1091,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
         // calculate essential attributes for the pdb data imported inline.
         // prolly need to resolve modelnumber properly - for now just use our
         // 'best guess'
-        pdbfile = viewer.getData("" + (1 + _modelFileNameMap[modelnum])
-                + ".0", "PDB");
+        pdbfile = viewer.getData(
+                "" + (1 + _modelFileNameMap[modelnum]) + ".0", "PDB");
       }
       // search pdbentries and sequences to find correct pdbentry for this
       // model
@@ -1148,7 +1106,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
           // see JAL-623 - need method of matching pasted data up
           {
             pdb = getSsm().setMapping(getSequence()[pe], getChains()[pe],
-                    pdbfile, AppletFormatAdapter.PASTE);
+                    pdbfile, DataSourceType.PASTE,
+                    getIProgressIndicator());
             getPdbEntry(modelnum).setFile("INLINE" + pdb.getId());
             matches = true;
             foundEntry = true;
@@ -1166,12 +1125,12 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
             // needs
             // to be tested. See mantis bug
             // https://mantis.lifesci.dundee.ac.uk/view.php?id=36605
-            String protocol = AppletFormatAdapter.URL;
+            DataSourceType protocol = DataSourceType.URL;
             try
             {
               if (fl.exists())
               {
-                protocol = AppletFormatAdapter.FILE;
+                protocol = DataSourceType.FILE;
               }
             } catch (Exception e)
             {
@@ -1180,7 +1139,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
             }
             // Explicitly map to the filename used by Jmol ;
             pdb = getSsm().setMapping(getSequence()[pe], getChains()[pe],
-                    fileName, protocol);
+                    fileName, protocol, getIProgressIndicator());
             // pdbentry[pe].getFile(), protocol);
 
           }
@@ -1190,8 +1149,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
           // add an entry for every chain in the model
           for (int i = 0; i < pdb.getChains().size(); i++)
           {
-            String chid = new String(pdb.getId() + ":"
-                    + pdb.getChains().elementAt(i).id);
+            String chid = new String(
+                    pdb.getId() + ":" + pdb.getChains().elementAt(i).id);
             chainFile.put(chid, fileName);
             chainNames.add(chid);
           }
@@ -1223,7 +1182,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     // }
     if (!isLoadingFromArchive())
     {
-      viewer.evalStringQuiet("model *; select backbone;restrict;cartoon;wireframe off;spacefill off");
+      viewer.evalStringQuiet(
+              "model *; select backbone;restrict;cartoon;wireframe off;spacefill off");
     }
     // register ourselves as a listener and notify the gui that it needs to
     // update itself.
@@ -1233,7 +1193,9 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       FeatureRenderer fr = getFeatureRenderer(null);
       if (fr != null)
       {
-        fr.featuresAdded();
+        FeatureSettingsModelI colours = new Pdb().getFeatureColourScheme();
+        ((AppJmol) getViewer()).getAlignmentPanel().av
+                .applyFeaturesStyle(colours);
       }
       refreshGUI();
       loadNotifiesHandled++;
@@ -1245,6 +1207,11 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
   public List<String> getChainNames()
   {
     return chainNames;
+  }
+
+  protected IProgressIndicator getIProgressIndicator()
+  {
+    return null;
   }
 
   public void notifyNewPickingModeMeasurement(int iatom, String strMeasure)
@@ -1286,6 +1253,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
   }
 
+  @Override
   public void setJalviewColourScheme(ColourSchemeI cs)
   {
     colourBySequence = false;
@@ -1300,10 +1268,13 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
     command.append("select *;color white;");
     List<String> residueSet = ResidueProperties.getResidues(isNucleotide(),
             false);
-    for (String res : residueSet)
+    for (String resName : residueSet)
     {
-      Color col = cs.findColour(res.charAt(0));
-      command.append("select " + res + ";color[" + col.getRed() + ","
+      char res = resName.length() == 3
+              ? ResidueProperties.getSingleCharacterCode(resName)
+              : resName.charAt(0);
+      Color col = cs.findColour(res, 0, null, null, 0f);
+      command.append("select " + resName + ";color[" + col.getRed() + ","
               + col.getGreen() + "," + col.getBlue() + "];");
     }
 
@@ -1380,8 +1351,8 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
       commandOptions = "";
     }
     viewer = (Viewer) JmolViewer.allocateViewer(renderPanel,
-            (jmolfileio ? new SmarterJmolAdapter() : null), htmlName
-                    + ((Object) this).toString(), documentBase, codeBase,
+            (jmolfileio ? new SmarterJmolAdapter() : null),
+            htmlName + ((Object) this).toString(), documentBase, codeBase,
             commandOptions, this);
 
     viewer.setJmolStatusListener(this); // extends JmolCallbackListener
@@ -1400,6 +1371,7 @@ public abstract class JalviewJmolBinding extends AAStructureBindingModel
 
   protected org.jmol.api.JmolAppConsoleInterface console = null;
 
+  @Override
   public void setBackgroundColour(java.awt.Color col)
   {
     jmolHistory(false);

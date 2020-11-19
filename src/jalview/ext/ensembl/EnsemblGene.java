@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,9 +23,11 @@ package jalview.ext.ensembl;
 import jalview.api.FeatureColourI;
 import jalview.api.FeatureSettingsModelI;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.GeneLociI;
 import jalview.datamodel.Sequence;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
+import jalview.datamodel.features.SequenceFeatures;
 import jalview.io.gff.SequenceOntologyFactory;
 import jalview.io.gff.SequenceOntologyI;
 import jalview.schemes.FeatureColour;
@@ -48,8 +50,6 @@ import com.stevesoft.pat.Regex;
  */
 public class EnsemblGene extends EnsemblSeqProxy
 {
-  private static final String GENE_PREFIX = "gene:";
-
   /*
    * accepts anything as we will attempt lookup of gene or 
    * transcript id or gene name
@@ -60,6 +60,8 @@ public class EnsemblGene extends EnsemblSeqProxy
       EnsemblFeatureType.gene, EnsemblFeatureType.transcript,
       EnsemblFeatureType.exon, EnsemblFeatureType.cds,
       EnsemblFeatureType.variation };
+
+  private static final String CHROMOSOME = "chromosome";
 
   /**
    * Default constructor (to use rest.ensembl.org)
@@ -97,6 +99,12 @@ public class EnsemblGene extends EnsemblSeqProxy
     return EnsemblSeqType.GENOMIC;
   }
 
+  @Override
+  protected String getObjectType()
+  {
+    return OBJECT_TYPE_GENE;
+  }
+
   /**
    * Returns an alignment containing the gene(s) for the given gene or
    * transcript identifier, or external identifier (e.g. Uniprot id). If given a
@@ -109,7 +117,8 @@ public class EnsemblGene extends EnsemblSeqProxy
    * <li>resolves an external identifier by looking up xref-ed gene ids</li>
    * <li>fetches the gene sequence</li>
    * <li>fetches features on the sequence</li>
-   * <li>identifies "transcript" features whose Parent is the requested gene</li>
+   * <li>identifies "transcript" features whose Parent is the requested
+   * gene</li>
    * <li>fetches the transcript sequence for each transcript</li>
    * <li>makes a mapping from the gene to each transcript</li>
    * <li>copies features from gene to transcript sequences</li>
@@ -142,8 +151,14 @@ public class EnsemblGene extends EnsemblSeqProxy
       {
         continue;
       }
+      
       if (geneAlignment.getHeight() == 1)
       {
+        // ensure id has 'correct' case for the Ensembl identifier
+        geneId = geneAlignment.getSequenceAt(0).getName();
+
+        findGeneLoci(geneAlignment.getSequenceAt(0), geneId);
+
         getTranscripts(geneAlignment, geneId);
       }
       if (al == null)
@@ -159,80 +174,109 @@ public class EnsemblGene extends EnsemblSeqProxy
   }
 
   /**
-   * Converts a query, which may contain one or more gene or transcript
-   * identifiers, into a non-redundant list of gene identifiers.
+   * Calls the /lookup/id REST service, parses the response for gene
+   * coordinates, and if successful, adds these to the sequence. If this fails,
+   * fall back on trying to parse the sequence description in case it is in
+   * Ensembl-gene format e.g. chromosome:GRCh38:17:45051610:45109016:1.
+   * 
+   * @param seq
+   * @param geneId
+   */
+  void findGeneLoci(SequenceI seq, String geneId)
+  {
+    GeneLociI geneLoci = new EnsemblLookup(getDomain()).getGeneLoci(geneId);
+    if (geneLoci != null)
+    {
+      seq.setGeneLoci(geneLoci.getSpeciesId(), geneLoci.getAssemblyId(),
+              geneLoci.getChromosomeId(), geneLoci.getMapping());
+    }
+    else
+    {
+      parseChromosomeLocations(seq);
+    }
+  }
+
+  /**
+   * Parses and saves fields of an Ensembl-style description e.g.
+   * chromosome:GRCh38:17:45051610:45109016:1
+   * 
+   * @param seq
+   */
+  boolean parseChromosomeLocations(SequenceI seq)
+  {
+    String description = seq.getDescription();
+    if (description == null)
+    {
+      return false;
+    }
+    String[] tokens = description.split(":");
+    if (tokens.length == 6 && tokens[0].startsWith(CHROMOSOME))
+    {
+      String ref = tokens[1];
+      String chrom = tokens[2];
+      try
+      {
+        int chStart = Integer.parseInt(tokens[3]);
+        int chEnd = Integer.parseInt(tokens[4]);
+        boolean forwardStrand = "1".equals(tokens[5]);
+        String species = ""; // not known here
+        int[] from = new int[] { seq.getStart(), seq.getEnd() };
+        int[] to = new int[] { forwardStrand ? chStart : chEnd,
+            forwardStrand ? chEnd : chStart };
+        MapList map = new MapList(from, to, 1, 1);
+        seq.setGeneLoci(species, ref, chrom, map);
+        return true;
+      } catch (NumberFormatException e)
+      {
+        System.err.println("Bad integers in description " + description);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Converts a query, which may contain one or more gene, transcript, or
+   * external (to Ensembl) identifiers, into a non-redundant list of gene
+   * identifiers.
    * 
    * @param accessions
    * @return
    */
   List<String> getGeneIds(String accessions)
   {
-    List<String> geneIds = new ArrayList<String>();
+    List<String> geneIds = new ArrayList<>();
 
     for (String acc : accessions.split(getAccessionSeparator()))
     {
-      if (isGeneIdentifier(acc))
-      {
-        if (!geneIds.contains(acc))
-        {
-          geneIds.add(acc);
-        }
-      }
-
       /*
-       * if given a transcript id, look up its gene parent
+       * First try lookup as an Ensembl (gene or transcript) identifier
        */
-      else if (isTranscriptIdentifier(acc))
+      String geneId = new EnsemblLookup(getDomain()).getGeneId(acc);
+      if (geneId != null)
       {
-        String geneId = new EnsemblLookup(getDomain()).getParent(acc);
-        if (geneId != null && !geneIds.contains(geneId))
+        if (!geneIds.contains(geneId))
         {
           geneIds.add(geneId);
         }
       }
-
-      /*
-       * if given a gene or other external name, lookup and fetch 
-       * the corresponding gene for all model organisms 
-       */
       else
       {
+        /*
+         * if given a gene or other external name, lookup and fetch 
+         * the corresponding gene for all model organisms 
+         */
         List<String> ids = new EnsemblSymbol(getDomain(), getDbSource(),
-                getDbVersion()).getIds(acc);
-        for (String geneId : ids)
+                getDbVersion()).getGeneIds(acc);
+        for (String id : ids)
         {
-          if (!geneIds.contains(geneId))
+          if (!geneIds.contains(id))
           {
-            geneIds.add(geneId);
+            geneIds.add(id);
           }
         }
       }
     }
     return geneIds;
-  }
-
-  /**
-   * Attempts to get Ensembl stable identifiers for model organisms for a gene
-   * name by calling the xrefs symbol REST service to resolve the gene name.
-   * 
-   * @param query
-   * @return
-   */
-  protected String getGeneIdentifiersForName(String query)
-  {
-    List<String> ids = new EnsemblSymbol(getDomain(), getDbSource(),
-            getDbVersion()).getIds(query);
-    if (ids != null)
-    {
-      for (String id : ids)
-      {
-        if (isGeneIdentifier(id))
-        {
-          return id;
-        }
-      }
-    }
-    return null;
   }
 
   /**
@@ -267,22 +311,20 @@ public class EnsemblGene extends EnsemblSeqProxy
    */
   protected void clearGeneFeatures(SequenceI gene)
   {
-    SequenceFeature[] sfs = gene.getSequenceFeatures();
-    if (sfs != null)
+    /*
+     * Note we include NMD_transcript_variant here because it behaves like 
+     * 'transcript' in Ensembl, although strictly speaking it is not 
+     * (it is a sub-type of sequence_variant)    
+     */
+    String[] soTerms = new String[] {
+        SequenceOntologyI.NMD_TRANSCRIPT_VARIANT,
+        SequenceOntologyI.TRANSCRIPT, SequenceOntologyI.EXON,
+        SequenceOntologyI.CDS };
+    List<SequenceFeature> sfs = gene.getFeatures().getFeaturesByOntology(
+            soTerms);
+    for (SequenceFeature sf : sfs)
     {
-      SequenceOntologyI so = SequenceOntologyFactory.getInstance();
-      List<SequenceFeature> filtered = new ArrayList<SequenceFeature>();
-      for (SequenceFeature sf : sfs)
-      {
-        String type = sf.getType();
-        if (!isTranscript(type) && !so.isA(type, SequenceOntologyI.EXON)
-                && !so.isA(type, SequenceOntologyI.CDS))
-        {
-          filtered.add(sf);
-        }
-      }
-      gene.setSequenceFeatures(filtered
-              .toArray(new SequenceFeature[filtered.size()]));
+      gene.deleteFeature(sf);
     }
   }
 
@@ -299,8 +341,8 @@ public class EnsemblGene extends EnsemblSeqProxy
    *          the parent gene sequence, with features
    * @return
    */
-  SequenceI makeTranscript(SequenceFeature transcriptFeature,
-          AlignmentI al, SequenceI gene)
+  SequenceI makeTranscript(SequenceFeature transcriptFeature, AlignmentI al,
+          SequenceI gene)
   {
     String accId = getTranscriptId(transcriptFeature);
     if (accId == null)
@@ -325,18 +367,19 @@ public class EnsemblGene extends EnsemblSeqProxy
      * look for exon features of the transcript, failing that for CDS
      * (for example ENSG00000124610 has 1 CDS but no exon features)
      */
-    String parentId = "transcript:" + accId;
+    String parentId = accId;
     List<SequenceFeature> splices = findFeatures(gene,
             SequenceOntologyI.EXON, parentId);
     if (splices.isEmpty())
     {
       splices = findFeatures(gene, SequenceOntologyI.CDS, parentId);
     }
+    SequenceFeatures.sortFeatures(splices, true);
 
     int transcriptLength = 0;
     final char[] geneChars = gene.getSequence();
     int offset = gene.getStart(); // to convert to 0-based positions
-    List<int[]> mappedFrom = new ArrayList<int[]>();
+    List<int[]> mappedFrom = new ArrayList<>();
 
     for (SequenceFeature sf : splices)
     {
@@ -348,13 +391,14 @@ public class EnsemblGene extends EnsemblSeqProxy
       mappedFrom.add(new int[] { sf.getBegin(), sf.getEnd() });
     }
 
-    Sequence transcript = new Sequence(accId, seqChars, 1, transcriptLength);
+    Sequence transcript = new Sequence(accId, seqChars, 1,
+            transcriptLength);
 
     /*
      * Ensembl has gene name as transcript Name
      * EnsemblGenomes doesn't, but has a url-encoded description field
      */
-    String description = (String) transcriptFeature.getValue(NAME);
+    String description = transcriptFeature.getDescription();
     if (description == null)
     {
       description = (String) transcriptFeature.getValue(DESCRIPTION);
@@ -377,12 +421,14 @@ public class EnsemblGene extends EnsemblSeqProxy
      * transfer features to the new sequence; we use EnsemblCdna to do this,
      * to filter out unwanted features types (see method retainFeature)
      */
-    List<int[]> mapTo = new ArrayList<int[]>();
+    List<int[]> mapTo = new ArrayList<>();
     mapTo.add(new int[] { 1, transcriptLength });
     MapList mapping = new MapList(mappedFrom, mapTo, 1, 1);
     EnsemblCdna cdna = new EnsemblCdna(getDomain());
-    cdna.transferFeatures(gene.getSequenceFeatures(),
+    cdna.transferFeatures(gene.getFeatures().getPositionalFeatures(),
             transcript.getDatasetSequence(), mapping, parentId);
+
+    mapTranscriptToChromosome(transcript, gene, mapping);
 
     /*
      * fetch and save cross-references
@@ -398,6 +444,42 @@ public class EnsemblGene extends EnsemblSeqProxy
   }
 
   /**
+   * If the gene has a mapping to chromosome coordinates, derive the transcript
+   * chromosome regions and save on the transcript sequence
+   * 
+   * @param transcript
+   * @param gene
+   * @param mapping
+   *          the mapping from gene to transcript positions
+   */
+  protected void mapTranscriptToChromosome(SequenceI transcript,
+          SequenceI gene, MapList mapping)
+  {
+    GeneLociI loci = gene.getGeneLoci();
+    if (loci == null)
+    {
+      return;
+    }
+
+    MapList geneMapping = loci.getMapping();
+
+    List<int[]> exons = mapping.getFromRanges();
+    List<int[]> transcriptLoci = new ArrayList<>();
+
+    for (int[] exon : exons)
+    {
+      transcriptLoci.add(geneMapping.locateInTo(exon[0], exon[1]));
+    }
+
+    List<int[]> transcriptRange = Arrays.asList(new int[] {
+        transcript.getStart(), transcript.getEnd() });
+    MapList mapList = new MapList(transcriptRange, transcriptLoci, 1, 1);
+
+    transcript.setGeneLoci(loci.getSpeciesId(), loci.getAssemblyId(),
+            loci.getChromosomeId(), mapList);
+  }
+
+  /**
    * Returns the 'transcript_id' property of the sequence feature (or null)
    * 
    * @param feature
@@ -405,12 +487,18 @@ public class EnsemblGene extends EnsemblSeqProxy
    */
   protected String getTranscriptId(SequenceFeature feature)
   {
-    return (String) feature.getValue("transcript_id");
+    return (String) feature.getValue(JSON_ID);
   }
 
   /**
    * Returns a list of the transcript features on the sequence whose Parent is
    * the gene for the accession id.
+   * <p>
+   * Transcript features are those of type "transcript", or any of its sub-types
+   * in the Sequence Ontology e.g. "mRNA", "processed_transcript". We also
+   * include "NMD_transcript_variant", because this type behaves like a
+   * transcript identifier in Ensembl, although strictly speaking it is not in
+   * the SO.
    * 
    * @param accId
    * @param geneSequence
@@ -419,23 +507,21 @@ public class EnsemblGene extends EnsemblSeqProxy
   protected List<SequenceFeature> getTranscriptFeatures(String accId,
           SequenceI geneSequence)
   {
-    List<SequenceFeature> transcriptFeatures = new ArrayList<SequenceFeature>();
+    List<SequenceFeature> transcriptFeatures = new ArrayList<>();
 
-    String parentIdentifier = GENE_PREFIX + accId;
-    SequenceFeature[] sfs = geneSequence.getSequenceFeatures();
+    String parentIdentifier = accId;
 
-    if (sfs != null)
+    List<SequenceFeature> sfs = geneSequence.getFeatures()
+            .getFeaturesByOntology(SequenceOntologyI.TRANSCRIPT);
+    sfs.addAll(geneSequence.getFeatures().getPositionalFeatures(
+            SequenceOntologyI.NMD_TRANSCRIPT_VARIANT));
+
+    for (SequenceFeature sf : sfs)
     {
-      for (SequenceFeature sf : sfs)
+      String parent = (String) sf.getValue(PARENT);
+      if (parentIdentifier.equalsIgnoreCase(parent))
       {
-        if (isTranscript(sf.getType()))
-        {
-          String parent = (String) sf.getValue(PARENT);
-          if (parentIdentifier.equals(parent))
-          {
-            transcriptFeatures.add(sf);
-          }
-        }
+        transcriptFeatures.add(sf);
       }
     }
 
@@ -461,22 +547,26 @@ public class EnsemblGene extends EnsemblSeqProxy
   }
 
   /**
-   * Answers true for a feature of type 'gene' (or a sub-type of gene in the
-   * Sequence Ontology), whose ID is the accession we are retrieving
+   * Answers a list of sequence features (if any) whose type is 'gene' (or a
+   * subtype of gene in the Sequence Ontology), and whose ID is the accession we
+   * are retrieving
    */
   @Override
-  protected boolean identifiesSequence(SequenceFeature sf, String accId)
+  protected List<SequenceFeature> getIdentifyingFeatures(SequenceI seq,
+          String accId)
   {
-    if (SequenceOntologyFactory.getInstance().isA(sf.getType(),
-            SequenceOntologyI.GENE))
+    List<SequenceFeature> result = new ArrayList<>();
+    List<SequenceFeature> sfs = seq.getFeatures()
+            .getFeaturesByOntology(SequenceOntologyI.GENE);
+    for (SequenceFeature sf : sfs)
     {
-      String id = (String) sf.getValue(ID);
-      if ((GENE_PREFIX + accId).equals(id))
+      String id = (String) sf.getValue(JSON_ID);
+      if (accId.equalsIgnoreCase(id))
       {
-        return true;
+        result.add(sf);
       }
     }
-    return false;
+    return result;
   }
 
   /**
@@ -498,23 +588,12 @@ public class EnsemblGene extends EnsemblSeqProxy
     if (isTranscript(type))
     {
       String parent = (String) sf.getValue(PARENT);
-      if (!(GENE_PREFIX + accessionId).equals(parent))
+      if (!accessionId.equalsIgnoreCase(parent))
       {
         return false;
       }
     }
     return true;
-  }
-
-  /**
-   * Answers false. This allows an optimisation - a single 'gene' feature is all
-   * that is needed to identify the positions of the gene on the genomic
-   * sequence.
-   */
-  @Override
-  protected boolean isSpliceable()
-  {
-    return false;
   }
 
   /**
@@ -550,10 +629,10 @@ public class EnsemblGene extends EnsemblSeqProxy
       SequenceOntologyI so = SequenceOntologyFactory.getInstance();
 
       @Override
-      public boolean isFeatureDisplayed(String type)
+      public boolean isFeatureHidden(String type)
       {
-        return (so.isA(type, SequenceOntologyI.EXON) || so.isA(type,
-                SequenceOntologyI.SEQUENCE_VARIANT));
+        return (!so.isA(type, SequenceOntologyI.EXON)
+                && !so.isA(type, SequenceOntologyI.SEQUENCE_VARIANT));
       }
 
       @Override

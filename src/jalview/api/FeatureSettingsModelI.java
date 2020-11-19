@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -35,12 +35,22 @@ public interface FeatureSettingsModelI extends Comparator<String>
   // interface, simplifying instantiating classes
 
   /**
-   * Answers true if the specified feature type is displayed
+   * Answers true if the specified feature type is to be displayed, false if no
+   * preference
    * 
    * @param type
    * @return
    */
   boolean isFeatureDisplayed(String type);
+
+  /**
+   * Answers true if the specified feature type is to be hidden, false if no
+   * preference
+   * 
+   * @param type
+   * @return
+   */
+  boolean isFeatureHidden(String type);
 
   /**
    * Answers true if the specified feature group is displayed

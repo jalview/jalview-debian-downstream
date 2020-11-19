@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,8 +43,8 @@ import javax.swing.event.HyperlinkListener;
  * @author $author$
  * @version $Revision$
  */
-public class SplashScreen extends JPanel implements Runnable,
-        HyperlinkListener
+public class SplashScreen extends JPanel
+        implements Runnable, HyperlinkListener
 {
   boolean visible = true;
 
@@ -111,14 +111,14 @@ public class SplashScreen extends JPanel implements Runnable,
     try
     {
       java.net.URL url = getClass().getResource("/images/Jalview_Logo.png");
-      java.net.URL urllogo = getClass().getResource(
-              "/images/Jalview_Logo_small.png");
+      java.net.URL urllogo = getClass()
+              .getResource("/images/Jalview_Logo_small.png");
 
       if (url != null)
       {
         image = java.awt.Toolkit.getDefaultToolkit().createImage(url);
-        Image logo = java.awt.Toolkit.getDefaultToolkit().createImage(
-                urllogo);
+        Image logo = java.awt.Toolkit.getDefaultToolkit()
+                .createImage(urllogo);
         MediaTracker mt = new MediaTracker(this);
         mt.addImage(image, 0);
         mt.addImage(logo, 1);

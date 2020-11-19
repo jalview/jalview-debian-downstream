@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,6 @@
  */
 package jalview.appletgui;
 
-import jalview.api.ViewStyleI;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -32,9 +31,9 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Frame;
+import java.awt.GraphicsEnvironment;
 import java.awt.Label;
 import java.awt.Panel;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -59,6 +58,8 @@ public class FontChooser extends Panel implements ItemListener
 
   private Checkbox scaleAsCdna = new Checkbox();
 
+  private Checkbox fontAsCdna = new Checkbox();
+
   private Button ok = new Button();
 
   private Button cancel = new Button();
@@ -69,9 +70,19 @@ public class FontChooser extends Panel implements ItemListener
 
   private Font oldFont;
 
+  private Font oldComplementFont;
+
   private int oldCharWidth = 0;
 
+  /*
+   * the state of 'scale protein to cDNA' on opening the dialog
+   */
   private boolean oldScaleProtein = false;
+
+  /*
+   * the state of 'same font for protein and cDNA' on opening the dialog
+   */
+  boolean oldMirrorFont;
 
   private Font lastSelected = null;
 
@@ -82,6 +93,8 @@ public class FontChooser extends Panel implements ItemListener
   private boolean init = true;
 
   private Frame frame;
+
+  boolean inSplitFrame = false;
 
   /**
    * Constructor for a TreePanel font chooser
@@ -112,8 +125,9 @@ public class FontChooser extends Panel implements ItemListener
   {
     this.ap = ap;
     oldFont = ap.av.getFont();
-    oldCharWidth = ap.av.getViewStyle().getCharWidth();
-    oldScaleProtein = ap.av.getViewStyle().isScaleProteinAsCdna();
+    oldCharWidth = ap.av.getCharWidth();
+    oldScaleProtein = ap.av.isScaleProteinAsCdna();
+    oldMirrorFont = ap.av.isProteinFontAsCdna();
 
     try
     {
@@ -130,7 +144,9 @@ public class FontChooser extends Panel implements ItemListener
    */
   void init()
   {
-    String fonts[] = Toolkit.getDefaultToolkit().getFontList();
+    // String fonts[] = Toolkit.getDefaultToolkit().getFontList();
+    String fonts[] = GraphicsEnvironment.getLocalGraphicsEnvironment()
+            .getAvailableFontFamilyNames();
     for (int i = 0; i < fonts.length; i++)
     {
       fontName.addItem(fonts[i]);
@@ -152,7 +168,7 @@ public class FontChooser extends Panel implements ItemListener
     this.frame = new Frame();
     frame.add(this);
     jalview.bin.JalviewLite.addFrame(frame,
-            MessageManager.getString("action.change_font"), 440, 115);
+            MessageManager.getString("action.change_font"), 440, 145);
 
     init = false;
   }
@@ -160,6 +176,7 @@ public class FontChooser extends Panel implements ItemListener
   /**
    * Actions on change of font name, size or style.
    */
+  @Override
   public void itemStateChanged(ItemEvent evt)
   {
     final Object source = evt.getSource();
@@ -179,6 +196,29 @@ public class FontChooser extends Panel implements ItemListener
     {
       scaleAsCdna_actionPerformed();
     }
+    else if (source == fontAsCdna)
+    {
+      mirrorFont_actionPerformed();
+    }
+  }
+
+  /**
+   * Action on checking or unchecking 'use same font across split screen'
+   * option. When checked, the font settings are copied to the other half of the
+   * split screen. When unchecked, the other half is restored to its initial
+   * settings.
+   */
+  protected void mirrorFont_actionPerformed()
+  {
+    boolean selected = fontAsCdna.getState();
+    ap.av.setProteinFontAsCdna(selected);
+    ap.av.getCodingComplement().setProteinFontAsCdna(selected);
+
+    if (!selected)
+    {
+      ap.av.getCodingComplement().setFont(oldComplementFont, true);
+    }
+    changeFont();
   }
 
   /**
@@ -205,20 +245,25 @@ public class FontChooser extends Panel implements ItemListener
     if (ap != null)
     {
       ap.av.setScaleProteinAsCdna(oldScaleProtein);
+      ap.av.setProteinFontAsCdna(oldMirrorFont);
+
       if (ap.av.getCodingComplement() != null)
       {
         ap.av.getCodingComplement().setScaleProteinAsCdna(oldScaleProtein);
-        ap.alignFrame.getSplitFrame().repaint();
+        ap.av.getCodingComplement().setProteinFontAsCdna(oldMirrorFont);
+        ap.av.getCodingComplement().setFont(oldComplementFont, true);
+        SplitFrame splitFrame = ap.alignFrame.getSplitFrame();
+        splitFrame.adjustLayout();
+        splitFrame.getComplement(ap.alignFrame).alignPanel.fontChanged();
+        splitFrame.repaint();
       }
 
-      ap.av.setFont(oldFont);
-      ViewStyleI style = ap.av.getViewStyle();
-      if (style.getCharWidth() != oldCharWidth)
+      ap.av.setFont(oldFont, true);
+      if (ap.av.getCharWidth() != oldCharWidth)
       {
-        style.setCharWidth(oldCharWidth);
-        ap.av.setViewStyle(style);
+        ap.av.setCharWidth(oldCharWidth);
       }
-      ap.paintAlignment(true);
+      ap.paintAlignment(true, false);
     }
     else if (tp != null)
     {
@@ -247,11 +292,11 @@ public class FontChooser extends Panel implements ItemListener
     }
 
     Font newFont = new Font(fontName.getSelectedItem().toString(),
-            fontStyle.getSelectedIndex(), Integer.parseInt(fontSize
-                    .getSelectedItem().toString()));
+            fontStyle.getSelectedIndex(),
+            Integer.parseInt(fontSize.getSelectedItem().toString()));
     FontMetrics fm = getGraphics().getFontMetrics(newFont);
-    double mw = fm.getStringBounds("M", getGraphics()).getWidth(), iw = fm
-            .getStringBounds("I", getGraphics()).getWidth();
+    double mw = fm.getStringBounds("M", getGraphics()).getWidth(),
+            iw = fm.getStringBounds("I", getGraphics()).getWidth();
     if (mw < 1 || iw < 1)
     {
       // TODO: JAL-1100
@@ -276,8 +321,23 @@ public class FontChooser extends Panel implements ItemListener
     }
     else if (ap != null)
     {
-      ap.av.setFont(newFont);
+      ap.av.setFont(newFont, true);
       ap.fontChanged();
+
+      /*
+       * and change font in other half of split frame if any
+       */
+      if (inSplitFrame)
+      {
+        if (fontAsCdna.getState())
+        {
+          ap.av.getCodingComplement().setFont(newFont, true);
+        }
+        SplitFrame splitFrame = ap.alignFrame.getSplitFrame();
+        splitFrame.adjustLayout();
+        splitFrame.getComplement(ap.alignFrame).alignPanel.fontChanged();
+        splitFrame.repaint();
+      }
     }
     // remember last selected
     lastSelected = newFont;
@@ -344,6 +404,11 @@ public class FontChooser extends Panel implements ItemListener
     scaleAsCdna.addItemListener(this);
     scaleAsCdna.setState(ap.av.isScaleProteinAsCdna());
 
+    fontAsCdna.setLabel(MessageManager.getString("label.font_as_cdna"));
+    fontAsCdna.setFont(VERDANA_11PT);
+    fontAsCdna.addItemListener(this);
+    fontAsCdna.setState(ap.av.isProteinFontAsCdna());
+
     ok.setFont(VERDANA_11PT);
     ok.setLabel(MessageManager.getString("action.ok"));
     ok.addActionListener(new ActionListener()
@@ -388,7 +453,8 @@ public class FontChooser extends Panel implements ItemListener
     stylePanel.add(fontStyle, BorderLayout.CENTER);
     sizePanel.add(sizeLabel, BorderLayout.WEST);
     sizePanel.add(fontSize, BorderLayout.CENTER);
-    scalePanel.add(scaleAsCdna, BorderLayout.CENTER);
+    scalePanel.add(scaleAsCdna, BorderLayout.NORTH);
+    scalePanel.add(fontAsCdna, BorderLayout.SOUTH);
     okCancelPanel.add(ok, null);
     okCancelPanel.add(cancel, null);
 
@@ -402,6 +468,9 @@ public class FontChooser extends Panel implements ItemListener
     this.add(optionsPanel, BorderLayout.NORTH);
     if (ap.alignFrame.getSplitFrame() != null)
     {
+      inSplitFrame = true;
+      oldComplementFont = ((AlignViewport) ap.av.getCodingComplement())
+              .getFont();
       this.add(scalePanel, BorderLayout.CENTER);
     }
     this.add(okCancelPanel, BorderLayout.SOUTH);
@@ -414,11 +483,9 @@ public class FontChooser extends Panel implements ItemListener
   protected void scaleAsCdna_actionPerformed()
   {
     ap.av.setScaleProteinAsCdna(scaleAsCdna.getState());
-    ap.av.getCodingComplement().setScaleProteinAsCdna(
-            scaleAsCdna.getState());
-    ap.alignFrame.getSplitFrame().adjustLayout();
-    ap.paintAlignment(true);
-    ap.alignFrame.getSplitFrame().repaint();
+    ap.av.getCodingComplement()
+            .setScaleProteinAsCdna(scaleAsCdna.getState());
+    changeFont();
   }
 
 }

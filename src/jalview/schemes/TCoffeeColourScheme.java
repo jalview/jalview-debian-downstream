@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,7 @@
  */
 package jalview.schemes;
 
+import jalview.api.AlignViewportI;
 import jalview.datamodel.AlignmentAnnotation;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AnnotatedCollectionI;
@@ -31,6 +32,7 @@ import jalview.io.TCoffeeScoreFile;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -44,20 +46,15 @@ import java.util.Map;
  */
 public class TCoffeeColourScheme extends ResidueColourScheme
 {
-
-  static final Color[] colors = { new Color(102, 102, 255), // #6666FF
-      new Color(0, 255, 0), // #00FF00
-      new Color(102, 255, 0), // #66FF00
-      new Color(204, 255, 0), // #CCFF00
-      new Color(255, 255, 0), // #FFFF00
-      new Color(255, 204, 0), // #FFCC00
-      new Color(255, 153, 0), // #FF9900
-      new Color(255, 102, 0), // #FF6600
-      new Color(255, 51, 0), // #FF3300
-      new Color(255, 34, 0) // #FF2000
-  };
-
   IdentityHashMap<SequenceI, Color[]> seqMap;
+
+  /**
+   * Default constructor (required for Class.newInstance())
+   */
+  public TCoffeeColourScheme()
+  {
+
+  }
 
   /**
    * the color scheme needs to look at the alignment to get and cache T-COFFEE
@@ -71,6 +68,13 @@ public class TCoffeeColourScheme extends ResidueColourScheme
     alignmentChanged(alignment, null);
   }
 
+  /**
+   * Finds the TCoffeeScore annotation (if any) for each sequence and notes the
+   * annotation colour for each column position. The colours are fixed for
+   * scores 0-9 and are set when annotation is parsed.
+   * 
+   * @see TCoffeeScoreFile#annotateAlignment(AlignmentI, boolean)
+   */
   @Override
   public void alignmentChanged(AnnotatedCollectionI alignment,
           Map<SequenceI, SequenceCollectionI> hiddenReps)
@@ -80,11 +84,12 @@ public class TCoffeeColourScheme extends ResidueColourScheme
 
     // assume only one set of TCOFFEE scores - but could have more than one
     // potentially.
-    ArrayList<AlignmentAnnotation> annots = new ArrayList<AlignmentAnnotation>();
+    List<AlignmentAnnotation> annots = new ArrayList<>();
     // Search alignment to get all tcoffee annotation and pick one set of
     // annotation to use to colour seqs.
-    seqMap = new IdentityHashMap<SequenceI, Color[]>();
-    AnnotatedCollectionI alcontext = alignment instanceof AlignmentI ? alignment
+    seqMap = new IdentityHashMap<>();
+    AnnotatedCollectionI alcontext = alignment instanceof AlignmentI
+            ? alignment
             : alignment.getContext();
     if (alcontext == null)
     {
@@ -119,9 +124,12 @@ public class TCoffeeColourScheme extends ResidueColourScheme
   @Override
   public Color findColour(char c, int j, SequenceI seq)
   {
-    Color[] cols;
-
-    if (seqMap == null || (cols = seqMap.get(seq)) == null)
+    if (seqMap == null)
+    {
+      return Color.WHITE;
+    }
+    Color[] cols = seqMap.get(seq);
+    if (cols == null)
     {
       // see above TODO about computing a colour for each residue in each
       // column: cc = _rcols[i][indexFor[c]];
@@ -136,9 +144,38 @@ public class TCoffeeColourScheme extends ResidueColourScheme
   }
 
   @Override
-  public ColourSchemeI applyTo(AnnotatedCollectionI sg,
-          Map<SequenceI, SequenceCollectionI> hiddenRepSequences)
+  public ColourSchemeI getInstance(AlignViewportI view,
+          AnnotatedCollectionI sg)
   {
     return new TCoffeeColourScheme(sg);
+  }
+
+  /**
+   * Answers true if the data has TCoffee score annotation
+   */
+  @Override
+  public boolean isApplicableTo(AnnotatedCollectionI ac)
+  {
+    AnnotatedCollectionI alcontext = ac instanceof AlignmentI ? ac
+            : ac.getContext();
+    if (alcontext == null)
+    {
+      return false;
+    }
+    Iterable<AlignmentAnnotation> anns = alcontext
+            .findAnnotation(TCoffeeScoreFile.TCOFFEE_SCORE);
+    return anns.iterator().hasNext();
+  }
+
+  @Override
+  public String getSchemeName()
+  {
+    return JalviewColourScheme.TCoffee.toString();
+  }
+
+  @Override
+  public boolean isSimple()
+  {
+    return false;
   }
 }

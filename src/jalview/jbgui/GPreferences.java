@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,11 +20,19 @@
  */
 package jalview.jbgui;
 
+import jalview.bin.Cache;
 import jalview.fts.core.FTSDataColumnPreferences;
 import jalview.fts.core.FTSDataColumnPreferences.PreferenceSource;
 import jalview.fts.service.pdb.PDBFTSRestClient;
+import jalview.gui.Desktop;
+import jalview.gui.JalviewBooleanRadioButtons;
+import jalview.gui.JvOptionPane;
 import jalview.gui.JvSwingUtils;
 import jalview.gui.StructureViewer.ViewerType;
+import jalview.io.BackupFilenameParts;
+import jalview.io.BackupFiles;
+import jalview.io.BackupFilesPresetEntry;
+import jalview.io.IntKeyStringValueEntry;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
@@ -42,9 +50,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
+import java.util.List;
 
+import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
@@ -53,13 +65,17 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
@@ -67,8 +83,8 @@ import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 
 /**
  * Base class for the Preferences panel.
@@ -80,8 +96,11 @@ public class GPreferences extends JPanel
 {
   private static final Font LABEL_FONT = JvSwingUtils.getLabelFont();
 
-  private static final Font LABEL_FONT_ITALIC = JvSwingUtils.getLabelFont(
-          false, true);
+  private static final Font LABEL_FONT_ITALIC = JvSwingUtils
+          .getLabelFont(false, true);
+
+  private static final Font LABEL_FONT_BOLD = JvSwingUtils
+          .getLabelFont(true, false);
 
   /*
    * Visual tab components
@@ -94,11 +113,13 @@ public class GPreferences extends JPanel
 
   protected JCheckBox rightAlign = new JCheckBox();
 
-  protected JComboBox<String> fontSizeCB = new JComboBox<String>();
+  protected JComboBox<String> fontSizeCB = new JComboBox<>();
 
-  protected JComboBox<String> fontStyleCB = new JComboBox<String>();
+  protected JComboBox<String> fontStyleCB = new JComboBox<>();
 
-  protected JComboBox<String> fontNameCB = new JComboBox<String>();
+  protected JComboBox<String> fontNameCB = new JComboBox<>();
+
+  protected JCheckBox showOccupancy = new JCheckBox();
 
   protected JCheckBox showUnconserved = new JCheckBox();
 
@@ -108,15 +129,15 @@ public class GPreferences extends JPanel
 
   protected JCheckBox scaleProteinToCdna = new JCheckBox();
 
-  protected JComboBox<String> gapSymbolCB = new JComboBox<String>();
+  protected JComboBox<String> gapSymbolCB = new JComboBox<>();
 
   protected JCheckBox wrap = new JCheckBox();
 
-  protected JComboBox<String> sortby = new JComboBox<String>();
+  protected JComboBox<String> sortby = new JComboBox<>();
 
-  protected JComboBox<String> sortAnnBy = new JComboBox<String>();
+  protected JComboBox<String> sortAnnBy = new JComboBox<>();
 
-  protected JComboBox<String> sortAutocalc = new JComboBox<String>();
+  protected JComboBox<String> sortAutocalc = new JComboBox<>();
 
   protected JCheckBox startupCheckbox = new JCheckBox();
 
@@ -156,7 +177,7 @@ public class GPreferences extends JPanel
 
   protected JCheckBox addTempFactor = new JCheckBox();
 
-  protected JComboBox<String> structViewer = new JComboBox<String>();
+  protected JComboBox<String> structViewer = new JComboBox<>();
 
   protected JTextField chimeraPath = new JTextField();
 
@@ -173,22 +194,47 @@ public class GPreferences extends JPanel
 
   protected JPanel maxColour = new JPanel();
 
-  protected JComboBox<String> protColour = new JComboBox<String>();
+  protected JComboBox<String> protColour = new JComboBox<>();
 
-  protected JComboBox<String> nucColour = new JComboBox<String>();
+  protected JComboBox<String> nucColour = new JComboBox<>();
+
+  /*
+   * Overview tab components
+   */
+  protected JPanel gapColour = new JPanel();
+
+  protected JPanel hiddenColour = new JPanel();
+
+  protected JCheckBox useLegacyGap;
+
+  protected JCheckBox showHiddenAtStart;
+
+  protected JLabel gapLabel;
 
   /*
    * Connections tab components
    */
-  protected JList linkURLList = new JList();
+  protected JTable linkUrlTable = new JTable();
+
+  protected JButton editLink = new JButton();
+
+  protected JButton deleteLink = new JButton();
+
+  protected JTextField filterTB = new JTextField();
+
+  protected JButton doReset = new JButton();
+
+  protected JButton userOnly = new JButton();
+
+  protected JLabel portLabel = new JLabel();
+
+  protected JLabel serverLabel = new JLabel();
 
   protected JTextField proxyServerTB = new JTextField();
 
   protected JTextField proxyPortTB = new JTextField();
 
   protected JTextField defaultBrowser = new JTextField();
-
-  protected JList linkNameList = new JList();
 
   protected JCheckBox useProxy = new JCheckBox();
 
@@ -201,7 +247,7 @@ public class GPreferences extends JPanel
   /*
    * Output tab components
    */
-  protected JComboBox<Object> epsRendering = new JComboBox<Object>();
+  protected JComboBox<Object> epsRendering = new JComboBox<>();
 
   protected JLabel userIdWidthlabel = new JLabel();
 
@@ -237,14 +283,55 @@ public class GPreferences extends JPanel
   protected JCheckBox sortByTree = new JCheckBox();
 
   /*
-   * DAS Settings tab
-   */
-  protected JPanel dasTab = new JPanel();
-
-  /*
    * Web Services tab
    */
   protected JPanel wsTab = new JPanel();
+
+  /*
+   * Backups tab components
+   * a lot of these are member variables instead of local variables only so that they
+   * can be enabled/disabled easily in one go
+   */
+
+  protected JCheckBox enableBackupFiles = new JCheckBox();
+
+  protected JPanel presetsPanel = new JPanel();
+
+  protected JLabel presetsComboLabel = new JLabel();
+
+  protected JCheckBox customiseCheckbox = new JCheckBox();
+
+  protected JButton revertButton = new JButton();
+
+  protected JComboBox<Object> backupfilesPresetsCombo = new JComboBox<>();
+
+  private int backupfilesPresetsComboLastSelected = 0;
+
+  protected JPanel suffixPanel = new JPanel();
+
+  protected JPanel keepfilesPanel = new JPanel();
+
+  protected JPanel exampleFilesPanel = new JPanel();
+
+  protected JTextField suffixTemplate = new JTextField(null, 8);
+
+  protected JLabel suffixTemplateLabel = new JLabel();
+
+  protected JLabel suffixDigitsLabel = new JLabel();
+
+  protected JSpinner suffixDigitsSpinner = new JSpinner();
+
+  protected JalviewBooleanRadioButtons suffixReverse = new JalviewBooleanRadioButtons();
+
+  protected JalviewBooleanRadioButtons backupfilesKeepAll = new JalviewBooleanRadioButtons();
+
+  public JSpinner backupfilesRollMaxSpinner = new JSpinner();
+
+  protected JLabel oldBackupFilesLabel = new JLabel();
+
+  protected JalviewBooleanRadioButtons backupfilesConfirmDelete = new JalviewBooleanRadioButtons();
+
+  protected JTextArea backupfilesExampleLabel = new JTextArea();
 
   /**
    * Creates a new GPreferences object.
@@ -279,23 +366,26 @@ public class GPreferences extends JPanel
     tabbedPane.add(initColoursTab(),
             MessageManager.getString("label.colours"));
 
+    tabbedPane.add(initOverviewTab(),
+            MessageManager.getString("label.overview"));
+
     tabbedPane.add(initStructureTab(),
             MessageManager.getString("label.structure"));
 
     tabbedPane.add(initConnectionsTab(),
             MessageManager.getString("label.connections"));
 
+    tabbedPane.add(initBackupsTab(),
+            MessageManager.getString("label.backups"));
+
+    tabbedPane.add(initLinksTab(),
+            MessageManager.getString("label.urllinks"));
+
     tabbedPane.add(initOutputTab(),
             MessageManager.getString("label.output"));
 
     tabbedPane.add(initEditingTab(),
             MessageManager.getString("label.editing"));
-
-    /*
-     * See DasSourceBrowser for the real work of configuring this tab.
-     */
-    dasTab.setLayout(new BorderLayout());
-    tabbedPane.add(dasTab, MessageManager.getString("label.das_settings"));
 
     /*
      * See WsPreferences for the real work of configuring this tab.
@@ -339,18 +429,18 @@ public class GPreferences extends JPanel
     JPanel editingTab = new JPanel();
     editingTab.setLayout(null);
     autoCalculateConsCheck.setFont(LABEL_FONT);
-    autoCalculateConsCheck.setText(MessageManager
-            .getString("label.autocalculate_consensus"));
+    autoCalculateConsCheck.setText(
+            MessageManager.getString("label.autocalculate_consensus"));
     autoCalculateConsCheck.setBounds(new Rectangle(21, 52, 209, 23));
     padGaps.setFont(LABEL_FONT);
-    padGaps.setText(MessageManager.getString("label.pad_gaps_when_editing"));
+    padGaps.setText(
+            MessageManager.getString("label.pad_gaps_when_editing"));
     padGaps.setBounds(new Rectangle(22, 94, 168, 23));
     sortByTree.setFont(LABEL_FONT);
     sortByTree
             .setText(MessageManager.getString("label.sort_with_new_tree"));
-    sortByTree
-            .setToolTipText(MessageManager
-                    .getString("label.any_trees_calculated_or_loaded_alignment_automatically_sort"));
+    sortByTree.setToolTipText(MessageManager.getString(
+            "label.any_trees_calculated_or_loaded_alignment_automatically_sort"));
     sortByTree.setBounds(new Rectangle(22, 136, 168, 23));
     editingTab.add(autoCalculateConsCheck);
     editingTab.add(padGaps);
@@ -410,11 +500,10 @@ public class GPreferences extends JPanel
     pirjv.setFont(LABEL_FONT);
     pirjv.setHorizontalAlignment(SwingConstants.LEFT);
     autoIdWidth.setFont(LABEL_FONT);
-    autoIdWidth.setText(MessageManager
-            .getString("label.automatically_set_id_width"));
-    autoIdWidth.setToolTipText(JvSwingUtils.wrapTooltip(true,
-            MessageManager
-                    .getString("label.adjusts_width_generated_eps_png")));
+    autoIdWidth.setText(
+            MessageManager.getString("label.automatically_set_id_width"));
+    autoIdWidth.setToolTipText(JvSwingUtils.wrapTooltip(true, MessageManager
+            .getString("label.adjusts_width_generated_eps_png")));
     autoIdWidth.setBounds(new Rectangle(228, 96, 188, 23));
     autoIdWidth.addActionListener(new ActionListener()
     {
@@ -426,14 +515,13 @@ public class GPreferences extends JPanel
       }
     });
     userIdWidthlabel.setFont(LABEL_FONT);
-    userIdWidthlabel.setText(MessageManager
-            .getString("label.figure_id_column_width"));
-    userIdWidth
-            .setToolTipText(JvSwingUtils.wrapTooltip(true, MessageManager
-                    .getString("label.manually_specify_width_left_column")));
-    userIdWidthlabel
-            .setToolTipText(JvSwingUtils.wrapTooltip(true, MessageManager
-                    .getString("label.manually_specify_width_left_column")));
+    userIdWidthlabel.setText(
+            MessageManager.getString("label.figure_id_column_width"));
+    userIdWidth.setToolTipText(JvSwingUtils.wrapTooltip(true, MessageManager
+            .getString("label.manually_specify_width_left_column")));
+    userIdWidthlabel.setToolTipText(
+            JvSwingUtils.wrapTooltip(true, MessageManager.getString(
+                    "label.manually_specify_width_left_column")));
     userIdWidthlabel.setBounds(new Rectangle(236, 120, 168, 23));
     userIdWidth.setFont(JvSwingUtils.getTextAreaFont());
     userIdWidth.setText("");
@@ -448,8 +536,8 @@ public class GPreferences extends JPanel
       }
     });
     modellerOutput.setFont(LABEL_FONT);
-    modellerOutput.setText(MessageManager
-            .getString("label.use_modeller_output"));
+    modellerOutput
+            .setText(MessageManager.getString("label.use_modeller_output"));
     modellerOutput.setBounds(new Rectangle(228, 226, 168, 23));
     embbedBioJSON.setFont(LABEL_FONT);
     embbedBioJSON.setText(MessageManager.getString("label.embbed_biojson"));
@@ -483,107 +571,18 @@ public class GPreferences extends JPanel
   {
     JPanel connectTab = new JPanel();
     connectTab.setLayout(new GridBagLayout());
-    JLabel serverLabel = new JLabel();
-    serverLabel.setText(MessageManager.getString("label.address"));
-    serverLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-    serverLabel.setFont(LABEL_FONT);
-    proxyServerTB.setFont(LABEL_FONT);
-    proxyPortTB.setFont(LABEL_FONT);
-    JLabel portLabel = new JLabel();
-    portLabel.setFont(LABEL_FONT);
-    portLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-    portLabel.setText(MessageManager.getString("label.port"));
+
+    // Label for browser text box
     JLabel browserLabel = new JLabel();
-    browserLabel.setFont(new java.awt.Font("SansSerif", 0, 11));
+    browserLabel.setFont(LABEL_FONT);
     browserLabel.setHorizontalAlignment(SwingConstants.TRAILING);
-    browserLabel.setText(MessageManager
-            .getString("label.default_browser_unix"));
+    browserLabel.setText(
+            MessageManager.getString("label.default_browser_unix"));
     defaultBrowser.setFont(LABEL_FONT);
     defaultBrowser.setText("");
-    usagestats.setText(MessageManager
-            .getString("label.send_usage_statistics"));
-    usagestats.setFont(LABEL_FONT);
-    usagestats.setHorizontalAlignment(SwingConstants.RIGHT);
-    usagestats.setHorizontalTextPosition(SwingConstants.LEADING);
-    questionnaire.setText(MessageManager
-            .getString("label.check_for_questionnaires"));
-    questionnaire.setFont(LABEL_FONT);
-    questionnaire.setHorizontalAlignment(SwingConstants.RIGHT);
-    questionnaire.setHorizontalTextPosition(SwingConstants.LEADING);
-    versioncheck.setText(MessageManager
-            .getString("label.check_for_latest_version"));
-    versioncheck.setFont(LABEL_FONT);
-    versioncheck.setHorizontalAlignment(SwingConstants.RIGHT);
-    versioncheck.setHorizontalTextPosition(SwingConstants.LEADING);
-    JButton newLink = new JButton();
-    newLink.setText(MessageManager.getString("action.new"));
-    newLink.addActionListener(new java.awt.event.ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        newLink_actionPerformed(e);
-      }
-    });
-    JButton editLink = new JButton();
-    editLink.setText(MessageManager.getString("action.edit"));
-    editLink.addActionListener(new java.awt.event.ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        editLink_actionPerformed(e);
-      }
-    });
-    JButton deleteLink = new JButton();
-    deleteLink.setText(MessageManager.getString("action.delete"));
-    deleteLink.addActionListener(new java.awt.event.ActionListener()
-    {
-      @Override
-      public void actionPerformed(ActionEvent e)
-      {
-        deleteLink_actionPerformed(e);
-      }
-    });
-
-    linkURLList.addListSelectionListener(new ListSelectionListener()
-    {
-      @Override
-      public void valueChanged(ListSelectionEvent e)
-      {
-        int index = linkURLList.getSelectedIndex();
-        linkNameList.setSelectedIndex(index);
-      }
-    });
-
-    linkNameList.addListSelectionListener(new ListSelectionListener()
-    {
-      @Override
-      public void valueChanged(ListSelectionEvent e)
-      {
-        int index = linkNameList.getSelectedIndex();
-        linkURLList.setSelectedIndex(index);
-      }
-    });
-
-    JScrollPane linkScrollPane = new JScrollPane();
-    linkScrollPane.setBorder(null);
-    JPanel linkPanel = new JPanel();
-    linkPanel.setBorder(new TitledBorder(MessageManager
-            .getString("label.url_linkfrom_sequence_id")));
-    linkPanel.setLayout(new BorderLayout());
-    GridLayout gridLayout1 = new GridLayout();
-    JPanel editLinkButtons = new JPanel();
-    editLinkButtons.setLayout(gridLayout1);
-    gridLayout1.setRows(3);
-    linkNameList.setFont(LABEL_FONT);
-    linkNameList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    BorderLayout borderLayout3 = new BorderLayout();
-    JPanel linkPanel2 = new JPanel();
-    linkPanel2.setLayout(borderLayout3);
-    linkURLList.setFont(LABEL_FONT);
-    linkURLList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
+    final String tooltip = JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.double_click_to_browse"));
+    defaultBrowser.setToolTipText(tooltip);
     defaultBrowser.addMouseListener(new MouseAdapter()
     {
       @Override
@@ -595,6 +594,266 @@ public class GPreferences extends JPanel
         }
       }
     });
+
+    JPanel proxyPanel = initConnTabProxyPanel();
+    initConnTabCheckboxes();
+
+    // Add default Browser text box
+    connectTab.add(browserLabel,
+            new GridBagConstraints(0, 0, 1, 1, 0.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.NONE,
+                    new Insets(10, 0, 5, 5), 5, 1));
+    defaultBrowser.setFont(LABEL_FONT);
+    defaultBrowser.setText("");
+
+    connectTab.add(defaultBrowser, new GridBagConstraints(1, 0, 1, 1, 1.0,
+            0.0, GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL,
+            new Insets(10, 0, 5, 10), 30, 1));
+
+    // Add proxy server panel
+    connectTab.add(proxyPanel, new GridBagConstraints(0, 1, 2, 1, 1.0, 0.0,
+            GridBagConstraints.CENTER, GridBagConstraints.HORIZONTAL,
+            new Insets(10, 0, 5, 12), 4, 10));
+
+    // Add usage stats, version check and questionnaire checkboxes
+    connectTab.add(usagestats,
+            new GridBagConstraints(0, 2, 1, 1, 1.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
+                    new Insets(0, 2, 5, 5), 70, 1));
+    connectTab.add(questionnaire,
+            new GridBagConstraints(1, 2, 1, 1, 1.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
+                    new Insets(0, 2, 5, 10), 70, 1));
+    connectTab.add(versioncheck,
+            new GridBagConstraints(0, 3, 1, 1, 1.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
+                    new Insets(0, 2, 5, 5), 70, 1));
+
+    versioncheck.setVisible(false);
+
+    // Add padding so the panel doesn't look ridiculous
+    JPanel spacePanel = new JPanel();
+    connectTab.add(spacePanel,
+            new GridBagConstraints(0, 4, 1, 1, 1.0, 1.0,
+                    GridBagConstraints.WEST, GridBagConstraints.BOTH,
+                    new Insets(0, 0, 0, 5), 70, 1));
+
+    return connectTab;
+  }
+
+  /**
+   * Initialises the Links tabbed panel.
+   * 
+   * @return
+   */
+  private JPanel initLinksTab()
+  {
+    JPanel linkTab = new JPanel();
+    linkTab.setLayout(new GridBagLayout());
+
+    // Set up table for Url links
+    linkUrlTable.getTableHeader().setReorderingAllowed(false);
+    linkUrlTable.setFillsViewportHeight(true);
+    linkUrlTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+    linkUrlTable.setAutoCreateRowSorter(true);
+    linkUrlTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+    // adjust row height so radio buttons actually fit
+    // don't do this in the renderer, it causes the awt thread to activate
+    // constantly
+    JRadioButton temp = new JRadioButton();
+    linkUrlTable.setRowHeight(temp.getMinimumSize().height);
+
+    // Table in scrollpane so that the table is given a scrollbar
+    JScrollPane linkScrollPane = new JScrollPane(linkUrlTable);
+    linkScrollPane.setBorder(null);
+
+    // Panel for links functionality
+    JPanel linkPanel = new JPanel(new GridBagLayout());
+    linkPanel.setBorder(new TitledBorder(
+            MessageManager.getString("label.url_linkfrom_sequence_id")));
+
+    // Put the Url links panel together
+
+    // Buttons go at top right, resizing only resizes the blank space vertically
+    JPanel buttonPanel = initLinkTabUrlButtons();
+    GridBagConstraints linkConstraints1 = new GridBagConstraints();
+    linkConstraints1.insets = new Insets(0, 0, 5, 0);
+    linkConstraints1.gridx = 0;
+    linkConstraints1.gridy = 0;
+    linkConstraints1.weightx = 1.0;
+    linkConstraints1.fill = GridBagConstraints.HORIZONTAL;
+    linkTab.add(buttonPanel, linkConstraints1);
+
+    // Links table goes at top left, resizing resizes the table
+    GridBagConstraints linkConstraints2 = new GridBagConstraints();
+    linkConstraints2.insets = new Insets(0, 0, 5, 5);
+    linkConstraints2.gridx = 0;
+    linkConstraints2.gridy = 1;
+    linkConstraints2.weightx = 1.0;
+    linkConstraints2.weighty = 1.0;
+    linkConstraints2.fill = GridBagConstraints.BOTH;
+    linkTab.add(linkScrollPane, linkConstraints2);
+
+    // Filter box and buttons goes at bottom left, resizing resizes the text box
+    JPanel filterPanel = initLinkTabFilterPanel();
+    GridBagConstraints linkConstraints3 = new GridBagConstraints();
+    linkConstraints3.insets = new Insets(0, 0, 0, 5);
+    linkConstraints3.gridx = 0;
+    linkConstraints3.gridy = 2;
+    linkConstraints3.weightx = 1.0;
+    linkConstraints3.fill = GridBagConstraints.HORIZONTAL;
+    linkTab.add(filterPanel, linkConstraints3);
+
+    return linkTab;
+  }
+
+  private JPanel initLinkTabFilterPanel()
+  {
+    // Filter textbox and reset button
+    JLabel filterLabel = new JLabel(
+            MessageManager.getString("label.filter"));
+    filterLabel.setFont(LABEL_FONT);
+    filterLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    filterLabel.setHorizontalTextPosition(SwingConstants.LEADING);
+
+    filterTB.setFont(LABEL_FONT);
+    filterTB.setText("");
+
+    doReset.setText(MessageManager.getString("action.showall"));
+    userOnly.setText(MessageManager.getString("action.customfilter"));
+
+    // Panel for filter functionality
+    JPanel filterPanel = new JPanel(new GridBagLayout());
+    filterPanel.setBorder(new TitledBorder("Filter"));
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.fill = GridBagConstraints.NONE;
+    gbc.anchor = GridBagConstraints.WEST;
+
+    filterPanel.add(filterLabel, gbc);
+
+    GridBagConstraints gbc1 = new GridBagConstraints();
+    gbc1.gridx = 1;
+    gbc1.gridwidth = 2;
+    gbc1.fill = GridBagConstraints.HORIZONTAL;
+    gbc1.anchor = GridBagConstraints.WEST;
+    gbc1.weightx = 1.0;
+    filterPanel.add(filterTB, gbc1);
+
+    GridBagConstraints gbc2 = new GridBagConstraints();
+    gbc2.gridx = 3;
+    gbc2.fill = GridBagConstraints.NONE;
+    gbc2.anchor = GridBagConstraints.WEST;
+    filterPanel.add(doReset, gbc2);
+
+    GridBagConstraints gbc3 = new GridBagConstraints();
+    gbc3.gridx = 4;
+    gbc3.fill = GridBagConstraints.NONE;
+    gbc3.anchor = GridBagConstraints.WEST;
+    filterPanel.add(userOnly, gbc3);
+
+    return filterPanel;
+  }
+
+  private JPanel initLinkTabUrlButtons()
+  {
+    // Buttons for new / edit / delete Url links
+    JButton newLink = new JButton();
+    newLink.setText(MessageManager.getString("action.new"));
+
+    editLink.setText(MessageManager.getString("action.edit"));
+
+    deleteLink.setText(MessageManager.getString("action.delete"));
+
+    // no current selection, so initially disable delete/edit buttons
+    editLink.setEnabled(false);
+    deleteLink.setEnabled(false);
+
+    newLink.addActionListener(new java.awt.event.ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        newLink_actionPerformed(e);
+      }
+    });
+
+    editLink.setText(MessageManager.getString("action.edit"));
+    editLink.addActionListener(new java.awt.event.ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        editLink_actionPerformed(e);
+      }
+    });
+
+    deleteLink.setText(MessageManager.getString("action.delete"));
+    deleteLink.addActionListener(new java.awt.event.ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        deleteLink_actionPerformed(e);
+      }
+    });
+
+    JPanel buttonPanel = new JPanel(new GridBagLayout());
+    buttonPanel.setBorder(new TitledBorder("Edit links"));
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+    gbc.fill = GridBagConstraints.NONE;
+    buttonPanel.add(newLink, gbc);
+
+    GridBagConstraints gbc1 = new GridBagConstraints();
+    gbc1.gridx = 1;
+    gbc1.gridy = 0;
+    gbc1.fill = GridBagConstraints.NONE;
+    buttonPanel.add(editLink, gbc1);
+
+    GridBagConstraints gbc2 = new GridBagConstraints();
+    gbc2.gridx = 2;
+    gbc2.gridy = 0;
+    gbc2.fill = GridBagConstraints.NONE;
+    buttonPanel.add(deleteLink, gbc2);
+
+    GridBagConstraints gbc3 = new GridBagConstraints();
+    gbc3.gridx = 3;
+    gbc3.gridy = 0;
+    gbc3.fill = GridBagConstraints.HORIZONTAL;
+    gbc3.weightx = 1.0;
+    JPanel spacePanel = new JPanel();
+    spacePanel.setBorder(null);
+    buttonPanel.add(spacePanel, gbc3);
+
+    return buttonPanel;
+  }
+
+  /**
+   * Initialises the proxy server panel in the Connections tab
+   * 
+   * @return the proxy server panel
+   */
+  private JPanel initConnTabProxyPanel()
+  {
+    // Label for server text box
+    serverLabel.setText(MessageManager.getString("label.address"));
+    serverLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    serverLabel.setFont(LABEL_FONT);
+
+    // Proxy server and port text boxes
+    proxyServerTB.setFont(LABEL_FONT);
+    proxyPortTB.setFont(LABEL_FONT);
+
+    // Label for Port text box
+    portLabel.setFont(LABEL_FONT);
+    portLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+    portLabel.setText(MessageManager.getString("label.port"));
+
+    // Use proxy server checkbox
     useProxy.setFont(LABEL_FONT);
     useProxy.setHorizontalAlignment(SwingConstants.RIGHT);
     useProxy.setHorizontalTextPosition(SwingConstants.LEADING);
@@ -607,56 +866,62 @@ public class GPreferences extends JPanel
         useProxy_actionPerformed();
       }
     });
-    linkPanel.add(editLinkButtons, BorderLayout.EAST);
-    editLinkButtons.add(newLink, null);
-    editLinkButtons.add(editLink, null);
-    editLinkButtons.add(deleteLink, null);
-    linkPanel.add(linkScrollPane, BorderLayout.CENTER);
-    linkScrollPane.getViewport().add(linkPanel2, null);
-    linkPanel2.add(linkURLList, BorderLayout.CENTER);
-    linkPanel2.add(linkNameList, BorderLayout.WEST);
-    JPanel jPanel1 = new JPanel();
+
+    // Make proxy server panel
+    JPanel proxyPanel = new JPanel();
     TitledBorder titledBorder1 = new TitledBorder(
             MessageManager.getString("label.proxy_server"));
-    jPanel1.setBorder(titledBorder1);
-    jPanel1.setLayout(new GridBagLayout());
-    jPanel1.add(serverLabel, new GridBagConstraints(0, 1, 1, 1, 0.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0,
-                    2, 4, 0), 5, 0));
-    jPanel1.add(portLabel, new GridBagConstraints(2, 1, 1, 1, 0.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0,
-                    0, 4, 0), 11, 6));
-    connectTab.add(linkPanel, new GridBagConstraints(0, 0, 2, 1, 1.0, 1.0,
-            GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(
-                    16, 0, 0, 12), 359, -17));
-    connectTab.add(jPanel1, new GridBagConstraints(0, 2, 2, 1, 1.0, 1.0,
-            GridBagConstraints.CENTER, GridBagConstraints.BOTH, new Insets(
-                    21, 0, 35, 12), 4, 6));
-    connectTab.add(browserLabel, new GridBagConstraints(0, 1, 1, 1, 0.0,
-            0.0, GridBagConstraints.WEST, GridBagConstraints.NONE,
-            new Insets(16, 0, 0, 0), 5, 1));
-    jPanel1.add(useProxy, new GridBagConstraints(0, 0, 2, 1, 0.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.NONE, new Insets(0,
-                    2, 5, 185), 2, -4));
-    jPanel1.add(proxyPortTB, new GridBagConstraints(3, 1, 1, 1, 1.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(0, 2, 4, 2), 54, 1));
-    jPanel1.add(proxyServerTB, new GridBagConstraints(1, 1, 1, 1, 1.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(0, 2, 4, 0), 263, 1));
-    connectTab.add(defaultBrowser, new GridBagConstraints(1, 1, 1, 1, 1.0,
-            0.0, GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(15, 0, 0, 15), 307, 1));
-    connectTab.add(usagestats, new GridBagConstraints(0, 4, 1, 1, 1.0, 0.0,
-            GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(0, 2, 4, 2), 70, 1));
-    connectTab.add(questionnaire, new GridBagConstraints(1, 4, 1, 1, 1.0,
-            0.0, GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(0, 2, 4, 2), 70, 1));
-    connectTab.add(versioncheck, new GridBagConstraints(0, 5, 1, 1, 1.0,
-            0.0, GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
-            new Insets(0, 2, 4, 2), 70, 1));
-    return connectTab;
+    proxyPanel.setBorder(titledBorder1);
+    proxyPanel.setLayout(new GridBagLayout());
+    proxyPanel.add(serverLabel,
+            new GridBagConstraints(0, 1, 1, 1, 0.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.NONE,
+                    new Insets(0, 2, 2, 0), 5, 0));
+    proxyPanel.add(portLabel,
+            new GridBagConstraints(2, 1, 1, 1, 0.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.NONE,
+                    new Insets(0, 0, 2, 0), 11, 0));
+    proxyPanel.add(useProxy,
+            new GridBagConstraints(0, 0, 2, 1, 0.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.NONE,
+                    new Insets(0, 2, 5, 185), 2, -4));
+    proxyPanel.add(proxyPortTB,
+            new GridBagConstraints(3, 1, 1, 1, 1.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
+                    new Insets(0, 2, 2, 2), 54, 1));
+    proxyPanel.add(proxyServerTB,
+            new GridBagConstraints(1, 1, 1, 1, 1.0, 0.0,
+                    GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
+                    new Insets(0, 2, 2, 0), 263, 1));
+
+    return proxyPanel;
+  }
+
+  /**
+   * Initialises the checkboxes in the Connections tab
+   */
+  private void initConnTabCheckboxes()
+  {
+    // Usage stats checkbox label
+    usagestats.setText(
+            MessageManager.getString("label.send_usage_statistics"));
+    usagestats.setFont(LABEL_FONT);
+    usagestats.setHorizontalAlignment(SwingConstants.RIGHT);
+    usagestats.setHorizontalTextPosition(SwingConstants.LEADING);
+
+    // Questionnaire checkbox label
+    questionnaire.setText(
+            MessageManager.getString("label.check_for_questionnaires"));
+    questionnaire.setFont(LABEL_FONT);
+    questionnaire.setHorizontalAlignment(SwingConstants.RIGHT);
+    questionnaire.setHorizontalTextPosition(SwingConstants.LEADING);
+
+    // Check for latest version checkbox label
+    versioncheck.setText(
+            MessageManager.getString("label.check_for_latest_version"));
+    versioncheck.setFont(LABEL_FONT);
+    versioncheck.setHorizontalAlignment(SwingConstants.RIGHT);
+    versioncheck.setHorizontalTextPosition(SwingConstants.LEADING);
   }
 
   /**
@@ -700,8 +965,8 @@ public class GPreferences extends JPanel
   private JPanel initColoursTab()
   {
     JPanel coloursTab = new JPanel();
-    coloursTab.setBorder(new TitledBorder(MessageManager
-            .getString("action.open_new_alignment")));
+    coloursTab.setBorder(new TitledBorder(
+            MessageManager.getString("action.open_new_alignment")));
     coloursTab.setLayout(new FlowLayout());
     JLabel mincolourLabel = new JLabel();
     mincolourLabel.setFont(LABEL_FONT);
@@ -739,10 +1004,11 @@ public class GPreferences extends JPanel
     JLabel protColourLabel = new JLabel();
     protColourLabel.setFont(LABEL_FONT);
     protColourLabel.setHorizontalAlignment(SwingConstants.LEFT);
-    protColourLabel.setText(MessageManager
-            .getString("label.prot_alignment_colour") + " ");
-    JvSwingUtils.addtoLayout(coloursTab, MessageManager
-            .getString("label.default_colour_scheme_for_alignment"),
+    protColourLabel.setText(
+            MessageManager.getString("label.prot_alignment_colour") + " ");
+    JvSwingUtils.addtoLayout(coloursTab,
+            MessageManager
+                    .getString("label.default_colour_scheme_for_alignment"),
             protColourLabel, protColour);
 
     nucColour.setFont(LABEL_FONT);
@@ -750,24 +1016,171 @@ public class GPreferences extends JPanel
     JLabel nucColourLabel = new JLabel();
     nucColourLabel.setFont(LABEL_FONT);
     nucColourLabel.setHorizontalAlignment(SwingConstants.LEFT);
-    nucColourLabel.setText(MessageManager
-            .getString("label.nuc_alignment_colour") + " ");
-    JvSwingUtils.addtoLayout(coloursTab, MessageManager
-            .getString("label.default_colour_scheme_for_alignment"),
+    nucColourLabel.setText(
+            MessageManager.getString("label.nuc_alignment_colour") + " ");
+    JvSwingUtils.addtoLayout(coloursTab,
+            MessageManager
+                    .getString("label.default_colour_scheme_for_alignment"),
             nucColourLabel, nucColour);
 
     JPanel annotationShding = new JPanel();
-    annotationShding.setBorder(new TitledBorder(MessageManager
-            .getString("label.annotation_shading_default")));
+    annotationShding.setBorder(new TitledBorder(
+            MessageManager.getString("label.annotation_shading_default")));
     annotationShding.setLayout(new GridLayout(1, 2));
-    JvSwingUtils.addtoLayout(annotationShding, MessageManager
-            .getString("label.default_minimum_colour_annotation_shading"),
+    JvSwingUtils.addtoLayout(annotationShding,
+            MessageManager.getString(
+                    "label.default_minimum_colour_annotation_shading"),
             mincolourLabel, minColour);
-    JvSwingUtils.addtoLayout(annotationShding, MessageManager
-            .getString("label.default_maximum_colour_annotation_shading"),
+    JvSwingUtils.addtoLayout(annotationShding,
+            MessageManager.getString(
+                    "label.default_maximum_colour_annotation_shading"),
             maxcolourLabel, maxColour);
     coloursTab.add(annotationShding); // , FlowLayout.LEFT);
     return coloursTab;
+  }
+
+  /**
+   * Initialises the Overview tabbed panel.
+   * 
+   * @return
+   */
+  private JPanel initOverviewTab()
+  {
+    JPanel overviewPanel = new JPanel();
+    overviewPanel.setBorder(new TitledBorder(
+            MessageManager.getString("label.overview_settings")));
+
+    gapColour.setFont(LABEL_FONT);
+    // fixing the border colours stops apparent colour bleed from the panel
+    gapColour.setBorder(
+            BorderFactory.createEtchedBorder(Color.white, Color.lightGray));
+    gapColour.setPreferredSize(new Dimension(40, 20));
+    gapColour.addMouseListener(new MouseAdapter()
+    {
+      @Override
+      public void mousePressed(MouseEvent e)
+      {
+        gapColour_actionPerformed(gapColour);
+      }
+    });
+
+    hiddenColour.setFont(LABEL_FONT);
+    // fixing the border colours stops apparent colour bleed from the panel
+    hiddenColour.setBorder(
+            BorderFactory.createEtchedBorder(Color.white, Color.lightGray));
+    hiddenColour.setPreferredSize(new Dimension(40, 20));
+    hiddenColour.addMouseListener(new MouseAdapter()
+    {
+      @Override
+      public void mousePressed(MouseEvent e)
+      {
+        hiddenColour_actionPerformed(hiddenColour);
+      }
+    });
+
+    useLegacyGap = new JCheckBox(
+            MessageManager.getString("label.ov_legacy_gap"));
+    useLegacyGap.setFont(LABEL_FONT);
+    useLegacyGap.setHorizontalAlignment(SwingConstants.LEFT);
+    useLegacyGap.setVerticalTextPosition(SwingConstants.TOP);
+    gapLabel = new JLabel(MessageManager.getString("label.gap_colour"));
+    gapLabel.setFont(LABEL_FONT);
+    gapLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    gapLabel.setVerticalTextPosition(SwingConstants.TOP);
+    showHiddenAtStart = new JCheckBox(
+            MessageManager.getString("label.ov_show_hide_default"));
+    showHiddenAtStart.setFont(LABEL_FONT);
+    showHiddenAtStart.setHorizontalAlignment(SwingConstants.LEFT);
+    showHiddenAtStart.setVerticalTextPosition(SwingConstants.TOP);
+    JLabel hiddenLabel = new JLabel(
+            MessageManager.getString("label.hidden_colour"));
+    hiddenLabel.setFont(LABEL_FONT);
+    hiddenLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    hiddenLabel.setVerticalTextPosition(SwingConstants.TOP);
+
+    useLegacyGap.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        useLegacyGaps_actionPerformed(e);
+      }
+    });
+
+    overviewPanel.setLayout(new GridBagLayout());
+    GridBagConstraints c1 = new GridBagConstraints();
+
+    c1.fill = GridBagConstraints.HORIZONTAL;
+    c1.gridx = 0;
+    c1.gridy = 0;
+    c1.weightx = 1;
+    c1.ipady = 20;
+    c1.anchor = GridBagConstraints.FIRST_LINE_START;
+    overviewPanel.add(useLegacyGap, c1);
+
+    GridBagConstraints c2 = new GridBagConstraints();
+    c2.fill = GridBagConstraints.HORIZONTAL;
+    c2.gridx = 1;
+    c2.gridy = 0;
+    c2.insets = new Insets(0, 15, 0, 10);
+    overviewPanel.add(gapLabel, c2);
+
+    GridBagConstraints c3 = new GridBagConstraints();
+    c3.fill = GridBagConstraints.HORIZONTAL;
+    c3.gridx = 2;
+    c3.gridy = 0;
+    c3.insets = new Insets(0, 0, 0, 15);
+    overviewPanel.add(gapColour, c3);
+
+    GridBagConstraints c4 = new GridBagConstraints();
+    c4.fill = GridBagConstraints.HORIZONTAL;
+    c4.gridx = 0;
+    c4.gridy = 1;
+    c4.weightx = 1;
+    overviewPanel.add(showHiddenAtStart, c4);
+
+    GridBagConstraints c5 = new GridBagConstraints();
+    c5.fill = GridBagConstraints.HORIZONTAL;
+    c5.gridx = 1;
+    c5.gridy = 1;
+    c5.insets = new Insets(0, 15, 0, 10);
+    overviewPanel.add(hiddenLabel, c5);
+
+    GridBagConstraints c6 = new GridBagConstraints();
+    c6.fill = GridBagConstraints.HORIZONTAL;
+    c6.gridx = 2;
+    c6.gridy = 1;
+    c6.insets = new Insets(0, 0, 0, 15);
+    overviewPanel.add(hiddenColour, c6);
+
+    JButton resetButton = new JButton(
+            MessageManager.getString("label.reset_to_defaults"));
+
+    resetButton.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        resetOvDefaults_actionPerformed(e);
+      }
+    });
+
+    GridBagConstraints c7 = new GridBagConstraints();
+    c7.fill = GridBagConstraints.NONE;
+    c7.gridx = 0;
+    c7.gridy = 2;
+    c7.insets = new Insets(10, 0, 0, 0);
+    c7.anchor = GridBagConstraints.WEST;
+    overviewPanel.add(resetButton, c7);
+
+    // Add padding so the panel doesn't look ridiculous
+    JPanel spacePanel = new JPanel();
+    overviewPanel.add(spacePanel,
+            new GridBagConstraints(0, 3, 1, 1, 1.0, 1.0,
+                    GridBagConstraints.WEST, GridBagConstraints.BOTH,
+                    new Insets(0, 0, 0, 5), 0, 0));
+
+    return overviewPanel;
   }
 
   /**
@@ -779,8 +1192,8 @@ public class GPreferences extends JPanel
   {
     structureTab = new JPanel();
 
-    structureTab.setBorder(new TitledBorder(MessageManager
-            .getString("label.structure_options")));
+    structureTab.setBorder(new TitledBorder(
+            MessageManager.getString("label.structure_options")));
     structureTab.setLayout(null);
     final int width = 400;
     final int height = 22;
@@ -814,8 +1227,8 @@ public class GPreferences extends JPanel
 
     ypos += lineSpacing;
     addSecondaryStructure.setFont(LABEL_FONT);
-    addSecondaryStructure.setText(MessageManager
-            .getString("label.autoadd_secstr"));
+    addSecondaryStructure
+            .setText(MessageManager.getString("label.autoadd_secstr"));
     addSecondaryStructure.setBounds(new Rectangle(25, ypos, width, height));
     structureTab.add(addSecondaryStructure);
 
@@ -842,8 +1255,8 @@ public class GPreferences extends JPanel
       @Override
       public void actionPerformed(ActionEvent e)
       {
-        structureViewer_actionPerformed((String) structViewer
-                .getSelectedItem());
+        structureViewer_actionPerformed(
+                (String) structViewer.getSelectedItem());
       }
     });
     structureTab.add(structViewer);
@@ -853,14 +1266,14 @@ public class GPreferences extends JPanel
     pathLabel.setFont(new java.awt.Font("SansSerif", 0, 11));
     pathLabel.setHorizontalAlignment(SwingConstants.LEFT);
     pathLabel.setText(MessageManager.getString("label.chimera_path"));
-    final String tooltip = JvSwingUtils.wrapTooltip(true,
-            MessageManager.getString("label.chimera_path_tip"));
-    pathLabel.setToolTipText(tooltip);
     pathLabel.setBounds(new Rectangle(10, ypos, 140, height));
     structureTab.add(pathLabel);
 
     chimeraPath.setFont(LABEL_FONT);
     chimeraPath.setText("");
+    final String tooltip = JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.chimera_path_tip"));
+    chimeraPath.setToolTipText(tooltip);
     chimeraPath.setBounds(new Rectangle(160, ypos, 300, height));
     chimeraPath.addMouseListener(new MouseAdapter()
     {
@@ -930,8 +1343,8 @@ public class GPreferences extends JPanel
     JFileChooser chooser = new JFileChooser();
 
     // chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.open_local_file"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.open_local_file"));
     chooser.setToolTipText(MessageManager.getString("action.open"));
 
     int value = chooser.showOpenDialog(this);
@@ -971,8 +1384,8 @@ public class GPreferences extends JPanel
   private JPanel initVisualTab()
   {
     JPanel visualTab = new JPanel();
-    visualTab.setBorder(new TitledBorder(MessageManager
-            .getString("action.open_new_alignment")));
+    visualTab.setBorder(new TitledBorder(
+            MessageManager.getString("action.open_new_alignment")));
     visualTab.setLayout(null);
     fullScreen.setFont(LABEL_FONT);
     fullScreen.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -996,25 +1409,32 @@ public class GPreferences extends JPanel
     identity.setHorizontalTextPosition(SwingConstants.LEFT);
     identity.setSelected(true);
     identity.setText(MessageManager.getString("label.consensus"));
+    showOccupancy.setFont(LABEL_FONT);
+    showOccupancy.setEnabled(false);
+    showOccupancy.setHorizontalAlignment(SwingConstants.RIGHT);
+    showOccupancy.setHorizontalTextPosition(SwingConstants.LEFT);
+    showOccupancy.setSelected(true);
+    showOccupancy.setText(MessageManager.getString("label.occupancy"));
+
     JLabel showGroupbits = new JLabel();
     showGroupbits.setFont(LABEL_FONT);
     showGroupbits.setHorizontalAlignment(SwingConstants.RIGHT);
     showGroupbits.setHorizontalTextPosition(SwingConstants.LEFT);
-    showGroupbits.setText(MessageManager.getString("action.show_group")
-            + ":");
+    showGroupbits
+            .setText(MessageManager.getString("action.show_group") + ":");
     JLabel showConsensbits = new JLabel();
     showConsensbits.setFont(LABEL_FONT);
     showConsensbits.setHorizontalAlignment(SwingConstants.RIGHT);
     showConsensbits.setHorizontalTextPosition(SwingConstants.LEFT);
-    showConsensbits.setText(MessageManager.getString("label.consensus")
-            + ":");
+    showConsensbits
+            .setText(MessageManager.getString("label.consensus") + ":");
     showConsensHistogram.setEnabled(false);
     showConsensHistogram.setFont(LABEL_FONT);
     showConsensHistogram.setHorizontalAlignment(SwingConstants.RIGHT);
     showConsensHistogram.setHorizontalTextPosition(SwingConstants.LEFT);
     showConsensHistogram.setSelected(true);
-    showConsensHistogram.setText(MessageManager
-            .getString("label.histogram"));
+    showConsensHistogram
+            .setText(MessageManager.getString("label.histogram"));
     showConsensLogo.setEnabled(false);
     showConsensLogo.setFont(LABEL_FONT);
     showConsensLogo.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -1032,28 +1452,28 @@ public class GPreferences extends JPanel
     showGroupConservation.setHorizontalAlignment(SwingConstants.RIGHT);
     showGroupConservation.setHorizontalTextPosition(SwingConstants.LEFT);
     showGroupConservation.setSelected(true);
-    showGroupConservation.setText(MessageManager
-            .getString("label.conservation"));
+    showGroupConservation
+            .setText(MessageManager.getString("label.conservation"));
     showNpTooltip.setEnabled(true);
     showNpTooltip.setFont(LABEL_FONT);
     showNpTooltip.setHorizontalAlignment(SwingConstants.RIGHT);
     showNpTooltip.setHorizontalTextPosition(SwingConstants.LEFT);
     showNpTooltip.setSelected(true);
-    showNpTooltip.setText(MessageManager
-            .getString("label.non_positional_features"));
+    showNpTooltip.setText(
+            MessageManager.getString("label.non_positional_features"));
     showDbRefTooltip.setEnabled(true);
     showDbRefTooltip.setFont(LABEL_FONT);
     showDbRefTooltip.setHorizontalAlignment(SwingConstants.RIGHT);
     showDbRefTooltip.setHorizontalTextPosition(SwingConstants.LEFT);
     showDbRefTooltip.setSelected(true);
-    showDbRefTooltip.setText(MessageManager
-            .getString("label.database_references"));
+    showDbRefTooltip
+            .setText(MessageManager.getString("label.database_references"));
     annotations.setFont(LABEL_FONT);
     annotations.setHorizontalAlignment(SwingConstants.RIGHT);
-    annotations.setHorizontalTextPosition(SwingConstants.LEADING);
+    annotations.setHorizontalTextPosition(SwingConstants.LEFT);
     annotations.setSelected(true);
     annotations.setText(MessageManager.getString("label.show_annotations"));
-    annotations.setBounds(new Rectangle(169, 12, 200, 23));
+    // annotations.setBounds(new Rectangle(169, 12, 200, 23));
     annotations.addActionListener(new ActionListener()
     {
       @Override
@@ -1082,8 +1502,8 @@ public class GPreferences extends JPanel
     showUnconserved.setHorizontalAlignment(SwingConstants.RIGHT);
     showUnconserved.setHorizontalTextPosition(SwingConstants.LEFT);
     showUnconserved.setSelected(true);
-    showUnconserved.setText(MessageManager
-            .getString("action.show_unconserved"));
+    showUnconserved
+            .setText(MessageManager.getString("action.show_unconserved"));
     showUnconserved.addActionListener(new ActionListener()
     {
       @Override
@@ -1121,10 +1541,10 @@ public class GPreferences extends JPanel
     scaleProteinToCdna.setFont(LABEL_FONT);
     scaleProteinToCdna.setHorizontalAlignment(SwingConstants.RIGHT);
     scaleProteinToCdna.setHorizontalTextPosition(SwingConstants.LEADING);
-    scaleProteinToCdna.setText(MessageManager
-            .getString("label.scale_protein_to_cdna"));
-    scaleProteinToCdna.setToolTipText(MessageManager
-            .getString("label.scale_protein_to_cdna_tip"));
+    scaleProteinToCdna.setText(
+            MessageManager.getString("label.scale_protein_to_cdna"));
+    scaleProteinToCdna.setToolTipText(
+            MessageManager.getString("label.scale_protein_to_cdna_tip"));
     JLabel gapLabel = new JLabel();
     gapLabel.setFont(LABEL_FONT);
     gapLabel.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -1152,6 +1572,9 @@ public class GPreferences extends JPanel
     startupCheckbox.setSelected(true);
     startupFileTextfield.setFont(LABEL_FONT);
     startupFileTextfield.setBounds(new Rectangle(172, 310, 330, 20));
+    final String tooltip = JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.double_click_to_browse"));
+    startupFileTextfield.setToolTipText(tooltip);
     startupFileTextfield.addMouseListener(new MouseAdapter()
     {
       @Override
@@ -1180,11 +1603,13 @@ public class GPreferences extends JPanel
     sortAutocalc.setBounds(new Rectangle(290, 285, 165, 21));
 
     JPanel annsettingsPanel = new JPanel();
-    annsettingsPanel.setBounds(new Rectangle(173, 34, 320, 75));
+    annsettingsPanel.setBounds(new Rectangle(173, 13, 320, 96));
     annsettingsPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
     annsettingsPanel.setBorder(new EtchedBorder());
     visualTab.add(annsettingsPanel);
     Border jb = new EmptyBorder(1, 1, 4, 5);
+    annotations.setBorder(jb);
+    showOccupancy.setBorder(jb);
     quality.setBorder(jb);
     conservation.setBorder(jb);
     identity.setBorder(jb);
@@ -1196,11 +1621,18 @@ public class GPreferences extends JPanel
     showConsensLogo.setBorder(jb);
 
     JPanel autoAnnotSettings = new JPanel();
-    autoAnnotSettings.setLayout(new GridLayout(3, 3));
     annsettingsPanel.add(autoAnnotSettings);
+    autoAnnotSettings.setLayout(new GridLayout(0, 2));
+    autoAnnotSettings.add(annotations);
     autoAnnotSettings.add(quality);
+    // second row of autoannotation box
+    autoAnnotSettings = new JPanel();
+    annsettingsPanel.add(autoAnnotSettings);
+
+    autoAnnotSettings.setLayout(new GridLayout(0, 3));
     autoAnnotSettings.add(conservation);
     autoAnnotSettings.add(identity);
+    autoAnnotSettings.add(showOccupancy);
     autoAnnotSettings.add(showGroupbits);
     autoAnnotSettings.add(showGroupConservation);
     autoAnnotSettings.add(showGroupConsensus);
@@ -1209,8 +1641,8 @@ public class GPreferences extends JPanel
     autoAnnotSettings.add(showConsensLogo);
 
     JPanel tooltipSettings = new JPanel();
-    tooltipSettings.setBorder(new TitledBorder(MessageManager
-            .getString("label.sequence_id_tooltip")));
+    tooltipSettings.setBorder(new TitledBorder(
+            MessageManager.getString("label.sequence_id_tooltip")));
     tooltipSettings.setBounds(173, 140, 220, 62);
     tooltipSettings.setLayout(new GridLayout(2, 1));
     tooltipSettings.add(showDbRefTooltip);
@@ -1229,11 +1661,11 @@ public class GPreferences extends JPanel
     idItalics.setFont(LABEL_FONT_ITALIC);
     idItalics.setHorizontalAlignment(SwingConstants.RIGHT);
     idItalics.setHorizontalTextPosition(SwingConstants.LEADING);
-    idItalics.setText(MessageManager
-            .getString("label.sequence_name_italics"));
+    idItalics.setText(
+            MessageManager.getString("label.sequence_name_italics"));
     openoverv.setFont(LABEL_FONT);
-    openoverv.setActionCommand(MessageManager
-            .getString("label.open_overview"));
+    openoverv.setActionCommand(
+            MessageManager.getString("label.open_overview"));
     openoverv.setHorizontalAlignment(SwingConstants.RIGHT);
     openoverv.setHorizontalTextPosition(SwingConstants.LEFT);
     openoverv.setText(MessageManager.getString("label.open_overview"));
@@ -1255,7 +1687,6 @@ public class GPreferences extends JPanel
     jPanel2.add(sortAnnLabel);
     jPanel2.add(startupCheckbox);
     visualTab.add(jPanel2);
-    visualTab.add(annotations);
     visualTab.add(startupFileTextfield);
     visualTab.add(sortby);
     visualTab.add(sortAnnBy);
@@ -1265,6 +1696,960 @@ public class GPreferences extends JPanel
     visualTab.add(fontSizeCB);
     visualTab.add(fontStyleCB);
     return visualTab;
+  }
+
+  /**
+   * Load the saved Backups options EXCEPT "Enabled" and "Scheme"
+   */
+
+  protected void loadLastSavedBackupsOptions()
+  {
+    BackupFilesPresetEntry savedPreset = BackupFilesPresetEntry
+            .getSavedBackupEntry();
+    enableBackupFiles
+            .setSelected(Cache.getDefault(BackupFiles.ENABLED, true));
+
+    BackupFilesPresetEntry backupfilesCustomEntry = BackupFilesPresetEntry
+            .createBackupFilesPresetEntry(Cache
+                    .getDefault(BackupFilesPresetEntry.CUSTOMCONFIG, null));
+    if (backupfilesCustomEntry == null)
+    {
+      backupfilesCustomEntry = BackupFilesPresetEntry.backupfilesPresetEntriesValues
+              .get(BackupFilesPresetEntry.BACKUPFILESSCHEMEDEFAULT);
+    }
+    BackupFilesPresetEntry.backupfilesPresetEntriesValues.put(
+            BackupFilesPresetEntry.BACKUPFILESSCHEMECUSTOM,
+            backupfilesCustomEntry);
+
+    setComboIntStringKey(backupfilesPresetsCombo,
+            Cache.getDefault(BackupFiles.NS + "_PRESET",
+                    BackupFilesPresetEntry.BACKUPFILESSCHEMEDEFAULT));
+
+    backupsSetOptions(savedPreset);
+
+    backupsOptionsSetEnabled();
+    updateBackupFilesExampleLabel();
+  }
+
+  private boolean warnAboutSuffixReverseChange()
+  {
+    BackupFilesPresetEntry bfpe = BackupFilesPresetEntry
+            .getSavedBackupEntry();
+    boolean savedSuffixReverse = bfpe.reverse;
+    int savedSuffixDigits = bfpe.digits;
+    String savedSuffixTemplate = bfpe.suffix;
+
+    boolean nowSuffixReverse = suffixReverse.isSelected();
+    int nowSuffixDigits = getSpinnerInt(suffixDigitsSpinner, 3);
+    String nowSuffixTemplate = suffixTemplate.getText();
+    return nowSuffixReverse != savedSuffixReverse
+            && nowSuffixDigits == savedSuffixDigits
+            && nowSuffixTemplate != null
+            && nowSuffixTemplate.equals(savedSuffixTemplate);
+  }
+
+  /**
+   * Initialises the Backups tabbed panel.
+   * 
+   * @return
+   */
+  private JPanel initBackupsTab()
+  {
+    JPanel backupsTab = new JPanel();
+    backupsTab.setBorder(new TitledBorder(
+            MessageManager.getString("label.backup_files")));
+    backupsTab.setLayout(new GridBagLayout());
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.weightx = 0.0;
+    gbc.weighty = 0.0;
+    gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+    gbc.fill = GridBagConstraints.NONE;
+
+    initBackupsTabPresetsPanel();
+    initBackupsTabSuffixPanel();
+    initBackupsTabKeepFilesPanel();
+    initBackupsTabFilenameExamplesPanel();
+
+    enableBackupFiles.setFont(LABEL_FONT_BOLD);
+    enableBackupFiles
+            .setText(MessageManager.getString("label.enable_backupfiles"));
+    enableBackupFiles.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        // enable other options only when the first is checked
+        backupsOptionsSetEnabled();
+      }
+    });
+
+
+    // enable checkbox 1 col
+    gbc.gridwidth = 1;
+    gbc.gridheight = 1;
+    gbc.gridx = 0;
+    gbc.gridy = 0; // row 0
+    backupsTab.add(enableBackupFiles, gbc);
+
+    // summary of scheme box (over two rows)
+    gbc.gridx = 1;
+    gbc.weightx = 0.0;
+    gbc.gridheight = 2;
+    gbc.anchor = GridBagConstraints.FIRST_LINE_END;
+    gbc.fill = GridBagConstraints.BOTH;
+    backupsTab.add(exampleFilesPanel, gbc);
+    gbc.gridheight = 1;
+    gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+    gbc.fill = GridBagConstraints.NONE;
+
+    // fill empty space on right
+    gbc.gridx++;
+    gbc.weightx = 1.0;
+    backupsTab.add(new JPanel(), gbc);
+
+    // schemes box
+    gbc.weightx = 0.0;
+    gbc.gridx = 0;
+    gbc.gridy++; // row 1
+    backupsTab.add(presetsPanel, gbc);
+
+    // now using whole row
+    gbc.gridwidth = 2;
+    gbc.gridheight = 1;
+    // keep files box
+    gbc.gridx = 0;
+    gbc.gridy++; // row 2
+    backupsTab.add(keepfilesPanel, gbc);
+
+    // filename strategy box
+    gbc.gridy++; // row 3
+    backupsTab.add(suffixPanel, gbc);
+
+    // fill empty space
+    gbc.gridy++; // row 4
+    gbc.weighty = 1.0;
+    backupsTab.add(new JPanel(), gbc);
+
+    backupsOptionsSetEnabled();
+    return backupsTab;
+  }
+
+  private JPanel initBackupsTabPresetsPanel()
+  {
+
+    String title = MessageManager.getString("label.schemes");
+
+    presetsPanel.setLayout(new GridBagLayout());
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.weightx = 0.0;
+    gbc.weighty = 0.0;
+    gbc.anchor = GridBagConstraints.BASELINE_LEADING;
+    gbc.fill = GridBagConstraints.NONE;
+    gbc.gridwidth = 1;
+    gbc.gridheight = 1;
+
+    // "Scheme: "
+    gbc.gridx = 0;
+    gbc.gridy = 0;
+
+    presetsComboLabel = new JLabel(title + ":");
+    presetsPanel.add(presetsComboLabel, gbc);
+
+    List<Object> entries = Arrays
+            .asList((Object[]) BackupFilesPresetEntry.backupfilesPresetEntries);
+    List<String> tooltips = Arrays.asList(
+            BackupFilesPresetEntry.backupfilesPresetEntryDescriptions);
+    backupfilesPresetsCombo = JvSwingUtils.buildComboWithTooltips(entries,
+            tooltips);
+    /*
+    for (int i = 0; i < BackupFilesPresetEntry.backupfilesPresetEntries.length; i++)
+    {
+      backupfilesPresetsCombo
+              .addItem(BackupFilesPresetEntry.backupfilesPresetEntries[i]);
+    }
+    */
+
+    backupfilesPresetsCombo.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        int key = getComboIntStringKey(backupfilesPresetsCombo);
+        if (!customiseCheckbox.isSelected())
+        {
+          backupfilesPresetsComboLastSelected = key;
+        }
+        if (key == BackupFilesPresetEntry.BACKUPFILESSCHEMECUSTOM)
+        {
+          if (customiseCheckbox.isSelected())
+          {
+            // got here by clicking on customiseCheckbox so don't change the values
+            backupfilesCustomOptionsSetEnabled();
+          }
+          else
+          {
+            backupsTabUpdatePresets();
+            backupfilesCustomOptionsSetEnabled();
+          }
+        }
+        else
+        {
+          customiseCheckbox.setSelected(false);
+          backupsTabUpdatePresets();
+          backupfilesCustomOptionsSetEnabled();
+        }
+      }
+    });
+
+    // dropdown list of preset schemes
+    gbc.gridx = 1;
+    presetsPanel.add(backupfilesPresetsCombo, gbc);
+
+    revertButton.setText(MessageManager.getString("label.cancel_changes"));
+    revertButton.setToolTipText(
+            MessageManager.getString("label.cancel_changes_description"));
+    revertButton.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        backupsSetOptions(
+                BackupFilesPresetEntry.backupfilesPresetEntriesValues.get(
+                        BackupFilesPresetEntry.BACKUPFILESSCHEMECUSTOM));
+        backupfilesCustomOptionsSetEnabled();
+      }
+
+    });
+    revertButton.setFont(LABEL_FONT);
+
+    customiseCheckbox.setFont(LABEL_FONT);
+    customiseCheckbox.setText(MessageManager.getString("label.customise"));
+    customiseCheckbox.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        int currently = getComboIntStringKey(backupfilesPresetsCombo);
+        if (customiseCheckbox.isSelected())
+        {
+          backupfilesPresetsComboLastSelected = currently;
+          setComboIntStringKey(backupfilesPresetsCombo,
+                  BackupFilesPresetEntry.BACKUPFILESSCHEMECUSTOM);
+        }
+        else
+        {
+          setComboIntStringKey(backupfilesPresetsCombo,
+                  backupfilesPresetsComboLastSelected);
+
+        }
+        backupfilesCustomOptionsSetEnabled();
+      }
+    });
+    customiseCheckbox.setToolTipText(
+            MessageManager.getString("label.customise_description"));
+
+    // customise checkbox
+    gbc.gridx = 0;
+    gbc.gridy++;
+    presetsPanel.add(customiseCheckbox, gbc);
+
+    // "Cancel changes" button (aligned with combo box above)
+    gbc.gridx = 1;
+    presetsPanel.add(revertButton, gbc);
+
+    return presetsPanel;
+  }
+
+  private JPanel initBackupsTabFilenameExamplesPanel()
+  {
+    String title = MessageManager
+            .getString("label.scheme_examples");
+    TitledBorder tb = new TitledBorder(title);
+    exampleFilesPanel.setBorder(tb);
+    exampleFilesPanel.setLayout(new GridBagLayout());
+
+
+    backupfilesExampleLabel.setEditable(false);
+    backupfilesExampleLabel
+            .setBackground(exampleFilesPanel.getBackground());
+
+    updateBackupFilesExampleLabel();
+
+    GridBagConstraints gbc = new GridBagConstraints();
+    gbc.weightx = 1.0;
+    gbc.weighty = 1.0;
+    gbc.fill = GridBagConstraints.NONE;
+    gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+
+    exampleFilesPanel.add(backupfilesExampleLabel, gbc);
+    return exampleFilesPanel;
+  }
+
+  private void backupsTabUpdatePresets()
+  {
+    IntKeyStringValueEntry entry = (IntKeyStringValueEntry) backupfilesPresetsCombo
+            .getSelectedItem();
+    int key = entry.k;
+    String value = entry.v;
+
+    if (BackupFilesPresetEntry.backupfilesPresetEntriesValues
+            .containsKey(key))
+    {
+      backupsSetOptions(
+              BackupFilesPresetEntry.backupfilesPresetEntriesValues
+                      .get(key));
+    }
+    else
+    {
+      Cache.log.error(
+              "Preset '" + value + "' [key:" + key + "] not implemented");
+    }
+
+    // Custom options will now be enabled when the customiseCheckbox is checked
+    // (performed above)
+    // backupfilesCustomOptionsSetEnabled();
+    updateBackupFilesExampleLabel();
+  }
+
+  protected int getComboIntStringKey(
+          JComboBox<Object> backupfilesPresetsCombo2)
+  {
+    IntKeyStringValueEntry e;
+    try
+    {
+      e = (IntKeyStringValueEntry) backupfilesPresetsCombo2
+              .getSelectedItem();
+    } catch (Exception ex)
+    {
+      Cache.log.error(
+              "Problem casting Combo entry to IntKeyStringValueEntry.");
+      e = null;
+    }
+    return e != null ? e.k : 0;
+  }
+
+  protected void setComboIntStringKey(
+          JComboBox<Object> backupfilesPresetsCombo2,
+          int key)
+  {
+    for (int i = 0; i < backupfilesPresetsCombo2.getItemCount(); i++)
+    {
+      IntKeyStringValueEntry e;
+      try
+      {
+        e = (IntKeyStringValueEntry) backupfilesPresetsCombo2.getItemAt(i);
+      } catch (Exception ex)
+      {
+        Cache.log.error(
+                "Problem casting Combo entry to IntKeyStringValueEntry. Skipping item. ");
+        continue;
+      }
+      if (e.k == key)
+      {
+        backupfilesPresetsCombo2.setSelectedIndex(i);
+        break;
+      }
+    }
+    // backupsTabUpdatePresets();
+  }
+
+  private JPanel initBackupsTabSuffixPanel()
+  {
+    suffixPanel.setBorder(new TitledBorder(
+            MessageManager.getString("label.backup_filename_strategy")));
+    suffixPanel.setLayout(new GridBagLayout());
+
+    suffixTemplateLabel
+            .setText(MessageManager.getString("label.append_to_filename"));
+    suffixTemplateLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    suffixTemplateLabel.setFont(LABEL_FONT);
+
+    final String tooltip = JvSwingUtils.wrapTooltip(true,
+            MessageManager.getString("label.append_to_filename_tooltip"));
+    suffixTemplate.setToolTipText(tooltip);
+    suffixTemplate.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        updateBackupFilesExampleLabel();
+        backupfilesCustomOptionsSetEnabled();
+        backupfilesRevertButtonSetEnabled(true);
+      }
+
+    });
+    suffixTemplate.addKeyListener(new KeyListener()
+    {
+      @Override
+      public void keyReleased(KeyEvent e)
+      {
+        updateBackupFilesExampleLabel();
+        backupfilesCustomOptionsSetEnabled();
+        backupfilesRevertButtonSetEnabled(true);
+      }
+
+      @Override
+      public void keyPressed(KeyEvent e)
+      {
+      }
+
+      // disable use of ':' or '/' or '\'
+      @Override
+      public void keyTyped(KeyEvent e)
+      {
+        char c = e.getKeyChar();
+        if (c == ':' || c == '/' || c == '\\')
+        {
+          // don't process ':' or '/' or '\'
+          e.consume();
+        }
+      }
+
+    });
+
+    // digits spinner
+    suffixDigitsLabel
+            .setText(MessageManager.getString("label.index_digits"));
+    suffixDigitsLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    suffixDigitsLabel.setFont(LABEL_FONT);
+    ChangeListener c = new ChangeListener()
+    {
+      @Override
+      public void stateChanged(ChangeEvent e)
+      {
+        backupfilesRevertButtonSetEnabled(true);
+        updateBackupFilesExampleLabel();
+      }
+
+    };
+    setIntegerSpinner(suffixDigitsSpinner, BackupFilesPresetEntry.DIGITSMIN,
+            BackupFilesPresetEntry.DIGITSMAX, 3, c);
+
+    suffixReverse.setLabels(MessageManager.getString("label.reverse_roll"),
+            MessageManager.getString("label.increment_index"));
+    suffixReverse.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        boolean okay = true;
+        if (warnAboutSuffixReverseChange())
+        {
+          // Warning popup
+          okay = confirmSuffixReverseChange();
+        }
+        if (okay)
+        {
+          backupfilesRevertButtonSetEnabled(true);
+          updateBackupFilesExampleLabel();
+        }
+        else
+        {
+          boolean savedSuffixReverse = BackupFilesPresetEntry
+                  .getSavedBackupEntry().reverse;
+          suffixReverse.setSelected(savedSuffixReverse);
+        }
+      }
+    });
+
+    GridBagConstraints sgbc = new GridBagConstraints();
+
+    // first row (template text box)
+    sgbc.anchor = GridBagConstraints.WEST;
+    sgbc.gridx = 0;
+    sgbc.gridy = 0;
+    sgbc.gridwidth = 1;
+    sgbc.gridheight = 1;
+    sgbc.weightx = 1.0;
+    sgbc.weighty = 0.0;
+    sgbc.fill = GridBagConstraints.NONE;
+    suffixPanel.add(suffixTemplateLabel, sgbc);
+
+    sgbc.gridx = 1;
+    sgbc.fill = GridBagConstraints.HORIZONTAL;
+    suffixPanel.add(suffixTemplate, sgbc);
+
+    // second row (number of digits spinner)
+    sgbc.gridy = 1;
+
+    sgbc.gridx = 0;
+    sgbc.fill = GridBagConstraints.NONE;
+    suffixPanel.add(suffixDigitsLabel, sgbc);
+
+    sgbc.gridx = 1;
+    sgbc.fill = GridBagConstraints.HORIZONTAL;
+    suffixPanel.add(suffixDigitsSpinner, sgbc);
+
+    // third row (forward order radio selection)
+    sgbc.gridx = 0;
+    sgbc.gridy = 2;
+    sgbc.gridwidth = GridBagConstraints.REMAINDER;
+    sgbc.fill = GridBagConstraints.HORIZONTAL;
+    suffixPanel.add(suffixReverse.getFalseButton(), sgbc);
+
+    // fourth row (reverse order radio selection)
+    sgbc.gridy = 3;
+    suffixPanel.add(suffixReverse.getTrueButton(), sgbc);
+    return suffixPanel;
+  }
+
+  private boolean confirmSuffixReverseChange()
+  {
+    boolean ret = false;
+    String warningMessage = MessageManager
+            .getString("label.warning_confirm_change_reverse");
+    int confirm = JvOptionPane.showConfirmDialog(Desktop.desktop,
+            warningMessage,
+            MessageManager.getString("label.change_increment_decrement"),
+            JvOptionPane.YES_NO_OPTION, JvOptionPane.WARNING_MESSAGE);
+
+    ret = (confirm == JvOptionPane.YES_OPTION);
+    return ret;
+  }
+
+  private JPanel initBackupsTabKeepFilesPanel()
+  {
+    keepfilesPanel.setBorder(
+            new TitledBorder(MessageManager.getString("label.keep_files")));
+    keepfilesPanel.setLayout(new GridBagLayout());
+
+    backupfilesKeepAll.setLabels(
+            MessageManager.getString("label.keep_all_backup_files"),
+            MessageManager.getString(
+                    "label.keep_only_this_number_of_backup_files"));
+    backupfilesKeepAll.addTrueActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        backupfilesRevertButtonSetEnabled(true);
+        updateBackupFilesExampleLabel();
+      }
+    });
+    backupfilesKeepAll.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        backupfilesRevertButtonSetEnabled(true);
+        keepRollMaxOptionsEnabled();
+        updateBackupFilesExampleLabel();
+      }
+    });
+
+    ChangeListener c = new ChangeListener()
+    {
+      @Override
+      public void stateChanged(ChangeEvent e)
+      {
+        backupfilesRevertButtonSetEnabled(true);
+        updateBackupFilesExampleLabel();
+      }
+
+    };
+    setIntegerSpinner(backupfilesRollMaxSpinner,
+            BackupFilesPresetEntry.ROLLMAXMIN,
+            BackupFilesPresetEntry.ROLLMAXMAX, 4, true, c);
+
+    backupfilesConfirmDelete.setLabels(
+            MessageManager.getString("label.always_ask"),
+            MessageManager.getString("label.auto_delete"));
+    backupfilesConfirmDelete.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        backupfilesRevertButtonSetEnabled(true);
+      }
+    });
+    // update the enabled section
+    keepRollMaxOptionsEnabled();
+
+    GridBagConstraints kgbc = new GridBagConstraints();
+
+    // first row (template text box)
+    kgbc.anchor = GridBagConstraints.WEST;
+    kgbc.gridx = 0;
+    kgbc.gridy = 0;
+    kgbc.gridwidth = GridBagConstraints.REMAINDER;
+    kgbc.gridheight = 1;
+    kgbc.weightx = 1.0;
+    kgbc.weighty = 0.0;
+    kgbc.fill = GridBagConstraints.HORIZONTAL;
+    keepfilesPanel.add(backupfilesKeepAll.getTrueButton(), kgbc);
+
+    // second row
+    kgbc.gridy = 1;
+
+    kgbc.gridx = 0;
+    kgbc.gridwidth = GridBagConstraints.RELATIVE;
+    keepfilesPanel.add(backupfilesKeepAll.getFalseButton(), kgbc);
+
+    kgbc.gridx = 1;
+    kgbc.gridwidth = GridBagConstraints.REMAINDER;
+    keepfilesPanel.add(backupfilesRollMaxSpinner, kgbc);
+
+    // third row (indented)
+    kgbc.gridy = 2;
+    kgbc.insets = new Insets(0, 20, 0, 0);
+
+    kgbc.gridx = 0;
+    kgbc.gridwidth = GridBagConstraints.REMAINDER;
+    kgbc.fill = GridBagConstraints.HORIZONTAL;
+    kgbc.weightx = 1.0;
+
+    JPanel jp = new JPanel();
+    jp.setLayout(new FlowLayout());
+    oldBackupFilesLabel
+            .setText(MessageManager
+                    .getString("label.autodelete_old_backup_files"));
+    oldBackupFilesLabel.setFont(LABEL_FONT);
+    oldBackupFilesLabel.setHorizontalAlignment(SwingConstants.LEFT);
+    jp.add(oldBackupFilesLabel);
+    jp.add(backupfilesConfirmDelete.getTrueButton());
+    jp.add(backupfilesConfirmDelete.getFalseButton());
+    keepfilesPanel.add(jp, kgbc);
+
+    return keepfilesPanel;
+  }
+
+  protected void updateBackupFilesExampleLabel()
+  {
+    int exampleindex = 12;
+    String base = MessageManager.getString("label.filename") + ".fa";
+    if (base == null || base.length() == 0)
+    {
+      base = "file_name.fa";
+    }
+
+    boolean reverse = suffixReverse.isSelected();
+    boolean keepAll = backupfilesKeepAll.isSelected();
+    int rollMax = 4;
+    String suffix = suffixTemplate.getText();
+    int digits = 3;
+
+    backupfilesExampleLabel.setFont(LABEL_FONT_ITALIC);
+    if (suffix == null || suffix.length() == 0)
+    {
+      backupfilesExampleLabel
+              .setText(MessageManager.getString("label.no_backup_files"));
+      backupfilesExampleLabel.setFont(LABEL_FONT_BOLD);
+      return;
+    }
+
+    rollMax = getSpinnerInt(backupfilesRollMaxSpinner, 4);
+    rollMax = rollMax < 1 ? 1 : rollMax;
+
+    if (suffix.indexOf(BackupFiles.NUM_PLACEHOLDER) == -1)
+    {
+      rollMax = 1;
+    }
+
+    digits = getSpinnerInt(suffixDigitsSpinner, 3);
+    digits = digits < 1 ? 1 : digits;
+
+    int lowersurround = 2;
+    int uppersurround = 0;
+    StringBuilder exampleSB = new StringBuilder();
+    boolean firstLine = true;
+    int lineNumber = 0;
+    if (reverse)
+    {
+
+      int min = 1;
+      int max = keepAll ? exampleindex : rollMax;
+      for (int index = min; index <= max; index++)
+      {
+        if (index == min + lowersurround && index < max - uppersurround - 1)
+        {
+          exampleSB.append("\n...");
+          lineNumber++;
+        }
+        else if (index > min + lowersurround && index < max - uppersurround)
+        {
+          // nothing
+        }
+        else
+        {
+          if (firstLine)
+          {
+            firstLine = false;
+          }
+          else
+          {
+            exampleSB.append("\n");
+            lineNumber++;
+          }
+          exampleSB.append(BackupFilenameParts.getBackupFilename(index,
+                  base, suffix, digits));
+          if (min == max)
+          {
+            // no extra text needed
+          }
+          else if (index == min)
+          {
+            String newest = MessageManager.getString("label.braced_newest");
+            if (newest != null && newest.length() > 0)
+            {
+              exampleSB.append(" " + newest);
+            }
+          }
+          else if (index == max)
+          {
+            String oldest = MessageManager.getString("label.braced_oldest");
+            if (oldest != null && oldest.length() > 0)
+            {
+              exampleSB.append(" " + oldest);
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+
+      int min = (keepAll || exampleindex - rollMax < 0) ? 1
+              : exampleindex - rollMax + 1;
+      int max = exampleindex;
+
+      for (int index = min; index <= max; index++)
+      {
+
+        if (index == min + lowersurround && index < max - uppersurround - 1)
+        {
+          exampleSB.append("\n...");
+          lineNumber++;
+        }
+        else if (index > min + lowersurround && index < max - uppersurround)
+        {
+          // nothing
+        }
+        else
+        {
+          if (firstLine)
+          {
+            firstLine = false;
+          }
+          else
+          {
+            exampleSB.append("\n");
+            lineNumber++;
+          }
+          exampleSB.append(BackupFilenameParts.getBackupFilename(index,
+                  base, suffix, digits));
+          if (min == max)
+          {
+            // no extra text needed
+          }
+          else if (index == min)
+          {
+            String oldest = MessageManager.getString("label.braced_oldest");
+            if (oldest != null && oldest.length() > 0)
+            {
+              exampleSB.append(" " + oldest);
+            }
+          }
+          else if (index == max)
+          {
+            String newest = MessageManager.getString("label.braced_newest");
+            if (newest != null && newest.length() > 0)
+            {
+              exampleSB.append(" " + newest);
+            }
+          }
+        }
+      }
+
+    }
+
+    // add some extra empty lines to pad out the example files box. ugh, please tell
+    // me how to do this better
+    int remainingLines = lowersurround + uppersurround + 1 - lineNumber;
+    if (remainingLines > 0)
+    {
+      for (int i = 0; i < remainingLines; i++)
+      {
+        exampleSB.append("\n ");
+        lineNumber++;
+      }
+    }
+
+    backupfilesExampleLabel.setText(exampleSB.toString());
+  }
+
+  protected void setIntegerSpinner(JSpinner s, int min, int max, int def,
+          boolean useExistingVal, ChangeListener c)
+  {
+    int i = def;
+    if (useExistingVal)
+    {
+      try
+      {
+        i = ((Integer) s.getValue()).intValue();
+      } catch (Exception e)
+      {
+        Cache.log.error(
+                "Exception casting the initial value of s.getValue()");
+      }
+    }
+
+    setIntegerSpinner(s, min, max, i, c);
+  }
+
+  protected void setIntegerSpinner(JSpinner s, int min, int max, int def,
+          ChangeListener c)
+  {
+    // integer spinner for number of digits
+    if (def > max)
+    {
+      max = def;
+    }
+    if (def < min)
+    {
+      def = min;
+    }
+    SpinnerModel sModel = new SpinnerNumberModel(def, min, max, 1);
+    s.setModel(sModel);
+
+    s.addChangeListener(c);
+
+  }
+
+  protected static int getSpinnerInt(JSpinner s, int def)
+  {
+    int i = def;
+    try
+    {
+      s.commitEdit();
+      i = (Integer) s.getValue();
+    } catch (Exception e)
+    {
+      Cache.log.error("Failed casting (Integer) JSpinner s.getValue()");
+    }
+    return i;
+  }
+
+  private void keepRollMaxOptionsEnabled()
+  {
+    boolean enabled = backupfilesKeepAll.isEnabled()
+            && !backupfilesKeepAll.isSelected();
+    oldBackupFilesLabel.setEnabled(enabled);
+    backupfilesRollMaxSpinner.setEnabled(enabled);
+    backupfilesConfirmDelete.setEnabled(enabled);
+  }
+
+  private void backupfilesKeepAllSetEnabled(boolean tryEnabled)
+  {
+    boolean enabled = tryEnabled && enableBackupFiles.isSelected()
+            && customiseCheckbox.isSelected()
+            && suffixTemplate.getText()
+                    .indexOf(BackupFiles.NUM_PLACEHOLDER) > -1;
+    keepfilesPanel.setEnabled(enabled);
+    backupfilesKeepAll.setEnabled(enabled);
+    oldBackupFilesLabel.setEnabled(enabled);
+    keepRollMaxOptionsEnabled();
+  }
+
+  private void backupfilesSuffixTemplateDigitsSetEnabled()
+  {
+    boolean enabled = suffixTemplate.isEnabled() && suffixTemplate.getText()
+            .indexOf(BackupFiles.NUM_PLACEHOLDER) > -1;
+    suffixDigitsLabel.setEnabled(enabled);
+    suffixDigitsSpinner.setEnabled(enabled);
+    suffixReverse.setEnabled(enabled);
+  }
+
+  private void backupfilesSuffixTemplateSetEnabled(boolean tryEnabled)
+  {
+    boolean enabled = tryEnabled && enableBackupFiles.isSelected()
+            && customiseCheckbox.isSelected();
+    suffixPanel.setEnabled(enabled);
+    suffixTemplateLabel.setEnabled(enabled);
+    suffixTemplate.setEnabled(enabled);
+    backupfilesSuffixTemplateDigitsSetEnabled();
+  }
+
+  private void backupfilesRevertButtonSetEnabled(boolean tryEnabled)
+  {
+    boolean enabled = tryEnabled && enableBackupFiles.isSelected()
+            && customiseCheckbox.isSelected() && backupfilesCustomChanged();
+    revertButton.setEnabled(enabled);
+  }
+
+  private boolean backupfilesCustomChanged()
+  {
+    BackupFilesPresetEntry custom = BackupFilesPresetEntry.backupfilesPresetEntriesValues
+            .get(BackupFilesPresetEntry.BACKUPFILESSCHEMECUSTOM);
+    BackupFilesPresetEntry current = getBackupfilesCurrentEntry();
+    return !custom.equals(current);
+  }
+
+  protected BackupFilesPresetEntry getBackupfilesCurrentEntry()
+  {
+    String suffix = suffixTemplate.getText();
+    int digits = getSpinnerInt(suffixDigitsSpinner, 3);
+    boolean reverse = suffixReverse.isSelected();
+    boolean keepAll = backupfilesKeepAll.isSelected();
+    int rollMax = getSpinnerInt(backupfilesRollMaxSpinner, 3);
+    boolean confirmDelete = backupfilesConfirmDelete.isSelected();
+
+    BackupFilesPresetEntry bfpe = new BackupFilesPresetEntry(suffix, digits,
+            reverse, keepAll, rollMax, confirmDelete);
+
+    return bfpe;
+  }
+
+  protected void backupfilesCustomOptionsSetEnabled()
+  {
+    boolean enabled = customiseCheckbox.isSelected();
+
+    backupfilesRevertButtonSetEnabled(enabled);
+    backupfilesSuffixTemplateSetEnabled(enabled);
+    backupfilesKeepAllSetEnabled(enabled);
+  }
+
+  private void backupfilesSummarySetEnabled()
+  {
+    boolean enabled = enableBackupFiles.isSelected();
+    backupfilesExampleLabel.setEnabled(enabled);
+    exampleFilesPanel.setEnabled(enabled);
+  }
+
+  private void backupfilesPresetsSetEnabled()
+  {
+    boolean enabled = enableBackupFiles.isSelected();
+    presetsPanel.setEnabled(enabled);
+    presetsComboLabel.setEnabled(enabled);
+    backupfilesPresetsCombo.setEnabled(enabled);
+    customiseCheckbox.setEnabled(enabled);
+    revertButton.setEnabled(enabled);
+  }
+
+  protected void backupsOptionsSetEnabled()
+  {
+    backupfilesPresetsSetEnabled();
+    backupfilesSummarySetEnabled();
+    backupfilesCustomOptionsSetEnabled();
+  }
+
+  protected void backupsSetOptions(String suffix, int digits,
+          boolean reverse, boolean keepAll, int rollMax,
+          boolean confirmDelete)
+  {
+    suffixTemplate.setText(suffix);
+    suffixDigitsSpinner.setValue(digits);
+    suffixReverse.setSelected(reverse);
+    backupfilesKeepAll.setSelected(keepAll);
+    backupfilesRollMaxSpinner.setValue(rollMax);
+    backupfilesConfirmDelete.setSelected(confirmDelete);
+  }
+
+  protected void backupsSetOptions(BackupFilesPresetEntry p)
+  {
+    backupsSetOptions(p.suffix, p.digits, p.reverse, p.keepAll, p.rollMax,
+            p.confirmDelete);
   }
 
   protected void autoIdWidth_actionPerformed()
@@ -1287,10 +2672,26 @@ public class GPreferences extends JPanel
   {
   }
 
+  protected void gapColour_actionPerformed(JPanel panel)
+  {
+  }
+
+  protected void hiddenColour_actionPerformed(JPanel panel)
+  {
+  }
+
   protected void showunconserved_actionPerformed(ActionEvent e)
   {
     // TODO Auto-generated method stub
 
+  }
+
+  protected void useLegacyGaps_actionPerformed(ActionEvent e)
+  {
+  }
+
+  protected void resetOvDefaults_actionPerformed(ActionEvent e)
+  {
   }
 
   /**
@@ -1357,8 +2758,83 @@ public class GPreferences extends JPanel
 
   public void useProxy_actionPerformed()
   {
-    proxyServerTB.setEnabled(useProxy.isSelected());
-    proxyPortTB.setEnabled(useProxy.isSelected());
+    boolean enabled = useProxy.isSelected();
+    portLabel.setEnabled(enabled);
+    serverLabel.setEnabled(enabled);
+    proxyServerTB.setEnabled(enabled);
+    proxyPortTB.setEnabled(enabled);
   }
 
+  /**
+   * Customer renderer for JTable: supports column of radio buttons
+   */
+  public class RadioButtonRenderer extends JRadioButton
+          implements TableCellRenderer
+  {
+    public RadioButtonRenderer()
+    {
+      setHorizontalAlignment(CENTER);
+      setToolTipText(MessageManager.getString("label.urltooltip"));
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(JTable table,
+            Object value, boolean isSelected, boolean hasFocus, int row,
+            int column)
+    {
+      setSelected((boolean) value);
+
+      // set colours to match rest of table
+      if (isSelected)
+      {
+        setBackground(table.getSelectionBackground());
+        setForeground(table.getSelectionForeground());
+      }
+      else
+      {
+        setBackground(table.getBackground());
+        setForeground(table.getForeground());
+      }
+      return this;
+    }
+  }
+
+  /**
+   * Customer cell editor for JTable: supports column of radio buttons in
+   * conjunction with renderer
+   */
+  public class RadioButtonEditor extends AbstractCellEditor
+          implements TableCellEditor
+  {
+    private JRadioButton button = new JRadioButton();
+
+    public RadioButtonEditor()
+    {
+      button.setHorizontalAlignment(SwingConstants.CENTER);
+      this.button.addActionListener(new ActionListener()
+      {
+        @Override
+        public void actionPerformed(ActionEvent e)
+        {
+          fireEditingStopped();
+        }
+      });
+    }
+
+    @Override
+    public Component getTableCellEditorComponent(JTable table, Object value,
+            boolean isSelected, int row, int column)
+    {
+      button.setSelected((boolean) value);
+      return button;
+    }
+
+    @Override
+    public Object getCellEditorValue()
+    {
+      return button.isSelected();
+    }
+
+  }
 }
+

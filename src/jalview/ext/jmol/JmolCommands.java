@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,16 +20,21 @@
  */
 package jalview.ext.jmol;
 
+import jalview.api.AlignViewportI;
+import jalview.api.AlignmentViewPanel;
 import jalview.api.FeatureRenderer;
 import jalview.api.SequenceRenderer;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 import jalview.structure.StructureMapping;
 import jalview.structure.StructureMappingcommandSet;
 import jalview.structure.StructureSelectionManager;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Routines for generating Jmol commands for Jalview/Jmol binding another
@@ -50,11 +55,15 @@ public class JmolCommands
    */
   public static StructureMappingcommandSet[] getColourBySequenceCommand(
           StructureSelectionManager ssm, String[] files,
-          SequenceI[][] sequence, SequenceRenderer sr, FeatureRenderer fr,
-          AlignmentI alignment)
+          SequenceI[][] sequence, SequenceRenderer sr,
+          AlignmentViewPanel viewPanel)
   {
-
-    ArrayList<StructureMappingcommandSet> cset = new ArrayList<StructureMappingcommandSet>();
+    FeatureRenderer fr = viewPanel.getFeatureRenderer();
+    FeatureColourFinder finder = new FeatureColourFinder(fr);
+    AlignViewportI viewport = viewPanel.getAlignViewport();
+    HiddenColumns cs = viewport.getAlignment().getHiddenColumns();
+    AlignmentI al = viewport.getAlignment();
+    List<StructureMappingcommandSet> cset = new ArrayList<StructureMappingcommandSet>();
 
     for (int pdbfnum = 0; pdbfnum < files.length; pdbfnum++)
     {
@@ -68,15 +77,15 @@ public class JmolCommands
         continue;
       }
 
-      int lastPos = -1;
       for (int s = 0; s < sequence[pdbfnum].length; s++)
       {
         for (int sp, m = 0; m < mapping.length; m++)
         {
           if (mapping[m].getSequence() == sequence[pdbfnum][s]
-                  && (sp = alignment.findIndex(sequence[pdbfnum][s])) > -1)
+                  && (sp = al.findIndex(sequence[pdbfnum][s])) > -1)
           {
-            SequenceI asp = alignment.getSequenceAt(sp);
+            int lastPos = StructureMapping.UNASSIGNED_VALUE;
+            SequenceI asp = al.getSequenceAt(sp);
             for (int r = 0; r < asp.getLength(); r++)
             {
               // no mapping to gaps in sequence
@@ -86,34 +95,44 @@ public class JmolCommands
               }
               int pos = mapping[m].getPDBResNum(asp.findPosition(r));
 
-              if (pos < 1 || pos == lastPos)
+              if (pos == lastPos)
               {
+                continue;
+              }
+              if (pos == StructureMapping.UNASSIGNED_VALUE)
+              {
+                // terminate current colour op
+                if (command.length() > 0
+                        && command.charAt(command.length() - 1) != ';')
+                {
+                  command.append(";");
+                }
+                // reset lastPos
+                lastPos = StructureMapping.UNASSIGNED_VALUE;
                 continue;
               }
 
               lastPos = pos;
 
-              Color col = sr.getResidueBoxColour(sequence[pdbfnum][s], r);
+              Color col = sr.getResidueColour(sequence[pdbfnum][s], r,
+                      finder);
 
-              if (fr != null)
+              /*
+               * shade hidden regions darker
+               */
+              if (!cs.isVisible(r))
               {
-                col = fr.findFeatureColour(col, sequence[pdbfnum][s], r);
+                col = Color.GRAY;
               }
-              String newSelcom = (mapping[m].getChain() != " " ? ":"
-                      + mapping[m].getChain() : "")
-                      + "/"
-                      + (pdbfnum + 1)
-                      + ".1"
-                      + ";color["
-                      + col.getRed()
-                      + ","
-                      + col.getGreen()
-                      + ","
+
+              String newSelcom = (mapping[m].getChain() != " "
+                      ? ":" + mapping[m].getChain()
+                      : "") + "/" + (pdbfnum + 1) + ".1" + ";color["
+                      + col.getRed() + "," + col.getGreen() + ","
                       + col.getBlue() + "]";
-              if (command.length() > newSelcom.length()
-                      && command.substring(
-                              command.length() - newSelcom.length())
-                              .equals(newSelcom))
+              if (command.length() > newSelcom.length() && command
+                      .substring(command.length() - newSelcom.length())
+                      .equals(newSelcom))
               {
                 command = JmolCommands.condenseCommand(command, pos);
                 continue;
@@ -121,7 +140,12 @@ public class JmolCommands
               // TODO: deal with case when buffer is too large for Jmol to parse
               // - execute command and flush
 
-              command.append(";");
+              if (command.length() > 0
+                      && command.charAt(command.length() - 1) != ';')
+              {
+                command.append(";");
+              }
+
               if (command.length() > 51200)
               {
                 // add another chunk

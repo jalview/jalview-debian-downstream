@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -63,12 +63,12 @@ public class GRestInputParamEditDialog
   protected void jbInit()
   {
     dpane = new JPanel(new MigLayout("", "[][][fill]", "[][fill][]"));
-    dpane.setPreferredSize(new Dimension(
-            110 + 100 + OptsAndParamsPage.PARAM_WIDTH, 400));
+    dpane.setPreferredSize(
+            new Dimension(110 + 100 + OptsAndParamsPage.PARAM_WIDTH, 400));
     typeList = new JList();
     typeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    typeList.getSelectionModel().addListSelectionListener(
-            new ListSelectionListener()
+    typeList.getSelectionModel()
+            .addListSelectionListener(new ListSelectionListener()
             {
 
               @Override
@@ -107,16 +107,16 @@ public class GRestInputParamEditDialog
             MessageManager.getString("label.input_parameter_name"),
             new JLabel(MessageManager.getString("label.name")), tok,
             "grow,spanx 3,wrap");
-    JPanel paramsType = new JPanel(new MigLayout("", "[grow 100,fill]",
-            "[grow 100,fill]"));
-    paramsType.setBorder(new TitledBorder(MessageManager
-            .getString("label.select_input_type")));
+    JPanel paramsType = new JPanel(
+            new MigLayout("", "[grow 100,fill]", "[grow 100,fill]"));
+    paramsType.setBorder(new TitledBorder(
+            MessageManager.getString("label.select_input_type")));
     JScrollPane jlistScroller = new JScrollPane();
     jlistScroller.setViewportView(typeList);
     paramsType.add(jlistScroller, "spanx 2,spany 2");
     dpane.add(paramsType);
-    optionsPanel.setBorder(new TitledBorder(MessageManager
-            .getString("label.set_options_for_type")));
+    optionsPanel.setBorder(new TitledBorder(
+            MessageManager.getString("label.set_options_for_type")));
     optionsPanel.add(optionView);
     dpane.add(optionsPanel, "wrap");
     okcancel = new JPanel(new MigLayout("", "[center][center]", "[]"));

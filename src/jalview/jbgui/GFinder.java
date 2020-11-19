@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,63 +21,52 @@
 package jalview.jbgui;
 
 import jalview.datamodel.AlignmentI;
+import jalview.io.DataSourceType;
+import jalview.io.FileFormat;
 import jalview.io.FormatAdapter;
+import jalview.io.cache.JvCacheableInputBox;
 import jalview.util.MessageManager;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
+import javax.swing.text.JTextComponent;
 
 public class GFinder extends JPanel
 {
-  JLabel jLabelFind = new JLabel();
+  private static final java.awt.Font VERDANA_12 = new Font("Verdana",
+          Font.PLAIN, 12);
 
-  protected JButton findAll = new JButton();
+  private static final String FINDER_CACHE_KEY = "CACHE.FINDER";
 
-  protected JButton findNext = new JButton();
+  /*
+   * if more checkboxes are wanted, increase this value
+   * and add to centrePanel in jbInit()  
+   */
+  private static final int PANEL_ROWS = 4;
 
-  JPanel actionsPanel = new JPanel();
+  protected JButton createFeatures;
 
-  GridLayout gridLayout1 = new GridLayout();
+  protected JvCacheableInputBox<String> searchBox;
 
-  protected JButton createNewGroup = new JButton();
+  protected JCheckBox caseSensitive;
 
-  JScrollPane jScrollPane1 = new JScrollPane();
+  protected JCheckBox searchDescription;
 
-  protected JTextArea textfield = new JTextArea();
-
-  BorderLayout mainBorderLayout = new BorderLayout();
-
-  JPanel jPanel2 = new JPanel();
-
-  JPanel jPanel3 = new JPanel();
-
-  JPanel jPanel4 = new JPanel();
-
-  BorderLayout borderLayout2 = new BorderLayout();
-
-  JPanel jPanel6 = new JPanel();
-
-  protected JCheckBox caseSensitive = new JCheckBox();
-
-  protected JCheckBox searchDescription = new JCheckBox();
-
-  GridLayout optionsGridLayout = new GridLayout();
+  protected JCheckBox ignoreHidden;
 
   public GFinder()
   {
@@ -90,143 +79,186 @@ public class GFinder extends JPanel
     }
   }
 
+  /**
+   * Constructs the widgets and adds them to the layout
+   */
   private void jbInit() throws Exception
   {
-    jLabelFind.setFont(new java.awt.Font("Verdana", 0, 12));
-    jLabelFind.setText(MessageManager.getString("label.find"));
-    this.setLayout(mainBorderLayout);
-    findAll.setFont(new java.awt.Font("Verdana", 0, 12));
-    findAll.setText(MessageManager.getString("action.find_all"));
-    findAll.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        findAll_actionPerformed(e);
-      }
-    });
-    findNext.setFont(new java.awt.Font("Verdana", 0, 12));
-    findNext.setText(MessageManager.getString("action.find_next"));
-    findNext.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        findNext_actionPerformed(e);
-      }
-    });
-    actionsPanel.setLayout(gridLayout1);
-    gridLayout1.setHgap(0);
-    gridLayout1.setRows(3);
-    gridLayout1.setVgap(2);
-    createNewGroup.setEnabled(false);
-    createNewGroup.setFont(new java.awt.Font("Verdana", 0, 12));
-    createNewGroup.setMargin(new Insets(0, 0, 0, 0));
-    createNewGroup.setText(MessageManager.getString("label.new_feature"));
-    createNewGroup.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(ActionEvent e)
-      {
-        createNewGroup_actionPerformed(e);
-      }
-    });
-    textfield.setFont(new java.awt.Font("Verdana", Font.PLAIN, 12));
-    textfield.setText("");
-    textfield.setLineWrap(true);
-    textfield.addCaretListener(new CaretListener()
-    {
-      public void caretUpdate(CaretEvent e)
-      {
-        textfield_caretUpdate(e);
-      }
-    });
-    textfield.addKeyListener(new java.awt.event.KeyAdapter()
-    {
-      public void keyPressed(KeyEvent e)
-      {
-        textfield_keyPressed(e);
-      }
-    });
+    /*
+     * border layout
+     * West: 4 rows
+     *   first row 'Find'
+     *   remaining rows empty
+     * Center: 4 rows
+     *   first row search box
+     *   second row 'match case' checkbox
+     *   third row 'include description' checkbox
+     *   fourth row 'ignore hidden' checkbox
+     * East: four rows
+     *   first row 'find next' button
+     *   second row 'find all' button
+     *   third row 'new feature' button
+     *   fourth row empty
+     */
+    this.setLayout(new BorderLayout());
+    JPanel eastPanel = new JPanel();
+    eastPanel.setLayout(new GridLayout(PANEL_ROWS, 1));
+    this.add(eastPanel, BorderLayout.EAST);
+    JPanel centrePanel = new JPanel();
+    centrePanel.setLayout(new GridLayout(PANEL_ROWS, 1));
+    this.add(centrePanel, BorderLayout.CENTER);
+    JPanel westPanel = new JPanel();
+    westPanel.setLayout(new GridLayout(PANEL_ROWS, 1));
+    this.add(westPanel, BorderLayout.WEST);
 
-    mainBorderLayout.setHgap(5);
-    mainBorderLayout.setVgap(5);
-    jPanel4.setLayout(borderLayout2);
-    jPanel2.setPreferredSize(new Dimension(10, 1));
-    jPanel3.setPreferredSize(new Dimension(10, 1));
+    /*
+     * 'Find' prompt goes top left
+     */
+    JLabel findLabel = new JLabel(
+            " " + MessageManager.getString("label.find") + " ");
+    findLabel.setFont(VERDANA_12);
+    westPanel.add(findLabel);
+
+    /*
+     * search box
+     */
+    searchBox = new JvCacheableInputBox<>(FINDER_CACHE_KEY, 25);
+    searchBox.setFont(VERDANA_12);
+    ((JTextComponent) searchBox.getEditor().getEditorComponent())
+            .addCaretListener(new CaretListener()
+            {
+              @Override
+              public void caretUpdate(CaretEvent e)
+              {
+                textfield_caretUpdate();
+              }
+            });
+    searchBox.getEditor().getEditorComponent()
+            .addKeyListener(new KeyAdapter()
+            {
+              @Override
+              public void keyPressed(KeyEvent e)
+              {
+                textfield_keyPressed(e);
+              }
+            });
+    centrePanel.add(searchBox);
+
+    /*
+     * search options checkboxes
+     */
+    caseSensitive = new JCheckBox();
     caseSensitive.setHorizontalAlignment(SwingConstants.LEFT);
     caseSensitive.setText(MessageManager.getString("label.match_case"));
 
-    searchDescription.setText(MessageManager
-            .getString("label.include_description"));
+    searchDescription = new JCheckBox();
+    searchDescription
+            .setText(MessageManager.getString("label.include_description"));
 
-    actionsPanel.add(findNext, null);
-    actionsPanel.add(findAll, null);
-    actionsPanel.add(createNewGroup, null);
-    this.add(jLabelFind, java.awt.BorderLayout.WEST);
-    this.add(actionsPanel, java.awt.BorderLayout.EAST);
-    this.add(jPanel2, java.awt.BorderLayout.SOUTH);
-    this.add(jPanel3, java.awt.BorderLayout.NORTH);
-    this.add(jPanel4, java.awt.BorderLayout.CENTER);
-    jPanel4.add(jScrollPane1, java.awt.BorderLayout.NORTH);
-    jScrollPane1.getViewport().add(textfield);
+    ignoreHidden = new JCheckBox();
+    ignoreHidden.setText(MessageManager.getString("label.ignore_hidden"));
+    ignoreHidden.setToolTipText(
+            MessageManager.getString("label.ignore_hidden_tooltip"));
+    
+    centrePanel.add(caseSensitive);
+    centrePanel.add(searchDescription);
+    centrePanel.add(ignoreHidden);
 
-    JPanel optionsPanel = new JPanel();
-
-    optionsGridLayout.setHgap(0);
-    optionsGridLayout.setRows(2);
-    optionsGridLayout.setVgap(2);
-    optionsPanel.setLayout(optionsGridLayout);
-    optionsPanel.add(caseSensitive, null);
-    optionsPanel.add(searchDescription, null);
-
-    jPanel4.add(optionsPanel, java.awt.BorderLayout.WEST);
-  }
-
-  protected void findNext_actionPerformed(ActionEvent e)
-  {
-  }
-
-  protected void findAll_actionPerformed(ActionEvent e)
-  {
+    /*
+     * action buttons
+     */
+    JButton findAll = new JButton(
+            MessageManager.getString("action.find_all"));
+    findAll.setFont(VERDANA_12);
+    findAll.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        findAll_actionPerformed();
+      }
+    });
+    JButton findNext = new JButton(
+            MessageManager.getString("action.find_next"));
+    findNext.setFont(VERDANA_12);
+    findNext.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        findNext_actionPerformed();
+      }
+    });
+    createFeatures = new JButton();
+    createFeatures.setEnabled(false);
+    createFeatures.setFont(VERDANA_12);
+    createFeatures.setText(MessageManager.getString("label.new_feature"));
+    createFeatures.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        createFeatures_actionPerformed();
+      }
+    });
+    eastPanel.add(findNext);
+    eastPanel.add(findAll);
+    eastPanel.add(createFeatures);
   }
 
   protected void textfield_keyPressed(KeyEvent e)
   {
     if (e.getKeyCode() == KeyEvent.VK_ENTER)
     {
-      e.consume();
-      findNext_actionPerformed(null);
+      if (!searchBox.isPopupVisible())
+      {
+        e.consume();
+        findNext_actionPerformed();
+      }
     }
   }
 
-  public void createNewGroup_actionPerformed(ActionEvent e)
+  protected void findNext_actionPerformed()
   {
   }
 
-  public void textfield_caretUpdate(CaretEvent e)
+  protected void findAll_actionPerformed()
   {
-    if (textfield.getText().indexOf(">") > -1)
+  }
+
+  public void createFeatures_actionPerformed()
+  {
+  }
+
+  public void textfield_caretUpdate()
+  {
+    // disabled as appears to be running a non-functional
+    if (false && searchBox.getUserInput().indexOf(">") > -1)
     {
       SwingUtilities.invokeLater(new Runnable()
       {
+        @Override
         public void run()
         {
-          String str = textfield.getText();
+          String str = searchBox.getUserInput();
           AlignmentI al = null;
           try
           {
-            al = new FormatAdapter().readFile(str, "Paste", "FASTA");
+            al = new FormatAdapter().readFile(str, DataSourceType.PASTE,
+                    FileFormat.Fasta);
           } catch (Exception ex)
           {
           }
           if (al != null && al.getHeight() > 0)
           {
             str = jalview.analysis.AlignSeq.extractGaps(
-                    jalview.util.Comparison.GapChars, al.getSequenceAt(0)
-                            .getSequenceAsString());
-
-            textfield.setText(str);
+                    jalview.util.Comparison.GapChars,
+                    al.getSequenceAt(0).getSequenceAsString());
+            // todo and what? set str as searchBox text?
           }
         }
       });
     }
   }
+
 }

@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -56,7 +56,8 @@ import javax.swing.JPanel;
 public class AnnotationChooser extends JPanel
 {
 
-  private static final Font CHECKBOX_FONT = new Font("Serif", Font.BOLD, 12);
+  private static final Font CHECKBOX_FONT = new Font("Serif", Font.BOLD,
+          12);
 
   private static final int MY_FRAME_WIDTH = 600;
 
@@ -81,7 +82,7 @@ public class AnnotationChooser extends JPanel
   private boolean applyToUnselectedSequences;
 
   // currently selected 'annotation type' checkboxes
-  private Map<String, String> selectedTypes = new HashMap<String, String>();
+  private Map<String, String> selectedTypes = new HashMap<>();
 
   /**
    * Constructor.
@@ -194,14 +195,7 @@ public class AnnotationChooser extends JPanel
   {
     setAnnotationVisibility(true);
 
-    // copied from AnnotationLabel.actionPerformed (after show/hide row)...
-    // TODO should drive this functionality into AlignmentPanel
     ap.updateAnnotation();
-    // this.ap.annotationPanel.adjustPanelHeight();
-    // this.ap.alabels.setSize(this.ap.alabels.getSize().width,
-    // this.ap.annotationPanel.getSize().height);
-    // this.ap.validate();
-    this.ap.paintAlignment(true);
   }
 
   /**
@@ -228,11 +222,6 @@ public class AnnotationChooser extends JPanel
       }
     }
     ap.updateAnnotation();
-    // // this.ap.annotationPanel.adjustPanelHeight();
-    // this.ap.alabels.setSize(this.ap.alabels.getSize().width,
-    // this.ap.annotationPanel.getSize().height);
-    // this.ap.validate();
-    this.ap.paintAlignment(true);
   }
 
   /**
@@ -242,15 +231,13 @@ public class AnnotationChooser extends JPanel
    * type which are in the application scope (all, selected or unselected
    * sequences).
    * 
-   * @param type
+   * @param dataSourceType
    */
   protected void changeShowHide_actionPerformed()
   {
     setAnnotationVisibility(false);
 
-    this.ap.updateAnnotation();
-    // this.ap.annotationPanel.adjustPanelHeight();
-    this.ap.paintAlignment(true);
+    ap.updateAnnotation();
   }
 
   /**
@@ -355,7 +342,7 @@ public class AnnotationChooser extends JPanel
   public static List<String> getAnnotationTypes(AlignmentI alignment,
           boolean sequenceSpecificOnly)
   {
-    List<String> result = new ArrayList<String>();
+    List<String> result = new ArrayList<>();
     for (AlignmentAnnotation aa : alignment.getAlignmentAnnotation())
     {
       if (!sequenceSpecificOnly || aa.sequenceRef != null)

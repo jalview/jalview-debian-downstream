@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,6 +20,9 @@
  */
 package jalview.ext.ensembl;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Selected species identifiers used by Ensembl
  * 
@@ -34,10 +37,22 @@ enum Species
    */
   human(true), mouse(true), s_cerevisiae(true), cow(false), pig(false),
   rat(true), celegans(true), sheep(false), horse(false), gorilla(false),
-  rabbit(false), gibbon(false), dog(false), orangutan(false),
-  xenopus(true), chimpanzee(false), cat(false), zebrafish(true), chicken(
-          true), dmelanogaster(true);
+  rabbit(false), gibbon(false), dog(false), orangutan(false), xenopus(true),
+  chimpanzee(false), cat(false), zebrafish(true), chicken(true),
+  dmelanogaster(true);
 
+  static Set<Species> modelOrganisms = new HashSet<>();
+
+  static
+  {
+    for (Species s : values())
+    {
+      if (s.isModelOrganism())
+      {
+        modelOrganisms.add(s);
+      }
+    }
+  }
   boolean modelOrganism;
 
   private Species(boolean model)
@@ -48,5 +63,10 @@ enum Species
   boolean isModelOrganism()
   {
     return modelOrganism;
+  }
+
+  public static Set<Species> getModelOrganisms()
+  {
+    return modelOrganisms;
   }
 }

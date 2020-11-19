@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -22,12 +22,16 @@ package jalview.gui;
 
 import jalview.bin.Cache;
 import jalview.io.JalviewFileChooser;
+import jalview.io.JalviewFileView;
 import jalview.util.MessageManager;
 import jalview.ws.params.ParamDatastoreI;
 import jalview.ws.params.ParamManager;
 import jalview.ws.params.WsParamSetI;
+import jalview.xml.binding.jalview.ObjectFactory;
+import jalview.xml.binding.jalview.WebServiceParameterSet;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -38,7 +42,11 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import javax.swing.JOptionPane;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.Marshaller;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamReader;
 
 /**
  * store and retrieve web service parameter sets.
@@ -48,7 +56,7 @@ import javax.swing.JOptionPane;
  */
 public class WsParamSetManager implements ParamManager
 {
-  Hashtable<String, ParamDatastoreI> paramparsers = new Hashtable<String, ParamDatastoreI>();
+  Hashtable<String, ParamDatastoreI> paramparsers = new Hashtable<>();
 
   @Override
   public WsParamSetI[] getParameterSet(String name, String serviceUrl,
@@ -61,7 +69,7 @@ public class WsParamSetManager implements ParamManager
     }
     StringTokenizer st = new StringTokenizer(files, "|");
     String pfile = null;
-    ArrayList<WsParamSetI> params = new ArrayList<WsParamSetI>();
+    List<WsParamSetI> params = new ArrayList<>();
     while (st.hasMoreTokens())
     {
       pfile = st.nextToken();
@@ -85,8 +93,8 @@ public class WsParamSetManager implements ParamManager
           {
             add = true;
           }
-          add &= (modifiable == p.isModifiable() || unmodifiable == !p
-                  .isModifiable());
+          add &= (modifiable == p.isModifiable()
+                  || unmodifiable == !p.isModifiable());
           add &= name == null || p.getName().equals(name);
 
           if (add)
@@ -98,11 +106,9 @@ public class WsParamSetManager implements ParamManager
         }
       } catch (IOException e)
       {
-        Cache.log
-                .info("Failed to parse parameter file "
-                        + pfile
-                        + " (Check that all JALVIEW_WSPARAMFILES entries are valid!)",
-                        e);
+        Cache.log.info("Failed to parse parameter file " + pfile
+                + " (Check that all JALVIEW_WSPARAMFILES entries are valid!)",
+                e);
       }
     }
     return params.toArray(new WsParamSetI[0]);
@@ -110,33 +116,39 @@ public class WsParamSetManager implements ParamManager
 
   private WsParamSetI[] parseParamFile(String filename) throws IOException
   {
-    List<WsParamSetI> psets = new ArrayList<WsParamSetI>();
+    List<WsParamSetI> psets = new ArrayList<>();
     InputStreamReader is = new InputStreamReader(
-            new java.io.FileInputStream(new File(filename)), "UTF-8");
+            new FileInputStream(new File(filename)), "UTF-8");
 
-    jalview.schemabinding.version2.WebServiceParameterSet wspset = new jalview.schemabinding.version2.WebServiceParameterSet();
-
-    org.exolab.castor.xml.Unmarshaller unmar = new org.exolab.castor.xml.Unmarshaller(
-            wspset);
-    unmar.setWhitespacePreserve(true);
+    WebServiceParameterSet wspset = null;
     try
     {
-      wspset = (jalview.schemabinding.version2.WebServiceParameterSet) unmar
-              .unmarshal(is);
+      JAXBContext jc = JAXBContext
+              .newInstance("jalview.xml.binding.jalview");
+      javax.xml.bind.Unmarshaller um = jc.createUnmarshaller();
+      XMLStreamReader streamReader = XMLInputFactory.newInstance()
+              .createXMLStreamReader(is);
+      JAXBElement<WebServiceParameterSet> jbe = um.unmarshal(streamReader,
+              WebServiceParameterSet.class);
+      wspset = jbe.getValue();
     } catch (Exception ex)
     {
       throw new IOException(ex);
     }
+
     if (wspset != null && wspset.getParameters().length() > 0)
     {
-      for (String url : wspset.getServiceURL())
+      List<String> urls = wspset.getServiceURL();
+      final String[] urlArray = urls.toArray(new String[urls.size()]);
+
+      for (String url : urls)
       {
         ParamDatastoreI parser = paramparsers.get(url);
         if (parser != null)
         {
           WsParamSetI pset = parser.parseServiceParameterFile(
                   wspset.getName(), wspset.getDescription(),
-                  wspset.getServiceURL(), wspset.getParameters());
+                  urlArray, wspset.getParameters());
           if (pset != null)
           {
             pset.setSourceFile(filename);
@@ -178,18 +190,14 @@ public class WsParamSetManager implements ParamManager
     }
     if (parser == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_cannot_find_marshaller_for_param_set"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_cannot_find_marshaller_for_param_set"));
     }
     if (filename == null)
     {
-      JalviewFileChooser chooser = new JalviewFileChooser(
-              jalview.bin.Cache.getProperty("LAST_DIRECTORY"), new String[]
-              { "wsparams" },
-              new String[] { "Web Service Parameter File" },
+      JalviewFileChooser chooser = new JalviewFileChooser("wsparams",
               "Web Service Parameter File");
-      chooser.setFileView(new jalview.io.JalviewFileView());
+      chooser.setFileView(new JalviewFileView());
       chooser.setDialogTitle(MessageManager
               .getString("label.choose_filename_for_param_file"));
       chooser.setToolTipText(MessageManager.getString("action.save"));
@@ -197,8 +205,7 @@ public class WsParamSetManager implements ParamManager
       if (value == JalviewFileChooser.APPROVE_OPTION)
       {
         outfile = chooser.getSelectedFile();
-        jalview.bin.Cache
-                .setProperty("LAST_DIRECTORY", outfile.getParent());
+        Cache.setProperty("LAST_DIRECTORY", outfile.getParent());
         filename = outfile.getAbsolutePath();
         if (!filename.endsWith(".wsparams"))
         {
@@ -219,21 +226,29 @@ public class WsParamSetManager implements ParamManager
         }
         paramFiles = paramFiles.concat(filename);
       }
-      jalview.bin.Cache.setProperty("WS_PARAM_FILES", paramFiles);
+      Cache.setProperty("WS_PARAM_FILES", paramFiles);
 
-      jalview.schemabinding.version2.WebServiceParameterSet paramxml = new jalview.schemabinding.version2.WebServiceParameterSet();
+      WebServiceParameterSet paramxml = new WebServiceParameterSet();
 
       paramxml.setName(parameterSet.getName());
       paramxml.setDescription(parameterSet.getDescription());
-      paramxml.setServiceURL(parameterSet.getApplicableUrls().clone());
+      for (String url : parameterSet.getApplicableUrls())
+      {
+        paramxml.getServiceURL().add(url);
+      }
       paramxml.setVersion("1.0");
       try
       {
-        paramxml.setParameters(parser
-                .generateServiceParameterFile(parameterSet));
+        paramxml.setParameters(
+                parser.generateServiceParameterFile(parameterSet));
         PrintWriter out = new PrintWriter(new OutputStreamWriter(
                 new FileOutputStream(outfile), "UTF-8"));
-        paramxml.marshal(out);
+        JAXBContext jaxbContext = JAXBContext
+                .newInstance(WebServiceParameterSet.class);
+        Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+        jaxbMarshaller.marshal(
+                new ObjectFactory().createWebServiceParameterSet(paramxml),
+                out);
         out.close();
         parameterSet.setSourceFile(filename);
       } catch (Exception e)
@@ -294,18 +309,18 @@ public class WsParamSetManager implements ParamManager
       File pfile = new File(filename);
       if (pfile.exists() && pfile.canWrite())
       {
-        if (JOptionPane.showConfirmDialog(Desktop.instance,
+        if (JvOptionPane.showConfirmDialog(Desktop.instance,
                 "Delete the preset's file, too ?", "Delete User Preset ?",
-                JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION)
+                JvOptionPane.OK_CANCEL_OPTION) == JvOptionPane.OK_OPTION)
         {
           pfile.delete();
         }
       }
     } catch (Exception e)
     {
-      Cache.log
-              .error("Exception when trying to delete webservice user preset: ",
-                      e);
+      Cache.log.error(
+              "Exception when trying to delete webservice user preset: ",
+              e);
     }
   }
 

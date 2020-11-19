@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -63,6 +63,8 @@ public class GFontChooser extends JPanel
 
   protected JCheckBox scaleAsCdna = new JCheckBox();
 
+  protected JCheckBox fontAsCdna = new JCheckBox();
+
   /**
    * Creates a new GFontChooser object.
    */
@@ -98,9 +100,10 @@ public class GFontChooser extends JPanel
     fontSize.setPreferredSize(new Dimension(50, 21));
     fontSize.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        fontSize_actionPerformed(e);
+        fontSize_actionPerformed();
       }
     });
 
@@ -109,9 +112,10 @@ public class GFontChooser extends JPanel
     fontStyle.setPreferredSize(new Dimension(90, 21));
     fontStyle.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        fontStyle_actionPerformed(e);
+        fontStyle_actionPerformed();
       }
     });
 
@@ -132,9 +136,10 @@ public class GFontChooser extends JPanel
     fontName.setPreferredSize(new Dimension(180, 21));
     fontName.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        fontName_actionPerformed(e);
+        fontName_actionPerformed();
       }
     });
 
@@ -142,9 +147,10 @@ public class GFontChooser extends JPanel
     ok.setFont(VERDANA_11PT);
     ok.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        ok_actionPerformed(e);
+        ok_actionPerformed();
       }
     });
 
@@ -152,9 +158,10 @@ public class GFontChooser extends JPanel
     cancel.setFont(VERDANA_11PT);
     cancel.addActionListener(new java.awt.event.ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        cancel_actionPerformed(e);
+        cancel_actionPerformed();
       }
     });
 
@@ -162,37 +169,57 @@ public class GFontChooser extends JPanel
     defaultButton.setText(MessageManager.getString("label.set_as_default"));
     defaultButton.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        defaultButton_actionPerformed(e);
+        defaultButton_actionPerformed();
       }
     });
 
     smoothFont.setFont(JvSwingUtils.getLabelFont());
     smoothFont.setOpaque(false);
     smoothFont.setText(MessageManager.getString("label.anti_alias_fonts"));
-    smoothFont.setBounds(new Rectangle(41, 65, 260, 23));
+    smoothFont.setBounds(new Rectangle(1, 65, 300, 23));
     smoothFont.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        smoothFont_actionPerformed(e);
+        smoothFont_actionPerformed();
       }
     });
 
     /*
-     * Scale protein as cDNA is only visible in SplitFrame protein alignment
+     * Scale protein as cDNA is only visible in SplitFrame
      */
     scaleAsCdna.setVisible(false);
     scaleAsCdna.setFont(JvSwingUtils.getLabelFont());
     scaleAsCdna.setOpaque(false);
     scaleAsCdna.setText(MessageManager.getString("label.scale_as_cdna"));
-    scaleAsCdna.setBounds(new Rectangle(41, 85, 260, 23));
+    scaleAsCdna.setBounds(new Rectangle(1, 85, 300, 23));
     scaleAsCdna.addActionListener(new ActionListener()
     {
+      @Override
       public void actionPerformed(ActionEvent e)
       {
-        scaleAsCdna_actionPerformed(e);
+        scaleAsCdna_actionPerformed();
+      }
+    });
+
+    /*
+     * Same font for cDNA/peptide is only visible in SplitFrame
+     */
+    fontAsCdna.setVisible(false);
+    fontAsCdna.setFont(JvSwingUtils.getLabelFont());
+    fontAsCdna.setOpaque(false);
+    fontAsCdna.setText(MessageManager.getString("label.font_as_cdna"));
+    fontAsCdna.setBounds(new Rectangle(1, 105, 350, 23));
+    fontAsCdna.addActionListener(new ActionListener()
+    {
+      @Override
+      public void actionPerformed(ActionEvent e)
+      {
+        mirrorFonts_actionPerformed();
       }
     });
 
@@ -239,85 +266,53 @@ public class GFontChooser extends JPanel
      */
     JPanel jPanel4 = new JPanel();
     jPanel4.setOpaque(false);
-    jPanel4.setBounds(new Rectangle(24, 112, 300, 35));
+    jPanel4.setBounds(new Rectangle(24, 132, 300, 35));
     jPanel4.add(defaultButton);
     jPanel4.add(ok);
     jPanel4.add(cancel);
 
     this.add(smoothFont);
     this.add(scaleAsCdna);
+    this.add(fontAsCdna);
     this.add(jPanel3, null);
     this.add(jPanel2, null);
     this.add(jPanel4);
     this.add(jPanel1, null);
   }
 
-  protected void scaleAsCdna_actionPerformed(ActionEvent e)
+  protected void mirrorFonts_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void ok_actionPerformed(ActionEvent e)
+  protected void scaleAsCdna_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void cancel_actionPerformed(ActionEvent e)
+  protected void ok_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void fontName_actionPerformed(ActionEvent e)
+  protected void cancel_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void fontSize_actionPerformed(ActionEvent e)
+  protected void fontName_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  protected void fontStyle_actionPerformed(ActionEvent e)
+  protected void fontSize_actionPerformed()
   {
   }
 
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  public void defaultButton_actionPerformed(ActionEvent e)
+  protected void fontStyle_actionPerformed()
   {
   }
 
-  public void smoothFont_actionPerformed(ActionEvent e)
+  public void defaultButton_actionPerformed()
   {
+  }
 
+  protected void smoothFont_actionPerformed()
+  {
   }
 }

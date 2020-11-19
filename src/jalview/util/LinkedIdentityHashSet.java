@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -34,7 +34,7 @@ import java.util.LinkedHashMap;
  */
 public class LinkedIdentityHashSet<E> extends AbstractSet<E>
 {
-  LinkedHashMap<IdentityWrapper, IdentityWrapper> set = new LinkedHashMap<IdentityWrapper, IdentityWrapper>();
+  LinkedHashMap<IdentityWrapper, IdentityWrapper> set = new LinkedHashMap<>();
 
   static class IdentityWrapper
   {
@@ -51,7 +51,7 @@ public class LinkedIdentityHashSet<E> extends AbstractSet<E>
     @Override
     public boolean equals(Object obj)
     {
-      return this.obj == obj;
+      return this.obj == ((IdentityWrapper) obj).obj;
     }
 
     @Override

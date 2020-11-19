@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,20 +20,24 @@
  */
 package jalview.io;
 
-import jalview.datamodel.DBRefEntry;
-import jalview.datamodel.DBRefSource;
-import jalview.datamodel.SequenceFeature;
-import jalview.datamodel.SequenceI;
-import jalview.io.gff.GffConstants;
-import jalview.util.MessageManager;
-import jalview.util.UrlLink;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import jalview.api.FeatureColourI;
+import jalview.datamodel.DBRefEntry;
+import jalview.datamodel.DBRefSource;
+import jalview.datamodel.GeneLociI;
+import jalview.datamodel.MappedFeatures;
+import jalview.datamodel.SequenceFeature;
+import jalview.datamodel.SequenceI;
+import jalview.util.MessageManager;
+import jalview.util.StringUtils;
+import jalview.util.UrlLink;
+import jalview.viewmodel.seqfeatures.FeatureRendererModel;
 
 /**
  * generate HTML reports for a sequence
@@ -42,6 +46,8 @@ import java.util.Map;
  */
 public class SequenceAnnotationReport
 {
+  private static final int MAX_DESCRIPTION_LENGTH = 40;
+
   private static final String COMMA = ",";
 
   private static final String ELLIPSIS = "...";
@@ -50,14 +56,15 @@ public class SequenceAnnotationReport
 
   private static final int MAX_SOURCES = 40;
 
+  private static String linkImageURL;
+
   private static final String[][] PRIMARY_SOURCES = new String[][] {
       DBRefSource.CODINGDBS, DBRefSource.DNACODINGDBS,
       DBRefSource.PROTEINDBS };
 
-  final String linkImageURL;
-
   /*
-   * Comparator to order DBRefEntry by Source + accession id (case-insensitive)
+   * Comparator to order DBRefEntry by Source + accession id (case-insensitive),
+   * with 'Primary' sources placed before others, and 'chromosome' first of all
    */
   private static Comparator<DBRefEntry> comparator = new Comparator<DBRefEntry>()
   {
@@ -65,6 +72,14 @@ public class SequenceAnnotationReport
     @Override
     public int compare(DBRefEntry ref1, DBRefEntry ref2)
     {
+      if (ref1 instanceof GeneLociI)
+      {
+        return -1;
+      }
+      if (ref2 instanceof GeneLociI)
+      {
+        return 1;
+      }
       String s1 = ref1.getSource();
       String s2 = ref2.getSource();
       boolean s1Primary = isPrimarySource(s1);
@@ -105,29 +120,75 @@ public class SequenceAnnotationReport
     }
   };
 
-  public SequenceAnnotationReport(String linkImageURL)
+  private boolean forTooltip;
+
+  /**
+   * Constructor given a flag which affects behaviour
+   * <ul>
+   * <li>if true, generates feature details suitable to show in a tooltip</li>
+   * <li>if false, generates feature details in a form suitable for the sequence
+   * details report</li>
+   * </ul>
+   * 
+   * @param isForTooltip
+   */
+  public SequenceAnnotationReport(boolean isForTooltip)
   {
-    this.linkImageURL = linkImageURL;
+    this.forTooltip = isForTooltip;
+    if (linkImageURL == null)
+    {
+      linkImageURL = getClass().getResource("/images/link.gif").toString();
+    }
   }
 
   /**
-   * Append text for the list of features to the tooltip
+   * Append text for the list of features to the tooltip. Returns the number of
+   * features not added if maxlength limit is (or would have been) reached.
    * 
    * @param sb
-   * @param rpos
+   * @param residuePos
    * @param features
    * @param minmax
+   * @param maxlength
    */
-  public void appendFeatures(final StringBuilder sb, int rpos,
-          List<SequenceFeature> features, Map<String, float[][]> minmax)
+  public int appendFeatures(final StringBuilder sb,
+          int residuePos, List<SequenceFeature> features,
+          FeatureRendererModel fr, int maxlength)
   {
-    if (features != null)
+    for (int i = 0; i < features.size(); i++)
     {
-      for (SequenceFeature feature : features)
+      SequenceFeature feature = features.get(i);
+      if (appendFeature(sb, residuePos, fr, feature, null, maxlength))
       {
-        appendFeature(sb, rpos, minmax, feature);
+        return features.size() - i;
       }
     }
+    return 0;
+  }
+
+  /**
+   * Appends text for mapped features (e.g. CDS feature for peptide or vice
+   * versa) Returns number of features left if maxlength limit is (or would have
+   * been) reached.
+   * 
+   * @param sb
+   * @param residuePos
+   * @param mf
+   * @param fr
+   * @param maxlength
+   */
+  public int appendFeatures(StringBuilder sb, int residuePos,
+          MappedFeatures mf, FeatureRendererModel fr, int maxlength)
+  {
+    for (int i = 0; i < mf.features.size(); i++)
+    {
+      SequenceFeature feature = mf.features.get(i);
+      if (appendFeature(sb, residuePos, fr, feature, mf, maxlength))
+      {
+        return mf.features.size() - i;
+      }
+    }
+    return 0;
   }
 
   /**
@@ -138,111 +199,195 @@ public class SequenceAnnotationReport
    * @param minmax
    * @param feature
    */
-  void appendFeature(final StringBuilder sb, int rpos,
-          Map<String, float[][]> minmax, SequenceFeature feature)
+  boolean appendFeature(final StringBuilder sb0, int rpos,
+          FeatureRendererModel fr, SequenceFeature feature,
+          MappedFeatures mf, int maxlength)
   {
+    int begin = feature.getBegin();
+    int end = feature.getEnd();
+
+    /*
+     * if this is a virtual features, convert begin/end to the
+     * coordinates of the sequence it is mapped to
+     */
+    int[] beginRange = null; // feature start in local coordinates
+    int[] endRange = null; // feature end in local coordinates
+    if (mf != null)
+    {
+      if (feature.isContactFeature())
+      {
+        /*
+         * map start and end points individually
+         */
+        beginRange = mf.getMappedPositions(begin, begin);
+        endRange = begin == end ? beginRange
+                : mf.getMappedPositions(end, end);
+      }
+      else
+      {
+        /*
+         * map the feature extent
+         */
+        beginRange = mf.getMappedPositions(begin, end);
+        endRange = beginRange;
+      }
+      if (beginRange == null || endRange == null)
+      {
+        // something went wrong
+        return false;
+      }
+      begin = beginRange[0];
+      end = endRange[endRange.length - 1];
+    }
+
+    StringBuilder sb = new StringBuilder();
     if (feature.isContactFeature())
     {
-      if (feature.getBegin() == rpos || feature.getEnd() == rpos)
+      /*
+       * include if rpos is at start or end position of [mapped] feature
+       */
+      boolean showContact = (mf == null) && (rpos == begin || rpos == end);
+      boolean showMappedContact = (mf != null) && ((rpos >= beginRange[0]
+              && rpos <= beginRange[beginRange.length - 1])
+              || (rpos >= endRange[0]
+                      && rpos <= endRange[endRange.length - 1]));
+      if (showContact || showMappedContact)
       {
-        if (sb.length() > 6)
+        if (sb0.length() > 6)
         {
-          sb.append("<br>");
+          sb.append("<br/>");
         }
-        sb.append(feature.getType()).append(" ").append(feature.getBegin())
-                .append(":")
-                .append(feature.getEnd());
+        sb.append(feature.getType()).append(" ").append(begin).append(":")
+                .append(end);
       }
+      return appendText(sb0, sb, maxlength);
     }
-    else
+
+    if (sb0.length() > 6)
     {
-      if (sb.length() > 6)
+      sb.append("<br/>");
+    }
+    // TODO: remove this hack to display link only features
+    boolean linkOnly = feature.getValue("linkonly") != null;
+    if (!linkOnly)
+    {
+      sb.append(feature.getType()).append(" ");
+      if (rpos != 0)
       {
-        sb.append("<br>");
+        // we are marking a positional feature
+        sb.append(begin);
+        if (begin != end)
+        {
+          sb.append(" ").append(end);
+        }
       }
-      // TODO: remove this hack to display link only features
-      boolean linkOnly = feature.getValue("linkonly") != null;
-      if (!linkOnly)
+
+      String description = feature.getDescription();
+      if (description != null && !description.equals(feature.getType()))
       {
-        sb.append(feature.getType()).append(" ");
-        if (rpos != 0)
+        description = StringUtils.stripHtmlTags(description);
+
+        /*
+         * truncate overlong descriptions unless they contain an href
+         * before the truncation point (as truncation could leave corrupted html)
+         */
+        int linkindex = description.toLowerCase().indexOf("<a ");
+        boolean hasLink = linkindex > -1
+                && linkindex < MAX_DESCRIPTION_LENGTH;
+        if (description.length() > MAX_DESCRIPTION_LENGTH && !hasLink)
         {
-          // we are marking a positional feature
-          sb.append(feature.begin);
-        }
-        if (feature.begin != feature.end)
-        {
-          sb.append(" ").append(feature.end);
+          description = description.substring(0, MAX_DESCRIPTION_LENGTH)
+                  + ELLIPSIS;
         }
 
-        if (feature.getDescription() != null
-                && !feature.description.equals(feature.getType()))
-        {
-          String tmpString = feature.getDescription();
-          String tmp2up = tmpString.toUpperCase();
-          int startTag = tmp2up.indexOf("<HTML>");
-          if (startTag > -1)
-          {
-            tmpString = tmpString.substring(startTag + 6);
-            tmp2up = tmp2up.substring(startTag + 6);
-          }
-          int endTag = tmp2up.indexOf("</BODY>");
-          if (endTag > -1)
-          {
-            tmpString = tmpString.substring(0, endTag);
-            tmp2up = tmp2up.substring(0, endTag);
-          }
-          endTag = tmp2up.indexOf("</HTML>");
-          if (endTag > -1)
-          {
-            tmpString = tmpString.substring(0, endTag);
-          }
+        sb.append("; ").append(description);
+      }
 
-          if (startTag > -1)
-          {
-            sb.append("; ").append(tmpString);
-          }
-          else
-          {
-            if (tmpString.indexOf("<") > -1 || tmpString.indexOf(">") > -1)
-            {
-              // The description does not specify html is to
-              // be used, so we must remove < > symbols
-              tmpString = tmpString.replaceAll("<", "&lt;");
-              tmpString = tmpString.replaceAll(">", "&gt;");
+      if (showScore(feature, fr))
+      {
+        sb.append(" Score=").append(String.valueOf(feature.getScore()));
+      }
+      String status = (String) feature.getValue("status");
+      if (status != null && status.length() > 0)
+      {
+        sb.append("; (").append(status).append(")");
+      }
 
-              sb.append("; ");
-              sb.append(tmpString);
-            }
-            else
-            {
-              sb.append("; ").append(tmpString);
-            }
-          }
-        }
-        // check score should be shown
-        if (!Float.isNaN(feature.getScore()))
+      /*
+       * add attribute value if coloured by attribute
+       */
+      if (fr != null)
+      {
+        FeatureColourI fc = fr.getFeatureColours().get(feature.getType());
+        if (fc != null && fc.isColourByAttribute())
         {
-          float[][] rng = (minmax == null) ? null : minmax.get(feature
-                  .getType());
-          if (rng != null && rng[0] != null && rng[0][0] != rng[0][1])
+          String[] attName = fc.getAttributeName();
+          String attVal = feature.getValueAsString(attName);
+          if (attVal != null)
           {
-            sb.append(" Score=").append(String.valueOf(feature.getScore()));
+            sb.append("; ").append(String.join(":", attName)).append("=")
+                    .append(attVal);
           }
         }
-        String status = (String) feature.getValue("status");
-        if (status != null && status.length() > 0)
+      }
+
+      if (mf != null)
+      {
+        String variants = mf.findProteinVariants(feature);
+        if (!variants.isEmpty())
         {
-          sb.append("; (").append(status).append(")");
-        }
-        String clinSig = (String) feature
-                .getValue(GffConstants.CLINICAL_SIGNIFICANCE);
-        if (clinSig != null)
-        {
-          sb.append("; ").append(clinSig);
+          sb.append(" ").append(variants);
         }
       }
     }
+    return appendText(sb0, sb, maxlength);
+  }
+
+  /**
+   * Appends sb to sb0, and returns false, unless maxlength is not zero and
+   * appending would make the result longer than or equal to maxlength, in which
+   * case the append is not done and returns true
+   * 
+   * @param sb0
+   * @param sb
+   * @param maxlength
+   * @return
+   */
+  private static boolean appendText(StringBuilder sb0, StringBuilder sb,
+          int maxlength)
+  {
+    if (maxlength == 0 || sb0.length() + sb.length() < maxlength)
+    {
+      sb0.append(sb);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Answers true if score should be shown, else false. Score is shown if it is
+   * not NaN, and the feature type has a non-trivial min-max score range
+   */
+  boolean showScore(SequenceFeature feature, FeatureRendererModel fr)
+  {
+    if (Float.isNaN(feature.getScore()))
+    {
+      return false;
+    }
+    if (fr == null)
+    {
+      return true;
+    }
+    float[][] minMax = fr.getMinMax().get(feature.getType());
+
+    /*
+     * minMax[0] is the [min, max] score range for positional features
+     */
+    if (minMax == null || minMax[0] == null || minMax[0][0] == minMax[0][1])
+    {
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -276,8 +421,8 @@ public class SequenceAnnotationReport
                       + (urllink.get(0).toLowerCase()
                               .equals(urllink.get(1).toLowerCase()) ? urllink
                               .get(0) : (urllink.get(0) + ":" + urllink
-                              .get(1)))
-                      + "</a></br>");
+                                              .get(1)))
+                      + "</a><br/>");
             }
           } catch (Exception x)
           {
@@ -300,7 +445,7 @@ public class SequenceAnnotationReport
    */
   Collection<List<String>> createLinksFrom(SequenceI seq, String link)
   {
-    Map<String, List<String>> urlSets = new LinkedHashMap<String, List<String>>();
+    Map<String, List<String>> urlSets = new LinkedHashMap<>();
     UrlLink urlLink = new UrlLink(link);
     if (!urlLink.isValid())
     {
@@ -315,10 +460,10 @@ public class SequenceAnnotationReport
 
   public void createSequenceAnnotationReport(final StringBuilder tip,
           SequenceI sequence, boolean showDbRefs, boolean showNpFeats,
-          Map<String, float[][]> minmax)
+          FeatureRendererModel fr)
   {
     createSequenceAnnotationReport(tip, sequence, showDbRefs, showNpFeats,
-            minmax, false);
+            fr, false);
   }
 
   /**
@@ -333,13 +478,13 @@ public class SequenceAnnotationReport
    *          whether to include database references for the sequence
    * @param showNpFeats
    *          whether to include non-positional sequence features
-   * @param minmax
+   * @param fr
    * @param summary
    * @return
    */
   int createSequenceAnnotationReport(final StringBuilder sb,
           SequenceI sequence, boolean showDbRefs, boolean showNpFeats,
-          Map<String, float[][]> minmax, boolean summary)
+          FeatureRendererModel fr, boolean summary)
   {
     String tmp;
     sb.append("<i>");
@@ -348,7 +493,7 @@ public class SequenceAnnotationReport
     if (sequence.getDescription() != null)
     {
       tmp = sequence.getDescription();
-      sb.append("<br>").append(tmp);
+      sb.append(tmp);
       maxWidth = Math.max(maxWidth, tmp.length());
     }
     SequenceI ds = sequence;
@@ -356,108 +501,128 @@ public class SequenceAnnotationReport
     {
       ds = ds.getDatasetSequence();
     }
-    DBRefEntry[] dbrefs = ds.getDBRefs();
-    if (showDbRefs && dbrefs != null)
-    {
-      // note this sorts the refs held on the sequence!
-      Arrays.sort(dbrefs, comparator);
-      boolean ellipsis = false;
-      String source = null;
-      String lastSource = null;
-      int countForSource = 0;
-      int sourceCount = 0;
-      boolean moreSources = false;
-      int lineLength = 0;
 
-      for (DBRefEntry ref : dbrefs)
-      {
-        source = ref.getSource();
-        if (source == null)
-        {
-          // shouldn't happen
-          continue;
-        }
-        boolean sourceChanged = !source.equals(lastSource);
-        if (sourceChanged)
-        {
-          lineLength = 0;
-          countForSource = 0;
-          sourceCount++;
-        }
-        if (sourceCount > MAX_SOURCES && summary)
-        {
-          ellipsis = true;
-          moreSources = true;
-          break;
-        }
-        lastSource = source;
-        countForSource++;
-        if (countForSource == 1 || !summary)
-        {
-          sb.append("<br>");
-        }
-        if (countForSource <= MAX_REFS_PER_SOURCE || !summary)
-        {
-          String accessionId = ref.getAccessionId();
-          lineLength += accessionId.length() + 1;
-          if (countForSource > 1 && summary)
-          {
-            sb.append(", ").append(accessionId);
-            lineLength++;
-          }
-          else
-          {
-            sb.append(source).append(" ").append(accessionId);
-            lineLength += source.length();
-          }
-          maxWidth = Math.max(maxWidth, lineLength);
-        }
-        if (countForSource == MAX_REFS_PER_SOURCE && summary)
-        {
-          sb.append(COMMA).append(ELLIPSIS);
-          ellipsis = true;
-        }
-      }
-      if (moreSources)
-      {
-        sb.append("<br>").append(ELLIPSIS).append(COMMA).append(source)
-                .append(COMMA).append(ELLIPSIS);
-      }
-      if (ellipsis)
-      {
-        sb.append("<br>(");
-        sb.append(MessageManager.getString("label.output_seq_details"));
-        sb.append(")");
-      }
+    if (showDbRefs)
+    {
+      maxWidth = Math.max(maxWidth, appendDbRefs(sb, ds, summary));
     }
 
     /*
      * add non-positional features if wanted
      */
-    SequenceFeature[] features = sequence.getSequenceFeatures();
-    if (showNpFeats && features != null)
+    if (showNpFeats)
     {
-      for (int i = 0; i < features.length; i++)
+      for (SequenceFeature sf : sequence.getFeatures()
+              .getNonPositionalFeatures())
       {
-        if (features[i].begin == 0 && features[i].end == 0)
-        {
-          int sz = -sb.length();
-          appendFeature(sb, 0, minmax, features[i]);
-          sz += sb.length();
-          maxWidth = Math.max(maxWidth, sz);
-        }
+        int sz = -sb.length();
+        appendFeature(sb, 0, fr, sf, null, 0);
+        sz += sb.length();
+        maxWidth = Math.max(maxWidth, sz);
       }
     }
     sb.append("</i>");
     return maxWidth;
   }
 
+  /**
+   * A helper method that appends any DBRefs, returning the maximum line length
+   * added
+   * 
+   * @param sb
+   * @param ds
+   * @param summary
+   * @return
+   */
+  protected int appendDbRefs(final StringBuilder sb, SequenceI ds,
+          boolean summary)
+  {
+    DBRefEntry[] dbrefs = ds.getDBRefs();
+    if (dbrefs == null)
+    {
+      return 0;
+    }
+
+    // note this sorts the refs held on the sequence!
+    Arrays.sort(dbrefs, comparator);
+    boolean ellipsis = false;
+    String source = null;
+    String lastSource = null;
+    int countForSource = 0;
+    int sourceCount = 0;
+    boolean moreSources = false;
+    int maxLineLength = 0;
+    int lineLength = 0;
+
+    for (DBRefEntry ref : dbrefs)
+    {
+      source = ref.getSource();
+      if (source == null)
+      {
+        // shouldn't happen
+        continue;
+      }
+      boolean sourceChanged = !source.equals(lastSource);
+      if (sourceChanged)
+      {
+        lineLength = 0;
+        countForSource = 0;
+        sourceCount++;
+      }
+      if (sourceCount > MAX_SOURCES && summary)
+      {
+        ellipsis = true;
+        moreSources = true;
+        break;
+      }
+      lastSource = source;
+      countForSource++;
+      if (countForSource == 1 || !summary)
+      {
+        sb.append("<br/>");
+      }
+      if (countForSource <= MAX_REFS_PER_SOURCE || !summary)
+      {
+        String accessionId = ref.getAccessionId();
+        lineLength += accessionId.length() + 1;
+        if (countForSource > 1 && summary)
+        {
+          sb.append(", ").append(accessionId);
+          lineLength++;
+        }
+        else
+        {
+          sb.append(source).append(" ").append(accessionId);
+          lineLength += source.length();
+        }
+        maxLineLength = Math.max(maxLineLength, lineLength);
+      }
+      if (countForSource == MAX_REFS_PER_SOURCE && summary)
+      {
+        sb.append(COMMA).append(ELLIPSIS);
+        ellipsis = true;
+      }
+    }
+    if (moreSources)
+    {
+      sb.append("<br/>").append(source).append(COMMA).append(ELLIPSIS);
+    }
+    if (ellipsis)
+    {
+      sb.append("<br/>(");
+      sb.append(MessageManager.getString("label.output_seq_details"));
+      sb.append(")");
+    }
+
+    return maxLineLength;
+  }
+
   public void createTooltipAnnotationReport(final StringBuilder tip,
           SequenceI sequence, boolean showDbRefs, boolean showNpFeats,
-          Map<String, float[][]> minmax)
+          FeatureRendererModel fr)
   {
     int maxWidth = createSequenceAnnotationReport(tip, sequence,
-            showDbRefs, showNpFeats, minmax, true);
+            showDbRefs, showNpFeats, fr, true);
 
     if (maxWidth > 60)
     {

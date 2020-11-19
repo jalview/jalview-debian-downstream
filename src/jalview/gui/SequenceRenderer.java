@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,46 +20,48 @@
  */
 package jalview.gui;
 
-import jalview.api.FeatureRenderer;
+import jalview.api.AlignViewportI;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
-import jalview.schemes.ColourSchemeI;
+import jalview.renderer.ResidueColourFinder;
+import jalview.renderer.seqfeatures.FeatureColourFinder;
 
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 
+import org.jfree.graphics2d.svg.SVGGraphics2D;
+import org.jibble.epsgraphics.EpsGraphics2D;
+
 public class SequenceRenderer implements jalview.api.SequenceRenderer
 {
   final static int CHAR_TO_UPPER = 'A' - 'a';
 
-  AlignViewport av;
+  AlignViewportI av;
 
   FontMetrics fm;
 
   boolean renderGaps = true;
 
-  SequenceGroup currentSequenceGroup = null;
-
   SequenceGroup[] allGroups = null;
 
-  Color resBoxColour;
+  // Color resBoxColour;
 
   Graphics graphics;
 
   boolean monospacedFont;
 
-  boolean forOverview = false;
+  ResidueColourFinder resColourFinder;
 
   /**
-   * Creates a new SequenceRenderer object.
+   * Creates a new SequenceRenderer object
    * 
-   * @param av
-   *          DOCUMENT ME!
+   * @param viewport
    */
-  public SequenceRenderer(AlignViewport av)
+  public SequenceRenderer(AlignViewportI viewport)
   {
-    this.av = av;
+    this.av = viewport;
+    resColourFinder = new ResidueColourFinder();
   }
 
   /**
@@ -76,31 +78,10 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     // If EPS graphics, stringWidth will be a double, not an int
     double dwidth = fm.getStringBounds("M", g).getWidth();
 
-    monospacedFont = (dwidth == fm.getStringBounds("|", g).getWidth() && av
-            .getCharWidth() == dwidth);
+    monospacedFont = (dwidth == fm.getStringBounds("|", g).getWidth()
+            && av.getCharWidth() == dwidth);
 
     this.renderGaps = renderGaps;
-  }
-
-  @Override
-  public Color getResidueBoxColour(SequenceI seq, int i)
-  {
-    // rate limiting step when rendering overview for lots of groups
-    allGroups = av.getAlignment().findAllGroups(seq);
-
-    if (inCurrentSequenceGroup(i))
-    {
-      if (currentSequenceGroup.getDisplayBoxes())
-      {
-        getBoxColour(currentSequenceGroup.cs, seq, i);
-      }
-    }
-    else if (av.getShowBoxes())
-    {
-      getBoxColour(av.getGlobalColourScheme(), seq, i);
-    }
-
-    return resBoxColour;
   }
 
   /**
@@ -110,49 +91,18 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
    * 
    * @param seq
    * @param position
-   * @param fr
+   * @param finder
    * @return
    */
   @Override
   public Color getResidueColour(final SequenceI seq, int position,
-          FeatureRenderer fr)
+          FeatureColourFinder finder)
   {
-    // TODO replace 8 or so code duplications with calls to this method
-    // (refactored as needed)
-    Color col = getResidueBoxColour(seq, position);
-
-    if (fr != null)
-    {
-      col = fr.findFeatureColour(col, seq, position);
-    }
-    return col;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param cs
-   *          DOCUMENT ME!
-   * @param seq
-   *          DOCUMENT ME!
-   * @param i
-   *          DOCUMENT ME!
-   */
-  void getBoxColour(ColourSchemeI cs, SequenceI seq, int i)
-  {
-    if (cs != null)
-    {
-      resBoxColour = cs.findColour(seq.getCharAt(i), i, seq);
-    }
-    else if (forOverview
-            && !jalview.util.Comparison.isGap(seq.getCharAt(i)))
-    {
-      resBoxColour = Color.lightGray;
-    }
-    else
-    {
-      resBoxColour = Color.white;
-    }
+    allGroups = av.getAlignment().findAllGroups(seq);
+    return resColourFinder.getResidueColour(av.getShowBoxes(),
+            av.getResidueShading(),
+            allGroups, seq, position,
+            finder);
   }
 
   /**
@@ -184,7 +134,7 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
 
     drawBoxes(seq, start, end, y1);
 
-    if (av.validCharWidth)
+    if (av.isValidCharWidth())
     {
       drawText(seq, start, end, y1);
     }
@@ -211,6 +161,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
   public synchronized void drawBoxes(SequenceI seq, int start, int end,
           int y1)
   {
+    Color resBoxColour = Color.white;
+
     if (seq == null)
     {
       return; // fix for racecondition
@@ -219,8 +171,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     int length = seq.getLength();
 
     int curStart = -1;
-    int curWidth = av.getCharWidth(), avWidth = av.getCharWidth(), avHeight = av
-            .getCharHeight();
+    int curWidth = av.getCharWidth(), avWidth = av.getCharWidth(),
+            avHeight = av.getCharHeight();
 
     Color tempColour = null;
 
@@ -230,18 +182,23 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
 
       if (i < length)
       {
-        if (inCurrentSequenceGroup(i))
+        SequenceGroup currentSequenceGroup = resColourFinder
+                .getCurrentSequenceGroup(
+                allGroups, i);
+        if (currentSequenceGroup != null)
         {
           if (currentSequenceGroup.getDisplayBoxes())
           {
-            getBoxColour(currentSequenceGroup.cs, seq, i);
+            resBoxColour = resColourFinder.getBoxColour(
+                    currentSequenceGroup.getGroupColourScheme(), seq,
+                    i);
           }
         }
         else if (av.getShowBoxes())
         {
-          getBoxColour(av.getGlobalColourScheme(), seq, i);
+          resBoxColour = resColourFinder
+                  .getBoxColour(av.getResidueShading(), seq, i);
         }
-
       }
 
       if (resBoxColour != tempColour)
@@ -300,8 +257,19 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     }
     graphics.setColor(av.getTextColour());
 
-    if (monospacedFont && av.getShowText() && allGroups.length == 0
-            && !av.getColourText() && av.getThresholdTextColour() == 0)
+    boolean drawAllText = monospacedFont && av.getShowText() && allGroups.length == 0
+            && !av.getColourText() && av.getThresholdTextColour() == 0;
+
+    /*
+     * EPS or SVG misaligns monospaced strings (JAL-3239)
+     * so always draw these one character at a time
+     */
+    if (graphics instanceof EpsGraphics2D
+            || graphics instanceof SVGGraphics2D)
+    {
+      drawAllText = false;
+    }
+    if (drawAllText)
     {
       if (av.isRenderGaps())
       {
@@ -310,8 +278,9 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
       else
       {
         char gap = av.getGapCharacter();
-        graphics.drawString(seq.getSequenceAsString(start, end + 1)
-                .replace(gap, ' '), 0, y1);
+        graphics.drawString(
+                seq.getSequenceAsString(start, end + 1).replace(gap, ' '),
+                0, y1);
       }
     }
     else
@@ -319,9 +288,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
       boolean srep = av.isDisplayReferenceSeq();
       boolean getboxColour = false;
       boolean isarep = av.getAlignment().getSeqrep() == seq;
-      boolean isgrep = currentSequenceGroup != null ? currentSequenceGroup
-              .getSeqrep() == seq : false;
-      char sr_c;
+      Color resBoxColour = Color.white;
+
       for (int i = start; i <= end; i++)
       {
 
@@ -334,7 +302,10 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
           continue;
         }
 
-        if (inCurrentSequenceGroup(i))
+        SequenceGroup currentSequenceGroup = resColourFinder
+                .getCurrentSequenceGroup(
+                allGroups, i);
+        if (currentSequenceGroup != null)
         {
           if (!currentSequenceGroup.getDisplayText())
           {
@@ -345,7 +316,9 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
                   || currentSequenceGroup.getColourText())
           {
             getboxColour = true;
-            getBoxColour(currentSequenceGroup.cs, seq, i);
+            resBoxColour = resColourFinder.getBoxColour(
+                    currentSequenceGroup.getGroupColourScheme(), seq,
+                    i);
 
             if (currentSequenceGroup.getColourText())
             {
@@ -355,7 +328,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
             if (currentSequenceGroup.thresholdTextColour > 0)
             {
               if (resBoxColour.getRed() + resBoxColour.getBlue()
-                      + resBoxColour.getGreen() < currentSequenceGroup.thresholdTextColour)
+                      + resBoxColour
+                              .getGreen() < currentSequenceGroup.thresholdTextColour)
               {
                 graphics.setColor(currentSequenceGroup.textColour2);
               }
@@ -365,6 +339,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
           {
             graphics.setColor(currentSequenceGroup.textColour);
           }
+          boolean isgrep = currentSequenceGroup != null
+                  ? currentSequenceGroup.getSeqrep() == seq : false;
           if (!isarep && !isgrep
                   && currentSequenceGroup.getShowNonconserved()) // todo
                                                                  // optimize
@@ -385,7 +361,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
           if (av.getColourText())
           {
             getboxColour = true;
-            getBoxColour(av.getGlobalColourScheme(), seq, i);
+            resBoxColour = resColourFinder
+                    .getBoxColour(av.getResidueShading(), seq, i);
 
             if (av.getShowBoxes())
             {
@@ -401,7 +378,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
           {
             if (!getboxColour)
             {
-              getBoxColour(av.getGlobalColourScheme(), seq, i);
+              resBoxColour = resColourFinder
+                      .getBoxColour(av.getResidueShading(), seq, i);
             }
 
             if (resBoxColour.getRed() + resBoxColour.getBlue()
@@ -444,54 +422,29 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     // currentSequenceGroup.getConsensus()
     char conschar = (usesrep) ? (currentGroup == null
             || position < currentGroup.getStartRes()
-            || position > currentGroup.getEndRes() ? av.getAlignment()
-            .getSeqrep().getCharAt(position)
-            : (currentGroup.getSeqrep() != null ? currentGroup.getSeqrep()
-                    .getCharAt(position) : av.getAlignment().getSeqrep()
-                    .getCharAt(position)))
+            || position > currentGroup.getEndRes()
+                    ? av.getAlignment().getSeqrep().getCharAt(position)
+                    : (currentGroup.getSeqrep() != null
+                            ? currentGroup.getSeqrep().getCharAt(position)
+                            : av.getAlignment().getSeqrep()
+                                    .getCharAt(position)))
             : (currentGroup != null && currentGroup.getConsensus() != null
                     && position >= currentGroup.getStartRes()
-                    && position <= currentGroup.getEndRes() && currentGroup
-                    .getConsensus().annotations.length > position) ? currentGroup
-                    .getConsensus().annotations[position].displayCharacter
-                    .charAt(0)
-                    : av.getAlignmentConsensusAnnotation().annotations[position].displayCharacter
-                            .charAt(0);
+                    && position <= currentGroup.getEndRes()
+                    && currentGroup
+                            .getConsensus().annotations.length > position)
+                                    ? currentGroup
+                                            .getConsensus().annotations[position].displayCharacter
+                                                    .charAt(0)
+                                    : av.getAlignmentConsensusAnnotation().annotations[position].displayCharacter
+                                            .charAt(0);
     if (!jalview.util.Comparison.isGap(conschar)
-            && (sequenceChar == conschar || sequenceChar + CHAR_TO_UPPER == conschar))
+            && (sequenceChar == conschar
+                    || sequenceChar + CHAR_TO_UPPER == conschar))
     {
       sequenceChar = conservedChar;
     }
     return sequenceChar;
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param res
-   *          DOCUMENT ME!
-   * 
-   * @return DOCUMENT ME!
-   */
-  boolean inCurrentSequenceGroup(int res)
-  {
-    if (allGroups == null)
-    {
-      return false;
-    }
-
-    for (int i = 0; i < allGroups.length; i++)
-    {
-      if ((allGroups[i].getStartRes() <= res)
-              && (allGroups[i].getEndRes() >= res))
-      {
-        currentSequenceGroup = allGroups[i];
-
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**
@@ -512,8 +465,8 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
    * @param height
    *          DOCUMENT ME!
    */
-  public void drawHighlightedText(SequenceI seq, int start, int end,
-          int x1, int y1)
+  public void drawHighlightedText(SequenceI seq, int start, int end, int x1,
+          int y1)
   {
     int pady = av.getCharHeight() / 5;
     int charOffset = 0;
@@ -542,21 +495,30 @@ public class SequenceRenderer implements jalview.api.SequenceRenderer
     }
   }
 
-  public void drawCursor(SequenceI seq, int res, int x1, int y1)
+  /**
+   * Draw a sequence canvas cursor
+   * 
+   * @param g
+   *          graphics context to draw on
+   * @param s
+   *          character to draw at cursor
+   * @param x1
+   *          x position of cursor in graphics context
+   * @param y1
+   *          y position of cursor in graphics context
+   */
+  public void drawCursor(Graphics g, char s, int x1, int y1)
   {
     int pady = av.getCharHeight() / 5;
     int charOffset = 0;
-    graphics.setColor(Color.black);
-    graphics.fillRect(x1, y1, av.getCharWidth(), av.getCharHeight());
+    g.setColor(Color.black);
+    g.fillRect(x1, y1, av.getCharWidth(), av.getCharHeight());
 
     if (av.isValidCharWidth())
     {
-      graphics.setColor(Color.white);
-
-      char s = seq.getCharAt(res);
-
+      g.setColor(Color.white);
       charOffset = (av.getCharWidth() - fm.charWidth(s)) / 2;
-      graphics.drawString(String.valueOf(s), charOffset + x1,
+      g.drawString(String.valueOf(s), charOffset + x1,
               (y1 + av.getCharHeight()) - pady);
     }
 

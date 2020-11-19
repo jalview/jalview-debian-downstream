@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -141,7 +141,9 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
    */
   public void setText(String text)
   {
+    textarea.setDocument(textarea.getEditorKit().createDefaultDocument());
     textarea.setText(text);
+    textarea.setCaretPosition(0);
   }
 
   @Override
@@ -152,8 +154,8 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
 
     chooser.setAcceptAllFileFilterUsed(false);
     chooser.setFileView(new JalviewFileView());
-    chooser.setDialogTitle(MessageManager
-            .getString("label.save_text_to_file"));
+    chooser.setDialogTitle(
+            MessageManager.getString("label.save_text_to_file"));
     chooser.setToolTipText(MessageManager.getString("action.save"));
 
     int value = chooser.showSaveDialog(this);
@@ -179,8 +181,8 @@ public class CutAndPasteHtmlTransfer extends GCutAndPasteHtmlTransfer
   public void toggleHtml_actionPerformed(ActionEvent e)
   {
     String txt = textarea.getText();
-    textarea.setContentType(displaySource.isSelected() ? "text/text"
-            : "text/html");
+    textarea.setContentType(
+            displaySource.isSelected() ? "text/text" : "text/html");
     textarea.setText(txt);
   }
 

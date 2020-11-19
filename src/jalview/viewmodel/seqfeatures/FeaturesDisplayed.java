@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -23,22 +23,21 @@ package jalview.viewmodel.seqfeatures;
 import jalview.api.FeaturesDisplayedI;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
+import java.util.Set;
 
 public class FeaturesDisplayed implements FeaturesDisplayedI
 {
-  private HashSet<String> featuresDisplayed = new HashSet<String>();
+  private Set<String> featuresDisplayed = new HashSet<>();
 
-  private HashSet<String> featuresRegistered = new HashSet<String>();
+  private Set<String> featuresRegistered = new HashSet<>();
 
   public FeaturesDisplayed(FeaturesDisplayedI featuresDisplayed2)
   {
-    Iterator<String> fdisp = featuresDisplayed2.getVisibleFeatures();
-    String ftype;
-    while (fdisp.hasNext())
+    Set<String> fdisp = featuresDisplayed2.getVisibleFeatures();
+    for (String ftype : fdisp)
     {
-      ftype = fdisp.next();
       featuresDisplayed.add(ftype);
       featuresRegistered.add(ftype);
     }
@@ -46,13 +45,12 @@ public class FeaturesDisplayed implements FeaturesDisplayedI
 
   public FeaturesDisplayed()
   {
-    // TODO Auto-generated constructor stub
   }
 
   @Override
-  public Iterator<String> getVisibleFeatures()
+  public Set<String> getVisibleFeatures()
   {
-    return featuresDisplayed.iterator();
+    return Collections.unmodifiableSet(featuresDisplayed);
   }
 
   @Override
@@ -91,6 +89,13 @@ public class FeaturesDisplayed implements FeaturesDisplayedI
   public void setVisible(String featureType)
   {
     featuresDisplayed.add(featureType);
+    featuresRegistered.add(featureType);
+  }
+
+  @Override
+  public void setHidden(String featureType)
+  {
+    featuresDisplayed.remove(featureType);
     featuresRegistered.add(featureType);
   }
 

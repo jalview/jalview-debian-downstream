@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -43,9 +43,8 @@ public class DBRefUtils
   /*
    * lookup from lower-case form of a name to its canonical (standardised) form
    */
-  private static Map<String, String> canonicalSourceNameLookup = new HashMap<String, String>();
+  private static Map<String, String> canonicalSourceNameLookup = new HashMap<>();
 
-  private static Map<String, String> dasCoordinateSystemsLookup = new HashMap<String, String>();
 
   static
   {
@@ -73,10 +72,6 @@ public class DBRefUtils
               canonicalSourceNameLookup.get(k));
     }
 
-    dasCoordinateSystemsLookup.put("pdbresnum", DBRefSource.PDB);
-    dasCoordinateSystemsLookup.put("uniprot", DBRefSource.UNIPROT);
-    dasCoordinateSystemsLookup.put("embl", DBRefSource.EMBL);
-    // dasCoordinateSystemsLookup.put("embl", DBRefSource.EMBLCDS);
   }
 
   /**
@@ -97,13 +92,13 @@ public class DBRefUtils
     {
       return dbrefs;
     }
-    HashSet<String> srcs = new HashSet<String>();
+    HashSet<String> srcs = new HashSet<>();
     for (String src : sources)
     {
       srcs.add(src.toUpperCase());
     }
 
-    List<DBRefEntry> res = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> res = new ArrayList<>();
     for (DBRefEntry dbr : dbrefs)
     {
       String source = getCanonicalName(dbr.getSource());
@@ -119,29 +114,6 @@ public class DBRefUtils
       return res.toArray(reply);
     }
     return null;
-  }
-
-  /**
-   * isDasCoordinateSystem
-   * 
-   * @param string
-   *          String
-   * @param dBRefEntry
-   *          DBRefEntry
-   * @return boolean true if Source DBRefEntry is compatible with DAS
-   *         CoordinateSystem name
-   */
-
-  public static boolean isDasCoordinateSystem(String string,
-          DBRefEntry dBRefEntry)
-  {
-    if (string == null || dBRefEntry == null)
-    {
-      return false;
-    }
-    String coordsys = dasCoordinateSystemsLookup.get(string.toLowerCase());
-    return coordsys == null ? false : coordsys.equals(dBRefEntry
-            .getSource());
   }
 
   /**
@@ -218,7 +190,7 @@ public class DBRefUtils
   static List<DBRefEntry> searchRefs(DBRefEntry[] refs, DBRefEntry entry,
           DbRefComp comparator)
   {
-    List<DBRefEntry> rfs = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> rfs = new ArrayList<>();
     if (refs == null || entry == null)
     {
       return rfs;
@@ -257,9 +229,8 @@ public class DBRefUtils
           if (refa.getAccessionId() == null
                   || refb.getAccessionId().equals(refa.getAccessionId()))
           {
-            if (refa.getMap() == null
-                    || (refb.getMap() != null && refb.getMap().equals(
-                            refa.getMap())))
+            if (refa.getMap() == null || (refb.getMap() != null
+                    && refb.getMap().equals(refa.getMap())))
             {
               return true;
             }
@@ -301,19 +272,18 @@ public class DBRefUtils
     @Override
     public boolean matches(DBRefEntry refa, DBRefEntry refb)
     {
-      if (refa.getSource() != null
-              && refb.getSource() != null
+      if (refa.getSource() != null && refb.getSource() != null
               && DBRefUtils.getCanonicalName(refb.getSource()).equals(
                       DBRefUtils.getCanonicalName(refa.getSource())))
       {
         // We dont care about version
         if (refa.getAccessionId() != null && refb.getAccessionId() != null
-        // FIXME should be && not || here?
+                // FIXME should be && not || here?
                 || refb.getAccessionId().equals(refa.getAccessionId()))
         {
           if ((refa.getMap() == null || refb.getMap() == null)
-                  || (refa.getMap() != null && refb.getMap() != null && refb
-                          .getMap().equals(refa.getMap())))
+                  || (refa.getMap() != null && refb.getMap() != null
+                          && refb.getMap().equals(refa.getMap())))
           {
             return true;
           }
@@ -334,8 +304,7 @@ public class DBRefUtils
     @Override
     public boolean matches(DBRefEntry refa, DBRefEntry refb)
     {
-      if (refa.getSource() != null
-              && refb.getSource() != null
+      if (refa.getSource() != null && refb.getSource() != null
               && DBRefUtils.getCanonicalName(refb.getSource()).equals(
                       DBRefUtils.getCanonicalName(refa.getSource())))
       {
@@ -346,11 +315,12 @@ public class DBRefUtils
           if ((refa.getMap() == null && refb.getMap() == null)
                   || (refa.getMap() != null && refb.getMap() != null))
           {
-            if ((refb.getMap().getMap() == null && refa.getMap().getMap() == null)
+            if ((refb.getMap().getMap() == null
+                    && refa.getMap().getMap() == null)
                     || (refb.getMap().getMap() != null
-                            && refa.getMap().getMap() != null && refb
-                            .getMap().getMap().getInverse()
-                            .equals(refa.getMap().getMap())))
+                            && refa.getMap().getMap() != null
+                            && refb.getMap().getMap().getInverse()
+                                    .equals(refa.getMap().getMap())))
             {
               return true;
             }
@@ -372,8 +342,7 @@ public class DBRefUtils
     @Override
     public boolean matches(DBRefEntry refa, DBRefEntry refb)
     {
-      if (refa.getSource() != null
-              && refb.getSource() != null
+      if (refa.getSource() != null && refb.getSource() != null
               && DBRefUtils.getCanonicalName(refb.getSource()).equals(
                       DBRefUtils.getCanonicalName(refa.getSource())))
       {
@@ -388,12 +357,13 @@ public class DBRefUtils
           {
             return true;
           }
-          if (refa.getMap() != null
-                  && refb.getMap() != null
-                  && ((refb.getMap().getMap() == null && refa.getMap()
-                          .getMap() == null) || (refb.getMap().getMap() != null
-                          && refa.getMap().getMap() != null && refb
-                          .getMap().getMap().equals(refa.getMap().getMap()))))
+          if (refa.getMap() != null && refb.getMap() != null
+                  && ((refb.getMap().getMap() == null
+                          && refa.getMap().getMap() == null)
+                          || (refb.getMap().getMap() != null
+                                  && refa.getMap().getMap() != null
+                                  && refb.getMap().getMap()
+                                          .equals(refa.getMap().getMap()))))
           {
             return true;
           }
@@ -413,8 +383,7 @@ public class DBRefUtils
     @Override
     public boolean matches(DBRefEntry refa, DBRefEntry refb)
     {
-      if (refa.getSource() != null
-              && refb.getSource() != null
+      if (refa.getSource() != null && refb.getSource() != null
               && DBRefUtils.getCanonicalName(refb.getSource()).equals(
                       DBRefUtils.getCanonicalName(refa.getSource())))
       {
@@ -428,11 +397,12 @@ public class DBRefUtils
             return true;
           }
           if ((refa.getMap() != null && refb.getMap() != null)
-                  && (refb.getMap().getMap() == null && refa.getMap()
-                          .getMap() == null)
+                  && (refb.getMap().getMap() == null
+                          && refa.getMap().getMap() == null)
                   || (refb.getMap().getMap() != null
-                          && refa.getMap().getMap() != null && (refb
-                          .getMap().getMap().equals(refa.getMap().getMap()))))
+                          && refa.getMap().getMap() != null
+                          && (refb.getMap().getMap()
+                                  .equals(refa.getMap().getMap()))))
           {
             return true;
           }
@@ -518,7 +488,7 @@ public class DBRefUtils
       else
       {
         // default:
-        ref = new DBRefEntry(locsrc, version, acn);
+        ref = new DBRefEntry(locsrc, version, acn.trim());
       }
     }
     if (ref != null)
@@ -561,8 +531,8 @@ public class DBRefUtils
     {
       return true;
     }
-    return DBRefUtils.getCanonicalName(o1).equals(
-            DBRefUtils.getCanonicalName(o2));
+    return DBRefUtils.getCanonicalName(o1)
+            .equals(DBRefUtils.getCanonicalName(o2));
   }
 
   /**
@@ -578,8 +548,8 @@ public class DBRefUtils
   public static DBRefEntry[] selectDbRefs(boolean selectDna,
           DBRefEntry[] refs)
   {
-    return selectRefs(refs, selectDna ? DBRefSource.DNACODINGDBS
-            : DBRefSource.PROTEINDBS);
+    return selectRefs(refs,
+            selectDna ? DBRefSource.DNACODINGDBS : DBRefSource.PROTEINDBS);
     // could attempt to find other cross
     // refs here - ie PDB xrefs
     // (not dna, not protein seq)
@@ -596,7 +566,7 @@ public class DBRefUtils
   public static List<DBRefEntry> searchRefsForSource(DBRefEntry[] dbRefs,
           String source)
   {
-    List<DBRefEntry> matches = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> matches = new ArrayList<>();
     if (dbRefs != null && source != null)
     {
       for (DBRefEntry dbref : dbRefs)
@@ -646,7 +616,7 @@ public class DBRefUtils
       // nothing to do
       return;
     }
-    List<DBRefEntry> selfs = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> selfs = new ArrayList<>();
     {
       DBRefEntry[] selfArray = selectDbRefs(!sequence.isProtein(),
               sequence.getDBRefs());
@@ -666,11 +636,11 @@ public class DBRefUtils
         selfs.remove(p);
       }
     }
-    List<DBRefEntry> toPromote = new ArrayList<DBRefEntry>();
+    List<DBRefEntry> toPromote = new ArrayList<>();
 
     for (DBRefEntry p : pr)
     {
-      List<String> promType = new ArrayList<String>();
+      List<String> promType = new ArrayList<>();
       if (sequence.isProtein())
       {
         switch (getCanonicalName(p.getSource()))
@@ -693,8 +663,7 @@ public class DBRefUtils
       }
 
       // collate candidates and promote them
-      DBRefEntry[] candidates = selectRefs(
-              selfs.toArray(new DBRefEntry[0]),
+      DBRefEntry[] candidates = selectRefs(selfs.toArray(new DBRefEntry[0]),
               promType.toArray(new String[0]));
       if (candidates != null)
       {
@@ -724,9 +693,9 @@ public class DBRefUtils
           toPromote.add(cand);
           if (!cand.isPrimaryCandidate())
           {
-            System.out.println("Warning: Couldn't promote dbref "
-                    + cand.toString() + " for sequence "
-                    + sequence.toString());
+            System.out.println(
+                    "Warning: Couldn't promote dbref " + cand.toString()
+                            + " for sequence " + sequence.toString());
           }
         }
       }

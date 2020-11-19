@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -122,8 +122,8 @@ public class GCutAndPasteTransfer extends JInternalFrame
 
     selectAll.setText(MessageManager.getString("action.select_all"));
     selectAll.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_A, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_A,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false));
     selectAll.addActionListener(new ActionListener()
     {
       @Override
@@ -135,8 +135,8 @@ public class GCutAndPasteTransfer extends JInternalFrame
     jMenu1.setText(MessageManager.getString("action.file"));
     save.setText(MessageManager.getString("action.save"));
     save.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_S, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_S,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false));
     save.addActionListener(new ActionListener()
     {
       @Override
@@ -146,11 +146,11 @@ public class GCutAndPasteTransfer extends JInternalFrame
       }
     });
     copyItem.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_C, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_C,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false));
     pasteMenu.setAccelerator(javax.swing.KeyStroke.getKeyStroke(
-            java.awt.event.KeyEvent.VK_V, Toolkit.getDefaultToolkit()
-                    .getMenuShortcutKeyMask(), false));
+            java.awt.event.KeyEvent.VK_V,
+            jalview.util.ShortcutKeyMaskExWrapper.getMenuShortcutKeyMaskEx(), false));
     editMenubar.add(jMenu1);
     editMenubar.add(editMenu);
     textarea.setFont(new java.awt.Font("Monospaced", Font.PLAIN, 12));

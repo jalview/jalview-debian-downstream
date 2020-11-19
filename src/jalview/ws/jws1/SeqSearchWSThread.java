@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -95,9 +95,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       int nseqs = 0;
       if (minlen < 0)
       {
-        throw new Error(
-                MessageManager
-                        .getString("error.implementation_error_minlen_must_be_greater_zero"));
+        throw new Error(MessageManager.getString(
+                "error.implementation_error_minlen_must_be_greater_zero"));
       }
       for (int i = 0; i < seqs.length; i++)
       {
@@ -108,7 +107,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       }
       boolean valid = nseqs >= 1; // need at least one sequence for valid input
       // TODO: generalise
-      vamsas.objects.simple.Sequence[] seqarray = (valid) ? new vamsas.objects.simple.Sequence[nseqs]
+      vamsas.objects.simple.Sequence[] seqarray = (valid)
+              ? new vamsas.objects.simple.Sequence[nseqs]
               : null;
       boolean submitGaps = (nseqs == 1) ? false : true; // profile is submitted
       // with gaps
@@ -134,8 +134,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
           String empty = null;
           if (seqs[i].getEnd() >= seqs[i].getStart())
           {
-            empty = (submitGaps) ? seqs[i].getSequenceAsString() : AlignSeq
-                    .extractGaps(jalview.util.Comparison.GapChars,
+            empty = (submitGaps) ? seqs[i].getSequenceAsString()
+                    : AlignSeq.extractGaps(jalview.util.Comparison.GapChars,
                             seqs[i].getSequenceAsString());
           }
           emptySeqs.add(new String[] { newname, empty });
@@ -157,11 +157,10 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     @Override
     public boolean hasResults()
     {
-      if (subjobComplete
-              && result != null
-              && result.isFinished()
+      if (subjobComplete && result != null && result.isFinished()
               && ((SeqSearchResult) result).getAlignment() != null
-              && ((SeqSearchResult) result).getAlignment().getSeqs() != null)
+              && ((SeqSearchResult) result).getAlignment()
+                      .getSeqs() != null)
       {
         return true;
       }
@@ -184,8 +183,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
         // int alseq_l = 0;
         if (((SeqSearchResult) result).getAlignment() != null)
         {
-          alseqs = getVamsasAlignment(((SeqSearchResult) result)
-                  .getAlignment());
+          alseqs = getVamsasAlignment(
+                  ((SeqSearchResult) result).getAlignment());
           // alseq_gapchar = ( (SeqSearchResult)
           // result).getAlignment().getGapchar().charAt(0);
           // alseq_l = alseqs.length;
@@ -209,12 +208,12 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
           if (inFile != null && inFile.length() > 0)
           {
             new jalview.io.AnnotationFile().readAnnotationFile(al, inFile,
-                    jalview.io.AppletFormatAdapter.PASTE);
+                    jalview.io.DataSourceType.PASTE);
           }
         } catch (Exception e)
         {
-          System.err
-                  .println("Failed to parse the annotation file associated with the alignment.");
+          System.err.println(
+                  "Failed to parse the annotation file associated with the alignment.");
           System.err.println(">>>EOF" + inFile + "\n<<<EOF\n");
           e.printStackTrace(System.err);
         }
@@ -224,14 +223,14 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
           inFile = ((SeqSearchResult) result).getFeatures();
           if (inFile != null && inFile.length() > 0)
           {
-            jalview.io.FeaturesFile ff = new jalview.io.FeaturesFile(
-                    inFile, jalview.io.AppletFormatAdapter.PASTE);
+            jalview.io.FeaturesFile ff = new jalview.io.FeaturesFile(inFile,
+                    jalview.io.DataSourceType.PASTE);
             ff.parse(al, featureColours, false);
           }
         } catch (Exception e)
         {
-          System.err
-                  .println("Failed to parse the Features file associated with the alignment.");
+          System.err.println(
+                  "Failed to parse the Features file associated with the alignment.");
           System.err.println(">>>EOF" + inFile + "\n<<<EOF\n");
           e.printStackTrace(System.err);
         }
@@ -242,7 +241,7 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
           if (inFile != null && inFile.length() > 0)
           {
             nf = new jalview.io.NewickFile(inFile,
-                    jalview.io.AppletFormatAdapter.PASTE);
+                    jalview.io.DataSourceType.PASTE);
             if (!nf.isValid())
             {
               nf.close();
@@ -251,8 +250,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
           }
         } catch (Exception e)
         {
-          System.err
-                  .println("Failed to parse the treeFile associated with the alignment.");
+          System.err.println(
+                  "Failed to parse the treeFile associated with the alignment.");
           System.err.println(">>>EOF" + inFile + "\n<<<EOF\n");
           e.printStackTrace(System.err);
         }
@@ -430,8 +429,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
                     "Exception whilst cancelling " + jobs[job].getJobId(),
                     exc);
           }
-          wsInfo.setProgressText(jobs[job].getJobnum(), OutputHeader
-                  + cancelledMessage + "\n");
+          wsInfo.setProgressText(jobs[job].getJobnum(),
+                  OutputHeader + cancelledMessage + "\n");
         }
       }
       if (cancelled)
@@ -454,8 +453,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
   @Override
   public void pollJob(AWsJob job) throws Exception
   {
-    ((SeqSearchWSJob) job).result = server.getResult(((SeqSearchWSJob) job)
-            .getJobId());
+    ((SeqSearchWSJob) job).result = server
+            .getResult(((SeqSearchWSJob) job).getJobId());
   }
 
   @Override
@@ -464,16 +463,16 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     if (!(job instanceof SeqSearchWSJob))
     {
       throw new Error(MessageManager.formatMessage(
-              "error.implementation_error_msawbjob_called",
-              new String[] { job.getClass().toString() }));
+              "error.implementation_error_msawbjob_called", new String[]
+              { job.getClass().toString() }));
     }
     SeqSearchWSJob j = (SeqSearchWSJob) job;
     if (j.isSubmitted())
     {
       if (Cache.log.isDebugEnabled())
       {
-        Cache.log.debug("Tried to submit an already submitted job "
-                + j.getJobId());
+        Cache.log.debug(
+                "Tried to submit an already submitted job " + j.getJobId());
       }
       return;
     }
@@ -483,14 +482,14 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
       j.setSubmitted(true);
       j.result = new MsaResult();
       j.result.setFinished(true);
-      j.result.setStatus(MessageManager
-              .getString("label.empty_alignment_job"));
+      j.result.setStatus(
+              MessageManager.getString("label.empty_alignment_job"));
       ((MsaResult) j.result).setMsa(null);
     }
     try
     {
-      vamsas.objects.simple.WsJobId jobsubmit = server.search(
-              j.seqs.getSeqs()[0], dbArg);
+      vamsas.objects.simple.WsJobId jobsubmit = server
+              .search(j.seqs.getSeqs()[0], dbArg);
 
       if ((jobsubmit != null) && (jobsubmit.getStatus() == 1))
       {
@@ -505,7 +504,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
         {
           throw new Exception(MessageManager.formatMessage(
                   "exception.web_service_returned_null_try_later",
-                  new String[] { WsUrl }));
+                  new String[]
+                  { WsUrl }));
         }
 
         throw new Exception(jobsubmit.getJobId());
@@ -514,11 +514,10 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     {
       // TODO: JBPNote catch timeout or other fault types explicitly
       // For unexpected errors
-      System.err
-              .println(WebServiceName
-                      + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
-                      + "When contacting Server:" + WsUrl + "\n"
-                      + e.toString() + "\n");
+      System.err.println(WebServiceName
+              + "Client: Failed to submit the sequences for alignment (probably a server side problem)\n"
+              + "When contacting Server:" + WsUrl + "\n" + e.toString()
+              + "\n");
       j.setAllowedServerExceptions(0);
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_SERVERERROR);
       wsInfo.setStatus(j.getJobnum(),
@@ -568,8 +567,8 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
             String[] lines = valign.getMethod();
             for (int line = 0; line < lines.length; line++)
             {
-              wsInfo.appendProgressText(jobs[j].getJobnum(), lines[line]
-                      + "\n");
+              wsInfo.appendProgressText(jobs[j].getJobnum(),
+                      lines[line] + "\n");
             }
             // JBPNote The returned files from a webservice could be
             // hidden behind icons in the monitor window that,
@@ -580,8 +579,9 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
     } catch (Exception ex)
     {
 
-      Cache.log.error("Unexpected exception when processing results for "
-              + alTitle, ex);
+      Cache.log.error(
+              "Unexpected exception when processing results for " + alTitle,
+              ex);
       wsInfo.setStatus(WebserviceInfo.STATE_STOPPED_ERROR);
     }
     if (results > 0)
@@ -662,12 +662,13 @@ class SeqSearchWSThread extends JWS1Thread implements WSClientI
        * propagateDatasetMappings(al); }
        */
 
-      AlignFrame af = new AlignFrame(al,// columnselection,
+      AlignFrame af = new AlignFrame(al, // columnselection,
               AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
       if (nf != null)
       {
-        af.ShowNewickTree(nf, MessageManager.formatMessage(
-                "label.tree_from", new String[] { this.alTitle }));
+        af.showNewickTree(nf,
+                MessageManager.formatMessage("label.tree_from", new String[]
+                { this.alTitle }));
       }
       // initialise with same renderer settings as in parent alignframe.
       af.getFeatureRenderer().transferSettings(this.featureSettings);

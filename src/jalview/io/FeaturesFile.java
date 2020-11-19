@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,34 +20,42 @@
  */
 package jalview.io;
 
+import java.awt.Color;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
+
 import jalview.analysis.AlignmentUtils;
 import jalview.analysis.SequenceIdMatcher;
 import jalview.api.AlignViewportI;
 import jalview.api.FeatureColourI;
+import jalview.api.FeatureRenderer;
 import jalview.api.FeaturesSourceI;
 import jalview.datamodel.AlignedCodonFrame;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
+import jalview.datamodel.MappedFeatures;
 import jalview.datamodel.SequenceDummy;
 import jalview.datamodel.SequenceFeature;
 import jalview.datamodel.SequenceI;
-import jalview.io.gff.GffHelperBase;
+import jalview.datamodel.features.FeatureMatcherSet;
+import jalview.datamodel.features.FeatureMatcherSetI;
+import jalview.gui.Desktop;
 import jalview.io.gff.GffHelperFactory;
 import jalview.io.gff.GffHelperI;
 import jalview.schemes.FeatureColour;
-import jalview.schemes.UserColourScheme;
+import jalview.util.ColorUtils;
 import jalview.util.MapList;
 import jalview.util.ParseHtmlBodyAndLinks;
 import jalview.util.StringUtils;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Parses and writes features files, which may be in Jalview, GFF2 or GFF3
@@ -67,11 +75,19 @@ import java.util.Map.Entry;
  */
 public class FeaturesFile extends AlignFile implements FeaturesSourceI
 {
+  private static final String EQUALS = "=";
+
+  private static final String TAB_REGEX = "\\t";
+
+  private static final String STARTGROUP = "STARTGROUP";
+
+  private static final String ENDGROUP = "ENDGROUP";
+
+  private static final String STARTFILTERS = "STARTFILTERS";
+
+  private static final String ENDFILTERS = "ENDFILTERS";
+
   private static final String ID_NOT_SPECIFIED = "ID_NOT_SPECIFIED";
-
-  private static final String NOTE = "Note";
-
-  protected static final String TAB = "\t";
 
   protected static final String GFF_VERSION = "##gff-version";
 
@@ -93,13 +109,14 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
   /**
    * Constructor which does not parse the file immediately
    * 
-   * @param inFile
-   * @param type
+   * @param file
+   * @param paste
    * @throws IOException
    */
-  public FeaturesFile(String inFile, String type) throws IOException
+  public FeaturesFile(String file, DataSourceType paste)
+          throws IOException
   {
-    super(false, inFile, type);
+    super(false, file, paste);
   }
 
   /**
@@ -115,14 +132,14 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
    * Constructor that optionally parses the file immediately
    * 
    * @param parseImmediately
-   * @param inFile
+   * @param file
    * @param type
    * @throws IOException
    */
-  public FeaturesFile(boolean parseImmediately, String inFile, String type)
-          throws IOException
+  public FeaturesFile(boolean parseImmediately, String file,
+          DataSourceType type) throws IOException
   {
-    super(parseImmediately, inFile, type);
+    super(parseImmediately, file, type);
   }
 
   /**
@@ -167,7 +184,7 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
    * @param align
    *          - alignment/dataset containing sequences that are to be annotated
    * @param colours
-   *          - hashtable to store feature colour definitions
+   *          - map to store feature colour definitions
    * @param removeHTML
    *          - process html strings into plain text
    * @param relaxedIdmatching
@@ -178,11 +195,34 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
           Map<String, FeatureColourI> colours, boolean removeHTML,
           boolean relaxedIdmatching)
   {
-    Map<String, String> gffProps = new HashMap<String, String>();
+    return parse(align, colours, null, removeHTML, relaxedIdmatching);
+  }
+
+  /**
+   * Parse GFF or Jalview format sequence features file
+   * 
+   * @param align
+   *          - alignment/dataset containing sequences that are to be annotated
+   * @param colours
+   *          - map to store feature colour definitions
+   * @param filters
+   *          - map to store feature filter definitions
+   * @param removeHTML
+   *          - process html strings into plain text
+   * @param relaxedIdmatching
+   *          - when true, ID matches to compound sequence IDs are allowed
+   * @return true if features were added
+   */
+  public boolean parse(AlignmentI align,
+          Map<String, FeatureColourI> colours,
+          Map<String, FeatureMatcherSetI> filters, boolean removeHTML,
+          boolean relaxedIdmatching)
+  {
+    Map<String, String> gffProps = new HashMap<>();
     /*
      * keep track of any sequences we try to create from the data
      */
-    List<SequenceI> newseqs = new ArrayList<SequenceI>();
+    List<SequenceI> newseqs = new ArrayList<>();
 
     String line = null;
     try
@@ -202,7 +242,7 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
           continue;
         }
 
-        gffColumns = line.split("\\t"); // tab as regex
+        gffColumns = line.split(TAB_REGEX);
         if (gffColumns.length == 1)
         {
           if (line.trim().equalsIgnoreCase("GFF"))
@@ -216,18 +256,23 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
           }
         }
 
-        if (gffColumns.length > 1 && gffColumns.length < 4)
+        if (gffColumns.length > 0 && gffColumns.length < 4)
         {
           /*
            * if 2 or 3 tokens, we anticipate either 'startgroup', 'endgroup' or
            * a feature type colour specification
            */
           String ft = gffColumns[0];
-          if (ft.equalsIgnoreCase("startgroup"))
+          if (ft.equalsIgnoreCase(STARTFILTERS))
+          {
+            parseFilters(filters);
+            continue;
+          }
+          if (ft.equalsIgnoreCase(STARTGROUP))
           {
             featureGroup = gffColumns[1];
           }
-          else if (ft.equalsIgnoreCase("endgroup"))
+          else if (ft.equalsIgnoreCase(ENDGROUP))
           {
             // We should check whether this is the current group,
             // but at present there's no way of showing more than 1 group
@@ -279,12 +324,50 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
      */
     for (SequenceI newseq : newseqs)
     {
-      if (newseq.getSequenceFeatures() != null)
+      if (newseq.getFeatures().hasFeatures())
       {
         align.addSequence(newseq);
       }
     }
     return true;
+  }
+
+  /**
+   * Reads input lines from STARTFILTERS to ENDFILTERS and adds a feature type
+   * filter to the map for each line parsed. After exit from this method,
+   * nextLine() should return the line after ENDFILTERS (or we are already at
+   * end of file if ENDFILTERS was missing).
+   * 
+   * @param filters
+   * @throws IOException
+   */
+  protected void parseFilters(Map<String, FeatureMatcherSetI> filters)
+          throws IOException
+  {
+    String line;
+    while ((line = nextLine()) != null)
+    {
+      // TODO: use .trim().equalsIgnoreCase here instead ? 
+      if (line.toUpperCase(Locale.ROOT).startsWith(ENDFILTERS))
+      {
+        return;
+      }
+      String[] tokens = line.split(TAB_REGEX);
+      if (tokens.length != 2)
+      {
+        System.err.println(String.format("Invalid token count %d for %d",
+                tokens.length, line));
+      }
+      else
+      {
+        String featureType = tokens[0];
+        FeatureMatcherSetI fm = FeatureMatcherSet.fromString(tokens[1]);
+        if (fm != null && filters != null)
+        {
+          filters.put(featureType, fm);
+        }
+      }
+    }
   }
 
   /**
@@ -302,7 +385,8 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
    */
   protected boolean parseJalviewFeature(String line, String[] gffColumns,
           AlignmentI alignment, Map<String, FeatureColourI> featureColours,
-          boolean removeHTML, boolean relaxedIdMatching, String featureGroup)
+          boolean removeHTML, boolean relaxedIdMatching,
+          String featureGroup)
   {
     /*
      * tokens: description seqid seqIndex start end type [score]
@@ -353,23 +437,26 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
        * Perhaps an old style groups file with no colours -
        * synthesize a colour from the feature type
        */
-      UserColourScheme ucs = new UserColourScheme(ft);
-      featureColours.put(ft, new FeatureColour(ucs.findColour('A')));
+      Color colour = ColorUtils.createColourFromName(ft);
+      featureColours.put(ft, new FeatureColour(colour));
     }
-    SequenceFeature sf = new SequenceFeature(ft, desc, "", startPos,
-            endPos, featureGroup);
+    SequenceFeature sf = null;
     if (gffColumns.length > 6)
     {
       float score = Float.NaN;
       try
       {
-        score = new Float(gffColumns[6]).floatValue();
-        // update colourgradient bounds if allowed to
+        score = Float.valueOf(gffColumns[6]).floatValue();
       } catch (NumberFormatException ex)
       {
-        // leave as NaN
+        sf = new SequenceFeature(ft, desc, startPos, endPos, featureGroup);
       }
-      sf.setScore(score);
+      sf = new SequenceFeature(ft, desc, startPos, endPos, score,
+              featureGroup);
+    }
+    else
+    {
+      sf = new SequenceFeature(ft, desc, startPos, endPos, featureGroup);
     }
 
     parseDescriptionHTML(sf, removeHTML);
@@ -469,221 +556,411 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
     ParseHtmlBodyAndLinks parsed = new ParseHtmlBodyAndLinks(
             sf.getDescription(), removeHTML, newline);
 
-    sf.description = (removeHTML) ? parsed.getNonHtmlContent()
-            : sf.description;
+    if (removeHTML)
+    {
+      sf.setDescription(parsed.getNonHtmlContent());
+    }
+
     for (String link : parsed.getLinks())
     {
       sf.addLink(link);
     }
-
   }
 
   /**
-   * generate a features file for seqs includes non-pos features by default.
+   * Returns contents of a Jalview format features file, for visible features, as
+   * filtered by type and group. Features with a null group are displayed if their
+   * feature type is visible. Non-positional features may optionally be included
+   * (with no check on type or group).
    * 
    * @param sequences
-   *          source of sequence features
-   * @param visible
-   *          hash of feature types and colours
-   * @return features file contents
+   * @param fr
+   * @param includeNonPositional
+   *                               if true, include non-positional features
+   *                               (regardless of group or type)
+   * @param includeComplement
+   *                               if true, include visible complementary
+   *                               (CDS/protein) positional features, with
+   *                               locations converted to local sequence
+   *                               coordinates
+   * @return
    */
   public String printJalviewFormat(SequenceI[] sequences,
-          Map<String, FeatureColourI> visible)
+          FeatureRenderer fr, boolean includeNonPositional,
+          boolean includeComplement)
   {
-    return printJalviewFormat(sequences, visible, true, true);
-  }
+    Map<String, FeatureColourI> visibleColours = fr
+            .getDisplayedFeatureCols();
+    Map<String, FeatureMatcherSetI> featureFilters = fr.getFeatureFilters();
 
-  /**
-   * generate a features file for seqs with colours from visible (if any)
-   * 
-   * @param sequences
-   *          source of features
-   * @param visible
-   *          hash of Colours for each feature type
-   * @param visOnly
-   *          when true only feature types in 'visible' will be output
-   * @param nonpos
-   *          indicates if non-positional features should be output (regardless
-   *          of group or type)
-   * @return features file contents
-   */
-  public String printJalviewFormat(SequenceI[] sequences,
-          Map<String, FeatureColourI> visible, boolean visOnly,
-          boolean nonpos)
-  {
+    /*
+     * write out feature colours (if we know them)
+     */
+    // TODO: decide if feature links should also be written here ?
     StringBuilder out = new StringBuilder(256);
-    boolean featuresGen = false;
-    if (visOnly && !nonpos && (visible == null || visible.size() < 1))
+    if (visibleColours != null)
     {
-      // no point continuing.
-      return "No Features Visible";
-    }
-
-    if (visible != null && visOnly)
-    {
-      // write feature colours only if we're given them and we are generating
-      // viewed features
-      // TODO: decide if feature links should also be written here ?
-      Iterator<String> en = visible.keySet().iterator();
-      while (en.hasNext())
+      for (Entry<String, FeatureColourI> featureColour : visibleColours
+              .entrySet())
       {
-        String featureType = en.next().toString();
-        FeatureColourI colour = visible.get(featureType);
-        out.append(colour.toJalviewFormat(featureType)).append(newline);
+        FeatureColourI colour = featureColour.getValue();
+        out.append(colour.toJalviewFormat(featureColour.getKey())).append(
+                newline);
       }
     }
 
-    // Work out which groups are both present and visible
-    List<String> groups = new ArrayList<String>();
-    int groupIndex = 0;
-    boolean isnonpos = false;
+    String[] types = visibleColours == null ? new String[0]
+            : visibleColours.keySet()
+                    .toArray(new String[visibleColours.keySet().size()]);
 
-    SequenceFeature[] features;
-    for (int i = 0; i < sequences.length; i++)
+    /*
+     * feature filters if any
+     */
+    outputFeatureFilters(out, visibleColours, featureFilters);
+
+    /*
+     * output features within groups
+     */
+    int count = outputFeaturesByGroup(out, fr, types, sequences,
+            includeNonPositional);
+
+    if (includeComplement)
     {
-      features = sequences[i].getSequenceFeatures();
-      if (features != null)
-      {
-        for (int j = 0; j < features.length; j++)
-        {
-          isnonpos = features[j].begin == 0 && features[j].end == 0;
-          if ((!nonpos && isnonpos)
-                  || (!isnonpos && visOnly && !visible
-                          .containsKey(features[j].type)))
-          {
-            continue;
-          }
+      count += outputComplementFeatures(out, fr, sequences);
+    }
 
-          if (features[j].featureGroup != null
-                  && !groups.contains(features[j].featureGroup))
+    return count > 0 ? out.toString() : "No Features Visible";
+  }
+
+  /**
+   * Outputs any visible complementary (CDS/peptide) positional features as
+   * Jalview format, within feature group. The coordinates of the linked features
+   * are converted to the corresponding positions of the local sequences.
+   * 
+   * @param out
+   * @param fr
+   * @param sequences
+   * @return
+   */
+  private int outputComplementFeatures(StringBuilder out,
+          FeatureRenderer fr, SequenceI[] sequences)
+  {
+    AlignViewportI comp = fr.getViewport().getCodingComplement();
+    FeatureRenderer fr2 = Desktop.getAlignFrameFor(comp)
+            .getFeatureRenderer();
+
+    /*
+     * bin features by feature group and sequence
+     */
+    Map<String, Map<String, List<SequenceFeature>>> map = new TreeMap<>(
+            String.CASE_INSENSITIVE_ORDER);
+    int count = 0;
+
+    for (SequenceI seq : sequences)
+    {
+      /*
+       * find complementary features
+       */
+      List<SequenceFeature> complementary = findComplementaryFeatures(seq,
+              fr2);
+      String seqName = seq.getName();
+
+      for (SequenceFeature sf : complementary)
+      {
+        String group = sf.getFeatureGroup();
+        if (!map.containsKey(group))
+        {
+          map.put(group, new LinkedHashMap<>()); // preserves sequence order
+        }
+        Map<String, List<SequenceFeature>> groupFeatures = map.get(group);
+        if (!groupFeatures.containsKey(seqName))
+        {
+          groupFeatures.put(seqName, new ArrayList<>());
+        }
+        List<SequenceFeature> foundFeatures = groupFeatures.get(seqName);
+        foundFeatures.add(sf);
+        count++;
+      }
+    }
+
+    /*
+     * output features by group
+     */
+    for (Entry<String, Map<String, List<SequenceFeature>>> groupFeatures : map.entrySet())
+    {
+      out.append(newline);
+      String group = groupFeatures.getKey();
+      if (!"".equals(group))
+      {
+        out.append(STARTGROUP).append(TAB).append(group).append(newline);
+      }
+      Map<String, List<SequenceFeature>> seqFeaturesMap = groupFeatures
+              .getValue();
+      for (Entry<String, List<SequenceFeature>> seqFeatures : seqFeaturesMap
+              .entrySet())
+      {
+        String sequenceName = seqFeatures.getKey();
+        for (SequenceFeature sf : seqFeatures.getValue())
+        {
+          formatJalviewFeature(out, sequenceName, sf);
+        }
+      }
+      if (!"".equals(group))
+      {
+        out.append(ENDGROUP).append(TAB).append(group).append(newline);
+      }
+    }
+
+    return count;
+  }
+
+  /**
+   * Answers a list of mapped features visible in the (CDS/protein) complement,
+   * with feature positions translated to local sequence coordinates
+   * 
+   * @param seq
+   * @param fr2
+   * @return
+   */
+  protected List<SequenceFeature> findComplementaryFeatures(SequenceI seq,
+          FeatureRenderer fr2)
+  {
+    /*
+     * avoid duplication of features (e.g. peptide feature 
+     * at all 3 mapped codon positions)
+     */
+    List<SequenceFeature> found = new ArrayList<>();
+    List<SequenceFeature> complementary = new ArrayList<>();
+
+    for (int pos = seq.getStart(); pos <= seq.getEnd(); pos++)
+    {
+      MappedFeatures mf = fr2.findComplementFeaturesAtResidue(seq, pos);
+
+      if (mf != null)
+      {
+        for (SequenceFeature sf : mf.features)
+        {
+          /*
+           * make a virtual feature with local coordinates
+           */
+          if (!found.contains(sf))
           {
-            groups.add(features[j].featureGroup);
+            String group = sf.getFeatureGroup();
+            if (group == null)
+            {
+              group = "";
+            }
+            found.add(sf);
+            int begin = sf.getBegin();
+            int end = sf.getEnd();
+            int[] range = mf.getMappedPositions(begin, end);
+            SequenceFeature sf2 = new SequenceFeature(sf, range[0],
+                    range[1], group, sf.getScore());
+            complementary.add(sf2);
           }
         }
       }
     }
 
-    String group = null;
-    do
+    return complementary;
+  }
+
+  /**
+   * Outputs any feature filters defined for visible feature types, sandwiched by
+   * STARTFILTERS and ENDFILTERS lines
+   * 
+   * @param out
+   * @param visible
+   * @param featureFilters
+   */
+  void outputFeatureFilters(StringBuilder out,
+          Map<String, FeatureColourI> visible,
+          Map<String, FeatureMatcherSetI> featureFilters)
+  {
+    if (visible == null || featureFilters == null
+            || featureFilters.isEmpty())
     {
-      if (groups.size() > 0 && groupIndex < groups.size())
+      return;
+    }
+
+    boolean first = true;
+    for (String featureType : visible.keySet())
+    {
+      FeatureMatcherSetI filter = featureFilters.get(featureType);
+      if (filter != null)
       {
-        group = groups.get(groupIndex);
-        out.append(newline);
-        out.append("STARTGROUP").append(TAB);
-        out.append(group);
-        out.append(newline);
+        if (first)
+        {
+          first = false;
+          out.append(newline).append(STARTFILTERS).append(newline);
+        }
+        out.append(featureType).append(TAB).append(filter.toStableString())
+                .append(newline);
       }
-      else
-      {
-        group = null;
-      }
+    }
+    if (!first)
+    {
+      out.append(ENDFILTERS).append(newline);
+    }
+
+  }
+
+  /**
+   * Appends output of visible sequence features within feature groups to the
+   * output buffer. Groups other than the null or empty group are sandwiched by
+   * STARTGROUP and ENDGROUP lines. Answers the number of features written.
+   * 
+   * @param out
+   * @param fr
+   * @param featureTypes
+   * @param sequences
+   * @param includeNonPositional
+   * @return
+   */
+  private int outputFeaturesByGroup(StringBuilder out,
+          FeatureRenderer fr, String[] featureTypes,
+          SequenceI[] sequences, boolean includeNonPositional)
+  {
+    List<String> featureGroups = fr.getFeatureGroups();
+
+    /*
+     * sort groups alphabetically, and ensure that features with a
+     * null or empty group are output after those in named groups
+     */
+    List<String> sortedGroups = new ArrayList<>(featureGroups);
+    sortedGroups.remove(null);
+    sortedGroups.remove("");
+    Collections.sort(sortedGroups);
+    sortedGroups.add(null);
+    sortedGroups.add("");
+
+    int count = 0;
+    List<String> visibleGroups = fr.getDisplayedFeatureGroups();
+
+    /*
+     * loop over all groups (may be visible or not);
+     * non-positional features are output even if group is not visible
+     */
+    for (String group : sortedGroups)
+    {
+      boolean firstInGroup = true;
+      boolean isNullGroup = group == null || "".equals(group);
 
       for (int i = 0; i < sequences.length; i++)
       {
-        features = sequences[i].getSequenceFeatures();
-        if (features != null)
+        String sequenceName = sequences[i].getName();
+        List<SequenceFeature> features = new ArrayList<>();
+
+        /*
+         * get any non-positional features in this group, if wanted
+         * (for any feature type, whether visible or not)
+         */
+        if (includeNonPositional)
         {
-          for (SequenceFeature sequenceFeature : features)
+          features.addAll(sequences[i].getFeatures()
+                  .getFeaturesForGroup(false, group));
+        }
+
+        /*
+         * add positional features for visible feature types, but
+         * (for named groups) only if feature group is visible
+         */
+        if (featureTypes.length > 0
+                && (isNullGroup || visibleGroups.contains(group)))
+        {
+          features.addAll(sequences[i].getFeatures().getFeaturesForGroup(
+                  true, group, featureTypes));
+        }
+
+        for (SequenceFeature sf : features)
+        {
+          if (sf.isNonPositional() || fr.isVisible(sf))
           {
-            isnonpos = sequenceFeature.begin == 0
-                    && sequenceFeature.end == 0;
-            if ((!nonpos && isnonpos)
-                    || (!isnonpos && visOnly && !visible
-                            .containsKey(sequenceFeature.type)))
+            count++;
+            if (firstInGroup)
             {
-              // skip if feature is nonpos and we ignore them or if we only
-              // output visible and it isn't non-pos and it's not visible
-              continue;
-            }
-
-            if (group != null
-                    && (sequenceFeature.featureGroup == null || !sequenceFeature.featureGroup
-                            .equals(group)))
-            {
-              continue;
-            }
-
-            if (group == null && sequenceFeature.featureGroup != null)
-            {
-              continue;
-            }
-            // we have features to output
-            featuresGen = true;
-            if (sequenceFeature.description == null
-                    || sequenceFeature.description.equals(""))
-            {
-              out.append(sequenceFeature.type).append(TAB);
-            }
-            else
-            {
-              if (sequenceFeature.links != null
-                      && sequenceFeature.getDescription().indexOf("<html>") == -1)
+              out.append(newline);
+              if (!isNullGroup)
               {
-                out.append("<html>");
+                out.append(STARTGROUP).append(TAB).append(group)
+                        .append(newline);
               }
-
-              out.append(sequenceFeature.description);
-              if (sequenceFeature.links != null)
-              {
-                for (int l = 0; l < sequenceFeature.links.size(); l++)
-                {
-                  String label = sequenceFeature.links.elementAt(l);
-                  String href = label.substring(label.indexOf("|") + 1);
-                  label = label.substring(0, label.indexOf("|"));
-
-                  if (sequenceFeature.description.indexOf(href) == -1)
-                  {
-                    out.append(" <a href=\"" + href + "\">" + label
-                            + "</a>");
-                  }
-                }
-
-                if (sequenceFeature.getDescription().indexOf("</html>") == -1)
-                {
-                  out.append("</html>");
-                }
-              }
-
-              out.append(TAB);
             }
-            out.append(sequences[i].getName());
-            out.append("\t-1\t");
-            out.append(sequenceFeature.begin);
-            out.append(TAB);
-            out.append(sequenceFeature.end);
-            out.append(TAB);
-            out.append(sequenceFeature.type);
-            if (!Float.isNaN(sequenceFeature.score))
-            {
-              out.append(TAB);
-              out.append(sequenceFeature.score);
-            }
-            out.append(newline);
+            firstInGroup = false;
+            formatJalviewFeature(out, sequenceName, sf);
           }
         }
       }
 
-      if (group != null)
+      if (!isNullGroup && !firstInGroup)
       {
-        out.append("ENDGROUP").append(TAB);
-        out.append(group);
-        out.append(newline);
-        groupIndex++;
+        out.append(ENDGROUP).append(TAB).append(group).append(newline);
       }
-      else
-      {
-        break;
-      }
-
-    } while (groupIndex < groups.size() + 1);
-
-    if (!featuresGen)
-    {
-      return "No Features Visible";
     }
+    return count;
+  }
 
-    return out.toString();
+  /**
+   * Formats one feature in Jalview format and appends to the string buffer
+   * 
+   * @param out
+   * @param sequenceName
+   * @param sequenceFeature
+   */
+  protected void formatJalviewFeature(
+          StringBuilder out, String sequenceName,
+          SequenceFeature sequenceFeature)
+  {
+    if (sequenceFeature.description == null
+            || sequenceFeature.description.equals(""))
+    {
+      out.append(sequenceFeature.type).append(TAB);
+    }
+    else
+    {
+      if (sequenceFeature.links != null
+              && sequenceFeature.getDescription().indexOf("<html>") == -1)
+      {
+        out.append("<html>");
+      }
+
+      out.append(sequenceFeature.description);
+      if (sequenceFeature.links != null)
+      {
+        for (int l = 0; l < sequenceFeature.links.size(); l++)
+        {
+          String label = sequenceFeature.links.elementAt(l);
+          String href = label.substring(label.indexOf("|") + 1);
+          label = label.substring(0, label.indexOf("|"));
+
+          if (sequenceFeature.description.indexOf(href) == -1)
+          {
+            out.append(" <a href=\"").append(href).append("\">")
+                    .append(label).append("</a>");
+          }
+        }
+
+        if (sequenceFeature.getDescription().indexOf("</html>") == -1)
+        {
+          out.append("</html>");
+        }
+      }
+
+      out.append(TAB);
+    }
+    out.append(sequenceName);
+    out.append("\t-1\t");
+    out.append(sequenceFeature.begin);
+    out.append(TAB);
+    out.append(sequenceFeature.end);
+    out.append(TAB);
+    out.append(sequenceFeature.type);
+    if (!Float.isNaN(sequenceFeature.score))
+    {
+      out.append(TAB);
+      out.append(sequenceFeature.score);
+    }
+    out.append(newline);
   }
 
   /**
@@ -710,7 +987,8 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
       dataset = new Alignment(new SequenceI[] {});
     }
 
-    boolean parseResult = parse(dataset, null, false, true);
+    Map<String, FeatureColourI> featureColours = new HashMap<>();
+    boolean parseResult = parse(dataset, featureColours, false, true);
     if (!parseResult)
     {
       // pass error up somehow
@@ -731,108 +1009,83 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
    * @return error message
    */
   @Override
-  public String print()
+  public String print(SequenceI[] sqs, boolean jvsuffix)
   {
-    return "Use printGffFormat() or printJalviewFormat()";
-  }
-
-  /**
-   * Returns features output in GFF2 format, including hidden and non-positional
-   * features
-   * 
-   * @param sequences
-   *          the sequences whose features are to be output
-   * @param visible
-   *          a map whose keys are the type names of visible features
-   * @return
-   */
-  public String printGffFormat(SequenceI[] sequences,
-          Map<String, FeatureColourI> visible)
-  {
-    return printGffFormat(sequences, visible, true, true);
+    System.out.println("Use printGffFormat() or printJalviewFormat()");
+    return null;
   }
 
   /**
    * Returns features output in GFF2 format
    * 
    * @param sequences
-   *          the sequences whose features are to be output
+   *                                       the sequences whose features are to be
+   *                                       output
    * @param visible
-   *          a map whose keys are the type names of visible features
-   * @param outputVisibleOnly
+   *                                       a map whose keys are the type names of
+   *                                       visible features
+   * @param visibleFeatureGroups
    * @param includeNonPositionalFeatures
+   * @param includeComplement
    * @return
    */
   public String printGffFormat(SequenceI[] sequences,
-          Map<String, FeatureColourI> visible, boolean outputVisibleOnly,
-          boolean includeNonPositionalFeatures)
+          FeatureRenderer fr, boolean includeNonPositionalFeatures,
+          boolean includeComplement)
   {
+    FeatureRenderer fr2 = null;
+    if (includeComplement)
+    {
+      AlignViewportI comp = fr.getViewport().getCodingComplement();
+      fr2 = Desktop.getAlignFrameFor(comp).getFeatureRenderer();
+    }
+
+    Map<String, FeatureColourI> visibleColours = fr.getDisplayedFeatureCols();
+
     StringBuilder out = new StringBuilder(256);
-    int version = gffVersion == 0 ? 2 : gffVersion;
-    out.append(String.format("%s %d\n", GFF_VERSION, version));
-    String source;
-    boolean isnonpos;
+
+    out.append(String.format("%s %d\n", GFF_VERSION, gffVersion == 0 ? 2 : gffVersion));
+
+    String[] types = visibleColours == null ? new String[0]
+            : visibleColours.keySet()
+                    .toArray(new String[visibleColours.keySet().size()]);
+
     for (SequenceI seq : sequences)
     {
-      SequenceFeature[] features = seq.getSequenceFeatures();
-      if (features != null)
+      List<SequenceFeature> seqFeatures = new ArrayList<>();
+      List<SequenceFeature> features = new ArrayList<>();
+      if (includeNonPositionalFeatures)
       {
-        for (SequenceFeature sf : features)
+        features.addAll(seq.getFeatures().getNonPositionalFeatures());
+      }
+      if (visibleColours != null && !visibleColours.isEmpty())
+      {
+        features.addAll(seq.getFeatures().getPositionalFeatures(types));
+      }
+      for (SequenceFeature sf : features)
+      {
+        if (sf.isNonPositional() || fr.isVisible(sf))
         {
-          isnonpos = sf.begin == 0 && sf.end == 0;
-          if (!includeNonPositionalFeatures && isnonpos)
-          {
-            /*
-             * ignore non-positional features if not wanted
-             */
-            continue;
-          }
-          // TODO why the test !isnonpos here?
-          // what about not visible non-positional features?
-          if (!isnonpos && outputVisibleOnly
-                  && !visible.containsKey(sf.type))
-          {
-            /*
-             * ignore not visible features if not wanted
-             */
-            continue;
-          }
-
-          source = sf.featureGroup;
-          if (source == null)
-          {
-            source = sf.getDescription();
-          }
-
-          out.append(seq.getName());
-          out.append(TAB);
-          out.append(source);
-          out.append(TAB);
-          out.append(sf.type);
-          out.append(TAB);
-          out.append(sf.begin);
-          out.append(TAB);
-          out.append(sf.end);
-          out.append(TAB);
-          out.append(sf.score);
-          out.append(TAB);
-
-          int strand = sf.getStrand();
-          out.append(strand == 1 ? "+" : (strand == -1 ? "-" : "."));
-          out.append(TAB);
-
-          String phase = sf.getPhase();
-          out.append(phase == null ? "." : phase);
-
-          // miscellaneous key-values (GFF column 9)
-          String attributes = sf.getAttributes();
-          if (attributes != null)
-          {
-            out.append(TAB).append(attributes);
-          }
-
-          out.append(newline);
+          /*
+           * drop features hidden by group visibility, colour threshold,
+           * or feature filter condition
+           */
+          seqFeatures.add(sf);
         }
+      }
+
+      if (includeComplement)
+      {
+        seqFeatures.addAll(findComplementaryFeatures(seq, fr2));
+      }
+
+      /*
+       * sort features here if wanted
+       */
+      for (SequenceFeature sf : seqFeatures)
+      {
+        formatGffFeature(out, seq, sf);
+        out.append(newline);
       }
     }
 
@@ -840,15 +1093,154 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
   }
 
   /**
+   * Formats one feature as GFF and appends to the string buffer
+   */
+  private void formatGffFeature(StringBuilder out, SequenceI seq,
+          SequenceFeature sf)
+  {
+    String source = sf.featureGroup;
+    if (source == null)
+    {
+      source = sf.getDescription();
+    }
+
+    out.append(seq.getName());
+    out.append(TAB);
+    out.append(source);
+    out.append(TAB);
+    out.append(sf.type);
+    out.append(TAB);
+    out.append(sf.begin);
+    out.append(TAB);
+    out.append(sf.end);
+    out.append(TAB);
+    out.append(sf.score);
+    out.append(TAB);
+
+    int strand = sf.getStrand();
+    out.append(strand == 1 ? "+" : (strand == -1 ? "-" : "."));
+    out.append(TAB);
+
+    String phase = sf.getPhase();
+    out.append(phase == null ? "." : phase);
+
+    if (sf.otherDetails != null && !sf.otherDetails.isEmpty())
+    {
+      Map<String, Object> map = sf.otherDetails;
+      formatAttributes(out, map);
+    }
+  }
+
+  /**
+   * A helper method that outputs attributes stored in the map as
+   * semicolon-delimited values e.g.
+   * 
+   * <pre>
+   * AC_Male=0;AF_NFE=0.00000e 00;Hom_FIN=0;GQ_MEDIAN=9
+   * </pre>
+   * 
+   * A map-valued attribute is formatted as a comma-delimited list within braces,
+   * for example
+   * 
+   * <pre>
+   * jvmap_CSQ={ALLELE_NUM=1,UNIPARC=UPI0002841053,Feature=ENST00000585561}
+   * </pre>
+   * 
+   * The {@code jvmap_} prefix designates a values map and is removed if the value
+   * is parsed when read in. (The GFF3 specification allows 'semi-structured data'
+   * to be represented provided the attribute name begins with a lower case
+   * letter.)
+   * 
+   * @param sb
+   * @param map
+   * @see http://gmod.org/wiki/GFF3#GFF3_Format
+   */
+  void formatAttributes(StringBuilder sb, Map<String, Object> map)
+  {
+    sb.append(TAB);
+    boolean first = true;
+    for (String key : map.keySet())
+    {
+      if (SequenceFeature.STRAND.equals(key)
+              || SequenceFeature.PHASE.equals(key))
+      {
+        /*
+         * values stashed in map but output to their own columns
+         */
+        continue;
+      }
+      {
+        if (!first)
+        {
+          sb.append(";");
+        }
+      }
+      first = false;
+      Object value = map.get(key);
+      if (value instanceof Map<?, ?>)
+      {
+        formatMapAttribute(sb, key, (Map<?, ?>) value);
+      }
+      else
+      {
+        String formatted = StringUtils.urlEncode(value.toString(),
+                GffHelperI.GFF_ENCODABLE);
+        sb.append(key).append(EQUALS).append(formatted);
+      }
+    }
+  }
+
+  /**
+   * Formats the map entries as
+   * 
+   * <pre>
+   * key=key1=value1,key2=value2,...
+   * </pre>
+   * 
+   * and appends this to the string buffer
+   * 
+   * @param sb
+   * @param key
+   * @param map
+   */
+  private void formatMapAttribute(StringBuilder sb, String key,
+          Map<?, ?> map)
+  {
+    if (map == null || map.isEmpty())
+    {
+      return;
+    }
+
+    /*
+     * AbstractMap.toString would be a shortcut here, but more reliable
+     * to code the required format in case toString changes in future
+     */
+    sb.append(key).append(EQUALS);
+    boolean first = true;
+    for (Entry<?, ?> entry : map.entrySet())
+    {
+      if (!first)
+      {
+        sb.append(",");
+      }
+      first = false;
+      sb.append(entry.getKey().toString()).append(EQUALS);
+      String formatted = StringUtils.urlEncode(entry.getValue().toString(),
+              GffHelperI.GFF_ENCODABLE);
+      sb.append(formatted);
+    }
+  }
+
+  /**
    * Returns a mapping given list of one or more Align descriptors (exonerate
    * format)
    * 
    * @param alignedRegions
-   *          a list of "Align fromStart toStart fromCount"
+   *                         a list of "Align fromStart toStart fromCount"
    * @param mapIsFromCdna
-   *          if true, 'from' is dna, else 'from' is protein
+   *                         if true, 'from' is dna, else 'from' is protein
    * @param strand
-   *          either 1 (forward) or -1 (reverse)
+   *                         either 1 (forward) or -1 (reverse)
    * @return
    * @throws IOException
    */
@@ -894,8 +1286,8 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
         fromCount = Integer.parseInt(tokens[2]);
       } catch (NumberFormatException nfe)
       {
-        throw new IOException("Invalid number in Align field: "
-                + nfe.getMessage());
+        throw new IOException(
+                "Invalid number in Align field: " + nfe.getMessage());
       }
 
       /*
@@ -984,38 +1376,6 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
   }
 
   /**
-   * Process the 'column 9' data of the GFF file. This is less formally defined,
-   * and its interpretation will vary depending on the tool that has generated
-   * it.
-   * 
-   * @param attributes
-   * @param sf
-   */
-  protected void processGffColumnNine(String attributes, SequenceFeature sf)
-  {
-    sf.setAttributes(attributes);
-
-    /*
-     * Parse attributes in column 9 and add them to the sequence feature's 
-     * 'otherData' table; use Note as a best proxy for description
-     */
-    char nameValueSeparator = gffVersion == 3 ? '=' : ' ';
-    // TODO check we don't break GFF2 values which include commas here
-    Map<String, List<String>> nameValues = GffHelperBase
-            .parseNameValuePairs(attributes, ";", nameValueSeparator, ",");
-    for (Entry<String, List<String>> attr : nameValues.entrySet())
-    {
-      String values = StringUtils.listToDelimitedString(attr.getValue(),
-              "; ");
-      sf.setValue(attr.getKey(), values);
-      if (NOTE.equals(attr.getKey()))
-      {
-        sf.setDescription(values);
-      }
-    }
-  }
-
-  /**
    * After encountering ##fasta in a GFF3 file, process the remainder of the
    * file as FAST sequence data. Any placeholder sequences created during
    * feature parsing are updated with the actual sequences.
@@ -1093,10 +1453,11 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
 
       // rename sequences if GFF handler requested this
       // TODO a more elegant way e.g. gffHelper.postProcess(newseqs) ?
-      SequenceFeature[] sfs = seq.getSequenceFeatures();
-      if (sfs != null)
+      List<SequenceFeature> sfs = seq.getFeatures().getPositionalFeatures();
+      if (!sfs.isEmpty())
       {
-        String newName = (String) sfs[0].getValue(GffHelperI.RENAME_TOKEN);
+        String newName = (String) sfs.get(0).getValue(
+                GffHelperI.RENAME_TOKEN);
         if (newName != null)
         {
           seq.setName(newName);
@@ -1115,9 +1476,8 @@ public class FeaturesFile extends AlignFile implements FeaturesSourceI
    * @param newseqs
    * @throws IOException
    */
-  protected void processGffPragma(String line,
-          Map<String, String> gffProps, AlignmentI align,
-          List<SequenceI> newseqs) throws IOException
+  protected void processGffPragma(String line, Map<String, String> gffProps,
+          AlignmentI align, List<SequenceI> newseqs) throws IOException
   {
     line = line.trim();
     if ("###".equals(line))

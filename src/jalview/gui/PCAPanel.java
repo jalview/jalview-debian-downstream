@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,20 +20,26 @@
  */
 package jalview.gui;
 
+import jalview.analysis.scoremodels.ScoreModels;
+import jalview.api.AlignViewportI;
+import jalview.api.analysis.ScoreModelI;
+import jalview.api.analysis.SimilarityParamsI;
+import jalview.bin.Cache;
 import jalview.datamodel.Alignment;
 import jalview.datamodel.AlignmentI;
 import jalview.datamodel.AlignmentView;
-import jalview.datamodel.ColumnSelection;
-import jalview.datamodel.SeqCigar;
+import jalview.datamodel.HiddenColumns;
 import jalview.datamodel.SequenceI;
 import jalview.jbgui.GPCAPanel;
-import jalview.schemes.ResidueProperties;
+import jalview.math.RotatableMatrix.Axis;
+import jalview.util.ImageMaker;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
 import jalview.viewmodel.PCAModel;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -43,54 +49,66 @@ import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 
 import javax.swing.ButtonGroup;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JColorChooser;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
 
 /**
- * DOCUMENT ME!
- * 
- * @author $author$
- * @version $Revision$
+ * The panel holding the Principal Component Analysis 3-D visualisation
  */
-public class PCAPanel extends GPCAPanel implements Runnable,
-        IProgressIndicator
+public class PCAPanel extends GPCAPanel
+        implements Runnable, IProgressIndicator
 {
+  private static final int MIN_WIDTH = 470;
 
-  private IProgressIndicator progressBar;
+  private static final int MIN_HEIGHT = 250;
 
-  RotatableCanvas rc;
+  private RotatableCanvas rc;
 
   AlignmentPanel ap;
 
   AlignmentViewport av;
 
-  PCAModel pcaModel;
+  private PCAModel pcaModel;
 
-  int top = 0;
+  private int top = 0;
+
+  private IProgressIndicator progressBar;
+
+  private boolean working;
 
   /**
-   * Creates a new PCAPanel object.
+   * Constructor given sequence data, a similarity (or distance) score model
+   * name, and score calculation parameters
    * 
-   * @param av
-   *          DOCUMENT ME!
-   * @param s
-   *          DOCUMENT ME!
+   * @param alignPanel
+   * @param modelName
+   * @param params
    */
-  public PCAPanel(AlignmentPanel ap)
+  public PCAPanel(AlignmentPanel alignPanel, String modelName,
+          SimilarityParamsI params)
   {
-    this.av = ap.av;
-    this.ap = ap;
+    super();
+    this.av = alignPanel.av;
+    this.ap = alignPanel;
+    boolean nucleotide = av.getAlignment().isNucleotide();
 
     progressBar = new ProgressBar(statusPanel, statusBar);
 
-    boolean sameLength = true;
+    addInternalFrameListener(new InternalFrameAdapter()
+    {
+      @Override
+      public void internalFrameClosed(InternalFrameEvent e)
+      {
+        close_actionPerformed();
+      }
+    });
+
     boolean selected = av.getSelectionGroup() != null
             && av.getSelectionGroup().getSize() > 0;
     AlignmentView seqstrings = av.getAlignmentView(selected);
-    boolean nucleotide = av.getAlignment().isNucleotide();
     SequenceI[] seqs;
     if (!selected)
     {
@@ -100,94 +118,58 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     {
       seqs = av.getSelectionGroup().getSequencesInOrder(av.getAlignment());
     }
-    SeqCigar sq[] = seqstrings.getSequences();
-    int length = sq[0].getWidth();
 
-    for (int i = 0; i < seqs.length; i++)
-    {
-      if (sq[i].getWidth() != length)
-      {
-        sameLength = false;
-        break;
-      }
-    }
-
-    if (!sameLength)
-    {
-      JOptionPane.showMessageDialog(Desktop.desktop,
-              MessageManager.getString("label.pca_sequences_not_aligned"),
-              MessageManager.getString("label.sequences_not_aligned"),
-              JOptionPane.WARNING_MESSAGE);
-
-      return;
-    }
-    pcaModel = new PCAModel(seqstrings, seqs, nucleotide);
+    ScoreModelI scoreModel = ScoreModels.getInstance()
+            .getScoreModel(modelName, ap);
+    setPcaModel(new PCAModel(seqstrings, seqs, nucleotide, scoreModel,
+            params));
     PaintRefresher.Register(this, av.getSequenceSetId());
 
-    rc = new RotatableCanvas(ap);
-    this.getContentPane().add(rc, BorderLayout.CENTER);
-    Thread worker = new Thread(this);
-    worker.start();
-  }
+    setRotatableCanvas(new RotatableCanvas(alignPanel));
+    this.getContentPane().add(getRotatableCanvas(), BorderLayout.CENTER);
 
-  @Override
-  protected void scoreMatrix_menuSelected()
-  {
-    scoreMatrixMenu.removeAll();
-    for (final String sm : ResidueProperties.scoreMatrices.keySet())
-    {
-      if (ResidueProperties.getScoreMatrix(sm) != null)
-      {
-        // create an entry for this score matrix for use in PCA
-        JCheckBoxMenuItem jm = new JCheckBoxMenuItem();
-        jm.setText(MessageManager.getStringOrReturn("label.score_model_",
-                sm));
-        jm.setSelected(pcaModel.getScore_matrix().equals(sm));
-        if ((ResidueProperties.scoreMatrices.get(sm).isDNA() && ResidueProperties.scoreMatrices
-                .get(sm).isProtein())
-                || pcaModel.isNucleotide() == ResidueProperties.scoreMatrices
-                        .get(sm).isDNA())
-        {
-          final PCAPanel us = this;
-          jm.addActionListener(new ActionListener()
-          {
-            @Override
-            public void actionPerformed(ActionEvent e)
-            {
-              if (!pcaModel.getScore_matrix().equals(sm))
-              {
-                pcaModel.setScore_matrix(sm);
-                Thread worker = new Thread(us);
-                worker.start();
-              }
-            }
-          });
-          scoreMatrixMenu.add(jm);
-        }
-      }
-    }
-  }
+    addKeyListener(getRotatableCanvas());
+    validate();
 
-  @Override
-  public void bgcolour_actionPerformed(ActionEvent e)
-  {
-    Color col = JColorChooser.showDialog(this,
-            MessageManager.getString("label.select_backgroud_colour"),
-            rc.bgColour);
-
-    if (col != null)
-    {
-      rc.bgColour = col;
-    }
-    rc.repaint();
+    this.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
   }
 
   /**
-   * DOCUMENT ME!
+   * Ensure references to potentially very large objects (the PCA matrices) are
+   * nulled when the frame is closed
+   */
+  protected void close_actionPerformed()
+  {
+    setPcaModel(null);
+    if (this.rc != null)
+    {
+      this.rc.sequencePoints = null;
+      this.rc.setAxisEndPoints(null);
+      this.rc = null;
+    }
+  }
+
+  @Override
+  protected void bgcolour_actionPerformed()
+  {
+    Color col = JColorChooser.showDialog(this,
+            MessageManager.getString("label.select_background_colour"),
+            getRotatableCanvas().getBgColour());
+
+    if (col != null)
+    {
+      getRotatableCanvas().setBgColour(col);
+    }
+    getRotatableCanvas().repaint();
+  }
+
+  /**
+   * Calculates the PCA and displays the results
    */
   @Override
   public void run()
   {
+    working = true;
     long progId = System.currentTimeMillis();
     IProgressIndicator progress = this;
     String message = MessageManager.getString("label.pca_recalculating");
@@ -199,135 +181,87 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     progress.setProgressBar(message, progId);
     try
     {
-      calcSettings.setEnabled(false);
-      pcaModel.run();
-      // ////////////////
+      getPcaModel().calculate();
+
       xCombobox.setSelectedIndex(0);
       yCombobox.setSelectedIndex(1);
       zCombobox.setSelectedIndex(2);
 
-      pcaModel.updateRc(rc);
+      getPcaModel().updateRc(getRotatableCanvas());
       // rc.invalidate();
-      nuclSetting.setSelected(pcaModel.isNucleotide());
-      protSetting.setSelected(!pcaModel.isNucleotide());
-      jvVersionSetting.setSelected(pcaModel.isJvCalcMode());
-      top = pcaModel.getTop();
+      setTop(getPcaModel().getTop());
 
     } catch (OutOfMemoryError er)
     {
       new OOMWarning("calculating PCA", er);
+      working = false;
       return;
     } finally
     {
       progress.setProgressBar("", progId);
     }
-    calcSettings.setEnabled(true);
+
     repaint();
     if (getParent() == null)
     {
-      addKeyListener(rc);
-      Desktop.addInternalFrame(this, MessageManager
-              .getString("label.principal_component_analysis"), 475, 450);
+      Desktop.addInternalFrame(this,
+              MessageManager.formatMessage("label.calc_title", "PCA",
+                      getPcaModel().getScoreModelName()),
+              475, 450);
     }
-  }
-
-  @Override
-  protected void nuclSetting_actionPerfomed(ActionEvent arg0)
-  {
-    if (!pcaModel.isNucleotide())
-    {
-      pcaModel.setNucleotide(true);
-      pcaModel.setScore_matrix("DNA");
-      Thread worker = new Thread(this);
-      worker.start();
-    }
-
-  }
-
-  @Override
-  protected void protSetting_actionPerfomed(ActionEvent arg0)
-  {
-
-    if (pcaModel.isNucleotide())
-    {
-      pcaModel.setNucleotide(false);
-      pcaModel.setScore_matrix("BLOSUM62");
-      Thread worker = new Thread(this);
-      worker.start();
-    }
-  }
-
-  @Override
-  protected void jvVersionSetting_actionPerfomed(ActionEvent arg0)
-  {
-    pcaModel.setJvCalcMode(jvVersionSetting.isSelected());
-    Thread worker = new Thread(this);
-    worker.start();
+    working = false;
   }
 
   /**
-   * DOCUMENT ME!
+   * Updates the PCA display after a change of component to use for x, y or z
+   * axis
    */
-  void doDimensionChange()
+  @Override
+  protected void doDimensionChange()
   {
-    if (top == 0)
+    if (getTop() == 0)
     {
       return;
     }
 
-    int dim1 = top - xCombobox.getSelectedIndex();
-    int dim2 = top - yCombobox.getSelectedIndex();
-    int dim3 = top - zCombobox.getSelectedIndex();
-    pcaModel.updateRcView(dim1, dim2, dim3);
-    rc.img = null;
-    rc.rotmat.setIdentity();
-    rc.initAxes();
-    rc.paint(rc.getGraphics());
+    int dim1 = getTop() - xCombobox.getSelectedIndex();
+    int dim2 = getTop() - yCombobox.getSelectedIndex();
+    int dim3 = getTop() - zCombobox.getSelectedIndex();
+    getPcaModel().updateRcView(dim1, dim2, dim3);
+    getRotatableCanvas().resetView();
   }
 
   /**
-   * DOCUMENT ME!
+   * Sets the selected checkbox item index for PCA dimension (1, 2, 3...) for
+   * the given axis (X/Y/Z)
    * 
-   * @param e
-   *          DOCUMENT ME!
+   * @param index
+   * @param axis
    */
-  @Override
-  protected void xCombobox_actionPerformed(ActionEvent e)
+  public void setSelectedDimensionIndex(int index, Axis axis)
   {
-    doDimensionChange();
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  protected void yCombobox_actionPerformed(ActionEvent e)
-  {
-    doDimensionChange();
-  }
-
-  /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
-   */
-  @Override
-  protected void zCombobox_actionPerformed(ActionEvent e)
-  {
-    doDimensionChange();
+    switch (axis)
+    {
+    case X:
+      xCombobox.setSelectedIndex(index);
+      break;
+    case Y:
+      yCombobox.setSelectedIndex(index);
+      break;
+    case Z:
+      zCombobox.setSelectedIndex(index);
+      break;
+    default:
+    }
   }
 
   @Override
-  public void outputValues_actionPerformed(ActionEvent e)
+  protected void outputValues_actionPerformed()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(pcaModel.getDetails());
+      cap.setText(getPcaModel().getDetails());
       Desktop.addInternalFrame(cap,
               MessageManager.getString("label.pca_details"), 500, 500);
     } catch (OutOfMemoryError oom)
@@ -338,32 +272,35 @@ public class PCAPanel extends GPCAPanel implements Runnable,
   }
 
   @Override
-  public void showLabels_actionPerformed(ActionEvent e)
+  protected void showLabels_actionPerformed()
   {
-    rc.showLabels(showLabels.getState());
+    getRotatableCanvas().showLabels(showLabels.getState());
   }
 
   @Override
-  public void print_actionPerformed(ActionEvent e)
+  protected void print_actionPerformed()
   {
     PCAPrinter printer = new PCAPrinter();
     printer.start();
   }
 
+  /**
+   * If available, shows the data which formed the inputs for the PCA as a new
+   * alignment
+   */
   @Override
-  public void originalSeqData_actionPerformed(ActionEvent e)
+  public void originalSeqData_actionPerformed()
   {
-    // this was cut'n'pasted from the equivalent TreePanel method - we should
-    // make this an abstract function of all jalview analysis windows
-    if (pcaModel.getSeqtrings() == null)
+    // JAL-2647 disabled after load from project (until save to project done)
+    if (getPcaModel().getInputData() == null)
     {
-      jalview.bin.Cache.log
-              .info("Unexpected call to originalSeqData_actionPerformed - should have hidden this menu action.");
+      Cache.log.info(
+              "Unexpected call to originalSeqData_actionPerformed - should have hidden this menu action.");
       return;
     }
     // decide if av alignment is sufficiently different to original data to
     // warrant a new window to be created
-    // create new alignmnt window with hidden regions (unhiding hidden regions
+    // create new alignment window with hidden regions (unhiding hidden regions
     // yields unaligned seqs)
     // or create a selection box around columns in alignment view
     // test Alignment(SeqCigar[])
@@ -376,17 +313,18 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     } catch (Exception ex)
     {
     }
-    ;
-    Object[] alAndColsel = pcaModel.getSeqtrings()
-            .getAlignmentAndColumnSelection(gc);
+
+    Object[] alAndColsel = getPcaModel().getInputData()
+            .getAlignmentAndHiddenColumns(gc);
 
     if (alAndColsel != null && alAndColsel[0] != null)
     {
       // AlignmentOrder origorder = new AlignmentOrder(alAndColsel[0]);
 
       AlignmentI al = new Alignment((SequenceI[]) alAndColsel[0]);
-      AlignmentI dataset = (av != null && av.getAlignment() != null) ? av
-              .getAlignment().getDataset() : null;
+      AlignmentI dataset = (av != null && av.getAlignment() != null)
+              ? av.getAlignment().getDataset()
+              : null;
       if (dataset != null)
       {
         al.setDataset(dataset);
@@ -395,9 +333,8 @@ public class PCAPanel extends GPCAPanel implements Runnable,
       if (true)
       {
         // make a new frame!
-        AlignFrame af = new AlignFrame(al,
-                (ColumnSelection) alAndColsel[1], AlignFrame.DEFAULT_WIDTH,
-                AlignFrame.DEFAULT_HEIGHT);
+        AlignFrame af = new AlignFrame(al, (HiddenColumns) alAndColsel[1],
+                AlignFrame.DEFAULT_WIDTH, AlignFrame.DEFAULT_HEIGHT);
 
         // >>>This is a fix for the moment, until a better solution is
         // found!!<<<
@@ -407,8 +344,8 @@ public class PCAPanel extends GPCAPanel implements Runnable,
         // msaorder);
 
         Desktop.addInternalFrame(af, MessageManager.formatMessage(
-                "label.original_data_for_params",
-                new String[] { this.title }), AlignFrame.DEFAULT_WIDTH,
+                "label.original_data_for_params", new String[]
+                { this.title }), AlignFrame.DEFAULT_WIDTH,
                 AlignFrame.DEFAULT_HEIGHT);
       }
     }
@@ -428,7 +365,16 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     public void run()
     {
       PrinterJob printJob = PrinterJob.getPrinterJob();
-      PageFormat pf = printJob.pageDialog(printJob.defaultPage());
+      PageFormat defaultPage = printJob.defaultPage();
+      PageFormat pf = printJob.pageDialog(defaultPage);
+
+      if (defaultPage == pf)
+      {
+        /*
+         * user cancelled
+         */
+        return;
+      }
 
       printJob.setPrintable(this, pf);
 
@@ -450,11 +396,11 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     {
       pg.translate((int) pf.getImageableX(), (int) pf.getImageableY());
 
-      rc.drawBackground(pg, rc.bgColour);
-      rc.drawScene(pg);
-      if (rc.drawAxes == true)
+      getRotatableCanvas().drawBackground(pg);
+      getRotatableCanvas().drawScene(pg);
+      if (getRotatableCanvas().drawAxes)
       {
-        rc.drawAxes(pg);
+        getRotatableCanvas().drawAxes(pg);
       }
 
       if (pi == 0)
@@ -469,79 +415,75 @@ public class PCAPanel extends GPCAPanel implements Runnable,
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Handler for 'Save as EPS' option
    */
   @Override
-  public void eps_actionPerformed(ActionEvent e)
+  protected void eps_actionPerformed()
   {
-    makePCAImage(jalview.util.ImageMaker.TYPE.EPS);
+    makePCAImage(ImageMaker.TYPE.EPS);
   }
 
   /**
-   * DOCUMENT ME!
-   * 
-   * @param e
-   *          DOCUMENT ME!
+   * Handler for 'Save as PNG' option
    */
   @Override
-  public void png_actionPerformed(ActionEvent e)
+  protected void png_actionPerformed()
   {
-    makePCAImage(jalview.util.ImageMaker.TYPE.PNG);
+    makePCAImage(ImageMaker.TYPE.PNG);
   }
 
-  void makePCAImage(jalview.util.ImageMaker.TYPE type)
+  void makePCAImage(ImageMaker.TYPE type)
   {
-    int width = rc.getWidth();
-    int height = rc.getHeight();
+    int width = getRotatableCanvas().getWidth();
+    int height = getRotatableCanvas().getHeight();
 
-    jalview.util.ImageMaker im;
+    ImageMaker im;
 
-    if (type == jalview.util.ImageMaker.TYPE.PNG)
+    switch (type)
     {
-      im = new jalview.util.ImageMaker(this,
-              jalview.util.ImageMaker.TYPE.PNG, "Make PNG image from PCA",
-              width, height, null, null, null, 0, false);
-    }
-    else if (type == jalview.util.ImageMaker.TYPE.EPS)
-    {
-      im = new jalview.util.ImageMaker(this,
-              jalview.util.ImageMaker.TYPE.EPS, "Make EPS file from PCA",
-              width, height, null, this.getTitle(), null, 0, false);
-    }
-    else
-    {
-      im = new jalview.util.ImageMaker(this,
-              jalview.util.ImageMaker.TYPE.SVG, "Make SVG file from PCA",
-              width, height, null, this.getTitle(), null, 0, false);
-
+    case PNG:
+      im = new ImageMaker(this, ImageMaker.TYPE.PNG,
+              "Make PNG image from PCA", width, height, null, null, null, 0,
+              false);
+      break;
+    case EPS:
+      im = new ImageMaker(this, ImageMaker.TYPE.EPS,
+              "Make EPS file from PCA", width, height, null,
+              this.getTitle(), null, 0, false);
+      break;
+    default:
+      im = new ImageMaker(this, ImageMaker.TYPE.SVG,
+              "Make SVG file from PCA", width, height, null,
+              this.getTitle(), null, 0, false);
     }
 
     if (im.getGraphics() != null)
     {
-      rc.drawBackground(im.getGraphics(), Color.black);
-      rc.drawScene(im.getGraphics());
-      if (rc.drawAxes == true)
+      getRotatableCanvas().drawBackground(im.getGraphics());
+      getRotatableCanvas().drawScene(im.getGraphics());
+      if (getRotatableCanvas().drawAxes)
       {
-        rc.drawAxes(im.getGraphics());
+        getRotatableCanvas().drawAxes(im.getGraphics());
       }
       im.writeImage();
     }
   }
 
   @Override
-  public void viewMenu_menuSelected()
+  protected void viewMenu_menuSelected()
   {
     buildAssociatedViewMenu();
   }
 
+  /**
+   * Builds the menu showing the choice of possible views (for the associated
+   * sequence data) to which the PCA may be linked
+   */
   void buildAssociatedViewMenu()
   {
-    AlignmentPanel[] aps = PaintRefresher.getAssociatedPanels(av
-            .getSequenceSetId());
-    if (aps.length == 1 && rc.av == aps[0].av)
+    AlignmentPanel[] aps = PaintRefresher
+            .getAssociatedPanels(av.getSequenceSetId());
+    if (aps.length == 1 && getRotatableCanvas().av == aps[0].av)
     {
       associateViewsMenu.setVisible(false);
       return;
@@ -549,7 +491,8 @@ public class PCAPanel extends GPCAPanel implements Runnable,
 
     associateViewsMenu.setVisible(true);
 
-    if ((viewMenu.getItem(viewMenu.getItemCount() - 2) instanceof JMenuItem))
+    if ((viewMenu
+            .getItem(viewMenu.getItemCount() - 2) instanceof JMenuItem))
     {
       viewMenu.insertSeparator(viewMenu.getItemCount() - 1);
     }
@@ -558,39 +501,38 @@ public class PCAPanel extends GPCAPanel implements Runnable,
 
     JRadioButtonMenuItem item;
     ButtonGroup buttonGroup = new ButtonGroup();
-    int i, iSize = aps.length;
-    final PCAPanel thisPCAPanel = this;
-    for (i = 0; i < iSize; i++)
+    int iSize = aps.length;
+
+    for (int i = 0; i < iSize; i++)
     {
-      final AlignmentPanel ap = aps[i];
-      item = new JRadioButtonMenuItem(ap.av.viewName, ap.av == rc.av);
+      final AlignmentPanel panel = aps[i];
+      item = new JRadioButtonMenuItem(panel.av.getViewName(),
+              panel.av == getRotatableCanvas().av);
       buttonGroup.add(item);
       item.addActionListener(new ActionListener()
       {
         @Override
         public void actionPerformed(ActionEvent evt)
         {
-          rc.applyToAllViews = false;
-          rc.av = ap.av;
-          rc.ap = ap;
-          PaintRefresher.Register(thisPCAPanel, ap.av.getSequenceSetId());
+          selectAssociatedView(panel);
         }
       });
 
       associateViewsMenu.add(item);
     }
 
-    final JRadioButtonMenuItem itemf = new JRadioButtonMenuItem("All Views");
+    final JRadioButtonMenuItem itemf = new JRadioButtonMenuItem(
+            "All Views");
 
     buttonGroup.add(itemf);
 
-    itemf.setSelected(rc.applyToAllViews);
+    itemf.setSelected(getRotatableCanvas().isApplyToAllViews());
     itemf.addActionListener(new ActionListener()
     {
       @Override
       public void actionPerformed(ActionEvent evt)
       {
-        rc.applyToAllViews = itemf.isSelected();
+        getRotatableCanvas().setApplyToAllViews(itemf.isSelected());
       }
     });
     associateViewsMenu.add(itemf);
@@ -605,17 +547,17 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * )
    */
   @Override
-  protected void outputPoints_actionPerformed(ActionEvent e)
+  protected void outputPoints_actionPerformed()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(pcaModel.getPointsasCsv(false,
+      cap.setText(getPcaModel().getPointsasCsv(false,
               xCombobox.getSelectedIndex(), yCombobox.getSelectedIndex(),
               zCombobox.getSelectedIndex()));
-      Desktop.addInternalFrame(cap, MessageManager.formatMessage(
-              "label.points_for_params", new String[] { this.getTitle() }),
-              500, 500);
+      Desktop.addInternalFrame(cap, MessageManager
+              .formatMessage("label.points_for_params", new String[]
+              { this.getTitle() }), 500, 500);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("exporting PCA points", oom);
@@ -631,17 +573,17 @@ public class PCAPanel extends GPCAPanel implements Runnable,
    * .ActionEvent)
    */
   @Override
-  protected void outputProjPoints_actionPerformed(ActionEvent e)
+  protected void outputProjPoints_actionPerformed()
   {
     CutAndPasteTransfer cap = new CutAndPasteTransfer();
     try
     {
-      cap.setText(pcaModel.getPointsasCsv(true,
+      cap.setText(getPcaModel().getPointsasCsv(true,
               xCombobox.getSelectedIndex(), yCombobox.getSelectedIndex(),
               zCombobox.getSelectedIndex()));
       Desktop.addInternalFrame(cap, MessageManager.formatMessage(
-              "label.transformed_points_for_params",
-              new String[] { this.getTitle() }), 500, 500);
+              "label.transformed_points_for_params", new String[]
+              { this.getTitle() }), 500, 500);
     } catch (OutOfMemoryError oom)
     {
       new OOMWarning("exporting transformed PCA points", oom);
@@ -665,11 +607,11 @@ public class PCAPanel extends GPCAPanel implements Runnable,
     // }
     //
     // JPanel progressPanel;
-    // Long lId = new Long(id);
+    // Long lId = Long.valueOf(id);
     // GridLayout layout = (GridLayout) statusPanel.getLayout();
     // if (progressBars.get(lId) != null)
     // {
-    // progressPanel = (JPanel) progressBars.get(new Long(id));
+    // progressPanel = (JPanel) progressBars.get(Long.valueOf(id));
     // statusPanel.remove(progressPanel);
     // progressBars.remove(lId);
     // progressPanel = null;
@@ -708,13 +650,13 @@ public class PCAPanel extends GPCAPanel implements Runnable,
           final IProgressIndicatorHandler handler)
   {
     progressBar.registerHandler(id, handler);
-    // if (progressBarHandlers == null || !progressBars.contains(new Long(id)))
+    // if (progressBarHandlers == null || !progressBars.contains(Long.valueOf(id)))
     // {
     // throw new
     // Error(MessageManager.getString("error.call_setprogressbar_before_registering_handler"));
     // }
-    // progressBarHandlers.put(new Long(id), handler);
-    // final JPanel progressPanel = (JPanel) progressBars.get(new Long(id));
+    // progressBarHandlers.put(Long.valueOf(id), handler);
+    // final JPanel progressPanel = (JPanel) progressBars.get(Long.valueOf(id));
     // if (handler.canCancel())
     // {
     // JButton cancel = new JButton(
@@ -746,13 +688,113 @@ public class PCAPanel extends GPCAPanel implements Runnable,
   }
 
   @Override
-  protected void resetButton_actionPerformed(ActionEvent e)
+  protected void resetButton_actionPerformed()
   {
-    int t = top;
-    top = 0; // ugly - prevents dimensionChanged events from being processed
+    int t = getTop();
+    setTop(0); // ugly - prevents dimensionChanged events from being processed
     xCombobox.setSelectedIndex(0);
     yCombobox.setSelectedIndex(1);
-    top = t;
+    setTop(t);
     zCombobox.setSelectedIndex(2);
+  }
+
+  /**
+   * Answers true if PCA calculation is in progress, else false
+   * 
+   * @return
+   */
+  public boolean isWorking()
+  {
+    return working;
+  }
+
+  /**
+   * Answers the selected checkbox item index for PCA dimension for the X, Y or
+   * Z axis of the display
+   * 
+   * @param axis
+   * @return
+   */
+  public int getSelectedDimensionIndex(Axis axis)
+  {
+    switch (axis)
+    {
+    case X:
+      return xCombobox.getSelectedIndex();
+    case Y:
+      return yCombobox.getSelectedIndex();
+    default:
+      return zCombobox.getSelectedIndex();
+    }
+  }
+
+  public void setShowLabels(boolean show)
+  {
+    showLabels.setSelected(show);
+  }
+
+  /**
+   * Sets the input data used to calculate the PCA. This is provided for
+   * 'restore from project', which does not currently support this (AL-2647), so
+   * sets the value to null, and hides the menu option for "Input Data...". J
+   * 
+   * @param data
+   */
+  public void setInputData(AlignmentView data)
+  {
+    getPcaModel().setInputData(data);
+    originalSeqData.setVisible(data != null);
+  }
+
+  public AlignViewportI getAlignViewport()
+  {
+    return av;
+  }
+
+  public PCAModel getPcaModel()
+  {
+    return pcaModel;
+  }
+
+  public void setPcaModel(PCAModel pcaModel)
+  {
+    this.pcaModel = pcaModel;
+  }
+
+  public RotatableCanvas getRotatableCanvas()
+  {
+    return rc;
+  }
+
+  public void setRotatableCanvas(RotatableCanvas rc)
+  {
+    this.rc = rc;
+  }
+
+  public int getTop()
+  {
+    return top;
+  }
+
+  public void setTop(int top)
+  {
+    this.top = top;
+  }
+
+  /**
+   * set the associated view for this PCA.
+   * 
+   * @param panel
+   */
+  public void selectAssociatedView(AlignmentPanel panel)
+  {
+    getRotatableCanvas().setApplyToAllViews(false);
+
+    ap = panel;
+    av = panel.av;
+
+    getRotatableCanvas().av = panel.av;
+    getRotatableCanvas().ap = panel;
+    PaintRefresher.Register(PCAPanel.this, panel.av.getSequenceSetId());
   }
 }

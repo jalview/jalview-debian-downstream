@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -28,7 +28,15 @@ public interface SequenceListener
   // TODO remove this? never called on SequenceListener type
   public void mouseOverSequence(SequenceI sequence, int index, int pos);
 
-  public void highlightSequence(SearchResultsI results);
+  /**
+   * Highlights any position(s) represented by the search results and
+   * (optionally) returns an informative message about the position(s)
+   * higlighted
+   * 
+   * @param results
+   * @return
+   */
+  public String highlightSequence(SearchResultsI results);
 
   // TODO remove this? never called
   public void updateColours(SequenceI sequence, int index);

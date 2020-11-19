@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -21,11 +21,12 @@
 package jalview.appletgui;
 
 import jalview.api.RotatableCanvasI;
+import jalview.datamodel.Point;
 import jalview.datamodel.SequenceGroup;
 import jalview.datamodel.SequenceI;
 import jalview.datamodel.SequencePoint;
 import jalview.math.RotatableMatrix;
-import jalview.util.Format;
+import jalview.math.RotatableMatrix.Axis;
 import jalview.util.MessageManager;
 import jalview.viewmodel.AlignmentViewport;
 
@@ -40,32 +41,26 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
-import java.util.Vector;
+import java.util.List;
 
 public class RotatableCanvas extends Panel implements MouseListener,
         MouseMotionListener, KeyListener, RotatableCanvasI
 {
-  RotatableMatrix idmat = new RotatableMatrix(3, 3);
-
-  RotatableMatrix objmat = new RotatableMatrix(3, 3);
-
-  RotatableMatrix rotmat = new RotatableMatrix(3, 3);
+  private static final int DIMS = 3;
 
   String tooltip;
 
-  int toolx, tooly;
+  int toolx;
+
+  int tooly;
 
   // RubberbandRectangle rubberband;
 
   boolean drawAxes = true;
 
-  int omx = 0;
+  int mouseX = 0;
 
-  int mx = 0;
-
-  int omy = 0;
-
-  int my = 0;
+  int mouseY = 0;
 
   Image img;
 
@@ -73,13 +68,13 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
   Dimension prefsize;
 
-  float centre[] = new float[3];
+  Point centre;
 
-  float width[] = new float[3];
+  float[] width = new float[DIMS];
 
-  float max[] = new float[3];
+  float[] max = new float[DIMS];
 
-  float min[] = new float[3];
+  float[] min = new float[DIMS];
 
   float maxwidth;
 
@@ -87,11 +82,11 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
   int npoint;
 
-  Vector points;
+  List<SequencePoint> points;
 
-  float[][] orig;
+  Point[] orig;
 
-  float[][] axes;
+  Point[] axisEndPoints;
 
   int startx;
 
@@ -115,9 +110,10 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
   boolean showLabels = false;
 
-  public RotatableCanvas(AlignmentViewport av)
+  public RotatableCanvas(AlignmentViewport viewport)
   {
-    this.av = av;
+    this.av = viewport;
+    axisEndPoints = new Point[DIMS];
   }
 
   public void showLabels(boolean b)
@@ -126,46 +122,23 @@ public class RotatableCanvas extends Panel implements MouseListener,
     repaint();
   }
 
-  public void setPoints(Vector points, int npoint)
+  @Override
+  public void setPoints(List<SequencePoint> points, int npoint)
   {
     this.points = points;
     this.npoint = npoint;
     PaintRefresher.Register(this, av.getSequenceSetId());
 
     prefsize = getPreferredSize();
-    orig = new float[npoint][3];
+    orig = new Point[npoint];
 
     for (int i = 0; i < npoint; i++)
     {
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      for (int j = 0; j < 3; j++)
-      {
-        orig[i][j] = sp.coord[j];
-      }
-    }
-    // Initialize the matrices to identity
-
-    for (int i = 0; i < 3; i++)
-    {
-      for (int j = 0; j < 3; j++)
-      {
-        if (i != j)
-        {
-          idmat.addElement(i, j, 0);
-          objmat.addElement(i, j, 0);
-          rotmat.addElement(i, j, 0);
-        }
-        else
-        {
-          idmat.addElement(i, j, 0);
-          objmat.addElement(i, j, 0);
-          rotmat.addElement(i, j, 0);
-        }
-      }
+      SequencePoint sp = points.get(i);
+      orig[i] = sp.coord;
     }
 
-    axes = new float[3][3];
-    initAxes();
+    resetAxes();
 
     findCentre();
     findWidth();
@@ -195,115 +168,93 @@ public class RotatableCanvas extends Panel implements MouseListener,
    * super.removeNotify(); }
    */
 
-  public void initAxes()
+  /**
+   * Resets axes to the initial state: x-axis to the right, y-axis up, z-axis to
+   * back (so obscured in a 2-D display)
+   */
+  public void resetAxes()
   {
-    for (int i = 0; i < 3; i++)
-    {
-      for (int j = 0; j < 3; j++)
-      {
-        if (i != j)
-        {
-          axes[i][j] = 0;
-        }
-        else
-        {
-          axes[i][j] = 1;
-        }
-      }
-    }
+    axisEndPoints[0] = new Point(1f, 0f, 0f);
+    axisEndPoints[1] = new Point(0f, 1f, 0f);
+    axisEndPoints[2] = new Point(0f, 0f, 1f);
   }
 
+  /**
+   * Computes and saves the maximum and minimum (x, y, z) positions of any
+   * sequence point, and also the min-max range (width) for each dimension, and
+   * the maximum width for all dimensions
+   */
   public void findWidth()
   {
     max = new float[3];
     min = new float[3];
 
-    max[0] = (float) -1e30;
-    max[1] = (float) -1e30;
-    max[2] = (float) -1e30;
+    max[0] = Float.MIN_VALUE;
+    max[1] = Float.MIN_VALUE;
+    max[2] = Float.MIN_VALUE;
 
-    min[0] = (float) 1e30;
-    min[1] = (float) 1e30;
-    min[2] = (float) 1e30;
+    min[0] = Float.MAX_VALUE;
+    min[1] = Float.MAX_VALUE;
+    min[2] = Float.MAX_VALUE;
 
-    for (int i = 0; i < 3; i++)
+    for (SequencePoint sp : points)
     {
-      for (int j = 0; j < npoint; j++)
-      {
-        SequencePoint sp = (SequencePoint) points.elementAt(j);
-        if (sp.coord[i] >= max[i])
-        {
-          max[i] = sp.coord[i];
-        }
-        if (sp.coord[i] <= min[i])
-        {
-          min[i] = sp.coord[i];
-        }
-      }
+      max[0] = Math.max(max[0], sp.coord.x);
+      max[1] = Math.max(max[1], sp.coord.y);
+      max[2] = Math.max(max[2], sp.coord.z);
+      min[0] = Math.min(min[0], sp.coord.x);
+      min[1] = Math.min(min[1], sp.coord.y);
+      min[2] = Math.min(min[2], sp.coord.z);
     }
-
-    // System.out.println("xmax " + max[0] + " min " + min[0]);
-    // System.out.println("ymax " + max[1] + " min " + min[1]);
-    // System.out.println("zmax " + max[2] + " min " + min[2]);
 
     width[0] = Math.abs(max[0] - min[0]);
     width[1] = Math.abs(max[1] - min[1]);
     width[2] = Math.abs(max[2] - min[2]);
 
-    maxwidth = width[0];
-
-    if (width[1] > width[0])
-    {
-      maxwidth = width[1];
-    }
-    if (width[2] > width[1])
-    {
-      maxwidth = width[2];
-    }
-
-    // System.out.println("Maxwidth = " + maxwidth);
+    maxwidth = Math.max(width[0], Math.max(width[1], width[2]));
   }
 
   public float findScale()
   {
-    int dim, width, height;
+    int dim, w, height;
     if (getSize().width != 0)
     {
-      width = getSize().width;
+      w = getSize().width;
       height = getSize().height;
     }
     else
     {
-      width = prefsize.width;
+      w = prefsize.width;
       height = prefsize.height;
     }
 
-    if (width < height)
+    if (w < height)
     {
-      dim = width;
+      dim = w;
     }
     else
     {
       dim = height;
     }
 
-    return (float) (dim * scalefactor / (2 * maxwidth));
+    return dim * scalefactor / (2 * maxwidth);
   }
 
+  /**
+   * Computes and saves the position of the centre of the view
+   */
   public void findCentre()
   {
-    // Find centre coordinate
     findWidth();
 
-    centre[0] = (max[0] + min[0]) / 2;
-    centre[1] = (max[1] + min[1]) / 2;
-    centre[2] = (max[2] + min[2]) / 2;
+    float x = (max[0] + min[0]) / 2;
+    float y = (max[1] + min[1]) / 2;
+    float z = (max[2] + min[2]) / 2;
 
-    // System.out.println("Centre x " + centre[0]);
-    // System.out.println("Centre y " + centre[1]);
-    // System.out.println("Centre z " + centre[2]);
+    centre = new Point(x, y, z);
   }
 
+  @Override
   public Dimension getPreferredSize()
   {
     if (prefsize != null)
@@ -316,23 +267,27 @@ public class RotatableCanvas extends Panel implements MouseListener,
     }
   }
 
+  @Override
   public Dimension getMinimumSize()
   {
     return getPreferredSize();
   }
 
+  @Override
   public void update(Graphics g)
   {
     paint(g);
   }
 
+  @Override
   public void paint(Graphics g)
   {
     if (points == null)
     {
       g.setFont(new Font("Verdana", Font.PLAIN, 18));
-      g.drawString(MessageManager.getString("label.calculating_pca")
-              + "....", 20, getSize().height / 2);
+      g.drawString(
+              MessageManager.getString("label.calculating_pca") + "....",
+              20, getSize().height / 2);
     }
     else
     {
@@ -354,7 +309,7 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
       drawBackground(ig, Color.black);
       drawScene(ig);
-      if (drawAxes == true)
+      if (drawAxes)
       {
         drawAxes(ig);
       }
@@ -376,8 +331,8 @@ public class RotatableCanvas extends Panel implements MouseListener,
     for (int i = 0; i < 3; i++)
     {
       g.drawLine(getSize().width / 2, getSize().height / 2,
-              (int) (axes[i][0] * scale * max[0] + getSize().width / 2),
-              (int) (axes[i][1] * scale * max[1] + getSize().height / 2));
+              (int) (axisEndPoints[i].x * scale * max[0] + getSize().width / 2),
+              (int) (axisEndPoints[i].y * scale * max[1] + getSize().height / 2));
     }
   }
 
@@ -389,81 +344,85 @@ public class RotatableCanvas extends Panel implements MouseListener,
 
   public void drawScene(Graphics g)
   {
-    // boolean darker = false;
-
-    int halfwidth = getSize().width / 2;
-    int halfheight = getSize().height / 2;
-
     for (int i = 0; i < npoint; i++)
     {
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      int x = (int) ((float) (sp.coord[0] - centre[0]) * scale) + halfwidth;
-      int y = (int) ((float) (sp.coord[1] - centre[1]) * scale)
-              + halfheight;
-      float z = sp.coord[1] - centre[2];
-
-      if (av.getSequenceColour(sp.sequence) == Color.black)
-      {
-        g.setColor(Color.white);
-      }
-      else
-      {
-        g.setColor(av.getSequenceColour(sp.sequence));
-      }
-
+      SequencePoint sp = points.get(i);
+      SequenceI sequence = sp.getSequence();
+      Color sequenceColour = av.getSequenceColour(sequence);
+      g.setColor(
+              sequenceColour == Color.black ? Color.white : sequenceColour);
       if (av.getSelectionGroup() != null)
       {
         if (av.getSelectionGroup().getSequences(null)
-                .contains(((SequencePoint) points.elementAt(i)).sequence))
+                .contains(sequence))
         {
           g.setColor(Color.gray);
         }
       }
-      if (z < 0)
+
+      if (sp.coord.z < centre.z)
       {
         g.setColor(g.getColor().darker());
       }
 
+      int halfwidth = getSize().width / 2;
+      int halfheight = getSize().height / 2;
+      int x = (int) ((sp.coord.x - centre.x) * scale) + halfwidth;
+      int y = (int) ((sp.coord.y - centre.y) * scale) + halfheight;
       g.fillRect(x - 3, y - 3, 6, 6);
+
       if (showLabels)
       {
         g.setColor(Color.red);
-        g.drawString(
-                ((SequencePoint) points.elementAt(i)).sequence.getName(),
-                x - 3, y - 4);
+        g.drawString(sequence.getName(), x - 3, y - 4);
       }
     }
   }
 
-  public Dimension minimumsize()
-  {
-    return prefsize;
-  }
-
-  public Dimension preferredsize()
-  {
-    return prefsize;
-  }
-
+  @Override
   public void keyTyped(KeyEvent evt)
   {
   }
 
+  @Override
   public void keyReleased(KeyEvent evt)
   {
   }
 
+  @Override
   public void keyPressed(KeyEvent evt)
   {
-    if (evt.getKeyCode() == KeyEvent.VK_UP)
+    boolean shiftDown = evt.isShiftDown();
+    int keyCode = evt.getKeyCode();
+    if (keyCode == KeyEvent.VK_UP)
     {
-      scalefactor = (float) (scalefactor * 1.1);
-      scale = findScale();
+      if (shiftDown)
+      {
+        rotate(0f, -1f);
+      }
+      else
+      {
+        zoom(1.1f);
+      }
     }
-    else if (evt.getKeyCode() == KeyEvent.VK_DOWN)
+    else if (keyCode == KeyEvent.VK_DOWN)
     {
-      scalefactor = (float) (scalefactor * 0.9);
-      scale = findScale();
+      if (shiftDown)
+      {
+        rotate(0f, 1f);
+      }
+      else
+      {
+        zoom(0.9f);
+      }
+    }
+    else if (shiftDown && keyCode == KeyEvent.VK_LEFT)
+    {
+      rotate(1f, 0f);
+    }
+    else if (shiftDown && keyCode == KeyEvent.VK_RIGHT)
+    {
+      rotate(-1f, 0f);
     }
     else if (evt.getKeyChar() == 's')
     {
@@ -477,46 +436,34 @@ public class RotatableCanvas extends Panel implements MouseListener,
     repaint();
   }
 
-  public void printPoints()
-  {
-    for (int i = 0; i < npoint; i++)
-    {
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      Format.print(System.out, "%5d ", i);
-      for (int j = 0; j < 3; j++)
-      {
-        Format.print(System.out, "%13.3f  ", sp.coord[j]);
-      }
-      System.out.println();
-    }
-  }
-
+  @Override
   public void mouseClicked(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseEntered(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseExited(MouseEvent evt)
   {
   }
 
+  @Override
   public void mouseReleased(MouseEvent evt)
   {
   }
 
+  @Override
   public void mousePressed(MouseEvent evt)
   {
     int x = evt.getX();
     int y = evt.getY();
 
-    mx = x;
-    my = y;
-
-    omx = mx;
-    omy = my;
+    mouseX = x;
+    mouseY = y;
 
     startx = x;
     starty = y;
@@ -527,7 +474,7 @@ public class RotatableCanvas extends Panel implements MouseListener,
     rectx2 = -1;
     recty2 = -1;
 
-    SequenceI found = findPoint(x, y);
+    SequenceI found = findSequenceAtPoint(x, y);
 
     if (found != null)
     {
@@ -551,9 +498,10 @@ public class RotatableCanvas extends Panel implements MouseListener,
     repaint();
   }
 
+  @Override
   public void mouseMoved(MouseEvent evt)
   {
-    SequenceI found = findPoint(evt.getX(), evt.getY());
+    SequenceI found = findSequenceAtPoint(evt.getX(), evt.getY());
     if (found == null)
     {
       tooltip = null;
@@ -567,40 +515,22 @@ public class RotatableCanvas extends Panel implements MouseListener,
     repaint();
   }
 
+  @Override
   public void mouseDragged(MouseEvent evt)
   {
-    mx = evt.getX();
-    my = evt.getY();
+    int xPos = evt.getX();
+    int yPos = evt.getY();
 
-    rotmat.setIdentity();
-
-    rotmat.rotate((float) (my - omy), 'x');
-    rotmat.rotate((float) (mx - omx), 'y');
-
-    for (int i = 0; i < npoint; i++)
+    if (xPos == mouseX && yPos == mouseY)
     {
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      sp.coord[0] -= centre[0];
-      sp.coord[1] -= centre[1];
-      sp.coord[2] -= centre[2];
-
-      // Now apply the rotation matrix
-      sp.coord = rotmat.vectorMultiply(sp.coord);
-
-      // Now translate back again
-      sp.coord[0] += centre[0];
-      sp.coord[1] += centre[1];
-      sp.coord[2] += centre[2];
+      return;
     }
 
-    for (int i = 0; i < 3; i++)
-    {
-      axes[i] = rotmat.vectorMultiply(axes[i]);
-    }
-    omx = mx;
-    omy = my;
+    int xDelta = xPos - mouseX;
+    int yDelta = yPos - mouseY;
 
-    paint(this.getGraphics());
+    rotate(xDelta, yDelta);
+    repaint();
   }
 
   public void rectSelect(int x1, int y1, int x2, int y2)
@@ -608,27 +538,38 @@ public class RotatableCanvas extends Panel implements MouseListener,
     // boolean changedSel = false;
     for (int i = 0; i < npoint; i++)
     {
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      int tmp1 = (int) ((sp.coord[0] - centre[0]) * scale + (float) getSize().width / 2.0);
-      int tmp2 = (int) ((sp.coord[1] - centre[1]) * scale + (float) getSize().height / 2.0);
+      SequencePoint sp = points.get(i);
+      int tmp1 = (int) ((sp.coord.x - centre.x) * scale
+              + getSize().width / 2.0);
+      int tmp2 = (int) ((sp.coord.y - centre.y) * scale
+              + getSize().height / 2.0);
 
+      SequenceI sequence = sp.getSequence();
       if (tmp1 > x1 && tmp1 < x2 && tmp2 > y1 && tmp2 < y2)
       {
         if (av != null)
         {
           if (!av.getSelectionGroup().getSequences(null)
-                  .contains(sp.sequence))
+                  .contains(sequence))
           {
-            av.getSelectionGroup().addSequence(sp.sequence, true);
+            av.getSelectionGroup().addSequence(sequence, true);
           }
         }
       }
     }
   }
 
-  public SequenceI findPoint(int x, int y)
+  /**
+   * Answers the first sequence found whose point on the display is within 2
+   * pixels of the given coordinates, or null if none is found
+   * 
+   * @param x
+   * @param y
+   * 
+   * @return
+   */
+  public SequenceI findSequenceAtPoint(int x, int y)
   {
-
     int halfwidth = getSize().width / 2;
     int halfheight = getSize().height / 2;
 
@@ -637,24 +578,101 @@ public class RotatableCanvas extends Panel implements MouseListener,
     for (int i = 0; i < npoint; i++)
     {
 
-      SequencePoint sp = (SequencePoint) points.elementAt(i);
-      int px = (int) ((float) (sp.coord[0] - centre[0]) * scale)
+      SequencePoint sp = points.get(i);
+      int px = (int) ((sp.coord.x - centre.x) * scale)
               + halfwidth;
-      int py = (int) ((float) (sp.coord[1] - centre[1]) * scale)
+      int py = (int) ((sp.coord.y - centre.y) * scale)
               + halfheight;
 
       if (Math.abs(px - x) < 3 && Math.abs(py - y) < 3)
       {
         found = i;
+        break;
       }
     }
+
     if (found != -1)
     {
-      return ((SequencePoint) points.elementAt(found)).sequence;
+      return points.get(found).getSequence();
     }
     else
     {
       return null;
+    }
+  }
+
+  /**
+   * Resets the view to initial state (no rotation)
+   */
+  public void resetView()
+  {
+    img = null;
+    resetAxes();
+  }
+
+  @Override
+  public void zoom(float factor)
+  {
+    if (factor > 0f)
+    {
+      scalefactor *= factor;
+    }
+    scale = findScale();
+  }
+
+  @Override
+  public void rotate(float x, float y)
+  {
+    if (x == 0f && y == 0f)
+    {
+      return;
+    }
+  
+    /*
+     * get the identity transformation...
+     */
+    RotatableMatrix rotmat = new RotatableMatrix();
+  
+    /*
+     * rotate around the X axis for change in Y
+     * (mouse movement up/down); note we are equating a
+     * number of pixels with degrees of rotation here!
+     */
+    if (y != 0)
+    {
+      rotmat.rotate(y, Axis.X);
+    }
+  
+    /*
+     * rotate around the Y axis for change in X
+     * (mouse movement left/right)
+     */
+    if (x != 0)
+    {
+      rotmat.rotate(x, Axis.Y);
+    }
+  
+    /*
+     * apply the composite transformation to sequence points
+     */
+    for (int i = 0; i < npoint; i++)
+    {
+      SequencePoint sp = points.get(i);
+      sp.translate(-centre.x, -centre.y, -centre.z);
+
+      // Now apply the rotation matrix
+      sp.coord = rotmat.vectorMultiply(sp.coord);
+
+      // Now translate back again
+      sp.translate(centre.x, centre.y, centre.z);
+    }
+  
+    /*
+     * rotate the x/y/z axis positions
+     */
+    for (int i = 0; i < DIMS; i++)
+    {
+      axisEndPoints[i] = rotmat.vectorMultiply(axisEndPoints[i]);
     }
   }
 

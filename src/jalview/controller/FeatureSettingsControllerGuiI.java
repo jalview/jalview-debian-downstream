@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -20,7 +20,19 @@
  */
 package jalview.controller;
 
+import jalview.api.AlignViewControllerGuiI;
+
 public interface FeatureSettingsControllerGuiI
 {
+
+  AlignViewControllerGuiI getAlignframe();
+
+  void featureSettings_isClosed();
+
+  /**
+   * undo any changes made to feature settings whilst the dialog has been visible,
+   * since the last 'apply'
+   */
+  void revert();
 
 }

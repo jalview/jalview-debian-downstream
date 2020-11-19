@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -41,6 +41,7 @@ import java.util.Vector;
  * @version $Revision$
  */
 public abstract class AlignFile extends FileParse
+        implements AlignmentFileReaderI, AlignmentFileWriterI
 {
   int noSeqs = 0;
 
@@ -65,15 +66,26 @@ public abstract class AlignFile extends FileParse
   /**
    * Properties to be added to generated alignment object
    */
-  protected Hashtable properties;
+  private Hashtable properties;
 
   long start;
 
   long end;
 
-  boolean jvSuffix = true;
+  /**
+   * true if parse() has been called
+   */
+  private boolean parseCalled = false;
 
-  private boolean parseCalled;
+  private boolean parseImmediately = true;
+
+  /**
+   * @return if doParse() was called at construction time
+   */
+  protected boolean isParseImmediately()
+  {
+    return parseImmediately;
+  }
 
   /**
    * Creates a new AlignFile object.
@@ -86,17 +98,24 @@ public abstract class AlignFile extends FileParse
     initData();
   }
 
+  public AlignFile(SequenceI[] seqs)
+  {
+    this();
+    setSeqs(seqs);
+  }
+
   /**
    * Constructor which parses the data from a file of some specified type.
    * 
    * @param dataObject
    *          Filename, URL or Pasted String to read from.
-   * @param type
+   * @param sourceType
    *          What type of file to read from (File, URL, Pasted String)
    */
-  public AlignFile(String dataObject, String type) throws IOException
+  public AlignFile(String dataObject, DataSourceType sourceType)
+          throws IOException
   {
-    this(true, dataObject, type);
+    this(true, dataObject, sourceType);
   }
 
   /**
@@ -107,14 +126,14 @@ public abstract class AlignFile extends FileParse
    *          if false, need to call 'doParse()' to begin parsing data
    * @param dataObject
    *          Filename, URL or Pasted String to read from.
-   * @param type
+   * @param sourceType
    *          What type of file to read from (File, URL)
    * @throws IOException
    */
-  public AlignFile(boolean parseImmediately, String dataObject, String type)
-          throws IOException
+  public AlignFile(boolean parseImmediately, String dataObject,
+          DataSourceType sourceType) throws IOException
   {
-    super(dataObject, type);
+    super(dataObject, sourceType);
     initData();
     if (parseImmediately)
     {
@@ -147,6 +166,11 @@ public abstract class AlignFile extends FileParse
   {
     super(source);
     initData();
+
+    // stash flag in case parse needs to know if it has to autoconfigure or was
+    // configured after construction
+    this.parseImmediately = parseImmediately;
+
     if (parseImmediately)
     {
       doParse();
@@ -168,11 +192,6 @@ public abstract class AlignFile extends FileParse
     }
     parseCalled = true;
     parse();
-    // sets the index of each sequence in the alignment
-    for (int i = 0, c = seqs.size(); i < c; i++)
-    {
-      seqs.get(i).setIndex(i);
-    }
   }
 
   /**
@@ -191,6 +210,7 @@ public abstract class AlignFile extends FileParse
   /**
    * Return the Sequences in the seqs Vector as an array of Sequences
    */
+  @Override
   public SequenceI[] getSeqsAsArray()
   {
     SequenceI[] s = new SequenceI[seqs.size()];
@@ -209,6 +229,7 @@ public abstract class AlignFile extends FileParse
    * 
    * @param al
    */
+  @Override
   public void addAnnotations(AlignmentI al)
   {
     addProperties(al);
@@ -273,9 +294,8 @@ public abstract class AlignFile extends FileParse
   {
     if (key == null)
     {
-      throw new Error(
-              MessageManager
-                      .getString("error.implementation_error_cannot_have_null_alignment"));
+      throw new Error(MessageManager.getString(
+              "error.implementation_error_cannot_have_null_alignment"));
     }
     if (value == null)
     {
@@ -314,7 +334,8 @@ public abstract class AlignFile extends FileParse
    * @param s
    *          DOCUMENT ME!
    */
-  protected void setSeqs(SequenceI[] s)
+  @Override
+  public void setSeqs(SequenceI[] s)
   {
     seqs = new Vector<SequenceI>();
 
@@ -328,16 +349,6 @@ public abstract class AlignFile extends FileParse
    * This method must be implemented to parse the contents of the file.
    */
   public abstract void parse() throws IOException;
-
-  /**
-   * Print out in alignment file format the Sequences in the seqs Vector.
-   */
-  public abstract String print();
-
-  public void addJVSuffix(boolean b)
-  {
-    jvSuffix = b;
-  }
 
   /**
    * A general parser for ids.
@@ -371,14 +382,21 @@ public abstract class AlignFile extends FileParse
   }
 
   /**
-   * Creates the output id. Adds prefix Uniprot format source|id And suffix
-   * Jalview /start-end
+   * Creates the output id. Adds prefix Uniprot format source|id and optionally
+   * suffix Jalview /start-end
+   * 
+   * @param jvsuffix
    * 
    * @String id Id to be parsed
    */
+  String printId(SequenceI seq, boolean jvsuffix)
+  {
+    return seq.getDisplayId(jvsuffix);
+  }
+
   String printId(SequenceI seq)
   {
-    return seq.getDisplayId(jvSuffix);
+    return printId(seq, true);
   }
 
   /**
@@ -400,6 +418,7 @@ public abstract class AlignFile extends FileParse
     return newickStrings == null ? 0 : newickStrings.size();
   }
 
+  @Override
   public void addGroups(AlignmentI al)
   {
 
@@ -409,4 +428,8 @@ public abstract class AlignFile extends FileParse
     }
   }
 
+  protected void addSequence(SequenceI seq)
+  {
+    seqs.add(seq);
+  }
 }

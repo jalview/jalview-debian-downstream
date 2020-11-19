@@ -1,6 +1,6 @@
 /*
- * Jalview - A Sequence Alignment Editor and Viewer (2.10.1)
- * Copyright (C) 2016 The Jalview Authors
+ * Jalview - A Sequence Alignment Editor and Viewer (2.11.1.3)
+ * Copyright (C) 2020 The Jalview Authors
  * 
  * This file is part of Jalview.
  * 
@@ -109,8 +109,8 @@ public class SeqIdVector extends InputType
         return true;
       } catch (Exception x)
       {
-        warnings.append("Invalid molecule type '" + val
-                + "'. Must be one of (");
+        warnings.append(
+                "Invalid molecule type '" + val + "'. Must be one of (");
         for (molType v : molType.values())
         {
           warnings.append(" " + v);
@@ -127,9 +127,10 @@ public class SeqIdVector extends InputType
     List<OptionI> lst = getBaseOptions();
     lst.add(new Option("sep",
             "Separator character between elements of vector", true, ",",
-            sep, Arrays.asList(new String[] { " ", ",", ";", "\t", "|" }),
+            sep, Arrays.asList(new String[]
+            { " ", ",", ";", "\t", "|" }), null));
+    lst.add(createMolTypeOption("type", "Sequence type", false, type,
             null));
-    lst.add(createMolTypeOption("type", "Sequence type", false, type, null));
     return lst;
   }
 }
