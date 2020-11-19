@@ -1,3 +1,3 @@
-version=3
-opts="dversionmangle=s/\.dfsg//,uversionmangle=s/_/./g;s/\.0(\d)/.0.$1/g" \
-http://www.jalview.org/source jalview_([\d_]+)\.tar\.gz debian debian/new-upstream
+version=4
+opts="dversionmangle=s/[\.\+]dfsg//,uversionmangle=s/_/./g;s/\.0(\d)/.0.$1/g,repack,compression=xz,repacksuffix=+dfsg" \
+http://www.jalview.org/source jalview_([\d_]+)\.tar\.gz
