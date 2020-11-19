@@ -6,7 +6,7 @@ Uploaders: Vincent Fourmond <fourmond@debian.org>
 Build-Depends: ant,
                ant-optional,
                cdbs,
-               debhelper (>= 9),
+               debhelper-compat (= 13),
                default-jdk,
                groovy,
                icedtea-netx-common,
