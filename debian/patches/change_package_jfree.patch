@@ -1,0 +1,42 @@
+Description: change the package for org.jfree, which is not the correct one
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: no
+Last-Update: 2020-11-12
+
+--- a/src/jalview/gui/SequenceRenderer.java
++++ b/src/jalview/gui/SequenceRenderer.java
+@@ -30,7 +30,7 @@
+ import java.awt.FontMetrics;
+ import java.awt.Graphics;
+ 
+-import org.jfree.graphics2d.svg.SVGGraphics2D;
++import org.jfree.svg.SVGGraphics2D;
+ import org.jibble.epsgraphics.EpsGraphics2D;
+ 
+ public class SequenceRenderer implements jalview.api.SequenceRenderer
+--- a/src/jalview/io/HtmlSvgOutput.java
++++ b/src/jalview/io/HtmlSvgOutput.java
+@@ -33,8 +33,8 @@
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ 
+-import org.jfree.graphics2d.svg.SVGGraphics2D;
+-import org.jfree.graphics2d.svg.SVGHints;
++import org.jfree.svg.SVGGraphics2D;
++import org.jfree.svg.SVGHints;
+ 
+ public class HtmlSvgOutput extends HTMLOutput
+ {
+--- a/src/jalview/util/ImageMaker.java
++++ b/src/jalview/util/ImageMaker.java
+@@ -36,8 +36,8 @@
+ 
+ import javax.imageio.ImageIO;
+ 
+-import org.jfree.graphics2d.svg.SVGGraphics2D;
+-import org.jfree.graphics2d.svg.SVGHints;
++import org.jfree.svg.SVGGraphics2D;
++import org.jfree.svg.SVGHints;
+ import org.jibble.epsgraphics.EpsGraphics2D;
+ 
+ public class ImageMaker

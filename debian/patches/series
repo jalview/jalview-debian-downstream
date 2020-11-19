@@ -1,2 +1,3 @@
 newer-mime4j-api.diff
 #java8-compatibility.patch
+change_package_jfree.patch
