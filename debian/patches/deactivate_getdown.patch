@@ -1,0 +1,188 @@
+Description: Not using getdown inside Jalview
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: not-needed
+Last-Update: 2020-11-16
+
+--- a/src/jalview/bin/Cache.java
++++ b/src/jalview/bin/Cache.java
+@@ -449,68 +449,13 @@
+     // to be done
+     // Dont do this check if running in headless mode
+ 
+-    if (jnlpVersion == null && getDefault("VERSION_CHECK", true)
+-            && (System.getProperty("java.awt.headless") == null || System
+-                    .getProperty("java.awt.headless").equals("false")))
++    if (jnlpVersion != null)
+     {
+-
+-      class VersionChecker extends Thread
+-      {
+-
+-        @Override
+-        public void run()
+-        {
+-          String buildPropertiesUrl = Cache.getAppbaseBuildProperties();
+-
+-          String orgtimeout = System
+-                  .getProperty("sun.net.client.defaultConnectTimeout");
+-          if (orgtimeout == null)
+-          {
+-            orgtimeout = "30";
+-            System.out.println("# INFO: Setting default net timeout to "
+-                    + orgtimeout + " seconds.");
+-          }
+-          String remoteVersion = null;
+-          try
+-          {
+-            System.setProperty("sun.net.client.defaultConnectTimeout",
+-                    "5000");
+-            java.net.URL url = new java.net.URL(buildPropertiesUrl);
+-
+-            BufferedReader in = new BufferedReader(
+-                    new InputStreamReader(url.openStream()));
+-
+-            Properties remoteBuildProperties = new Properties();
+-            remoteBuildProperties.load(in);
+-            remoteVersion = remoteBuildProperties.getProperty("VERSION");
+-          } catch (Exception ex)
+-          {
+-            System.out
+-                    .println("Non-fatal exception when checking version at "
+-                            + buildPropertiesUrl + ":");
+-            System.out.println(ex);
+-            remoteVersion = getProperty("VERSION");
+-          }
+-          System.setProperty("sun.net.client.defaultConnectTimeout",
+-                  orgtimeout);
+-
+-          setProperty("LATEST_VERSION", remoteVersion);
+-        }
+-      }
+-
+-      VersionChecker vc = new VersionChecker();
+-      vc.start();
++      setProperty("LATEST_VERSION", jnlpVersion);
+     }
+     else
+     {
+-      if (jnlpVersion != null)
+-      {
+-        setProperty("LATEST_VERSION", jnlpVersion);
+-      }
+-      else
+-      {
+-        applicationProperties.remove("LATEST_VERSION");
+-      }
++      applicationProperties.remove("LATEST_VERSION");
+     }
+ 
+     // LOAD USERDEFINED COLOURS
+@@ -1140,10 +1085,6 @@
+     if (Pattern.matches("^\\d[\\d\\.]*\\d[\\.\\-\\w]*$",
+             jalview.bin.Cache.getDefault("VERSION", "TEST")))
+     {
+-      appendIfNotNull(sb, "Getdown appdir: ",
+-              System.getProperty("getdownappdir"), "\n", null);
+-      appendIfNotNull(sb, "Getdown appbase: ",
+-              System.getProperty("getdownappbase"), "\n", null);
+       appendIfNotNull(sb, "Java home: ", System.getProperty("java.home"),
+               "\n", "unknown");
+     }
+@@ -1168,61 +1109,4 @@
+     t.printStackTrace(pw);
+     return sw.toString();
+   }
+-
+-  /**
+-   * Getdown appbase methods
+-   */
+-
+-  private static final String releaseAppbase;
+-
+-  private static String getdownAppbase;
+-
+-  private static String getdownDistDir;
+-
+-  static
+-  {
+-    Float specversion = Float
+-            .parseFloat(System.getProperty("java.specification.version"));
+-    releaseAppbase = (specversion < 9)
+-            ? "https://www.jalview.org/getdown/release/1.8"
+-            : "https://www.jalview.org/getdown/release/11";
+-  }
+-
+-  // look for properties (passed in by getdown) otherwise default to release
+-  private static void setGetdownAppbase()
+-  {
+-    if (getdownAppbase != null)
+-    {
+-      return;
+-    }
+-    String appbase = System.getProperty("getdownappbase");
+-    String distDir = System.getProperty("getdowndistdir");
+-    if (appbase == null)
+-    {
+-      appbase = releaseAppbase;
+-      distDir = "release";
+-    }
+-    if (appbase.endsWith("/"))
+-    {
+-      appbase = appbase.substring(0, appbase.length() - 1);
+-    }
+-    if (distDir == null)
+-    {
+-      distDir = appbase.equals(releaseAppbase) ? "release" : "alt";
+-    }
+-    getdownAppbase = appbase;
+-    getdownDistDir = distDir;
+-  }
+-
+-  public static String getGetdownAppbase()
+-  {
+-    setGetdownAppbase();
+-    return getdownAppbase;
+-  }
+-
+-  public static String getAppbaseBuildProperties()
+-  {
+-    String appbase = getGetdownAppbase();
+-    return appbase + "/" + getdownDistDir + "/build_properties";
+-  }
+ }
+--- a/src/jalview/bin/Jalview.java
++++ b/src/jalview/bin/Jalview.java
+@@ -43,7 +43,6 @@
+ import javax.swing.UIManager;
+ import javax.swing.UIManager.LookAndFeelInfo;
+ 
+-import com.threerings.getdown.util.LaunchUtil;
+ 
+ import groovy.lang.Binding;
+ import groovy.util.GroovyScriptEngine;
+@@ -383,25 +382,6 @@
+       BioJsHTMLOutput.updateBioJS();
+     }
+ 
+-    // Move any new getdown-launcher-new.jar into place over old
+-    // getdown-launcher.jar
+-    String appdirString = System.getProperty("getdownappdir");
+-    if (appdirString != null && appdirString.length() > 0)
+-    {
+-      final File appdir = new File(appdirString);
+-      new Thread()
+-      {
+-        @Override
+-        public void run()
+-        {
+-          LaunchUtil.upgradeGetdown(
+-                  new File(appdir, "getdown-launcher-old.jar"),
+-                  new File(appdir, "getdown-launcher.jar"),
+-                  new File(appdir, "getdown-launcher-new.jar"));
+-        }
+-      }.start();
+-    }
+-
+     String file = null, data = null;
+     FileFormatI format = null;
+     DataSourceType protocol = null;
