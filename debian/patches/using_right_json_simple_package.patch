@@ -1,0 +1,21 @@
+Description: JSONObject was wrongly invoked
+ It was called with a wrong package name, "simple" being forgotten.
+ Moreover it is called on an AlignmentPojo object, I added the getAppSettings
+ method in the call to get a HashMap<String, Object>.
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: no
+Last-Update: 2020-11-15
+
+--- a/src/jalview/io/JSONFile.java
++++ b/src/jalview/io/JSONFile.java
+@@ -255,8 +255,8 @@
+           jsonAlignmentPojo.getSeqGroups().add(seqGrpPojo);
+         }
+       }
+-      org.json.JSONObject generatedJSon = new org.json.JSONObject(
+-              jsonAlignmentPojo);
++      org.json.simple.JSONObject generatedJSon = new org.json.simple.JSONObject(
++              jsonAlignmentPojo.getAppSettings());
+       jsonOutput = generatedJSon.toString();
+       return jsonOutput.replaceAll("xstart", "xStart").replaceAll("xend",
+               "xEnd");
