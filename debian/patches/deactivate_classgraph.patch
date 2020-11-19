@@ -1,0 +1,69 @@
+Description: avoid using classgraph, not needed to find the Debian jar
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: not-needed
+Last-Update: 2020-11-16
+
+--- a/test/jalview/bin/CommandLineOperations.java
++++ b/test/jalview/bin/CommandLineOperations.java
+@@ -47,10 +47,6 @@
+ import org.testng.annotations.DataProvider;
+ import org.testng.annotations.Test;
+ 
+-import io.github.classgraph.ClassGraph;
+-import io.github.classgraph.ModuleRef;
+-import io.github.classgraph.ScanResult;
+-
+ public class CommandLineOperations
+ {
+ 
+@@ -130,49 +126,18 @@
+     }
+   }
+ 
+-  private static ClassGraph scanner = null;
+-
+   private static String classpath = null;
+ 
+   private static String modules = null;
+ 
+   private static String java_exe = null;
+ 
+-  public synchronized static String getClassPath()
+-  {
+-    if (scanner == null)
+-    {
+-      scanner = new ClassGraph();
+-      ScanResult scan = scanner.scan();
+-      classpath = scan.getClasspath();
+-      modules = "";
+-      for (ModuleRef mr : scan.getModules())
+-      {
+-        modules.concat(mr.getName());
+-      }
+-      java_exe = System.getProperty("java.home") + File.separator + "bin"
+-              + File.separator + "java";
+-
+-    }
+-    while (classpath == null)
+-    {
+-      try
+-      {
+-        Thread.sleep(10);
+-      } catch (InterruptedException x)
+-      {
+-
+-      }
+-    }
+-    return classpath;
+-  }
+-
+   private Worker getJalviewDesktopRunner(boolean withAwt, String cmd,
+           int timeout)
+   {
+     // Note: JAL-3065 - don't include quotes for lib/* because the arguments are
+     // not expanded by the shell
+-    String classpath = getClassPath();
++    String classpath = new String("/usr/share/java/jalview.jar");
+     String _cmd = java_exe + " "
+             + (withAwt ? "-Djava.awt.headless=true" : "")
+             + " -classpath " + classpath
