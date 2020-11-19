@@ -3,37 +3,37 @@ Section: science
 Priority: optional
 Maintainer: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Vincent Fourmond <fourmond@debian.org>
-Build-Depends: cdbs,
-               debhelper-compat (= 13),
+Build-Depends: debhelper-compat (= 13),
                default-jdk,
                gradle-debian-helper,
                groovy,
-               icedtea-netx-common,
                javahelp2,
                javahelper,
-               jmol-applet (>= 12.1.42),
                libapache-mime4j-java (>= 0.7.2),
                libaxis-java,
                libbiojava4-java,
-               libcastor-xml-java,
-               libcommons-discovery-java,
-               libcommons-logging-java,
+               libhtsjdk-java,
                libhttpclient-java,
                libhttpcore-java,
                libhttpmime-java,
+               libintervalstorej-java,
                libjaba-client-java,
                libjaxrs-api-java,
                libjersey1-client-java,
                libjetty9-java,
+               libjfreesvg-java,
                libjmol-java (>= 12.1.42),
                libjson-simple-java,
+               libjsoup-java,
                libjswingreader-java,
                liblog4j1.2-java,
                libmiglayout-java,
-               libservlet3.1-java,
                libslf4j-java,
                libvamsas-client-java,
-               libwsdl4j-java
+               varna,
+               libandroid-json-org-java <!nocheck>,
+               libjersey1-core-java <!nocheck>,
+               testng <!nocheck>
 Standards-Version: 3.9.7
 Vcs-Git: https://anonscm.debian.org/git/pkg-java/jalview.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-java/jalview.git
