@@ -1,1 +1,1 @@
-dist/jalview.jar
+target/jalview-*.jar

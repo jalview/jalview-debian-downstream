@@ -1,0 +1,3 @@
+
+org.eclipse.jetty * jar s/.*/9.x/ * *
+org.jfree org.jfree.svg jar s/.*/4.1/ * *

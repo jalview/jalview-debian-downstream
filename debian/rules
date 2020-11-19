@@ -6,4 +6,21 @@ export JAVA_HOME=/usr/lib/jvm/default-java
 export LC_ALL=C.UTF-8
 
 %:
-	dh $@ --with gradle-debian-helper --with javahelper
+	dh $@
+
+override_dh_clean:
+	# Putting gradle file back in place, removing Maven's pom.
+	if [ -e buildUpstream.gradle ] ; then mv buildUpstream.gradle build.gradle ; fi
+	$(RM) pom.xml
+
+override_dh_auto_configure:
+	# Putting gradle stuff out of the way and placing pom.xml at root.
+	mv build.gradle buildUpstream.gradle
+	sed 's/VERSION_PACKAGE/$(subst +dfsg,,$(DEB_VERSION_UPSTREAM))/' debian/pom.xml > pom.xml
+	dh_auto_configure
+
+override_dh_auto_install:
+	dh_auto_install
+	# Calling javahelper to put the built jar in the right place.
+	jh_installlibs
+	jh_classpath
