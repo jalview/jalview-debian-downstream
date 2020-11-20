@@ -6,6 +6,7 @@ Uploaders: Pierre Gruet <pgtdebian@free.fr>
 Build-Depends: debhelper-compat (= 13),
                default-jdk,
                groovy,
+               imagemagick,
                javahelp2,
                javahelper,
                libapache-mime4j-java (>= 0.7.2),
