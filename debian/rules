@@ -27,4 +27,5 @@ override_dh_auto_install:
 	convert resources/images/JalviewLogo_big.png -resize 64x64\! debian/$(DEB_SOURCE)/usr/share/icons/hicolor/64x64/apps/jalview-icon.png
 	# Calling javahelper to put the built jar in the right place.
 	jh_installlibs
-	jh_classpath
+	jh_manifest
+	jh_depends
