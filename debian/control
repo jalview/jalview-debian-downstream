@@ -35,10 +35,11 @@ Build-Depends: debhelper-compat (= 13),
                libandroid-json-org-java <!nocheck>,
                libjersey1-core-java <!nocheck>,
                testng <!nocheck>
-Standards-Version: 3.9.7
+Standards-Version: 4.5.1
 Vcs-Git: https://salsa.debian.org/java-team/jalview.git
 Vcs-Browser: https://salsa.debian.org/java-team/jalview
 Homepage: https://www.jalview.org
+Rules-Requires-Root: no
 
 Package: jalview
 Architecture: all
