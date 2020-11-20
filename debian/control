@@ -35,9 +35,9 @@ Build-Depends: debhelper-compat (= 13),
                libjersey1-core-java <!nocheck>,
                testng <!nocheck>
 Standards-Version: 3.9.7
-Vcs-Git: https://anonscm.debian.org/git/pkg-java/jalview.git
-Vcs-Browser: https://anonscm.debian.org/cgit/pkg-java/jalview.git
-Homepage: http://www.jalview.org
+Vcs-Git: https://salsa.debian.org/java-team/jalview.git
+Vcs-Browser: https://salsa.debian.org/java-team/jalview
+Homepage: https://www.jalview.org
 
 Package: jalview
 Architecture: all
