@@ -9,6 +9,7 @@ export LC_ALL=C.UTF-8
 	dh $@
 
 override_dh_clean:
+	dh_clean
 	# Putting gradle file back in place, removing Maven's pom.
 	if [ -e buildUpstream.gradle ] ; then mv buildUpstream.gradle build.gradle ; fi
 	$(RM) pom.xml
