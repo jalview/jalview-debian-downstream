@@ -10,11 +10,15 @@ export LC_ALL=C.UTF-8
 
 override_dh_clean:
 	dh_clean
+	# Removing the help/ folder that was put into resources/
+	$(RM) -rf resources/help/
 	# Putting gradle file back in place, removing Maven's pom.
 	if [ -e buildUpstream.gradle ] ; then mv buildUpstream.gradle build.gradle ; fi
 	$(RM) pom.xml
 
 override_dh_auto_configure:
+	# Putting help folder inside resources so that it enters the jar.
+	cp -a help/help/ resources/
 	# Putting gradle stuff out of the way and placing pom.xml at root.
 	mv build.gradle buildUpstream.gradle
 	sed 's/VERSION_PACKAGE/$(subst +dfsg,,$(DEB_VERSION_UPSTREAM))/' debian/pom.xml > pom.xml
