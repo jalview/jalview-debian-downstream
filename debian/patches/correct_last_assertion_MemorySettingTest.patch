@@ -1,0 +1,26 @@
+Description: correcting the last assertion in MemorySettingTest.java
+Author: Benedict Soares <b.soares@dundee.ac.uk>
+Origin: upstream
+Forwarded: not-needed
+Reviewed-by: Pierre Gruet <pgtdebian@free.fr>
+Last-Update: 2020-11-19
+
+--- a/test/jalview/bin/MemorySettingTest.java
++++ b/test/jalview/bin/MemorySettingTest.java
+@@ -100,9 +100,13 @@
+     assertEquals(mem7, 512 * MB);
+ 
+     // ensure enough memory for OS
+-    long mem8 = MemorySetting.getMemorySetting("2TB", "100"); // this should be short of 512MB
+-    long mem8b = MemorySetting.getMemorySetting("2TB", "50");
+-    assertEquals(mem8b * 2 - mem8, 512 * MB);
++    long mem8 = MemorySetting.getMemorySetting("2T", "100"); // this should be
++                                                             // short of 512MB
++    long mem8b = MemorySetting.getMemorySetting("2T", "50");
++    // allow 10k leeway
++    long diff = mem8b * 2 - mem8;
++    assertTrue(512 * MB - 10 * KB < diff && diff < 512 * MB + 10 * KB);
++    // assertEquals(mem8b * 2 - mem8, 512 * MB);
+   }
+ 
+ }
