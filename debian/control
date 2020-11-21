@@ -20,6 +20,7 @@ Build-Depends: debhelper-compat (= 13),
                libjaba-client-java,
                libjaxrs-api-java,
                libjersey1-client-java,
+               libjersey1-core-java,
                libjetty9-java,
                libjfreesvg-java,
                libjmol-java (>= 12.1.42),
@@ -33,7 +34,6 @@ Build-Depends: debhelper-compat (= 13),
                maven-debian-helper,
                varna,
                libandroid-json-org-java <!nocheck>,
-               libjersey1-core-java <!nocheck>,
                testng <!nocheck>
 Standards-Version: 4.5.1
 Vcs-Git: https://salsa.debian.org/java-team/jalview.git
