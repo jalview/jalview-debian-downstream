@@ -3,32 +3,136 @@
 .\" Copyright 2011 by Vincent Fourmond
 .\" Can be modified and distributed under the terms of the GNU General
 .\" public license, version 3 or any later version at your option.
-.TH JALVIEW  1  "26-01-2009"
+.TH JALVIEW  1  "21-11-2020"
 .SH NAME
-jalview \- Sequence alignement viewer
+jalview \- Multiple alignement editor
 .SH SYNOPSIS
-.B jalview
+.B \fBjalview\fP \-open [\fIFILE\fP] [\fIOUTPUT_FORMAT\fP] [\fIOUTPUT_FILE\fP]
 
 .SH DESCRIPTION
 
-.B jalview
+.B Jalview
 provides facilities for viewing/editing and otherwise manipulating
 sequence alignments (DNA, amino acids).
 
-
-.SH JAVA-WRAPPERS NOTE
-
-This program is a shell script wrapper based on
-.BR java-wrappers (7).
-You therefore benefit from several features; please see the 
-.BR java-wrappers (7)
-manual page for more information about them.
-
+.SH OPTIONS
+.TP
+.BR \-nodisplay
+Run
+.B Jalview 
+without User Interface.
+.TP
+.BR \-props " FILE"
+Use the given
+.B Jalview  
+properties file instead of users default.
+.TP
+.BR \-colour " COLOURSCHEME"
+The colourscheme to be applied to the alignment
+.TP
+.BR \-annotations " FILE"
+Add precalculated annotations to the alignment.
+.TP
+.BR \-tree " FILE"
+Load the given newick format tree file onto the alignment
+.TP
+.BR \-features " FILE"
+Use the given file to mark features on the alignment.
+.TP
+.BR \-fasta " FILE"
+Create alignment file FILE in Fasta format.
+.TP
+.BR \-clustal " FILE"
+Create alignment file FILE in Clustal format.
+.TP
+.BR \-pfam " FILE"
+Create alignment file FILE in PFAM format.
+.TP
+.BR \-msf " FILE"
+Create alignment file FILE in MSF format.
+.TP
+.BR \-pileup " FILE"
+Create alignment file FILE in Pileup format
+.TP
+.BR \-pir " FILE"
+Create alignment file FILE in PIR format.
+.TP
+.BR \-blc " FILE"
+Create alignment file FILE in BLC format.
+.TP
+.BR \-json " FILE"
+Create alignment file FILE in JSON format.
+.TP
+.BR \-jalview " FILE"
+Create alignment file FILE in
+.B Jalview 
+format.
+.TP
+.BR \-png " FILE"
+Create PNG image FILE from alignment.
+.TP
+.BR \-svg " FILE"
+Create SVG image FILE from alignment.
+.TP
+.BR \-html " FILE"
+Create HTML file from alignment.
+.TP
+.BR \-biojsMSA " FILE"
+Create BioJS MSA Viewer HTML file from alignment.
+.TP
+.BR \-imgMap " FILE"
+Create HTML file FILE with image map of PNG image.
+.TP
+.BR \-eps " FILE"
+Create EPS file FILE from alignment.
+.TP
+.BR \-questionnaire " URL"
+Queries the given URL for information about any
+.B Jalview 
+user questionnaires.
+.TP
+.BR \-noquestionnaire
+Turn off questionnaire check.
+.TP
+.BR \-nonews
+Turn off check for Jalview news.
+.TP
+.BR \-nousagestats
+Turn off google analytics tracking for this session.
+.TP
+.BR \-sortbytree " OR " \-nosortbytree
+Enable or disable sorting of the given alignment by the given tree
+.TP
+.BR \-jabaws " URL"
+Specify URL for Jabaws services (e.g. for a local installation).
+.TP
+.BR \-fetchfrom " nickname"
+Query nickname for features for the alignments and display them.
+.TP
+.BR \-groovy " FILE"
+Execute groovy script in FILE, after all other arguments have been processed
+(if FILE is the text 'STDIN' then the file will be read from STDIN).
+.TP
+.BR \-jvmmempc=PERCENT
+Only available with standalone executable jar or jalview.bin.Launcher. Limit
+maximum heap size (memory) to PERCENT% of total physical memory detected. This
+defaults to 90 if total physical memory can be detected.
+See https://www.jalview.org/help/html/memory.html for more details.
+.TP
+.BR \-jvmmemmax=MAXMEMORY
+Only available with standalone executable jar or jalview.bin.Launcher. Limit
+maximum heap size (memory) to MAXMEMORY. MAXMEMORY can be specified in bytes,
+kilobytes(k), megabytes(m), gigabytes(g) or if you're lucky enough,
+terabytes(t). This defaults to 32g if total physical memory can be detected,
+or to 8g if total physical memory cannot be detected.
+See https://www.jalview.org/help/html/memory.html for more details.
+.TP
 
 .SH SEE ALSO
 
-.B http://www.jalview.org
+.B https://www.jalview.org
 
 .SH AUTHOR
-This manual page was written by Vincent Fourmond <fourmond@debian.org>
-from the Debian project, but may be used by others.
+This manual page was written by Vincent Fourmond <fourmond@debian.org> and
+Pierre Gruet <pgtdebian@free.fr> from the Debian project, but may be used
+by others.
