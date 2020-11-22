@@ -34,3 +34,5 @@ Registry:
    Entry: OMICS_00885
  - Name: conda:bioconda
    Entry: jalview
+Bug-Submit: https://issues.jalview.org/secure/Dashboard.jspa
+Repository-Browse: http://source.jalview.org/gitweb/?p=jalview.git;a=summary
