@@ -1,0 +1,41 @@
+Description: Turn off Google analytics call, relies on non-packaged software
+Author: Pierre Gruet <pgtdebian@free.fr>
+Forwarded: not-needed
+Last-Update: 2020-11-25
+
+--- a/src/jalview/bin/Jalview.java
++++ b/src/jalview/bin/Jalview.java
+@@ -332,14 +332,6 @@
+ 
+       desktop.setVisible(true);
+       desktop.startServiceDiscovery();
+-      if (!aparser.contains("nousagestats"))
+-      {
+-        startUsageStats(desktop);
+-      }
+-      else
+-      {
+-        System.err.println("CMD [-nousagestats] executed successfully!");
+-      }
+ 
+       if (!aparser.contains("noquestionnaire"))
+       {
+@@ -925,7 +917,6 @@
+                     + "-questionnaire URL\tQueries the given URL for information about any Jalview user questionnaires.\n"
+                     + "-noquestionnaire\tTurn off questionnaire check.\n"
+                     + "-nonews\tTurn off check for Jalview news.\n"
+-                    + "-nousagestats\tTurn off google analytics tracking for this session.\n"
+                     + "-sortbytree OR -nosortbytree\tEnable or disable sorting of the given alignment by the given tree\n"
+                     // +
+                     // "-setprop PROPERTY=VALUE\tSet the given Jalview property,
+--- a/src/jalview/jbgui/GPreferences.java
++++ b/src/jalview/jbgui/GPreferences.java
+@@ -905,6 +905,8 @@
+     // Usage stats checkbox label
+     usagestats.setText(
+             MessageManager.getString("label.send_usage_statistics"));
++    usagestats.setSelected(false);
++    usagestats.setEnabled(false);
+     usagestats.setFont(LABEL_FONT);
+     usagestats.setHorizontalAlignment(SwingConstants.RIGHT);
+     usagestats.setHorizontalTextPosition(SwingConstants.LEADING);

@@ -6,3 +6,4 @@ using_right_json_simple_package.patch
 deactivate_getdown.patch
 deactivate_classgraph.patch
 correct_last_assertion_MemorySettingTest.patch
+deactivate_google_analytics.patch
