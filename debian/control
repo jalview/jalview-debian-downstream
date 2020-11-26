@@ -45,6 +45,7 @@ Package: jalview
 Architecture: all
 Depends: default-jre,
          libcommons-discovery-java,
+         libjaxws-java,
          ${java:Depends},
          ${misc:Depends}
 Suggests: clustalw, kalign, t-coffee
