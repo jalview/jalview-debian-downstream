@@ -55,7 +55,8 @@ Comment: This is similar to BSD-3-clause but the third clause has been changed
 
 Files: src/jalview/ext/android/*
 Copyright: 2006 The Android Open Source Project
-License: Apache-2.0
+           2014-2020 The Jalview Authors
+License: Apache-2.0 and GPL-3+
 
 Files: src/jalview/gui/AquaInternalFrameManager.java
 Copyright: 2011-2012 Oracle and/or its affiliates.
