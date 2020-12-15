@@ -1,14 +1,20 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: jalview
 Upstream-Contact: jalview-discuss@jalview.org
-Files-Excluded: **/*.jar
-                jalview/examples
+Files-Excluded: jalview/j11lib
+                jalview/j8lib
+                jalview/j11digestonly
+                jalview/j8digestonly
+                jalview/examples/biojson-doc
+                jalview/examples/javascript
+                jalview/examples/example_biojs.html
                 jalview/utils
                 jalview/getdown
-Source: The tarball is made by deleting the jars, the utils directory as we
-        will rely on the Debian-packaged tools, and the examples directory of
-        which copyright is a bit confusing. getdown is a tool to update the
-        software at runtime, which we don't want to enable.
+Source: The tarball is made by deleting the jars in the j8* and j11* dirs,
+        the utils directory as we will rely on the Debian-packaged tools, and
+        some folders in the examples directory, of which copyright is a bit
+        confusing. getdown is a tool to update the software at runtime, which
+        we don't want to enable.
 
 Files: *
 Copyright: 2014-2020 The Jalview Authors
