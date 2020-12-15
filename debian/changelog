@@ -1,20 +1,44 @@
-jalview (2.10.1.dfsg-1) UNRELEASED; urgency=medium
+jalview (2.11.1.3+dfsg-1) UNRELEASED; urgency=medium
 
-  * Team upload.
+  [ Pierre Gruet ]
+  * New upstream version 2.11.1.3+dfsg (Closes: #849025)
+  * New uploader (Closes: #897294)
+  * Using version 4 in d/watch to remove files
+  * Using secure URI in d/watch
+  * Depending on debhelper-compat 13
+  * Upstream has switched from ant to gradle
+  * Correcting invocation of org.jfree
+  * Get rid of quaqua, which cannot be distributed on a non-Mac platform
+  * Calling JSONObject correctly
+  * Deactivating getdown, which is used to update software while running
+  * Removing call to classgraph, not needed for a Debian run
+  * Updating build-dependencies list and d/jalview.classpath
+  * Switching from cdbs to dh
+  * Making the build with Maven instead of upstream's gradle
+  * Updating Vcs-* and Homepage fields in d/control
+  * Refreshing d/copyright
+  * Bump Standards version to 4.5.1:
+    - Providing a FreeDesktop entry instead of former menu entry
+    - Rules-Requires-Root: no
+    - Using the https form of the copyright-format URL
+  * Modifying the jar launcher by setting properly the jar manifest
+  * Putting the documentation in the resources tm embed it into the jar
+  * Updating manpage
+  * Deactivating Google Analytics, using a non-packaged and improperly licensed software
 
   [ Steffen Moeller ]
   * Reintroduced debian/upstream/edam file
   * Created debian/upstream/metadata
     - references to papers
     - references to registries
-
-  [ Ximin Luo ]
-  * New upstream release.
+  * Added prior forgotten PMID in metadata
+  * d/u/metadata: syntax fixed(?) and URLs added
+  * Added ref to conda, RRID->SciCrunch
 
   [ Andreas Tille ]
   * d/rules: enforce LC_ALL=C.UTF-8 to cope with UTF-8 characters
 
- -- Ximin Luo <infinity0@debian.org>  Sat, 10 Dec 2016 16:06:23 +0100
+ -- Pierre Gruet <pgtdebian@free.fr>  Tue, 15 Dec 2020 23:02:10 +0100
 
 jalview (2.7.dfsg-5) unstable; urgency=medium
 
