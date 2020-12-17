@@ -1,4 +1,4 @@
-jalview (2.11.1.3+dfsg-1) UNRELEASED; urgency=medium
+jalview (2.11.1.3+dfsg1-1) UNRELEASED; urgency=medium
 
   [ Pierre Gruet ]
   * New upstream version 2.11.1.3+dfsg (Closes: #849025)
@@ -25,6 +25,7 @@ jalview (2.11.1.3+dfsg-1) UNRELEASED; urgency=medium
   * Putting the documentation in the resources tm embed it into the jar
   * Updating manpage
   * Deactivating Google Analytics, using a non-packaged and improperly licensed software
+  * Adding autopkgtests
 
   [ Steffen Moeller ]
   * Reintroduced debian/upstream/edam file
