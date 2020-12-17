@@ -1,0 +1,7 @@
+Tests: someCommandLineInvocations
+Depends: @
+Restrictions: allow-stderr
+
+Tests: run-unit-test
+Depends: @
+Restrictions: allow-stderr

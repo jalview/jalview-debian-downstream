@@ -1,0 +1,10 @@
+Notes on how this package can be tested.
+────────────────────────────────────────
+
+This package can be tested by running the provided test:
+
+    sh run-unit-test
+
+in order to confirm its integrity.
+
+This command will output files to a temporary directory. You may adapt the jalview invocations therein in order to output the files to a directory of your choice.

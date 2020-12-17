@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+pkg=jalview
+
+export LC_ALL=C.UTF-8
+if [ "${AUTOPKGTEST_TMP}" = "" ] ; then
+  AUTOPKGTEST_TMP=$(mktemp -d /tmp/${pkg}-test.XXXXXX)
+  # Double quote below to expand the temporary directory variable now versus
+  # later is on purpose.
+  # shellcheck disable=SC2064
+  trap "rm -rf ${AUTOPKGTEST_TMP}" 0 INT QUIT ABRT PIPE TERM
+fi
+
+cp -a /usr/share/doc/${pkg}/examples/* "${AUTOPKGTEST_TMP}"
+
+cd "${AUTOPKGTEST_TMP}"
+
+jalview -nodisplay -open uniref50.fa -eps uniref50_out.eps
+
+if [ $? -eq 0 ]; then
+  echo "Output generated in eps format in $(pwd)/uniref50_out.eps"
+else
+  echo "Failes to generate output in eps format"
+fi
+
+jalview -nodisplay -open uniref50.fa -html uniref50_out.html
+
+if [ $? -eq 0 ]; then
+  echo "Output generated in html format in $(pwd)/uniref50_out.html"
+else
+  echo "Failes to generate output in eps format"
+fi
+
+jalview -nodisplay -open uniref50.fa -png uniref50_out.png
+
+if [ $? -eq 0 ]; then
+  echo "Output generated in png format in $(pwd)/uniref50_out.png"
+else
+  echo "Failes to generate output in png format"
+fi
