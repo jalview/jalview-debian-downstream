@@ -19,9 +19,10 @@ override_dh_clean:
 override_dh_auto_configure:
 	# Putting help folder inside resources so that it enters the jar.
 	cp -a help/help/ resources/
-	# Putting gradle stuff out of the way and placing pom.xml at root.
+	# Putting gradle stuff out of the way and placing pom.xml at root, with a
+	# hack to put the package version number inside the pom.
 	mv build.gradle buildUpstream.gradle
-	sed 's/VERSION_PACKAGE/$(subst +dfsg,,$(DEB_VERSION_UPSTREAM))/' debian/pom.xml > pom.xml
+	sed 's/\(VERSION_PACKAGE\)/\1$(DEB_VERSION_UPSTREAM)/; s/VERSION_PACKAGE\(.*\)+dfsg[0-9]*/\1/' debian/pom.xml > pom.xml
 	dh_auto_configure
 
 override_dh_auto_install:
