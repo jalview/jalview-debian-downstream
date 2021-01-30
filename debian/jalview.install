@@ -1,2 +1,3 @@
 debian/wrappers/jalview usr/bin
 debian/jalview.desktop usr/share/applications
+debian/jalview-mime.xml usr/share/mime/packages
