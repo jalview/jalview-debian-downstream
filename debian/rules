@@ -34,3 +34,8 @@ override_dh_auto_install:
 	jh_installlibs
 	jh_manifest
 	jh_depends
+
+override_dh_fixperms:
+	# Setting the packaged example file as not executable.
+	chmod a-x debian/$(DEB_SOURCE)/usr/share/doc/jalview/examples/uniref50.fa
+	dh_fixperms
