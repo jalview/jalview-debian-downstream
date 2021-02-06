@@ -1,0 +1,243 @@
+Description: Do not run web services if not allowed by the user/administrator
+Author: Jim Procter <J.Procter@dundee.ac.uk>
+Forwarded: not-needed
+Reviewed-by: Pierre Gruet <pgtdebian@free.fr>
+Last-Update: 2021-02-06
+
+--- a/src/jalview/bin/Cache.java
++++ b/src/jalview/bin/Cache.java
+@@ -167,6 +167,8 @@
+  * <li>FOLLOW_SELECTIONS (true) Controls whether a new alignment view should
+  * respond to selections made in other alignments containing the same sequences.
+  * </li>
++ * <li>SHOW_JWS2_SERVICES (true) when set to false, jalview will not
++ * auto-discover JABAWS services</li>
+  * <li>JWS2HOSTURLS comma-separated list of URLs to try for JABAWS services</li>
+  * <li>SHOW_WSDISCOVERY_ERRORS (true) Controls if the web service URL discovery
+  * warning dialog box is displayed.</li>
+@@ -194,7 +196,13 @@
+  * <li>CHIMERA_PATH specify full path to Chimera program (if non-standard)</li>
+  * <li>ID_ORG_HOSTURL location of jalview service providing identifiers.org urls
+  * </li>
+- * 
++ * <li>NONEWS - when set disables Jalview News from automatically appearing</li>
++ * <li>NOHTMLTEMPLATES - when set, the
++ * https://github.com/jalview/exporter-templates/tree/master/biojs repository is
++ * not downloaded automatically</li>
++ * <li>NOIDENTIFIERSSERVICE - when set, jalview won't automatically download
++ * available URL linkouts via www.jalview.org/services/identifiers</li>
++ * <li>
+  * </ul>
+  * Deprecated settings:
+  * <ul>
+--- a/src/jalview/bin/Jalview.java
++++ b/src/jalview/bin/Jalview.java
+@@ -366,12 +366,17 @@
+         System.err.println("CMD [-noquestionnaire] executed successfully!");
+       }
+ 
+-      if (!aparser.contains("nonews"))
++      if (!aparser.contains("nonews")
++                || Cache.getProperty("NONEWS") == null)
+       {
+         desktop.checkForNews();
+       }
+ 
+-      BioJsHTMLOutput.updateBioJS();
++      if (!aparser.contains("nohtmltemplates")
++              || Cache.getProperty("NOHTMLTEMPLATES") == null)
++      {
++        BioJsHTMLOutput.updateBioJS();
++      }
+     }
+ 
+     String file = null, data = null;
+--- a/src/jalview/gui/AlignFrame.java
++++ b/src/jalview/gui/AlignFrame.java
+@@ -4174,9 +4174,15 @@
+                   webService.add(me.webServiceNoServices);
+                 }
+                 // TODO: move into separate menu builder class.
+-                boolean new_sspred = false;
+-                if (Cache.getDefault("SHOW_JWS2_SERVICES", true))
+                 {
++                  // logic for 2.11.1.4 is
++ 	 	  // always look to see if there is a discover. if there isn't
++ 	 	  // we can't show any Jws2 services
++ 	 	  // if there are services available, show them - regardless of
++ 	 	  // the 'show JWS2 preference'
++ 	 	  // if the discoverer is running then say so
++ 	 	  // otherwise offer to trigger discovery if 'show JWS2' is not
++ 	 	  // enabled
+                   Jws2Discoverer jws2servs = Jws2Discoverer.getDiscoverer();
+                   if (jws2servs != null)
+                   {
+@@ -4193,8 +4199,8 @@
+                           }
+                         }
+                       }
+-
+                     }
++
+                     if (jws2servs.isRunning())
+                     {
+                       JMenuItem tm = new JMenuItem(
+@@ -4202,6 +4208,26 @@
+                       tm.setEnabled(false);
+                       webService.add(tm);
+                     }
++                    else if (!Cache.getDefault("SHOW_JWS2_SERVICES", true))
++ 	 	    {
++ 	 	      JMenuItem enableJws2 = new JMenuItem(
++ 	 	              "Discover Web Services");
++ 	 	      enableJws2.setToolTipText(
++ 	 	              "Select to start JABA Web Service discovery (or enable option in Web Service preferences)");
++ 	 	      enableJws2.setEnabled(true);
++ 	 	      enableJws2.addActionListener(new ActionListener()
++ 	 	      {
++
++ 	 	        @Override
++ 	 	        public void actionPerformed(ActionEvent e)
++ 	 	        {
++ 	 	          // start service discoverer, but ignore preference
++ 	 	          Desktop.instance.startServiceDiscovery(false,
++ 	 	                  true);
++ 	 	        }
++ 	 	      });
++ 	 	      webService.add(enableJws2);
++ 	 	    }
+                   }
+                 }
+                 build_urlServiceMenu(me.webService);
+--- a/src/jalview/gui/BlogReader.java
++++ b/src/jalview/gui/BlogReader.java
+@@ -272,13 +272,16 @@
+ 
+     initItems(chan);
+     updating = false;
+-    boolean setvisible = checkForNew(chan, true);
+-
+-    if (setvisible)
++    if (!Cache.getDefault("NONEWS", false))
+     {
++      boolean setvisible = checkForNew(chan, true);
++
++      if (setvisible)
++      {
+ 
+-      Cache.log.debug("Will show jalview news automatically");
+-      showNews();
++        Cache.log.debug("Will show jalview news automatically");
++        showNews();
++      }
+     }
+     Cache.log.debug("Completed construction of reader.");
+ 
+--- a/src/jalview/gui/Desktop.java
++++ b/src/jalview/gui/Desktop.java
+@@ -559,26 +559,27 @@
+ 
+   public void getIdentifiersOrgData()
+   {
+-    // Thread off the identifiers fetcher
+-    new Thread(new Runnable()
+-    {
+-      @Override
+-      public void run()
++    if (Cache.getProperty("NOIDENTIFIERSSERVICE") == null)
++    {// Thread off the identifiers fetcher
++      new Thread(new Runnable()
+       {
+-        Cache.log.debug("Downloading data from identifiers.org");
+-        UrlDownloadClient client = new UrlDownloadClient();
+-        try
+-        {
+-          client.download(IdOrgSettings.getUrl(),
+-                  IdOrgSettings.getDownloadLocation());
+-        } catch (IOException e)
++        @Override
++        public void run()
+         {
+-          Cache.log.debug("Exception downloading identifiers.org data"
+-                  + e.getMessage());
++          Cache.log.debug("Downloading data from identifiers.org");
++          try
++          {
++            UrlDownloadClient.download(IdOrgSettings.getUrl(),
++                    IdOrgSettings.getDownloadLocation());
++          } catch (IOException e)
++          {
++            Cache.log.debug("Exception downloading identifiers.org data"
++                    + e.getMessage());
++          }
+         }
+-      }
+-    }).start();
+-    ;
++      }).start();
++      ;
++    }
+   }
+ 
+   @Override
+@@ -2571,13 +2572,36 @@
+     this.inBatchMode = inBatchMode;
+   }
+ 
++  /**
++   * start service discovery and wait till it is done
++   */
+   public void startServiceDiscovery()
+   {
+     startServiceDiscovery(false);
+   }
+ 
++  /**
++   * start service discovery threads - blocking or non-blocking
++   *
++   * @param blocking
++   */
+   public void startServiceDiscovery(boolean blocking)
+   {
++    startServiceDiscovery(blocking,false);
++  }
++
++  /**
++   * start service discovery threads
++   *
++   * @param blocking
++   *          - false means call returns immediately
++   * @param ignore_SHOW_JWS2_SERVICES_preference
++   *          - when true JABA services are discovered regardless of user's JWS2
++   *          discovery preference setting
++   */
++  public void startServiceDiscovery(boolean blocking,
++          boolean ignore_SHOW_JWS2_SERVICES_preference)
++  {
+     boolean alive = true;
+     Thread t0 = null, t1 = null, t2 = null;
+     // JAL-940 - JALVIEW 1 services are now being EOLed as of JABA 2.1 release
+@@ -2595,7 +2619,8 @@
+       (t0 = new Thread(discoverer)).start();
+     }
+ 
+-    if (Cache.getDefault("SHOW_JWS2_SERVICES", true))
++    if (ignore_SHOW_JWS2_SERVICES_preference
++            || Cache.getDefault("SHOW_JWS2_SERVICES", true))
+     {
+       t2 = jalview.ws.jws2.Jws2Discoverer.getDiscoverer()
+               .startDiscoverer(changeSupport);
+--- a/src/jalview/ws/utils/UrlDownloadClient.java
++++ b/src/jalview/ws/utils/UrlDownloadClient.java
+@@ -33,11 +33,6 @@
+ 
+ public class UrlDownloadClient
+ {
+-  public UrlDownloadClient()
+-  {
+-
+-  }
+-
+   /**
+    * Download and save a file from a URL
+    * 
