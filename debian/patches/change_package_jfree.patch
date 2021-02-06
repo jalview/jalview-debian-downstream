@@ -1,6 +1,6 @@
 Description: change the package for org.jfree, which is not the correct one
 Author: Pierre Gruet <pgtdebian@free.fr>
-Forwarded: no
+Forwarded: jalview-dev@jalview.org
 Last-Update: 2020-11-12
 
 --- a/src/jalview/gui/SequenceRenderer.java

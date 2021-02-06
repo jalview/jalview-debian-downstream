@@ -3,7 +3,7 @@ Description: JSONObject was wrongly invoked
  Moreover it is called on an AlignmentPojo object, I added the getAppSettings
  method in the call to get a HashMap<String, Object>.
 Author: Pierre Gruet <pgtdebian@free.fr>
-Forwarded: no
+Forwarded: jalview-dev@jalview.org
 Last-Update: 2020-11-15
 
 --- a/src/jalview/io/JSONFile.java

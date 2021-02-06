@@ -1,6 +1,6 @@
 Description: Patch to use the latest version of Apache Mime4J
 Author: Emmanuel Bourg <ebourg@apache.org>
-Forwarded: no
+Forwarded: jalview-dev@jalview.org
 --- a/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
 +++ b/src/jalview/ws/io/mime/JalviewMimeContentHandler.java
 @@ -29,9 +29,9 @@
