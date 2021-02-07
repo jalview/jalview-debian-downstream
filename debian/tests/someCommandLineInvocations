@@ -1,7 +1,7 @@
 #!/bin/sh
 # autopkgtest check: take an example input file and have outputs in different
 # formats, to be compared with reference ones..
-# (C) 2020 Pierre Gruet.
+# (C) 2020-2021 Pierre Gruet.
 # Author: Pierre Gruet <pgtdebian@free.fr>
 
 set -e
@@ -11,12 +11,12 @@ WORKDIR=$(mktemp -d)
 trap "rm -rf $WORKDIR" 0 INT QUIT ABRT PIPE TERM
 cd $WORKDIR
 
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -blc uniref50_out.blc
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -fasta uniref50_out.mfa
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -pfam uniref50_out.pfam
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -pir uniref50_out.pir
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -clustal uniref50_out1.aln
-jalview -nodisplay -open $SOURCEDIR/examples/uniref50.fa -pileup uniref50_out2.aln
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -blc uniref50_out.blc
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -fasta uniref50_out.mfa
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -pfam uniref50_out.pfam
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -pir uniref50_out.pir
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -clustal uniref50_out1.aln
+jalview -nodisplay -jvmmemmax=512m -open $SOURCEDIR/examples/uniref50.fa -pileup uniref50_out2.aln
 
 diff uniref50_out.blc $SOURCEDIR/debian/tests/expectedOutputs/test_uniref50_out.blc
 
