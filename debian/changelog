@@ -1,4 +1,4 @@
-jalview (2.11.1.3+dfsg2-1) UNRELEASED; urgency=medium
+jalview (2.11.1.3+dfsg2-1) unstable; urgency=medium
 
   [ Pierre Gruet ]
   * New upstream version (Closes: #849025)
@@ -37,7 +37,7 @@ jalview (2.11.1.3+dfsg2-1) UNRELEASED; urgency=medium
   [ Andreas Tille ]
   * d/rules: enforce LC_ALL=C.UTF-8 to cope with UTF-8 characters
 
- -- Pierre Gruet <pgtdebian@free.fr>  Sat, 06 Feb 2021 21:53:09 +0100
+ -- Pierre Gruet <pgtdebian@free.fr>  Sat, 06 Feb 2021 23:04:36 +0100
 
 jalview (2.7.dfsg-5) unstable; urgency=medium
 
