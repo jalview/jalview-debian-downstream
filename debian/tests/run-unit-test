@@ -21,7 +21,7 @@ jalview -nodisplay -open uniref50.fa -eps uniref50_out.eps
 if [ $? -eq 0 ]; then
   echo "Output generated in eps format in $(pwd)/uniref50_out.eps"
 else
-  echo "Failes to generate output in eps format"
+  echo "Failed to generate output in eps format"
 fi
 
 jalview -nodisplay -open uniref50.fa -html uniref50_out.html
@@ -29,7 +29,7 @@ jalview -nodisplay -open uniref50.fa -html uniref50_out.html
 if [ $? -eq 0 ]; then
   echo "Output generated in html format in $(pwd)/uniref50_out.html"
 else
-  echo "Failes to generate output in eps format"
+  echo "Failed to generate output in eps format"
 fi
 
 jalview -nodisplay -open uniref50.fa -png uniref50_out.png
@@ -37,5 +37,5 @@ jalview -nodisplay -open uniref50.fa -png uniref50_out.png
 if [ $? -eq 0 ]; then
   echo "Output generated in png format in $(pwd)/uniref50_out.png"
 else
-  echo "Failes to generate output in png format"
+  echo "Failed to generate output in png format"
 fi
