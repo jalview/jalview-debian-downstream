@@ -1,3 +1,11 @@
+jalview (2.11.1.3+dfsg2-2) unstable; urgency=high
+
+  * Adding a memory limitation in the autopkgtest
+  * Fixing a typo in d/tests/run-unit-test
+  * Removing now useless d/TODO and d/dirs files
+
+ -- Pierre Gruet <pgtdebian@free.fr>  Sun, 07 Feb 2021 22:06:13 +0100
+
 jalview (2.11.1.3+dfsg2-1) unstable; urgency=medium
 
   [ Pierre Gruet ]
