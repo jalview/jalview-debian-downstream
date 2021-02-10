@@ -1,4 +1,13 @@
 #!/bin/sh
 set -e
 
-java -jar /usr/share/java/jalview.jar "$@"
+ARG1=$1
+ 
+# check to see if $1 is set and is not start of other cli set args
+OPEN=""
+if [ -n "$ARG1" -a "$ARG1" = "${ARG1#-}" ]; then
+ # first argument exists and does not start with a "-"
+ OPEN="-open"
+fi
+
+java -jar /usr/share/java/jalview.jar $OPEN "$@"
