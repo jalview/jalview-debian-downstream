@@ -12,6 +12,9 @@ override_dh_clean:
 	dh_clean
 	# Removing the help/ folder that was put into resources/
 	$(RM) -rf resources/help/
+	# Removing the file to create .build_properties, and .build_properties itself.
+	if [ -e write_build_properties_file.sh ]; then $(RM) write_build_properties_file.sh ; fi
+	if [ -e resources/.buildbuild_properties ]; then $(RM) resources/.build_properties ; fi
 	# Putting gradle file back in place, removing Maven's pom.
 	if [ -e buildUpstream.gradle ] ; then mv buildUpstream.gradle build.gradle ; fi
 	$(RM) pom.xml
@@ -19,6 +22,10 @@ override_dh_clean:
 override_dh_auto_configure:
 	# Putting help folder inside resources so that it enters the jar.
 	cp -a help/help/ resources/
+	# Putting the .build_properties file needed by upstream in the resources.
+	sed 's/\(VERSION_NUMBER\)/$(DEB_VERSION)/' debian/write_build_properties_file.sh.in > write_build_properties_file.sh && \
+	        chmod a+x write_build_properties_file.sh && \
+	        ./write_build_properties_file.sh
 	# Putting gradle stuff out of the way and placing pom.xml at root, with a
 	# hack to put the package version number inside the pom.
 	mv build.gradle buildUpstream.gradle
