@@ -2,6 +2,11 @@
 set -e
 
 ARG1=$1
+
+# copy the default settings if no user jalview settings file exists
+if [ -n "${HOME}" -a -e /etc/jalview_properties -a \! -e ${HOME}/.jalview_properties ]; then
+ cp /etc/jalview_properties ${HOME}/.jalview_properties
+fi
  
 # check to see if $1 is set and is not start of other cli set args
 OPEN=""
