@@ -42,6 +42,11 @@ override_dh_auto_install:
 	jh_manifest
 	jh_depends
 
+override_dh_installexamples:
+	dh_installexamples
+	# Providing an example at startup instead of having to load it from the Internet.
+	cp examples/exampleFile_2_7.jar debian/$(DEB_SOURCE)/usr/share/doc/jalview/examples/exampleFile_2_7.jvp
+
 override_dh_fixperms:
 	# Setting the packaged example file as not executable.
 	chmod a-x debian/$(DEB_SOURCE)/usr/share/doc/jalview/examples/uniref50.fa
