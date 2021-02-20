@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Debian Java Maintainers <pkg-java-maintainers@lists.alioth.debian.org>
 Uploaders: Pierre Gruet <pgtdebian@free.fr>
 Build-Depends: debhelper-compat (= 13),
+               po-debconf,
                default-jdk,
                groovy,
                imagemagick,
@@ -44,6 +45,7 @@ Rules-Requires-Root: no
 Package: jalview
 Architecture: all
 Depends: default-jre,
+         debconf,
          libcommons-discovery-java,
          libjaxws-java,
          ${java:Depends},

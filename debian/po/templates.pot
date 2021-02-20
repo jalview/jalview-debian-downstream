@@ -1,0 +1,100 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the jalview package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: jalview\n"
+"Report-Msgid-Bugs-To: jalview@packages.debian.org\n"
+"POT-Creation-Date: 2021-02-19 16:02+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Allow downloading data automatically from identifiers.org?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Automatically downloading a list of URL templates for biological databases "
+"from identifiers.org is a convenience for users but can be deactivated as it "
+"causes an automatic ping to a web server. Users can enable or disable this "
+"service from their own configuration file."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:2001
+msgid "Allow fetching news from the Jalview website?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:2001
+msgid ""
+"Fetched news are put into a popup window at startup. They are informative to "
+"users but imply they are automatically grasped from the Jalview website. The "
+"latter records the IP address of the machine to make statistics about the "
+"number of users. Users can enable or disable news fetching from their own "
+"configuration file."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:3001
+msgid "Allow querying the Jalview website about a user questionnaire?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:3001
+msgid ""
+"User questionnaires are proposed from time to time on the Jalview website, "
+"there can be an automatic query to look for them at startup but this implies "
+"pinging the Jalview website, which records the IP address of the machine to "
+"make statistics about the number of users. Users can enable or disable the "
+"query from their own configuration file."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:4001
+msgid "Allow pinging the JABAWS web services at startup?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:4001
+msgid ""
+"The JABAWS web services give access to larger analysis features than if one "
+"runs only the standalone application. The ping at startup leads to "
+"discovering the available services. Users can enable or disable the startup "
+"discovery from their own configuration file or from the settings window in "
+"the application."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:5001
+msgid "Allow downloading HTML templates automatically from Github?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../templates:5001
+msgid ""
+"This feature allows to download the latest 'BioJS' HTML export template "
+"automatically from the Github repository at startup. Users can enable or "
+"disable this feature from their own configuration file."
+msgstr ""

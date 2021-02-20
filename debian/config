@@ -1,0 +1,16 @@
+#!/bin/sh -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+# Fetching news
+db_input medium jalview/news || true
+# Querying for questionnaire
+db_input medium jalview/questionnaire || true
+# Downloading from identifiers.org
+db_input medium jalview/identifiersservice || true
+# Web services discovery
+db_input medium jalview/jws2services || true
+# Downloading HTML templates
+db_input medium jalview/htmltemplates || true
+db_go

@@ -1,0 +1,148 @@
+#!/bin/sh -e
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+if [ "$1" = "configure" -a ! -e /etc/jalview_properties ]; then
+    # Creating the configuration file from scratch, we will put comments inside.
+
+    # Put some introductory lines in the configuration file.
+    echo "# This file is copied into a user's home directory by" > /etc/jalview_properties
+    echo "# the jalview wrapper script when no .jalview_properties file" >> /etc/jalview_properties
+    echo "# exists." >> /etc/jalview_properties
+    echo "#" >> /etc/jalview_properties
+    echo "# Changes to this file will not affect the jalview configuration" >> /etc/jalview_properties
+    echo "# for existing users (at least not at the time of writing)" >> /etc/jalview_properties
+    echo "" >> /etc/jalview_properties
+    echo "# Configure the automatic display of the Jalview Example Project for new users" >> /etc/jalview_properties
+    echo "# default is true" >> /etc/jalview_properties
+    echo "# SHOW_STARTUP_FILE=false" >> /etc/jalview_properties
+    echo "" >> /etc/jalview_properties
+    echo "# Location of the file to be loaded in on startup if SHOW_STARTUP_FILE is true" >> /etc/jalview_properties
+    echo "# default is https://www.jalview.org/examples/exampleFile_2_7.jvp" >> /etc/jalview_properties
+    echo "STARTUP_FILE=/usr/share/doc/jalview/examples/exampleFile_2_7.jvp" >> /etc/jalview_properties
+    echo "" >> /etc/jalview_properties
+
+    # If news fetching is not allowed by debconf input, uncomment the line in
+    # the configuration file.
+    echo "# Connection: https://www.jalview.org/feeds/desktop/rss" >> /etc/jalview_properties
+    echo "# uncomment to stop Jalview checking the www.jalview.org news feed" >> /etc/jalview_properties
+    db_get jalview/news
+    if [ "$RET" = "true" ]; then
+        echo '# NONEWS=true' >> /etc/jalview_properties
+    else
+        echo 'NONEWS=true' >> /etc/jalview_properties
+    fi
+    echo "" >> /etc/jalview_properties
+
+    # If the questionnaire querying is not allowed by debconf input, uncomment
+    # the line in the configuration file.
+    echo "# Uncomment to disable jalview's retrieval of https://www.jalview.org/cgi-bin/questionnaire.pl" >> /etc/jalview_properties
+    echo "# this service is used to make Jalview users aware" >> /etc/jalview_properties
+    echo "# of any community questionnaires currently active on www.jalview.org" >> /etc/jalview_properties
+    echo "# Allowed values are true/false. Default is true." >> /etc/jalview_properties
+    db_get jalview/questionnaire
+    if [ "$RET" = "true" ]; then
+        echo '# NOQUESTIONNAIRES=true' >> /etc/jalview_properties
+    else
+        echo 'NOQUESTIONNAIRES=true' >> /etc/jalview_properties
+    fi
+    echo "" >> /etc/jalview_properties
+
+    # If the identifiers service ping is not allowed by debconf input,
+    # uncomment the line in the configuration file.
+    echo "# Disable Jalview's connections to various web services" >> /etc/jalview_properties
+    echo "#" >> /etc/jalview_properties
+    echo "# Connection: https://www.jalview.org/services/identifiers" >> /etc/jalview_properties
+    echo "# uncomment to stop jalview retrieving a list of URL templates for" >> /etc/jalview_properties
+    echo "# biological databases originally provided by identifiers.org" >> /etc/jalview_properties
+    db_get jalview/identifiersservice
+    if [ "$RET" = "true" ]; then
+        echo '# NOIDENTIFIERSSERVICE=true' >> /etc/jalview_properties
+    else
+        echo 'NOIDENTIFIERSSERVICE=true' >> /etc/jalview_properties
+    fi
+    echo "" >> /etc/jalview_properties
+
+    # If discovering the JABA web services is not allowed by debconf input,
+    # uncomment the line in the configuration file.
+    echo "# Uncomment to prevent jalview automatically contacting" >> /etc/jalview_properties
+    echo "# https://www.compbio.dundee.ac.uk/jabaws/ to discover web services" >> /etc/jalview_properties
+    echo "# When disabled, users can still initiate service discovery via a button" >> /etc/jalview_properties
+    echo "# in the 'Web Services' menu." >> /etc/jalview_properties
+    echo "# Allowed values are true or false. Default is true." >> /etc/jalview_properties
+    db_get jalview/jws2services
+    if [ "$RET" = "true" ]; then
+        echo '# SHOW_JWS2_SERVICES=false' >> /etc/jalview_properties
+    else
+        echo 'SHOW_JWS2_SERVICES=false' >> /etc/jalview_properties
+    fi
+    echo "" >> /etc/jalview_properties
+
+    # If looking for HTML templates is not allowed by debconf input, uncomment
+    # the line in the configuration file.
+    echo "# Connection: https://raw.githubusercontent.com/jalview/exporter-templates/master/biojs/package.json" >> /etc/jalview_properties
+    echo "# uncomment to disable download of the latest 'BioJS' HTML export template" >> /etc/jalview_properties
+    db_get jalview/htmltemplates
+    if [ "$RET" = "true" ]; then
+        echo '# NOHTMLTEMPLATES=true' >> /etc/jalview_properties
+    else
+        echo 'NOHTMLTEMPLATES=true' >> /etc/jalview_properties
+    fi
+elif [ "$1" = "configure" -a -e /etc/jalview_properties ]; then
+    # The configuration file already exists, we are just updating its contents.
+
+    altered_File="$(mktemp -d)/jalview_properties"
+
+    # If news fetching is not allowed by debconf input, uncomment the line in
+    # the configuration file.
+    db_get jalview/news
+    if [ "$RET" = "true" ]; then
+        sed 's/.*NONEWS=.*/# NONEWS=true/' /etc/jalview_properties > $altered_File
+    else
+        sed 's/.*NONEWS=.*/NONEWS=true/' /etc/jalview_properties > $altered_File
+    fi
+    cp $altered_File /etc/jalview_properties
+
+    # If the questionnaire querying is not allowed by debconf input, uncomment
+    # the line in the configuration file.
+    db_get jalview/questionnaire
+    if [ "$RET" = "true" ]; then
+        sed 's/.*NOQUESTIONNAIRES=.*/# NOQUESTIONNAIRES=true/' /etc/jalview_properties > $altered_File
+    else
+        sed 's/.*NOQUESTIONNAIRES=.*/NOQUESTIONNAIRES=true/' /etc/jalview_properties > $altered_File
+    fi
+    cp $altered_File /etc/jalview_properties
+
+    # If the identifiers service ping is not allowed by debconf input,
+    # uncomment the line in the configuration file.
+    db_get jalview/identifiersservice
+    if [ "$RET" = "true" ]; then
+        sed 's/.*NOIDENTIFIERSSERVICE=.*/# NOIDENTIFIERSSERVICE=true/' /etc/jalview_properties > $altered_File
+    else
+        sed 's/.*NOIDENTIFIERSSERVICE=.*/NOIDENTIFIERSSERVICE=true/' /etc/jalview_properties > $altered_File
+    fi
+    cp $altered_File /etc/jalview_properties
+
+    # If discovering the JABA web services is not allowed by debconf input,
+    # uncomment the line in the configuration file.
+    db_get jalview/jws2services
+    if [ "$RET" = "true" ]; then
+        sed 's/.*SHOW_JWS2_SERVICES=.*/# SHOW_JWS2_SERVICES=false/' /etc/jalview_properties > $altered_File
+    else
+        sed 's/.*SHOW_JWS2_SERVICES=.*/SHOW_JWS2_SERVICES=false/' /etc/jalview_properties > $altered_File
+    fi
+    cp $altered_File /etc/jalview_properties
+
+    # If looking for HTML templates is not allowed by debconf input, uncomment
+    # the line in the configuration file.
+    db_get jalview/htmltemplates
+    if [ "$RET" = "true" ]; then
+        sed 's/.*NOHTMLTEMPLATES=.*/# NOHTMLTEMPLATES=true/' /etc/jalview_properties > $altered_File
+    else
+        sed 's/.*NOHTMLTEMPLATES=.*/NOHTMLTEMPLATES=true/' /etc/jalview_properties > $altered_File
+    fi
+    cp $altered_File /etc/jalview_properties
+fi
+
+#DEBHELPER#

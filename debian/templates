@@ -1,0 +1,46 @@
+Template: jalview/identifiersservice
+Type: boolean
+Default: true
+_Description: Allow downloading data automatically from identifiers.org?
+ Automatically downloading a list of URL templates for biological databases
+ from identifiers.org is a convenience for users but can be deactivated as it
+ causes an automatic ping to a web server.
+ Users can enable or disable this service from their own configuration file.
+
+Template: jalview/news
+Type: boolean
+Default: true
+_Description: Allow fetching news from the Jalview website?
+ Fetched news are put into a popup window at startup. They are informative to
+ users but imply they are automatically grasped from the Jalview website. The
+ latter records the IP address of the machine to make statistics about the
+ number of users.
+ Users can enable or disable news fetching from their own configuration file.
+
+Template: jalview/questionnaire
+Type: boolean
+Default: true
+_Description: Allow querying the Jalview website about a user questionnaire?
+ User questionnaires are proposed from time to time on the Jalview website,
+ there can be an automatic query to look for them at startup but this implies
+ pinging the Jalview website, which records the IP address of the machine to
+ make statistics about the number of users.
+ Users can enable or disable the query from their own configuration file.
+
+Template: jalview/jws2services
+Type: boolean
+Default: true
+_Description: Allow pinging the JABAWS web services at startup?
+ The JABAWS web services give access to larger analysis features than if one
+ runs only the standalone application. The ping at startup leads to discovering
+ the available services.
+ Users can enable or disable the startup discovery from their own configuration
+ file or from the settings window in the application.
+
+Template: jalview/htmltemplates
+Type: boolean
+Default: true
+_Description: Allow downloading HTML templates automatically from Github?
+ This feature allows to download the latest 'BioJS' HTML export template
+ automatically from the Github repository at startup.
+ Users can enable or disable this feature from their own configuration file.
