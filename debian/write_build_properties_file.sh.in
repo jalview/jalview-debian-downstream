@@ -4,6 +4,6 @@ set -e
 
 echo "#--Jalview Build Details--" > resources/.build_properties
 echo "#"$(date --date="$(sed -n 's/^ --.*, //; s/ [\+-][0-9]*//p' debian/changelog | head -n1)" +"%Y-%m-%d %H:%M:%S") >> resources/.build_properties
-echo "BUILD_DATE="$(date --date="$(sed -n 's/^ --.*, //; s/ [\+-][0-9]*//p' debian/changelog | head -n1)" +"%Y-%m-%d %H:%M:%S") >> resources/.build_properties
+echo "BUILD_DATE="$(date --date="$(sed -n 's/^ --.*, //; s/ [\+-][0-9]*//p' debian/changelog | head -n1)" +"%H\\:%M\\:%S %d %B %Y") >> resources/.build_properties
 echo "INSTALLATION=deb" >> resources/.build_properties
 echo "VERSION=VERSION_NUMBER" >> resources/.build_properties
