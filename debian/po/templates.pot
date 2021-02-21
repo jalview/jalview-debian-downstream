@@ -20,34 +20,41 @@ msgstr ""
 #. Type: boolean
 #. Description
 #: ../templates:1001
-msgid "Allow downloading data automatically from identifiers.org?"
+msgid "Allow downloading data automatically from www.jalview.org/services/identifiers ?"
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:1001
 msgid ""
-"Automatically downloading a list of URL templates for biological databases "
-"from identifiers.org is a convenience for users but can be deactivated as it "
-"causes an automatic ping to a web server. Users can enable or disable this "
-"service from their own configuration file."
+"Jalview can automatically download a list of identifiers.org URL templates "
+"for viewing accessions from various biological databases."
+" "
+"This is a convenience for users but can be deactivated as it "
+"causes an automatic ping to www.jalview.org, which records usage statistics.
+" "
+"Users can only override this preference from their own configuration file."
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:2001
-msgid "Allow fetching news from the Jalview website?"
+msgid "Allow automatic display of news from the Jalview website ?"
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:2001
 msgid ""
-"Fetched news are put into a popup window at startup. They are informative to "
-"users but imply they are automatically grasped from the Jalview website. The "
-"latter records the IP address of the machine to make statistics about the "
-"number of users. Users can enable or disable news fetching from their own "
-"configuration file."
+"Users will be automatically shown updates from "
+"https://www.jalview.org/feeds/desktop/rss in a popup window. "
+" "
+"The news feed is informative to users but causes an automatic ping to "
+"www.jalview.org, which records usage statistics. " 
+"If this is disabled, users may still manually open the news reader."
+" "
+"Users can override this preference using the Preferences window in 
+"the application or from their own configuration file."
 msgstr ""
 
 #. Type: boolean
@@ -60,41 +67,52 @@ msgstr ""
 #. Description
 #: ../templates:3001
 msgid ""
-"User questionnaires are proposed from time to time on the Jalview website, "
-"there can be an automatic query to look for them at startup but this implies "
-"pinging the Jalview website, which records the IP address of the machine to "
-"make statistics about the number of users. Users can enable or disable the "
-"query from their own configuration file."
+"User questionnaires are posted from time to time on www.jalview.org, "
+"and Jalview can automatically query the site to look for them on startup,
+"in order to prompt users to complete them."
+" "
+"Questionnaires are optional, and used by the Jalview developers to learn "
+"about the wishes of the Jalview community. The questionnaires service "
+"is also used to record usage statistics."
+" "
+"Users can enable or disable the query from their own configuration file, "
+"or from the Preferences window in the application."
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:4001
-msgid "Allow pinging the JABAWS web services at startup?"
+msgid "Allow discovery of alignment and analysis web services at startup ?"
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:4001
 msgid ""
-"The JABAWS web services give access to larger analysis features than if one "
-"runs only the standalone application. The ping at startup leads to "
-"discovering the available services. Users can enable or disable the startup "
-"discovery from their own configuration file or from the settings window in "
-"the application."
+"The JABAWS web services (www.compbio.dundee.ac.uk/jabaws) provide access "
+"to a range of multiple sequence alignment and analysis services. "
+" "
+"Jalview can automatically query the public (or any other configured) "
+"JABAWS services on start-up. Otherwise, they will need to initiate discovery "
+"with a menu option. "
+" "
+"Users can enable or disable startup "
+"discovery from their own configuration file or from the Preferences window "
+"in the application."
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:5001
-msgid "Allow downloading HTML templates automatically from Github?"
+msgid "Allow download of HTML export templates automatically from Github ?"
 msgstr ""
 
 #. Type: boolean
 #. Description
 #: ../templates:5001
 msgid ""
-"This feature allows to download the latest 'BioJS' HTML export template "
-"automatically from the Github repository at startup. Users can enable or "
-"disable this feature from their own configuration file."
+"Jalview automatically downloads the latest 'BioJS' HTML export template "
+"from a Github repository on startup (https://github.com/jalview/exporter-templates). "
+" "
+" Users can only enable or disable this feature from their own configuration file."
 msgstr ""
